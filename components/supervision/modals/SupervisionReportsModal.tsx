@@ -277,7 +277,7 @@ const SupervisionReportsModalContent: React.FC<Props> = ({
               <BarChart3 size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-800">تقارير المشرفين</h2>
+              <h2 className="text-xl font-black text-slate-800">تقارير الإشراف</h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">تقارير الأداء للمشرفين</p>
             </div>
           </div>
