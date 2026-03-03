@@ -159,11 +159,11 @@ const SupervisionMonitoring: React.FC<Props> = ({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
-            { label: 'حاضر', value: todayStats.present, color: 'text-green-600', bg: 'bg-slate-50 border-slate-100' },
-            { label: 'غائب', value: todayStats.absent, color: 'text-red-600', bg: 'bg-slate-50 border-slate-100' },
-            { label: 'مستأذن', value: todayStats.excused, color: 'text-blue-600', bg: 'bg-slate-50 border-slate-100' },
-            { label: 'منسحب', value: todayStats.withdrawn, color: 'text-orange-600', bg: 'bg-slate-50 border-slate-100' },
-            { label: 'متأخر', value: todayStats.late, color: 'text-amber-600', bg: 'bg-slate-50 border-slate-100' },
+            { label: 'حاضر', value: todayStats.present, color: 'text-green-600', bg: 'bg-slate-50 border-slate-300' },
+            { label: 'غائب', value: todayStats.absent, color: 'text-red-600', bg: 'bg-slate-50 border-slate-300' },
+            { label: 'مستأذن', value: todayStats.excused, color: 'text-blue-600', bg: 'bg-slate-50 border-slate-300' },
+            { label: 'منسحب', value: todayStats.withdrawn, color: 'text-orange-600', bg: 'bg-slate-50 border-slate-300' },
+            { label: 'متأخر', value: todayStats.late, color: 'text-amber-600', bg: 'bg-slate-50 border-slate-300' },
           ].map(s => (
             <div key={s.label} className={`${s.bg} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
               <p className={`text-3xl font-black ${s.color} mb-1`}>{s.value}</p>

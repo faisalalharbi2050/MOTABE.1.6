@@ -247,7 +247,7 @@ const SupervisionReportsModalContent: React.FC<Props> = ({
                 { label: 'مستأذن', value: allStats.excused, color: '#2563eb' },
                 { label: 'منسحب', value: allStats.withdrawn, color: '#ea580c' },
               ].map(s => (
-                <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
+                <div key={s.label} className="bg-slate-50 border border-slate-300 rounded-2xl p-4 text-center">
                   <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
                   <p className="text-xs font-bold text-slate-600 mt-1">{s.label}</p>
                 </div>

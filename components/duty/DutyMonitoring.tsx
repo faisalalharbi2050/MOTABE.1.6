@@ -178,7 +178,7 @@ const DutyMonitoringModal: React.FC<Props> = ({
                   { label: 'مستأذن', val: todayStats.excused, color: 'text-blue-500', bg: 'bg-slate-50 border-slate-100' },
                   { label: 'منسحب', val: todayStats.withdrawn, color: 'text-orange-500', bg: 'bg-slate-50 border-slate-100' },
                 ].map(s => (
-                  <div key={s.label} className={`${s.bg} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
+                  <div key={s.label} className={`${s.bg.replace('border-slate-100','border-slate-300')} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
                     <p className={`text-3xl font-black ${s.color}`}>{s.val}</p>
                     <p className={`text-sm font-bold ${s.color} mt-1`}>{s.label}</p>
                   </div>
