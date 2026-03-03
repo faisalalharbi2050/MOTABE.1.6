@@ -334,7 +334,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
     <div class="stat-box"><div class="stat-val" style="color: #3b82f6;">${stats.excused}</div><div class="stat-label">مستأذن</div></div>
     <div class="stat-box"><div class="stat-val" style="color: #f97316;">${stats.withdrawn}</div><div class="stat-label">منسحب</div></div>
     <div class="stat-box"><div class="stat-val" style="color: #f59e0b;">${stats.late}</div><div class="stat-label">متأخر</div></div>
-    <div class="stat-box"><div class="stat-val" style="color: #6366f1;">${stats.submitted}</div><div class="stat-label">تقرير مسلم</div></div>
+    <div class="stat-box"><div class="stat-val" style="color: #6366f1;">${stats.submitted}</div><div class="stat-label">تقرير مُسلّم</div></div>
   </div>
 
   <table>
@@ -446,7 +446,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                     { label: 'متأخر', val: allStats.late, color: 'text-amber-600' },
                     { label: 'مستأذن', val: allStats.excused, color: 'text-blue-500' },
                     { label: 'منسحب', val: allStats.withdrawn, color: 'text-orange-500' },
-                    { label: 'تقرير مسلم', val: allStats.submitted, color: 'text-violet-600' },
+                    { label: 'تقرير مُسلّم', val: allStats.submitted, color: 'text-violet-600' },
                   ].map(s => (
                     <div key={s.label} className="bg-slate-50 border border-slate-300 rounded-2xl p-4 text-center">
                       <p className={`text-3xl font-black ${s.color}`}>{s.val}</p>
