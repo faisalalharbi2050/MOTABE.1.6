@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Printer, Edit, ToggleLeft, ToggleRight, Calendar, FileText } from 'lucide-react';
 import { SchoolInfo, DutyScheduleData } from '../../../types';
 import { getDutyPrintData } from '../../../utils/dutyUtils';
+import { printDutyReport } from '../DutyReportViewModal';
 
 interface Props {
   isOpen: boolean;
@@ -154,158 +155,8 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
 
   // ── TAB 2: Print blank daily report template ──────────────────────────────
   const handlePrintBlankReport = () => {
-    const printWin = window.open('', '_blank');
-    if (!printWin) return;
-
-    const LATE_ROWS = 5;
-    const VIOLATION_ROWS = 5;
-
-    const lateRowsHtml = Array(LATE_ROWS).fill(0).map((_, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td style="text-align:right;padding-right:4px;"></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>`).join('');
-
-    const violationRowsHtml = Array(VIOLATION_ROWS).fill(0).map((_, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td style="text-align:right;padding-right:4px;"></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>`).join('');
-
-    printWin.document.write(`
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="UTF-8">
-<title>نموذج تقرير المناوبة اليومية</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; background: #fff; font-size: 10px; color: #1e293b; }
-  @page { size: A4; margin: 12mm 15mm; }
-  .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #655ac1; padding-bottom: 8px; margin-bottom: 10px; }
-  .doc-title { font-size: 14px; font-weight: 900; color: #655ac1; text-align: center; }
-  .doc-subtitle { font-size: 10px; font-weight: bold; color: #8779fb; text-align: center; margin-top: 2px; }
-  .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px; }
-  .meta-box { border: 1px solid #ddd6fe; border-radius: 4px; padding: 4px 6px; text-align: center; }
-  .meta-box label { font-size: 8px; font-weight: bold; color: #64748b; display: block; }
-  .meta-box span { font-size: 10px; font-weight: 900; color: #1e293b; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9.5px; }
-  .section-title { font-size: 11px; font-weight: 900; color: white; padding: 4px 8px; border-radius: 4px 4px 0 0; display: block; margin-top: 6px; background: #8779fb; }
-  th { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; padding: 4px; font-weight: bold; text-align: center; }
-  td { border: 1px solid #e2e8f0; padding: 5px 4px; text-align: center; vertical-align: middle; min-height: 20px; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  .sig-cell { height: 50px; }
-  .doc-footer { margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 6px; }
-  .footer-text { font-size: 9px; font-weight: bold; color: #64748b; text-align: center; margin-bottom: 10px; }
-  .sig-block { display: flex; justify-content: flex-start; gap: 40px; padding: 0 12px; }
-  .sig-person { text-align: center; }
-  .sig-name { font-size: 10px; font-weight: 900; color: #334155; }
-  .sig-line { display: block; border-top: 1px dotted #94a3b8; min-width: 130px; margin-top: 20px; padding-top: 3px; font-size: 9px; color: #94a3b8; }
-  @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .section-title { background: #8779fb !important; color: white !important; }
-    th { background: #f1f5f9 !important; }
-    tr:nth-child(even) td { background: #f8fafc !important; }
-  }
-</style>
-</head>
-<body>
-
-<div class="doc-header">
-  <div>
-    <div style="font-size:9px;font-weight:bold;color:#64748b;">المملكة العربية السعودية | وزارة التعليم</div>
-    <div style="font-size:9px;font-weight:bold;color:#64748b;">${schoolInfo.region || ''}</div>
-  </div>
-  <div>
-    <div class="doc-title">نموذج تقرير المناوبة اليومية</div>
-    <div class="doc-subtitle">${schoolInfo.schoolName || ''}</div>
-  </div>
-  <div style="text-align:left;font-size:9px;font-weight:bold;color:#475569;">
-    <div>العام الدراسي: ${schoolInfo.academicYear || '........'}</div>
-  </div>
-</div>
-
-<div class="meta-grid">
-  <div class="meta-box"><label>اليوم</label><span>............</span></div>
-  <div class="meta-box"><label>التاريخ الميلادي</label><span>............</span></div>
-  <div class="meta-box"><label>التاريخ الهجري</label><span>............</span></div>
-  <div class="meta-box"><label>المدرسة</label><span>${schoolInfo.schoolName || '............'}</span></div>
-</div>
-
-<span class="section-title">أولاً: المناوبون</span>
-<table>
-  <thead>
-    <tr>
-      <th style="width:6%;">م</th>
-      <th>اسم المناوب</th>
-      <th style="width:22%;">التوقيع</th>
-      <th>ملاحظات</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>1</td><td></td><td class="sig-cell"></td><td></td></tr>
-    <tr style="background:#f9f7ff;"><td>2</td><td></td><td class="sig-cell"></td><td></td></tr>
-  </tbody>
-</table>
-
-<span class="section-title">ثانياً: المتأخرون</span>
-<table>
-  <thead>
-    <tr>
-      <th style="width:5%;">م</th>
-      <th>اسم الطالب</th>
-      <th style="width:14%;">الصف / الفصل</th>
-      <th style="width:12%;">زمن الانصراف</th>
-      <th style="width:18%;">الإجراء</th>
-      <th>ملاحظات</th>
-    </tr>
-  </thead>
-  <tbody>${lateRowsHtml}</tbody>
-</table>
-
-<span class="section-title">ثالثاً: المخالفون</span>
-<table>
-  <thead>
-    <tr>
-      <th style="width:5%;">م</th>
-      <th>اسم الطالب</th>
-      <th style="width:14%;">الصف / الفصل</th>
-      <th style="width:18%;">المخالفة السلوكية</th>
-      <th style="width:18%;">الإجراء</th>
-      <th>ملاحظات</th>
-    </tr>
-  </thead>
-  <tbody>${violationRowsHtml}</tbody>
-</table>
-
-<div class="doc-footer">
-  <div class="footer-text">سُلِّم هذا النموذج لوكيل الشؤون التعليمية</div>
-  <div class="sig-block">
-    <div class="sig-person">
-      <div class="sig-name">مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
-      <span class="sig-line">التوقيع</span>
-    </div>
-    <div class="sig-person">
-      <div class="sig-name">وكيل الشؤون التعليمية / ${(schoolInfo as any).educationalAgent || '..........................'}</div>
-      <span class="sig-line">التوقيع</span>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>`);
-
-    printWin.document.close();
-    setTimeout(() => printWin.print(), 300);
-    showToast('تم فتح نافذة طباعة القالب', 'success');
+    printDutyReport(null, '', '', '', schoolInfo, true);
+    showToast('تم فتح نافذة طباعة النموذج', 'success');
   };
 
   const LATE_ROWS = 5;

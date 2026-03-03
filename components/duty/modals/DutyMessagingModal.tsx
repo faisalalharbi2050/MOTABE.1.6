@@ -44,11 +44,16 @@ const DutyMessagingModal: React.FC<Props> = ({
   const [masterTemplate, setMasterTemplate] = useState('');
   const [customMessages, setCustomMessages] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [includeReportLink, setIncludeReportLink] = useState(false);
+  const [includeReportLink, setIncludeReportLink] = useState(true);
 
   const calendarType = (schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0])?.calendarType || 'hijri';
   const timing = getTimingConfig(schoolInfo);
   const activeDays = timing.activeDays || DAYS.slice();
+
+  // Build the base URL for the report form link (uses current app origin so link actually works)
+  const appBaseUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}`
+    : 'https://motabe.app/';
 
   // ── Collect all weeks ──────────────────────────────────────────────────────
   const weeks = useMemo(() => {
@@ -70,6 +75,7 @@ const DutyMessagingModal: React.FC<Props> = ({
       date: string;          // actual YYYY-MM-DD
       weekName: string;
       message: string;
+      reportUrl: string;
     }[] = [];
 
     weeks.forEach(week => {
@@ -88,10 +94,13 @@ const DutyMessagingModal: React.FC<Props> = ({
           const staffType = sa.staffType || (teachers.some(t => t.id === sa.staffId) ? 'teacher' : 'admin');
           // Unique key: week + day + staff (a staff may appear in multiple weeks)
           const key = `${week.weekId}-${da.day}-${sa.staffId}`;
+          const reportUrl = `${appBaseUrl}?staffId=${encodeURIComponent(sa.staffId)}&staffName=${encodeURIComponent(sa.staffName)}&day=${da.day}&date=${da.date || da.day}&school=${encodeURIComponent(schoolInfo.schoolName || '')}`;
           const baseMsg = messageType === 'assignment'
             ? generateDutyAssignmentMessage(sa.staffName, staffType, da.day, dateFormatted, schoolInfo.gender)
             : generateDutyReminderMessage(sa.staffName, staffType, da.day, dateFormatted, schoolInfo.gender)
-                + (includeReportLink ? `\n\n📋 رابط نموذج التقرير:\nhttps://motabe.app/report/${da.date || da.day}/${sa.staffId}` : '');
+                + (includeReportLink
+                  ? `\n\n📋 *نموذج تقرير المناوبة اليومية:*\nيُرجى تعبئة النموذج بعد انتهاء المناوبة وإرساله من خلال الرابط التالي:\n${reportUrl}`
+                  : '');
           const message = customMessages[key] ?? baseMsg;
 
           result.push({
@@ -103,12 +112,13 @@ const DutyMessagingModal: React.FC<Props> = ({
             date: da.date || '',
             weekName: week.weekName,
             message,
+            reportUrl,
           });
         });
       });
     });
     return result;
-  }, [weeks, filterWeek, filterDay, messageType, customMessages, teachers, schoolInfo.gender, includeReportLink]);
+  }, [weeks, filterWeek, filterDay, messageType, customMessages, teachers, schoolInfo.gender, schoolInfo.schoolName, includeReportLink, appBaseUrl]);
 
   // ── Select helpers ─────────────────────────────────────────────────────────
   const allSelected = rows.length > 0 && rows.every(r => selectedIds.has(r.key));
@@ -181,7 +191,7 @@ const DutyMessagingModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
 
@@ -270,7 +280,7 @@ const DutyMessagingModal: React.FC<Props> = ({
                     onChange={e => setIncludeReportLink(e.target.checked)}
                     className="w-4 h-4 accent-[#8779fb]"
                   />
-                  <span className="text-xs font-bold text-[#655ac1]">تضمين رابط التقرير</span>
+                  <span className="text-xs font-bold text-[#655ac1]">تضمين رابط نموذج التقرير اليومي</span>
                 </label>
               )}
 
@@ -476,6 +486,15 @@ const DutyMessagingModal: React.FC<Props> = ({
                               >
                                 <Send size={13} className="text-[#007AFF]" />
                               </button>
+                              {messageType === 'reminder' && row.reportUrl && (
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText(row.reportUrl); showToast('تم نسخ الرابط', 'success'); }}
+                                  title="نسخ رابط النموذج"
+                                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-[#655ac1] transition-all active:scale-95"
+                                >
+                                  <Copy size={13} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

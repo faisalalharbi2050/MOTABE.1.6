@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Shield, Clock, AlertTriangle, Users, Check, X, ArrowLeft, Edit3, Trash2, Plus, ChevronDown } from 'lucide-react';
+import { Shield, Clock, AlertTriangle, Users, Check, X, Edit3, Trash2, Plus, ChevronDown } from 'lucide-react';
 import { DutyReportRecord, DutyStudentLate, DutyStudentViolation, SchoolInfo } from '../../types';
 import SignaturePad, { SignaturePadRef } from '../ui/SignaturePad';
 
@@ -116,8 +116,8 @@ const DutyReportEntry: React.FC<Props> = ({
     ...Array(5).fill(null).map(() => emptyViolation())
   ]);
 
-  const [activeTab, setActiveTab] = useState<'late' | 'violations'>('late');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const signatureRef = useRef<SignaturePadRef>(null);
 
   const hijriDate = toHijri(date);
@@ -166,12 +166,8 @@ const DutyReportEntry: React.FC<Props> = ({
 
     setTimeout(() => {
       onSubmit(report);
-      showToast('تم رفع تقرير المناوبة بنجاح', 'success');
-      if (filledLate.length > 0 || filledViol.length > 0) {
-        setTimeout(() => showToast('تم تحويل سجل المخالفات إلكترونياً لوكيل شؤون الطلاب', 'success'), 1000);
-      }
       setIsSubmitting(false);
-      onClose();
+      setSubmitted(true);
     }, 800);
   };
 
@@ -179,22 +175,40 @@ const DutyReportEntry: React.FC<Props> = ({
   const inp = 'w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:border-[#8779fb] focus:ring-[#8779fb]';
   const sel = inp + ' cursor-pointer';
 
+  // ── Success Screen ────────────────────────────────────────────────────
+  if (submitted) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 z-[9999] flex flex-col items-center justify-center gap-6 p-8" dir="rtl">
+        <div className="w-28 h-28 rounded-full bg-[#e5e1fe] flex items-center justify-center shadow-xl">
+          <Check size={56} className="text-[#655ac1]" strokeWidth={3} />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-2xl font-black text-slate-800">تم إرسال التقرير بنجاح</p>
+          <p className="text-sm font-medium text-slate-500">تم استلام نموذج تقرير المناوبة اليومية</p>
+          <p className="text-sm font-bold text-[#655ac1]">{staffName}</p>
+        </div>
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-5 w-full max-w-sm space-y-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 font-medium">اليوم</span>
+            <span className="font-black text-slate-800">{DAY_NAMES_AR[day] || day}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500 font-medium">حالة التقرير</span>
+            <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-1 rounded-full">✔ مُرسَل</span>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="px-10 py-3.5 bg-[#8779fb] hover:bg-[#655ac1] active:scale-95 text-white rounded-2xl font-black shadow-lg shadow-[#8779fb]/20 transition-all"
+        >
+          إغلاق
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-50 z-[9999] overflow-y-auto flex flex-col animate-in fade-in slide-in-from-bottom-4" dir="rtl">
-
-      {/* ── Sticky Header ───────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="flex items-center justify-between p-4 max-w-4xl mx-auto w-full">
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          <div className="text-center">
-            <p className="font-black text-slate-800 text-base">نموذج تقرير المناوبة اليومية</p>
-            <p className="text-xs text-slate-500 font-medium">{schoolInfo.schoolName}</p>
-          </div>
-          <div className="w-10 h-10" /> {/* Spacer */}
-        </div>
-      </div>
 
       <div className="flex-1 w-full max-w-4xl mx-auto p-4 space-y-5 pb-24">
 
@@ -252,151 +266,145 @@ const DutyReportEntry: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* ── Tabs ────────────────────────────────────────────────────────── */}
+        {/* ── Late Students Table ──────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="flex border-b border-slate-100 bg-slate-50/50">
-            <button
-              onClick={() => setActiveTab('late')}
-              className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${activeTab === 'late' ? 'text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Clock size={16} /> المتأخرون ({lateRows.filter(r => r.studentName.trim()).length})
-              {activeTab === 'late' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#8779fb] rounded-t-full" />}
-            </button>
-            <button
-              onClick={() => setActiveTab('violations')}
-              className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${activeTab === 'violations' ? 'text-rose-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <AlertTriangle size={16} /> المخالفون ({violationRows.filter(r => r.studentName.trim()).length})
-              {activeTab === 'violations' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-rose-500 rounded-t-full" />}
+          <div className="px-5 py-3 bg-[#655ac1] flex items-center gap-2">
+            <Clock size={15} className="text-white" />
+            <span className="text-sm font-black text-white">الطلاب المتأخرون</span>
+            <span className="mr-auto bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {lateRows.filter(r => r.studentName.trim()).length} طالب
+            </span>
+          </div>
+          <div className="p-4 overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-[#655ac1]/10 text-[#655ac1] text-center">
+                  <th className="p-2 rounded-tr-lg w-8">م</th>
+                  <th className="p-2">اسم الطالب</th>
+                  <th className="p-2">الصف / الفصل</th>
+                  <th className="p-2 w-28">زمن الانصراف</th>
+                  <th className="p-2 w-36">الإجراء</th>
+                  <th className="p-2">ملاحظات</th>
+                  <th className="p-2 rounded-tl-lg w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lateRows.map((row, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                    <td className="p-1.5 text-center font-bold text-slate-500">{idx + 1}</td>
+                    <td className="p-1.5">
+                      <input className={inp} value={row.studentName} onChange={e => updateLateField(idx, 'studentName', e.target.value)} placeholder="الاسم الرباعي" />
+                    </td>
+                    <td className="p-1.5">
+                      <input className={inp} value={row.gradeAndClass} onChange={e => updateLateField(idx, 'gradeAndClass', e.target.value)} placeholder="ثالث / ٢" />
+                    </td>
+                    <td className="p-1.5">
+                      <input className={inp} type="time" value={row.exitTime} onChange={e => updateLateField(idx, 'exitTime', e.target.value)} />
+                    </td>
+                    <td className="p-1.5">
+                      <MultiSelectDropdown
+                        options={LATE_ACTION_OPTIONS}
+                        value={row.actionTaken}
+                        onChange={v => updateLateField(idx, 'actionTaken', v)}
+                      />
+                    </td>
+                    <td className="p-1.5">
+                      <textarea
+                        className={inp + ' resize-none min-h-[40px] leading-relaxed'}
+                        value={row.notes || ''}
+                        onChange={e => updateLateField(idx, 'notes', e.target.value)}
+                        placeholder="ملاحظات تفصيلية..."
+                        rows={2}
+                      />
+                    </td>
+                    <td className="p-1.5 text-center">
+                      {lateRows.length > 1 && (
+                        <button onClick={() => removeLateRow(idx)} className="w-6 h-6 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg mx-auto transition-colors">
+                          <X size={12} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button onClick={addLateRow} className="mt-3 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#655ac1] hover:border-indigo-300 hover:bg-violet-50/50 text-xs font-bold flex items-center justify-center gap-1 transition-all">
+              <Plus size={13} /> إضافة صف
             </button>
           </div>
+        </div>
 
-          {/* ── Late Students Table ──────────────────────────────────────── */}
-          {activeTab === 'late' && (
-            <div className="p-4 overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#655ac1] text-white text-center">
-                    <th className="p-2 rounded-tr-lg w-8">م</th>
-                    <th className="p-2">اسم الطالب</th>
-                    <th className="p-2">الصف / الفصل</th>
-                    <th className="p-2 w-28">زمن الانصراف</th>
-                    <th className="p-2 w-36">الإجراء</th>
-                    <th className="p-2">ملاحظات</th>
-                    <th className="p-2 rounded-tl-lg w-8"></th>
+        {/* ── Violations Table ─────────────────────────────────────────────── */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-3 bg-[#7c6ff0] flex items-center gap-2">
+            <AlertTriangle size={15} className="text-white" />
+            <span className="text-sm font-black text-white">الطلاب المخالفون سلوكياً</span>
+            <span className="mr-auto bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {violationRows.filter(r => r.studentName.trim()).length} طالب
+            </span>
+          </div>
+          <div className="p-4 overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-[#7c6ff0]/10 text-[#7c6ff0] text-center">
+                  <th className="p-2 rounded-tr-lg w-8">م</th>
+                  <th className="p-2">اسم الطالب</th>
+                  <th className="p-2">الصف / الفصل</th>
+                  <th className="p-2 w-32">المخالفة السلوكية</th>
+                  <th className="p-2 w-36">الإجراء</th>
+                  <th className="p-2">ملاحظات</th>
+                  <th className="p-2 rounded-tl-lg w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {violationRows.map((row, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-violet-50/30'}>
+                    <td className="p-1.5 text-center font-bold text-slate-500">{idx + 1}</td>
+                    <td className="p-1.5">
+                      <input className={inp} value={row.studentName} onChange={e => updateViolationField(idx, 'studentName', e.target.value)} placeholder="الاسم الرباعي" />
+                    </td>
+                    <td className="p-1.5">
+                      <input className={inp} value={row.gradeAndClass} onChange={e => updateViolationField(idx, 'gradeAndClass', e.target.value)} placeholder="ثالث / ٢" />
+                    </td>
+                    <td className="p-1.5">
+                      <input
+                        className={inp}
+                        value={row.violationType}
+                        onChange={e => updateViolationField(idx, 'violationType', e.target.value)}
+                        placeholder="كتابة المخالفة..."
+                      />
+                    </td>
+                    <td className="p-1.5">
+                      <MultiSelectDropdown
+                        options={VIOLATION_ACTION_OPTIONS}
+                        value={row.actionTaken}
+                        onChange={v => updateViolationField(idx, 'actionTaken', v)}
+                      />
+                    </td>
+                    <td className="p-1.5">
+                      <input className={inp} value={row.notes || ''} onChange={e => updateViolationField(idx, 'notes', e.target.value)} placeholder="اختياري" />
+                    </td>
+                    <td className="p-1.5 text-center">
+                      {violationRows.length > 1 && (
+                        <button onClick={() => removeViolationRow(idx)} className="w-6 h-6 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg mx-auto transition-colors">
+                          <X size={12} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {lateRows.map((row, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                      <td className="p-1.5 text-center font-bold text-slate-500">{idx + 1}</td>
-                      <td className="p-1.5">
-                        <input className={inp} value={row.studentName} onChange={e => updateLateField(idx, 'studentName', e.target.value)} placeholder="الاسم الرباعي" />
-                      </td>
-                      <td className="p-1.5">
-                        <input className={inp} value={row.gradeAndClass} onChange={e => updateLateField(idx, 'gradeAndClass', e.target.value)} placeholder="ثالث / ٢" />
-                      </td>
-                      <td className="p-1.5">
-                        <input className={inp} type="time" value={row.exitTime} onChange={e => updateLateField(idx, 'exitTime', e.target.value)} />
-                      </td>
-                      <td className="p-1.5">
-                        <MultiSelectDropdown
-                          options={LATE_ACTION_OPTIONS}
-                          value={row.actionTaken}
-                          onChange={v => updateLateField(idx, 'actionTaken', v)}
-                        />
-                      </td>
-                      <td className="p-1.5">
-                        <textarea
-                          className={inp + ' resize-none min-h-[40px] leading-relaxed'}
-                          value={row.notes || ''}
-                          onChange={e => updateLateField(idx, 'notes', e.target.value)}
-                          placeholder="ملاحظات تفصيلية..."
-                          rows={2}
-                        />
-                      </td>
-                      <td className="p-1.5 text-center">
-                        {lateRows.length > 1 && (
-                          <button onClick={() => removeLateRow(idx)} className="w-6 h-6 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg mx-auto transition-colors">
-                            <X size={12} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button onClick={addLateRow} className="mt-3 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#655ac1] hover:border-indigo-300 hover:bg-violet-50/50 text-xs font-bold flex items-center justify-center gap-1 transition-all">
-                <Plus size={13} /> إضافة صف
-              </button>
-            </div>
-          )}
-
-          {/* ── Violations Table ─────────────────────────────────────────── */}
-          {activeTab === 'violations' && (
-            <div className="p-4 overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#7c6ff0] text-white text-center">
-                    <th className="p-2 rounded-tr-lg w-8">م</th>
-                    <th className="p-2">اسم الطالب</th>
-                    <th className="p-2">الصف / الفصل</th>
-                    <th className="p-2 w-32">المخالفة السلوكية</th>
-                    <th className="p-2 w-36">الإجراء</th>
-                    <th className="p-2">ملاحظات</th>
-                    <th className="p-2 rounded-tl-lg w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {violationRows.map((row, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-violet-50/30'}>
-                      <td className="p-1.5 text-center font-bold text-slate-500">{idx + 1}</td>
-                      <td className="p-1.5">
-                        <input className={inp} value={row.studentName} onChange={e => updateViolationField(idx, 'studentName', e.target.value)} placeholder="الاسم الرباعي" />
-                      </td>
-                      <td className="p-1.5">
-                        <input className={inp} value={row.gradeAndClass} onChange={e => updateViolationField(idx, 'gradeAndClass', e.target.value)} placeholder="ثالث / ٢" />
-                      </td>
-                      <td className="p-1.5">
-                        <input
-                          className={inp}
-                          value={row.violationType}
-                          onChange={e => updateViolationField(idx, 'violationType', e.target.value)}
-                          placeholder="كتابة المخالفة..."
-                        />
-                      </td>
-                      <td className="p-1.5">
-                        <MultiSelectDropdown
-                          options={VIOLATION_ACTION_OPTIONS}
-                          value={row.actionTaken}
-                          onChange={v => updateViolationField(idx, 'actionTaken', v)}
-                        />
-                      </td>
-                      <td className="p-1.5">
-                        <input className={inp} value={row.notes || ''} onChange={e => updateViolationField(idx, 'notes', e.target.value)} placeholder="اختياري" />
-                      </td>
-                      <td className="p-1.5 text-center">
-                        {violationRows.length > 1 && (
-                          <button onClick={() => removeViolationRow(idx)} className="w-6 h-6 flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg mx-auto transition-colors">
-                            <X size={12} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button onClick={addViolationRow} className="mt-3 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#8779fb] hover:border-violet-300 hover:bg-violet-50/50 text-xs font-bold flex items-center justify-center gap-1 transition-all">
-                <Plus size={13} /> إضافة صف
-              </button>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+            <button onClick={addViolationRow} className="mt-3 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#8779fb] hover:border-violet-300 hover:bg-violet-50/50 text-xs font-bold flex items-center justify-center gap-1 transition-all">
+              <Plus size={13} /> إضافة صف
+            </button>
+          </div>
         </div>
 
         {/* ── Signature Pad ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
           <h3 className="font-black text-slate-800 text-sm mb-3 flex items-center gap-2">
-            <Edit3 size={18} className="text-[#8779fb]" /> التوقيع الحي (إلزامي)
+            <Edit3 size={18} className="text-[#8779fb]" /> التوقيع
           </h3>
           <div className="border-2 border-dashed border-slate-200 rounded-2xl h-40 bg-slate-50 relative overflow-hidden group">
             <SignaturePad
@@ -418,29 +426,21 @@ const DutyReportEntry: React.FC<Props> = ({
           </div>
         </div>
 
-      </div>
-
-      {/* ── Sticky Bottom Actions ─────────────────────────────────────────── */}
-      <div className="bg-white border-t border-slate-200 p-4 sticky bottom-0 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-        <div className="max-w-4xl mx-auto flex gap-3">
-          <button
-            onClick={onClose}
-            className="w-14 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-all"
-          >
-            <X size={20} />
-          </button>
+        {/* ── Actions ──────────────────────────────────────────────────────── */}
+        <div className="pb-8">
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-1 bg-[#8779fb] hover:bg-[#655ac1] active:scale-95 text-white py-4 rounded-2xl font-black shadow-lg shadow-[#8779fb]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100"
+            className="w-full bg-[#8779fb] hover:bg-[#655ac1] active:scale-95 text-white py-4 rounded-2xl font-black shadow-lg shadow-[#8779fb]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100"
           >
             {isSubmitting ? (
-              <span className="animate-pulse">جاري الرفع...</span>
+              <span className="animate-pulse">جاري الإرسال...</span>
             ) : (
-              <><Check size={20} /> اعتماد وإرسال التقرير</>
+              <><Check size={20} /> إرسال التقرير</>
             )}
           </button>
         </div>
+
       </div>
     </div>
   );

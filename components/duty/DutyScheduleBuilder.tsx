@@ -3,7 +3,7 @@ import {
   Calendar, Plus, X, Trash2, Zap,
   AlertTriangle, Search, Shield, Info, CheckCircle2, Check, BarChart2,
   FileText, UmbrellaOff, ClipboardCheck, ClipboardX,
-  Bell, Send
+  Bell, Send, Eye
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -14,6 +14,7 @@ import {
   generateSmartDutyAssignment, validateDutyGoldenRule
 } from '../../utils/dutyUtils';
 import DutyReportEntry from './DutyReportEntry';
+import DutyReportViewModal from './DutyReportViewModal';
 
 interface Props {
   dutyData: DutyScheduleData;
@@ -39,7 +40,22 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   const reportRef = useRef<HTMLDivElement>(null);
 
   // State for opening the report entry form (per staff per day)
+  // Lazy-init: read URL params synchronously on first render so the form
+  // opens immediately without waiting for a useEffect cycle.
   const [reportEntryOpen, setReportEntryOpen] = useState<{
+    staffId: string; staffName: string; day: string; date: string;
+  } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const p = new URLSearchParams(window.location.search);
+    const staffId   = p.get('staffId');
+    const staffName = p.get('staffName');
+    const day       = p.get('day');
+    const date      = p.get('date');
+    return (staffId && staffName && day && date) ? { staffId, staffName, day, date } : null;
+  });
+
+  // State for read-only report preview modal
+  const [reportViewOpen, setReportViewOpen] = useState<{
     staffId: string; staffName: string; day: string; date: string;
   } | null>(null);
 
@@ -274,6 +290,14 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   const { valid: isGoldenRuleValid } = validateDutyGoldenRule(dayAssignments);
 
+  // Clean URL params once on mount (after lazy-init already consumed them)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('staffId')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Scroll to report when it appears
   useEffect(() => {
     if (showDistributionReport && reportRef.current) {
@@ -306,7 +330,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   return (
     <div className="space-y-6">
 
-      {/* Report Entry Form – full screen overlay */}
+      {/* Report Entry Form – full screen overlay (used when filling via in-app link) */}
       {reportEntryOpen && (
         <DutyReportEntry
           staffId={reportEntryOpen.staffId}
@@ -320,6 +344,19 @@ const DutyScheduleBuilder: React.FC<Props> = ({
             setReportEntryOpen(null);
           }}
           showToast={showToast}
+        />
+      )}
+
+      {/* Report View Modal – read-only preview of submitted report */}
+      {reportViewOpen && (
+        <DutyReportViewModal
+          isOpen={true}
+          onClose={() => setReportViewOpen(null)}
+          report={getStaffReport(reportViewOpen.day, reportViewOpen.staffId) || null}
+          staffName={reportViewOpen.staffName}
+          day={reportViewOpen.day}
+          date={reportViewOpen.date}
+          schoolInfo={schoolInfo}
         />
       )}
 
@@ -522,9 +559,9 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       <th className="p-4 font-black text-slate-700 w-28 border-l border-slate-200/60">التاريخ</th>
                       <th className="p-4 font-black text-slate-700 max-w-[160px] border-l border-slate-200/60">المناوب</th>
                       {/* New: Report Form column — hidden when printing */}
-                      <th className="p-4 font-black text-slate-700 w-36 text-center border-l border-slate-200/60 print:hidden">نموذج التقرير اليومي</th>
+                      <th className="p-4 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden">معاينة وطباعة نموذج التقرير اليومي</th>
                       {/* New: Report Submission status column */}
-                      <th className="p-4 font-black text-slate-700 w-40 text-center border-l border-slate-200/60 print:hidden">تسليم النموذج اليومي</th>
+                      <th className="p-4 font-black text-slate-700 w-40 text-center border-l border-slate-200/60 print:hidden">متابعة تسليم النموذج اليومي</th>
                       {/* Actions column */}
                       <th className="p-4 font-black text-slate-700 w-28 text-center print:hidden">الإجراءات</th>
                     </tr>
@@ -647,22 +684,32 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                             )}
                           </td>
 
-                          {/* ── NEW: Report Form Column (hidden in print) ── */}
+                          {/* ── معاينة نموذج التقرير اليومي (قراءة فقط) ── */}
                           <td className="p-2 border-l border-slate-200/60 align-middle print:hidden text-center">
                             {da.isOfficialLeave || da.isRemoteWork ? (
                               <span className="text-xs text-slate-300">—</span>
                             ) : (
-                              <div className="flex flex-wrap gap-1 justify-center">
-                                {staffAssignments.map(sa => (
-                                  <button
-                                    key={sa.staffId}
-                                    onClick={() => setReportEntryOpen({ staffId: sa.staffId, staffName: sa.staffName, day: da.day, date: da.date || da.day })}
-                                    title={`فتح نموذج تقرير ${sa.staffName}`}
-                                    className="w-7 h-7 flex items-center justify-center bg-violet-50 hover:bg-violet-100 text-[#655ac1] border border-violet-200 rounded-lg transition-all hover:shadow-sm active:scale-95"
-                                  >
-                                    <FileText size={13} />
-                                  </button>
-                                ))}
+                              <div className="flex flex-wrap gap-1.5 justify-center">
+                                {staffAssignments.map(sa => {
+                                  const submittedReport = getStaffReport(da.day, sa.staffId);
+                                  const isSubmitted = !!submittedReport;
+                                  return (
+                                    <button
+                                      key={sa.staffId}
+                                      onClick={() => setReportViewOpen({ staffId: sa.staffId, staffName: sa.staffName, day: da.day, date: da.date || da.day })}
+                                      title="نموذج التقرير اليومي للمناوبة"
+                                      className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all hover:shadow-sm active:scale-95 ${
+                                        isSubmitted
+                                          ? submittedReport?.manuallySubmitted
+                                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                          : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-violet-50 hover:text-[#655ac1] hover:border-violet-200'
+                                      }`}
+                                    >
+                                      <Eye size={14} />
+                                    </button>
+                                  );
+                                })}
                                 {staffAssignments.length === 0 && (
                                   <span className="text-xs text-slate-300">—</span>
                                 )}

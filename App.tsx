@@ -58,7 +58,14 @@ const App: React.FC = () => {
     meetings: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings' | 'settings_basic' | 'settings_classes' | 'settings_subjects' | 'settings_students' | 'settings_teachers' | 'settings_admins' | 'database' | 'classes' | 'manual' | 'report' | 'classes_waiting' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings' | 'settings_basic' | 'settings_classes' | 'settings_subjects' | 'settings_students' | 'settings_teachers' | 'settings_admins' | 'database' | 'classes' | 'manual' | 'report' | 'classes_waiting' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support'>(() => {
+    // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('staffId') && p.get('staffName') && p.get('day') && p.get('date')) return 'duty';
+    }
+    return 'dashboard';
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Mock Data for Dashboard

@@ -577,11 +577,11 @@ const DutyReportsModalContent: React.FC<Props> = ({
 
               {/* ── Statistics Cards ──────────────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-300 text-center shadow-sm hover:scale-105 transition-transform">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-300 text-center shadow-sm hover:scale-105 transition-transform max-w-sm sm:max-w-full mx-auto sm:mx-0">
                   <p className="text-4xl font-black text-amber-600 mb-1">{dailyFilteredLate.length}</p>
                   <p className="text-sm font-black text-amber-700">الطلاب المتأخرون</p>
                 </div>
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-300 text-center shadow-sm hover:scale-105 transition-transform">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-300 text-center shadow-sm hover:scale-105 transition-transform max-w-sm sm:max-w-full mx-auto sm:mx-0">
                   <p className="text-4xl font-black text-[#8779fb] mb-1">{dailyFilteredViolations.length}</p>
                   <p className="text-sm font-black text-[#655ac1]">الطلاب المخالفون سلوكيًا</p>
                 </div>

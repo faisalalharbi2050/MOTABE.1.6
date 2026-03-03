@@ -105,6 +105,10 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
 
   // ===== Academic Year Check =====
   useEffect(() => {
+    // Don't show academic popup when page is opened via a duty report reminder link
+    const params = new URLSearchParams(window.location.search);
+    const isReportLink = params.get('staffId') && params.get('day') && params.get('date');
+    if (isReportLink) return;
     // Check if academic year and basic semester details are mapped
     if (!schoolInfo.academicYear || !(schoolInfo.semesters && schoolInfo.semesters.length > 0)) {
        setShowAcademicPopup(true);
