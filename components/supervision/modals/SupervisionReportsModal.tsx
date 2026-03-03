@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, BarChart3, Printer, FileText, Calendar, User, Search, ChevronDown, Check } from 'lucide-react';
+import { X, BarChart3, Printer, Calendar, User, Search, Check } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData } from '../../../types';
 import { getAttendanceStats } from '../../../utils/supervisionUtils';
 
@@ -27,70 +27,17 @@ interface Props {
 const SupervisionReportsModalContent: React.FC<Props> = ({
   isOpen, onClose, supervisionData, schoolInfo, teachers = [], admins = [], showToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'weekly' | 'monthly' | 'individual'>('weekly');
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
-  const [selectedMonth, setSelectedMonth] = useState<number>(0);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [perfFromDate, setPerfFromDate] = useState(todayStr);
+  const [perfToDate, setPerfToDate] = useState(todayStr);
+  const [perfStaffMode, setPerfStaffMode] = useState<'all' | 'specific'>('all');
   const [selectedStaffSearch, setSelectedStaffSearch] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [individualReportType, setIndividualReportType] = useState<'weekly' | 'monthly'>('weekly');
 
   if (!isOpen) return null;
 
   const calendarType = schoolInfo.semesters?.[0]?.calendarType || 'hijri';
-  let semesterStartDate = new Date();
-  if (schoolInfo.semesters?.[0]?.startDate) {
-    const parsed = new Date(schoolInfo.semesters[0].startDate);
-    if (!isNaN(parsed.getTime())) {
-      semesterStartDate = parsed;
-    }
-  }
-  
-  // Weekly logic
-  const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
-  const totalWeeks = currentSemester?.weeksCount || 12; // Fallback to 12 if not defined
-  const weeksList = Array.from({ length: totalWeeks }, (_, i) => i + 1);
-  
-  const getWeekDateRange = (weekNumber: number) => {
-    try {
-      const start = new Date(semesterStartDate);
-      start.setDate(start.getDate() + ((weekNumber - 1) * 7));
-      const end = new Date(start);
-      end.setDate(end.getDate() + 4); // Mon-Thu/Sun-Thu (5 active days approx)
-      
-      const formatter = calendarType === 'hijri' 
-        ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long' })
-        : new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long' });
-        
-      return `${formatter.format(start)} - ${formatter.format(end)}`;
-    } catch(e) {
-      return "تاريخ غير معروف";
-    }
-  };
-
-  // Monthly logic
-  // A Hijri month is mapped to 4 academic weeks.
-  const monthsList = Array.from({ length: 4 }, (_, i) => {
-    let label = '';
-    const startWeek = (i * 4) + 1;
-    const endWeek = startWeek + 3;
-    const dateRange = `${getWeekDateRange(startWeek).split(' - ')[0]} - ${getWeekDateRange(endWeek).split(' - ')[1] || ''}`;
-    
-    if (calendarType === 'hijri') {
-      try {
-        const startMonthStr = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { month: 'numeric' }).format(semesterStartDate);
-        const numStartMonth = parseInt(startMonthStr.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString())) || 1;
-        label = formatHijriMonth((numStartMonth - 1 + i) % 12);
-      } catch (e) {
-        label = formatHijriMonth(i % 12);
-      }
-    } else {
-      const startMonth = semesterStartDate.getMonth();
-      label = formatGregorianMonth((startMonth + i) % 12);
-    }
-    
-    return { value: i, label, dateRange };
-  });
 
   // Individual logic
   // We want to extract ALL staff who appear in `dayAssignments` OR `attendanceRecords`, 
@@ -114,23 +61,34 @@ const SupervisionReportsModalContent: React.FC<Props> = ({
 
   const filteredStaff = allStaffWithRecords.filter(s => (s.name || '').includes(selectedStaffSearch));
 
-  // Determine current context records based on tabs
   const filteredRecords = useMemo(() => {
     let records = supervisionData?.attendanceRecords || [];
-    
-    // In a real app, you would filter `records` by comparing `r.date` to the Selected Week or Selected Month ranges.
-    // However, given the local mock logic, we'll return all for now or mock filter if needed.
-    // For Individual, we MUST filter.
-    if (activeTab === 'individual' && selectedStaffId) {
-       records = records.filter(r => r.staffId === selectedStaffId);
+    if (perfFromDate) records = records.filter(r => r.date >= perfFromDate);
+    if (perfToDate) records = records.filter(r => r.date <= perfToDate);
+    if (perfStaffMode === 'specific' && selectedStaffId) {
+      records = records.filter(r => r.staffId === selectedStaffId);
     }
-    
     return records;
-  }, [supervisionData?.attendanceRecords, activeTab, selectedStaffId, selectedWeek, selectedMonth]);
+  }, [supervisionData?.attendanceRecords, perfFromDate, perfToDate, perfStaffMode, selectedStaffId]);
 
   const stats = getAttendanceStats(filteredRecords);
+  const allStats = getAttendanceStats(supervisionData?.attendanceRecords || []);
 
-  const handlePrintAttendanceReport = (period: 'weekly' | 'monthly' | 'individual') => {
+  const toHijriShort = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const calType = schoolInfo?.semesters?.[0]?.calendarType || 'hijri';
+      if (calType === 'hijri') {
+        return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+      } else {
+        return new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+      }
+    } catch { return dateStr; }
+  };
+
+  const handlePrintAttendanceReport = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -144,26 +102,13 @@ const SupervisionReportsModalContent: React.FC<Props> = ({
       staffMap[r.staffId][r.status]++;
     });
 
-    let reportTitle = '';
-    let reportSubtitle = '';
-    
-    if (period === 'weekly') {
-      reportTitle = 'تقرير الإشراف الأسبوعي';
-      reportSubtitle = `الأسبوع ${selectedWeek} (${getWeekDateRange(selectedWeek)})`;
-    } else if (period === 'monthly') {
-      reportTitle = 'تقرير الإشراف الشهري';
-      const monthData = monthsList.find(m => m.value === selectedMonth);
-      reportSubtitle = `شهر ${monthData?.label} (${monthData?.dateRange})`;
-    } else if (period === 'individual') {
-      const staffName = allStaffWithRecords.find(s => s.id === selectedStaffId)?.name || 'غير محدد';
-      reportTitle = `تقرير الإشراف الفردي - ${staffName}`;
-      if (individualReportType === 'weekly') {
-        reportSubtitle = `الأسبوع ${selectedWeek} (${getWeekDateRange(selectedWeek)})`;
-      } else {
-        const monthData = monthsList.find(m => m.value === selectedMonth);
-        reportSubtitle = `شهر ${monthData?.label} (${monthData?.dateRange})`;
-      }
-    }
+    const staffLabel = perfStaffMode === 'specific' && selectedStaffId
+      ? allStaffWithRecords.find(s => s.id === selectedStaffId)?.name || 'مشرف محدد'
+      : 'جميع المشرفين';
+    const reportTitle = `تقرير أداء الإشراف – ${staffLabel}`;
+    const reportSubtitle = perfFromDate === perfToDate
+      ? `تاريخ: ${toHijriShort(perfFromDate)}`
+      : `من ${toHijriShort(perfFromDate)} إلى ${toHijriShort(perfToDate)}`;
 
     printWindow.document.write(`
 <!DOCTYPE html>
@@ -287,174 +232,114 @@ const SupervisionReportsModalContent: React.FC<Props> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
-          
-          {/* Tabs */}
-          <div className="flex flex-wrap gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100 w-fit">
-            <button
-              onClick={() => setActiveTab('weekly')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === 'weekly' 
-                  ? 'bg-[#655ac1] text-white shadow-md' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
-              }`}
-            >
-              <Calendar size={18} /> تقرير أسبوعي
-            </button>
-            <button
-              onClick={() => setActiveTab('monthly')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === 'monthly' 
-                  ? 'bg-[#655ac1] text-white shadow-md' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
-              }`}
-            >
-              <FileText size={18} /> تقرير شهري
-            </button>
-            <button
-              onClick={() => setActiveTab('individual')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === 'individual' 
-                  ? 'bg-[#655ac1] text-white shadow-md' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
-              }`}
-            >
-              <User size={18} /> تقرير فردي
-            </button>
+
+          {/* ── ملخص الأداء الكلي (أعلى) ── */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <div className="mb-5">
+              <h3 className="text-base font-black text-slate-800">ملخص الأداء</h3>
+              <p className="text-xs font-medium text-slate-500 mt-0.5">إحصائيات الإشراف لجميع الأيام المسجلة</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                { label: 'حاضر', value: allStats.present, color: '#16a34a' },
+                { label: 'غائب', value: allStats.absent, color: '#dc2626' },
+                { label: 'متأخر', value: allStats.late, color: '#d97706' },
+                { label: 'مستأذن', value: allStats.excused, color: '#2563eb' },
+                { label: 'منسحب', value: allStats.withdrawn, color: '#ea580c' },
+              ].map(s => (
+                <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
+                  <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
+                  <p className="text-xs font-bold text-slate-600 mt-1">{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Filters Area */}
-          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 md:items-center justify-between relative z-50">
-            {activeTab === 'weekly' && (
-              <div className="flex-1 max-w-sm space-y-2">
-                <label className="text-sm font-bold text-slate-700">تحديد الأسبوع</label>
-                <div className="relative">
-                  <select 
-                    value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] appearance-none"
-                  >
-                    {weeksList.map(w => (
-                      <option key={w} value={w}>الأسبوع {w}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-                <p className="text-xs font-medium text-[#655ac1] bg-[#e5e1fe]/50 px-3 py-1.5 rounded-lg inline-block">
-                  {getWeekDateRange(selectedWeek)}
-                </p>
+          {/* ── تحديد الفترة ── */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+              <Calendar size={17} className="text-[#655ac1]" /> تحديد الفترة الزمنية
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[150px]">
+                <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
+                <input type="date" value={perfFromDate} onChange={e => setPerfFromDate(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50" />
+                {perfFromDate && <p className="text-xs text-[#655ac1] font-bold mt-1">{toHijriShort(perfFromDate)}</p>}
               </div>
-            )}
-
-            {activeTab === 'monthly' && (
-              <div className="flex-1 max-w-sm space-y-2">
-                <label className="text-sm font-bold text-slate-700">تحديد الشهر</label>
-                <div className="relative">
-                  <select 
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] appearance-none"
-                  >
-                    {monthsList.map(m => (
-                      <option key={m.value} value={m.value}>شهر {m.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-                <p className="text-xs font-medium text-slate-500 px-1">
-                  التقرير الشهري يغطي 4 أسابيع دراسية.
-                </p>
+              <div className="flex-1 min-w-[150px]">
+                <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
+                <input type="date" value={perfToDate} onChange={e => setPerfToDate(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50" />
+                {perfToDate && <p className="text-xs text-[#655ac1] font-bold mt-1">{toHijriShort(perfToDate)}</p>}
               </div>
-            )}
+            </div>
+          </div>
 
-            {activeTab === 'individual' && (
-              <div className="flex-1 flex flex-col md:flex-row gap-6 w-full">
-                <div className="flex-1 space-y-2 relative">
-                  <label className="text-sm font-bold text-slate-700">الموظف</label>
-                  <div className="relative">
-                    <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                      type="text"
-                      placeholder="ابحث عن موظف..."
-                      value={selectedStaffSearch}
-                      onChange={e => setSelectedStaffSearch(e.target.value)}
-                      onFocus={() => setIsDropdownOpen(true)}
-                      onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-                      className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]"
-                    />
+          {/* ── فلتر المشرف ── */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+              <User size={17} className="text-[#655ac1]" /> اختيار المشرف
+            </p>
+            <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-fit mb-4">
+              <button
+                onClick={() => { setPerfStaffMode('all'); setSelectedStaffId(''); }}
+                className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                  perfStaffMode === 'all' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >جميع المشرفين</button>
+              <button
+                onClick={() => setPerfStaffMode('specific')}
+                className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                  perfStaffMode === 'specific' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >مشرف محدد</button>
+            </div>
+            {perfStaffMode === 'specific' && (
+              <div className="relative max-w-sm">
+                <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ابحث عن مشرف..."
+                  value={selectedStaffSearch}
+                  onChange={e => setSelectedStaffSearch(e.target.value)}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+                  className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]"
+                />
+                {isDropdownOpen && (
+                  <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-white rounded-xl shadow-xl border border-slate-100 max-h-56 overflow-y-auto z-[99] custom-scrollbar">
+                    {filteredStaff.length > 0 ? filteredStaff.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setSelectedStaffId(s.id); setSelectedStaffSearch(''); setIsDropdownOpen(false); }}
+                        className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between transition-colors"
+                      >
+                        {s.name}
+                        {selectedStaffId === s.id && <Check size={16} className="text-[#655ac1]" />}
+                      </button>
+                    )) : (
+                      <div className="p-4 text-center text-sm text-slate-500">لا توجد نتائج</div>
+                    )}
                   </div>
-                  {/* Dropdown for selection */}
-                  {isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 max-h-56 overflow-y-auto z-[60] custom-scrollbar">
-                      {filteredStaff.length > 0 ? filteredStaff.map(s => (
-                        <button
-                          key={s.id}
-                          onClick={() => { setSelectedStaffId(s.id); setSelectedStaffSearch(''); setIsDropdownOpen(false); }}
-                          className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between transition-colors"
-                        >
-                          {s.name}
-                          {selectedStaffId === s.id && <Check size={16} className="text-[#655ac1]" />}
-                        </button>
-                      )) : (
-                        <div className="p-4 text-center text-sm text-slate-500">لا توجد نتائج</div>
-                      )}
-                    </div>
-                  )}
-                  {selectedStaffId && !isDropdownOpen && (
-                     <div className="text-xs font-bold text-[#655ac1] bg-[#e5e1fe]/50 px-3 py-1.5 rounded-lg flex items-center gap-2 w-max mt-2">
-                       <User size={14} />
-                       {allStaffWithRecords.find(s => s.id === selectedStaffId)?.name}
-                       <button onClick={() => setSelectedStaffId('')} className="mr-2 hover:bg-[#655ac1]/20 p-0.5 rounded-full"><X size={12}/></button>
-                     </div>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-2">
-                  <label className="text-sm font-bold text-slate-700">نوع التقرير للفرد</label>
-                  <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-fit">
-                    <button
-                      onClick={() => setIndividualReportType('weekly')}
-                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                        individualReportType === 'weekly' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      أسبوعي
-                    </button>
-                    <button
-                      onClick={() => setIndividualReportType('monthly')}
-                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                        individualReportType === 'monthly' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      شهري
-                    </button>
+                )}
+                {selectedStaffId && !isDropdownOpen && (
+                  <div className="text-xs font-bold text-[#655ac1] bg-[#e5e1fe]/50 px-3 py-1.5 rounded-lg flex items-center gap-2 w-max mt-2">
+                    <User size={14} />
+                    {allStaffWithRecords.find(s => s.id === selectedStaffId)?.name}
+                    <button onClick={() => setSelectedStaffId('')} className="mr-2 hover:bg-[#655ac1]/20 p-0.5 rounded-full"><X size={12}/></button>
                   </div>
-                  {/* Mini selector for week/month if individual */}
-                  {individualReportType === 'weekly' ? (
-                     <select 
-                       value={selectedWeek}
-                       onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                       className="w-full px-3 py-2 mt-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none"
-                     >
-                       {weeksList.map(w => <option key={w} value={w}>الأسبوع {w}</option>)}
-                     </select>
-                  ) : (
-                     <select 
-                       value={selectedMonth}
-                       onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                       className="w-full px-3 py-2 mt-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none"
-                     >
-                       {monthsList.map(m => <option key={m.value} value={m.value}>شهر {m.label}</option>)}
-                     </select>
-                  )}
-                </div>
+                )}
               </div>
             )}
-
-            <div className="flex-shrink-0 mt-4 md:mt-0">
-               <button onClick={() => handlePrintAttendanceReport(activeTab)} className="flex items-center justify-center w-full md:w-auto gap-2 bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-all active:scale-95">
-                 <Printer size={18} /> 
-                 طباعة التقرير
-               </button>
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <button
+                onClick={handlePrintAttendanceReport}
+                className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#8779fb] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-all active:scale-95"
+              >
+                <Printer size={16} />
+                طباعة التقرير
+              </button>
             </div>
           </div>
 

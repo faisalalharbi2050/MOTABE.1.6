@@ -26,19 +26,20 @@ interface Props {
 const DutyReportsModalContent: React.FC<Props> = ({
   isOpen, onClose, dutyData, schoolInfo, teachers = [], admins = [], showToast
 }) => {
+  const todayStr = new Date().toISOString().split('T')[0];
   const [mainTab, setMainTab] = useState<'performance' | 'daily'>('performance');
-  const [activeTab, setActiveTab] = useState<'weekly' | 'monthly' | 'individual'>('weekly');
-  const [selectedWeek, setSelectedWeek] = useState<number>(1);
-  const [selectedMonth, setSelectedMonth] = useState<number>(0);
+  // ── Performance tab state ──
+  const [perfFromDate, setPerfFromDate] = useState(todayStr);
+  const [perfToDate, setPerfToDate] = useState(todayStr);
+  const [perfStaffMode, setPerfStaffMode] = useState<'all' | 'specific'>('all');
   const [selectedStaffSearch, setSelectedStaffSearch] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [individualReportType, setIndividualReportType] = useState<'weekly' | 'monthly'>('weekly');
-  // ── Daily Reports Hub State ───────────────────────────────────────
-  const [dailyPeriod, setDailyPeriod] = useState<'today' | 'week' | 'month' | 'custom'>('today');
-  const [dailyFromDate, setDailyFromDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [dailyToDate, setDailyToDate] = useState(() => new Date().toISOString().split('T')[0]);
+  // ── Daily Reports Hub State ──
+  const [dailyFromDate, setDailyFromDate] = useState(todayStr);
+  const [dailyToDate, setDailyToDate] = useState(todayStr);
   const [studentSearch, setStudentSearch] = useState('');
+  const [dataTabStudents, setDataTabStudents] = useState<'late' | 'violations'>('late');
 
   if (!isOpen) return null;
 
@@ -54,6 +55,15 @@ const DutyReportsModalContent: React.FC<Props> = ({
   const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
   const totalWeeks = currentSemester?.weeksCount || 12;
   const weeksList = Array.from({ length: totalWeeks }, (_, i) => i + 1);
+
+  // ── Current week/month based on today ───────────────────────────────
+  const currentWeekNum = (() => {
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - semesterStartDate.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.min(Math.max(Math.ceil((diffDays + 1) / 7), 1), totalWeeks);
+  })();
+  const currentMonthNum = Math.min(Math.floor((currentWeekNum - 1) / 4), Math.floor((totalWeeks - 1) / 4));
+  const availableWeeks = Array.from({ length: currentWeekNum }, (_, i) => i + 1);
   
   const getWeekDateRange = (weekNumber: number) => {
     try {
@@ -135,43 +145,16 @@ const DutyReportsModalContent: React.FC<Props> = ({
 
   const filteredRecords = useMemo(() => {
     let records = dutyData?.reports || [];
-    
-    if (activeTab === 'individual' && selectedStaffId) {
-       records = records.filter(r => r.staffId === selectedStaffId);
-       
-       if (individualReportType === 'weekly') {
-         const bounds = getWeekDateBounds(selectedWeek);
-         if (bounds.startStr) {
-           records = records.filter(r => r.date >= bounds.startStr && r.date <= bounds.endStr);
-         }
-       } else if (individualReportType === 'monthly') {
-         const startWeek = (selectedMonth * 4) + 1;
-         const endWeek = startWeek + 3;
-         const startBounds = getWeekDateBounds(startWeek);
-         const endBounds = getWeekDateBounds(endWeek);
-         if (startBounds.startStr && endBounds.endStr) {
-           records = records.filter(r => r.date >= startBounds.startStr && r.date <= endBounds.endStr);
-         }
-       }
-    } else if (activeTab === 'weekly') {
-       const bounds = getWeekDateBounds(selectedWeek);
-       if (bounds.startStr) {
-         records = records.filter(r => r.date >= bounds.startStr && r.date <= bounds.endStr);
-       }
-    } else if (activeTab === 'monthly') {
-       const startWeek = (selectedMonth * 4) + 1;
-       const endWeek = startWeek + 3;
-       const startBounds = getWeekDateBounds(startWeek);
-       const endBounds = getWeekDateBounds(endWeek);
-       if (startBounds.startStr && endBounds.endStr) {
-         records = records.filter(r => r.date >= startBounds.startStr && r.date <= endBounds.endStr);
-       }
+    if (perfFromDate) records = records.filter(r => r.date >= perfFromDate);
+    if (perfToDate) records = records.filter(r => r.date <= perfToDate);
+    if (perfStaffMode === 'specific' && selectedStaffId) {
+      records = records.filter(r => r.staffId === selectedStaffId);
     }
-    
     return records;
-  }, [dutyData?.reports, activeTab, selectedStaffId, selectedWeek, selectedMonth, individualReportType, semesterStartDate]);
+  }, [dutyData?.reports, perfFromDate, perfToDate, perfStaffMode, selectedStaffId]);
 
   const stats = getDutyStats(filteredRecords);
+  const allStats = getDutyStats(dutyData?.reports || []);
 
   // ═════ Daily Reports Hub – Computed Data ═════════════════════════════════
   interface EnrichedLate { studentName: string; gradeAndClass: string; exitTime: string; actionTaken: string; notes?: string; date: string; staffName: string; }
@@ -186,21 +169,6 @@ const DutyReportsModalContent: React.FC<Props> = ({
   ).filter(r => r.studentName?.trim());
 
   const computeDailyDateRange = (): { from: string; to: string } => {
-    const today = new Date().toISOString().split('T')[0];
-    if (dailyPeriod === 'today') return { from: today, to: today };
-    if (dailyPeriod === 'week') {
-      const now = new Date();
-      const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay());
-      const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
-      return { from: startOfWeek.toISOString().split('T')[0], to: endOfWeek.toISOString().split('T')[0] };
-    }
-    if (dailyPeriod === 'month') {
-      const now = new Date();
-      return {
-        from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0],
-        to: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0],
-      };
-    }
     return { from: dailyFromDate, to: dailyToDate };
   };
 
@@ -268,7 +236,9 @@ const DutyReportsModalContent: React.FC<Props> = ({
 
   const handlePrintDailyReport = (lateRecs: EnrichedLate[], violRecs: EnrichedViolation[]) => {
     const pw = window.open('', '_blank'); if (!pw) return;
-    const periodLabel = dailyPeriod === 'today' ? 'اليوم' : dailyPeriod === 'week' ? 'هذا الأسبوع' : dailyPeriod === 'month' ? 'هذا الشهر' : `${dRangeFrom} - ${dRangeTo}`;
+    const periodLabel = dailyFromDate === dailyToDate
+      ? toHijriShort(dailyFromDate)
+      : `${toHijriShort(dailyFromDate)} – ${toHijriShort(dailyToDate)}`;
     pw.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>التقارير اليومية</title>
     <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;padding:30px;direction:rtl;color:#1e293b;}
     .header{text-align:center;border-bottom:2px solid #e2e8f0;padding-bottom:15px;margin-bottom:20px;}h1{font-size:20px;margin-bottom:4px;}h2{font-size:14px;color:#475569;font-weight:normal;}
@@ -292,7 +262,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
     showToast('تم فتح تقرير الفترة للطباعة', 'success');
   };
   // ══════════════════════════════════════════════════════════════════════
-  const handlePrintAttendanceReport = (period: 'weekly' | 'monthly' | 'individual') => {
+  const handlePrintAttendanceReport = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -307,26 +277,13 @@ const DutyReportsModalContent: React.FC<Props> = ({
       if (r.isSubmitted) staffMap[r.staffId].submitted++;
     });
 
-    let reportTitle = '';
-    let reportSubtitle = '';
-    
-    if (period === 'weekly') {
-      reportTitle = 'تقرير المناوبة الأسبوعي';
-      reportSubtitle = `الأسبوع ${selectedWeek} (${getWeekDateRange(selectedWeek)})`;
-    } else if (period === 'monthly') {
-      reportTitle = 'تقرير المناوبة الشهري';
-      const monthData = monthsList.find(m => m.value === selectedMonth);
-      reportSubtitle = `شهر ${monthData?.label} (${monthData?.dateRange})`;
-    } else if (period === 'individual') {
-      const staffName = allStaffWithRecords.find(s => s.id === selectedStaffId)?.name || 'غير محدد';
-      reportTitle = `تقرير المناوبة الفردي - ${staffName}`;
-      if (individualReportType === 'weekly') {
-        reportSubtitle = `الأسبوع ${selectedWeek} (${getWeekDateRange(selectedWeek)})`;
-      } else {
-        const monthData = monthsList.find(m => m.value === selectedMonth);
-        reportSubtitle = `شهر ${monthData?.label} (${monthData?.dateRange})`;
-      }
-    }
+    const staffLabel = perfStaffMode === 'specific' && selectedStaffId
+      ? allStaffWithRecords.find(s => s.id === selectedStaffId)?.name || 'مناوب محدد'
+      : 'جميع المناوبين';
+    const reportTitle = `تقرير أداء المناوبة – ${staffLabel}`;
+    const reportSubtitle = perfFromDate === perfToDate
+      ? `تاريخ: ${toHijriShort(perfFromDate)}`
+      : `من ${toHijriShort(perfFromDate)} إلى ${toHijriShort(perfToDate)}`;
 
     printWindow.document.write(`
 <!DOCTYPE html>
@@ -469,232 +426,164 @@ const DutyReportsModalContent: React.FC<Props> = ({
                   : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
               }`}
             >
-              <FileText size={18} /> تقرير المناوبة اليومية (السلوك والتأخر)
+              <FileText size={18} /> تقرير السلوك والتأخر للطلاب في المناوبة
             </button>
           </div>
 
-          {mainTab === 'performance' && (<>
-          {/* Sub-Tabs */}
-          <div className="flex flex-wrap gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-100 w-fit">
-            <button
-              onClick={() => setActiveTab('weekly')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === 'weekly'
-                  ? 'bg-[#655ac1]/10 text-[#655ac1] shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
-              }`}
-            >
-              <Calendar size={18} /> تقرير أسبوعي
-            </button>
-            <button
-              onClick={() => setActiveTab('monthly')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === 'monthly'
-                  ? 'bg-[#655ac1]/10 text-[#655ac1] shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
-              }`}
-            >
-              <FileText size={18} /> تقرير شهري
-            </button>
-            <button
-              onClick={() => setActiveTab('individual')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                activeTab === 'individual'
-                  ? 'bg-[#655ac1]/10 text-[#655ac1] shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
-              }`}
-            >
-              <User size={18} /> تقرير فردي
-            </button>
-          </div>
-          {/* Filters Area */}
-          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 md:items-center justify-between relative z-[60]">
-            {activeTab === 'weekly' && (
-              <div className="flex-1 max-w-sm space-y-2">
-                <label className="text-sm font-bold text-slate-700">تحديد الأسبوع</label>
-                <div className="relative">
-                  <select 
-                    value={selectedWeek}
-                    onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb] appearance-none"
-                  >
-                    {weeksList.map(w => (
-                      <option key={w} value={w}>الأسبوع {w}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-                <p className="text-xs font-medium text-[#655ac1] bg-violet-50/50 px-3 py-1.5 rounded-lg inline-block">
-                  {getWeekDateRange(selectedWeek)}
-                </p>
-              </div>
-            )}
+          {mainTab === 'performance' && (
+            <div className="space-y-5">
 
-            {activeTab === 'monthly' && (
-              <div className="flex-1 max-w-sm space-y-2">
-                <label className="text-sm font-bold text-slate-700">تحديد الشهر</label>
-                <div className="relative">
-                  <select 
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb] appearance-none"
-                  >
-                    {monthsList.map(m => (
-                      <option key={m.value} value={m.value}>شهر {m.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {/* ── ملخص الأداء الكلي (أعلى) ── */}
+              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                <div className="mb-5">
+                  <h3 className="text-base font-black text-slate-800">ملخص الأداء</h3>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">إحصائيات المناوبة لجميع الأيام المسجلة</p>
                 </div>
-                <p className="text-xs font-medium text-slate-500 px-1">
-                  التقرير الشهري يغطي 4 أسابيع دراسية.
-                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                  {[
+                    { label: 'حاضر', val: allStats.present, color: 'text-green-600' },
+                    { label: 'غائب', val: allStats.absent, color: 'text-red-500' },
+                    { label: 'متأخر', val: allStats.late, color: 'text-amber-600' },
+                    { label: 'مستأذن', val: allStats.excused, color: 'text-blue-500' },
+                    { label: 'منسحب', val: allStats.withdrawn, color: 'text-orange-500' },
+                    { label: 'تقرير مسلم', val: allStats.submitted, color: 'text-violet-600' },
+                  ].map(s => (
+                    <div key={s.label} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
+                      <p className={`text-3xl font-black ${s.color}`}>{s.val}</p>
+                      <p className="text-xs font-bold text-slate-500 mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
 
-            {activeTab === 'individual' && (
-              <div className="flex-1 flex flex-col md:flex-row gap-6 w-full">
-                <div className="flex-1 space-y-2 relative">
-                  <label className="text-sm font-bold text-slate-700">الموظف</label>
-                  <div className="relative">
-                    <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                      type="text"
-                      placeholder="ابحث عن موظف..."
+              {/* ── الفترة الزمنية ── */}
+              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+                  <Calendar size={17} className="text-[#8779fb]" /> تحديد الفترة الزمنية
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
+                    <input type="date" value={perfFromDate} onChange={e => setPerfFromDate(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
+                    {perfFromDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(perfFromDate)}</p>}
+                  </div>
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
+                    <input type="date" value={perfToDate} onChange={e => setPerfToDate(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
+                    {perfToDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(perfToDate)}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── اختيار المناوب ── */}
+              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
+                  <User size={17} className="text-[#8779fb]" /> اختيار المناوب
+                </p>
+                <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-100 w-fit mb-4">
+                  <button onClick={() => { setPerfStaffMode('all'); setSelectedStaffId(''); }}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                      perfStaffMode === 'all' ? 'bg-[#8779fb] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
+                    }`}>
+                    جميع المناوبين
+                  </button>
+                  <button onClick={() => setPerfStaffMode('specific')}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                      perfStaffMode === 'specific' ? 'bg-[#8779fb] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
+                    }`}>
+                    مناوب محدد
+                  </button>
+                </div>
+                {perfStaffMode === 'specific' && (
+                  <div className="relative max-w-sm">
+                    <Search size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" placeholder="ابحث عن مناوب..."
                       value={selectedStaffSearch}
                       onChange={e => setSelectedStaffSearch(e.target.value)}
                       onFocus={() => setIsDropdownOpen(true)}
                       onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-                      className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]"
-                    />
+                      className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#8779fb]" />
+                    {isDropdownOpen && (
+                      <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-white rounded-xl shadow-xl border border-slate-100 max-h-52 overflow-y-auto z-[99]">
+                        {filteredStaff.length > 0 ? filteredStaff.map(s => (
+                          <button key={s.id}
+                            onClick={() => { setSelectedStaffId(s.id); setSelectedStaffSearch(''); setIsDropdownOpen(false); }}
+                            className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between">
+                            {s.name}
+                            {selectedStaffId === s.id && <Check size={16} className="text-[#8779fb]" />}
+                          </button>
+                        )) : <div className="p-4 text-center text-sm text-slate-500">لا توجد نتائج</div>}
+                      </div>
+                    )}
+                    {selectedStaffId && !isDropdownOpen && (
+                      <div className="text-xs font-bold text-[#655ac1] bg-violet-50 px-3 py-1.5 rounded-lg flex items-center gap-2 w-max mt-2">
+                        <User size={13} />
+                        {allStaffWithRecords.find(s => s.id === selectedStaffId)?.name}
+                        <button onClick={() => setSelectedStaffId('')} className="hover:bg-violet-100 p-0.5 rounded-full"><X size={12}/></button>
+                      </div>
+                    )}
                   </div>
-                  {isDropdownOpen && (
-                    <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-white rounded-xl shadow-xl border border-slate-100 max-h-56 overflow-y-auto z-[99] custom-scrollbar">
-                      {filteredStaff.length > 0 ? filteredStaff.map(s => (
-                        <button
-                          key={s.id}
-                          onClick={() => { setSelectedStaffId(s.id); setSelectedStaffSearch(''); setIsDropdownOpen(false); }}
-                          className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between transition-colors"
-                        >
-                          {s.name}
-                          {selectedStaffId === s.id && <Check size={16} className="text-[#8779fb]" />}
-                        </button>
-                      )) : (
-                        <div className="p-4 text-center text-sm text-slate-500">لا توجد نتائج</div>
-                      )}
-                    </div>
-                  )}
-                  {selectedStaffId && !isDropdownOpen && (
-                     <div className="text-xs font-bold text-[#655ac1] bg-violet-50/50 px-3 py-1.5 rounded-lg flex items-center gap-2 w-max mt-2">
-                       <User size={14} />
-                       {allStaffWithRecords.find(s => s.id === selectedStaffId)?.name}
-                       <button onClick={() => setSelectedStaffId('')} className="mr-2 hover:bg-[#e5e1fe] p-0.5 rounded-full"><X size={12}/></button>
-                     </div>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-2">
-                  <label className="text-sm font-bold text-slate-700">نوع التقرير للفرد</label>
-                  <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-fit">
-                    <button
-                      onClick={() => setIndividualReportType('weekly')}
-                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                        individualReportType === 'weekly' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      أسبوعي
-                    </button>
-                    <button
-                      onClick={() => setIndividualReportType('monthly')}
-                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                        individualReportType === 'monthly' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      شهري
-                    </button>
-                  </div>
-                  {individualReportType === 'weekly' ? (
-                     <select 
-                       value={selectedWeek}
-                       onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                       className="w-full px-3 py-2 mt-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none"
-                     >
-                       {weeksList.map(w => <option key={w} value={w}>الأسبوع {w}</option>)}
-                     </select>
-                  ) : (
-                     <select 
-                       value={selectedMonth}
-                       onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                       className="w-full px-3 py-2 mt-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none"
-                     >
-                       {monthsList.map(m => <option key={m.value} value={m.value}>شهر {m.label}</option>)}
-                     </select>
-                  )}
+                )}
+                <div className="mt-5 pt-4 border-t border-slate-100">
+                  <button onClick={handlePrintAttendanceReport}
+                    className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95">
+                    <Printer size={16} /> طباعة التقرير
+                  </button>
                 </div>
               </div>
-            )}
 
-            <div className="flex-shrink-0 mt-4 md:mt-0 z-10">
-               <button onClick={() => handlePrintAttendanceReport(activeTab)} className="flex items-center justify-center w-full md:w-auto gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-[#8779fb]/20 transition-all active:scale-95">
-                 <Printer size={18} /> 
-                 طباعة التقرير
-               </button>
             </div>
-          </div>
+          )} {/* end mainTab === performance */}
 
-          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden z-10">
-             <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-transparent to-slate-50 rounded-br-full -z-0 pointer-events-none" />
-             <div className="relative z-10">
-             </div>
-          </div>
-          </>)} {/* end mainTab === performance */}
+
 
           {/* ══════ Daily Reports Hub ══════ */}
           {mainTab === 'daily' && (
             <div className="space-y-5">
 
-              {/* ── Period Filter ─────────────────────────────────────────── */}
+              {/* ── تحديد الفترة ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
                   <Calendar size={17} className="text-[#8779fb]" /> تحديد الفترة الزمنية
                 </p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {([['today', 'اليوم'], ['week', 'هذا الأسبوع'], ['month', 'هذا الشهر'], ['custom', 'مخصص']] as const).map(([id, label]) => (
-                    <button
-                      key={id}
-                      onClick={() => setDailyPeriod(id)}
-                      className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dailyPeriod === id ? 'bg-[#8779fb] text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-[#e5e1fe] hover:text-[#655ac1]'}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {dailyPeriod === 'custom' && (
-                  <div className="flex flex-wrap gap-4 mt-3">
-                    <div className="flex-1 min-w-[150px]">
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
-                      <input type="date" value={dailyFromDate} onChange={e => setDailyFromDate(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
-                    </div>
-                    <div className="flex-1 min-w-[150px]">
-                      <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
-                      <input type="date" value={dailyToDate} onChange={e => setDailyToDate(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
-                    </div>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
+                    <input type="date" value={dailyFromDate} onChange={e => setDailyFromDate(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
+                    {dailyFromDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(dailyFromDate)}</p>}
                   </div>
-                )}
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
+                    <input type="date" value={dailyToDate} onChange={e => setDailyToDate(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
+                    {dailyToDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(dailyToDate)}</p>}
+                  </div>
+                </div>
               </div>
+
+              {/* ── تنبيه عدم وجود بيانات لليوم ──────────────────────────── */}
+              {dailyFromDate === dailyToDate && !(dutyData?.reports || []).some(r => r.date === dailyFromDate) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                  <AlertTriangle size={18} className="text-amber-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-black text-amber-700">لم يتم تعبئة نموذج تقرير المناوبة لهذا اليوم</p>
+                    <p className="text-xs text-amber-600/80 mt-0.5">لم يرفع أي مناوب تقريره اليومي بعد لتاريخ {toHijriShort(dailyFromDate)}</p>
+                  </div>
+                </div>
+              )}
 
               {/* ── Statistics Cards ──────────────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-5 border border-amber-100 text-center shadow-sm hover:scale-105 transition-transform">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 text-center shadow-sm hover:scale-105 transition-transform">
                   <p className="text-4xl font-black text-amber-600 mb-1">{dailyFilteredLate.length}</p>
-                  <p className="text-sm font-black text-amber-700">حالة تأخر</p>
-                  <p className="text-xs text-amber-600/70 mt-1">في الفترة المحددة</p>
+                  <p className="text-sm font-black text-amber-700">الطلاب المتأخرون</p>
                 </div>
-                <div className="bg-gradient-to-br from-violet-50 to-violet-100/50 rounded-2xl p-5 border border-violet-100 text-center shadow-sm hover:scale-105 transition-transform">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 text-center shadow-sm hover:scale-105 transition-transform">
                   <p className="text-4xl font-black text-[#8779fb] mb-1">{dailyFilteredViolations.length}</p>
-                  <p className="text-sm font-black text-[#655ac1]">مخالفة سلوكية</p>
-                  <p className="text-xs text-[#655ac1]/70 mt-1">في الفترة المحددة</p>
+                  <p className="text-sm font-black text-[#655ac1]">الطلاب المخالفون سلوكيًا</p>
                 </div>
                 {/* تم حذف بطاقة الطلاب الفريدين بناءً على طلب المستخدم */}
               </div>
@@ -832,7 +721,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {/* ── Full Period Records ───────────────────────────────────── */}
               {!studentSearch.trim() && (dailyFilteredLate.length > 0 || dailyFilteredViolations.length > 0) && (
                 <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-                  <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-black text-slate-700 flex items-center gap-2">
                       <FileText size={17} className="text-[#8779fb]" /> جميع السجلات في الفترة
                     </p>
@@ -844,11 +733,33 @@ const DutyReportsModalContent: React.FC<Props> = ({
                     </button>
                   </div>
 
-                  {dailyFilteredLate.length > 0 && (
-                    <div className="mb-5">
-                      <p className="text-xs font-black text-amber-700 mb-2 flex items-center gap-1.5">
-                        <Clock size={12} /> المتأخرون ({dailyFilteredLate.length})
-                      </p>
+                  {/* تبويبات المتأخرين والمخالفين */}
+                  <div className="flex gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 mb-5 w-fit">
+                    <button
+                      onClick={() => setDataTabStudents('late')}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                        dataTabStudents === 'late'
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-amber-600'
+                      }`}
+                    >
+                      <Clock size={13} /> الطلاب المتأخرون ({dailyFilteredLate.length})
+                    </button>
+                    <button
+                      onClick={() => setDataTabStudents('violations')}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                        dataTabStudents === 'violations'
+                          ? 'bg-[#7c6ff0] text-white shadow-sm'
+                          : 'text-slate-500 hover:text-[#655ac1]'
+                      }`}
+                    >
+                      <AlertTriangle size={13} /> الطلاب المخالفون سلوكيًا ({dailyFilteredViolations.length})
+                    </button>
+                  </div>
+
+                  {/* محتوى تبويب المتأخرين */}
+                  {dataTabStudents === 'late' && (
+                    dailyFilteredLate.length > 0 ? (
                       <div className="overflow-x-auto rounded-xl border border-amber-100">
                         <table className="w-full text-xs">
                           <thead><tr className="bg-amber-500 text-white text-center">
@@ -868,14 +779,14 @@ const DutyReportsModalContent: React.FC<Props> = ({
                           </tbody>
                         </table>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="text-center py-8 text-sm text-amber-500 font-bold">لا توجد حالات تأخر في هذه الفترة</div>
+                    )
                   )}
 
-                  {dailyFilteredViolations.length > 0 && (
-                    <div>
-                      <p className="text-xs font-black text-[#655ac1] mb-2 flex items-center gap-1.5">
-                        <AlertTriangle size={12} /> المخالفون ({dailyFilteredViolations.length})
-                      </p>
+                  {/* محتوى تبويب المخالفين */}
+                  {dataTabStudents === 'violations' && (
+                    dailyFilteredViolations.length > 0 ? (
                       <div className="overflow-x-auto rounded-xl border border-violet-100">
                         <table className="w-full text-xs">
                           <thead><tr className="bg-[#7c6ff0] text-white text-center">
@@ -895,7 +806,9 @@ const DutyReportsModalContent: React.FC<Props> = ({
                           </tbody>
                         </table>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="text-center py-8 text-sm text-[#655ac1] font-bold">لا توجد مخالفات سلوكية في هذه الفترة</div>
+                    )
                   )}
                 </div>
               )}

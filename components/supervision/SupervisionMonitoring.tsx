@@ -123,7 +123,6 @@ const SupervisionMonitoring: React.FC<Props> = ({
   };
 
   // Get stats
-  const stats = getAttendanceStats(supervisionData.attendanceRecords);
   const todayStats = getAttendanceStats(existingRecords);
 
   // Day name in Arabic
@@ -152,35 +151,25 @@ const SupervisionMonitoring: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
-      {/* Weekly Stats Summary - dashboard overview at top */}
+      {/* Today Stats Summary */}
       <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-black text-slate-800">ملخص الأداء</h3>
-            <p className="text-sm font-medium text-slate-500 mt-0.5">إحصائيات الإشراف لجميع الأيام المسجلة</p>
-          </div>
+        <div className="mb-5">
+          <h3 className="text-base font-black text-slate-800">ملخص أداء اليوم</h3>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">إحصائيات التاريخ المحدد أدناه</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-            <p className="text-3xl font-black text-green-600 mb-1">{stats.present}</p>
-            <p className="text-sm font-bold text-green-600">حاضر</p>
-          </div>
-          <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-            <p className="text-3xl font-black text-red-600 mb-1">{stats.absent}</p>
-            <p className="text-sm font-bold text-red-600">غائب</p>
-          </div>
-          <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-            <p className="text-3xl font-black text-blue-600 mb-1">{stats.excused}</p>
-            <p className="text-sm font-bold text-blue-600">مستأذن</p>
-          </div>
-          <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-            <p className="text-3xl font-black text-orange-600 mb-1">{stats.withdrawn}</p>
-            <p className="text-sm font-bold text-orange-600">منسحب</p>
-          </div>
-          <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-            <p className="text-3xl font-black text-amber-600 mb-1">{stats.late}</p>
-            <p className="text-sm font-bold text-amber-600">متأخر</p>
-          </div>
+          {[
+            { label: 'حاضر', value: todayStats.present, color: 'text-green-600', bg: 'bg-slate-50 border-slate-100' },
+            { label: 'غائب', value: todayStats.absent, color: 'text-red-600', bg: 'bg-slate-50 border-slate-100' },
+            { label: 'مستأذن', value: todayStats.excused, color: 'text-blue-600', bg: 'bg-slate-50 border-slate-100' },
+            { label: 'منسحب', value: todayStats.withdrawn, color: 'text-orange-600', bg: 'bg-slate-50 border-slate-100' },
+            { label: 'متأخر', value: todayStats.late, color: 'text-amber-600', bg: 'bg-slate-50 border-slate-100' },
+          ].map(s => (
+            <div key={s.label} className={`${s.bg} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
+              <p className={`text-3xl font-black ${s.color} mb-1`}>{s.value}</p>
+              <p className={`text-sm font-bold ${s.color}`}>{s.label}</p>
+            </div>
+          ))}
         </div>
       </div>
 

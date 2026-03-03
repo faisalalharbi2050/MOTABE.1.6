@@ -89,7 +89,6 @@ const DutyMonitoringModal: React.FC<Props> = ({
 
   // ===== NON-HOOK LOGIC =====
   const isAlreadyRecorded = existingReports.length > 0;
-  const stats = getDutyStats(dutyData.reports);
   const todayStats = getDutyStats(existingReports);
   const dayName = DAY_NAMES[selectedDayOfWeek] || '';
   const isWeekend = selectedDayOfWeek === 'friday' || selectedDayOfWeek === 'saturday';
@@ -154,7 +153,7 @@ const DutyMonitoringModal: React.FC<Props> = ({
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-800">المتابعة اليومية</h2>
-              <p className="text-sm font-medium text-slate-500 mt-0.5">تسجيل حالات الحضور والانصراف للمناوبين</p>
+              <p className="text-sm font-medium text-slate-500 mt-0.5">متابعة أداء المناوبين للمناوبة اليومية</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
@@ -166,35 +165,24 @@ const DutyMonitoringModal: React.FC<Props> = ({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
 
-            {/* Weekly Stats Summary - moved to top */}
+            {/* Today Stats Summary */}
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h3 className="text-base font-black text-slate-800">ملخص الأداء</h3>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5">إحصائيات المناوبة لجميع الأيام المسجلة</p>
-                </div>
+              <div className="mb-5">
+                <h3 className="text-base font-black text-slate-800">ملخص أداء اليوم</h3>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">إحصائيات التاريخ المحدد أدناه</p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-                  <p className="text-3xl font-black text-green-600 mb-1">{stats.present}</p>
-                  <p className="text-sm font-bold text-green-600">حاضر</p>
-                </div>
-                <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-                  <p className="text-3xl font-black text-red-600 mb-1">{stats.absent}</p>
-                  <p className="text-sm font-bold text-red-600">غائب</p>
-                </div>
-                <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-                  <p className="text-3xl font-black text-blue-600 mb-1">{stats.excused}</p>
-                  <p className="text-sm font-bold text-blue-600">مستأذن</p>
-                </div>
-                <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-                  <p className="text-3xl font-black text-orange-600 mb-1">{stats.withdrawn}</p>
-                  <p className="text-sm font-bold text-orange-600">منسحب</p>
-                </div>
-                <div className="bg-white shadow-sm rounded-2xl p-4 text-center border border-slate-200 transition-transform hover:scale-105">
-                  <p className="text-3xl font-black text-[#655ac1] mb-1">{stats.submitted}</p>
-                  <p className="text-sm font-bold text-[#655ac1]">تقرير مُسلّم</p>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'حاضر', val: todayStats.present, color: 'text-green-600', bg: 'bg-slate-50 border-slate-100' },
+                  { label: 'غائب', val: todayStats.absent, color: 'text-red-500', bg: 'bg-slate-50 border-slate-100' },
+                  { label: 'مستأذن', val: todayStats.excused, color: 'text-blue-500', bg: 'bg-slate-50 border-slate-100' },
+                  { label: 'منسحب', val: todayStats.withdrawn, color: 'text-orange-500', bg: 'bg-slate-50 border-slate-100' },
+                ].map(s => (
+                  <div key={s.label} className={`${s.bg} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
+                    <p className={`text-3xl font-black ${s.color}`}>{s.val}</p>
+                    <p className={`text-sm font-bold ${s.color} mt-1`}>{s.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
