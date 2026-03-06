@@ -403,6 +403,10 @@ export interface SupervisionDayAssignment {
   staffAssignments: SupervisionStaffAssignment[];
   followUpSupervisorId?: string; // المشرف المتابع
   followUpSupervisorName?: string;
+  // Digital signature fields for follow-up supervisor
+  followUpSignatureData?: string;   // base64 PNG
+  followUpSignatureStatus?: 'not-sent' | 'pending' | 'signed';
+  followUpSignatureToken?: string;  // unique token for link
 }
 
 export interface SupervisionStaffAssignment {
@@ -411,6 +415,10 @@ export interface SupervisionStaffAssignment {
   staffName: string;
   locationIds: string[]; // متعدد المواقع
   periodIds: string[]; // الفترات المخصصة (فسحة/صلاة)
+  // Digital signature fields
+  signatureData?: string;   // base64 PNG
+  signatureStatus?: 'not-sent' | 'pending' | 'signed';
+  signatureToken?: string;  // unique token for link
 }
 
 export type SupervisionAttendanceStatus = 'present' | 'absent' | 'excused' | 'withdrawn' | 'late';

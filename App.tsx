@@ -22,6 +22,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 // import ClassesAndWaiting from './components/ClassesAndWaiting'; // Removed
 import DailySupervision from './components/DailySupervision';
+import SupervisionSignaturePage from './components/supervision/SupervisionSignaturePage';
 import DailyDuty from './components/DailyDuty';
 import DailyWaiting from './components/DailyWaiting';
 import Messages from './components/Messages';
@@ -248,6 +249,14 @@ const App: React.FC = () => {
       );
     }
   };
+
+  // Full-screen supervision signature page (opened via unique link)
+  const supervisionSignToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('supervisionSign')
+    : null;
+  if (supervisionSignToken) {
+    return <SupervisionSignaturePage token={supervisionSignToken} />;
+  }
 
   return (
     <div className="flex h-screen bg-[#fcfbff] overflow-hidden dir-rtl">

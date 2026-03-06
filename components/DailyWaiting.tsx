@@ -2335,7 +2335,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
-                <h3 className="font-black text-slate-800">اختيار المعلم البديل</h3>
+                <h3 className="font-black text-slate-800">اختر المنتظر</h3>
                 <p className="text-xs text-slate-400 font-medium">
                   الحصة {showAssignModal.period.periodNumber} · {showAssignModal.period.className} · {showAssignModal.period.subjectName}
                 </p>
@@ -2359,7 +2359,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 }`}
               >
                 <Users size={16} />
-                معلمون منتظرون
+                المعلمون
               </button>
               <button
                 onClick={() => setAssignModalTab('admins')}
@@ -2370,7 +2370,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 }`}
               >
                 <Shield size={16} />
-                طاقم إداري
+                الإداريون
               </button>
             </div>
 

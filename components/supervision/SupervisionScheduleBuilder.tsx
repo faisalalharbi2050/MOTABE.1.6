@@ -3,7 +3,7 @@ import {
   Calendar, Users, MapPin, Plus, X, Copy, Trash2, RotateCcw,
   ChevronDown, ChevronUp, Zap, RefreshCw, Minus, Check,
   AlertTriangle, UserPlus, Search, Shield, Save, CheckCircle,
-  MessageSquare, Send, Bell
+  MessageSquare, Send, Bell, Hourglass, PenLine, Clock
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -370,9 +370,21 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="p-4 font-black text-slate-700 w-32 border-l border-slate-200/60">اليوم</th>
-                <th className="p-4 font-black text-slate-700 w-64 border-l border-slate-200/60">المشرف</th>
-                <th className="p-4 font-black text-slate-700 w-64 border-l border-slate-200/60">موقع الإشراف</th>
-                <th className="p-4 font-black text-slate-700 w-56">المشرف المتابع</th>
+                <th className="p-4 font-black text-slate-700 w-56 border-l border-slate-200/60">المشرف</th>
+                <th className="p-4 font-black text-slate-700 w-52 border-l border-slate-200/60">موقع الإشراف</th>
+                <th className="p-4 font-black text-slate-700 w-28 border-l border-slate-200/60 text-center">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <PenLine size={14} className="text-[#655ac1]" />
+                    التوقيع
+                  </div>
+                </th>
+                <th className="p-4 font-black text-slate-700 w-48 border-l border-slate-200/60">المشرف المتابع</th>
+                <th className="p-4 font-black text-slate-700 w-28 text-center">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <PenLine size={14} className="text-amber-500" />
+                    توقيع المتابع
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -501,12 +513,35 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                 </div>
                               ) : null}
                            </td>
-                           
 
-
-                           {/* Follow Up Cell (Rowspan if first row) */}
+                           {/* Signature Status Cell for Supervisor */}
+                           <td className="p-3 border-l border-slate-200/60 align-middle">
+                              {staff1 ? (
+                                <div className="flex flex-col items-center justify-center gap-1 min-h-[44px]">
+                                  {staff1.signatureData ? (
+                                    <>
+                                      <img
+                                        src={staff1.signatureData}
+                                        alt="توقيع"
+                                        className="h-9 max-w-[80px] object-contain border border-emerald-200 rounded-lg bg-white shadow-sm"
+                                      />
+                                      <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
+                                    </>
+                                  ) : staff1.signatureStatus === 'pending' ? (
+                                    <>
+                                      <div className="w-8 h-8 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-center animate-pulse">
+                                        <Hourglass size={14} className="text-amber-500" />
+                                      </div>
+                                      <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-[9px] text-slate-300 font-bold">لم يُرسل بعد</span>
+                                  )}
+                                </div>
+                              ) : null}
+                           </td>
                            {isFirstRow && (
-                             <td className="p-4 align-top border-slate-100" rowSpan={rowsPerDay}>
+                             <td className="p-4 align-top border-l border-slate-200/60" rowSpan={rowsPerDay}>
                                 <div className="relative w-full h-full flex flex-col justify-center min-h-[60px]">
                                    {da.followUpSupervisorId ? (
                                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 group relative text-center">
@@ -552,6 +587,35 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                      </div>
                                    )}
                                 </div>
+                             </td>
+                           )}
+
+                           {/* Follow-Up Signature Status Cell (Rowspan if first row) */}
+                           {isFirstRow && (
+                             <td className="p-3 align-middle" rowSpan={rowsPerDay}>
+                               <div className="flex flex-col items-center justify-center gap-1 min-h-[44px]">
+                                 {da.followUpSignatureData ? (
+                                   <>
+                                     <img
+                                       src={da.followUpSignatureData}
+                                       alt="توقيع المتابع"
+                                       className="h-9 max-w-[80px] object-contain border border-amber-200 rounded-lg bg-white shadow-sm"
+                                     />
+                                     <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
+                                   </>
+                                 ) : da.followUpSupervisorId && da.followUpSignatureStatus === 'pending' ? (
+                                   <>
+                                     <div className="w-8 h-8 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-center animate-pulse">
+                                       <Hourglass size={14} className="text-amber-500" />
+                                     </div>
+                                     <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
+                                   </>
+                                 ) : da.followUpSupervisorId ? (
+                                   <span className="text-[9px] text-slate-300 font-bold">لم يُرسل بعد</span>
+                                 ) : (
+                                   <span className="text-[9px] text-slate-200 font-bold">—</span>
+                                 )}
+                               </div>
                              </td>
                            )}
                            

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Printer, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
+import { X, Printer, Edit, PenLine, FileText } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData } from '../../../types';
-import { getSupervisionPrintData } from '../../../utils/supervisionUtils';
+import { getSupervisionPrintData, DAY_NAMES } from '../../../utils/supervisionUtils';
 
 interface Props {
   isOpen: boolean;
@@ -16,14 +16,27 @@ const SupervisionPrintModal: React.FC<Props> = ({
 }) => {
   const [footerText, setFooterText] = useState(supervisionData.footerText || '');
   const [editingFooter, setEditingFooter] = useState(false);
-  const [showSupervisorSig, setShowSupervisorSig] = useState(true);
-  const [showFollowUpSig, setShowFollowUpSig] = useState(true);
+  const showSupervisorSig = true;
+  const showFollowUpSig = true;
 
   if (!isOpen) return null;
 
   const printData = getSupervisionPrintData(supervisionData, schoolInfo);
 
-  const handlePrint = () => {
+  // Build a lookup map keyed by Arabic dayName: dayName -> supervisorName -> signatureData
+  const buildSigMap = () => {
+    const map: Record<string, { supSigs: Record<string, string>; followUpSig: string }> = {};
+    supervisionData.dayAssignments.forEach(da => {
+      const supSigs: Record<string, string> = {};
+      da.staffAssignments.forEach(sa => { if (sa.signatureData) supSigs[sa.staffName] = sa.signatureData; });
+      const key = DAY_NAMES[da.day] || da.day;
+      map[key] = { supSigs, followUpSig: da.followUpSignatureData || '' };
+    });
+    return map;
+  };
+
+  const handlePrint = (withSignatures = false) => {
+    const sigMap = withSignatures ? buildSigMap() : {};
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -117,16 +130,31 @@ const SupervisionPrintModal: React.FC<Props> = ({
             <td colspan="${2 + (showSupervisorSig ? 1 : 0) + 1 + (showFollowUpSig ? 1 : 0)}" class="empty-state">لم يتم التعيين</td>
           </tr>`;
         }
-        return day.supervisors.map((sup, idx) => `
+        const daySigMap = sigMap[day.dayName] || { supSigs: {}, followUpSig: '' };
+        return day.supervisors.map((sup, idx) => {
+          const supSigData = daySigMap.supSigs[sup.name] || '';
+          const fuSigData = daySigMap.followUpSig || '';
+          const supSigCell = showSupervisorSig
+            ? (withSignatures && supSigData
+                ? `<td style="text-align:center;vertical-align:middle;padding:4px;"><img src="${supSigData}" style="height:36px;max-width:80px;object-fit:contain;"></td>`
+                : '<td></td>')
+            : '';
+          const fuSigCell = showFollowUpSig && idx === 0
+            ? (withSignatures && fuSigData
+                ? `<td rowspan="${day.supervisors.length}" style="text-align:center;vertical-align:middle;padding:4px;"><img src="${fuSigData}" style="height:36px;max-width:80px;object-fit:contain;"></td>`
+                : `<td rowspan="${day.supervisors.length}"></td>`)
+            : '';
+          return `
           <tr>
             ${idx === 0 ? `<td class="day-header" rowspan="${day.supervisors.length}" style="vertical-align: middle;">${day.dayName}</td>` : ''}
             <td style="text-align: right; font-weight: bold; color: #1e293b;">${sup.name}</td>
             <td style="color: #475569;">${sup.locations || '-'}</td>
-            ${showSupervisorSig ? '<td></td>' : ''}
-            ${idx === 0 ? `<td rowspan="${day.supervisors.length}" style="font-weight: bold; color: #b45309; vertical-align: middle;">${day.followUpSupervisor || '—'}</td>` : ''}
-            ${showFollowUpSig && idx === 0 ? `<td rowspan="${day.supervisors.length}"></td>` : ''}
+            ${supSigCell}
+            ${idx === 0 ? `<td rowspan="${day.supervisors.length}" style="font-weight: bold; color: #b45309; vertical-align: middle;">${day.followUpSupervisor || '\u2014'}</td>` : ''}
+            ${fuSigCell}
           </tr>
-        `).join('');
+        `;
+        }).join('');
       }).join('')}
     </tbody>
   </table>
@@ -158,65 +186,79 @@ const SupervisionPrintModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-cyan-100 rounded-2xl flex items-center justify-center text-cyan-600 shadow-sm">
-              <Printer size={24} />
+            <div className="w-11 h-11 bg-[#e5e1fe] rounded-2xl flex items-center justify-center shadow-sm">
+              <Printer size={22} className="text-[#655ac1]" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-800">طباعة جدول الإشراف</h2>
-              <p className="text-sm font-medium text-slate-500 mt-0.5">معاينة وطباعة جدول الإشراف اليومي</p>
+              <h2 className="text-lg font-black text-slate-800">طباعة الإشراف</h2>
+              <p className="text-xs font-medium text-slate-400 mt-0.5">معاينة وطباعة جدول الإشراف اليومي</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
-            <X size={22} />
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+            <X size={20} />
           </button>
+        </div>
+
+        {/* Print buttons sub-bar */}
+        <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-2.5 flex items-center justify-between shrink-0">
+          <p className="text-xs font-bold text-[#655ac1]/70">اختر نوع الطباعة</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePrint(false)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-95"
+            >
+              <FileText size={14} /> طباعة بدون توقيع
+            </button>
+            <button
+              onClick={() => handlePrint(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-xs font-bold transition-all shadow-md shadow-[#655ac1]/20 hover:shadow-[#655ac1]/30 active:scale-95"
+            >
+              <PenLine size={14} /> طباعة موقعًا
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-            {/* Footer Text Edit */}
-            <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-100 flex flex-col md:flex-row gap-4">
-               <div className="flex-1">
-                 <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-bold text-slate-600">نص التذييل</label>
-                    <button onClick={() => setEditingFooter(!editingFooter)} className="p-1.5 rounded-lg hover:bg-white text-slate-400 border border-transparent hover:border-slate-200 transition-colors">
-                      <Edit size={14} />
-                    </button>
-                 </div>
-                 {editingFooter ? (
-                   <textarea
-                     value={footerText}
-                     onChange={e => setFooterText(e.target.value)}
-                     placeholder={printData.footerText}
-                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1] outline-none resize-none"
-                     rows={2}
-                   />
-                 ) : (
-                    <p className="text-sm text-slate-600 font-medium bg-white p-2 text-right rounded-lg border border-slate-100">{footerText || printData.footerText}</p>
-                 )}
-               </div>
-               
-               {/* Column Toggles */}
-               <div className="w-full md:w-64 bg-white p-3 rounded-xl border border-slate-200 shrink-0">
-                  <h4 className="text-xs font-bold text-slate-500 mb-3 border-b border-slate-100 pb-2">إعدادات الأعمدة</h4>
-                  <div className="flex items-center justify-between mb-3 text-sm font-bold text-slate-700">
-                    <span>توقيع المشرف</span>
-                    <button onClick={() => setShowSupervisorSig(!showSupervisorSig)} className={`text-xl transition-colors ${showSupervisorSig ? 'text-indigo-500' : 'text-slate-300'}`}>
-                      {showSupervisorSig ? <ToggleRight size={28} className="text-[#655ac1]" /> : <ToggleLeft size={28} />}
-                    </button>
+            {/* Footer / Notes card */}
+            <div className="border border-[#655ac1]/20 bg-[#655ac1]/5 rounded-2xl p-4 mb-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-[#e5e1fe] rounded-lg flex items-center justify-center">
+                    <Edit size={13} className="text-[#655ac1]" />
                   </div>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 text-sm font-bold text-slate-700">
-                    <span>توقيع المشرف المتابع</span>
-                    <button onClick={() => setShowFollowUpSig(!showFollowUpSig)} className={`text-xl transition-colors ${showFollowUpSig ? 'text-indigo-500' : 'text-slate-300'}`}>
-                      {showFollowUpSig ? <ToggleRight size={28} className="text-[#655ac1]" /> : <ToggleLeft size={28} />}
-                    </button>
-                  </div>
-               </div>
+                  <label className="text-sm font-black text-[#655ac1]">التذييل / الملاحظات</label>
+                </div>
+                <button
+                  onClick={() => setEditingFooter(!editingFooter)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                    editingFooter
+                      ? 'bg-[#655ac1] text-white border-[#655ac1]'
+                      : 'bg-white text-[#655ac1] border-[#655ac1]/30 hover:border-[#655ac1]'
+                  }`}
+                >
+                  {editingFooter ? 'حفظ' : 'تعديل'}
+                </button>
+              </div>
+              {editingFooter ? (
+                <textarea
+                  value={footerText}
+                  onChange={e => setFooterText(e.target.value)}
+                  placeholder={printData.footerText}
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#655ac1]/20 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1] outline-none resize-none leading-relaxed"
+                  rows={3}
+                />
+              ) : (
+                <p className="text-sm text-slate-600 font-medium bg-white/70 px-3 py-2.5 rounded-xl border border-[#655ac1]/10 leading-relaxed min-h-[44px]">
+                  {footerText || printData.footerText}
+                </p>
+              )}
             </div>
 
             {/* Preview */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 max-h-96 overflow-y-auto custom-scrollbar">
+            <div className="bg-white border border-slate-200 rounded-xl p-6">
               <div className="text-center mb-4 pb-4 border-b-2 border-double border-slate-300">
                 <h4 className="text-lg font-black text-slate-800 mb-1">{printData.schoolName}</h4>
                 <h5 className="text-sm font-bold text-slate-500">{printData.title}</h5>
@@ -273,11 +315,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
               </div>
             </div>
             
-            <div className="mt-6 flex justify-end">
-               <button onClick={handlePrint} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-cyan-600/20 transition-all hover:scale-105 active:scale-95">
-                 <Printer size={18} /> طباعة الجدول
-               </button>
-            </div>
+
           </div>
         </div>
       </div>
