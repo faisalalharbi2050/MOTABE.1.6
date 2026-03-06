@@ -283,6 +283,20 @@ const DutyStaffPanel: React.FC<Props> = ({
               </select>
             </div>
 
+            {/* 4.5 Include Report Link in Reminder */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+              <div>
+                <p className="text-base font-bold text-slate-700">تضمين رابط نموذج التقرير في رسالة التذكير</p>
+                <p className="text-sm text-slate-500 mt-0.5">إضافة رابط نموذج التقرير اليومي للمناوب ضمن رسائل التذكير اليومية</p>
+              </div>
+              <button
+                onClick={() => setSettings(prev => ({ ...prev, includeReportLinkInReminder: !(prev.includeReportLinkInReminder ?? true) }))}
+                className="focus:outline-none transition-transform hover:scale-105 active:scale-95"
+              >
+                {(settings.includeReportLinkInReminder ?? true) ? <ToggleRight size={32} className="text-green-500" /> : <ToggleLeft size={32} className="text-slate-300" />}
+              </button>
+            </div>
+
             {/* 5. Send Links Settings */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
               <div>

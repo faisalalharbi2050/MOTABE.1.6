@@ -269,7 +269,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
              >
                <Printer size={18} className="text-[#8779fb]" />
-               <span>طباعة الجدول</span>
+               <span>طباعة المناوبة</span>
              </button>
              <button
                onClick={() => setIsMessagingOpen(true)}
@@ -372,6 +372,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
          isOpen={isMessagingOpen}
          onClose={() => setIsMessagingOpen(false)}
          dutyData={dutyData}
+         setDutyData={setDutyData}
          schoolInfo={schoolInfo}
          teachers={teachers}
          admins={admins}

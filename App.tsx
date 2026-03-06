@@ -23,6 +23,7 @@ import Header from './components/Header';
 // import ClassesAndWaiting from './components/ClassesAndWaiting'; // Removed
 import DailySupervision from './components/DailySupervision';
 import SupervisionSignaturePage from './components/supervision/SupervisionSignaturePage';
+import DutySignaturePage from './components/duty/DutySignaturePage';
 import DailyDuty from './components/DailyDuty';
 import DailyWaiting from './components/DailyWaiting';
 import Messages from './components/Messages';
@@ -256,6 +257,14 @@ const App: React.FC = () => {
     : null;
   if (supervisionSignToken) {
     return <SupervisionSignaturePage token={supervisionSignToken} />;
+  }
+
+  // Full-screen duty signature page (opened via unique link)
+  const dutySignToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('dutySign')
+    : null;
+  if (dutySignToken) {
+    return <DutySignaturePage token={dutySignToken} />;
   }
 
   return (

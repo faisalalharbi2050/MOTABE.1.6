@@ -3,7 +3,7 @@ import {
   Calendar, Plus, X, Trash2, Zap,
   AlertTriangle, Search, Shield, Info, CheckCircle2, Check, BarChart2,
   FileText, UmbrellaOff, ClipboardCheck, ClipboardX,
-  Bell, Send, Eye
+  Bell, Send, Eye, PenLine, Hourglass
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -558,8 +558,18 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       <th className="p-4 font-black text-slate-700 w-24 border-l border-slate-200/60">اليوم</th>
                       <th className="p-4 font-black text-slate-700 w-28 border-l border-slate-200/60">التاريخ</th>
                       <th className="p-4 font-black text-slate-700 max-w-[160px] border-l border-slate-200/60">المناوب</th>
+                      {/* Signature column */}
+                      <th className="p-4 font-black text-slate-700 text-center w-32 border-l border-slate-200/60">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <PenLine size={14} className="text-[#655ac1]" />
+                          <span>التوقيع</span>
+                        </div>
+                      </th>
                       {/* New: Report Form column — hidden when printing */}
-                      <th className="p-4 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden">معاينة وطباعة نموذج التقرير اليومي</th>
+                      <th className="p-3 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden w-32 leading-snug">
+                        <span className="block">معاينة وطباعة نموذج</span>
+                        <span className="block">التقرير اليومي</span>
+                      </th>
                       {/* New: Report Submission status column */}
                       <th className="p-4 font-black text-slate-700 w-40 text-center border-l border-slate-200/60 print:hidden">متابعة تسليم النموذج اليومي</th>
                       {/* Actions column */}
@@ -679,6 +689,48 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
                                 {staffAssignments.length === 0 && !canAddMore && (
                                   <span className="text-xs text-slate-300 text-center py-2">—</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* ── عامود التوقيع الرقمي ── */}
+                          <td className="p-2 border-l border-slate-200/60 align-middle text-center">
+                            {da.isOfficialLeave || da.isRemoteWork ? (
+                              <span className="text-xs text-slate-300">—</span>
+                            ) : (
+                              <div className="flex flex-col gap-1.5 items-center">
+                                {staffAssignments.map(sa => {
+                                  if (sa.signatureData) {
+                                    return (
+                                      <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
+                                        <img
+                                          src={sa.signatureData}
+                                          alt="توقيع"
+                                          className="h-8 max-w-[90px] object-contain border border-emerald-200 rounded bg-white shadow-sm"
+                                        />
+                                        <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
+                                      </div>
+                                    );
+                                  } else if (sa.signatureStatus === 'pending') {
+                                    return (
+                                      <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
+                                        <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center animate-pulse border border-amber-200">
+                                          <Hourglass size={14} className="text-amber-500" />
+                                        </div>
+                                        <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
+                                      </div>
+                                    );
+                                  } else {
+                                    return (
+                                      <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
+                                        <span className="text-[9px] text-slate-300 font-bold">لم يُرسل</span>
+                                      </div>
+                                    );
+                                  }
+                                })}
+                                {staffAssignments.length === 0 && (
+                                  <span className="text-xs text-slate-300">—</span>
                                 )}
                               </div>
                             )}

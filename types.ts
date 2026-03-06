@@ -503,6 +503,9 @@ export interface DutyStaffAssignment {
   staffName: string;
   lastPeriod?: number; // The actual last administrative period they end at
   isManual?: boolean;
+  signatureData?: string;           // base64 PNG of digital signature
+  signatureStatus?: 'not-sent' | 'pending' | 'signed';
+  signatureToken?: string;          // unique token used in the sign link
 }
 
 export interface DutyWeekAssignment {
@@ -575,6 +578,7 @@ export interface DutySettings {
   assignmentMessageTemplate?: string;
   reminderSendTime?: string; // Time to send reminder links e.g. "07:00"
   sharedSchoolMode: 'unified' | 'separate';
+  includeReportLinkInReminder?: boolean; // تضمين رابط نموذج التقرير في رسائل التذكير
   autoSendLinks: boolean; // إرسال تلقائي دون تدخل
   reminderSendChannel?: 'whatsapp' | 'sms'; // طريقة الإرسال
 }

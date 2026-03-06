@@ -399,7 +399,7 @@ const SupervisionMessagingModal: React.FC<Props> = ({
             }, {
               id:'text' as TabId, label:'إرسال التكليف نصيًا', sub:'', icon:<MessageSquare size={15}/>
             }, {
-              id:'reminder' as TabId, label:'إرسال التذكير', sub:'', icon:<Bell size={15}/>
+              id:'reminder' as TabId, label:'إرسال التذكير اليومي', sub:'', icon:<Bell size={15}/>
             }] as const).map((tab, i) => (
               <React.Fragment key={tab.id}>
                 {i>0 && <div className="w-px h-7 bg-slate-200 rounded-full shrink-0"/>}

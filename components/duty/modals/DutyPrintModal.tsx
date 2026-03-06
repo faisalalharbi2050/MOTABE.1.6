@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Edit, ToggleLeft, ToggleRight, Calendar, FileText } from 'lucide-react';
+import { X, Printer, Edit, Calendar, FileText, PenLine } from 'lucide-react';
 import { SchoolInfo, DutyScheduleData } from '../../../types';
 import { getDutyPrintData } from '../../../utils/dutyUtils';
 import { printDutyReport } from '../DutyReportViewModal';
@@ -32,8 +32,6 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   const [activeTab, setActiveTab] = useState<'schedule' | 'report'>('schedule');
   const [footerText, setFooterText] = useState(dutyData.footerText || '');
   const [editingFooter, setEditingFooter] = useState(false);
-  const [showSupervisorSig, setShowSupervisorSig] = useState(true);
-
   if (!isOpen) return null;
 
   const printData = getDutyPrintData(dutyData, schoolInfo);
@@ -54,44 +52,51 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; background: #fff; font-size: 11px; }
     .page-header {
-      display: flex; justify-content: space-between; align-items: center;
-      border-bottom: 3px solid #655ac1;
-      padding: 8px 16px; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 12px; margin-bottom: 14px;
     }
-    .page-header .school-info { font-size: 10px; font-weight: bold; color: #334155; line-height: 1.5; }
-    .page-header .doc-title { text-align: center; }
-    .page-header .doc-title h1 { font-size: 14px; font-weight: 900; color: #655ac1; }
-    .page-header .doc-title p { font-size: 9px; color: #8779fb; font-weight: bold; margin-top: 2px; }
-    .page-header .doc-date { font-size: 10px; font-weight: bold; color: #475569; text-align: left; }
+    .page-header .school-info { width: 33%; text-align: right; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
+    .page-header .doc-title { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .page-header .doc-title .logo-circle { width: 50px; height: 50px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
+    .page-header .doc-title .logo-text { font-size: 8px; color: #94a3b8; }
+    .page-header .doc-title h1 { font-size: 14px; font-weight: 900; color: #1e293b; }
+    .page-header .doc-date { width: 33%; text-align: left; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
     @page { margin: 15mm 15mm 20mm 15mm; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5px; }
-    th { background-color: #655ac1; color: white; border: 1px solid #8779fb; padding: 6px 4px; font-weight: bold; text-align: center; }
-    td { border: 1px solid #ddd6fe; padding: 5px 6px; text-align: center; vertical-align: middle; }
-    tr:nth-child(even) { background-color: #f5f3ff; }
-    .day-header { background-color: #ede9fe !important; font-weight: 900; color: #4c1d95; border: 1px solid #c4b5fd; }
+    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 6px 4px; font-weight: bold; text-align: center; }
+    td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: center; vertical-align: middle; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
     .empty-state { color: #94a3b8; font-style: italic; }
-    .week-title { font-size: 11px; font-weight: 900; color: #5C50A4; background: #ede9fe; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
-    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: bold; color: #64748b; padding: 5px 20px; border-top: 1px dashed #c4b5fd; background: white; }
+    .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
+    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: bold; color: #64748b; padding: 5px 20px; border-top: 1px dashed #94a3b8; background: white; }
     .principal-sig { text-align: left; margin-top: 16px; font-size: 11px; font-weight: bold; color: #334155; padding-left: 20px; }
     .principal-sig .sig-line { display: inline-block; min-width: 160px; border-top: 1px dotted #94a3b8; margin-top: 16px; padding-top: 3px; }
     .week-block { margin-bottom: 16px; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      th { background-color: #655ac1 !important; color: white !important; }
-      .day-header { background-color: #ede9fe !important; }
-      tr:nth-child(even) { background-color: #f5f3ff !important; }
+      th { background-color: #f1f5f9 !important; color: #1e293b !important; }
+      .day-header { background-color: #e2e8f0 !important; }
+      tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
 </head>
 <body>
   <div class="page-header">
     <div class="school-info">
-      <div>المملكة العربية السعودية &nbsp;|&nbsp; وزارة التعليم</div>
-      <div>${schoolInfo.region || 'إدارة التعليم'} &nbsp;|&nbsp; مدرسة ${printData.schoolName || '..........'}</div>
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${schoolInfo.region || 'إدارة التعليم'}</div>
+      <div>مدرسة ${printData.schoolName || '..........'}</div>
+      <div>الفصل الدراسي: ${printData.semester}</div>
     </div>
     <div class="doc-title">
+      ${schoolInfo.logo
+        ? `<img src="${schoolInfo.logo}" style="width:50px;height:50px;object-fit:contain;margin-bottom:6px;" />`
+        : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
+      }
       <h1>${printData.title}</h1>
-      <p>${printData.semester}</p>
     </div>
     <div class="doc-date">
       <div>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
@@ -108,7 +113,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
           <th style="width:11%;">اليوم</th>
           <th style="width:12%;">التاريخ</th>
           <th>المناوب</th>
-          ${showSupervisorSig ? '<th style="width:18%;">التوقيع</th>' : ''}
+          <th style="width:18%;">التوقيع</th>
         </tr>
       </thead>
       <tbody>
@@ -119,12 +124,12 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
               <td class="day-header">${day.dayName}</td>
               <td style="color:#94a3b8;">${day.date || '—'}</td>
               <td class="empty-state">لم يتم التعيين</td>
-              ${showSupervisorSig ? '<td></td>' : ''}
+              <td></td>
             </tr>`;
           }
           const namesHtml = sups.map((sup, idx) =>
             `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${idx < sups.length-1 ? '4px' : '0'};">
-              <span style="width:16px;height:16px;border-radius:50%;background:#e5e1fe;color:#655ac1;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${idx + 1}</span>
+              <span style="width:16px;height:16px;border-radius:50%;background:#e2e8f0;color:#334155;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${idx + 1}</span>
               <span style="font-weight:bold;color:#1e293b;">${sup.name}</span>
             </div>`
           ).join('');
@@ -132,7 +137,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
             <td class="day-header">${day.dayName}</td>
             <td style="color:#475569;">${day.date || '—'}</td>
             <td style="text-align:right; vertical-align:top;">${namesHtml}</td>
-            ${showSupervisorSig ? '<td></td>' : ''}
+            <td></td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -151,6 +156,134 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 300);
     showToast('تم فتح نافذة الطباعة', 'success');
+  };
+
+  // ── TAB 1b: Print schedule WITH embedded digital signatures ──────────────
+  const handlePrintScheduleSigned = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>جدول المناوبة اليومية (موقّع) - ${printData.schoolName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; background: #fff; font-size: 11px; }
+    .page-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 12px; margin-bottom: 14px;
+    }
+    .page-header .school-info { width: 33%; text-align: right; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
+    .page-header .doc-title { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .page-header .doc-title .logo-circle { width: 50px; height: 50px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
+    .page-header .doc-title .logo-text { font-size: 8px; color: #94a3b8; }
+    .page-header .doc-title h1 { font-size: 14px; font-weight: 900; color: #1e293b; }
+    .page-header .doc-date { width: 33%; text-align: left; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
+    @page { margin: 15mm 15mm 20mm 15mm; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5px; }
+    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 6px 4px; font-weight: bold; text-align: center; }
+    td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: center; vertical-align: middle; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
+    .empty-state { color: #94a3b8; font-style: italic; }
+    .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
+    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: bold; color: #64748b; padding: 5px 20px; border-top: 1px dashed #94a3b8; background: white; }
+    .principal-sig { text-align: left; margin-top: 16px; font-size: 11px; font-weight: bold; color: #334155; padding-left: 20px; }
+    .principal-sig .sig-line { display: inline-block; min-width: 160px; border-top: 1px dotted #94a3b8; margin-top: 16px; padding-top: 3px; }
+    .week-block { margin-bottom: 16px; }
+    .sig-img { max-height: 44px; max-width: 130px; display: block; margin: 0 auto; }
+    .sig-empty { display: inline-block; width: 100px; border-top: 1px dotted #94a3b8; margin-top: 20px; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      th { background-color: #f1f5f9 !important; color: #1e293b !important; }
+      .day-header { background-color: #e2e8f0 !important; }
+      tr:nth-child(even) { background-color: #f8fafc !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <div class="school-info">
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${schoolInfo.region || 'إدارة التعليم'}</div>
+      <div>مدرسة ${printData.schoolName || '..........'}</div>
+      <div>الفصل الدراسي: ${printData.semester}</div>
+    </div>
+    <div class="doc-title">
+      ${schoolInfo.logo
+        ? `<img src="${schoolInfo.logo}" style="width:50px;height:50px;object-fit:contain;margin-bottom:6px;" />`
+        : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
+      }
+      <h1>${printData.title}</h1>
+    </div>
+    <div class="doc-date">
+      <div>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
+      <div>العام الدراسي: ${schoolInfo.academicYear || ''}</div>
+    </div>
+  </div>
+
+  ${printData.weeks.map(week => `
+  <div class="week-block">
+    <div class="week-title">${week.weekName}${week.startDate ? ` &nbsp; ${week.startDate} — ${week.endDate}` : ''}</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:11%;">اليوم</th>
+          <th style="width:12%;">التاريخ</th>
+          <th>المناوب</th>
+          <th style="width:20%;">التوقيع</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${week.days.map(day => {
+          const sups = day.supervisors;
+          if (sups.length === 0) {
+            return `<tr>
+              <td class="day-header">${day.dayName}</td>
+              <td style="color:#94a3b8;">${day.date || '—'}</td>
+              <td class="empty-state">لم يتم التعيين</td>
+              <td></td>
+            </tr>`;
+          }
+          const namesHtml = sups.map((sup, idx) =>
+            `<div style="display:flex;align-items:center;gap:6px;margin-bottom:${idx < sups.length-1 ? '4px' : '0'};">
+              <span style="width:16px;height:16px;border-radius:50%;background:#e2e8f0;color:#334155;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${idx + 1}</span>
+              <span style="font-weight:bold;color:#1e293b;">${sup.name}</span>
+            </div>`
+          ).join('');
+          const sigHtml = sups.map(sup =>
+            sup.signature
+              ? `<img class="sig-img" src="${sup.signature}" alt="توقيع ${sup.name}" />`
+              : `<span class="sig-empty"></span>`
+          ).join('<br/>');
+          return `<tr>
+            <td class="day-header">${day.dayName}</td>
+            <td style="color:#475569;">${day.date || '—'}</td>
+            <td style="text-align:right; vertical-align:top;">${namesHtml}</td>
+            <td style="vertical-align:middle; text-align:center;">${sigHtml}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  `).join('')}
+
+  <div class="page-footer">${footerText || printData.footerText}</div>
+  <div class="principal-sig">
+    <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
+    <span class="sig-line">التوقيع</span>
+  </div>
+</body>
+</html>`);
+
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 300);
+    showToast('تم فتح نافذة الطباعة الموقعة', 'success');
   };
 
   // ── TAB 2: Print blank daily report template ──────────────────────────────
@@ -173,7 +306,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
               <Printer size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-800">طباعة</h2>
+              <h2 className="text-xl font-black text-slate-800">طباعة المناوبة</h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">معاينة وطباعة جدول المناوبة أو نموذج التقرير اليومي</p>
             </div>
           </div>
@@ -181,6 +314,27 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
             <X size={22} />
           </button>
         </div>
+
+        {/* ── Print sub-bar ── */}
+        {activeTab === 'schedule' && (
+          <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-2.5 flex items-center justify-between shrink-0">
+            <p className="text-xs font-bold text-[#655ac1]/70">اختر نوع الطباعة</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrintSchedule}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-95"
+              >
+                <FileText size={14} /> طباعة بدون توقيع
+              </button>
+              <button
+                onClick={handlePrintScheduleSigned}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-xs font-bold transition-all shadow-md shadow-[#655ac1]/20 hover:shadow-[#655ac1]/30 active:scale-95"
+              >
+                <PenLine size={14} /> الطباعة بالتوقيع الالكتروني
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Tabs ── */}
         <div className="bg-white border-b border-slate-200 px-6 flex gap-1 shrink-0">
@@ -212,41 +366,39 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
           {/* ═══════════════ TAB 1: Schedule ═══════════════ */}
           {activeTab === 'schedule' && (
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-5">
-              {/* Options row */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col md:flex-row gap-4">
-                {/* Footer text */}
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-bold text-slate-600">نص التذييل</label>
-                    <button onClick={() => setEditingFooter(!editingFooter)} className="p-1.5 rounded-lg hover:bg-white text-slate-400 border border-transparent hover:border-slate-200 transition-colors">
-                      <Edit size={14} />
-                    </button>
+              {/* Footer / Notes card */}
+              <div className="border border-[#655ac1]/20 bg-[#655ac1]/5 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-[#e5e1fe] rounded-lg flex items-center justify-center">
+                      <Edit size={13} className="text-[#655ac1]" />
+                    </div>
+                    <label className="text-sm font-black text-[#655ac1]">التذييل / الملاحظات</label>
                   </div>
-                  {editingFooter ? (
-                    <textarea
-                      value={footerText}
-                      onChange={e => setFooterText(e.target.value)}
-                      placeholder={printData.footerText}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-[#8779fb]/30 focus:border-[#8779fb] outline-none resize-none"
-                      rows={2}
-                    />
-                  ) : (
-                    <p className="text-sm text-slate-600 font-medium bg-white p-2 text-right rounded-lg border border-slate-100">{footerText || printData.footerText}</p>
-                  )}
+                  <button
+                    onClick={() => setEditingFooter(!editingFooter)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                      editingFooter
+                        ? 'bg-[#655ac1] text-white border-[#655ac1]'
+                        : 'bg-white text-[#655ac1] border-[#655ac1]/30 hover:border-[#655ac1]'
+                    }`}
+                  >
+                    {editingFooter ? 'حفظ' : 'تعديل'}
+                  </button>
                 </div>
-
-                {/* Signature toggle */}
-                <div className="w-full md:w-56 bg-white p-3 rounded-xl border border-slate-200 shrink-0">
-                  <h4 className="text-xs font-bold text-slate-500 mb-3 border-b border-slate-100 pb-2">إعدادات الأعمدة</h4>
-                  <div className="flex items-center justify-between text-sm font-bold text-slate-700">
-                    <span>توقيع المناوب</span>
-                    <button onClick={() => setShowSupervisorSig(!showSupervisorSig)}>
-                      {showSupervisorSig
-                        ? <ToggleRight size={28} className="text-[#8779fb]" />
-                        : <ToggleLeft size={28} className="text-slate-300" />}
-                    </button>
-                  </div>
-                </div>
+                {editingFooter ? (
+                  <textarea
+                    value={footerText}
+                    onChange={e => setFooterText(e.target.value)}
+                    placeholder={printData.footerText}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#655ac1]/20 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1] outline-none resize-none leading-relaxed"
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-600 font-medium bg-white/70 px-3 py-2.5 rounded-xl border border-[#655ac1]/10 leading-relaxed min-h-[44px]">
+                    {footerText || printData.footerText}
+                  </p>
+                )}
               </div>
 
               {/* Preview */}
@@ -259,36 +411,36 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
                 <div className="space-y-6">
                   {printData.weeks.map(week => (
                     <div key={week.weekName} className="mb-4">
-                      <h5 className="font-bold text-[#5C50A4] bg-[#ede9fe] py-1.5 px-3 rounded-lg mb-2 text-xs inline-block">
+                      <h5 className="font-bold text-[#334155] bg-[#f1f5f9] py-1.5 px-3 rounded-lg mb-2 text-xs inline-block">
                         {week.weekName} {week.startDate && <span className="text-slate-500 mr-1">({week.startDate} - {week.endDate})</span>}
                       </h5>
                       <table className="w-full text-xs border-collapse">
                         <thead>
-                          <tr className="bg-[#8779fb] text-white">
-                            <th className="border border-[#8779fb] p-1.5 w-20">اليوم</th>
-                            <th className="border border-[#8779fb] p-1.5 w-24">التاريخ</th>
-                            <th className="border border-[#8779fb] p-1.5">المناوب</th>
-                            {showSupervisorSig && <th className="border border-[#8779fb] p-1.5 w-28">التوقيع</th>}
+                          <tr className="bg-[#f1f5f9] text-[#1e293b]">
+                            <th className="border border-[#94a3b8] p-1.5 w-20">اليوم</th>
+                            <th className="border border-[#94a3b8] p-1.5 w-24">التاريخ</th>
+                            <th className="border border-[#94a3b8] p-1.5">المناوب</th>
+                            <th className="border border-[#94a3b8] p-1.5 w-28">التوقيع</th>
                           </tr>
                         </thead>
                         <tbody>
                           {week.days.map((day, rowIdx) => (
-                            <tr key={day.date || day.dayName} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-[#f5f3ff]'}>
-                              <td className="border border-[#ddd6fe] p-1.5 font-bold bg-[#ede9fe] text-[#4c1d95] text-center">{day.dayName}</td>
-                              <td className="border border-[#ddd6fe] p-1.5 text-center text-slate-500 text-[10px]">{day.date || '—'}</td>
-                              <td className="border border-[#ddd6fe] p-1.5 align-top">
+                            <tr key={day.date || day.dayName} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}>
+                              <td className="border border-[#94a3b8] p-1.5 font-bold bg-[#e2e8f0] text-[#334155] text-center">{day.dayName}</td>
+                              <td className="border border-[#94a3b8] p-1.5 text-center text-slate-500 text-[10px]">{day.date || '—'}</td>
+                              <td className="border border-[#94a3b8] p-1.5 align-top">
                                 {day.supervisors.length === 0
                                   ? <span className="text-slate-400 italic">لم يتم التعيين</span>
                                   : <div className="flex flex-col gap-1">
                                       {day.supervisors.map((sup, idx) => (
                                         <div key={idx} className="flex items-center gap-1.5">
-                                          <span className="w-4 h-4 rounded-full bg-[#e5e1fe] text-[#655ac1] text-[9px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                                          <span className="w-4 h-4 rounded-full bg-[#e2e8f0] text-[#334155] text-[9px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
                                           <span className="font-bold text-slate-800">{sup.name}</span>
                                         </div>
                                       ))}
                                     </div>}
                               </td>
-                              {showSupervisorSig && <td className="border border-[#ddd6fe] p-1.5"></td>}
+                              <td className="border border-[#94a3b8] p-1.5"></td>
                             </tr>
                           ))}
                         </tbody>
@@ -308,18 +460,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
                 </div>
               </div>
 
-              {/* Print button */}
-              <div className="flex justify-end gap-3">
-                <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors">
-                  إلغاء
-                </button>
-                <button
-                  onClick={handlePrintSchedule}
-                  className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95"
-                >
-                  <Printer size={18} /> طباعة الجدول
-                </button>
-              </div>
+
             </div>
           )}
 
@@ -329,14 +470,14 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
               {/* Preview of blank report */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 overflow-x-auto">
                 {/* Header */}
-                <div className="flex justify-between items-start border-b-2 border-[#655ac1] pb-3 mb-4">
+                <div className="flex justify-between items-start border-b-2 border-[#1e293b] pb-3 mb-4">
                   <div className="text-[10px] font-bold text-slate-500 leading-relaxed">
                     <div>المملكة العربية السعودية | وزارة التعليم</div>
                     <div>{schoolInfo.region || ''}</div>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-black text-[#655ac1]">نموذج تقرير المناوبة اليومية</p>
-                    <p className="text-xs font-bold text-[#8779fb] mt-1">{schoolInfo.schoolName}</p>
+                    <p className="text-sm font-black text-[#1e293b]">نموذج تقرير المناوبة اليومية</p>
+                    <p className="text-xs font-bold text-slate-500 mt-1">{schoolInfo.schoolName}</p>
                   </div>
                   <div className="text-[10px] font-bold text-slate-500 text-left">
                     <div>العام الدراسي: {schoolInfo.academicYear || '........'}</div>
@@ -346,7 +487,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
                 {/* Meta boxes */}
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   {['اليوم', 'التاريخ الميلادي', 'التاريخ الهجري', 'المدرسة'].map(l => (
-                    <div key={l} className="border border-[#ddd6fe] rounded-lg p-2 text-center">
+                    <div key={l} className="border border-[#94a3b8] rounded-lg p-2 text-center">
                       <p className="text-[9px] font-bold text-slate-400 mb-1">{l}</p>
                       <p className="text-xs font-black text-slate-700">
                         {l === 'المدرسة' ? schoolInfo.schoolName : '............'}
@@ -357,7 +498,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
 
                 {/* Staff table – 2 rows */}
                 <div className="mb-3">
-                  <div className="bg-[#8779fb] text-white text-xs font-black px-3 py-1.5 rounded-t-lg">أولاً: المناوبون</div>
+                  <div className="bg-[#f1f5f9] text-[#1e293b] text-xs font-black px-3 py-1.5 rounded-t-lg border border-b-0 border-[#94a3b8]">أولاً: المناوبون</div>
                   <table className="w-full text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-100 text-slate-700">
@@ -382,7 +523,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
 
                 {/* Late students table */}
                 <div className="mb-3">
-                  <div className="bg-[#8779fb] text-white text-xs font-black px-3 py-1.5 rounded-t-lg">ثانياً: المتأخرون</div>
+                  <div className="bg-[#f1f5f9] text-[#1e293b] text-xs font-black px-3 py-1.5 rounded-t-lg border border-b-0 border-[#94a3b8]">ثانياً: المتأخرون</div>
                   <table className="w-full text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-100 text-slate-700">
@@ -407,7 +548,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
 
                 {/* Violations table */}
                 <div className="mb-4">
-                  <div className="bg-[#8779fb] text-white text-xs font-black px-3 py-1.5 rounded-t-lg">ثالثاً: المخالفون</div>
+                  <div className="bg-[#f1f5f9] text-[#1e293b] text-xs font-black px-3 py-1.5 rounded-t-lg border border-b-0 border-[#94a3b8]">ثالثاً: المخالفون</div>
                   <table className="w-full text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-100 text-slate-700">

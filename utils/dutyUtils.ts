@@ -639,7 +639,7 @@ export function getDutyPrintData(
              name: sa.staffName,
              type: sa.staffType === 'teacher' ? 'معلم' : 'إداري',
              lastPeriod: sa.lastPeriod,
-             signature: '',
+             signature: sa.signatureData || '',
           })),
         }))
       })),
@@ -664,7 +664,7 @@ export function getDutyPrintData(
              name: sa.staffName,
              type: sa.staffType === 'teacher' ? 'معلم' : 'إداري',
              lastPeriod: sa.lastPeriod,
-             signature: '',
+             signature: sa.signatureData || '',
           })),
         };
       })

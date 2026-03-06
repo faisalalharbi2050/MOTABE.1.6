@@ -52,25 +52,26 @@ const SupervisionPrintModal: React.FC<Props> = ({
     
     .print-container { max-width: 100%; margin: 0 auto; }
     
-    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 4px solid #655ac1; padding-bottom: 20px; margin-bottom: 30px; }
+    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
     
-    .header-right { text-align: right; font-weight: bold; font-size: 13px; color: #334155; line-height: 1.6; }
+    .header-right { width: 33%; text-align: right; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
     
-    .header-center { text-align: center; }
-    .logo-placeholder { width: 60px; height: 60px; background-color: #f1f5f9; border-radius: 50%; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
-    .header-title { font-size: 20px; font-weight: 900; color: #655ac1; margin-bottom: 5px; }
+    .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+    .logo-text { font-size: 9px; color: #94a3b8; }
+    .header-title { font-size: 18px; font-weight: 900; color: #1e293b; margin-bottom: 4px; }
     
-    .header-left { text-align: left; font-weight: bold; font-size: 13px; color: #334155; line-height: 1.6; }
+    .header-left { width: 33%; text-align: left; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
     
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
-    th { background-color: #655ac1; color: white; border: 1px solid #c7d2fe; padding: 12px; font-weight: bold; }
-    td { border: 1px solid #e2e8f0; padding: 10px; }
+    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 12px; font-weight: bold; }
+    td { border: 1px solid #94a3b8; padding: 10px; }
     tr:nth-child(even) { background-color: #f8fafc; }
-    .day-header { background-color: #eef2ff !important; font-weight: 900; color: #4338ca; border: 2px solid #c7d2fe; }
+    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 2px solid #94a3b8; }
     
     .empty-state { color: #94a3b8; font-style: italic; }
     
-    .footer { margin-top: 40px; text-align: center; font-size: 14px; font-weight: bold; color: #475569; padding-top: 20px; border-top: 2px dashed #cbd5e1; }
+    .footer { margin-top: 40px; text-align: center; font-size: 14px; font-weight: bold; color: #475569; padding-top: 20px; border-top: 2px dashed #94a3b8; }
     
     .signatures { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 40px; font-weight: bold; font-size: 14px; color: #334155; }
     .sig-box { text-align: center; width: 200px; }
@@ -78,9 +79,9 @@ const SupervisionPrintModal: React.FC<Props> = ({
     
     @media print { 
       body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-      .header-wrapper { border-bottom: 4px solid #655ac1 !important; }
-      th { background-color: #655ac1 !important; color: white !important; }
-      .day-header { background-color: #eef2ff !important; border: 2px solid #c7d2fe !important; }
+      .header-wrapper { border-bottom: 2px solid #1e293b !important; }
+      th { background-color: #f1f5f9 !important; color: #1e293b !important; }
+      .day-header { background-color: #e2e8f0 !important; border: 2px solid #94a3b8 !important; }
       tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
@@ -93,21 +94,20 @@ const SupervisionPrintModal: React.FC<Props> = ({
         <p>وزارة التعليم</p>
         <p>${schoolInfo.region || 'إدارة التعليم بالمنطقة'}</p>
         <p>مدرسة ${printData.schoolName || '..........'}</p>
+        <p>الفصل الدراسي: ${printData.semester}</p>
       </div>
       
       <div class="header-center">
-        <div class="logo-placeholder">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#655ac1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22v-4a2 2 0 1 0-4 0v4"/><path d="m18 10 4 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8l4-2"/><path d="M6 5v17"/><path d="m4 6 8-4 8 4"/><path d="M6 5v17"/><circle cx="12" cy="9" r="2"/></svg>
-        </div>
+        ${schoolInfo.logo
+          ? `<img src="${schoolInfo.logo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;" />`
+          : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
+        }
         <h1 class="header-title">${printData.title}</h1>
-        <div style="font-size: 11px; color: #10b981; font-weight: bold; background: #ecfdf5; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; border: 1px solid #34d399;">
-          ${printData.semester}
-        </div>
       </div>
       
       <div class="header-left">
         <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
-        <p>الفصل: ${printData.semester}</p>
+        <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
       </div>
     </div>
 
@@ -215,7 +215,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
               onClick={() => handlePrint(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-xs font-bold transition-all shadow-md shadow-[#655ac1]/20 hover:shadow-[#655ac1]/30 active:scale-95"
             >
-              <PenLine size={14} /> طباعة موقعًا
+              <PenLine size={14} /> الطباعة بالتوقيع الالكتروني
             </button>
           </div>
         </div>
