@@ -13,6 +13,7 @@ import {
   ScheduleSettingsData, TimetableData
 } from '../types';
 import DailyWaitingPrintModal from './DailyWaitingPrintModal';
+import { useMessageArchive } from './messaging/MessageArchiveContext';
 
 // ===== Local Type Definitions =====
 
@@ -204,6 +205,7 @@ interface DailyWaitingProps {
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
   teachers, admins, classes, subjects, schoolInfo, scheduleSettings
 }) => {
+  const { sendMessage } = useMessageArchive();
   // ===== State =====
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
   const [sessions, setSessions] = useState<DailyWaitingSession[]>(() => {
@@ -543,6 +545,28 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const clean = phone.replace(/\D/g, '');
     const intl = clean.startsWith('0') ? '966' + clean.slice(1) : clean;
     return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
+  };
+
+  const dispatchMessage = (asgn: WaitingAssignment, msg: string, channel: 'whatsapp' | 'sms', mode?: 'notification' | 'electronic') => {
+    if (!asgn.substitutePhone) return;
+
+    if (channel === 'whatsapp') {
+      window.open(buildWhatsAppUrl(asgn.substitutePhone, msg), '_blank');
+      handleUpdateStatus(asgn.id, 'sent', 'whatsapp', mode);
+    } else {
+      window.open(`sms:${asgn.substitutePhone.replace(/\D/g,'')}?body=${encodeURIComponent(msg)}`, '_self');
+      handleUpdateStatus(asgn.id, 'sent', 'sms', mode);
+    }
+    
+    sendMessage({
+      source: 'waiting',
+      recipientId: asgn.substituteTeacherId,
+      recipientName: asgn.substituteTeacherName,
+      recipientPhone: asgn.substitutePhone,
+      recipientRole: teachers.some(t => t.id === asgn.substituteTeacherId) ? 'teacher' : 'admin',
+      content: msg,
+      channel,
+    }).catch(e => console.error('Archive error:', e));
   };
 
   const handleUpdateStatus = (
@@ -1756,8 +1780,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                     <button
                                       onClick={() => {
                                         const msg = buildAssignmentMessage(assignment);
-                                        window.open(buildWhatsAppUrl(assignment.substitutePhone, msg), '_blank');
-                                        if (assignment.status === 'pending') handleUpdateStatus(assignment.id, 'sent', 'whatsapp');
+                                        dispatchMessage(assignment, msg, 'whatsapp');
                                       }}
                                       title="إرسال عبر واتساب"
                                       className="p-1 text-emerald-400 hover:text-emerald-600 transition-colors"
@@ -1845,23 +1868,22 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                   </button>
                                 </div>
                               ) : (
-                                <button
-                                  disabled={assignment.status === 'signed'}
-                                  title={
-                                    assignment.status === 'pending'      ? 'اضغط للإرسال عبر واتساب' :
-                                    assignment.status === 'sent'         ? 'اضغط لتسجيل اطلاع المعلم' :
-                                    assignment.status === 'acknowledged' ? 'اضغط لتسجيل التوقيع' : ''
-                                  }
-                                  onClick={() => {
-                                    if (assignment.status === 'pending') {
-                                      if (assignment.substitutePhone) {
-                                        window.open(buildWhatsAppUrl(assignment.substitutePhone, buildAssignmentMessage(assignment)), '_blank');
-                                        handleUpdateStatus(assignment.id, 'sent', 'whatsapp');
-                                      } else {
-                                        handleUpdateStatus(assignment.id, 'sent');
-                                        showToast('تم تسجيل الإرسال', 'success');
-                                      }
-                                    } else if (assignment.status === 'sent') {
+                                  <button
+                                    disabled={assignment.status === 'signed'}
+                                    title={
+                                      assignment.status === 'pending'      ? 'اضغط للإرسال عبر واتساب' :
+                                      assignment.status === 'sent'         ? 'اضغط لتسجيل اطلاع المعلم' :
+                                      assignment.status === 'acknowledged' ? 'اضغط لتسجيل التوقيع' : ''
+                                    }
+                                    onClick={() => {
+                                      if (assignment.status === 'pending') {
+                                        if (assignment.substitutePhone) {
+                                          dispatchMessage(assignment, buildAssignmentMessage(assignment), 'whatsapp');
+                                        } else {
+                                          handleUpdateStatus(assignment.id, 'sent');
+                                          showToast('تم تسجيل الإرسال', 'success');
+                                        }
+                                      } else if (assignment.status === 'sent') {
                                       handleUpdateStatus(assignment.id, 'acknowledged');
                                     } else if (assignment.status === 'acknowledged') {
                                       handleUpdateStatus(assignment.id, 'signed');
@@ -2859,8 +2881,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         if (!targets.length) { showToast('لم يتم تحديد أي تكليف', 'warning'); return; }
                         targets.forEach((r, i) => {
                           if (r.asgn.substitutePhone) {
-                            setTimeout(() => window.open(buildWhatsAppUrl(r.asgn.substitutePhone, r.message), '_blank'), i * 350);
-                            handleUpdateStatus(r.asgn.id, 'sent', 'whatsapp', sendModalMode);
+                            setTimeout(() => dispatchMessage(r.asgn, r.message, 'whatsapp', sendModalMode), i * 350);
                           }
                         });
                         showToast(`تم فتح ${targets.filter(r => r.asgn.substitutePhone).length} رسالة واتساب`, 'success');
@@ -2874,8 +2895,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         if (!targets.length) { showToast('لم يتم تحديد أي تكليف', 'warning'); return; }
                         targets.forEach(r => {
                           if (r.asgn.substitutePhone) {
-                            window.open(`sms:${r.asgn.substitutePhone.replace(/\D/g,'')}?body=${encodeURIComponent(r.message)}`, '_self');
-                            handleUpdateStatus(r.asgn.id, 'sent', 'sms', sendModalMode);
+                            dispatchMessage(r.asgn, r.message, 'sms', sendModalMode);
                           }
                         });
                         showToast(`تم فتح ${targets.filter(r => r.asgn.substitutePhone).length} رسالة نصية`, 'success');
@@ -2944,8 +2964,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                   <button
                                     onClick={() => {
                                       if (!asgn.substitutePhone) { showToast('لا يوجد رقم هاتف', 'warning'); return; }
-                                      window.open(buildWhatsAppUrl(asgn.substitutePhone, row.message), '_blank');
-                                      handleUpdateStatus(asgn.id, 'sent', 'whatsapp', sendModalMode);
+                                      dispatchMessage(asgn, row.message, 'whatsapp', sendModalMode);
                                     }}
                                     title="واتساب"
                                     className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/25 border border-[#25D366]/20 transition-all active:scale-90"
@@ -2953,8 +2972,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                   <button
                                     onClick={() => {
                                       if (!asgn.substitutePhone) { showToast('لا يوجد رقم هاتف', 'warning'); return; }
-                                      window.open(`sms:${asgn.substitutePhone.replace(/\D/g,'')}?body=${encodeURIComponent(row.message)}`, '_self');
-                                      handleUpdateStatus(asgn.id, 'sent', 'sms', sendModalMode);
+                                      dispatchMessage(asgn, row.message, 'sms', sendModalMode);
                                     }}
                                     title="رسالة نصية"
                                     className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/25 border border-[#007AFF]/20 transition-all active:scale-90"

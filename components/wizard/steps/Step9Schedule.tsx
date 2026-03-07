@@ -447,9 +447,10 @@ const Step9Schedule: React.FC<Step9Props> = ({
                         <button 
                             onClick={() => {
                                 setActiveView('grid');
+                                setActiveDisplayView(null);
                                 setShowEditMenu(false);
                             }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
                         >
                             <Grid size={16} className="-mt-0.5" />
                             الجدول العام
@@ -457,9 +458,10 @@ const Step9Schedule: React.FC<Step9Props> = ({
                         <button 
                             onClick={() => {
                                 setActiveView('individual');
+                                setActiveDisplayView(null);
                                 setShowEditMenu(false);
                             }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
                         >
                             <Users size={16} className="-mt-0.5" />
                             تعديل فردي متعدد

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType } from './types';
 import { INITIAL_SPECIALIZATIONS, INITIAL_SUBJECTS } from './constants';
+import { MessageArchiveProvider } from './components/messaging/MessageArchiveContext';
 
 import Dashboard from './components/Dashboard';
 
@@ -268,6 +269,7 @@ const App: React.FC = () => {
   }
 
   return (
+    <MessageArchiveProvider>
     <div className="flex h-screen bg-[#fcfbff] overflow-hidden dir-rtl">
        {/* Sidebar - Fixed/Full Height */}
        <Sidebar 
@@ -294,6 +296,7 @@ const App: React.FC = () => {
         </main>
       </div>
     </div>
+    </MessageArchiveProvider>
   );
 };
 

@@ -8,6 +8,7 @@ import {
   DAYS, DAY_NAMES, getTimingConfig,
   generateDutyAssignmentMessage, generateDutyReminderMessage
 } from '../../../utils/dutyUtils';
+import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 
 // ─── WhatsApp Icon ────────────────────────────────────────────────────────────
 const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
@@ -246,6 +247,7 @@ interface Props {
 const DutyMessagingModal: React.FC<Props> = ({
   isOpen, onClose, dutyData, setDutyData, schoolInfo, teachers, admins, showToast
 }) => {
+  const { sendMessage } = useMessageArchive();
   const [activeTab, setActiveTab] = useState<TabId>('electronic');
   const [filterWeek, setFilterWeek] = useState<string>('all');
   const [filterDay, setFilterDay] = useState<string>('all');
@@ -354,15 +356,35 @@ const DutyMessagingModal: React.FC<Props> = ({
   const getPhone = (staffId: string) =>
     ([...teachers, ...admins] as Array<{ id: string; phone?: string }>).find(s => s.id === staffId)?.phone;
 
-  const sendWhatsApp = (staffId: string, msg: string) => {
+  const sendWhatsApp = async (staffId: string, staffName: string, staffType: 'teacher'|'admin', msg: string) => {
     const p = getPhone(staffId);
-    if (p) window.open(`https://wa.me/${p.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-    else showToast('لم يُعثر على رقم الهاتف', 'warning');
+    if (p) {
+      await sendMessage({
+        source: 'duty',
+        recipientId: staffId,
+        recipientName: staffName,
+        recipientPhone: p,
+        recipientRole: staffType,
+        content: msg,
+        channel: 'whatsapp',
+      });
+      window.open(`https://wa.me/${p.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else showToast('لم يُعثر على رقم الهاتف', 'warning');
   };
-  const sendSMS = (staffId: string, msg: string) => {
+  const sendSMS = async (staffId: string, staffName: string, staffType: 'teacher'|'admin', msg: string) => {
     const p = getPhone(staffId);
-    if (p) window.open(`sms:${p.replace(/\D/g, '')}?body=${encodeURIComponent(msg)}`, '_self');
-    else showToast('لم يُعثر على رقم الهاتف', 'warning');
+    if (p) {
+      await sendMessage({
+        source: 'duty',
+        recipientId: staffId,
+        recipientName: staffName,
+        recipientPhone: p,
+        recipientRole: staffType,
+        content: msg,
+        channel: 'sms',
+      });
+      window.open(`sms:${p.replace(/\D/g, '')}?body=${encodeURIComponent(msg)}`, '_self');
+    } else showToast('لم يُعثر على رقم الهاتف', 'warning');
   };
 
   const markPending = (eRow: ElectronicRow) => {
@@ -388,9 +410,9 @@ const DutyMessagingModal: React.FC<Props> = ({
     showToast('تم حفظ التوقيع بنجاح', 'success');
   };
 
-  const sendOne = (row: BaseRow, method: 'whatsapp' | 'sms') => {
-    if (method === 'whatsapp') sendWhatsApp(row.staffId, row.message);
-    else sendSMS(row.staffId, row.message);
+  const sendOne = async (row: BaseRow, method: 'whatsapp' | 'sms') => {
+    if (method === 'whatsapp') await sendWhatsApp(row.staffId, row.staffName, row.staffType, row.message);
+    else await sendSMS(row.staffId, row.staffName, row.staffType, row.message);
     if (activeTab === 'electronic') markPending(row as ElectronicRow);
   };
   const sendBulk = (method: 'whatsapp' | 'sms') => {

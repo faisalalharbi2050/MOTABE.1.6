@@ -248,6 +248,51 @@ export interface Assignment {
   isDraft?: boolean;
 }
 
+export type MessageSource = 'waiting' | 'supervision' | 'duty' | 'student_affairs' | 'general' | 'shared_school';
+export type MessageRole = 'teacher' | 'admin' | 'student' | 'guardian' | 'all';
+
+export interface CentralMessage {
+  id: string;
+  batchId?: string; // To group messages sent together
+  senderRole?: string; // To identify who sent the message (e.g. manager, admin)
+  source: MessageSource;
+  recipientId: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientRole: MessageRole;
+  content: string;
+  timestamp: string;
+  channel: 'whatsapp' | 'sms';
+  status: 'sent' | 'pending' | 'failed';
+  failureReason?: string;
+  schoolId?: string; // For shared schools
+  attachments?: { name: string; url: string; type: string }[];
+  isScheduled?: boolean;
+  scheduledFor?: string;
+  retryCount?: number;
+}
+
+export interface MessageTemplate {
+  id: string;
+  title: string;
+  content: string;
+  isSystem: boolean;
+  category?: string; // e.g. 'غياب طالب', 'تأخر طالب', 'سلوك طالب', 'أخرى'
+}
+
+export interface MessageStats {
+  totalSent: number;
+  whatsappSent: number;
+  smsSent: number;
+  failedCount: number;
+  balanceSMS: number;
+  balanceWhatsApp: number;
+  lastUpdated: string;
+  activePackageName?: string;
+  activePackageWA?: number;
+  activePackageSMS?: number;
+}
+
 export interface Message {
   id: string;
   sender: string;

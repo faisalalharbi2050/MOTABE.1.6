@@ -10,6 +10,7 @@ import {
   DAYS, DAY_NAMES, getTimingConfig, generateAssignmentMessage,
   generateReminderMessage
 } from '../../../utils/supervisionUtils';
+import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 
 const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="#25D366">
@@ -239,6 +240,7 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({ row, supervisionData, s
 const SupervisionMessagingModal: React.FC<Props> = ({
   isOpen, onClose, supervisionData, setSupervisionData, schoolInfo, teachers, admins, showToast
 }) => {
+  const { sendMessage } = useMessageArchive();
   const [activeTab, setActiveTab] = useState<TabId>('electronic');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [masterTemplate, setMasterTemplate] = useState('');
@@ -252,15 +254,35 @@ const SupervisionMessagingModal: React.FC<Props> = ({
   const getPhone = (staffId: string) =>
     ([...teachers, ...admins] as Array<{id:string;phone?:string}>).find(s => s.id === staffId)?.phone;
 
-  const sendWhatsApp = (staffId: string, msg: string) => {
+  const sendWhatsApp = async (staffId: string, staffName: string, staffType: 'teacher'|'admin', msg: string) => {
     const p = getPhone(staffId);
-    if (p) window.open(`https://wa.me/${p.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
-    else showToast('لم يُعثر على رقم الهاتف', 'warning');
+    if (p) {
+      await sendMessage({
+        source: 'supervision',
+        recipientId: staffId,
+        recipientName: staffName,
+        recipientPhone: p,
+        recipientRole: staffType,
+        content: msg,
+        channel: 'whatsapp',
+      });
+      window.open(`https://wa.me/${p.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else showToast('لم يُعثر على رقم الهاتف', 'warning');
   };
-  const sendSMS = (staffId: string, msg: string) => {
+  const sendSMS = async (staffId: string, staffName: string, staffType: 'teacher'|'admin', msg: string) => {
     const p = getPhone(staffId);
-    if (p) window.open(`sms:${p.replace(/\D/g,'')}?body=${encodeURIComponent(msg)}`, '_self');
-    else showToast('لم يُعثر على رقم الهاتف', 'warning');
+    if (p) {
+      await sendMessage({
+        source: 'supervision',
+        recipientId: staffId,
+        recipientName: staffName,
+        recipientPhone: p,
+        recipientRole: staffType,
+        content: msg,
+        channel: 'sms',
+      });
+      window.open(`sms:${p.replace(/\D/g,'')}?body=${encodeURIComponent(msg)}`, '_self');
+    } else showToast('لم يُعثر على رقم الهاتف', 'warning');
   };
 
   // Electronic rows
@@ -359,9 +381,9 @@ const SupervisionMessagingModal: React.FC<Props> = ({
     showToast('تم حفظ التوقيع بنجاح', 'success');
   };
 
-  const sendOne = (row: BaseRow, method: 'whatsapp'|'sms') => {
-    if (method==='whatsapp') sendWhatsApp(row.staffId, row.message);
-    else sendSMS(row.staffId, row.message);
+  const sendOne = async (row: BaseRow, method: 'whatsapp'|'sms') => {
+    if (method==='whatsapp') await sendWhatsApp(row.staffId, row.staffName, row.staffType, row.message);
+    else await sendSMS(row.staffId, row.staffName, row.staffType, row.message);
     if (activeTab==='electronic') markPending(row as ElectronicRow);
   };
   const sendBulk = (method: 'whatsapp'|'sms') => {
