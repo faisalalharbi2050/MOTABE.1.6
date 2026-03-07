@@ -10,6 +10,7 @@ import {
   Clock,
   MessageSquare,
   Lock,
+  ShieldCheck,
   CreditCard,
   Headphones,
   GraduationCap,
@@ -350,7 +351,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <NavItem
             active={activeTab === "permissions"}
             onClick={() => handleTabClick("permissions")}
-            icon={<Lock size={22} />}
+            icon={<ShieldCheck size={22} />}
             label="الصلاحيات"
             collapsed={isCollapsed}
           />

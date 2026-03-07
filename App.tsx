@@ -28,7 +28,7 @@ import DutySignaturePage from './components/duty/DutySignaturePage';
 import DailyDuty from './components/DailyDuty';
 import DailyWaiting from './components/DailyWaiting';
 import Messages from './components/Messages';
-import Permissions from './components/Permissions';
+import RolePermissions from './components/permissions/RolePermissions';
 import Subscription from './components/Subscription';
 import Support from './components/Support';
 
@@ -223,7 +223,7 @@ const App: React.FC = () => {
       case 'duty': return <DailyDuty schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
       case 'daily_waiting': return <DailyWaiting teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
       case 'messages': return <Messages />;
-      case 'permissions': return <Permissions />;
+      case 'permissions': return <RolePermissions />;
       case 'subscription': return <Subscription />;
       case 'support': return <Support />;
       default: return (

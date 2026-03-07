@@ -1,4 +1,3 @@
-
 export enum EntityType {
   SCHOOL = 'مدرسة',
   INSTITUTE = 'معهد',
@@ -13,6 +12,46 @@ export enum Phase {
   HIGH = 'الثانوية',
   OTHER = 'أخرى'
 }
+
+// ===== Roles & Permissions (RBAC) Types =====
+
+export type PermissionLevel = 'full' | 'custom_edit';
+
+export interface ModulePermission {
+  moduleId: string; // e.g., 'settings', 'schedule', 'daily_waiting', 'messages', 'subscriptions', 'support', 'permissions'
+  level: PermissionLevel; 
+  allowedActions?: ('add' | 'edit' | 'delete' | 'print' | 'export')[];
+}
+
+export type RoleType = 'owner' | 'delegate_full' | 'delegate_custom';
+
+export interface Delegate {
+  id: string;
+  name: string;
+  phone: string;
+  username?: string; // Created after OTP login
+  passwordHash?: string; // Created after OTP login
+  isPendingSetup: boolean; // True if hasn't logged in with OTP yet
+  otp?: string; // Temporary OTP for first login
+  role: RoleType;
+  customPermissions?: ModulePermission[];
+  isActive: boolean;
+  addedAt: string;
+  linkedStaffId: string; // ID of the teacher/admin they were linked to
+  linkedStaffType: 'teacher' | 'admin';
+}
+
+export interface ActionLog {
+  id: string;
+  delegateId: string;
+  delegateName: string;
+  action: string;
+  module: string;
+  timestamp: string; // ISO string
+  details?: string;
+}
+
+// ===========================================
 
 export interface SharedSchool {
   id: string;
