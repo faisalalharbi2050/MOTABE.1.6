@@ -77,7 +77,7 @@ const MessageSubscriptions: React.FC = () => {
                  <div className="flex flex-col md:flex-row gap-4 max-w-2xl">
                    {/* WhatsApp - First in DOM, so right in RTL */}
                    <div className="flex-1 flex items-center gap-4 text-sm font-bold text-slate-700 bg-transparent p-3 rounded-xl border border-slate-100">
-                     <div className="w-12 h-12 rounded-xl bg-green-100/50 flex items-center justify-center shrink-0 border border-green-100">
+                     <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
                        <svg width="32" height="32" viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg">
                          <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.066-.3-.15-1.265-.467-2.409-1.487-.883-.788-1.48-1.761-1.653-2.059-.173-.3-.018-.465.13-.615.136-.135.301-.345.45-.523.146-.181.194-.301.292-.502.097-.206.05-.386-.025-.534-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.572-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.09 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.36zm-5.496 7.618A9.973 9.973 0 017.1 20.676L3 22l1.353-3.95A9.977 9.977 0 012.002 12 10 10 0 1112.002 22z" fillRule="evenodd" clipRule="evenodd"/>
                        </svg>
@@ -90,7 +90,7 @@ const MessageSubscriptions: React.FC = () => {
 
                    {/* SMS - Second in DOM, so left in RTL */}
                    <div className="flex-1 flex items-center gap-4 text-sm font-bold text-slate-700 bg-transparent p-3 rounded-xl border border-slate-100">
-                     <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                     <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
                        <MessageSquare size={28} className="text-[#007AFF]"/>
                      </div> 
                      <div className="flex-1 flex flex-col justify-center gap-0.5">

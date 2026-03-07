@@ -9,7 +9,7 @@ const MessageTemplates: React.FC = () => {
   const [formData, setFormData] = useState({ title: '', content: '', category: 'غياب طالب' });
   const [customCategory, setCustomCategory] = useState('');
 
-  const PREDEFINED_CATEGORIES = ['غياب طالب', 'تأخر طالب', 'مخالفة سلوكية', 'تعميم داخلي'];
+  const PREDEFINED_CATEGORIES = ['غياب طالب', 'تأخر طالب', 'مخالفة سلوكية', 'تعميم داخلي', 'انتظار', 'إشراف', 'مناوبة', 'تعميم'];
 
   const handleEdit = (id: string) => {
     const template = templates.find(t => t.id === id);

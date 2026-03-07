@@ -186,6 +186,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
         .replace(/{اسم_الطالب}/g, rec.name)
         .replace(/{اسم_المعلم}/g, rec.name)
         .replace(/{اسم_الإداري}/g, rec.name)
+        .replace(/{اسم المعلم \/ اسم الإداري}/g, rec.name)
         .replace(/{اليوم}/g, today)
         .replace(/{التاريخ}/g, dateFormatted)
         .replace(/{اسم_المدرسة}/g, schoolInfo.schoolName || '');
@@ -471,6 +472,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
                 </label>
               )}
 
+              {channel === 'whatsapp' && (
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">المرفقات</label>
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 transition-colors relative">
@@ -481,6 +483,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
                    </span>
                 </div>
               </div>
+              )}
            </div>
         </div>
 
@@ -504,13 +507,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 mb-2">إضافة متغيرات تلقائية للرسالة:</label>
             <div className="flex gap-2 flex-wrap">
-               {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة'].map(variable => (
+               {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اسم المعلم / اسم الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة'].map(variable => (
                   <button 
                     key={variable}
                     onClick={() => insertVariable(variable)} 
                     className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
                   >
-                    <Plus size={12} /> {variable.replace('_', ' ')}
+                    <Plus size={12} /> {variable.replace(/_/g, ' ')}
                   </button>
                ))}
             </div>
