@@ -56,12 +56,12 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
           if (isNaN(d.getTime())) return dateStr;
           
           if (calendarType === 'hijri') {
-              return new DateObject({ date: d, calendar: arabic, locale: arabic_ar }).format('YYYY-MM-DD');
+              return new DateObject({ date: d, calendar: arabic, locale: arabic_ar }).format('YYYY/MM/DD');
           } else {
-              return dateStr;
+              return dateStr.replace(/-/g, '/');
           }
       } catch (e) {
-          return dateStr;
+          return dateStr.replace(/-/g, '/');
       }
   };
 
@@ -234,7 +234,11 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
       newSemester.workDaysEnd ?? 4
   );
 
-  const showMismatchWarning = activeCalendarWeeks > 0 && activeCalendarWeeks !== newSemester.weeksCount && (!newSemester.holidays || newSemester.holidays.length === 0);
+  React.useEffect(() => {
+     if (activeCalendarWeeks > 0 && activeCalendarWeeks !== newSemester.weeksCount) {
+         setNewSemester(prev => ({ ...prev, weeksCount: activeCalendarWeeks }));
+     }
+  }, [activeCalendarWeeks, newSemester.weeksCount]);
 
   const handleSaveSemester = () => {
     if (newSemester.name && newSemester.startDate && newSemester.endDate) {
@@ -373,28 +377,6 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
               }`}
             >
-              {deletingId === semester.id ? (
-                 <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-10 rounded-xl flex flex-col items-center justify-center p-4 text-center border border-rose-200 shadow-sm animate-in fade-in duration-200">
-                    <AlertCircle className="text-rose-500 mb-2" size={24} />
-                    <h5 className="text-sm font-bold text-slate-800 mb-1">تأكيد الحذف</h5>
-                    <p className="text-xs text-slate-500 mb-4">هل أنت متأكد من حذف الفصل الدراسي بشكل نهائي؟</p>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setDeletingId(null)}
-                            className="px-4 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                        >
-                            إلغاء
-                        </button>
-                        <button 
-                            onClick={() => handleDeleteSemester(semester.id)}
-                            className="px-4 py-1.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors shadow-sm shadow-rose-500/20"
-                        >
-                            تأكيد الحذف
-                        </button>
-                    </div>
-                 </div>
-              ) : null}
-
               <div className="flex justify-between items-start mb-3">
                 <div>
                    <h4 className="font-bold text-sm text-slate-800">{semester.name}</h4>
@@ -412,7 +394,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                    </div>
                 </div>
                 
-                <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity relative z-0">
+                <div className="flex gap-1 opacity-100 transition-opacity relative z-0">
                    {currentSemesterId !== semester.id && (
                      <button 
                        onClick={() => setCurrentSemesterId(semester.id)}
@@ -439,12 +421,12 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+               <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
                  <div>
-                    <span className="text-slate-400">البداية: </span> <span dir="ltr" className="font-medium text-slate-700">{formatDateForDisplay(semester.startDate, semester.calendarType)}</span>
+                    <span className="text-slate-400">البداية: </span> <span dir="ltr" className="font-medium text-slate-700 inline-block">{formatDateForDisplay(semester.startDate, semester.calendarType)}</span>
                  </div>
                  <div>
-                    <span className="text-slate-400">النهاية: </span> <span dir="ltr" className="font-medium text-slate-700">{formatDateForDisplay(semester.endDate, semester.calendarType)}</span>
+                    <span className="text-slate-400">النهاية: </span> <span dir="ltr" className="font-medium text-slate-700 inline-block">{formatDateForDisplay(semester.endDate, semester.calendarType)}</span>
                  </div>
                  <div className="col-span-2 pt-1 border-t border-slate-200/50 mt-1">
                     <span className="text-slate-400">المدة: </span> <span className="font-medium text-slate-700">{semester.weeksCount} أسبوع</span>
@@ -478,24 +460,23 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
               </div>
               
               <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      
-                     {/* Calendar Type - Moved to First Position */}
+                     {/* Calendar Type - Moved to Dropdown */}
                      <div>
                       <label className="text-xs font-bold text-slate-500 block mb-1">نوع التقويم</label>
-                      <div className="flex gap-2 bg-white border border-slate-200 p-1 rounded-xl">
-                          <button 
-                            onClick={() => setNewSemester({...newSemester, calendarType: 'hijri', startDate: '', endDate: ''})}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${newSemester.calendarType === 'hijri' ? 'bg-emerald-50 text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                      <div className="relative">
+                          <select 
+                            value={newSemester.calendarType}
+                            onChange={e => setNewSemester({...newSemester, calendarType: e.target.value as 'hijri' | 'gregorian', startDate: '', endDate: ''})}
+                            className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none appearance-none bg-white font-bold"
                           >
-                            هجري
-                          </button>
-                          <button 
-                            onClick={() => setNewSemester({...newSemester, calendarType: 'gregorian', startDate: '', endDate: ''})}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${newSemester.calendarType === 'gregorian' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                          >
-                            ميلادي
-                          </button>
+                             <option value="hijri">هجري</option>
+                             <option value="gregorian">ميلادي</option>
+                          </select>
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              <span className="text-xs">▼</span>
+                          </div>
                       </div>
                     </div>
 
@@ -504,17 +485,17 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                       <input 
                         value={academicYear}
                         onChange={(e) => onAcademicYearChange(e.target.value)}
-                        className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white"
+                        className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white font-bold text-slate-700"
                         placeholder="مثال: 1447هـ"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-slate-500 block mb-1">اسم الفصل الدراسي</label>
+                      <label className="text-xs font-bold text-slate-500 block mb-1">الفصل الدراسي</label>
                       <input 
                         value={newSemester.name}
                         onChange={e => setNewSemester({...newSemester, name: e.target.value})}
-                        className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white"
+                        className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white font-bold text-slate-700"
                         placeholder="مثال: الفصل الدراسي الأول"
                       />
                     </div>
@@ -624,19 +605,6 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   </div>
 
 
-
-                  {showMismatchWarning && (
-                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 mt-4">
-                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                        <div>
-                           <h4 className="text-sm font-bold text-amber-800">تنبيه: فرق في الحساب</h4>
-                           <p className="text-xs text-amber-700 mt-1">
-                              يوجد فرق أسبوعين/أسابيع بين التواريخ وأيام العمل الفعلية ({activeCalendarWeeks} أسبوع) وعدد الأسابيع المحدد ({newSemester.weeksCount}). يرجى تحديد أسابيع الإجازات ليطابق الحساب الفعلي.
-                           </p>
-                        </div>
-                     </div>
-                  )}
-
                   {syncAlert && (
                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 mt-4 animate-in slide-in-from-top-2">
                         <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} />
@@ -659,7 +627,15 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                               الأسابيع الفعالة: <span className="font-bold text-primary text-sm">{activeCalendarWeeks}</span> من <span className="font-bold text-slate-700">{generatedWeeks.length}</span>
                            </div>
                         </div>
-                        <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 bg-slate-50/30">
+                        
+                        {/* Legend */}
+                        <div className="bg-white px-4 py-3 flex flex-wrap justify-center items-center gap-6 text-[11px] font-bold text-slate-600 shadow-sm z-10 relative">
+                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-white border border-slate-300 shadow-sm"></div> يوم دراسي </div>
+                            <div className="flex items-center gap-2 hover:bg-rose-50 px-2 py-1 rounded-md transition-colors"><div className="w-4 h-4 rounded-md bg-rose-100 border border-rose-200 shadow-inner"></div> <span className="text-rose-700">يوم إجازة (انقر للتبديل)</span> </div>
+                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-slate-100 border border-slate-200"></div> النقر على رأس الأسبوع يحدد الكل </div>
+                        </div>
+
+                        <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 bg-slate-50/50 border-t border-slate-100 shadow-inner">
                            {generatedWeeks.map((week, idx) => {
                                const weekActiveDays = week.days.filter((d: any) => d.isWorkingDay);
                                if (weekActiveDays.length === 0) return null; // لا نعرض الأسابيع التي لا تحتوي على أي يوم عمل
@@ -696,11 +672,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                </div>
                            )})}
                         </div>
-                        <div className="bg-slate-100 p-2.5 border-t border-slate-200 text-[10px] font-bold text-slate-500 flex items-center justify-center gap-6">
-                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-md bg-white border border-slate-300 shadow-sm"></div> يوم دراسي </div>
-                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-md bg-rose-100 border border-rose-200 shadow-inner"></div> يوم إجازة (انقر للتبديل) </div>
-                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-md bg-slate-200 border border-slate-300"></div> النقر على رأس الأسبوع يحدد الكل </div>
-                        </div>
+
                      </div>
                   )}
 
@@ -722,6 +694,40 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
               </div>
           </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingId && createPortal(
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+              <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                  <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
+                      <AlertCircle className="text-rose-500" size={24} />
+                  </div>
+                  
+                  <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">تأكيد الحذف</h3>
+                  
+                  <p className="text-sm text-slate-500 mb-6 text-center leading-relaxed">
+                      هل أنت متأكد من حذف هذا الفصل الدراسي؟ لا يمكن التراجع عن هذا الإجراء وسيتم مسح كافة البيانات المرتبطة به.
+                  </p>
+                  
+                  <div className="flex gap-3">
+                      <button 
+                          onClick={() => setDeletingId(null)}
+                          className="flex-1 py-2.5 px-4 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                      >
+                          إلغاء
+                      </button>
+                      <button 
+                          onClick={() => {
+                              if (deletingId) handleDeleteSemester(deletingId);
+                          }}
+                          className="flex-1 py-2.5 px-4 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors shadow-sm shadow-rose-500/20"
+                      >
+                          حذف نهائي
+                      </button>
+                  </div>
+              </div>
+          </div>
+      , document.body)}
     </div>
   );
 };
