@@ -30,27 +30,211 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     name: 'الفصل الدراسي الأول',
     calendarType: 'hijri',
     weeksCount: 18,
+    workDaysStart: 0,
+    workDaysEnd: 4,
+    holidays: [],
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const formRef = React.useRef<HTMLDivElement>(null);
+  const [syncAlert, setSyncAlert] = useState<{message: string; key: number} | null>(null);
+
+  React.useEffect(() => {
+     if (syncAlert) {
+         const timer = setTimeout(() => setSyncAlert(null), 5000);
+         return () => clearTimeout(timer);
+     }
+  }, [syncAlert]);
+
+  // Helper to dynamically show proper format based on calendar selection in read only card
+  const formatDateForDisplay = (dateStr: string, calendarType: 'hijri' | 'gregorian') => {
+      if (!dateStr) return '';
+      try {
+          // JS Date parses standard YYYY-MM-DD
+          const d = new Date(dateStr + 'T00:00:00');
+          if (isNaN(d.getTime())) return dateStr;
+          
+          if (calendarType === 'hijri') {
+              return new DateObject({ date: d, calendar: arabic, locale: arabic_ar }).format('YYYY-MM-DD');
+          } else {
+              return dateStr;
+          }
+      } catch (e) {
+          return dateStr;
+      }
+  };
 
   // Helper to safely format DateObject or string to YYYY-MM-DD
   const formatDate = (date: any) => {
     if (!date) return '';
     if (date instanceof DateObject) {
-      // Always convert to Gregorian to ensure JS Date compatibility internally
-      const greg = new DateObject({ date, calendar: gregorian });
-      return greg.format("YYYY-MM-DD");
+       const jsDate = date.toDate();
+       if (isNaN(jsDate.getTime())) return '';
+       return jsDate.getFullYear() + '-' + String(jsDate.getMonth() + 1).padStart(2, '0') + '-' + String(jsDate.getDate()).padStart(2, '0');
     }
     return date.toString();
   };
 
   const getValidDate = (str: string | undefined | null) => {
     if (!str) return undefined;
-    const d = new Date(str);
+    const d = new Date(str + 'T00:00:00'); // Ensure basic ISO format parsing
     return isNaN(d.getTime()) ? undefined : d;
   };
+
+  const DAYS_OF_WEEK = [
+    { value: 0, label: 'الأحد' },
+    { value: 1, label: 'الإثنين' },
+    { value: 2, label: 'الثلاثاء' },
+    { value: 3, label: 'الأربعاء' },
+    { value: 4, label: 'الخميس' },
+    { value: 5, label: 'الجمعة' },
+    { value: 6, label: 'السبت' },
+  ];
+
+  const getActiveWeeksCount = React.useCallback((holidaysArr: string[], startStr: string, endStr: string, workStart: number, workEnd: number) => {
+        if (!startStr || !endStr) return 0;
+        const start = new Date(startStr.includes('T') ? startStr : startStr + 'T00:00:00');
+        const end = new Date(endStr.includes('T') ? endStr : endStr + 'T00:00:00');
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return 0;
+
+        let current = new Date(start);
+        let activeWeeksCount = 0;
+        let weekHasWorkingDay = false;
+
+        while (current <= end) {
+            const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
+            const dayOfWeek = current.getDay();
+            const isWorkingDay = workStart <= workEnd 
+                ? (dayOfWeek >= workStart && dayOfWeek <= workEnd)
+                : (dayOfWeek >= workStart || dayOfWeek <= workEnd);
+            const isHoliday = holidaysArr.includes(dateStr);
+
+            if (dayOfWeek === workStart && current.getTime() > start.getTime()) {
+                if (weekHasWorkingDay) activeWeeksCount++;
+                weekHasWorkingDay = false;
+            }
+
+            if (isWorkingDay && !isHoliday) {
+                weekHasWorkingDay = true;
+            }
+
+            current.setDate(current.getDate() + 1);
+        }
+        if (weekHasWorkingDay) activeWeeksCount++;
+
+        return activeWeeksCount;
+  }, []);
+
+  const applyHolidaysUpdate = (newHolidays: string[]) => {
+      const oldActiveCount = getActiveWeeksCount(
+          newSemester.holidays || [], 
+          newSemester.startDate || '', 
+          newSemester.endDate || '', 
+          newSemester.workDaysStart ?? 0, 
+          newSemester.workDaysEnd ?? 4
+      );
+      const newActiveCount = getActiveWeeksCount(
+          newHolidays, 
+          newSemester.startDate || '', 
+          newSemester.endDate || '', 
+          newSemester.workDaysStart ?? 0, 
+          newSemester.workDaysEnd ?? 4
+      );
+      
+      let updatedWeeksCount = newSemester.weeksCount || 18;
+      if (oldActiveCount !== newActiveCount) {
+          const diff = newActiveCount - oldActiveCount;
+          updatedWeeksCount = Math.max(1, updatedWeeksCount + diff);
+          setSyncAlert({
+              message: `تم تحديث عدد الأسابيع إلى ${updatedWeeksCount} ليتوافق مع التقويم والإجازات المحددة`,
+              key: Date.now()
+          });
+      }
+
+      setNewSemester({
+         ...newSemester,
+         holidays: newHolidays,
+         weeksCount: updatedWeeksCount
+      });
+  };
+
+  const handleToggleHoliday = (dateStr: string) => {
+      let newHolidays = [...(newSemester.holidays || [])];
+      if (newHolidays.includes(dateStr)) {
+          newHolidays = newHolidays.filter(d => d !== dateStr);
+      } else {
+          newHolidays.push(dateStr);
+      }
+      applyHolidaysUpdate(newHolidays);
+  };
+
+  const handleToggleWeekHolidays = (weekDays: any[]) => {
+      let newHolidays = [...(newSemester.holidays || [])];
+      const workingDaysInWeek = weekDays.filter((d: any) => d.isWorkingDay).map((d: any) => d.date);
+      
+      const allAreHolidays = workingDaysInWeek.length > 0 && workingDaysInWeek.every((d: any) => newHolidays.includes(d));
+      
+      if (allAreHolidays) {
+          // Remove from holidays
+          newHolidays = newHolidays.filter(d => !workingDaysInWeek.includes(d));
+      } else {
+          // Add to holidays
+          workingDaysInWeek.forEach((d: any) => {
+              if (!newHolidays.includes(d)) newHolidays.push(d);
+          });
+      }
+      applyHolidaysUpdate(newHolidays);
+  };
+
+  const generatedWeeks = React.useMemo(() => {
+    if (!newSemester.startDate || !newSemester.endDate) return [];
+    const start = new Date(newSemester.startDate.includes('T') ? newSemester.startDate : newSemester.startDate + 'T00:00:00');
+    const end = new Date(newSemester.endDate.includes('T') ? newSemester.endDate : newSemester.endDate + 'T00:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+
+    let current = new Date(start);
+    const result: { weekNumber: number; days: { date: string; dateObj: DateObject; isWorkingDay: boolean; isHoliday: boolean, dayOfWeek: number, label: string }[] }[] = [];
+    let weekNumber = 1;
+    let currentWeekDays: any[] = [];
+    
+    const workStart = newSemester.workDaysStart ?? 0;
+    const workEnd = newSemester.workDaysEnd ?? 4;
+    const holidays = newSemester.holidays || [];
+
+    while (current <= end) {
+       const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
+       const dateObj = new DateObject({ date: current, calendar: newSemester.calendarType === 'hijri' ? arabic : gregorian, locale: newSemester.calendarType === 'hijri' ? arabic_ar : gregorian_ar });
+       const dayOfWeek = current.getDay();
+       const isWorkingDay = workStart <= workEnd 
+            ? (dayOfWeek >= workStart && dayOfWeek <= workEnd)
+            : (dayOfWeek >= workStart || dayOfWeek <= workEnd);
+       const isHoliday = holidays.includes(dateStr);
+       const label = DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label || '';
+
+       if (currentWeekDays.length > 0 && dayOfWeek === workStart) {
+           result.push({ weekNumber: weekNumber++, days: currentWeekDays });
+           currentWeekDays = [];
+       }
+       
+       currentWeekDays.push({ date: dateStr, dateObj, isWorkingDay, isHoliday, dayOfWeek, label });
+       current.setDate(current.getDate() + 1);
+    }
+    if (currentWeekDays.length > 0) {
+        result.push({ weekNumber: weekNumber, days: currentWeekDays });
+    }
+    return result;
+  }, [newSemester.startDate, newSemester.endDate, newSemester.calendarType, newSemester.workDaysStart, newSemester.workDaysEnd, newSemester.holidays]);
+
+  const activeCalendarWeeks = getActiveWeeksCount(
+      newSemester.holidays || [], 
+      newSemester.startDate || '', 
+      newSemester.endDate || '', 
+      newSemester.workDaysStart ?? 0, 
+      newSemester.workDaysEnd ?? 4
+  );
+
+  const showMismatchWarning = activeCalendarWeeks > 0 && activeCalendarWeeks !== newSemester.weeksCount && (!newSemester.holidays || newSemester.holidays.length === 0);
 
   const handleSaveSemester = () => {
     if (newSemester.name && newSemester.startDate && newSemester.endDate) {
@@ -63,6 +247,9 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
           startDate: formatDate(newSemester.startDate),
           endDate: formatDate(newSemester.endDate),
           weeksCount: newSemester.weeksCount || 18,
+          workDaysStart: newSemester.workDaysStart ?? 0,
+          workDaysEnd: newSemester.workDaysEnd ?? 4,
+          holidays: newSemester.holidays || [],
         } : s);
         setSemesters(updatedSemesters);
       } else {
@@ -74,6 +261,9 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
           startDate: formatDate(newSemester.startDate),
           endDate: formatDate(newSemester.endDate),
           weeksCount: newSemester.weeksCount || 18,
+          workDaysStart: newSemester.workDaysStart ?? 0,
+          workDaysEnd: newSemester.workDaysEnd ?? 4,
+          holidays: newSemester.holidays || [],
         };
         
         const updatedSemesters = [...semesters, semester];
@@ -94,7 +284,10 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
        calendarType: semester.calendarType,
        startDate: semester.startDate,
        endDate: semester.endDate,
-       weeksCount: semester.weeksCount
+       weeksCount: semester.weeksCount,
+       workDaysStart: semester.workDaysStart ?? 0,
+       workDaysEnd: semester.workDaysEnd ?? 4,
+       holidays: semester.holidays || []
     });
     setEditingId(semester.id);
     setShowForm(true);
@@ -109,27 +302,29 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
         calendarType: 'hijri',
         weeksCount: 18,
         startDate: '',
-        endDate: ''
+        endDate: '',
+        workDaysStart: 0,
+        workDaysEnd: 4,
+        holidays: []
     });
     setShowForm(false);
   };
 
   const handleDeleteSemester = (id: string) => {
-    if (confirm('هل أنت متأكد من حذف هذا الفصل الدراسي؟')) {
       const updated = semesters.filter(s => s.id !== id);
       setSemesters(updated);
+      setDeletingId(null);
       if (currentSemesterId === id && updated.length > 0) {
         setCurrentSemesterId(updated[0].id);
       } else if (updated.length === 0) {
         setCurrentSemesterId('');
       }
-    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-bold text-slate-600 block">فصول ومكونات العام الدراسي</label>
+        <label className="text-sm font-bold text-slate-600 block">العام الدراسي وفصوله الدراسية</label>
         
         {!showForm && (
             <button 
@@ -139,6 +334,9 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                     name: 'الفصل الدراسي الأول',
                     calendarType: 'hijri',
                     weeksCount: 18,
+                    workDaysStart: 0,
+                    workDaysEnd: 4,
+                    holidays: []
                 });
                 setShowForm(true);
                 setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
@@ -175,6 +373,28 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
               }`}
             >
+              {deletingId === semester.id ? (
+                 <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-10 rounded-xl flex flex-col items-center justify-center p-4 text-center border border-rose-200 shadow-sm animate-in fade-in duration-200">
+                    <AlertCircle className="text-rose-500 mb-2" size={24} />
+                    <h5 className="text-sm font-bold text-slate-800 mb-1">تأكيد الحذف</h5>
+                    <p className="text-xs text-slate-500 mb-4">هل أنت متأكد من حذف الفصل الدراسي بشكل نهائي؟</p>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setDeletingId(null)}
+                            className="px-4 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                            إلغاء
+                        </button>
+                        <button 
+                            onClick={() => handleDeleteSemester(semester.id)}
+                            className="px-4 py-1.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors shadow-sm shadow-rose-500/20"
+                        >
+                            تأكيد الحذف
+                        </button>
+                    </div>
+                 </div>
+              ) : null}
+
               <div className="flex justify-between items-start mb-3">
                 <div>
                    <h4 className="font-bold text-sm text-slate-800">{semester.name}</h4>
@@ -192,7 +412,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                    </div>
                 </div>
                 
-                <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity relative z-0">
                    {currentSemesterId !== semester.id && (
                      <button 
                        onClick={() => setCurrentSemesterId(semester.id)}
@@ -210,7 +430,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                        <FileText size={14} /> 
                      </button>
                    <button 
-                     onClick={() => handleDeleteSemester(semester.id)}
+                     onClick={() => setDeletingId(semester.id)}
                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
                      title="حذف"
                    >
@@ -221,10 +441,10 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
               
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
                  <div>
-                    <span className="text-slate-400">البداية: </span> <span dir="ltr" className="font-medium text-slate-700">{semester.startDate}</span>
+                    <span className="text-slate-400">البداية: </span> <span dir="ltr" className="font-medium text-slate-700">{formatDateForDisplay(semester.startDate, semester.calendarType)}</span>
                  </div>
                  <div>
-                    <span className="text-slate-400">النهاية: </span> <span dir="ltr" className="font-medium text-slate-700">{semester.endDate}</span>
+                    <span className="text-slate-400">النهاية: </span> <span dir="ltr" className="font-medium text-slate-700">{formatDateForDisplay(semester.endDate, semester.calendarType)}</span>
                  </div>
                  <div className="col-span-2 pt-1 border-t border-slate-200/50 mt-1">
                     <span className="text-slate-400">المدة: </span> <span className="font-medium text-slate-700">{semester.weeksCount} أسبوع</span>
@@ -300,6 +520,39 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 block mb-1">يوم بداية الأسبوع</label>
+                      <div className="relative">
+                          <select 
+                            value={newSemester.workDaysStart}
+                            onChange={e => setNewSemester({...newSemester, workDaysStart: parseInt(e.target.value)})}
+                            className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none appearance-none bg-white"
+                          >
+                             {DAYS_OF_WEEK.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                          </select>
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              <span className="text-xs">▼</span>
+                          </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 block mb-1">يوم نهاية الأسبوع</label>
+                      <div className="relative">
+                          <select 
+                            value={newSemester.workDaysEnd}
+                            onChange={e => setNewSemester({...newSemester, workDaysEnd: parseInt(e.target.value)})}
+                            className="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none appearance-none bg-white"
+                          >
+                             {DAYS_OF_WEEK.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                          </select>
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                              <span className="text-xs">▼</span>
+                          </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-500 block mb-1">تاريخ البداية</label>
@@ -370,7 +623,88 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-slate-200/50">
+
+
+                  {showMismatchWarning && (
+                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 mt-4">
+                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                        <div>
+                           <h4 className="text-sm font-bold text-amber-800">تنبيه: فرق في الحساب</h4>
+                           <p className="text-xs text-amber-700 mt-1">
+                              يوجد فرق أسبوعين/أسابيع بين التواريخ وأيام العمل الفعلية ({activeCalendarWeeks} أسبوع) وعدد الأسابيع المحدد ({newSemester.weeksCount}). يرجى تحديد أسابيع الإجازات ليطابق الحساب الفعلي.
+                           </p>
+                        </div>
+                     </div>
+                  )}
+
+                  {syncAlert && (
+                     <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 mt-4 animate-in slide-in-from-top-2">
+                        <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} />
+                        <div>
+                           <p className="text-sm font-bold text-emerald-800">
+                              {syncAlert.message}
+                           </p>
+                        </div>
+                     </div>
+                  )}
+
+                  {generatedWeeks.length > 0 && (
+                     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-6 shadow-sm">
+                        <div className="bg-slate-50 border-b border-slate-200 p-4 py-3 flex justify-between items-center">
+                           <h4 className="font-bold text-slate-700 font-readex flex items-center gap-2 text-sm">
+                              <Calendar size={16} className="text-primary" />
+                              الأسابيع الدراسية
+                           </h4>
+                           <div className="text-xs text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                              الأسابيع الفعالة: <span className="font-bold text-primary text-sm">{activeCalendarWeeks}</span> من <span className="font-bold text-slate-700">{generatedWeeks.length}</span>
+                           </div>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 bg-slate-50/30">
+                           {generatedWeeks.map((week, idx) => {
+                               const weekActiveDays = week.days.filter((d: any) => d.isWorkingDay);
+                               if (weekActiveDays.length === 0) return null; // لا نعرض الأسابيع التي لا تحتوي على أي يوم عمل
+
+                               const weekActiveCount = weekActiveDays.filter((d: any) => !d.isHoliday).length;
+                               const isFullHoliday = weekActiveCount === 0;
+                               
+                               return (
+                               <div key={idx} className={`border rounded-xl overflow-hidden shadow-sm transition-all duration-300 ${isFullHoliday ? 'bg-rose-50/50 border-rose-200 opacity-80' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
+                                  <div 
+                                      className={`p-2.5 text-center border-b text-sm font-bold cursor-pointer transition-colors ${isFullHoliday ? 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                                      onClick={() => handleToggleWeekHolidays(week.days)}
+                                      title="انقر لتحويل الأسبوع كاملاً إلى إجازة / دوام"
+                                  >
+                                      الأسبوع {week.weekNumber}
+                                  </div>
+                                  <div className="p-3 space-y-2 min-h-[120px]">
+                                      {weekActiveDays.map((day: any) => (
+                                          <div 
+                                              key={day.date} 
+                                              onClick={() => handleToggleHoliday(day.date)}
+                                              className={`text-xs px-3 py-2 rounded-lg flex justify-between items-center cursor-pointer transition-all border ${
+                                                  day.isHoliday 
+                                                  ? 'bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200 hover:border-rose-300 shadow-inner' 
+                                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-primary/30 shadow-sm hover:shadow-md hover:text-primary'
+                                              }`}
+                                              title="انقر للتبديل بين إجازة ودوام"
+                                          >
+                                              <span className="font-bold truncate" title={day.label}>{day.label}</span>
+                                              <span dir="ltr" className="opacity-70 font-medium">{day.dateObj.format('MM/DD')}</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                               </div>
+                           )})}
+                        </div>
+                        <div className="bg-slate-100 p-2.5 border-t border-slate-200 text-[10px] font-bold text-slate-500 flex items-center justify-center gap-6">
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-md bg-white border border-slate-300 shadow-sm"></div> يوم دراسي </div>
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-md bg-rose-100 border border-rose-200 shadow-inner"></div> يوم إجازة (انقر للتبديل) </div>
+                            <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-md bg-slate-200 border border-slate-300"></div> النقر على رأس الأسبوع يحدد الكل </div>
+                        </div>
+                     </div>
+                  )}
+
+                  <div className="flex gap-3 pt-6 border-t border-slate-200/50 mt-6">
                       <button 
                         onClick={handleCancel}
                         className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-200/50 rounded-xl transition-colors"

@@ -153,6 +153,8 @@ export interface SemesterInfo {
   weeksCount: number;
   isCurrent?: boolean;
   holidays?: string[]; // تواريخ الإجازات المستبعدة (YYYY-MM-DD)
+  workDaysStart?: number; // 0 = Sunday
+  workDaysEnd?: number; // 4 = Thursday
 }
 
 export interface BreakInfo {
