@@ -23,6 +23,7 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
   scheduleSettings, schoolInfo, suggestedCount, showToast, activeDaysCount, availableStaffCount
 }) => {
   const [selectedMode, setSelectedMode] = useState<'auto' | 'manual' | null>(null);
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
 
   if (!isOpen) return null;
 
@@ -37,10 +38,18 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
   };
 
   const handleManualAssign = () => {
-    // Just close and let the user use the table builder. We can clear the schedule if needed, 
-    // but typically manual means starting fresh or continuing. We'll start fresh for clarity.
+    // If there's an existing schedule, ask for confirmation first
+    if (supervisionData.dayAssignments.length > 0) {
+      setShowOverwriteConfirm(true);
+      return;
+    }
+    executeManualAssign();
+  };
+
+  const executeManualAssign = () => {
     setSupervisionData(prev => ({ ...prev, dayAssignments: [], isApproved: false }));
     showToast('تم تهيئة الجدول للتوزيع اليدوي', 'success');
+    setShowOverwriteConfirm(false);
     onClose();
   };
 
@@ -115,7 +124,7 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
               </div>
               <h3 className={`text-lg font-black mb-2 transition-colors ${selectedMode === 'manual' ? 'text-[#655ac1]' : 'text-slate-800'}`}>التوزيع اليدوي</h3>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                تقوم بتحديد المشرفين لكل يوم ، وسيتم عرض المقترح لمساعدتك ، ولك حرية الاختيار بالكامل
+                تحديد المشرفين يدويًا لكل يوم
               </p>
               
               {selectedMode === 'manual' && (
@@ -151,6 +160,39 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
           </button>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════
+          MODAL: تأكيد مسح الجدول للتوزيع اليدوي
+      ══════════════════════════════════════════════ */}
+      {showOverwriteConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap size={32} className="text-rose-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">تنبيه: يوجد جدول حالي</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                اختيارك للتوزيع اليدوي سيقوم بمسح الجدول الحالي بالكامل (بما في ذلك أي توزيع تلقائي أو يدوي سابق). هل أنت متأكد من رغبتك بالاستمرار؟
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowOverwriteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={executeManualAssign}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                نعم، ابدأ يدوياً
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

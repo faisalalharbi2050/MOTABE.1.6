@@ -75,8 +75,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   }, [dayAssignments]);
 
   const unassignedStaff = useMemo(() => {
-    return availableStaff.filter(s => !assignedStaffIds.has(s.id));
-  }, [availableStaff, assignedStaffIds]);
+    return availableStaff;
+  }, [availableStaff]);
 
   // How many duty columns to show: determined by max staff assigned per day
   const maxStaffPerDay = useMemo(() => {
@@ -167,6 +167,15 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       setShowAddPanel(null);
       return;
     }
+    
+    // Check if any of the selected staff are already assigned to another day
+    const alreadyAssigned = selectedStaffIds.filter(id => assignedStaffIds.has(id));
+    if (alreadyAssigned.length > 0) {
+      if (!confirm(`تحذير: لقد قمت باختيار مناوبين تم توزيعهم مسبقاً في أيام أخرى. هل أنت متأكد من رغبتك في إضافتهم أيضاً لهذا اليوم؟`)) {
+        return;
+      }
+    }
+    
     const daInfo = getDayAssignment(dayId);
     const genericDay = daInfo.day;
 
@@ -665,7 +674,12 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                                 </div>
                                                 <div className="flex-1 flex flex-col">
                                                   <span className={`text-sm font-bold ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{staff.name}</span>
-                                                  <span className="text-[10px] text-slate-500">{staff.type === 'teacher' ? '(معلم)' : '(إداري)'}</span>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-slate-500">{staff.type === 'teacher' ? '(معلم)' : '(إداري)'}</span>
+                                                    {assignedStaffIds.has(staff.id) && (
+                                                      <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">مسند مسبقاً</span>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               </button>
                                             );

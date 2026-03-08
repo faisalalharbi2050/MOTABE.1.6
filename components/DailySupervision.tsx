@@ -58,6 +58,10 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scheduleChangeAlert, setScheduleChangeAlert] = useState(false);
   
+  // ===== Shared Schools Validation =====
+  const sharedSchools = schoolInfo.sharedSchools || [];
+  const hasSharedSchools = sharedSchools.length > 0;
+  
   // Modals state
   const [isMonitoringOpen, setIsMonitoringOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
@@ -69,8 +73,10 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   // Confirmation state
   const [showGlobalDeleteConfirm, setShowGlobalDeleteConfirm] = useState(false);
 
+  const storageKey = activeSchoolTab === 'main' ? 'supervision_data_v1' : `supervision_data_v1_${activeSchoolTab}`;
+
   const [supervisionData, setSupervisionData] = useState<SupervisionScheduleData>(() => {
-    const saved = localStorage.getItem('supervision_data_v1');
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try { 
         const parsed = JSON.parse(saved);
@@ -88,10 +94,76 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
     return getDefaultSupervisionData(schoolInfo);
   });
 
+  // Re-load data when activeSchoolTab changes
+  useEffect(() => {
+    let globalSharedMode: any = null;
+    try {
+      const mainSaved = localStorage.getItem('supervision_data_v1_main') || localStorage.getItem('supervision_data_v1');
+      if (mainSaved) {
+        const parsedMain = JSON.parse(mainSaved);
+        if (parsedMain?.settings?.sharedSchoolMode) {
+          globalSharedMode = parsedMain.settings.sharedSchoolMode;
+        }
+      }
+    } catch (e) {}
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try { 
+        const parsed = JSON.parse(saved);
+        setSupervisionData({
+          ...getDefaultSupervisionData(schoolInfo),
+          ...parsed,
+          exclusions: parsed.exclusions || [],
+          dayAssignments: parsed.dayAssignments || [],
+          attendanceRecords: parsed.attendanceRecords || [],
+          savedSchedules: parsed.savedSchedules || [],
+          settings: {
+            ...(parsed.settings || getDefaultSupervisionData(schoolInfo).settings),
+            sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified'
+          }
+        });
+      } catch { 
+        const d = getDefaultSupervisionData(schoolInfo);
+        setSupervisionData({
+          ...d,
+          settings: { ...d.settings, sharedSchoolMode: globalSharedMode || d.settings.sharedSchoolMode }
+        });
+      }
+    } else {
+      const d = getDefaultSupervisionData(schoolInfo);
+      setSupervisionData({
+        ...d,
+        settings: { ...d.settings, sharedSchoolMode: globalSharedMode || d.settings.sharedSchoolMode }
+      });
+    }
+  }, [activeSchoolTab, schoolInfo, storageKey]);
+
   // ===== Persistence =====
   useEffect(() => {
-    localStorage.setItem('supervision_data_v1', JSON.stringify(supervisionData));
-  }, [supervisionData]);
+    localStorage.setItem(storageKey, JSON.stringify(supervisionData));
+    
+    // Sync sharedSchoolMode to main to ensure it acts globally across tabs
+    if (activeSchoolTab !== 'main') {
+      try {
+        const mainKey = 'supervision_data_v1_main';
+        const fallbackKey = 'supervision_data_v1';
+        let mData = localStorage.getItem(mainKey);
+        let usedKey = mainKey;
+        if (!mData) {
+           mData = localStorage.getItem(fallbackKey);
+           usedKey = fallbackKey;
+        }
+        if (mData) {
+           const pData = JSON.parse(mData);
+           if (pData.settings && pData.settings.sharedSchoolMode !== supervisionData.settings.sharedSchoolMode) {
+              pData.settings.sharedSchoolMode = supervisionData.settings.sharedSchoolMode;
+              localStorage.setItem(usedKey, JSON.stringify(pData));
+           }
+        }
+      } catch(e) {}
+    }
+  }, [supervisionData, storageKey, activeSchoolTab]);
 
   // ===== Timing Check =====
   useEffect(() => {
@@ -133,10 +205,20 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
 
   // ===== Computed values =====
   const timing = useMemo(() => getTimingConfig(schoolInfo), [schoolInfo]);
-  const availableStaff = useMemo(
-    () => getAvailableStaff(teachers, admins, supervisionData.exclusions, supervisionData.settings),
-    [teachers, admins, supervisionData.exclusions, supervisionData.settings]
-  );
+  const availableStaff = useMemo(() => {
+    // Filter staff for active school
+    let targetTeachers = teachers;
+    let targetAdmins = admins;
+
+    if (hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate') {
+      targetTeachers = teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'));
+      // Note: Admins are currently global in this system, so we might want to check if they have schoolId too, 
+      // but if not, they apply to main. Assuming admins are global or have schoolId.
+      targetAdmins = admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main'));
+    }
+
+    return getAvailableStaff(targetTeachers, targetAdmins, supervisionData.exclusions, supervisionData.settings);
+  }, [teachers, admins, supervisionData.exclusions, supervisionData.settings, hasSharedSchools, activeSchoolTab]);
   const suggestExcludeTeachers = useMemo(() => shouldSuggestExcludeTeachers(admins), [admins]);
   const suggestedCount = useMemo(
     () => getSuggestedCountPerDay(availableStaff.length, timing.activeDays?.length || 5),
@@ -153,8 +235,17 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
 
   // ===== Handlers =====
   const handleAutoAssign = () => {
+    // Filter staff for active school
+    let targetTeachers = teachers;
+    let targetAdmins = admins;
+
+    if (hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate') {
+      targetTeachers = teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'));
+      targetAdmins = admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main'));
+    }
+
     const assignments = generateSmartAssignment(
-      teachers, admins, supervisionData.exclusions, supervisionData.settings,
+      targetTeachers, targetAdmins, supervisionData.exclusions, supervisionData.settings,
       scheduleSettings, schoolInfo, supervisionData.periods,
       supervisionData.settings.suggestedCountPerDay || suggestedCount
     );
@@ -188,9 +279,8 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   };
 
   // ===== Shared Schools Tabs =====
-  const sharedSchools = schoolInfo.sharedSchools || [];
-  const hasSharedSchools = sharedSchools.length > 0;
-
+  // moved to the top
+  
   // ===== Settings Page =====
   if (showSettingsPage) {
     return (
@@ -244,6 +334,39 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Shared Schools Tabs */}
+        {hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' && (
+          <div className="mt-6 border-t border-slate-100 pt-6 relative z-10">
+            <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl w-max">
+              <button
+                onClick={() => setActiveSchoolTab('main')}
+                className={`flex flex-col px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                  activeSchoolTab === 'main'
+                    ? 'bg-white text-[#655ac1] shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                }`}
+              >
+                <span>{schoolInfo.schoolName || 'المدرسة الرئيسية'}</span>
+                <span className="text-[10px] font-medium opacity-70">المدرسة الأساسية</span>
+              </button>
+              {sharedSchools.map(school => (
+                <button
+                  key={school.id}
+                  onClick={() => setActiveSchoolTab(school.id)}
+                  className={`flex flex-col px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                    activeSchoolTab === school.id
+                      ? 'bg-white text-[#655ac1] shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <span>{school.name}</span>
+                  <span className="text-[10px] font-medium opacity-70">مدرسة مشتركة</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══════ Toolbar / Action Bar ══════ */}
@@ -400,8 +523,8 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
          <SupervisionScheduleBuilder
             supervisionData={supervisionData}
             setSupervisionData={setSupervisionData}
-            teachers={teachers}
-            admins={admins}
+            teachers={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+            admins={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
             scheduleSettings={scheduleSettings}
             schoolInfo={schoolInfo}
             suggestedCount={suggestedCount}
@@ -433,8 +556,8 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
          supervisionData={supervisionData}
          setSupervisionData={setSupervisionData}
          schoolInfo={schoolInfo}
-         teachers={teachers}
-         admins={admins}
+         teachers={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+         admins={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
          showToast={showToast}
        />
 
@@ -451,8 +574,8 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
          onClose={() => setIsReportsOpen(false)}
          supervisionData={supervisionData}
          schoolInfo={schoolInfo}
-         teachers={teachers}
-         admins={admins}
+         teachers={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+         admins={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
          showToast={showToast}
        />
 
@@ -461,8 +584,8 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
          onClose={() => setIsCreateScheduleOpen(false)}
          supervisionData={supervisionData}
          setSupervisionData={setSupervisionData}
-         teachers={teachers}
-         admins={admins}
+         teachers={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+         admins={hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
          scheduleSettings={scheduleSettings}
          schoolInfo={schoolInfo}
          suggestedCount={suggestedCount}

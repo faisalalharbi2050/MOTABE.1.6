@@ -65,9 +65,14 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings
 }) => {
   // ===== State =====
+  const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showAcademicPopup, setShowAcademicPopup] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
+
+  // ===== Shared Schools Validation =====
+  const sharedSchools = schoolInfo.sharedSchools || [];
+  const hasSharedSchools = sharedSchools.length > 0;
   
   // Modals state
   const [isMonitoringOpen, setIsMonitoringOpen] = useState(false);
@@ -80,8 +85,10 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   // Confirmation state
   const [showGlobalDeleteConfirm, setShowGlobalDeleteConfirm] = useState(false);
 
+  const storageKey = activeSchoolTab === 'main' ? 'duty_data_v1' : `duty_data_v1_${activeSchoolTab}`;
+
   const [dutyData, setDutyData] = useState<DutyScheduleData>(() => {
-    const saved = localStorage.getItem('duty_data_v1');
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try { 
         const parsed = JSON.parse(saved);
@@ -98,10 +105,76 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     return getDefaultDutyData();
   });
 
+  // Re-load data when activeSchoolTab changes
+  useEffect(() => {
+    let globalSharedMode: any = null;
+    try {
+      const mainSaved = localStorage.getItem('duty_data_v1_main') || localStorage.getItem('duty_data_v1');
+      if (mainSaved) {
+        const parsedMain = JSON.parse(mainSaved);
+        if (parsedMain?.settings?.sharedSchoolMode) {
+          globalSharedMode = parsedMain.settings.sharedSchoolMode;
+        }
+      }
+    } catch (e) {}
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try { 
+        const parsed = JSON.parse(saved);
+        setDutyData({
+          ...getDefaultDutyData(),
+          ...parsed,
+          reports: parsed.reports || [],
+          exclusions: parsed.exclusions || [],
+          dayAssignments: parsed.dayAssignments || [],
+          savedSchedules: parsed.savedSchedules || [],
+          settings: {
+            ...(parsed.settings || getDefaultDutyData().settings),
+            sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified'
+          }
+        });
+      } catch { 
+        const d = getDefaultDutyData();
+        setDutyData({
+          ...d,
+          settings: { ...d.settings, sharedSchoolMode: globalSharedMode || d.settings.sharedSchoolMode }
+        });
+      }
+    } else {
+      const d = getDefaultDutyData();
+      setDutyData({
+        ...d,
+        settings: { ...d.settings, sharedSchoolMode: globalSharedMode || d.settings.sharedSchoolMode }
+      });
+    }
+  }, [activeSchoolTab, storageKey]);
+
   // ===== Persistence =====
   useEffect(() => {
-    localStorage.setItem('duty_data_v1', JSON.stringify(dutyData));
-  }, [dutyData]);
+    localStorage.setItem(storageKey, JSON.stringify(dutyData));
+    
+    // Sync sharedSchoolMode to main to ensure it acts globally across tabs
+    if (activeSchoolTab !== 'main') {
+      try {
+        const mainKey = 'duty_data_v1_main';
+        const fallbackKey = 'duty_data_v1';
+        let mData = localStorage.getItem(mainKey);
+        let usedKey = mainKey;
+        if (!mData) {
+           mData = localStorage.getItem(fallbackKey);
+           usedKey = fallbackKey;
+        }
+        if (mData) {
+           const pData = JSON.parse(mData);
+           if (pData.settings && pData.settings.sharedSchoolMode !== dutyData.settings.sharedSchoolMode) {
+              pData.settings.sharedSchoolMode = dutyData.settings.sharedSchoolMode;
+              localStorage.setItem(usedKey, JSON.stringify(pData));
+           }
+        }
+      } catch(e) {}
+    }
+  }, [dutyData, storageKey, activeSchoolTab]);
 
   // ===== Academic Year Check =====
   useEffect(() => {
@@ -123,10 +196,17 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
 
   // ===== Computed values =====
   const timing = useMemo(() => getTimingConfig(schoolInfo), [schoolInfo]);
-  const availableStaff = useMemo(
-    () => getAvailableStaffForDuty(teachers, admins, dutyData.exclusions, dutyData.settings),
-    [teachers, admins, dutyData.exclusions, dutyData.settings]
-  );
+  const availableStaff = useMemo(() => {
+    let targetTeachers = teachers;
+    let targetAdmins = admins;
+
+    if (hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate') {
+      targetTeachers = teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'));
+      targetAdmins = admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main'));
+    }
+
+    return getAvailableStaffForDuty(targetTeachers, targetAdmins, dutyData.exclusions, dutyData.settings);
+  }, [teachers, admins, dutyData.exclusions, dutyData.settings, hasSharedSchools, activeSchoolTab]);
   
   const suggestExcludeTeachers = useMemo(() => canSuggestExcludeTeachers(admins), [admins]);
   const suggestedCount = useMemo(
@@ -141,8 +221,16 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   // ===== Handlers =====
   const handleAutoAssign = () => {
     try {
+      let targetTeachers = teachers;
+      let targetAdmins = admins;
+
+      if (hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate') {
+        targetTeachers = teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'));
+        targetAdmins = admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main'));
+      }
+
       const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
-        teachers, admins, dutyData.exclusions, dutyData.settings,
+        targetTeachers, targetAdmins, dutyData.exclusions, dutyData.settings,
         scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, dutyData.settings.suggestedCountPerDay || suggestedCount
       );
       setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
@@ -224,6 +312,39 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Shared Schools Tabs */}
+        {hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' && (
+          <div className="mt-6 border-t border-slate-100 pt-6 relative z-10">
+            <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl w-max">
+              <button
+                onClick={() => setActiveSchoolTab('main')}
+                className={`flex flex-col px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                  activeSchoolTab === 'main'
+                    ? 'bg-white text-[#655ac1] shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                }`}
+              >
+                <span>{schoolInfo.schoolName || 'المدرسة الرئيسية'}</span>
+                <span className="text-[10px] font-medium opacity-70">المدرسة الأساسية</span>
+              </button>
+              {sharedSchools.map(school => (
+                <button
+                  key={school.id}
+                  onClick={() => setActiveSchoolTab(school.id)}
+                  className={`flex flex-col px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+                    activeSchoolTab === school.id
+                      ? 'bg-white text-[#655ac1] shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <span>{school.name}</span>
+                  <span className="text-[10px] font-medium opacity-70">مدرسة مشتركة</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══════ Toolbar / Action Bar ══════ */}
@@ -342,8 +463,8 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
          <DutyScheduleBuilder
             dutyData={dutyData}
             setDutyData={setDutyData}
-            teachers={teachers}
-            admins={admins}
+            teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+            admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
             scheduleSettings={scheduleSettings}
             schoolInfo={schoolInfo}
             showToast={showToast}
@@ -374,8 +495,8 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
          dutyData={dutyData}
          setDutyData={setDutyData}
          schoolInfo={schoolInfo}
-         teachers={teachers}
-         admins={admins}
+         teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+         admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
          showToast={showToast}
        />
 
@@ -392,8 +513,8 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
          onClose={() => setIsReportsOpen(false)}
          dutyData={dutyData}
          schoolInfo={schoolInfo}
-         teachers={teachers}
-         admins={admins}
+         teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+         admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
          showToast={showToast}
        />
 
@@ -402,8 +523,8 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
          onClose={() => setIsCreateScheduleOpen(false)}
          dutyData={dutyData}
          setDutyData={setDutyData}
-         teachers={teachers}
-         admins={admins}
+         teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
+         admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
          scheduleSettings={scheduleSettings}
          schoolInfo={schoolInfo}
          suggestedCount={suggestedCount}
