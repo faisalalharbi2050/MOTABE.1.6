@@ -82,13 +82,13 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
                     title={`اليوم ${i + 1}`}
                     className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
                       filled
-                        ? 'bg-[#8779fb] border-[#8779fb] shadow-sm shadow-[#8779fb]/30'
+                        ? 'bg-green-500 border-green-500 shadow-sm shadow-green-200'
                         : 'bg-slate-100 border-slate-200'
                     }`}
                   />
                 );
               })}
-              <span className="mr-2 text-xs font-black text-[#655ac1] bg-[#f4f3ff] px-2.5 py-1 rounded-full border border-[#e5e1fe]">
+              <span className="mr-2 text-xs font-black text-[#655ac1]">
                 {Math.max(0, daysRemaining)} / 10 أيام
               </span>
             </div>
