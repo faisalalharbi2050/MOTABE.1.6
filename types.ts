@@ -362,12 +362,35 @@ export interface DailyScheduleItem {
   isTomorrow?: boolean;
 }
 
+export type PackageTier = 'basic' | 'advanced' | 'premium';
+export type PaymentPeriod = 'monthly' | 'semester' | 'yearly';
+
+export interface Transaction {
+  id: string;
+  date: string;
+  amount: number;
+  packageTier: PackageTier;
+  period: PaymentPeriod;
+  paymentMethod: string;
+  status: 'success' | 'failed' | 'pending';
+  invoiceUrl?: string; // Mock PDF url or data
+}
+
 export interface SubscriptionInfo {
   totalMessages: number;
   remainingMessages: number;
   startDate: string;
   endDate: string;
   planName: string;
+  // New fields for the advanced subscription system
+  packageTier: PackageTier;
+  autoRenew: boolean;
+  isTrial: boolean;
+  trialStartDate?: string;
+  trialEndDate?: string;
+  transactions: Transaction[];
+  freeSmsRemaining: number;
+  freeWaRemaining: number;
 }
 
 // ===== Schedule Settings Types =====

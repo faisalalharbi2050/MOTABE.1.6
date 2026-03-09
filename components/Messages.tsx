@@ -9,9 +9,14 @@ import MessageSubscriptions from './messaging/MessageSubscriptions';
 // To keep the signature of Messages component simple as it used in App.tsx without props,
 // we will fetch data from local storage here or ideally it should be passed from App.tsx.
 // Since we are mocking here and the user wants to integrate, we will load the mock data.
-import { Teacher, Admin, Student, ClassInfo, Specialization, SchoolInfo } from '../types';
+import { Teacher, Admin, Student, ClassInfo, Specialization, SchoolInfo, SubscriptionInfo } from '../types';
 
-const Messages: React.FC = () => {
+interface MessagesProps {
+  subscription: SubscriptionInfo;
+  setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
+}
+
+const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription }) => {
   const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>('compose');
 
   // Load necessary data for composer
@@ -94,6 +99,8 @@ const Messages: React.FC = () => {
             students={students}
             classes={classes}
             specializations={specializations}
+            subscription={subscription}
+            setSubscription={setSubscription}
           />
         )}
         {activeTab === 'archive' && (

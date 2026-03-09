@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Send, Users, AlertCircle, AlertTriangle, Paperclip, CheckCircle2, MessageSquare, Plus, Search, CheckSquare, Square, X, ChevronDown, ChevronLeft, Clock, Calendar as CalendarIcon } from 'lucide-react';
-import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, MessageTemplate } from '../../types';
+import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, MessageTemplate, SubscriptionInfo } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
@@ -14,11 +14,13 @@ interface MessageComposerProps {
   students: Student[];
   classes: ClassInfo[];
   specializations: Specialization[];
+  subscription: SubscriptionInfo;
+  setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
 }
 
 type GroupType = 'none' | 'teachers' | 'admins' | 'staff' | 'parents';
 
-const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers, admins, students, classes, specializations }) => {
+const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers, admins, students, classes, specializations, subscription, setSubscription }) => {
   const { sendMessage, templates } = useMessageArchive();
   
   // Toast State
@@ -169,6 +171,17 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
     if (recipientsToSend.length === 0) return alert('يرجى اختيار مستلمين للرسالة');
     if (!messageContent.trim()) return alert('نص الرسالة فارغ');
 
+    const count = recipientsToSend.length;
+    if (channel === 'sms') {
+      if (subscription.freeSmsRemaining < count && subscription.remainingMessages < count) {
+         return showToast('رصيدك غير كافٍ لإرسال هذه الرسائل.', 'error');
+      }
+    } else {
+      if (subscription.freeWaRemaining < count && subscription.remainingMessages < count) {
+         return showToast('رصيدك غير كافٍ لإرسال هذه الرسائل.', 'error');
+      }
+    }
+
     setIsSending(true);
     const attachments = attachment ? [{ name: attachment.name, url: URL.createObjectURL(attachment), type: attachment.type }] : [];
     
@@ -220,6 +233,60 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
       }
     }
 
+    if (successCount > 0) {
+      setSubscription((prev: SubscriptionInfo) => {
+        let newSmsFree = prev.freeSmsRemaining;
+        let newWaFree = prev.freeWaRemaining;
+        let newTotalPaid = prev.remainingMessages;
+
+        const oldSmsPercent = ((10 - prev.freeSmsRemaining) / 10) * 100;
+        const oldWaPercent = ((50 - prev.freeWaRemaining) / 50) * 100;
+
+        if (channel === 'sms') {
+           if (newSmsFree >= successCount) {
+             newSmsFree -= successCount;
+           } else {
+             const costFromPaid = successCount - newSmsFree;
+             newSmsFree = 0;
+             newTotalPaid -= costFromPaid;
+           }
+        } else {
+           if (newWaFree >= successCount) {
+             newWaFree -= successCount;
+           } else {
+             const costFromPaid = successCount - newWaFree;
+             newWaFree = 0;
+             newTotalPaid -= costFromPaid;
+           }
+        }
+
+        const newSmsPercent = ((10 - newSmsFree) / 10) * 100;
+        const newWaPercent = ((50 - newWaFree) / 50) * 100;
+
+        let messageAlert = '';
+        if (channel === 'sms') {
+           if (newSmsPercent >= 100 && oldSmsPercent < 100) messageAlert = 'تنبيه: استهلكت 100% من رصيد رسائل SMS المجانية!';
+           else if (newSmsPercent >= 75 && oldSmsPercent < 75) messageAlert = 'تنبيه: استهلكت 75% من رصيد رسائل SMS المجانية!';
+           else if (newSmsPercent >= 50 && oldSmsPercent < 50) messageAlert = 'تنبيه: استهلكت 50% من رصيد رسائل SMS المجانية!';
+        } else if (channel === 'whatsapp') {
+           if (newWaPercent >= 100 && oldWaPercent < 100) messageAlert = 'تنبيه: استهلكت 100% من رصيد رسائل الواتساب المجانية!';
+           else if (newWaPercent >= 75 && oldWaPercent < 75) messageAlert = 'تنبيه: استهلكت 75% من رصيد رسائل الواتساب المجانية!';
+           else if (newWaPercent >= 50 && oldWaPercent < 50) messageAlert = 'تنبيه: استهلكت 50% من رصيد رسائل الواتساب المجانية!';
+        }
+        
+        if (messageAlert) {
+           setTimeout(() => showToast(messageAlert, 'warning'), 1500);
+        }
+
+        return {
+          ...prev,
+          freeSmsRemaining: newSmsFree,
+          freeWaRemaining: newWaFree,
+          remainingMessages: newTotalPaid
+        };
+      });
+    }
+
     setIsSending(false);
     setMessageContent('');
     setSelectedIds(new Set());
@@ -227,9 +294,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
     setAttachment(null);
 
     if (failCount === 0) {
-        alert(`تم إرسال ${successCount} رسالة بنجاح.`);
+        showToast(`تم إرسال ${successCount} رسالة بنجاح.`);
     } else {
-        alert(`تم إرسال ${successCount} رسالة. فشل ${failCount} رسالة. يرجى مراجعة الأرشيف.`);
+        showToast(`تم إرسال ${successCount} رسالة. فشل ${failCount} رسالة. يرجى مراجعة الأرشيف.`, 'error');
     }
   };
 
@@ -421,10 +488,17 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ schoolInfo, teachers,
         
         {/* Channel Settings Card */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-           <h3 className="text-lg font-black text-[#1e293b] mb-4 flex items-center gap-2">
-              <MessageSquare className="text-[#655ac1]" size={20} />
-              اختر طريقة الإرسال المفضلة
-           </h3>
+           <div className="flex justify-between items-center mb-4">
+               <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2">
+                  <MessageSquare className="text-[#655ac1]" size={20} />
+                  اختر طريقة الإرسال المفضلة
+               </h3>
+               {channel === 'whatsapp' ? (
+                 <span className="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-lg text-sm" dir="ltr">المجاني: {subscription.freeWaRemaining}</span>
+               ) : (
+                 <span className="bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-lg text-sm" dir="ltr">المجاني: {subscription.freeSmsRemaining}</span>
+               )}
+           </div>
            
            <div className="space-y-6">
               <div className="flex gap-3">

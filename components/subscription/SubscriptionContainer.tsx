@@ -1,0 +1,82 @@
+import React, { useState } from 'react';
+import { CreditCard, History, LayoutDashboard } from 'lucide-react';
+import SubscriptionDashboard from './SubscriptionDashboard';
+import PricingPlans from './PricingPlans';
+import InvoiceList from './InvoiceList';
+import { SubscriptionInfo } from '../../types';
+
+interface SubscriptionContainerProps {
+  subscription: SubscriptionInfo;
+  setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
+}
+
+const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscription, setSubscription }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pricing' | 'invoices'>('dashboard');
+
+  const tabs = [
+    { id: 'dashboard', label: 'إدارة الاشتراك', icon: LayoutDashboard },
+    { id: 'pricing', label: 'الباقات', icon: CreditCard },
+    { id: 'invoices', label: 'الفواتير', icon: History },
+  ] as const;
+
+  return (
+    <div className="space-y-6 dir-rtl animate-fade-in max-w-[1400px] mx-auto">
+      {/* Header Card */}
+      <div className="bg-white rounded-[2rem] px-8 pt-8 pb-6 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
+        <div className="relative z-10">
+          <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+            <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl">
+              <CreditCard size={24} />
+            </div>
+            الاشتراك والفوترة
+          </h3>
+          <p className="text-slate-500 font-medium mt-2 mr-12">
+            اشترك ، وتابع حالة اشتراكك، يمكنك التجديد أو الترقية ، واستعرض فواتيرك بكل يسر.
+          </p>
+        </div>
+      </div>
+
+      {/* Main Tabs */}
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex gap-2 overflow-x-auto custom-scrollbar">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as 'dashboard'|'pricing'|'invoices')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all flex-1 justify-center ${
+              activeTab === tab.id
+                ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
+                : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <tab.icon size={18} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="mt-6">
+        {activeTab === 'dashboard' && (
+          <SubscriptionDashboard 
+            subscription={subscription} 
+            setSubscription={setSubscription} 
+            onUpgrade={() => setActiveTab('pricing')} 
+          />
+        )}
+        {activeTab === 'pricing' && (
+          <PricingPlans 
+            subscription={subscription} 
+            setSubscription={setSubscription} 
+            onComplete={() => setActiveTab('dashboard')} 
+          />
+        )}
+        {activeTab === 'invoices' && (
+          <InvoiceList transactions={subscription.transactions} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default SubscriptionContainer;

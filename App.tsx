@@ -1,8 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
+import { ShieldAlert } from 'lucide-react'; // For the lock UI
 import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType } from './types';
 import { INITIAL_SPECIALIZATIONS, INITIAL_SUBJECTS } from './constants';
 import { MessageArchiveProvider } from './components/messaging/MessageArchiveContext';
+import ToastProvider from './components/ui/ToastProvider';
 
 import Dashboard from './components/Dashboard';
 
@@ -29,7 +30,7 @@ import DailyDuty from './components/DailyDuty';
 import DailyWaiting from './components/DailyWaiting';
 import Messages from './components/Messages';
 import RolePermissions from './components/permissions/RolePermissions';
-import Subscription from './components/Subscription';
+import SubscriptionContainer from './components/subscription/SubscriptionContainer';
 import Support from './components/Support';
 
 const App: React.FC = () => {
@@ -90,12 +91,25 @@ const App: React.FC = () => {
      { id: '2', type: 'supervision', name: 'فهد العتيبي', time: 'الفسحة الأولى', location: 'الممرات' },
      { id: '3', type: 'duty', name: 'سلطان العمري', time: 'نهاية الدوام', location: 'البوابة الرئيسية' },
   ]);
-  const [subscription] = useState<SubscriptionInfo>({
-    totalMessages: 500,
-    remainingMessages: 350,
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    planName: 'Basic'
+  const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
+    const today = new Date();
+    const trialEnd = new Date(today);
+    trialEnd.setDate(today.getDate() + 10);
+    return {
+      packageTier: 'advanced',
+      isTrial: true,
+      trialStartDate: today.toISOString().split('T')[0],
+      trialEndDate: trialEnd.toISOString().split('T')[0],
+      totalMessages: 0,
+      remainingMessages: 0,
+      startDate: today.toISOString().split('T')[0],
+      endDate: trialEnd.toISOString().split('T')[0],
+      planName: 'الباقة المتقدمة (تجريبية)',
+      autoRenew: false,
+      transactions: [],
+      freeSmsRemaining: 10,
+      freeWaRemaining: 50
+    };
   });
 
   useEffect(() => {
@@ -113,6 +127,7 @@ const App: React.FC = () => {
         if (data.specializations) setSpecializations(data.specializations);
         if (data.subjects) setSubjects(data.subjects);
         if (data.scheduleSettings) setScheduleSettings(data.scheduleSettings);
+        if (data.subscription) setSubscription(data.subscription);
       } catch (e) { console.error(e); }
     }
   }, []);
@@ -149,9 +164,9 @@ const App: React.FC = () => {
   }, [schoolInfo.hasSecondSchool, schoolInfo.secondSchoolName, schoolInfo.secondSchoolPhases]);
 
   useEffect(() => {
-    const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings, timestamp: Date.now() };
+    const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings, subscription, timestamp: Date.now() };
     localStorage.setItem('school_assignment_v4', JSON.stringify(data));
-  }, [schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings]);
+  }, [schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings, subscription]);
 
   const handleLogout = () => {
     if(confirm('هل أنت متأكد من تسجيل الخروج؟')) {
@@ -169,6 +184,30 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
+    // Subscription Lock Logic
+    const isSubscriptionActive = new Date(subscription.endDate).getTime() >= new Date().getTime();
+    const lockedTabs = ['manual', 'classes_waiting', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
+    
+    if (!isSubscriptionActive && lockedTabs.includes(activeTab as string)) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-sm border border-red-100 text-center animate-fade-in mt-10 max-w-2xl mx-auto">
+          <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6 text-red-500 border-4 border-white shadow-xl">
+            <ShieldAlert size={48} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 mb-4">عفواً، انتهت صلاحية باقتك</h2>
+          <p className="text-slate-500 mb-8 max-w-md text-lg leading-relaxed">
+            لديكم عمليات إدارية وجداول موقوفة، يرجى ترقية باقتك للاستمرار في استخدام ميزات المنصة بكفاءة.
+          </p>
+          <button 
+            onClick={() => setActiveTab('subscription')} 
+            className="px-8 py-4 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#52499d] hover:-translate-y-1 transition-all shadow-lg shadow-indigo-200 text-lg w-full md:w-auto"
+          >
+            الانتقال لإدارة الباقات والاشتراكات
+          </button>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard': return <Dashboard schoolInfo={schoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} tomorrowSchedule={tomorrowSchedule} subscription={subscription} onNavigate={(tab) => setActiveTab(tab as any)} />;
       case 'settings': return (
@@ -222,9 +261,9 @@ const App: React.FC = () => {
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
       case 'duty': return <DailyDuty schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
       case 'daily_waiting': return <DailyWaiting teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
-      case 'messages': return <Messages />;
+      case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} />;
       case 'permissions': return <RolePermissions />;
-      case 'subscription': return <Subscription />;
+      case 'subscription': return <SubscriptionContainer subscription={subscription} setSubscription={setSubscription} />;
       case 'support': return <Support />;
       default: return (
         <GeneralSettingsWizard 
@@ -269,6 +308,7 @@ const App: React.FC = () => {
   }
 
   return (
+    <ToastProvider>
     <MessageArchiveProvider>
     <div className="flex h-screen bg-[#fcfbff] overflow-hidden dir-rtl">
        {/* Sidebar - Fixed/Full Height */}
@@ -297,6 +337,7 @@ const App: React.FC = () => {
       </div>
     </div>
     </MessageArchiveProvider>
+    </ToastProvider>
   );
 };
 
