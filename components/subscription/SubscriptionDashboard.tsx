@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ShieldCheck, Zap, ArrowUpCircle } from 'lucide-react';
+import { Calendar, ShieldCheck, Hourglass, ArrowUpCircle } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 import { SubscriptionInfo } from '../../types';
 import { PACKAGE_NAMES } from './packages';
@@ -146,7 +146,7 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
           </div>
 
           <div>
-             <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><Zap size={20} className="text-yellow-500" /> الاستهلاك (الرصيد المجاني الأول)</h3>
+             <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><Hourglass size={18} className="text-slate-400" /> الاستهلاك (الرصيد المجاني الأول)</h3>
              
              <div className="mb-4">
                <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
