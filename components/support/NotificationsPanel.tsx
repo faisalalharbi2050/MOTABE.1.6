@@ -102,7 +102,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onClose }) => {
             return (
               <div
                 key={notif.id}
-                className={`flex items-start gap-3 px-5 py-4 border-b border-slate-50 hover:bg-slate-50/50 transition-colors group ${!notif.read ? 'bg-[#faf9ff]' : 'bg-white'}`}
+                className={`flex items-start gap-3 px-5 py-4 border-b border-slate-50 hover:bg-slate-50/50 transition-colors group ${!notif.read ? 'bg-white' : 'bg-white'}`}
               >
                 <div className={`w-9 h-9 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0 mt-0.5`}>
                   <Icon size={18} className={cfg.color} />

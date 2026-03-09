@@ -104,28 +104,28 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Upgrade Card */}
-        <div className="bg-[#8779fb] text-white p-6 rounded-2xl shadow-lg relative overflow-hidden group flex flex-col h-full">
-           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 blur-sm mix-blend-overlay"></div>
-           <div className="relative z-10 flex border-b border-indigo-400/30 pb-4 mb-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col h-full">
+           <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3f0ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
+           <div className="relative z-10 flex border-b border-slate-100 pb-4 mb-4">
               <div className="flex-1">
-                <h3 className="text-xl font-black mb-2 flex items-center gap-2">
-                  <ArrowUpCircle size={24}/> 
+                <h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-2">
+                  <ArrowUpCircle size={24} className="text-[#8779fb]"/> 
                   الاشتراك والترقية
                 </h3>
                 <div className="mt-5 space-y-2">
-                  <div className="flex items-start gap-2 text-indigo-50 font-medium text-sm">
-                    <span className="mt-0.5 shrink-0">✦</span>
+                  <div className="flex items-start gap-2 text-slate-600 font-medium text-sm">
+                    <span className="mt-0.5 shrink-0 text-[#8779fb]">✦</span>
                     <span>احصل على كافة المزايا والأدوات المتقدمة التي تسهل مهامك اليومية</span>
                   </div>
-                  <div className="flex items-start gap-2 text-indigo-50 font-medium text-sm">
-                    <span className="mt-0.5 shrink-0">✦</span>
+                  <div className="flex items-start gap-2 text-slate-600 font-medium text-sm">
+                    <span className="mt-0.5 shrink-0 text-[#8779fb]">✦</span>
                     <span>يمكنك استعراض الباقات بالنقر على زر عرض الباقات أو الانتقال إلى تبويب الباقات</span>
                   </div>
                 </div>
               </div>
            </div>
            
-           <button onClick={onUpgrade} className="mt-auto w-full py-3 bg-white text-[#655ac1] rounded-xl font-bold hover:bg-slate-50 hover:scale-[1.02] transform transition-all shadow-md text-base relative z-10">
+           <button onClick={onUpgrade} className="mt-auto w-full py-3 bg-[#8779fb] text-white rounded-xl font-bold hover:bg-[#6e5ee0] hover:scale-[1.02] transform transition-all shadow-md text-base relative z-10">
              عرض الباقات
            </button>
         </div>
