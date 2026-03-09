@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Clock, Smartphone, Calendar, Sun } from 'lucide-react';
+import { Mail, Clock, Smartphone, Calendar, Sun, Info } from 'lucide-react';
 
 // Official WhatsApp SVG icon
 const WhatsAppIcon: React.FC<{ size?: number; className?: string }> = ({ size = 24, className = '' }) => (
@@ -127,16 +127,12 @@ const ContactChannels: React.FC = () => {
           </div>
 
           {/* Notice */}
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100/70 flex items-start gap-3">
-            <div className="w-8 h-8 bg-white border border-indigo-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
+          <div className="bg-white rounded-xl p-4 border border-slate-200 flex items-center gap-3 shadow-sm">
+            <div className="w-9 h-9 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+              <Info size={18} className="text-amber-500" strokeWidth={2.5} />
             </div>
             <p className="text-sm text-slate-700 font-medium leading-relaxed">
-              <span className="font-black text-indigo-700">عزيزنا العميل</span> — سيتم الرد على التذاكر المرسلة خارج أوقات العمل في يوم العمل التالي ، نثمّن وقتكم ونشكر تفهمكم.
+              <span className="font-black text-slate-800">عزيزنا العميل</span> — سيتم الرد على التذاكر المرسلة خارج أوقات العمل في يوم العمل التالي ، نثمّن وقتكم ونشكر تفهمكم.
             </p>
           </div>
         </div>

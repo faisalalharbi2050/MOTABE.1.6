@@ -64,7 +64,7 @@ const SupportContainer: React.FC = () => {
             title="الإشعارات"
           >
             <Bell size={20} />
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-sm">
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#655ac1] text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-sm">
               2
             </span>
           </button>
