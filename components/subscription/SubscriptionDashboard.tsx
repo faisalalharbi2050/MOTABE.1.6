@@ -1,16 +1,14 @@
 import React from 'react';
 import { Calendar, ShieldCheck, Hourglass, ArrowUpCircle } from 'lucide-react';
-import { useToast } from '../ui/ToastProvider';
 import { SubscriptionInfo } from '../../types';
 import { PACKAGE_NAMES } from './packages';
 
 interface SubscriptionDashboardProps {
   subscription: SubscriptionInfo;
-  setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
   onUpgrade: () => void;
 }
 
-const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscription, setSubscription, onUpgrade }) => {
+const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscription, onUpgrade }) => {
   const getDaysRemaining = (endDate: string) => {
     const end = new Date(endDate);
     const today = new Date();
@@ -21,17 +19,6 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
 
   const daysRemaining = getDaysRemaining(subscription.endDate);
   const isExpired = daysRemaining < 0;
-
-  const { showToast } = useToast();
-
-  const toggleAutoRenew = () => {
-    const next = !subscription.autoRenew;
-    setSubscription(prev => ({ ...prev, autoRenew: next }));
-    showToast(
-      next ? 'تم تفعيل التجديد التلقائي للاشتراك ✓' : 'تم إيقاف التجديد التلقائي للاشتراك',
-      next ? 'success' : 'warning'
-    );
-  };
 
   const smsPercentage = ((10 - subscription.freeSmsRemaining) / 10) * 100;
   const waPercentage = ((50 - subscription.freeWaRemaining) / 50) * 100;
@@ -130,43 +117,40 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
            </button>
         </div>
 
-        {/* Quotas & Auto-Renew Card */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="text-base font-bold text-slate-800">إدارة التجديد التلقائي</h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">يمكنك من تفعيل أو تعطيل تجديد الاشتراك التلقائي</p>
+        {/* Quotas Card */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+          <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
+            <div className="p-2 bg-amber-50 text-amber-500 rounded-xl shrink-0">
+              <Hourglass size={20} />
             </div>
-            <button 
-              onClick={toggleAutoRenew}
-              className={`w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 ${subscription.autoRenew ? 'bg-green-500' : 'bg-slate-300'}`}
-            >
-              <div className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 ${subscription.autoRenew ? '-translate-x-5' : 'translate-x-0'}`}></div>
-            </button>
+            <div>
+              <h3 className="text-base font-bold text-slate-800">الاستهلاك والرصيد المجاني</h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">نظرة عامة على استهلاكك من الرصيد المجاني</p>
+            </div>
           </div>
 
-          <div>
-             <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><Hourglass size={18} className="text-slate-400" /> الاستهلاك (الرصيد المجاني الأول)</h3>
-             
-             <div className="mb-4">
-               <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
-                 <span>رسائل نصية (SMS) المستهلكة</span>
-                 <span>{10 - subscription.freeSmsRemaining} من 10</span>
-               </div>
-               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                 <div className={`h-full transition-all ${smsPercentage > 80 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${smsPercentage}%` }}></div>
-               </div>
-             </div>
+          <div className="space-y-5 flex-1">
+            <div>
+              <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
+                <span>رسائل نصية (SMS) المستهلكة</span>
+                <span className="text-blue-600">{10 - subscription.freeSmsRemaining} من 10</span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${smsPercentage > 80 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${smsPercentage}%` }}></div>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5 font-medium">{subscription.freeSmsRemaining} رسالة متبقية</p>
+            </div>
 
-             <div>
-               <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
-                 <span>رسائل واتساب (WhatsApp) المستهلكة</span>
-                 <span>{50 - subscription.freeWaRemaining} من 50</span>
-               </div>
-               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                 <div className={`h-full transition-all ${waPercentage > 80 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${waPercentage}%` }}></div>
-               </div>
-             </div>
+            <div>
+              <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
+                <span>رسائل واتساب (WhatsApp) المستهلكة</span>
+                <span className="text-green-600">{50 - subscription.freeWaRemaining} من 50</span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${waPercentage > 80 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${waPercentage}%` }}></div>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5 font-medium">{subscription.freeWaRemaining} رسالة متبقية</p>
+            </div>
           </div>
         </div>
       </div>

@@ -87,8 +87,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ planData, period, subscript
         startDate: today.toISOString().split('T')[0],
         endDate: newEndDate.toISOString().split('T')[0],
         planName: PACKAGE_NAMES[planData.tier],
-        transactions: [newTransaction, ...prev.transactions],
-        autoRenew: true
+        transactions: [newTransaction, ...prev.transactions]
       }));
 
       setTimeout(() => { onSuccess(); }, 2200);

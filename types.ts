@@ -384,7 +384,6 @@ export interface SubscriptionInfo {
   planName: string;
   // New fields for the advanced subscription system
   packageTier: PackageTier;
-  autoRenew: boolean;
   isTrial: boolean;
   trialStartDate?: string;
   trialEndDate?: string;

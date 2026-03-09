@@ -105,7 +105,6 @@ const App: React.FC = () => {
       startDate: today.toISOString().split('T')[0],
       endDate: trialEnd.toISOString().split('T')[0],
       planName: 'الباقة المتقدمة (تجريبية)',
-      autoRenew: false,
       transactions: [],
       freeSmsRemaining: 10,
       freeWaRemaining: 50

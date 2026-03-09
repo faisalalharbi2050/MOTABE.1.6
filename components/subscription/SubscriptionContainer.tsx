@@ -60,7 +60,6 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
         {activeTab === 'dashboard' && (
           <SubscriptionDashboard 
             subscription={subscription} 
-            setSubscription={setSubscription} 
             onUpgrade={() => setActiveTab('pricing')} 
           />
         )}
