@@ -70,16 +70,27 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
         </div>
 
         {subscription.isTrial && !isExpired && (
-          <div className="mt-6">
-            <div className="flex justify-between items-end mb-2">
-              <span className="font-bold text-slate-700 text-sm">المدة المتبقية للفترة التجريبية</span>
-              <span className="text-sm font-bold text-[#655ac1]">{Math.max(0, daysRemaining)} أيام من أصل 10</span>
-            </div>
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-              <div 
-                className="bg-[#8779fb] h-full rounded-full transition-all duration-1000"
-                style={{ width: `${Math.max(0, Math.min(100, (daysRemaining / 10) * 100))}%` }}
-              />
+          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
+            <span className="font-bold text-slate-600 text-sm">المدة المتبقية للتجربة</span>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: 10 }).map((_, i) => {
+                const remaining = Math.max(0, daysRemaining);
+                const filled = i < remaining;
+                return (
+                  <div
+                    key={i}
+                    title={`اليوم ${i + 1}`}
+                    className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
+                      filled
+                        ? 'bg-[#8779fb] border-[#8779fb] shadow-sm shadow-[#8779fb]/30'
+                        : 'bg-slate-100 border-slate-200'
+                    }`}
+                  />
+                );
+              })}
+              <span className="mr-2 text-xs font-black text-[#655ac1] bg-[#f4f3ff] px-2.5 py-1 rounded-full border border-[#e5e1fe]">
+                {Math.max(0, daysRemaining)} / 10 أيام
+              </span>
             </div>
           </div>
         )}
