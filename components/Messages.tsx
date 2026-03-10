@@ -61,9 +61,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
 
         <div className="relative z-10">
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-            <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl">
-              <MessageSquare size={24} />
-            </div>
+            <MessageSquare size={36} strokeWidth={1.8} className="text-[#655ac1]" />
             الرسائل
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12">

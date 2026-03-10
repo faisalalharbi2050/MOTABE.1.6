@@ -272,7 +272,7 @@ const SubjectDatabase: React.FC<Props> = ({ subjects, setSubjects, specializatio
          <div className="absolute top-0 left-0 w-32 h-32 bg-primary/5 rounded-full -translate-x-10 -translate-y-10 blur-2xl"></div>
          <div className="space-y-2 relative z-10">
             <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <div className="p-3 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20"><Database size={28} /></div>
+              <Database size={36} strokeWidth={1.8} className="text-[#655ac1]" />
               قاعدة المواد الدراسية
             </h2>
             <p className="text-slate-500 text-sm font-medium">استعرض واعتمد الخطط الدراسية المعتمدة لوزارة التعليم لجميع المراحل.</p>

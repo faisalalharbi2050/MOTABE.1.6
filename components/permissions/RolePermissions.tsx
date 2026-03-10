@@ -33,9 +33,7 @@ const RolePermissions: React.FC = () => {
         <div className="relative z-10 flex justify-between items-start">
           <div>
             <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-              <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl">
-                <Lock size={24} />
-              </div>
+              <Lock size={36} strokeWidth={1.8} className="text-[#655ac1]" />
               الصلاحيات
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12">

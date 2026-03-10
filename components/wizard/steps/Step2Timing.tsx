@@ -596,7 +596,7 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#8779fb]/10 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
           
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-[#8779fb]/10 text-[#8779fb] rounded-xl"><Clock size={24} /></div>
+            <Clock size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              إدارة التوقيت الزمني لليوم الدراسي
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إنشاء التوقيت وتخصيصه</p>

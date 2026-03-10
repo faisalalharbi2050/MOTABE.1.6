@@ -212,7 +212,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
           
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl"><UserCog size={24} /></div>
+            <UserCog size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              إدارة الإداريين
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إضافة وتعديل بيانات الإداريين وإمكانية إسناد الانتظار</p>

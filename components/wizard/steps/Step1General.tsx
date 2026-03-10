@@ -15,6 +15,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
   const [expandedSharedSchoolId, setExpandedSharedSchoolId] = useState<string | null>(null);
   const sharedSchoolFileInputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
 
+  // Custom delete confirm dialog
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
     const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
@@ -90,12 +93,16 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
   };
 
   const deleteSharedSchool = (id: string) => {
-    if (confirm('هل أنت متأكد من حذف هذه المدرسة؟')) {
-       setSchoolInfo(prev => ({
-         ...prev,
-         sharedSchools: (prev.sharedSchools || []).filter(s => s.id !== id)
-       }));
-    }
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDeleteSharedSchool = () => {
+    if (!deleteConfirmId) return;
+    setSchoolInfo(prev => ({
+      ...prev,
+      sharedSchools: (prev.sharedSchools || []).filter(s => s.id !== deleteConfirmId)
+    }));
+    setDeleteConfirmId(null);
   };
 
   const handleSharedSchoolLogoUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,11 +124,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
             onClick={() => setIsMainSchoolExpanded(!isMainSchoolExpanded)}
          >
             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-primary-500">
-                  {schoolInfo.logo ? <img src={schoolInfo.logo} alt="" className="w-full h-full object-contain rounded-lg"/> : <School size={20} className="text-slate-400"/>}
-               </div>
                <div>
-                  <h4 className={`font-bold text-sm ${!schoolInfo.schoolName ? 'text-slate-400 italic' : 'text-slate-800'}`}>
+                  <h4 className={`font-bold text-base ${!schoolInfo.schoolName ? 'text-slate-400 italic' : 'text-slate-800'}`}>
                     {schoolInfo.schoolName || 'المدرسة الأساسية'}
                   </h4>
                   <div className="flex items-center gap-2 mt-1">
@@ -161,7 +165,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                                 key={p}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all ${
                                     (schoolInfo.phases || []).includes(p)
-                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                                    ? 'bg-[#8779fb]/10 border-[#8779fb]/40 text-[#8779fb]'
                                     : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                                 }`}
                             >
@@ -177,9 +181,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                                     }}
                                 />
                                 <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${
-                                    (schoolInfo.phases || []).includes(p) ? 'border-indigo-500' : 'border-slate-300'
+                                    (schoolInfo.phases || []).includes(p) ? 'border-[#8779fb]' : 'border-slate-300'
                                 }`}>
-                                    {(schoolInfo.phases || []).includes(p) && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>}
+                                    {(schoolInfo.phases || []).includes(p) && <div className="w-1.5 h-1.5 rounded-full bg-[#8779fb]"></div>}
                                 </div>
                                 {p}
                             </label>
@@ -421,40 +425,40 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                </div>
           </div>
 
-           {/* Logo Upload */}
-           <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-2">
+           {/* Logo Upload - compact, beside رقم الجوال */}
+           <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600">شعار الكيان</label>
-               <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 hover:bg-slate-100 hover:border-primary/50 transition-all text-sm text-slate-500 flex flex-col items-center justify-center cursor-pointer gap-3 min-h-[120px]"
-               >
-                  <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                  />
-                  {schoolInfo.logo ? (
-                      <div className="flex flex-col items-center gap-3">
-                          <img src={schoolInfo.logo} alt="Logo" className="h-16 w-auto object-contain rounded" />
-                          <div className="flex gap-2">
-                              <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">تم رفع الشعار بنجاح</span>
-                              <button 
-                                  onClick={(e) => { e.stopPropagation(); setSchoolInfo(prev => ({ ...prev, logo: undefined })); }}
-                                  className="p-1 hover:bg-rose-100 text-rose-500 rounded-lg text-xs flex items-center gap-1"
-                              >
-                                  <X size={14} /> حذف
-                              </button>
-                          </div>
-                      </div>
-                  ) : (
-                      <>
-                          <div className="bg-white p-3 rounded-full shadow-sm"><Upload size={24} className="text-slate-400" /></div>
-                          <span className="text-sm font-bold">اضغط هنا لرفع شعار الكيان</span>
-                      </>
-                  )}
-               </div>
+              <div className="flex items-center gap-3">
+                 <div
+                     onClick={() => fileInputRef.current?.click()}
+                     className="flex-1 p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-2 text-xs font-bold text-slate-500"
+                 >
+                     <input
+                         type="file"
+                         ref={fileInputRef}
+                         className="hidden"
+                         accept="image/*"
+                         onChange={handleLogoUpload}
+                     />
+                     <Upload size={14} />
+                     {schoolInfo.logo ? 'تغيير الشعار' : 'رفع شعار الكيان'}
+                 </div>
+                 {schoolInfo.logo && (
+                     <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold">
+                         <CheckCircle2 size={14} />
+                         <span>تم الرفع</span>
+                         <button
+                             onClick={(e) => { e.stopPropagation(); setSchoolInfo(prev => ({ ...prev, logo: undefined })); }}
+                             className="hover:text-rose-500 mr-1 flex items-center"
+                         >
+                             <X size={14} />
+                         </button>
+                     </div>
+                 )}
+                 {schoolInfo.logo && (
+                     <img src={schoolInfo.logo} alt="Logo" className="h-10 w-auto object-contain rounded border border-slate-100 bg-white p-1" />
+                 )}
+              </div>
           </div>
       </div>
     </>
@@ -470,12 +474,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
             onClick={() => setExpandedSharedSchoolId(isExpanded ? null : school.id)}
          >
             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-primary-500">
-                  {school.logo ? <img src={school.logo} alt="" className="w-full h-full object-contain rounded-lg"/> : <School size={20} className="text-slate-400"/>}
-               </div>
                <div>
-                  <h4 className={`font-bold text-sm ${!school.name ? 'text-slate-400 italic' : 'text-slate-800'}`}>
-                    {school.name || 'مدرسة جديدة'}
+                  <h4 className={`font-bold text-base ${!school.name ? 'text-slate-400 italic' : 'text-slate-800'}`}>
+                    {school.name || 'مدرسة مشتركة'}
                   </h4>
                   <div className="flex items-center gap-2 mt-1">
                      <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500">
@@ -487,7 +488,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
             <div className="flex items-center gap-2">
                <button 
                   onClick={(e) => { e.stopPropagation(); deleteSharedSchool(school.id); }}
-                  className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                  className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
                   title="حذف المدرسة"
                >
                   <Trash2 size={16} />
@@ -519,7 +520,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                              <label 
                                 key={p} 
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all ${
-                                   (school.phases || []).includes(p) ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                   (school.phases || []).includes(p) ? 'bg-[#8779fb]/10 border-[#8779fb]/40 text-[#8779fb]' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                                 }`}
                              >
                                 <input 
@@ -529,9 +530,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                                    onChange={() => handleSharedSchoolPhaseChange(school.id, p)}
                                 />
                                 <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${
-                                    (school.phases || []).includes(p) ? 'border-indigo-500' : 'border-slate-300'
+                                    (school.phases || []).includes(p) ? 'border-[#8779fb]' : 'border-slate-300'
                                 }`}>
-                                    {(school.phases || []).includes(p) && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>}
+                                    {(school.phases || []).includes(p) && <div className="w-1.5 h-1.5 rounded-full bg-[#8779fb]"></div>}
                                 </div>
                                 {p}
                              </label>
@@ -646,7 +647,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
           
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl"><School size={24} /></div>
+            <School size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              المعلومات العامة
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إدارة البيانات الأساسية</p>
@@ -689,7 +690,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         </h3>
                         <button 
                             onClick={addSharedSchool}
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-600 rounded-xl font-bold text-sm hover:bg-purple-100 transition-all border border-purple-200"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all"
                         >
                             <Plus size={16} /> إضافة مدرسة
                         </button>
@@ -711,7 +712,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                          </div>
                          <button 
                             onClick={addSharedSchool}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-all shadow-sm transform active:scale-95"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all active:scale-95"
                         >
                             <Plus size={16} /> إضافة مدرسة
                         </button>
@@ -719,6 +720,46 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                 </div>
             )}
         </>
+      )}
+
+      {/* ── Custom Delete Confirm Dialog ── */}
+      {deleteConfirmId && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setDeleteConfirmId(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+                <Trash2 size={20} className="text-rose-500" />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 text-base">حذف المدرسة المشتركة</h4>
+                <p className="text-slate-400 text-xs mt-0.5">هذه العملية لا يمكن التراجع عنها</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              هل أنت متأكد من حذف هذه المدرسة المشتركة؟ سيتم حذف جميع بياناتها نهائياً.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmDeleteSharedSchool}
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-sm hover:bg-rose-600 transition-all active:scale-95"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

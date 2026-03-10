@@ -42,9 +42,7 @@ const DutySettingsPage: React.FC<Props> = ({
         <div className="absolute top-0 right-0 w-28 h-28 bg-[#e5e1fe] rounded-bl-[3.5rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
         <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl">
-              <Settings size={22} />
-            </div>
+            <Settings size={36} strokeWidth={1.8} className="text-[#655ac1]" />
             <div>
               <h3 className="text-xl font-black text-slate-800">إعدادات المناوبة اليومية</h3>
               <p className="text-slate-500 font-medium text-sm mt-0.5">

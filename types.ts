@@ -1,8 +1,6 @@
 export enum EntityType {
   SCHOOL = 'مدرسة',
-  INSTITUTE = 'معهد',
-  UNIVERSITY = 'جامعة',
-  OTHER = 'أخرى'
+  OTHER = 'آخر'
 }
 
 export enum Phase {
