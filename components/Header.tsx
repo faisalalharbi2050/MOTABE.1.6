@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   LogOut, 
@@ -23,7 +23,8 @@ import {
   Sparkles,
   LogIn,
   CheckCheck,
-  Settings2
+  Settings2,
+  ChevronDown
 } from 'lucide-react';
 import { SchoolInfo } from '../types';
 
@@ -374,17 +375,17 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div>
                         <h1 className="text-base md:text-lg font-bold text-slate-800 flex items-center gap-1">
-                            مرحباً، {profile.name} <span className="text-lg animate-wave">👋</span>
+                            مرحباً، {profile.name} <ChevronDown size={16} className="text-slate-400 mt-0.5" />
                         </h1>
                     </div>
                 </button>
 
                 {/* ── Profile Popover ───────────────────────────────── */}
                 {isProfileOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-[22rem] bg-white rounded-2xl shadow-2xl ring-1 ring-black/8 z-50 overflow-hidden animate-fade-in">
+                  <div className="absolute top-full right-0 mt-2 w-[22rem] bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-fade-in">
                     
                     {/* Header row */}
-                    <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-l from-violet-50 to-white">
+                    <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-l from-slate-50 to-white">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-[#655ac1]/10 flex items-center justify-center text-[#655ac1]">
                           <User size={20} />
@@ -564,7 +565,7 @@ const Header: React.FC<HeaderProps> = ({
                  >
                     <Bell size={22} />
                     {unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-black text-white leading-none">
+                      <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-black text-white leading-none">
                         {unreadCount}
                       </span>
                     )}
@@ -572,14 +573,14 @@ const Header: React.FC<HeaderProps> = ({
 
                  {/* ── Notifications Panel ─────────────────────────── */}
                  {isNotifOpen && (
-                   <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl ring-1 ring-black/8 z-50 overflow-hidden animate-fade-in">
+                   <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-fade-in">
                      {/* Panel header */}
-                     <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-white">
+                     <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                        <div className="flex items-center gap-2">
                          <Bell size={16} className="text-[#655ac1]" />
                          <span className="text-sm font-bold text-slate-800">الإشعارات</span>
                          {unreadCount > 0 && (
-                           <span className="text-[10px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+                           <span className="text-[10px] font-bold text-white bg-amber-500 px-1.5 py-0.5 rounded-full">{unreadCount}</span>
                          )}
                        </div>
                        <div className="flex items-center gap-2">
