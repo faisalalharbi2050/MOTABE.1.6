@@ -715,8 +715,8 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
                                 onClick={() => toggleDay(day.id)}
                                 className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 cursor-pointer relative overflow-hidden group ${
                                     isActive 
-                                    ? 'bg-white border-transparent shadow-md scale-105 z-10' 
-                                    : 'bg-slate-50 border-transparent hover:border-slate-200 hover:bg-white'
+                                    ? 'bg-white border-slate-200 shadow-md scale-105 z-10' 
+                                    : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white'
                                 }`}
                               >
                                   {/* Selection Checkmark Background */}
