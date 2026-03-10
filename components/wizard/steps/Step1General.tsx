@@ -700,7 +700,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         </h3>
                         <button 
                           onClick={addSharedSchool}
-                          className="flex items-center gap-2 px-4 py-2 bg-white text-[#8779fb] border-2 border-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 hover:border-[#8779fb] transition-all"
+                          className="flex items-center gap-2 px-4 py-2 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all active:scale-95"
                         >
                           <Plus size={16} /> إضافة مدرسة
                         </button>
@@ -723,9 +723,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                          <button 
                             onClick={addSharedSchool}
                             className="flex items-center gap-2 px-6 py-2.5 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all active:scale-95"
-                        >
+                          >
                             <Plus size={16} /> إضافة مدرسة
-                        </button>
+                          </button>
                     </div>
                 </div>
             )}

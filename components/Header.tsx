@@ -565,7 +565,7 @@ const Header: React.FC<HeaderProps> = ({
                  >
                     <Bell size={22} />
                     {unreadCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-black text-white leading-none">
+                      <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-rose-500 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-black text-white leading-none">
                         {unreadCount}
                       </span>
                     )}
@@ -580,7 +580,7 @@ const Header: React.FC<HeaderProps> = ({
                          <Bell size={16} className="text-[#655ac1]" />
                          <span className="text-sm font-bold text-slate-800">الإشعارات</span>
                          {unreadCount > 0 && (
-                           <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+                           <span className="text-[10px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded-full">{unreadCount}</span>
                          )}
                        </div>
                        <div className="flex items-center gap-2">
