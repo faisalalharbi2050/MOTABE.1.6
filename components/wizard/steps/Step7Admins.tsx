@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Admin } from '../../../types';
-import { Zap, Plus, X, UserCog, Edit, Trash2, Printer, ChevronDown, Check, Save, AlertTriangle, Briefcase, ChevronUp, Users } from 'lucide-react';
+import { Zap, Plus, X, UserCog, Edit, Trash2, Printer, ChevronDown, Check, Save, AlertTriangle, Briefcase, ChevronUp, Users, Shield } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Badge } from '../../ui/Badge';
 

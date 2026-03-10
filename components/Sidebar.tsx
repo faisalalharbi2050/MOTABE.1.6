@@ -20,6 +20,7 @@ import {
   School,
   BookOpen,
   LayoutGrid,
+  UserCog,
   Users,
 } from "lucide-react";
 
@@ -245,7 +246,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                    active={activeTab === "settings_admins"}
                    onClick={() => handleTabClick("settings_admins")}
                    label="الإداريون"
-                   icon={<Shield size={18} />}
+                   icon={<UserCog size={18} />}
                    inverted={true}
                 />
              </div>

@@ -55,7 +55,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
     <div className="space-y-6 dir-rtl animate-fade-in max-w-[1400px] mx-auto">
       
       {/* ══════ Header Card ══════ */}
-      <div className="bg-white rounded-[2rem] px-8 pt-8 pb-6 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
+      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
         {/* Decorative corner accent */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
 
