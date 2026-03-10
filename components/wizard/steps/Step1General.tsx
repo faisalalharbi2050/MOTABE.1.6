@@ -158,37 +158,41 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                 </div>
 
                 <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-2">
-                    <label className="text-xs font-bold text-slate-500">المرحلة الدراسية</label>
+                    <label className="text-sm font-bold text-slate-600 flex items-center gap-1">
+                      المرحلة الدراسية <span className="text-rose-500">*</span>
+                    </label>
                     <div className="flex flex-wrap gap-2">
-                        {Object.values(Phase).map((p) => (
-                            <label 
-                                key={p}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all ${
-                                    (schoolInfo.phases || []).includes(p)
-                                    ? 'bg-[#8779fb]/10 border-[#8779fb]/40 text-[#8779fb]'
-                                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-                                }`}
-                            >
-                                <input
-                                    type="radio"
-                                    className="hidden"
-                                    checked={(schoolInfo.phases || []).includes(p)}
-                                    onChange={() => {
-                                        setSchoolInfo(prev => ({
-                                            ...prev,
-                                            phases: [p] // Single select: replace array with single item
-                                        }));
-                                    }}
-                                />
-                                <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${
-                                    (schoolInfo.phases || []).includes(p) ? 'border-[#8779fb]' : 'border-slate-300'
-                                }`}>
-                                    {(schoolInfo.phases || []).includes(p) && <div className="w-1.5 h-1.5 rounded-full bg-[#8779fb]"></div>}
-                                </div>
-                                {p}
-                            </label>
-                        ))}
+                      {Object.values(Phase).map((p) => {
+                        const isSelected = (schoolInfo.phases || [])[0] === p;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => {
+                              setSchoolInfo(prev => ({
+                                ...prev,
+                                phases: [p]
+                              }));
+                            }}
+                            className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none active:scale-95 flex items-center gap-2
+                              ${isSelected
+                                ? 'border-[#8779fb] bg-white text-[#8779fb] shadow-md shadow-[#8779fb]/10'
+                                : 'border-slate-200 bg-white text-slate-500 hover:border-[#8779fb]/40 hover:text-[#8779fb] hover:bg-[#8779fb]/5'
+                              }`}
+                          >
+                            {isSelected && (
+                              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <polyline points="4 10 8 14 14 6" stroke="#8779fb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                              </svg>
+                            )}
+                            {p}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {!(schoolInfo.phases && schoolInfo.phases.length > 0) && (
+                      <p className="text-xs text-rose-500 font-medium">يرجى اختيار مرحلة دراسية واحدة</p>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -514,30 +518,36 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
 
                    {/* Phase Selection - Single Select */}
                    <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-2">
-                      <label className="text-xs font-bold text-slate-500">المرحلة الدراسية</label>
+                      <label className="text-sm font-bold text-slate-600 flex items-center gap-1">
+                        المرحلة الدراسية <span className="text-rose-500">*</span>
+                      </label>
                       <div className="flex flex-wrap gap-2">
-                          {Object.values(Phase).map((p) => (
-                             <label 
-                                key={p} 
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer text-xs font-bold transition-all ${
-                                   (school.phases || []).includes(p) ? 'bg-[#8779fb]/10 border-[#8779fb]/40 text-[#8779fb]' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                        {Object.values(Phase).map((p) => {
+                          const isSelected = (school.phases || [])[0] === p;
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => updateSharedSchool(school.id, 'phases', [p])}
+                              className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none active:scale-95 flex items-center gap-2
+                                ${isSelected
+                                  ? 'border-[#8779fb] bg-white text-[#8779fb] shadow-md shadow-[#8779fb]/10'
+                                  : 'border-slate-200 bg-white text-slate-500 hover:border-[#8779fb]/40 hover:text-[#8779fb] hover:bg-[#8779fb]/5'
                                 }`}
-                             >
-                                <input 
-                                   type="radio" 
-                                   className="hidden"
-                                   checked={(school.phases || []).includes(p)}
-                                   onChange={() => handleSharedSchoolPhaseChange(school.id, p)}
-                                />
-                                <div className={`w-3 h-3 rounded-full border flex items-center justify-center ${
-                                    (school.phases || []).includes(p) ? 'border-[#8779fb]' : 'border-slate-300'
-                                }`}>
-                                    {(school.phases || []).includes(p) && <div className="w-1.5 h-1.5 rounded-full bg-[#8779fb]"></div>}
-                                </div>
-                                {p}
-                             </label>
-                          ))}
+                            >
+                              {isSelected && (
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <polyline points="4 10 8 14 14 6" stroke="#8779fb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                </svg>
+                              )}
+                              {p}
+                            </button>
+                          );
+                        })}
                       </div>
+                      {!(school.phases && school.phases.length > 0) && (
+                        <p className="text-xs text-rose-500 font-medium">يرجى اختيار مرحلة دراسية واحدة</p>
+                      )}
                    </div>
 
                    {/* Other Fields */}
@@ -689,10 +699,10 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             المدارس المشتركة
                         </h3>
                         <button 
-                            onClick={addSharedSchool}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all"
+                          onClick={addSharedSchool}
+                          className="flex items-center gap-2 px-4 py-2 bg-white text-[#8779fb] border-2 border-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 hover:border-[#8779fb] transition-all"
                         >
-                            <Plus size={16} /> إضافة مدرسة
+                          <Plus size={16} /> إضافة مدرسة
                         </button>
                     </div>
             
