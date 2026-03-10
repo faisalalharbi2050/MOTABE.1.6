@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { UserPlus, Users, Activity, ShieldCheck, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { UserPlus, Users, Activity, Lock, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import AddDelegate from './AddDelegate';
 import ManageDelegates from './ManageDelegates';
 import ActionLogs from './ActionLogs';
@@ -34,7 +34,7 @@ const RolePermissions: React.FC = () => {
           <div>
             <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
               <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl">
-                <ShieldCheck size={24} />
+                <Lock size={24} />
               </div>
               الصلاحيات
             </h3>
