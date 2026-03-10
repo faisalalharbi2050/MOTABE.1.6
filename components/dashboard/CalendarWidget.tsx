@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, Plus, Calendar as CalendarIcon, X, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, X, Pencil, Trash2 } from 'lucide-react';
 import { CalendarEvent } from '../../types';
 
 // ── Task types & helpers ──────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ interface CalendarWidgetProps {
 
 const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events }) => {
   const [currentDate, setCurrentDate]       = useState(new Date());
-  const [calendarType, setCalendarType]     = useState<'gregorian' | 'hijri'>('gregorian');
+  const [calendarType, setCalendarType]     = useState<'gregorian' | 'hijri'>('hijri');
   const [tasks, setTasks]                   = useState<Task[]>(loadTasks);
 
   // Modal: add / edit
@@ -139,8 +139,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events }) => {
     ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
     : new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { month: 'long', year: 'numeric' }).format(currentDate);
 
-  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
   // ── Year ranges ───────────────────────────────────────────────────────────
   const thisYear      = new Date().getFullYear();
@@ -292,27 +290,12 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events }) => {
   return (
     <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow relative">
 
-      {/* ── Row 1: Title + month navigation ──────────────────────────────── */}
-      <div className="px-5 pt-4 pb-0 flex items-center justify-between">
+      {/* ── Row 1: Title ─────────────────────────────────────────────────── */}
+      <div className="px-5 pt-4 pb-0">
         <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
           <CalendarIcon size={22} className="text-[#655ac1]" />
           التقويم
         </h3>
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={prevMonth}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-500 transition-colors"
-          >
-            <ChevronRight size={16} />
-          </button>
-          <span className="text-xs font-bold text-slate-700 min-w-[9rem] text-center">{currentMonthLabel}</span>
-          <button
-            onClick={nextMonth}
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-500 transition-colors"
-          >
-            <ChevronLeft size={16} />
-          </button>
-        </div>
       </div>
 
       {/* ── Row 2: Toolbar ────────────────────────────────────────────────── */}
