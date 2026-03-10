@@ -21,13 +21,13 @@ interface ScheduleItem {
 }
 
 const DAYS_OF_WEEK = [
-  { id: 'friday', label: 'الجمعة', default: false },
-  { id: 'saturday', label: 'السبت', default: false },
   { id: 'sunday', label: 'الأحد', default: true },
   { id: 'monday', label: 'الاثنين', default: true },
   { id: 'tuesday', label: 'الثلاثاء', default: true },
   { id: 'wednesday', label: 'الأربعاء', default: true },
   { id: 'thursday', label: 'الخميس', default: true },
+  { id: 'friday', label: 'الجمعة', default: false },
+  { id: 'saturday', label: 'السبت', default: false },
 ];
 
 const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
