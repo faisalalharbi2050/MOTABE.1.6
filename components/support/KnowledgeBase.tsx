@@ -621,7 +621,7 @@ const KnowledgeBase: React.FC = () => {
   const [playingVideo, setPlayingVideo] = useState<VideoTutorial | null>(null);
 
   // Section switcher: 'faq' | 'videos'
-  const [section, setSection] = useState<'faq' | 'videos'>('videos');
+  const [section, setSection] = useState<'faq' | 'videos'>('faq');
 
   // ── FAQ filtered ──────────────────────────────────────────────────────────
   const currentCat = FAQ_DATA.find(c => c.id === activeCategory);
