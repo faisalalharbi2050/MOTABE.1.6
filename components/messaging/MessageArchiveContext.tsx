@@ -55,11 +55,11 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   });
   const [stats, setStats] = useState<MessageStats>(() => {
     try { 
-      return JSON.parse(localStorage.getItem('smart_messaging_stats_v1') || 'null') || {
-        totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 1000, balanceWhatsApp: 1000, lastUpdated: new Date().toISOString()
+      return JSON.parse(localStorage.getItem('smart_messaging_stats_v2') || 'null') || {
+        totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString()
       };
     } catch { 
-      return { totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 1000, balanceWhatsApp: 1000, lastUpdated: new Date().toISOString() };
+      return { totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString() };
     }
   });
 
@@ -72,7 +72,7 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   }, [templates]);
 
   useEffect(() => {
-    localStorage.setItem('smart_messaging_stats_v1', JSON.stringify(stats));
+    localStorage.setItem('smart_messaging_stats_v2', JSON.stringify(stats));
   }, [stats]);
 
   const updateStats = (channel: 'whatsapp' | 'sms', status: 'sent' | 'failed') => {

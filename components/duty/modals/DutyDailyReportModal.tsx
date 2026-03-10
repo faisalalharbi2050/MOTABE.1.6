@@ -104,8 +104,9 @@ const DutyDailyReportModal: React.FC<Props> = ({
 <meta charset="UTF-8">
 <title>تقرير المناوبة اليومية</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; background: #fff; font-size: 10px; color: #1e293b; }
+  body { font-family: 'Tajawal', sans-serif; direction: rtl; background: #fff; font-size: 10px; color: #1e293b; }
   @page { size: A4; margin: 12mm 15mm; }
 
   /* Header */

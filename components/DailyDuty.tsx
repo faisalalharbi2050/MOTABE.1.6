@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Eye, Settings, Calendar, Download, Send, Printer,
-  CheckCircle, AlertTriangle, Shield, Clock, Plus, Trash2, Edit,
+  CheckCircle, AlertTriangle, Shield, ShieldCheck, Clock, Plus, Trash2, Edit,
   RefreshCw, BarChart3, MessageSquare, ChevronDown, ChevronUp,
   GripVertical, Copy, Search, Filter, X, Save, AlertCircle,
   UserCheck, UserX, Info, Bell, Zap, FileText, Check
@@ -81,6 +81,13 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isManageSchedulesOpen, setIsManageSchedulesOpen] = useState(false);
   const [isCreateScheduleOpen, setIsCreateScheduleOpen] = useState(false);
+
+  // ── Quick-action deep-link from Dashboard ─────────────────────────
+  useEffect(() => {
+    const handler = () => setIsMessagingOpen(true);
+    window.addEventListener('motabe:send_duty', handler);
+    return () => window.removeEventListener('motabe:send_duty', handler);
+  }, []);
   
   // Confirmation state
   const [showGlobalDeleteConfirm, setShowGlobalDeleteConfirm] = useState(false);
@@ -304,7 +311,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         <div className="flex justify-between items-start relative z-10">
           <div>
             <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-              <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl"><Shield size={24} /></div>
+              <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl"><ShieldCheck size={24} /></div>
               المناوبة اليومية
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">

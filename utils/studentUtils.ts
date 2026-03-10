@@ -373,8 +373,9 @@ export function printStudentList(
     <head>
       <meta charset="UTF-8">
       <title>قائمة الطلاب</title>
+      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
       <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
+        body { font-family: 'Tajawal', sans-serif; padding: 20px; direction: rtl; }
         h1 { text-align: center; color: #1e293b; font-size: 20px; margin-bottom: 4px; }
         h2 { text-align: center; color: #64748b; font-size: 14px; font-weight: 400; margin-top: 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }

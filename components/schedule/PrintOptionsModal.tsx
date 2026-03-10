@@ -45,7 +45,7 @@ const buildPrintCSS = (paperSize: PaperSize, fontSize: number, safeMargins: bool
         :root { --schedule-font: ${fontSize}px; }
         @page { size: ${paperSize} landscape; margin: ${margin}; }
         @media print {
-            html, body { font-family: 'Cairo', sans-serif !important; font-size: ${fontSize}px !important; }
+            html, body { font-family: 'Tajawal', sans-serif !important; font-size: ${fontSize}px !important; }
             body * { visibility: hidden !important; }
             #schedule-print-root, #schedule-print-root * { visibility: visible !important; }
             #schedule-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; }

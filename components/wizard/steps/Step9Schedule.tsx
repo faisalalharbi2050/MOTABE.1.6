@@ -108,6 +108,14 @@ const Step9Schedule: React.FC<Step9Props> = ({
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [showSendSchedule, setShowSendSchedule] = useState(false);
   const [showEditMenu, setShowEditMenu] = useState(false);
+
+  // ── Quick-action deep-link from Dashboard ─────────────────────────
+  useEffect(() => {
+    const handler = () => setShowSendSchedule(true);
+    window.addEventListener('motabe:send_schedule', handler);
+    return () => window.removeEventListener('motabe:send_schedule', handler);
+  }, []);
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {

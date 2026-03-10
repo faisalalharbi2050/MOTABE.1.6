@@ -71,16 +71,16 @@ const App: React.FC = () => {
     return 'dashboard';
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [subscriptionInitialTab, setSubscriptionInitialTab] = useState<'dashboard' | 'pricing' | 'invoices'>('dashboard');
+  const [messagesInitialTab, setMessagesInitialTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>('compose');
 
   // Mock Data for Dashboard
   const [messages] = useState<Message[]>([
     { id: '1', sender: 'مدير المدرسة', recipient: 'المعلمون', content: 'يرجى تسليم الدرجات', timestamp: new Date().toISOString(), type: 'whatsapp', status: 'sent' },
     { id: '2', sender: 'الوكيل للشؤون التعليمية', recipient: 'الإداريون', content: 'اجتماع طارئ', timestamp: new Date(Date.now() - 3600000).toISOString(), type: 'sms', status: 'sent' },
-    { id: '3', sender: 'المرشد الطلابي', recipient: 'أولياء الأمور', content: 'موعد مجلس الأمهات', timestamp: new Date(Date.now() - 7200000).toISOString(), type: 'sms', status: 'sent' },
+    { id: '3', sender: 'الموجه الطلابي', recipient: 'أولياء الأمور', content: 'اجتماع أولياء الأمور', timestamp: new Date(Date.now() - 7200000).toISOString(), type: 'sms', status: 'sent' },
   ]);
-  const [events] = useState<CalendarEvent[]>([
-    { id: '1', title: 'اجتماع المعلمين', date: new Date().toISOString().split('T')[0], type: 'meeting' },
-  ]);
+  const [events] = useState<CalendarEvent[]>([]);
   const [todaySchedule] = useState<DailyScheduleItem[]>([
     { id: '1', type: 'absence', name: 'محمد حسن', time: 'طوال اليوم', role: 'معلم رياضيات' },
     { id: '2', type: 'supervision', name: 'سعد القحطاني', time: '06:45 صباحاً', location: 'الساحة الأمامية' },
@@ -208,7 +208,11 @@ const App: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} tomorrowSchedule={tomorrowSchedule} subscription={subscription} onNavigate={(tab) => setActiveTab(tab as any)} />;
+      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} tomorrowSchedule={tomorrowSchedule} subscription={subscription} onNavigate={(tab) => {
+        if (tab === 'subscription_pricing') { setSubscriptionInitialTab('pricing'); setActiveTab('subscription'); }
+        else if (tab === 'messages_subscriptions') { setMessagesInitialTab('subscriptions'); setActiveTab('messages'); }
+        else { setSubscriptionInitialTab('dashboard'); setMessagesInitialTab('compose'); setActiveTab(tab as any); }
+      }} />;
       case 'settings': return (
         <GeneralSettingsWizard 
             schoolInfo={schoolInfo} 
@@ -260,9 +264,9 @@ const App: React.FC = () => {
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
       case 'duty': return <DailyDuty schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
       case 'daily_waiting': return <DailyWaiting teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
-      case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} />;
+      case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} initialTab={messagesInitialTab} />;
       case 'permissions': return <RolePermissions />;
-      case 'subscription': return <SubscriptionContainer subscription={subscription} setSubscription={setSubscription} />;
+      case 'subscription': return <SubscriptionContainer subscription={subscription} setSubscription={setSubscription} initialTab={subscriptionInitialTab} />;
       case 'support': return <Support />;
       default: return (
         <GeneralSettingsWizard 

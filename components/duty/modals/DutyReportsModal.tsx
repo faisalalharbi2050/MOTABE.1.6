@@ -210,7 +210,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
   const handlePrintStudentReport = (name: string, lateRecs: EnrichedLate[], violRecs: EnrichedViolation[]) => {
     const pw = window.open('', '_blank'); if (!pw) return;
     pw.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير الطالب - ${name}</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;padding:30px;direction:rtl;color:#1e293b;}
+    <style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Tajawal',sans-serif;padding:30px;direction:rtl;color:#1e293b;}
     .header{text-align:center;border-bottom:2px solid #e2e8f0;padding-bottom:15px;margin-bottom:20px;}h1{font-size:20px;margin-bottom:4px;}h2{font-size:14px;color:#475569;font-weight:normal;margin-bottom:15px;}
     .sec{font-size:13px;font-weight:bold;margin:15px 0 8px;padding:6px 10px;border-radius:6px;}
     .late-sec{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;}.viol-sec{background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;}
@@ -292,8 +292,9 @@ const DutyReportsModalContent: React.FC<Props> = ({
   <meta charset="UTF-8">
   <title>${reportTitle}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif; padding: 40px; direction: rtl; color: #1e293b; }
+    body { font-family: 'Tajawal', sans-serif; padding: 40px; direction: rtl; color: #1e293b; }
     .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
     .header h1 { font-size: 24px; margin-bottom: 8px; color: #0f172a; }
     .header h2 { font-size: 18px; color: #475569; font-weight: normal; }

@@ -40,10 +40,10 @@ const toGregorian = (dateStr: string) => {
 
 /** CSS shared between filled and blank print output */
 const PRINT_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Cairo', Arial, sans-serif;
+    font-family: 'Tajawal', sans-serif;
     direction: rtl; background: #fff; color: #1e293b;
     font-size: 11px; padding: 8px 16px;
   }

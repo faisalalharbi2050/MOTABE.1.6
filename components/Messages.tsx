@@ -14,10 +14,11 @@ import { Teacher, Admin, Student, ClassInfo, Specialization, SchoolInfo, Subscri
 interface MessagesProps {
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
+  initialTab?: 'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions';
 }
 
-const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription }) => {
-  const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>('compose');
+const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, initialTab }) => {
+  const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>(initialTab || 'compose');
 
   // Load necessary data for composer
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);

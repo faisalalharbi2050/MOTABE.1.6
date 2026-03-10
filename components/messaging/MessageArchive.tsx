@@ -266,9 +266,10 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
         <head>
           <meta charset="utf-8"/><title>تقرير الرسائل المرسلة</title>
           <style>
+            @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
             @page { size: A4 landscape; margin: 15mm; }
             * { margin:0; padding:0; box-sizing:border-box; }
-            body { font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; color:#0f172a; padding: 20px; }
+            body { font-family:'Tajawal', sans-serif; direction:rtl; color:#0f172a; padding: 20px; }
             
             /* Report Header */
             .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }

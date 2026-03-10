@@ -69,6 +69,13 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isManageSchedulesOpen, setIsManageSchedulesOpen] = useState(false);
   const [isCreateScheduleOpen, setIsCreateScheduleOpen] = useState(false);
+
+  // ── Quick-action deep-link from Dashboard ─────────────────────────
+  useEffect(() => {
+    const handler = () => setIsMessagingOpen(true);
+    window.addEventListener('motabe:send_supervision', handler);
+    return () => window.removeEventListener('motabe:send_supervision', handler);
+  }, []);
   
   // Confirmation state
   const [showGlobalDeleteConfirm, setShowGlobalDeleteConfirm] = useState(false);

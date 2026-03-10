@@ -13,7 +13,7 @@ const PRINT_CSS = `
     #sp-modal-print {
       position: fixed; inset: 0; padding: 32px;
       background: white; direction: rtl;
-      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      font-family: 'Tajawal', sans-serif;
     }
     .no-print { display: none !important; }
     table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
@@ -185,11 +185,11 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
       const rows = subs.map((s, i) =>
         `<tr><td style="${TD}text-align:center;">${i + 1}</td><td style="${TD}">${s.name}</td><td style="${TD}text-align:center;font-weight:bold;">${s.periodsPerClass || '–'}</td></tr>`
       ).join('');
-      return `<div style="margin-bottom:20px;page-break-inside:avoid;"><div style="background:#655ac1;color:white;padding:7px 13px;border-radius:6px;margin-bottom:5px;font-weight:900;font-family:Tahoma,Arial;font-size:.85rem;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${label}</div><table style="border-collapse:collapse;width:100%;"><thead><tr><th style="${TH}width:32px;">#</th><th style="${TH}">المادة الدراسية</th><th style="${TH}width:90px;">الحصص</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="${TD}font-weight:900;">المجموع</td><td style="${TD}text-align:center;font-weight:900;color:#655ac1;">${tot}</td></tr></tfoot></table></div>`;
+      return `<div style="margin-bottom:20px;page-break-inside:avoid;"><div style="background:#655ac1;color:white;padding:7px 13px;border-radius:6px;margin-bottom:5px;font-weight:900;font-family:'Tajawal',sans-serif;font-size:.85rem;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${label}</div><table style="border-collapse:collapse;width:100%;"><thead><tr><th style="${TH}width:32px;">#</th><th style="${TH}">المادة الدراسية</th><th style="${TH}width:90px;">الحصص</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="${TD}font-weight:900;">المجموع</td><td style="${TD}text-align:center;font-weight:900;color:#655ac1;">${tot}</td></tr></tfoot></table></div>`;
     };
 
-    const TITLE = 'color:#3b355a;margin-bottom:10px;font-family:Tahoma,Arial;font-size:1.1rem;font-weight:900;';
-    const SECTION = 'color:#655ac1;margin:14px 0 4px;font-family:Tahoma,Arial;font-size:.9rem;font-weight:900;';
+    const TITLE = 'color:#3b355a;margin-bottom:10px;font-family:\'Tajawal\',sans-serif;font-size:1.1rem;font-weight:900;';
+    const SECTION = 'color:#655ac1;margin:14px 0 4px;font-family:\'Tajawal\',sans-serif;font-size:.9rem;font-weight:900;';
     let content = `<div dir="rtl"><h2 style="${TITLE}">${selectedCategory.name} — ${selectedDepartment.name}</h2>`;
 
     if (mode === 'plan') {

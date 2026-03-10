@@ -7,7 +7,7 @@ import {
 import { useToast } from '../ui/ToastProvider';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type TicketCategory = 'technical' | 'payment' | 'billing' | 'suggestion' | 'other';
+type TicketCategory = 'technical' | 'payment' | 'billing' | 'suggestion' | 'other' | 'delete_account';
 type TicketStatus = 'processing' | 'replied' | 'closed';
 type TicketPriority = 'urgent' | 'normal';
 
@@ -34,8 +34,9 @@ const CATEGORIES: { value: TicketCategory; label: string; urgent: boolean }[] = 
   { value: 'technical', label: 'مشكلة تقنية', urgent: true },
   { value: 'payment',   label: 'مشكلة في الدفع', urgent: true },
   { value: 'billing',   label: 'مشكلة في الفوترة', urgent: false },
-  { value: 'suggestion',label: 'اقتراح', urgent: false },
-  { value: 'other',     label: 'أخرى', urgent: false },
+  { value: 'suggestion',    label: 'اقتراح',       urgent: false },
+  { value: 'other',          label: 'أخرى',         urgent: false },
+  { value: 'delete_account', label: 'حذف الحساب',    urgent: false },
 ];
 
 const ACCEPTED_IMAGES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];

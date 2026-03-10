@@ -117,8 +117,9 @@ const SupervisionReportsModalContent: React.FC<Props> = ({
   <meta charset="UTF-8">
   <title>${reportTitle}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif; padding: 40px; direction: rtl; color: #1e293b; }
+    body { font-family: 'Tajawal', sans-serif; padding: 40px; direction: rtl; color: #1e293b; }
     .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
     .header h1 { font-size: 24px; margin-bottom: 8px; color: #0f172a; }
     .header h2 { font-size: 18px; color: #475569; font-weight: normal; }

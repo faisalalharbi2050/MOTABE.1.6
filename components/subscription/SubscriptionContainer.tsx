@@ -8,10 +8,11 @@ import { SubscriptionInfo } from '../../types';
 interface SubscriptionContainerProps {
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
+  initialTab?: 'dashboard' | 'pricing' | 'invoices';
 }
 
-const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscription, setSubscription }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'pricing' | 'invoices'>('dashboard');
+const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscription, setSubscription, initialTab }) => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pricing' | 'invoices'>(initialTab || 'dashboard');
 
   const tabs = [
     { id: 'dashboard', label: 'إدارة الاشتراك', icon: LayoutDashboard },

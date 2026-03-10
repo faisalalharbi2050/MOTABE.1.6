@@ -322,7 +322,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                      active={activeTab === "duty"}
                      onClick={() => handleTabClick("duty")}
                      label="المناوبة اليومية"
-                     icon={<Shield size={18} />}
+                     icon={<ShieldCheck size={18} />}
                      inverted={true}
                   />
                </div>

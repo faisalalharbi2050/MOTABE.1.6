@@ -49,20 +49,9 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   <meta charset="UTF-8">
   <title>جدول المناوبة اليومية - ${printData.schoolName}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; background: #fff; font-size: 11px; }
-    .page-header {
-      display: flex; justify-content: space-between; align-items: flex-start;
-      border-bottom: 2px solid #1e293b;
-      padding-bottom: 12px; margin-bottom: 14px;
-    }
-    .page-header .school-info { width: 33%; text-align: right; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
-    .page-header .doc-title { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .page-header .doc-title .logo-circle { width: 50px; height: 50px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
-    .page-header .doc-title .logo-text { font-size: 8px; color: #94a3b8; }
-    .page-header .doc-title h1 { font-size: 14px; font-weight: 900; color: #1e293b; }
-    .page-header .doc-date { width: 33%; text-align: left; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
-    @page { margin: 15mm 15mm 20mm 15mm; }
+    body { font-family: 'Tajawal', sans-serif; direction: rtl; background: #fff; font-size: 11px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5px; }
     th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 6px 4px; font-weight: bold; text-align: center; }
     td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: center; vertical-align: middle; }
@@ -170,24 +159,9 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   <meta charset="UTF-8">
   <title>جدول المناوبة اليومية (موقّع) - ${printData.schoolName}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl; background: #fff; font-size: 11px; }
-    .page-header {
-      display: flex; justify-content: space-between; align-items: flex-start;
-      border-bottom: 2px solid #1e293b;
-      padding-bottom: 12px; margin-bottom: 14px;
-    }
-    .page-header .school-info { width: 33%; text-align: right; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
-    .page-header .doc-title { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .page-header .doc-title .logo-circle { width: 50px; height: 50px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
-    .page-header .doc-title .logo-text { font-size: 8px; color: #94a3b8; }
-    .page-header .doc-title h1 { font-size: 14px; font-weight: 900; color: #1e293b; }
-    .page-header .doc-date { width: 33%; text-align: left; font-size: 10px; font-weight: bold; color: #1e293b; line-height: 1.7; }
-    @page { margin: 15mm 15mm 20mm 15mm; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5px; }
-    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 6px 4px; font-weight: bold; text-align: center; }
-    td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: center; vertical-align: middle; }
-    tr:nth-child(even) { background-color: #f8fafc; }
+    body { font-family: 'Tajawal', sans-serif; direction: rtl; background: #fff; font-size: 11px; }
     .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
     .empty-state { color: #94a3b8; font-style: italic; }
     .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }

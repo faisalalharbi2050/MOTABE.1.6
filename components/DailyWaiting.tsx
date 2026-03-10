@@ -257,6 +257,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ── Phase 4: Messaging ──
   const [showSendModal, setShowSendModal] = useState(false);
   const [showSendTable, setShowSendTable] = useState(true);
+
+  // ── Quick-action deep-link events from Dashboard ─────────────────
+  useEffect(() => {
+    const onAddWaiting  = () => setShowAbsenceModal(true);
+    const onSendWaiting = () => { setShowSendTable(true); setShowSendModal(true); };
+    window.addEventListener('motabe:add_waiting',  onAddWaiting);
+    window.addEventListener('motabe:send_waiting', onSendWaiting);
+    return () => {
+      window.removeEventListener('motabe:add_waiting',  onAddWaiting);
+      window.removeEventListener('motabe:send_waiting', onSendWaiting);
+    };
+  }, []);
   const [sendMasterTemplate, setSendMasterTemplate] = useState('');
   const [sendCustomMessages, setSendCustomMessages] = useState<Record<string, string>>({});
   const [sendSelectedIds, setSendSelectedIds] = useState<Set<string>>(new Set());
@@ -613,8 +625,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const w = window.open('', '_blank', 'width=1100,height=750');
     if (!w) return;
     w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><style>
+      @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
       * { margin:0; padding:0; box-sizing:border-box; }
-      body { font-family:'Segoe UI',Tahoma,sans-serif; direction:rtl; color:#1e293b; padding:28px; }
+      body { font-family:'Tajawal',sans-serif; direction:rtl; color:#1e293b; padding:28px; }
       h1 { font-size:16px; font-weight:900; color:#655ac1; margin-bottom:6px; }
       .subtitle { font-size:11px; color:#64748b; margin-bottom:20px; }
       table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:30px; }
@@ -674,8 +687,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   <meta charset="utf-8"/>
   <title>تقرير الانتظار اليومي</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Segoe UI',Tahoma,'Arial',sans-serif; direction:rtl; color:#1e293b; padding:28px; }
+    body { font-family:'Tajawal',sans-serif; direction:rtl; color:#1e293b; padding:28px; }
     .page-header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #334155; padding-bottom:12px; margin-bottom:18px; }
     .header-right { font-size:11px; line-height:1.9; color:#334155; font-weight:700; }
     .header-center { text-align:center; font-size:13px; font-weight:900; color:#334155; display:flex; flex-direction:column; align-items:center; gap:4px; }
@@ -765,8 +779,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <meta charset="utf-8">
         <title>سجل حصص الانتظار</title>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
           * { margin:0; padding:0; box-sizing:border-box; }
-          body { font-family: 'Segoe UI', Tahoma, sans-serif; direction:rtl; color:#1e293b; background:#fff; }
+          body { font-family: 'Tajawal', sans-serif; direction:rtl; color:#1e293b; background:#fff; }
           .page { padding:28px 32px; max-width:900px; margin:auto; }
           .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #655ac1; pb:16px; margin-bottom:20px; }
           .school-name { font-size:18px; font-weight:900; color:#655ac1; }

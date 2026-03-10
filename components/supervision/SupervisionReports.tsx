@@ -84,8 +84,9 @@ const SupervisionReports: React.FC<Props> = ({
   <meta charset="UTF-8">
   <title>جدول الإشراف اليومي - ${printData.schoolName}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif; padding: 20px; direction: rtl; }
+    body { font-family: 'Tajawal', sans-serif; padding: 20px; direction: rtl; }
     .header { text-align: center; margin-bottom: 25px; border-bottom: 3px double #333; padding-bottom: 15px; }
     .header h1 { font-size: 22px; margin-bottom: 5px; }
     .header h2 { font-size: 16px; color: #555; }
@@ -191,8 +192,9 @@ const SupervisionReports: React.FC<Props> = ({
   <meta charset="UTF-8">
   <title>تقرير الإشراف ${period === 'weekly' ? 'الأسبوعي' : 'الشهري'}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif; padding: 20px; direction: rtl; }
+    body { font-family: 'Tajawal', sans-serif; padding: 20px; direction: rtl; }
     .header { text-align: center; margin-bottom: 25px; border-bottom: 3px double #333; padding-bottom: 15px; }
     .header h1 { font-size: 22px; margin-bottom: 5px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }

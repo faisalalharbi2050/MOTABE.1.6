@@ -47,8 +47,9 @@ const SupervisionPrintModal: React.FC<Props> = ({
   <meta charset="UTF-8">
   <title>جدول الإشراف اليومي - ${printData.schoolName}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif; padding: 40px; direction: rtl; background: #fff; }
+    body { font-family: 'Tajawal', sans-serif; padding: 40px; direction: rtl; background: #fff; }
     
     .print-container { max-width: 100%; margin: 0 auto; }
     
