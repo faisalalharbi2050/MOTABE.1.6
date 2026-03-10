@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, BookOpen, HelpCircle } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, BookOpen, HelpCircle, Play, PlayCircle, Clock, X, Video, FileQuestion, ChevronLeft, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
 
 interface FAQItem {
   q: string;
@@ -282,106 +282,573 @@ const FAQ_DATA: FAQCategory[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VIDEO TUTORIALS DATA
+// ─────────────────────────────────────────────────────────────────────────────
+interface VideoTutorial {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  category: string;
+  youtubeId?: string; // undefined = قريباً
+  gradient: string;
+}
+
+const VIDEO_DATA: VideoTutorial[] = [
+  // لوحة التحكم
+  {
+    id: 'v-dashboard-1',
+    title: 'جولة شاملة في لوحة التحكم',
+    description: 'تعرّف على جميع مكونات لوحة التحكم الرئيسية وكيفية الاستفادة منها لمتابعة العمل اليومي',
+    duration: '4:20',
+    category: 'dashboard',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-dashboard-2',
+    title: 'الوصول السريع والإحصائيات',
+    description: 'كيفية استخدام أزرار الوصول السريع ومؤشرات الإحصائيات في لوحة التحكم',
+    duration: '2:45',
+    category: 'dashboard',
+    gradient: 'from-white to-slate-100',
+  },
+  // الإعدادات العامة
+  {
+    id: 'v-settings-1',
+    title: 'إعداد بيانات المدرسة',
+    description: 'خطوات إعداد بيانات المدرسة الأساسية وإضافة المدارس المشتركة من البداية',
+    duration: '6:10',
+    category: 'settings',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-settings-2',
+    title: 'إضافة المعلمين والإداريين',
+    description: 'كيفية إضافة المعلمين والإداريين يدوياً ومن ملف Excel مع تحديد الأدوار والتخصصات',
+    duration: '7:30',
+    category: 'settings',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-settings-3',
+    title: 'إضافة المواد الدراسية والفصول',
+    description: 'شرح إنشاء المواد الدراسية وربطها بالصفوف وإعداد الفصول الدراسية',
+    duration: '5:15',
+    category: 'settings',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-settings-4',
+    title: 'ضبط إعدادات الجدول والفترات الزمنية',
+    description: 'تحديد أوقات الحصص والفسح وإعداد الفترات الزمنية للعمل اليومي',
+    duration: '4:50',
+    category: 'settings',
+    gradient: 'from-white to-slate-100',
+  },
+  // جدول الحصص
+  {
+    id: 'v-schedule-1',
+    title: 'إنشاء جدول الحصص تلقائياً',
+    description: 'شرح كيفية عمل خوارزمية التوزيع الذكي وإنشاء الجدول بخطوات بسيطة',
+    duration: '8:40',
+    category: 'schedule',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-schedule-2',
+    title: 'التعديل اليدوي على الجدول',
+    description: 'كيفية تعديل الحصص يدوياً والتبادل بين المعلمين دون تعارض',
+    duration: '6:25',
+    category: 'schedule',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-schedule-3',
+    title: 'طباعة وتصدير الجدول',
+    description: 'خيارات طباعة جدول الفصل والمعلم والمدرسة الكاملة وتصديرها',
+    duration: '3:10',
+    category: 'schedule',
+    gradient: 'from-white to-slate-100',
+  },
+  // إسناد المواد
+  {
+    id: 'v-assignment-1',
+    title: 'إسناد المواد للمعلمين',
+    description: 'دليل كامل لإسناد المواد للمعلمين عبر شبكة الفصول مع مراعاة النصاب',
+    duration: '9:05',
+    category: 'assignment',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-assignment-2',
+    title: 'قراءة تقرير الإسناد',
+    description: 'كيفية متابعة إحصائيات الإسناد وطباعة التقرير الكامل',
+    duration: '4:40',
+    category: 'assignment',
+    gradient: 'from-white to-slate-100',
+  },
+  // الإشراف اليومي
+  {
+    id: 'v-supervision-1',
+    title: 'إنشاء جدول الإشراف اليومي',
+    description: 'خطوات إنشاء جدول الإشراف التلقائي واليدوي وإدارة المشرفين',
+    duration: '7:20',
+    category: 'supervision',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-supervision-2',
+    title: 'التوقيع الرقمي وإرسال التكليفات',
+    description: 'كيفية إرسال تكليفات الإشراف وتفعيل التوقيع الرقمي الإلكتروني',
+    duration: '5:55',
+    category: 'supervision',
+    gradient: 'from-white to-slate-100',
+  },
+  // المناوبة اليومية
+  {
+    id: 'v-duty-1',
+    title: 'إنشاء جدول المناوبة',
+    description: 'بناء جدول المناوبة الأسبوعي والشهري بالتوزيع العادل بين المعلمين',
+    duration: '6:50',
+    category: 'duty',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-duty-2',
+    title: 'إرسال تكليفات المناوبة والتذكير اليومي',
+    description: 'كيفية إرسال تكليفات المناوبة وتفعيل التذكير التلقائي اليومي',
+    duration: '4:15',
+    category: 'duty',
+    gradient: 'from-white to-slate-100',
+  },
+  // الانتظار اليومي
+  {
+    id: 'v-waiting-1',
+    title: 'توزيع حصص الغياب',
+    description: 'كيفية تسجيل حالات الغياب وتوزيع الحصص تلقائياً على المعلمين المتاحين',
+    duration: '5:30',
+    category: 'daily_waiting',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-waiting-2',
+    title: 'متابعة رصيد الانتظار والتوقيع',
+    description: 'كيفية متابعة رصيد الانتظار التراكمي لكل معلم والتوقيع الرقمي على الجدول',
+    duration: '4:00',
+    category: 'daily_waiting',
+    gradient: 'from-white to-slate-100',
+  },
+  // الرسائل
+  {
+    id: 'v-messages-1',
+    title: 'إرسال رسائل جماعية',
+    description: 'كيفية إرسال رسائل واتساب وSMS الجماعية للمعلمين والإداريين',
+    duration: '5:45',
+    category: 'messages',
+    gradient: 'from-white to-slate-100',
+  },
+  {
+    id: 'v-messages-2',
+    title: 'إنشاء قوالب الرسائل وجدولتها',
+    description: 'إنشاء قوالب رسائل جاهزة وجدولة الإرسال في أوقات محددة',
+    duration: '4:30',
+    category: 'messages',
+    gradient: 'from-white to-slate-100',
+  },
+  // الصلاحيات
+  {
+    id: 'v-permissions-1',
+    title: 'إدارة صلاحيات المستخدمين',
+    description: 'كيفية إضافة مستخدمين مفوضين وتخصيص صلاحياتهم لكل قسم في المنصة',
+    duration: '6:00',
+    category: 'permissions',
+    gradient: 'from-white to-slate-100',
+  },
+  // الاشتراك
+  {
+    id: 'v-subscription-1',
+    title: 'إدارة الاشتراك والباقات',
+    description: 'كيفية مقارنة الباقات وترقية الاشتراك والاطلاع على الفواتير الضريبية',
+    duration: '5:00',
+    category: 'subscription',
+    gradient: 'from-white to-slate-100',
+  },
+];
+
+const VIDEO_CATEGORIES = [
+  { id: 'dashboard', label: 'لوحة التحكم' },
+  { id: 'settings', label: 'الإعدادات العامة' },
+  { id: 'schedule', label: 'جدول الحصص' },
+  { id: 'assignment', label: 'إسناد المواد' },
+  { id: 'supervision', label: 'الإشراف اليومي' },
+  { id: 'duty', label: 'المناوبة اليومية' },
+  { id: 'daily_waiting', label: 'الانتظار اليومي' },
+  { id: 'messages', label: 'الرسائل' },
+  { id: 'permissions', label: 'الصلاحيات' },
+  { id: 'subscription', label: 'الاشتراك والفوترة' },
+];
+
+// ─── Video Thumbnail Component ────────────────────────────────────────────────
+const VideoCard: React.FC<{ video: VideoTutorial; onPlay: (v: VideoTutorial) => void }> = ({ video, onPlay }) => (
+  <div
+    className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-[#655ac1]/30 transition-all duration-300 overflow-hidden group cursor-pointer"
+    onClick={() => onPlay(video)}
+  >
+    {/* Thumbnail */}
+    <div className={`relative h-28 bg-gradient-to-br ${video.gradient} flex items-center justify-center overflow-hidden`}>
+      <div className="absolute inset-0">
+        <div className="absolute top-2 right-2 w-16 h-16 rounded-full bg-slate-200/50" />
+        <div className="absolute bottom-2 left-2 w-10 h-10 rounded-full bg-slate-200/50" />
+        <div className="absolute top-1/2 left-1/3 w-8 h-8 rounded-full bg-slate-200/40" />
+      </div>
+      {/* Play Button */}
+      <div className="relative z-10 w-14 h-14 rounded-full bg-white shadow-md flex items-center justify-center border border-slate-200/60 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+        <Play size={22} className="text-[#655ac1] fill-[#655ac1] mr-[-2px]" />
+      </div>
+      {/* Duration Badge */}
+      <div className="absolute bottom-2 left-2 bg-white/90 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
+        <Clock size={11} />
+        {video.duration}
+      </div>
+      {/* Coming soon badge */}
+      {!video.youtubeId && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-gradient-to-l from-[#8779fb] to-[#a99cf8] text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">
+          <span className="w-1.5 h-1.5 rounded-full bg-white/80 animate-pulse" />
+          قريباً
+        </div>
+      )}
+    </div>
+    {/* Content */}
+    <div className="p-4">
+      <h4 className="font-black text-slate-800 text-sm leading-snug mb-1 group-hover:text-[#655ac1] transition-colors">
+        {video.title}
+      </h4>
+      <p className="text-slate-500 text-xs leading-relaxed font-medium line-clamp-2">
+        {video.description}
+      </p>
+    </div>
+  </div>
+);
+
+// ─── Video Player Modal ───────────────────────────────────────────────────────
+const VideoModal: React.FC<{ video: VideoTutorial | null; onClose: () => void }> = ({ video, onClose }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  if (!video) return null;
+
+  const catLabel = VIDEO_CATEGORIES.find(c => c.id === video.category)?.label ?? '';
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15,10,40,0.75)' }}
+      onClick={onClose}
+    >
+      <div
+        className={`bg-white rounded-3xl shadow-2xl w-full overflow-hidden animate-fade-in transition-all duration-300 ${isExpanded ? 'max-w-5xl' : 'max-w-2xl'}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div className="relative h-12 bg-[#8779fb] flex items-center px-5">
+          <span className="text-white font-bold text-sm opacity-90">{catLabel}</span>
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <button
+              onClick={() => setIsExpanded(v => !v)}
+              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-all"
+              title={isExpanded ? 'تصغير' : 'تكبير'}
+            >
+              {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-all"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        {/* Video area */}
+        <div className="relative bg-slate-50 aspect-video flex items-center justify-center border-y border-slate-100">
+          {video.youtubeId ? (
+            <iframe
+              src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
+              className="absolute inset-0 w-full h-full"
+              allow="autoplay; fullscreen"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center border border-slate-200/60">
+                <PlayCircle size={40} className="text-[#8779fb] opacity-80" />
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-black mb-1 text-slate-700">قريباً</p>
+                <p className="text-sm font-medium text-slate-500">جارٍ تجهيز هذا الشرح</p>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Info */}
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-black text-slate-800 text-base leading-snug">{video.title}</h3>
+              <p className="text-slate-500 text-sm font-medium mt-1 leading-relaxed">{video.description}</p>
+            </div>
+            <div className="shrink-0 flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-lg">
+              <Clock size={13} />
+              {video.duration}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 const KnowledgeBase: React.FC = () => {
+  // FAQ state
   const [activeCategory, setActiveCategory] = useState<string>('settings');
   const [openItem, setOpenItem] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentCat = FAQ_DATA.find(c => c.id === activeCategory);
+  // Videos state
+  const [videoCategory, setVideoCategory] = useState<string>('dashboard');
+  const [videoSearch, setVideoSearch] = useState('');
+  const [playingVideo, setPlayingVideo] = useState<VideoTutorial | null>(null);
 
+  // Section switcher: 'faq' | 'videos'
+  const [section, setSection] = useState<'faq' | 'videos'>('videos');
+
+  // ── FAQ filtered ──────────────────────────────────────────────────────────
+  const currentCat = FAQ_DATA.find(c => c.id === activeCategory);
   const filteredItems = searchQuery.trim()
     ? FAQ_DATA.flatMap(cat =>
         cat.items
-          .filter(item =>
-            item.q.includes(searchQuery) || item.a.includes(searchQuery)
-          )
+          .filter(item => item.q.includes(searchQuery) || item.a.includes(searchQuery))
           .map(item => ({ ...item, categoryLabel: cat.label }))
       )
     : (currentCat?.items.map(item => ({ ...item, categoryLabel: currentCat.label })) ?? []);
 
+  // ── Videos filtered ───────────────────────────────────────────────────────
+  const filteredVideos = VIDEO_DATA.filter(v => {
+    const matchCat = v.category === videoCategory;
+    const matchSearch = !videoSearch.trim() || v.title.includes(videoSearch) || v.description.includes(videoSearch);
+    return matchCat && matchSearch;
+  });
+
   return (
-    <div className="space-y-6">
-      {/* Search Bar */}
-      <div className="relative">
-        <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="ابحث في الأسئلة الشائعة..."
-          value={searchQuery}
-          onChange={e => { setSearchQuery(e.target.value); setOpenItem(null); }}
-          className="w-full pr-12 pl-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/30 text-slate-700 font-medium text-sm transition-all bg-white shadow-sm"
-        />
-      </div>
+    <div className="space-y-5">
 
-      <div className="flex gap-6">
-        {/* Categories Sidebar */}
-        {!searchQuery && (
-          <aside className="w-80 shrink-0">
-            <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg shadow-slate-200/80 overflow-hidden">
-              <div className="px-4 py-3 bg-[#8779fb] border-b border-[#8779fb]">
-                <p className="font-black text-base text-white flex items-center gap-2">
-                  <BookOpen size={18} />
-                  التصنيفات
-                </p>
-              </div>
-              <div className="p-3 space-y-1">
-                {FAQ_DATA.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => { setActiveCategory(cat.id); setOpenItem(null); }}
-                    className={`w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200
-                      ${activeCategory === cat.id
-                        ? 'bg-[#e5e1fe] text-[#655ac1] shadow-sm'
-                        : 'text-slate-600 hover:bg-[#f5f3ff] hover:text-[#655ac1]'
-                      }`}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </aside>
-        )}
-
-        {/* FAQ Items */}
-        <div className="flex-1 space-y-3">
-          {filteredItems.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-400">
-              <HelpCircle size={40} className="mx-auto mb-3 text-slate-300" />
-              <p className="font-bold">لا توجد نتائج مطابقة</p>
-            </div>
-          ) : (
-            filteredItems.map((item, idx) => {
-              const key = `${item.q}-${idx}`;
-              const isOpen = openItem === key;
-              return (
-                <div
-                  key={key}
-                  className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden ${isOpen ? 'border-[#655ac1]/30' : 'border-slate-200 hover:border-slate-300'}`}
-                >
-                  <button
-                    onClick={() => setOpenItem(isOpen ? null : key)}
-                    className="w-full flex items-center justify-between px-5 py-4 text-right"
-                  >
-                    <span className={`font-bold text-sm leading-relaxed ${isOpen ? 'text-[#655ac1]' : 'text-slate-700'}`}>
-                      {item.q}
-                    </span>
-                    <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isOpen ? 'bg-[#8779fb]/20 text-[#8779fb]' : 'bg-slate-100 text-slate-500'}`}>
-                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </div>
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-4">
-                      <div className="h-px bg-slate-100 mb-3" />
-                      <p className="text-sm text-slate-600 font-medium leading-relaxed">{item.a}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+      {/* ── Section Switcher ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => setSection('faq')}
+          className={`group relative flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all duration-200 bg-white ${
+            section === 'faq'
+              ? 'border-[#8779fb]/60'
+              : 'border-slate-200 hover:border-[#c4bdf8]'
+          }`}
+        >
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+            section === 'faq' ? 'bg-[#8779fb]' : 'bg-slate-100 group-hover:bg-[#e5e1fe]'
+          }`}>
+            <FileQuestion size={22} className={section === 'faq' ? 'text-white' : 'text-slate-500 group-hover:text-[#8779fb]'} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`font-black text-sm ${section === 'faq' ? 'text-[#655ac1]' : 'text-slate-700'}`}>الأسئلة الشائعة</p>
+            <p className="text-slate-400 text-xs font-medium mt-0.5 truncate">إجابات على أكثر الأسئلة شيوعاً</p>
+          </div>
+          {section === 'faq' && (
+            <div className="absolute bottom-0 right-1/2 translate-x-1/2 w-8 h-1 bg-[#8779fb] rounded-full" />
           )}
-        </div>
+        </button>
+
+        <button
+          onClick={() => setSection('videos')}
+          className={`group relative flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all duration-200 bg-white ${
+            section === 'videos'
+              ? 'border-[#8779fb]/60'
+              : 'border-slate-200 hover:border-[#c4bdf8]'
+          }`}
+        >
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+            section === 'videos' ? 'bg-[#8779fb]' : 'bg-slate-100 group-hover:bg-[#e5e1fe]'
+          }`}>
+            <Video size={22} className={section === 'videos' ? 'text-white' : 'text-slate-500 group-hover:text-[#8779fb]'} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`font-black text-sm ${section === 'videos' ? 'text-[#655ac1]' : 'text-slate-700'}`}>شروحات الفيديو</p>
+            <p className="text-slate-400 text-xs font-medium mt-0.5 truncate">شرح كل قسم بمقاطع مرئية</p>
+          </div>
+          {section === 'videos' && (
+            <div className="absolute bottom-0 right-1/2 translate-x-1/2 w-8 h-1 bg-[#8779fb] rounded-full" />
+          )}
+        </button>
       </div>
+
+      {/* ══════════════════ VIDEO TUTORIALS SECTION ══════════════════════════ */}
+      {section === 'videos' && (
+        <div className="space-y-5">
+
+          {/* Search + Filter Row */}
+          <div className="flex gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="ابحث في شروحات الفيديو..."
+                value={videoSearch}
+                onChange={e => setVideoSearch(e.target.value)}
+                className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/30 text-slate-700 font-medium text-sm bg-white shadow-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-5">
+            {/* Category Sidebar */}
+            <aside className="w-80 shrink-0">
+              <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg shadow-slate-200/80 overflow-hidden sticky top-4">
+                <div className="px-4 py-3 bg-[#8779fb] border-b border-[#8779fb] flex items-center justify-between">
+                  <p className="font-black text-base text-white flex items-center gap-2">
+                    <Video size={18} />
+                    الأقسام
+                  </p>
+                  <span className="text-white/90 text-xs font-black bg-white/20 px-2.5 py-1 rounded-lg">
+                    {VIDEO_DATA.length} مقطع
+                  </span>
+                </div>
+                <div className="p-3 space-y-1">
+                  {VIDEO_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setVideoCategory(cat.id)}
+                      className={`w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                        videoCategory === cat.id
+                          ? 'bg-[#e5e1fe] text-[#655ac1] shadow-sm'
+                          : 'text-slate-600 hover:bg-[#f5f3ff] hover:text-[#655ac1]'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Video Grid */}
+            <div className="flex-1">
+              {filteredVideos.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
+                  <PlayCircle size={40} className="mx-auto mb-3 text-slate-300" />
+                  <p className="font-bold">لا توجد نتائج مطابقة</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {filteredVideos.map(video => (
+                      <VideoCard key={video.id} video={video} onPlay={setPlayingVideo} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════ FAQ SECTION ══════════════════════════════════════ */}
+      {section === 'faq' && (
+        <div className="space-y-5">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="ابحث في الأسئلة الشائعة..."
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setOpenItem(null); }}
+              className="w-full pr-12 pl-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/30 text-slate-700 font-medium text-sm transition-all bg-white shadow-sm"
+            />
+          </div>
+
+          <div className="flex gap-6">
+            {/* Categories Sidebar */}
+            {!searchQuery && (
+              <aside className="w-80 shrink-0">
+                <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg shadow-slate-200/80 overflow-hidden">
+                  <div className="px-4 py-3 bg-[#8779fb] border-b border-[#8779fb]">
+                    <p className="font-black text-base text-white flex items-center gap-2">
+                      <BookOpen size={18} />
+                      التصنيفات
+                    </p>
+                  </div>
+                  <div className="p-3 space-y-1">
+                    {FAQ_DATA.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => { setActiveCategory(cat.id); setOpenItem(null); }}
+                        className={`w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200
+                          ${activeCategory === cat.id
+                            ? 'bg-[#e5e1fe] text-[#655ac1] shadow-sm'
+                            : 'text-slate-600 hover:bg-[#f5f3ff] hover:text-[#655ac1]'
+                          }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </aside>
+            )}
+
+            {/* FAQ Items */}
+            <div className="flex-1 space-y-3">
+              {filteredItems.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-400">
+                  <HelpCircle size={40} className="mx-auto mb-3 text-slate-300" />
+                  <p className="font-bold">لا توجد نتائج مطابقة</p>
+                </div>
+              ) : (
+                filteredItems.map((item, idx) => {
+                  const key = `${item.q}-${idx}`;
+                  const isOpen = openItem === key;
+                  return (
+                    <div
+                      key={key}
+                      className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden ${isOpen ? 'border-[#655ac1]/30' : 'border-slate-200 hover:border-slate-300'}`}
+                    >
+                      <button
+                        onClick={() => setOpenItem(isOpen ? null : key)}
+                        className="w-full flex items-center justify-between px-5 py-4 text-right"
+                      >
+                        <span className={`font-bold text-sm leading-relaxed ${isOpen ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                          {item.q}
+                        </span>
+                        <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isOpen ? 'bg-[#8779fb]/20 text-[#8779fb]' : 'bg-slate-100 text-slate-500'}`}>
+                          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-4">
+                          <div className="h-px bg-slate-100 mb-3" />
+                          <p className="text-sm text-slate-600 font-medium leading-relaxed">{item.a}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Video Player Modal ──────────────────────────────────────────────── */}
+      <VideoModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
     </div>
   );
 };

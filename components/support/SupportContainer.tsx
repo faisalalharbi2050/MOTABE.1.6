@@ -9,13 +9,13 @@ import NotificationsPanel from './NotificationsPanel';
 type SupportTab = 'tickets' | 'knowledge' | 'contact';
 
 const TABS: { id: SupportTab; label: string; icon: React.ElementType }[] = [
-  { id: 'tickets',   label: 'تذاكر الدعم',    icon: TicketIcon },
   { id: 'knowledge', label: 'مركز المساعدة',   icon: BookOpen },
+  { id: 'tickets',   label: 'تذاكر الدعم',    icon: TicketIcon },
   { id: 'contact',   label: 'تواصل معنا',      icon: PhoneCall },
 ];
 
 const SupportContainer: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<SupportTab>('tickets');
+  const [activeTab, setActiveTab] = useState<SupportTab>('knowledge');
   const [showNotif, setShowNotif] = useState(false);
   const [openTicketForm, setOpenTicketForm] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -47,8 +47,7 @@ const SupportContainer: React.FC = () => {
                 الدعم الفني
               </h2>
               <p className="text-slate-500 font-medium mt-2 mr-12">
-                ارفع تذاكرك، تصفح الأسئلة الشائعة، أو تواصل مع فريق الدعم مباشرة.
-                يمكنك أيضاً استخدام المساعد الذكي للإجابة الفورية.
+                تصفح مركز المساعدة، ارفع تذكرتك، أو تواصل مع فريق الدعم مباشرة، ويمكنك أيضاً استخدام المساعد الذكي للإجابة الفورية.
               </p>
             </div>
             {/* Spacer matching bell button width so text doesn't bleed under it */}
