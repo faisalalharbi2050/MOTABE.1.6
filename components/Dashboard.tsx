@@ -55,6 +55,7 @@ const WeeklyPerformanceChart: React.FC = () => (
 
 interface DashboardProps {
   schoolInfo: SchoolInfo;
+  setSchoolInfo: React.Dispatch<React.SetStateAction<SchoolInfo>>;
   teachers: Teacher[];
   classes: ClassInfo[];
   messages: Message[];
@@ -67,6 +68,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({
   schoolInfo,
+  setSchoolInfo,
   teachers,
   classes,
   messages,
@@ -167,7 +169,12 @@ const Dashboard: React.FC<DashboardProps> = ({
            <QuickActions onNavigate={onNavigate} />
         </div>
         <div className="lg:col-span-8 h-full">
-           <CalendarWidget events={events} onAddEvent={() => console.log('Add event')} />
+           <CalendarWidget 
+             events={events} 
+             onAddEvent={() => console.log('Add event')} 
+             schoolInfo={schoolInfo}
+             setSchoolInfo={setSchoolInfo}
+           />
         </div>
       </div>
 

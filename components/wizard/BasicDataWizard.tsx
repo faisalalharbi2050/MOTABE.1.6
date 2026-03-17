@@ -5,16 +5,12 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Settings, 
-  Clock,
-  Calendar,
   Save,
   RotateCcw
 } from 'lucide-react';
 import { SchoolInfo, Subject, ClassInfo } from '../../types';
 
 import Step1General from './steps/Step1General';
-import Step2AcademicYear from './steps/Step2AcademicYear';
-import Step2Timing from './steps/Step2Timing';
 
 interface BasicDataWizardProps {
   schoolInfo: SchoolInfo;
@@ -37,12 +33,10 @@ const BasicDataWizard: React.FC<BasicDataWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(1);
   const [isFinished, setIsFinished] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const totalSteps = 3;
+  const totalSteps = 1;
 
   const steps = [
     { id: 1, title: 'معلومات عامة', icon: Settings },
-    { id: 2, title: 'العام الدراسي', icon: Calendar },
-    { id: 3, title: 'التوقيت', icon: Clock },
   ];
 
   useEffect(() => {
@@ -89,8 +83,6 @@ const BasicDataWizard: React.FC<BasicDataWizardProps> = ({
 
     switch (currentStep) {
       case 1: return <Step1General schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
-      case 2: return <Step2AcademicYear schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
-      case 3: return <Step2Timing schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       default: return null;
     }
   };

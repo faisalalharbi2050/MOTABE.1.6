@@ -277,7 +277,9 @@ export interface ClassInfo {
   isMerged?: boolean;
   mergedClassIds?: string[];
   originalSchoolId?: string; // If merged from multiple
-  linkedSubjectId?: string; // For linking facility to a subject (e.g., Gym -> PE)
+  linkedSubjectId?: string; // For linking facility to a subject (e.g., Gym -> PE) - deprecated, use linkedSubjectIds
+  linkedSubjectIds?: string[]; // For linking facility to multiple subjects
+  capacity?: number; // Facility capacity: 1, 2, or 3 classes
 }
 
 export interface Assignment {

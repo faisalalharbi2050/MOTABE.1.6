@@ -377,7 +377,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
 
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
             <Calendar size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-             الحصص والانتظار
+             إدارة الجدول
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إدارة وإعداد جداول الحصص والانتظار عبر واجهة تفاعلية وسلسة</p>
           
@@ -435,48 +435,10 @@ const Step9Schedule: React.FC<Step9Props> = ({
                 className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
                 {isGenerating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={20} className="animate-pulse" />}
-                <span>{isGenerating ? 'جاري البناء...' : 'التوليد الذكي للجدول'}</span>
+                <span>{isGenerating ? 'جاري البناء...' : 'إنشاء الجدول'}</span>
             </button>
             
             <div className="w-px h-6 bg-slate-200 mx-2"></div>
-            
-            <div className="relative">
-                <button 
-                    onClick={() => setShowEditMenu(!showEditMenu)}
-                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                >
-                    <Edit size={20} className="text-[#8779fb]" />
-                    <span>تعديل يدوي</span>
-                    <ChevronDown size={14} className={`transition-transform duration-200 ${showEditMenu ? 'rotate-180' : 'opacity-50'}`} />
-                </button>
-                
-                {showEditMenu && (
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
-                        <button 
-                            onClick={() => {
-                                setActiveView('grid');
-                                setActiveDisplayView(null);
-                                setShowEditMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
-                        >
-                            <Grid size={16} className="-mt-0.5" />
-                            الجدول العام
-                        </button>
-                        <button 
-                            onClick={() => {
-                                setActiveView('individual');
-                                setActiveDisplayView(null);
-                                setShowEditMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
-                        >
-                            <Users size={16} className="-mt-0.5" />
-                            تعديل فردي متعدد
-                        </button>
-                    </div>
-                )}
-            </div>
             
              <button 
                title={isScheduleLocked ? "فك الجدول" : "قفل الجدول"}
@@ -540,14 +502,54 @@ const Step9Schedule: React.FC<Step9Props> = ({
         {/* Secondary Toolbar (Management and Logs) */}
         <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-2 px-3 shadow-sm border border-slate-200">
             <div className="flex gap-2">
-                 <button 
-                    onClick={() => setShowManageSchedules(true)}
-                    title="إدارة الجداول" 
-                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                 >
-                   <Save size={18} className="text-[#655ac1]" />
-                   <span>إدارة الجداول</span>
-                 </button>
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowEditMenu(!showEditMenu)}
+                        className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+                    >
+                        <Edit size={18} className="text-[#8779fb]" />
+                        <span>تعديل الجدول</span>
+                        <ChevronDown size={14} className={`transition-transform duration-200 ${showEditMenu ? 'rotate-180' : 'opacity-50'}`} />
+                    </button>
+                    
+                    {showEditMenu && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                            <button 
+                                onClick={() => {
+                                    setActiveView('grid');
+                                    setActiveDisplayView(null);
+                                    setShowEditMenu(false);
+                                }}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                <Grid size={16} className="-mt-0.5" />
+                                الجدول العام
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setActiveView('individual');
+                                    setActiveDisplayView('individual_teacher');
+                                    setShowEditMenu(false);
+                                }}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && activeDisplayView === 'individual_teacher' ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                <User size={16} className="-mt-0.5" />
+                                جدول معلم
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setActiveView('individual');
+                                    setActiveDisplayView(null);
+                                    setShowEditMenu(false);
+                                }}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                <Users size={16} className="-mt-0.5" />
+                                معلمين متعددين
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                  <button 
                     onClick={() => setShowAuditLog(true)}
@@ -560,43 +562,25 @@ const Step9Schedule: React.FC<Step9Props> = ({
                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-white"></span>
                    )}
                  </button>
-                 
-                 <button 
-                   onClick={() => setShowAbbreviationsModal(true)}
-                   title="اختصارات المواد"
-                   className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                 >
-                   <TypeIcon size={18} className="text-indigo-500" />
-                   <span>اختصارات المواد</span>
-                 </button>
             </div>
 
             <div className="flex gap-2">
                  <button 
-                   onClick={handleXMLExport}
-                   title="تصدير بيانات الجدول"
-                   className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                 >
-                   <FileDown size={18} className="text-[#8779fb]" />
-                   <span>تصدير xlm</span>
-                 </button>
-                 
-                 <button
-                    onClick={() => setShowPrintOptions(true)}
-                    title="معاينة وطباعة الجدول"
+                    onClick={() => setShowAbbreviationsModal(true)}
+                    title="اختصارات المواد"
                     className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
                  >
-                   <Printer size={18} className="text-cyan-600" />
-                   <span>طباعة</span>
+                   <TypeIcon size={18} className="text-indigo-500" />
+                   <span>اختصارات المواد</span>
                  </button>
 
-                 <button
-                    onClick={() => setShowSendSchedule(true)}
-                    title="إرسال عبر واتساب أو الرسائل"
+                 <button 
+                    onClick={() => setShowManageSchedules(true)}
+                    title="إدارة الجداول" 
                     className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
                  >
-                   <Send size={18} className="text-green-500" />
-                   <span>إرسال</span>
+                   <Save size={18} className="text-[#655ac1]" />
+                   <span>إدارة الجداول</span>
                  </button>
             </div>
         </div>

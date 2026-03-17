@@ -5,7 +5,7 @@ import {
   GraduationCap, Trash2, CheckCircle2, BookPlus, X, School, PlusCircle,
   Zap, ChevronUp, ChevronDown, Pencil, Settings2, Printer, AlertTriangle,
   LayoutGrid, Hash, Check, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
-  ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Shuffle, Info
+  ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -75,7 +75,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
   const [showGlobalPeriodsModal, setShowGlobalPeriodsModal] = useState(false);
 
   // ─── View Mode State (Refactored) ───
-  type ViewMode = 'classes' | 'facilities' | 'merge';
+  type ViewMode = 'classes' | 'facilities';
   const [viewMode, setViewMode] = useState<ViewMode>('classes');
   
   // Custom/Other Classes
@@ -85,12 +85,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
   // Facilities
   const [facilityName, setFacilityName] = useState('');
   const [facilityType, setFacilityType] = useState<'lab' | 'computer_lab' | 'gym' | 'playground' | 'other'>('lab');
-  const [facilityLinkedSubject, setFacilityLinkedSubject] = useState<string>(''); // Subject ID
+  const [facilityLinkedSubject, setFacilityLinkedSubject] = useState<string[]>([]); // Array of subject IDs for chips
   const [facilityOtherType, setFacilityOtherType] = useState('');
+  const [facilityCapacity, setFacilityCapacity] = useState<number>(1); // 1, 2, or 3
+  
+  // Form validation and messages
+  const [facilityErrors, setFacilityErrors] = useState<{name?: string; type?: string; capacity?: string}>({});
+  const [facilitySuccess, setFacilitySuccess] = useState<string>('');
 
-  // Merging (Schools)
-  const [mergedClassName, setMergedClassName] = useState('');
-  const [selectedMergeClasses, setSelectedMergeClasses] = useState<Set<string>>(new Set());
 
   // ─── Custom/Institute Mode State ───
   const [customCategories, setCustomCategories] = useState<{id: number, name: string}[]>(
@@ -134,22 +136,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
   const totalGrades = PHASE_CONFIG[activePhase]?.grades || 3;
 
   const currentSchoolClasses = useMemo(() => {
-    // If Merge View is active, return ALL classes regardless of school ID
-    if (schoolInfo.mergeClassesView) {
-        return classes
-        .sort((a, b) => {
-            if (a.grade !== b.grade) return a.grade - b.grade;
-            return (a.sortOrder ?? a.section) - (b.sortOrder ?? b.section);
-        });
-    }
-
     return classes
       .filter(c => c.phase === activePhase && (c.schoolId || 'main') === activeSchoolId)
       .sort((a, b) => {
         if (a.grade !== b.grade) return a.grade - b.grade;
         return (a.sortOrder ?? a.section) - (b.sortOrder ?? b.section);
       });
-  }, [classes, activePhase, activeSchoolId, schoolInfo.mergeClassesView]);
+  }, [classes, activePhase, activeSchoolId]);
 
   const grouped = useMemo(() => groupClassesByGrade(currentSchoolClasses), [currentSchoolClasses]);
 
@@ -465,18 +458,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
                     إضافة معامل ومرافق
                   </button>
 
-                  <button
-                    onClick={() => setViewMode('merge')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 ${
-                        viewMode === 'merge'
-                        ? 'bg-[#655ac1] text-white shadow-lg shadow-[#655ac1]/20'
-                        : 'bg-white text-slate-700 border border-slate-200 hover:border-[#8779fb]'
-                    }`}
-                  >
-                    <Shuffle size={20} className={viewMode === 'merge' ? 'text-white' : 'text-[#8779fb]'} />
-                    دمج الفصول (للمشتركة)
-                  </button>
-
+                  
 
               </div>
           </div>
@@ -487,11 +469,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
                       <Info size={16} />
                   </div>
                   <div className="text-sm font-bold text-slate-600 leading-relaxed space-y-2">
-                      <p className="text-[#655ac1] mb-1">توضيح :</p>
                       <ul className="space-y-1 pr-4 list-disc marker:text-[#655ac1]">
-                          <li>إضافة مرفق يعادل إضافة فصل.</li>
-                          <li>يمكن حجز المرفق لمادة أومعلم.</li>
-                          <li><span className="text-[#655ac1]">الهدف :</span> عدم حدوث تعارض في تواجد عدة فصول بنفس الوقت في مكان واحد مثل مادة (التربية البدنية)</li>
+                          <li>يمكنك من إضافة معامل أو مرافق وإدارتها</li>
+                          <li>يمكنك من تخصيص هذه المرافق لمنع التعارض من تواجد عدة فصول بنفس الوقت في مكان واحد مثل مادة (التربية البدنية)</li>
                       </ul>
                   </div>
               </div>
@@ -1167,7 +1147,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
               </div>
               <div>
                   <h3 className="text-lg font-black text-slate-800">معامل ومرافق</h3>
-                  <p className="text-sm text-slate-400">إضافة المعامل، المختبرات، والصالات الرياضية وربطها بالمواد لضمان عدم التعارض.</p>
+                  <p className="text-sm text-slate-400">إضافة المعامل، المختبرات، والصالات الرياضية</p>
               </div>
           </div>
 
@@ -1183,10 +1163,20 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
                           <input
                               type="text"
                               value={facilityName}
-                              onChange={e => setFacilityName(e.target.value)}
+                              onChange={e => {
+                                  setFacilityName(e.target.value);
+                                  if (facilityErrors.name) {
+                                      setFacilityErrors(prev => ({ ...prev, name: undefined }));
+                                  }
+                              }}
                               placeholder="مثال: معمل الكيمياء 1"
-                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
+                              className={`w-full px-4 py-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all ${
+                                  facilityErrors.name ? 'border-rose-400' : 'border-slate-200'
+                              }`}
                           />
+                          {facilityErrors.name && (
+                              <p className="text-xs text-rose-500 mt-1">{facilityErrors.name}</p>
+                          )}
                       </div>
 
                       {/* Type */}
@@ -1194,15 +1184,26 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
                           <label className="block text-xs font-bold text-slate-500 mb-2">نوع المرفق</label>
                           <select
                               value={facilityType}
-                              onChange={e => setFacilityType(e.target.value as any)}
-                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
+                              onChange={e => {
+                                  setFacilityType(e.target.value as any);
+                                  if (facilityErrors.type) {
+                                      setFacilityErrors(prev => ({ ...prev, type: undefined }));
+                                  }
+                              }}
+                              className={`w-full px-4 py-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all ${
+                                  facilityErrors.type ? 'border-rose-400' : 'border-slate-200'
+                              }`}
                           >
+                              <option value="">-- اختر النوع --</option>
                               <option value="lab">معمل</option>
                               <option value="computer_lab">مختبر</option>
                               <option value="gym">صالة رياضية</option>
                               <option value="playground">ملعب</option>
                               <option value="other">أخرى</option>
                           </select>
+                          {facilityErrors.type && (
+                              <p className="text-xs text-rose-500 mt-1">{facilityErrors.type}</p>
+                          )}
                       </div>
                       
                       {facilityType === 'other' && (
@@ -1218,27 +1219,143 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
                           </div>
                       )}
 
-                      {/* Linked Subject */}
+                      {/* Capacity */}
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">ربط بمادة (إلزامي)</label>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">كم فصلاً يمكنه استيعابهم في نفس الوقت؟</label>
+                          <div className="flex gap-2">
+                              <button
+                                  onClick={() => {
+                                      setFacilityCapacity(1);
+                                      if (facilityErrors.capacity) {
+                                          setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
+                                      }
+                                  }}
+                                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 whitespace-nowrap ${
+                                      facilityCapacity === 1
+                                          ? 'bg-white text-[#655ac1] border-[#655ac1]'
+                                          : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
+                                  }`}
+                              >
+                                  فصل واحد
+                              </button>
+                              <button
+                                  onClick={() => {
+                                      setFacilityCapacity(2);
+                                      if (facilityErrors.capacity) {
+                                          setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
+                                      }
+                                  }}
+                                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                                      facilityCapacity === 2
+                                          ? 'bg-white text-[#655ac1] border-[#655ac1]'
+                                          : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
+                                  }`}
+                              >
+                                  فصلان
+                              </button>
+                              <button
+                                  onClick={() => {
+                                      setFacilityCapacity(3);
+                                      if (facilityErrors.capacity) {
+                                          setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
+                                      }
+                                  }}
+                                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                                      facilityCapacity === 3
+                                          ? 'bg-white text-[#655ac1] border-[#655ac1]'
+                                          : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
+                                  }`}
+                              >
+                                  ثلاثة
+                              </button>
+                          </div>
+                          {facilityCapacity === 1 && (
+                              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                                  ⚠️ إذا كان لديك أكثر من معلم لنفس المادة قد لا يتمكن الجدول من التوزيع وفق المطلوب في هذه الحالة سيتم إنشاء الجدول بوضع فصلين معاً تلقائيًا
+                              </p>
+                          )}
+                          {facilityErrors.capacity && (
+                              <p className="text-xs text-rose-500 mt-1">{facilityErrors.capacity}</p>
+                          )}
+                      </div>
+
+                      {/* Linked Subjects - Optional */}
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">
+                              ربط بمادة
+                              <span className="text-xs text-slate-400 mr-2">(اختياري)</span>
+                          </label>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                              {facilityLinkedSubject.map(subjectId => {
+                                  const subject = subjects.find(s => s.id === subjectId);
+                                  return subject ? (
+                                      <span
+                                          key={subjectId}
+                                          className="inline-flex items-center gap-1 px-3 py-1 bg-[#e5e1fe] text-[#655ac1] rounded-full text-xs font-bold"
+                                      >
+                                          {subject.name}
+                                          <button
+                                              onClick={() => setFacilityLinkedSubject(prev => prev.filter(id => id !== subjectId))}
+                                              className="hover:text-[#5046a0]"
+                                          >
+                                              <X size={12} />
+                                          </button>
+                                      </span>
+                                  ) : null;
+                              })}
+                          </div>
                           <select
-                              value={facilityLinkedSubject}
-                              onChange={e => setFacilityLinkedSubject(e.target.value)}
+                              value=""
+                              onChange={e => {
+                                  if (e.target.value && !facilityLinkedSubject.includes(e.target.value)) {
+                                      setFacilityLinkedSubject(prev => [...prev, e.target.value]);
+                                  }
+                              }}
                               className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
                           >
-                              <option value="">-- اختر مادة --</option>
-                              {subjects.filter(s => s.phases.includes(activePhase)).map(s => (
-                                  <option key={s.id} value={s.id}>{s.name}</option>
-                              ))}
+                              <option value="">-- اختر مادة لإضافتها --</option>
+                              {subjects
+                                  .filter(s => s.phases.includes(activePhase) && !facilityLinkedSubject.includes(s.id))
+                                  .map(s => (
+                                      <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
                           </select>
-                          <p className="text-[10px] text-slate-400 mt-1">عدم جدولة مادة لفصلين بمكان واحد في حصة واحدة.</p>
                       </div>
+
+                      {/* Success Message */}
+                      {facilitySuccess && (
+                          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                              <p className="text-sm font-bold text-emerald-700">{facilitySuccess}</p>
+                          </div>
+                      )}
 
                       <button
                           onClick={() => {
-                              if (!facilityName.trim()) return;
-                              if (!facilityLinkedSubject) return; // Enforce subject selection
+                              // Validation
+                              const errors: {name?: string; type?: string; capacity?: string} = {};
                               
+                              if (!facilityName.trim()) {
+                                  errors.name = 'اسم المرفق مطلوب';
+                              }
+                              
+                              if (!facilityType) {
+                                  errors.type = 'يجب اختيار نوع المرفق';
+                              }
+                              
+                              if (!facilityCapacity) {
+                                  errors.capacity = 'يجب اختيار السعة';
+                              }
+                              
+                              if (Object.keys(errors).length > 0) {
+                                  setFacilityErrors(errors);
+                                  return;
+                              }
+                              
+                              // Clear errors and success message
+                              setFacilityErrors({});
+                              setFacilitySuccess('');
+                              
+                              // Save facility
                               setClasses(prev => [...prev, {
                                   id: crypto.randomUUID(),
                                   phase: activePhase,
@@ -1249,15 +1366,25 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
                                   type: facilityType,
                                   customType: facilityType === 'other' ? facilityOtherType : undefined,
                                   schoolId: activeSchoolId,
-                                  linkedSubjectId: facilityLinkedSubject, // Guaranteed string now
+                                  linkedSubjectIds: facilityLinkedSubject.length > 0 ? facilityLinkedSubject : undefined,
+                                  capacity: facilityCapacity,
                                   createdAt: new Date().toISOString()
-                              }]);
+                              } as ClassInfo]);
+                              
+                              // Reset form
                               setFacilityName('');
-                              setFacilityLinkedSubject('');
+                              setFacilityType('lab');
+                              setFacilityLinkedSubject([]);
                               setFacilityOtherType('');
+                              setFacilityCapacity(1);
+                              
+                              // Show success message
+                              setFacilitySuccess('تم حفظ المرفق');
+                              
+                              // Hide success message after 3 seconds
+                              setTimeout(() => setFacilitySuccess(''), 3000);
                           }}
-                          disabled={!facilityName.trim() || !facilityLinkedSubject}
-                          className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#8779fb] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#8779fb] transition-all flex items-center justify-center gap-2"
                       >
                           <Plus size={18} /> إضافة المرفق
                       </button>
@@ -1327,70 +1454,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, gradeSub
       </div>
   )}
 
-  {/* ══════ Merge View ══════ */}
-{viewMode === 'merge' && (
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-           <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
-                  <Shuffle size={24} />
-              </div>
-              <div>
-                  <h3 className="text-lg font-black text-slate-800">دمج المدارس في الجدول</h3>
-                  <p className="text-sm text-slate-400">دمج جميع فصول المدارس المشتركة في قائمة واحدة لعملية إنشاء الجدول.</p>
-              </div>
-          </div>
-
-          <div className="max-w-3xl">
-               <div className="flex items-center gap-4 p-6 bg-slate-50 border border-slate-200 rounded-2xl mb-8">
-                    <div className={`w-14 h-8 rounded-full p-1 transition-colors cursor-pointer ${schoolInfo.mergeClassesView ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
-                         onClick={() => {
-                             setSchoolInfo(prev => ({
-                                 ...prev,
-                                 mergeClassesView: !prev.mergeClassesView
-                             }));
-                         }}
-                    >
-                        <div className={`w-6 h-6 bg-white rounded-full transition-transform shadow-sm ${schoolInfo.mergeClassesView ? 'translate-x-[-24px]' : ''}`} />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-base text-slate-800">تفعيل الدمج في الجدول</h4>
-                        <p className="text-sm text-slate-500 mt-1">عند التفعيل، سيتم اعتبار الفصول من كافة المدارس كقائمة واحدة عند التوزيع (Total: {classes.length} فصل).</p>
-                    </div>
-                </div>
-
-                <h5 className="font-bold text-slate-700 mb-4">معاينة القائمة الموحدة</h5>
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
-                    <div className="overflow-y-auto max-h-[300px] custom-scrollbar p-2">
-                        <table className="w-full text-right">
-                            <thead className="text-xs text-slate-400 font-bold border-b border-slate-200">
-                                <tr>
-                                    <th className="px-4 py-3">الفصل</th>
-                                    <th className="px-4 py-3">المدرسة</th>
-                                    <th className="px-4 py-3">الصف</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {classes.sort((a,b) => a.grade - b.grade || (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(c => (
-                                    <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-white transition-colors">
-                                        <td className="px-4 py-3 font-bold text-slate-700">{getClassroomDisplayName(c)}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`text-[10px] px-2 py-1 rounded-lg font-bold ${
-                                                (c.schoolId || 'main') === 'main' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
-                                            }`}>
-                                                {(c.schoolId || 'main') === 'main' ? 'المدرسة الرئيسية' : schoolInfo.sharedSchools.find(s=>s.id === c.schoolId)?.name || 'مدرسة أخرى'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500">{getGradeLabel(c.grade)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-          </div>
-      </div>
-)}
-      {/* ══════ Subject Customization Modal (Matches GradeDetailsModal Design) ══════ */}
+        {/* ══════ Subject Customization Modal (Matches GradeDetailsModal Design) ══════ */}
       {(editingSubjectsClassId || editingSubjectsGrade !== null) && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">

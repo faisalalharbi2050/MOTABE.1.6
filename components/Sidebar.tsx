@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   UserCog,
   Users,
+  FileText, // Added FileText icon
 } from "lucide-react";
 
 interface SidebarProps {
@@ -40,17 +41,23 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isScheduleExpanded, setIsScheduleExpanded] = React.useState(false);
   const [isSettingsExpanded, setIsSettingsExpanded] = React.useState(false);
+  const [isSupervisionExpanded, setIsSupervisionExpanded] = React.useState(false);
 
   // Auto-expand if a sub-item is active
   React.useEffect(() => {
-    const scheduleTabs = ['manual', 'classes_waiting', 'supervision', 'duty'];
+    const scheduleTabs = ['manual', 'schedule_reports'];
     if (scheduleTabs.includes(activeTab)) {
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
     }
-    const settingsTabs = ['settings_basic', 'settings_subjects', 'settings_classes', 'settings_students', 'settings_teachers', 'settings_admins'];
+    const settingsTabs = ['settings_basic', 'settings_timing', 'settings_subjects', 'settings_classes', 'settings_teachers'];
     if (settingsTabs.includes(activeTab)) {
       setIsSettingsExpanded(true);
+      if (isCollapsed) setIsCollapsed(false);
+    }
+    const supervisionTabs = ['supervision', 'duty'];
+    if (supervisionTabs.includes(activeTab)) {
+      setIsSupervisionExpanded(true);
       if (isCollapsed) setIsCollapsed(false);
     }
   }, [activeTab]);
@@ -64,10 +71,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     setIsCollapsed(!isCollapsed);
     // If collapsing, close the schedule menu to avoid popup confusion, or keep it? 
     // UX decision: Close sub-menus when collapsing for cleaner look.
-    // UX decision: Close sub-menus when collapsing for cleaner look.
     if (!isCollapsed) {
         setIsScheduleExpanded(false);
         setIsSettingsExpanded(false);
+        setIsSupervisionExpanded(false);
     }
   };
 
@@ -86,6 +93,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       setTimeout(() => setIsSettingsExpanded(true), 150);
     } else {
       setIsSettingsExpanded(!isSettingsExpanded);
+    }
+  };
+
+  const toggleSupervision = () => {
+    if (isCollapsed) {
+      setIsCollapsed(false);
+      setTimeout(() => setIsSupervisionExpanded(true), 150);
+    } else {
+      setIsSupervisionExpanded(!isSupervisionExpanded);
     }
   };
 
@@ -167,8 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             collapsed={isCollapsed}
           />
           
-          {/* General Settings - Moved to Main Menu */}
-          {/* General Settings - Moved to Main Menu */}
+          {/* Settings Section */}
            {/* Parent Button */}
            <button
               onClick={toggleSettings}
@@ -183,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {/* Tooltip for Collapsed */}
               {isCollapsed && (
                  <div className="absolute left-full ml-4 px-3 py-2 bg-[#483d8b] text-white text-sm font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
-                    الإعدادات العامة
+                    الإعدادات
                     {/* Arrow */}
                     <div className="absolute top-1/2 right-full -mt-1 -mr-1 border-4 border-transparent border-r-[#483d8b]"></div>
                  </div>
@@ -192,7 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className={`flex items-center gap-4 ${isCollapsed ? "" : ""}`}>
                  <Settings size={22} className={isSettingsExpanded && !isCollapsed ? "text-[#655ac1]" : "text-white/70 group-hover:text-white"} />
                  {!isCollapsed && (
-                     <span className={`text-base font-bold ${isSettingsExpanded ? "text-[#655ac1]" : ""}`}>الإعدادات العامة</span>
+                     <span className={`text-base font-bold ${isSettingsExpanded ? "text-[#655ac1]" : ""}`}>الإعدادات</span>
                  )}
               </div>
               
@@ -204,20 +219,27 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
            </button>
           
-          {/* General Settings Sub-sections - Added as per request without changing design */}
+          {/* Settings Sub-sections */}
           <div className={`overflow-hidden transition-all duration-300 ${isCollapsed || !isSettingsExpanded ? 'max-h-0' : 'max-h-[600px]'}`}>
              <div className="flex flex-col gap-1 pb-2">
                 <SubNavItem
                    active={activeTab === "settings_basic"}
                    onClick={() => handleTabClick("settings_basic")}
-                   label="البيانات الأساسية"
+                   label="معلومات عامة"
                    icon={<School size={18} />}
+                   inverted={true}
+                />
+                <SubNavItem
+                   active={activeTab === "settings_timing"}
+                   onClick={() => handleTabClick("settings_timing")}
+                   label="التوقيت"
+                   icon={<Clock size={18} />}
                    inverted={true}
                 />
                 <SubNavItem
                    active={activeTab === "settings_subjects"}
                    onClick={() => handleTabClick("settings_subjects")}
-                   label="المواد" // Correct spelling
+                   label="المواد"
                    icon={<BookOpen size={18} />}
                    inverted={true}
                 />
@@ -229,24 +251,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                    inverted={true}
                 />
                 <SubNavItem
-                   active={activeTab === "settings_students"}
-                   onClick={() => handleTabClick("settings_students")}
-                   label="الطلاب"
-                   icon={<GraduationCap size={18} />}
-                   inverted={true}
-                />
-                <SubNavItem
                    active={activeTab === "settings_teachers"}
                    onClick={() => handleTabClick("settings_teachers")}
                    label="المعلمون"
                    icon={<Users size={18} />}
-                   inverted={true}
-                />
-                <SubNavItem
-                   active={activeTab === "settings_admins"}
-                   onClick={() => handleTabClick("settings_admins")}
-                   label="الإداريون"
-                   icon={<UserCog size={18} />}
                    inverted={true}
                 />
              </div>
@@ -290,7 +298,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                )}
             </button>
 
-            {/* Sub-menu (Only fully visible when not collapsed) */}
+            {/* Sub-menu */}
             <div 
                className={`overflow-hidden transition-all duration-500 ease-in-out bg-[#655ac1] 
                   ${isScheduleExpanded && !isCollapsed ? 'max-h-[600px] opacity-100 pb-2' : 'max-h-0 opacity-0'}
@@ -308,10 +316,67 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <SubNavItem
                      active={activeTab === "classes_waiting"}
                      onClick={() => handleTabClick("classes_waiting")}
-                   label="الحصص والانتظار"
+                   label="إدارة الجدول"
                      icon={<Clock size={18} />}
                      inverted={true}
                   />
+                  <SubNavItem
+                     active={activeTab === "schedule_reports"}
+                     onClick={() => handleTabClick("schedule_reports")}
+                     label="تقارير الجدول"
+                     icon={<FileText size={18} />}
+                     inverted={true}
+                  />
+               </div>
+            </div>
+           </div>
+
+          {/* Supervision and Duty Section */}
+           <div className="mt-2">
+            
+            {/* Parent Button */}
+            <button
+               onClick={toggleSupervision}
+               className={`
+                  w-full flex items-center transition-all duration-300 group relative
+                  ${isCollapsed ? "justify-center px-0 py-3" : "justify-between px-6 py-4"}
+                  ${isSupervisionExpanded && !isCollapsed
+                    ? 'bg-white text-[#655ac1] rounded-r-3xl rounded-l-none ml-0 shadow-lg z-30' 
+                    : 'text-white/80 hover:bg-white/5 hover:text-white rounded-r-3xl mx-0'}
+               `}
+            >
+               {/* Tooltip for Collapsed */}
+               {isCollapsed && (
+                  <div className="absolute left-full ml-4 px-3 py-2 bg-[#483d8b] text-white text-sm font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                     الإشراف والمناوبة
+                     {/* Arrow */}
+                     <div className="absolute top-1/2 right-full -mt-1 -mr-1 border-4 border-transparent border-r-[#483d8b]"></div>
+                  </div>
+               )}
+
+               <div className={`flex items-center gap-4 ${isCollapsed ? "" : ""}`}>
+                  <Shield size={22} className={isSupervisionExpanded && !isCollapsed ? "text-[#655ac1]" : "text-white/70 group-hover:text-white"} />
+                  {!isCollapsed && (
+                      <span className={`text-base font-bold ${isSupervisionExpanded ? "text-[#655ac1]" : ""}`}>الإشراف والمناوبة</span>
+                  )}
+               </div>
+               
+               {!isCollapsed && (
+                   <ChevronDown
+                      size={18}
+                      className={`transition-transform duration-300 ${isSupervisionExpanded ? "rotate-180 text-[#655ac1]" : "text-white/60"}`}
+                   />
+               )}
+            </button>
+
+            {/* Sub-menu */}
+            <div 
+               className={`overflow-hidden transition-all duration-500 ease-in-out bg-[#655ac1] 
+                  ${isSupervisionExpanded && !isCollapsed ? 'max-h-[600px] opacity-100 pb-2' : 'max-h-0 opacity-0'}
+               `}
+            >
+               <div className="flex flex-col pt-2 gap-2">
+
                   <SubNavItem
                      active={activeTab === "supervision"}
                      onClick={() => handleTabClick("supervision")}
@@ -340,6 +405,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => handleTabClick("daily_waiting")}
             icon={<Clock size={22} />}
             label="الانتظار اليومي"
+            collapsed={isCollapsed}
+          />
+          <NavItem
+            active={activeTab === "settings_students"}
+            onClick={() => handleTabClick("settings_students")}
+            icon={<GraduationCap size={22} />}
+            label="الطلاب"
+            collapsed={isCollapsed}
+          />
+          <NavItem
+            active={activeTab === "settings_admins"}
+            onClick={() => handleTabClick("settings_admins")}
+            icon={<UserCog size={22} />}
+            label="الإداريون"
             collapsed={isCollapsed}
           />
           <NavItem

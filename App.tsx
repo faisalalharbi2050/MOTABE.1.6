@@ -8,7 +8,7 @@ import ToastProvider from './components/ui/ToastProvider';
 import Dashboard from './components/Dashboard';
 
 import GeneralSettingsWizard from './components/wizard/GeneralSettingsWizard';
-import BasicDataWizard from './components/wizard/BasicDataWizard'; // Import the new wizard
+import BasicData from './components/wizard/BasicData'; // Import the new simple component
 import Step1General from './components/wizard/steps/Step1General';
 import Step3Subjects from './components/wizard/steps/Step3Subjects';
 import Step4Classes from './components/wizard/steps/Step4Classes';
@@ -16,6 +16,8 @@ import Step5Students from './components/wizard/steps/Step5Students';
 import Step6Teachers from './components/wizard/steps/Step6Teachers';
 import Step7Admins from './components/wizard/steps/Step7Admins';
 import Step9Schedule from './components/wizard/steps/Step9Schedule';
+import TimingSettings from './components/settings/TimingSettings';
+import ScheduleReports from './components/schedule/ScheduleReports';
 
 
 import ManualAssignment from './components/ManualAssignment';
@@ -62,7 +64,7 @@ const App: React.FC = () => {
     meetings: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings' | 'settings_basic' | 'settings_classes' | 'settings_subjects' | 'settings_students' | 'settings_teachers' | 'settings_admins' | 'database' | 'classes' | 'manual' | 'report' | 'classes_waiting' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual' | 'classes_waiting' | 'schedule_reports' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support'>(() => {
     // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -178,7 +180,7 @@ const App: React.FC = () => {
     if (confirm('تحذير: سيتم حذف كافة البيانات والبدء من جديد. هل أنت متأكد؟')) {
       setSchoolInfo({ entityType: EntityType.SCHOOL, schoolName: '', region: '', departments: ['عام'], phases: [Phase.ELEMENTARY], gender: 'بنين', educationalAgent: '', principal: '', hasSecondSchool: false, sharedSchools: [] });
       setTeachers([]); setClasses([]); setAssignments([]); setGradeSubjectMap({}); setSpecializations(INITIAL_SPECIALIZATIONS); setSubjects([]);
-      localStorage.removeItem('school_assignment_v4'); setActiveTab('settings');
+      localStorage.removeItem('school_assignment_v4'); setActiveTab('settings_basic');
     }
   };
 
@@ -208,39 +210,15 @@ const App: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} tomorrowSchedule={tomorrowSchedule} subscription={subscription} onNavigate={(tab) => {
+      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} tomorrowSchedule={tomorrowSchedule} subscription={subscription} onNavigate={(tab) => {
         if (tab === 'subscription_pricing') { setSubscriptionInitialTab('pricing'); setActiveTab('subscription'); }
         else if (tab === 'messages_subscriptions') { setMessagesInitialTab('subscriptions'); setActiveTab('messages'); }
         else { setSubscriptionInitialTab('dashboard'); setMessagesInitialTab('compose'); setActiveTab(tab as any); }
       }} />;
-      case 'settings': return (
-        <GeneralSettingsWizard 
-            schoolInfo={schoolInfo} 
-            setSchoolInfo={setSchoolInfo} 
-            subjects={subjects}
-            setSubjects={setSubjects}
-            classes={classes}
-            setClasses={setClasses}
-            teachers={teachers}
-            setTeachers={setTeachers}
-            specializations={specializations}
-            students={students}
-            setStudents={setStudents}
-            admins={admins}
-            setAdmins={setAdmins}
-            gradeSubjectMap={gradeSubjectMap}
-            setGradeSubjectMap={setGradeSubjectMap}
-            scheduleSettings={scheduleSettings}
-            setScheduleSettings={setScheduleSettings}
-            assignments={assignments}
-            onComplete={() => setActiveTab('dashboard')} 
-        />
-      );
 
-
-      // New General Settings Sub-tabs
+      // Settings Sub-tabs
       case 'settings_basic': return (
-        <BasicDataWizard 
+        <BasicData 
             schoolInfo={schoolInfo} 
             setSchoolInfo={setSchoolInfo} 
             subjects={subjects}
@@ -251,45 +229,38 @@ const App: React.FC = () => {
             onComplete={() => setActiveTab('dashboard')}
         />
       );
+      case 'settings_timing': return <TimingSettings schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 'settings_classes': return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 'settings_subjects': return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 'settings_students': return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 'settings_teachers': return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} classes={classes} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 'settings_admins': return <Step7Admins admins={admins} setAdmins={setAdmins} />;
 
-
-
+      // Schedule Section
       case 'manual': return <ManualAssignment teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
       case 'classes_waiting': return <Step9Schedule teachers={teachers} subjects={subjects} classes={classes} specializations={specializations} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} />;
+      case 'schedule_reports': return <ScheduleReports schoolInfo={schoolInfo} teachers={teachers} subjects={subjects} classes={classes} assignments={assignments} specializations={specializations} timetable={scheduleSettings.timetable || {}} />;
+
+      // Supervision and Duty
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
       case 'duty': return <DailyDuty schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;
+
+      // Other Sections
       case 'daily_waiting': return <DailyWaiting teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
       case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} initialTab={messagesInitialTab} />;
       case 'permissions': return <RolePermissions />;
       case 'subscription': return <SubscriptionContainer subscription={subscription} setSubscription={setSubscription} initialTab={subscriptionInitialTab} />;
       case 'support': return <Support />;
       default: return (
-        <GeneralSettingsWizard 
-            schoolInfo={schoolInfo} 
-            setSchoolInfo={setSchoolInfo} 
-            subjects={subjects}
-            setSubjects={setSubjects}
-            classes={classes}
-            setClasses={setClasses}
-            teachers={teachers}
-            setTeachers={setTeachers}
-            specializations={specializations}
-            students={students}
-            setStudents={setStudents}
-            admins={admins}
-            setAdmins={setAdmins}
-            gradeSubjectMap={gradeSubjectMap}
-            setGradeSubjectMap={setGradeSubjectMap}
-            scheduleSettings={scheduleSettings}
-            setScheduleSettings={setScheduleSettings}
-            assignments={assignments}
-            onComplete={() => setActiveTab('dashboard')} 
-        />
+        <div className="p-8 text-center">
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">الصفحة غير موجودة</h2>
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className="px-6 py-2 bg-[#655ac1] text-white rounded-xl font-bold"
+          >
+            العودة للرئيسية
+          </button>
+        </div>
       );
     }
   };
