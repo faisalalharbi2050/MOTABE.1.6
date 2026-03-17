@@ -92,10 +92,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const adminsSnapshot = useRef<string>("");
 
-  // Waiting Quota Modal
-  const [showWaitingModal, setShowWaitingModal] = useState(false);
-  const [waitingQuotaInput, setWaitingQuotaInput] = useState<number>(0);
-  const [selectedAdmins, setSelectedAdmins] = useState<string[]>([]);
 
   // Helpers
   const handleEditToggle = () => {
@@ -169,36 +165,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
     setHasChanges(true);
   };
 
-  // Waiting Quota Logic
-  const openWaitingModal = () => {
-    setSelectedAdmins([]);
-    setWaitingQuotaInput(0);
-    setShowWaitingModal(true);
-  };
-
-  const applyWaitingQuota = () => {
-    setAdmins(prev => prev.map(a => {
-      if (selectedAdmins.includes(a.id)) {
-        return { ...a, waitingQuota: waitingQuotaInput };
-      }
-      return a;
-    }));
-    setShowWaitingModal(false);
-  };
-
-  const toggleSelectAdmin = (id: string) => {
-    setSelectedAdmins(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-  const selectAllAdmins = () => {
-      if (selectedAdmins.length === admins.length) {
-          setSelectedAdmins([]);
-      } else {
-          setSelectedAdmins(admins.map(a => a.id));
-      }
-  };
 
   const handlePrint = () => {
     window.print();
@@ -215,7 +181,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
             <UserCog size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              إدارة الإداريين
           </h3>
-          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إضافة وتعديل بيانات الإداريين وإمكانية إسناد الانتظار</p>
+          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إضافة وتعديل بيانات الإداريين</p>
       </div>
 
        {/* ══════ Print Header (Visible only in Print) ══════ */}
@@ -238,14 +204,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
             إضافة إداري
         </button>
 
-        <button
-            onClick={openWaitingModal}
-            disabled={admins.length === 0}
-            className="flex items-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-            <Briefcase size={20} className="text-[#8779fb]" />
-             إسناد الانتظار
-        </button>
 
         <div className="flex-1"></div>
 
@@ -326,10 +284,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
                        <th className="p-4 text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-2">الاسم</th>
                        <th className="p-4 text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-2">الدور الوظيفي</th>
                        <th className="p-4 text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-2">رقم الجوال</th>
-                       {/* Show Waiting Quota Column Only if Data Exists or in Edit Mode */}
-                       {(isEditMode || admins.some(a => (a.waitingQuota || 0) > 0)) && (
-                           <th className="p-4 text-center w-32 text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-2">نصاب الانتظار</th>
-                       )}
                        <th className="p-4 w-24 text-center text-xs font-black text-[#655ac1] print:hidden">إجراءات</th>
                     </tr>
                 </thead>
@@ -395,24 +349,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
                                     <span className="text-xs font-bold text-slate-500 font-mono print:text-black" dir="ltr">{admin.phone || '-'}</span>
                                 )}
                             </td>
-                            {(isEditMode || admins.some(a => (a.waitingQuota || 0) > 0)) && (
-                                <td className="p-4 text-center print:border-l print:border-slate-300 print:p-2">
-                                    {isEditMode ? (
-                                        <input 
-                                            type="number"
-                                            value={admin.waitingQuota || 0} 
-                                            onChange={e => updateAdmin(admin.id, 'waitingQuota', Number(e.target.value))}
-                                            className="w-20 p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-center font-bold shadow-sm mx-auto"
-                                        />
-                                    ) : (
-                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold print:bg-transparent print:text-black print:p-0 ${
-                                            (admin.waitingQuota || 0) > 0 ? 'bg-orange-50 text-orange-600' : 'bg-slate-100 text-slate-400'
-                                        }`}>
-                                            {admin.waitingQuota || 0}
-                                        </span>
-                                    )}
-                                </td>
-                            )}
                             <td className="p-4 text-center print:hidden">
                                 <button 
                                     onClick={() => removeAdmin(admin.id)} 
@@ -426,7 +362,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
                     ))}
                     {admins.length === 0 && (
                         <tr>
-                            <td colSpan={6} className="p-12 text-center text-slate-400">
+                            <td colSpan={5} className="p-12 text-center text-slate-400">
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-2">
                                         <UserCog size={24} className="text-slate-300" />
@@ -466,81 +402,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins }) => {
          </div>
       )}
 
-      {/* ══════ Waiting Quota Modal ══════ */}
-      {showWaitingModal && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                        <Briefcase size={20} className="text-[#655ac1]" />
-                        إسناد حصص الانتظار
-                    </h3>
-                    <button onClick={() => setShowWaitingModal(false)}><X size={20} className="text-slate-400 hover:text-rose-500" /></button>
-                </div>
-
-                <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-                    <div className="mb-6">
-                        <label className="block text-xs font-bold text-slate-500 mb-2">عدد حصص الانتظار المطلوبة</label>
-                        <input 
-                            type="number" 
-                            value={waitingQuotaInput} 
-                            onChange={e => setWaitingQuotaInput(Number(e.target.value))}
-                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-bold text-lg focus:border-[#655ac1]"
-                            placeholder="أدخل العدد هنا"
-                        />
-                    </div>
-
-                    <p className="text-sm text-slate-500 mb-4 font-bold">حدد الإداريين المطلوب إسناد الانتظار لهم:</p>
-                    
-                    <div className="mb-4 flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                        <span className="text-xs font-bold text-indigo-700">تحديد الكل</span>
-                        <div 
-                            onClick={selectAllAdmins} 
-                            className={`w-6 h-6 rounded-lg border-2 cursor-pointer flex items-center justify-center transition-all ${
-                                selectedAdmins.length === admins.length ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300 bg-white'
-                            }`}
-                        >
-                            {selectedAdmins.length === admins.length && <Check size={14} className="text-white" />}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        {admins.map(admin => (
-                            <div key={admin.id} 
-                                onClick={() => toggleSelectAdmin(admin.id)}
-                                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                                    selectedAdmins.includes(admin.id) 
-                                    ? 'border-[#655ac1] bg-[#e5e1fe]/20' 
-                                    : 'border-slate-100 hover:border-slate-200'
-                                }`}
-                            >
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-sm text-slate-700">{admin.name || 'بدون اسم'}</span>
-                                    <span className="text-xs text-slate-400">{admin.role}</span>
-                                </div>
-                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                                    selectedAdmins.includes(admin.id) ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                }`}>
-                                    {selectedAdmins.includes(admin.id) && <Check size={14} className="text-white" />}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-                     <Button variant="outline" onClick={() => setShowWaitingModal(false)} className="flex-1">إلغاء</Button>
-                     <Button 
-                        onClick={applyWaitingQuota} 
-                        disabled={selectedAdmins.length === 0}
-                        className="flex-1 bg-[#655ac1] hover:bg-[#5448a8] disabled:opacity-50"
-                    >
-                        حفظ الإسناد
-                     </Button>
-                </div>
-            </div>
-         </div>
-      )}
 
     </div>
   );
