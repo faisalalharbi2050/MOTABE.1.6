@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
-import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake } from 'lucide-react';
+import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle } from 'lucide-react';
 import SchoolTabs from '../wizard/SchoolTabs';
 
 interface TimingSettingsProps {
@@ -38,6 +38,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
     showNotes: true
   });
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+  const [showSaveNotification, setShowSaveNotification] = useState(false);
 
   // Ensure config exists for main and shared schools
   useEffect(() => {
@@ -454,6 +455,16 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       }
   };
 
+  // --- Save Handler --- //
+  const handleSave = () => {
+    // Save to localStorage
+    localStorage.setItem('schoolInfo', JSON.stringify(schoolInfo));
+    
+    // Show success notification
+    setShowSaveNotification(true);
+    setTimeout(() => setShowSaveNotification(false), 3000);
+  };
+
   // --- Print Handler --- //
   const handlePrint = () => {
       const printWindow = window.open('', '_blank');
@@ -591,6 +602,16 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
+      {/* Save Notification */}
+      {showSaveNotification && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <CheckCircle size={20} />
+            <span className="font-bold">تم حفظ التوقيت بنجاح</span>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden mb-6">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#8779fb]/10 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
@@ -1120,7 +1141,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                       <Printer size={20} />
                       طباعة الجدول
                   </button>
-                  <button className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-emerald-100 transition-all transform hover:-translate-y-1">
+                  <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-emerald-100 transition-all transform hover:-translate-y-1">
                       <Save size={20} />
                       حفظ التوقيت
                   </button>
