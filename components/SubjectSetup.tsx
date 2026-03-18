@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Specialization, Subject, Phase, SchoolInfo } from '../types';
-import { Tag, BookOpen, Trash2, Edit3, RotateCcw, Archive, CheckCircle2, X, Archive as ArchiveIcon, ChevronDown, ChevronUp, Layers, GraduationCap, School, Building } from 'lucide-react';
+import { Specialization, Subject, Phase, SchoolInfo, ScheduleSettingsData } from '../types';
+import { Tag, BookOpen, Trash2, Edit3, RotateCcw, Archive, CheckCircle2, X, Archive as ArchiveIcon, ChevronDown, ChevronUp, Layers, GraduationCap, School, Building, TypeIcon } from 'lucide-react';
+import SubjectAbbreviationsModal from './schedule/SubjectAbbreviationsModal';
 
 interface Props {
   specializations: Specialization[];
@@ -15,6 +16,7 @@ const SubjectSetup: React.FC<Props> = ({ specializations, setSpecializations, su
   const [activeTab, setActiveTab] = useState<Phase | 'all'>('all');
   const [editingSub, setEditingSub] = useState<Subject | null>(null);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [showAbbreviationsModal, setShowAbbreviationsModal] = useState(false);
 
   const availablePhases = useMemo(() => {
     const phases = new Set(subjects.map(s => s.phases[0]));
@@ -44,6 +46,14 @@ const SubjectSetup: React.FC<Props> = ({ specializations, setSpecializations, su
           <h2 className="text-2xl font-black text-slate-800">المواد المعتمدة</h2>
           <p className="text-slate-400 text-sm">راجع واضبط نصاب الحصص لكل مادة دراسية.</p>
         </div>
+        <button 
+          onClick={() => setShowAbbreviationsModal(true)}
+          title="اختصارات المواد"
+          className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+        >
+          <TypeIcon size={18} className="text-indigo-500" />
+          <span>اختصارات المواد</span>
+        </button>
       </div>
 
       {/* Compact Phase Tabs */}
@@ -179,6 +189,26 @@ const SubjectSetup: React.FC<Props> = ({ specializations, setSpecializations, su
            </div>
         </div>
       )}
+
+      <SubjectAbbreviationsModal 
+        isOpen={showAbbreviationsModal}
+        onClose={() => setShowAbbreviationsModal(false)}
+        subjects={subjects}
+        settings={{
+          subjectAbbreviations: {},
+          subjectConstraints: [],
+          teacherConstraints: [],
+          meetings: [],
+          substitution: {
+            method: 'auto',
+            maxTotalQuota: 24,
+            maxDailyTotal: 5
+          }
+        }}
+        onSave={(abbreviations) => {
+          console.log('Saved abbreviations:', abbreviations);
+        }}
+      />
     </div>
   );
 };

@@ -440,9 +440,59 @@ const Step9Schedule: React.FC<Step9Props> = ({
             
             <div className="w-px h-6 bg-slate-200 mx-2"></div>
             
+            <div className="relative">
+                <button 
+                    onClick={() => setShowEditMenu(!showEditMenu)}
+                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+                >
+                    <Edit size={18} className="text-[#8779fb]" />
+                    <span>تعديل الجدول</span>
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${showEditMenu ? 'rotate-180' : 'opacity-50'}`} />
+                </button>
+                
+                {showEditMenu && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                        <button 
+                            onClick={() => {
+                                setActiveView('grid');
+                                setActiveDisplayView(null);
+                                setShowEditMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            <Grid size={16} className="-mt-0.5" />
+                            الجدول العام
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setActiveView('individual');
+                                setActiveDisplayView('individual_teacher');
+                                setShowEditMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && activeDisplayView === 'individual_teacher' ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            <User size={16} className="-mt-0.5" />
+                            جدول معلم
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setActiveView('individual');
+                                setActiveDisplayView(null);
+                                setShowEditMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            <Users size={16} className="-mt-0.5" />
+                            معلمين متعددين
+                        </button>
+                    </div>
+                )}
+            </div>
+            
+            <div className="w-px h-6 bg-slate-200 mx-2"></div>
+            
              <button 
                title={isScheduleLocked ? "فك الجدول" : "قفل الجدول"}
-               // disabled={!hasSchedule} // إيقاف القفل بناءً على طلب المستخدم
                onClick={() => setIsScheduleLocked(!isScheduleLocked)}
                className={`flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb] ${isScheduleLocked ? 'text-rose-500' : 'text-slate-700'}`}
              >
@@ -452,104 +502,63 @@ const Step9Schedule: React.FC<Step9Props> = ({
           </div>
 
           <div className="flex-1"></div>
-
-          {/* Primary Tools Group */}
-          <div className="flex items-center gap-2">
-             <button 
-               onClick={() => setShowWaitingSettings(true)}
-               title="إعدادات الانتظار"
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-             >
-               <Settings size={18} className="text-[#8779fb]" />
-               <span className="hidden md:inline">إعدادات الانتظار</span>
-             </button>
-             
-             <button 
-               onClick={() => {
-                   if (!hasSchedule) {
-                       setMissingDataAlert({
-                           title: "لم يتم إنشاء جدول الحصص",
-                           message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"التوليد الذكي للجدول\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
-                       });
-                       return;
-                   }
-                   if (!isScheduleLocked) {
-                       setMissingDataAlert({
-                           title: "الجدول غير مقفل",
-                           message: "يجب قفل جدول الحصص أولاً قبل إنشاء الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
-                       });
-                       return;
-                   }
-                   if (!scheduleSettings.substitution?.method) {
-                       setMissingDataAlert({
-                           title: "إعدادات الانتظار غير مكتملة",
-                           message: "يرجى فتح \"إعدادات الانتظار\" وتحديد طريقة التوزيع (تلقائي / محدد / يدوي) قبل إنشاء جدول الانتظار."
-                       });
-                       return;
-                   }
-                   // تنفيذ التوزيع مباشرةً بالإعدادات الحالية
-                   handleDistributeWaiting(scheduleSettings.substitution);
-               }}
-               title="إنشاء الانتظار"
-               className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#7668ea] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#8779fb]/20 transition-all hover:scale-105 active:scale-95"
-             >
-               <CalendarClock size={18} />
-               <span className="hidden md:inline">إنشاء الانتظار</span>
-             </button>
-          </div>
         </div>
 
         {/* Secondary Toolbar (Management and Logs) */}
         <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-2 px-3 shadow-sm border border-slate-200">
             <div className="flex gap-2">
-                <div className="relative">
-                    <button 
-                        onClick={() => setShowEditMenu(!showEditMenu)}
-                        className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                    >
-                        <Edit size={18} className="text-[#8779fb]" />
-                        <span>تعديل الجدول</span>
-                        <ChevronDown size={14} className={`transition-transform duration-200 ${showEditMenu ? 'rotate-180' : 'opacity-50'}`} />
-                    </button>
-                    
-                    {showEditMenu && (
-                        <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
-                            <button 
-                                onClick={() => {
-                                    setActiveView('grid');
-                                    setActiveDisplayView(null);
-                                    setShowEditMenu(false);
-                                }}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                <Grid size={16} className="-mt-0.5" />
-                                الجدول العام
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setActiveView('individual');
-                                    setActiveDisplayView('individual_teacher');
-                                    setShowEditMenu(false);
-                                }}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && activeDisplayView === 'individual_teacher' ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                <User size={16} className="-mt-0.5" />
-                                جدول معلم
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    setActiveView('individual');
-                                    setActiveDisplayView(null);
-                                    setShowEditMenu(false);
-                                }}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                <Users size={16} className="-mt-0.5" />
-                                معلمين متعددين
-                            </button>
-                        </div>
-                    )}
-                </div>
+                 <button 
+                   onClick={() => setShowWaitingSettings(true)}
+                   title="إعدادات الانتظار"
+                   className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+                 >
+                   <Settings size={18} className="text-[#8779fb]" />
+                   <span>إعدادات الانتظار</span>
+                 </button>
+                 
+                 <button 
+                   onClick={() => {
+                       if (!hasSchedule) {
+                           setMissingDataAlert({
+                               title: "لم يتم إنشاء جدول الحصص",
+                               message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"التوليد الذكي للجدول\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
+                           });
+                           return;
+                       }
+                       if (!isScheduleLocked) {
+                           setMissingDataAlert({
+                               title: "الجدول غير مقفل",
+                               message: "يجب قفل جدول الحصص أولاً قبل إنشاء الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
+                           });
+                           return;
+                       }
+                       if (!scheduleSettings.substitution?.method) {
+                           setMissingDataAlert({
+                               title: "إعدادات الانتظار غير مكتملة",
+                               message: "يرجى فتح \"إعدادات الانتظار\" وتحديد طريقة التوزيع (تلقائي / محدد / يدوي) قبل إنشاء جدول الانتظار."
+                           });
+                           return;
+                       }
+                       // تنفيذ التوزيع مباشرةً بالإعدادات الحالية
+                       handleDistributeWaiting(scheduleSettings.substitution);
+                   }}
+                   title="إنشاء الانتظار"
+                   className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#7668ea] text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-[#8779fb]/20 transition-all hover:scale-105 active:scale-95"
+                 >
+                   <CalendarClock size={18} />
+                   <span>إنشاء الانتظار</span>
+                 </button>
+            </div>
+
+            <div className="flex gap-2">
+                 <button 
+                    onClick={() => setShowManageSchedules(true)}
+                    title="إدارة الجداول" 
+                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+                 >
+                   <Save size={18} className="text-[#655ac1]" />
+                   <span>إدارة الجداول</span>
+                 </button>
 
                  <button 
                     onClick={() => setShowAuditLog(true)}
@@ -561,26 +570,6 @@ const Step9Schedule: React.FC<Step9Props> = ({
                    {scheduleSettings.auditLogs && scheduleSettings.auditLogs.length > 0 && (
                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-white"></span>
                    )}
-                 </button>
-            </div>
-
-            <div className="flex gap-2">
-                 <button 
-                    onClick={() => setShowAbbreviationsModal(true)}
-                    title="اختصارات المواد"
-                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                 >
-                   <TypeIcon size={18} className="text-indigo-500" />
-                   <span>اختصارات المواد</span>
-                 </button>
-
-                 <button 
-                    onClick={() => setShowManageSchedules(true)}
-                    title="إدارة الجداول" 
-                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-                 >
-                   <Save size={18} className="text-[#655ac1]" />
-                   <span>إدارة الجداول</span>
                  </button>
             </div>
         </div>

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react';
-import { Phase, Subject, SchoolInfo } from '../../../types';
+import { Phase, Subject, SchoolInfo, ScheduleSettingsData } from '../../../types';
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import {
@@ -8,9 +8,10 @@ import {
 import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
 import StudyPlansModal from '../StudyPlansModal';
-import { ScheduleSettingsData, SubjectConstraint } from '../../../types';
+import { SubjectConstraint } from '../../../types';
 import { getMaxDailyPeriodsForSubject, describeDistribution, ValidationWarning, validateAllConstraints } from '../../../utils/scheduleConstraints';
-import { Ban, Star, Repeat, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon } from 'lucide-react';
+import SubjectAbbreviationsModal from '../../schedule/SubjectAbbreviationsModal';
 
 interface Props {
   subjects: Subject[];
@@ -27,6 +28,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showConstraintsModal, setShowConstraintsModal] = useState(false);
+  const [showAbbreviationsModal, setShowAbbreviationsModal] = useState(false);
   
   // Grade Details Modal State
   const [viewingGradeDetails, setViewingGradeDetails] = useState<{
@@ -349,17 +351,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                </button>
            </div>
 
-            {/* Subject Constraints Button */}
-            {scheduleSettings && setScheduleSettings && (
-              <button 
-                onClick={() => setShowConstraintsModal(true)}
-                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-              >
-                  <Ban size={20} className="text-rose-500" />
-                  قيود المواد
-              </button>
-            )}
-
            <button 
              onClick={() => setShowManualModal(true)}
             className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
@@ -367,6 +358,28 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
               <Plus size={20} className="text-[#8779fb]" />
               إضافة خطة مخصصة
           </button>
+      </div>
+
+      {/* Secondary Action Bar */}
+      <div className="flex gap-2">
+          <button 
+            onClick={() => setShowAbbreviationsModal(true)}
+            title="اختصارات المواد"
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+          >
+            <TypeIcon size={18} className="text-indigo-500" />
+            <span>اختصارات المواد</span>
+          </button>
+
+          {scheduleSettings && setScheduleSettings && (
+            <button 
+              onClick={() => setShowConstraintsModal(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+            >
+              <Ban size={18} className="text-rose-500" />
+              <span>قيود المواد</span>
+            </button>
+          )}
       </div>
 
       {/* Custom Plans Render Area */}
@@ -632,6 +645,31 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           schoolInfo={schoolInfo}
         />
       )}
+
+      <SubjectAbbreviationsModal 
+        isOpen={showAbbreviationsModal}
+        onClose={() => setShowAbbreviationsModal(false)}
+        subjects={subjects}
+        settings={scheduleSettings || {
+          subjectAbbreviations: {},
+          subjectConstraints: [],
+          teacherConstraints: [],
+          meetings: [],
+          substitution: {
+            method: 'auto',
+            maxTotalQuota: 24,
+            maxDailyTotal: 5
+          }
+        }}
+        onSave={(abbreviations) => {
+          if (setScheduleSettings) {
+            setScheduleSettings(prev => ({
+              ...prev,
+              subjectAbbreviations: abbreviations
+            }));
+          }
+        }}
+      />
 
     </div>
   );

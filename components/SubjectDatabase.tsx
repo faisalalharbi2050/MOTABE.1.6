@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Phase, Subject, Specialization } from '../types';
+import { Phase, Subject, Specialization, ScheduleSettingsData } from '../types';
 import { DETAILED_TEMPLATES } from '../constants';
 import { 
   Database, CheckCircle2, School, GraduationCap, Building, Plus, X, 
-  BookOpen, Sparkles, LayoutGrid, CalendarDays, ArrowRight, Eye, Info 
+  BookOpen, Sparkles, LayoutGrid, CalendarDays, ArrowRight, Eye, Info, TypeIcon
 } from 'lucide-react';
+import SubjectAbbreviationsModal from './schedule/SubjectAbbreviationsModal';
 
 interface Props {
   subjects: Subject[];
@@ -18,6 +19,7 @@ const SubjectDatabase: React.FC<Props> = ({ subjects, setSubjects, specializatio
   const [showModal, setShowModal] = useState(false);
   const [viewingPlan, setViewingPlan] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Phase>(Phase.ELEMENTARY);
+  const [showAbbreviationsModal, setShowAbbreviationsModal] = useState(false);
   
   const [newSub, setNewSub] = useState({ 
     name: '', 
@@ -277,12 +279,22 @@ const SubjectDatabase: React.FC<Props> = ({ subjects, setSubjects, specializatio
             </h2>
             <p className="text-slate-500 text-sm font-medium">استعرض واعتمد الخطط الدراسية المعتمدة لوزارة التعليم لجميع المراحل.</p>
          </div>
-          <button 
-           onClick={() => setShowModal(true)}
-           className="w-full lg:w-auto flex items-center justify-center gap-3 px-6 py-4 bg-primary text-white rounded-2xl font-bold text-sm hover:bg-secondary shadow-xl transition-all active:scale-95"
-         >
-            <Plus size={18}/> أضف مادة يدوياً
-         </button>
+          <div className="flex gap-3">
+            <button 
+             onClick={() => setShowModal(true)}
+             className="w-full lg:w-auto flex items-center justify-center gap-3 px-6 py-4 bg-primary text-white rounded-2xl font-bold text-sm hover:bg-secondary shadow-xl transition-all active:scale-95"
+           >
+              <Plus size={18}/> أضف مادة يدوياً
+           </button>
+           <button 
+              onClick={() => setShowAbbreviationsModal(true)}
+              title="اختصارات المواد"
+              className="w-full lg:w-auto flex items-center justify-center gap-3 px-6 py-4 bg-white text-slate-700 border border-slate-200 rounded-2xl font-bold text-sm hover:bg-slate-50 hover:border-[#8779fb] shadow-xl transition-all active:scale-95"
+            >
+              <TypeIcon size={18} className="text-indigo-500" />
+              <span>اختصارات المواد</span>
+            </button>
+          </div>
       </div>
 
       {/* Tabs Navigation */}
@@ -608,6 +620,27 @@ const SubjectDatabase: React.FC<Props> = ({ subjects, setSubjects, specializatio
               </div>
           )}
       </div>
+
+      <SubjectAbbreviationsModal 
+        isOpen={showAbbreviationsModal}
+        onClose={() => setShowAbbreviationsModal(false)}
+        subjects={subjects}
+        settings={{
+          subjectAbbreviations: {},
+          subjectConstraints: [],
+          teacherConstraints: [],
+          meetings: [],
+          substitution: {
+            method: 'auto',
+            maxTotalQuota: 24,
+            maxDailyTotal: 5
+          }
+        }}
+        onSave={(abbreviations) => {
+          // Save abbreviations - you might want to pass this to parent or store it
+          console.log('Saved abbreviations:', abbreviations);
+        }}
+      />
 
       {/* Custom Subject Modal */}
       {showModal && (
