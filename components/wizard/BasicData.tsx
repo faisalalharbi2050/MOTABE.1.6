@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SchoolInfo, Subject, ClassInfo } from '../../types';
+import { CheckCircle } from 'lucide-react';
 import Step1General from './steps/Step1General';
 
 interface BasicDataProps {
@@ -23,14 +24,35 @@ const BasicData: React.FC<BasicDataProps> = ({
     setGradeSubjectMap,
     onComplete
 }) => {
+  const [showSaveNotification, setShowSaveNotification] = useState(false);
+
   const handleComplete = () => {
     // Mark as completed
     setSchoolInfo(prev => ({ ...prev, isWizardCompleted: true }));
-    onComplete?.();
+    
+    // Save to localStorage
+    localStorage.setItem('schoolInfo', JSON.stringify(schoolInfo));
+    
+    // Show success notification
+    setShowSaveNotification(true);
+    setTimeout(() => setShowSaveNotification(false), 3000);
+    
+    // Don't navigate to dashboard - stay on the same page
+    // onComplete?.(); // Removed this line
   };
 
   return (
     <div className="flex flex-col h-full">
+      {/* Save Notification */}
+      {showSaveNotification && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <CheckCircle size={20} />
+            <span className="font-bold">تم حفظ المعلومات بنجاح</span>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         {schoolInfo.isWizardCompleted ? (
@@ -68,7 +90,7 @@ const BasicData: React.FC<BasicDataProps> = ({
                   onClick={handleComplete}
                   className="px-8 py-3 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448b0] transition-colors shadow-lg shadow-[#655ac1]/20"
                 >
-                  حفظ المعلومات
+                  حفظ
                 </button>
               </div>
             </div>

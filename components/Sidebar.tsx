@@ -1,28 +1,44 @@
 import React from "react";
 import {
-  LayoutDashboard,
+  Home,
   Settings,
+  Users,
   Calendar,
+  Clock,
+  FileText,
+  Download,
+  Upload,
+  ChevronDown,
+  ChevronUp,
+  Building,
+  UserCheck,
+  Bell,
+  MessageSquare,
+  CreditCard,
+  HelpCircle,
+  LogOut,
+  Menu,
+  X,
+  Plus,
+  Edit,
+  Trash2,
+  BarChart3,
+  Send,
+  Smartphone,
+  Shield,
+  LayoutDashboard,
   ClipboardList,
   Eye,
-  Shield,
-  ChevronDown,
-  Clock,
-  MessageSquare,
-  Lock,
   ShieldCheck,
-  CreditCard,
   Headphones,
   GraduationCap,
-  Menu,
   ChevronLeft,
   ChevronRight,
   School,
   BookOpen,
   LayoutGrid,
   UserCog,
-  Users,
-  FileText, // Added FileText icon
+  Lock,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -323,8 +339,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <SubNavItem
                      active={activeTab === "schedule_reports"}
                      onClick={() => handleTabClick("schedule_reports")}
-                     label="تقارير الجدول"
-                     icon={<FileText size={18} />}
+                     label="تصدير الجدول"
+                     icon={<Download size={18} />}
                      inverted={true}
                   />
                </div>

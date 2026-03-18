@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { FileText, Printer, Send, Download, FileSpreadsheet, Calendar, MessageCircle, Smartphone } from 'lucide-react';
+import { FileText, Printer, Send, Download, FileSpreadsheet, Calendar, MessageCircle, Smartphone, Upload } from 'lucide-react';
 import { SchoolInfo, Teacher, Subject, ClassInfo, Assignment, Specialization, TimetableData } from '../../types';
 import { generateExtensionXML, downloadFile } from '../../utils/scheduleExport';
 import { getKey } from '../../utils/scheduleInteractive';
@@ -42,7 +42,7 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
 
   const generateEmailContent = () => {
     return `
-تقارير الجدول الدراسي
+تصدير الجدول الدراسي
 المدرسة: ${schoolInfo.schoolName}
 العام الدراسي: ${schoolInfo.academicYear || '1445'}
 
@@ -113,8 +113,8 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
 
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <FileText size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-             تقارير الجدول
+            <Download size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+             تصدير الجدول
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">تصدير وطباعة الجداول الدراسية عبر واجهة تفاعلية وسلسة</p>
       </div>
@@ -191,7 +191,7 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
         {/* Preview Section (Hidden, used for printing) */}
         <div ref={printRef} className="hidden">
           <div className="header">
-            <h1 className="title">تقارير الجدول الدراسي</h1>
+            <h1 className="title">تصدير الجدول الدراسي</h1>
             <p className="subtitle">{schoolInfo.schoolName} - {schoolInfo.academicYear || '1445'}</p>
           </div>
           
