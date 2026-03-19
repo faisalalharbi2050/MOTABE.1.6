@@ -54,11 +54,11 @@ const SchoolTabs: React.FC<SchoolTabsProps> = ({ schoolInfo, activeSchoolId, onT
           onClick={() => onTabChange(school.id)}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
             activeSchoolId === school.id
-              ? 'bg-white text-purple-600 border-purple-200 shadow-sm ring-1 ring-purple-100'
+              ? 'bg-white text-[#655ac1] border-[#c8bff8] shadow-sm ring-1 ring-[#e5e1fe]'
               : 'text-slate-500 hover:text-slate-700 hover:bg-white/50 border-transparent hover:border-slate-200'
           }`}
         >
-          <div className={`p-2 rounded-lg ${activeSchoolId === school.id ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
+          <div className={`p-2 rounded-lg ${activeSchoolId === school.id ? 'bg-[#e5e1fe] text-[#655ac1]' : 'bg-slate-100 text-slate-400'}`}>
              <Building2 size={18} />
           </div>
           <div className="flex flex-col items-start gap-0.5">
@@ -76,7 +76,7 @@ const SchoolTabs: React.FC<SchoolTabsProps> = ({ schoolInfo, activeSchoolId, onT
                 ))}
              </div>
           </div>
-          {activeSchoolId === school.id && <span className="w-2 h-2 rounded-full bg-purple-500"></span>}
+          {activeSchoolId === school.id && <span className="w-2 h-2 rounded-full bg-[#8779fb]"></span>}
         </button>
       ))}
       

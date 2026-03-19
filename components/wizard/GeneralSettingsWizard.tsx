@@ -117,7 +117,7 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
       case 2: return <Step2AcademicYear schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 3: return <Step2Timing schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 4: return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
-      case 5: return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
+      case 5: return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 6: return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 7: return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} classes={classes} />;
       case 8: return <Step7Admins admins={admins} setAdmins={setAdmins} />;
