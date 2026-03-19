@@ -7,7 +7,7 @@ import {
   Zap, ChevronUp, ChevronDown, ChevronRight, Pencil, Settings2, Printer, AlertTriangle,
   LayoutGrid, Hash, Check, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
-  MoreHorizontal, Edit2
+  MoreHorizontal, Edit2, MapPin
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -636,7 +636,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         : 'bg-white text-slate-700 border border-slate-200 hover:border-[#8779fb]'
                     }`}
                   >
-                    <Warehouse size={20} className={viewMode === 'facilities' ? 'text-white' : 'text-[#8779fb]'} />
+                    <MapPin size={20} className={viewMode === 'facilities' ? 'text-white' : 'text-[#8779fb]'} />
                     المرافق المدرسية
                   </button>
 
@@ -1378,6 +1378,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   {viewMode === 'facilities' && (
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-3 mb-6">
+              <div className="text-[#655ac1] shrink-0">
+                  <MapPin size={20} />
+              </div>
               <div>
                   <h3 className="text-lg font-black text-slate-800">المرافق المدرسية</h3>
                   <p className="text-sm text-slate-400">معامل، مختبرات، صالات رياضية، وغيرها</p>
@@ -1390,28 +1393,6 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4 sticky top-4">
                       <h4 className="font-bold text-slate-700 mb-2">إضافة مرفق جديد</h4>
                       
-                      {/* Name */}
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">اسم المرفق</label>
-                          <input
-                              type="text"
-                              value={facilityName}
-                              onChange={e => {
-                                  setFacilityName(e.target.value);
-                                  if (facilityErrors.name) {
-                                      setFacilityErrors(prev => ({ ...prev, name: undefined }));
-                                  }
-                              }}
-                              placeholder="مثال: صالة رياضية، ملعب خارجي"
-                              className={`w-full px-4 py-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all ${
-                                  facilityErrors.name ? 'border-rose-400' : 'border-slate-200'
-                              }`}
-                          />
-                          {facilityErrors.name && (
-                              <p className="text-xs text-rose-500 mt-1">{facilityErrors.name}</p>
-                          )}
-                      </div>
-
                       {/* Type */}
                       <div>
                           <label className="block text-xs font-bold text-slate-500 mb-2">نوع المرفق</label>
@@ -1451,6 +1432,20 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               />
                           </div>
                       )}
+
+                      {/* Name (optional) */}
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">
+                              اسم مخصص <span className="font-normal text-slate-400">(اختياري)</span>
+                          </label>
+                          <input
+                              type="text"
+                              value={facilityName}
+                              onChange={e => setFacilityName(e.target.value)}
+                              placeholder="اتركه فارغاً للاسم التلقائي"
+                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
+                          />
+                      </div>
 
                       {/* Capacity */}
                       <div>
@@ -1535,11 +1530,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           onClick={() => {
                               // Validation
                               const errors: {name?: string; type?: string; capacity?: string} = {};
-                              
-                              if (!facilityName.trim()) {
-                                  errors.name = 'اسم المرفق مطلوب';
-                              }
-                              
+
                               if (!facilityType) {
                                   errors.type = 'يجب اختيار نوع المرفق';
                               }
@@ -1557,13 +1548,21 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               setFacilityErrors({});
                               setFacilitySuccess('');
                               
+                              // Auto-generate name from type if not provided
+                              const typeLabels: Record<string, string> = {
+                                  lab: 'معمل', computer_lab: 'مختبر حاسب',
+                                  gym: 'صالة رياضية', playground: 'ملعب', other: facilityOtherType || 'مرفق'
+                              };
+                              const existingOfType = classes.filter(c => c.type === facilityType && (c.schoolId || 'main') === activeSchoolId).length + 1;
+                              const autoName = facilityName.trim() || `${typeLabels[facilityType] || 'مرفق'} ${existingOfType}`;
+
                               // Save facility
                               setClasses(prev => [...prev, {
                                   id: crypto.randomUUID(),
                                   phase: activePhase,
                                   grade: 0,
                                   section: 0,
-                                  name: facilityName,
+                                  name: autoName,
                                   isManuallyCreated: true,
                                   type: facilityType,
                                   customType: facilityType === 'other' ? facilityOtherType : undefined,
@@ -1645,7 +1644,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                            })}
                            {classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).length === 0 && (
                             <div className="col-span-full py-12 text-center text-slate-400">
-                                <Warehouse size={40} className="mx-auto mb-3 opacity-20" />
+                                <MapPin size={40} className="mx-auto mb-3 opacity-20" />
                                 <p>لا توجد مرافق مدرسية مضافة</p>
                             </div>
                            )}
