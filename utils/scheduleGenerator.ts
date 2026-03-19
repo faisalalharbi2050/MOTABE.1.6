@@ -39,6 +39,8 @@ export async function generateSchedule(
     const slotsToFill: { classId: string; day: string; period: number }[] = [];
     
     classes.forEach(cls => {
+        // Skip facility entries — they are constraints, not schedulable classes
+        if (cls.grade === 0 && cls.linkedSubjectIds && cls.linkedSubjectIds.length > 0) return;
         activeDays.forEach(day => {
             for (let p = 1; p <= periodsPerDay; p++) {
                 slotsToFill.push({ classId: cls.id, day, period: p });
@@ -60,10 +62,28 @@ export async function generateSchedule(
     // Track Subject Quotas per Class
     // "classId-subjectId" => count
     const classSubjectCounts = new Map<string, number>();
-    
+
     // Detailed Teacher Tracking for balanced distribution
     // Number of periods a teacher teaches per day: "teacherId-day" => count
     const teacherDailyLoad = new Map<string, number>();
+
+    // ── Facility Capacity Constraint ──────────────────────────────────────
+    // Identify facility entries (grade === 0 with linkedSubjectIds)
+    const facilities = classes.filter(c => c.grade === 0 && c.linkedSubjectIds && c.linkedSubjectIds.length > 0);
+
+    // Build map: subjectId => { capacity, facilityId }[]
+    const subjectFacilityMap = new Map<string, { capacity: number; facilityId: string }[]>();
+    facilities.forEach(f => {
+        const cap = f.capacity ?? 1;
+        (f.linkedSubjectIds || []).forEach(sid => {
+            if (!subjectFacilityMap.has(sid)) subjectFacilityMap.set(sid, []);
+            subjectFacilityMap.get(sid)!.push({ capacity: cap, facilityId: f.id });
+        });
+    });
+
+    // Track concurrent usage per facility per slot: "facilityId-day-period" => count
+    const facilityUsage = new Map<string, number>();
+    // ─────────────────────────────────────────────────────────────────────
     
     // Helper to get remaining quota for a subject in a class
     const getRemainingQuota = (cls: ClassInfo, subj: Subject) => {
@@ -170,6 +190,20 @@ export async function generateSchedule(
                 if (slotIndex === 0) console.log(`-> Skipped due to 0 quota.`);
                 continue;
             }
+
+            // ── Facility Capacity Check ───────────────────────────────────
+            // If this subject is linked to a facility, check that the facility
+            // hasn't reached its capacity for this (day, period) slot.
+            const linkedFacilities = subjectFacilityMap.get(subj.id);
+            if (linkedFacilities && linkedFacilities.length > 0 && !isBypassingConflicts) {
+                const facilityFull = linkedFacilities.some(({ capacity, facilityId }) => {
+                    const usageKey = `${facilityId}-${day}-${period}`;
+                    const used = facilityUsage.get(usageKey) || 0;
+                    return used >= capacity;
+                });
+                if (facilityFull) continue;
+            }
+            // ─────────────────────────────────────────────────────────────
             
             // Find a teacher
             let potentialTeachers: Teacher[] = [];
@@ -263,6 +297,16 @@ export async function generateSchedule(
                 teacherOccupied.add(`${validTeacher.id}-${day}-${period}`);
                 classSubjectCounts.set(`${classId}-${subj.id}`, (classSubjectCounts.get(`${classId}-${subj.id}`) || 0) + 1);
                 teacherDailyLoad.set(`${validTeacher.id}-${day}`, (teacherDailyLoad.get(`${validTeacher.id}-${day}`) || 0) + 1);
+
+                // ── Update facility usage counter ─────────────────────────
+                const assignedFacilities = subjectFacilityMap.get(subj.id);
+                if (assignedFacilities) {
+                    assignedFacilities.forEach(({ facilityId }) => {
+                        const usageKey = `${facilityId}-${day}-${period}`;
+                        facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
+                    });
+                }
+                // ─────────────────────────────────────────────────────────
                 
                 assigned = true;
                 break; // Move to next slot

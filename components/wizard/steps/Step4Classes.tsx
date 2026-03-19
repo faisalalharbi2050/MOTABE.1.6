@@ -636,8 +636,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         : 'bg-white text-slate-700 border border-slate-200 hover:border-[#8779fb]'
                     }`}
                   >
-                    <FlaskConical size={20} className={viewMode === 'facilities' ? 'text-white' : 'text-[#8779fb]'} />
-                    إضافة معامل ومرافق
+                    <Warehouse size={20} className={viewMode === 'facilities' ? 'text-white' : 'text-[#8779fb]'} />
+                    المرافق المدرسية
                   </button>
 
                   
@@ -646,16 +646,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           </div>
 
           {viewMode === 'facilities' && (
-              <div className="bg-[#f8f7ff] border border-[#e5e1fe] p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                  <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-lg mt-0.5">
-                      <Info size={16} />
-                  </div>
-                  <div className="text-sm font-bold text-slate-600 leading-relaxed space-y-2">
-                      <ul className="space-y-1 pr-4 list-disc marker:text-[#655ac1]">
-                          <li>يمكنك من إضافة معامل أو مرافق وإدارتها</li>
-                          <li>يمكنك من تخصيص هذه المرافق لمنع التعارض من تواجد عدة فصول بنفس الوقت في مكان واحد مثل مادة (التربية البدنية)</li>
-                      </ul>
-                  </div>
+              <div className="bg-white border border-[#e5e1fe] p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                  <Info size={16} className="text-[#8779fb] shrink-0" />
+                  <p className="text-sm font-semibold text-slate-600 leading-relaxed">يمكنك تخصيص المرافق المضافة لمنع التعارض — مثلاً: صالتان رياضيتان تستوعبان فصلين فقط في نفس الوقت</p>
               </div>
           )}
 
@@ -1385,12 +1378,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   {viewMode === 'facilities' && (
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                  <FlaskConical size={24} />
-              </div>
               <div>
-                  <h3 className="text-lg font-black text-slate-800">معامل ومرافق</h3>
-                  <p className="text-sm text-slate-400">إضافة المعامل، المختبرات، والصالات الرياضية</p>
+                  <h3 className="text-lg font-black text-slate-800">المرافق المدرسية</h3>
+                  <p className="text-sm text-slate-400">معامل، مختبرات، صالات رياضية، وغيرها</p>
               </div>
           </div>
 
@@ -1412,7 +1402,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                       setFacilityErrors(prev => ({ ...prev, name: undefined }));
                                   }
                               }}
-                              placeholder="مثال: معمل الكيمياء 1"
+                              placeholder="مثال: صالة رياضية، ملعب خارجي"
                               className={`w-full px-4 py-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all ${
                                   facilityErrors.name ? 'border-rose-400' : 'border-slate-200'
                               }`}
@@ -1466,57 +1456,26 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       <div>
                           <label className="block text-xs font-bold text-slate-500 mb-2">كم فصلاً يمكنه استيعابهم في نفس الوقت؟</label>
                           <div className="flex gap-2">
-                              <button
-                                  onClick={() => {
-                                      setFacilityCapacity(1);
-                                      if (facilityErrors.capacity) {
-                                          setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
-                                      }
-                                  }}
-                                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 whitespace-nowrap ${
-                                      facilityCapacity === 1
-                                          ? 'bg-white text-[#655ac1] border-[#655ac1]'
-                                          : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
-                                  }`}
-                              >
-                                  فصل واحد
-                              </button>
-                              <button
-                                  onClick={() => {
-                                      setFacilityCapacity(2);
-                                      if (facilityErrors.capacity) {
-                                          setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
-                                      }
-                                  }}
-                                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                                      facilityCapacity === 2
-                                          ? 'bg-white text-[#655ac1] border-[#655ac1]'
-                                          : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
-                                  }`}
-                              >
-                                  فصلان
-                              </button>
-                              <button
-                                  onClick={() => {
-                                      setFacilityCapacity(3);
-                                      if (facilityErrors.capacity) {
-                                          setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
-                                      }
-                                  }}
-                                  className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                                      facilityCapacity === 3
-                                          ? 'bg-white text-[#655ac1] border-[#655ac1]'
-                                          : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
-                                  }`}
-                              >
-                                  ثلاثة
-                              </button>
+                              {[1, 2, 3, 4].map(n => (
+                                  <button
+                                      key={n}
+                                      onClick={() => {
+                                          setFacilityCapacity(n);
+                                          if (facilityErrors.capacity) {
+                                              setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
+                                          }
+                                      }}
+                                      className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                                          facilityCapacity === n
+                                              ? 'bg-white text-[#655ac1] border-[#655ac1]'
+                                              : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
+                                      }`}
+                                  >
+                                      {n}
+                                  </button>
+                              ))}
                           </div>
-                          {facilityCapacity === 1 && (
-                              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-                                  ⚠️ إذا كان لديك أكثر من معلم لنفس المادة قد لا يتمكن الجدول من التوزيع وفق المطلوب في هذه الحالة سيتم إنشاء الجدول بوضع فصلين معاً تلقائيًا
-                              </p>
-                          )}
+
                           {facilityErrors.capacity && (
                               <p className="text-xs text-rose-500 mt-1">{facilityErrors.capacity}</p>
                           )}
@@ -1638,7 +1597,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                <div className="md:col-span-8">
                    <div className="bg-slate-50 rounded-2xl border border-slate-100 p-6 min-h-[400px]">
                        <h4 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
-                          <span>المرافق المضافة ({classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).length})</span>
+                          <span>المرافق المدرسية ({classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).length})</span>
                        </h4>
                        
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1657,7 +1616,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                               'bg-slate-100 text-slate-600'
                                           }`}>
                                               {c.type === 'gym' || c.type === 'playground' ? <Dumbbell size={20} /> :
-                                               c.type?.includes('lab') ? <FlaskConical size={20} /> :
+                                               c.type?.includes('lab') ? <Layers size={20} /> :
                                                <LayoutGrid size={20} />}
                                           </div>
                                           
@@ -1686,8 +1645,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                            })}
                            {classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).length === 0 && (
                             <div className="col-span-full py-12 text-center text-slate-400">
-                                <FlaskConical size={40} className="mx-auto mb-3 opacity-20" />
-                                <p>لا توجد مرافق مضافة لهذه المدرسة</p>
+                                <Warehouse size={40} className="mx-auto mb-3 opacity-20" />
+                                <p>لا توجد مرافق مدرسية مضافة</p>
                             </div>
                            )}
                        </div>
