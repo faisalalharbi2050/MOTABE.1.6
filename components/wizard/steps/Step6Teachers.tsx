@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Teacher, Specialization, SchoolInfo, ScheduleSettingsData, ClassInfo } from '../../../types';
-import { Briefcase, Plus, X, Upload, Trash2, Edit, Edit3, Pen, Check, ChevronDown, ChevronUp, Search, Printer, List, User, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle } from 'lucide-react';
+import { Teacher, Specialization, SchoolInfo, ScheduleSettingsData, ClassInfo, SpecializedMeeting } from '../../../types';
+import { Briefcase, Plus, X, Upload, Trash2, Edit, Edit2, Edit3, Pen, Check, ChevronDown, ChevronUp, Search, Printer, List, User, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle, Calendar, Sparkles } from 'lucide-react';
 import { INITIAL_SPECIALIZATIONS } from '../../../constants';
 import { parseTeachersExcel, TeacherData } from '../../../utils/excelTeachers';
 import SchoolTabs from '../SchoolTabs';
@@ -95,6 +95,12 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   // Import Review Modal State
   const [showImportReviewModal, setShowImportReviewModal] = useState(false);
+  const [showSelectAllConfirm, setShowSelectAllConfirm] = useState(false);
+
+  // Meetings Modal State
+  const [showMeetingsModal, setShowMeetingsModal] = useState(false);
+  const [mForm, setMForm] = useState({ specId: '', day: '', period: 1 });
+  const [distributeModal, setDistributeModal] = useState<{ teachers: string[], specId: string, day: string, period: number } | null>(null);
   const [importReviewItems, setImportReviewItems] = useState<{
     row: TeacherData;
     matchType: 'id' | 'exact_name' | 'partial_name';
@@ -108,8 +114,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const [showLinkSchoolModal, setShowLinkSchoolModal]   = useState(false);
   const [linkSchoolTeacherId, setLinkSchoolTeacherId]   = useState<string | null>(null);
   const [linkSchoolSelectedId, setLinkSchoolSelectedId] = useState('');
-  const [linkSchoolSearch, setLinkSchoolSearch]         = useState('');
   const [linkSchoolDuplicate, setLinkSchoolDuplicate]   = useState<string>('new'); // teacher id or 'new'
+  const [linkSchoolLessons, setLinkSchoolLessons]       = useState<number>(24);
+  const [linkSchoolWaiting, setLinkSchoolWaiting]       = useState<number>(0);
 
   // Unlink School Modal State
   const [showUnlinkSchoolModal, setShowUnlinkSchoolModal]     = useState(false);
@@ -332,9 +339,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
     });
 
     const added = toAdd.length, linked = toLink.length, skipped = importReviewItems.filter(i => i.choice === 'skip').length;
-    const parts = [added && `إضافة ${added}`, linked && `ربط ${linked} كمشترك`, skipped && `تخطي ${skipped}`].filter(Boolean);
+    const parts = [added && `إضافة ${added}`, linked && `ربط ${linked} كمشترك`, skipped && `تجاهل ${skipped}`].filter(Boolean);
     showToast(`✅ ${parts.join(' — ')}`, 'success');
-    setShowImportReviewModal(false);
+    setShowImportReviewModal(false); setShowSelectAllConfirm(false);
     setImportReviewItems([]);
     setImportDirectTeachers([]);
   };
@@ -410,8 +417,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const openLinkSchoolModal = (teacherId: string) => {
     setLinkSchoolTeacherId(teacherId);
     setLinkSchoolSelectedId('');
-    setLinkSchoolSearch('');
-    setLinkSchoolDuplicate('new');
+    setLinkSchoolDuplicate('');
+    setLinkSchoolLessons(24);
+    setLinkSchoolWaiting(0);
     setShowLinkSchoolModal(true);
   };
 
@@ -444,7 +452,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         if (t.id !== linkSchoolTeacherId) return t;
         return {
           ...t, isShared: true,
-          schools: [...(t.schools || []), { schoolId: linkSchoolSelectedId, schoolName, subjects: [], classes: [], lessons: 0, waiting: 0 }],
+          schools: [...(t.schools || []), { schoolId: linkSchoolSelectedId, schoolName, subjects: [], classes: [], lessons: linkSchoolLessons, waiting: linkSchoolWaiting }],
         };
       }));
     }
@@ -473,11 +481,15 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       e.stopPropagation();
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const dropdownWidth = 185;
-      // محاذاة من اليمين بالنسبة للزر مع منع الخروج عن الشاشة
+      const estimatedHeight = 240;
+      // محاذاة أفقية من اليمين مع منع الخروج عن الشاشة
       let left = rect.right - dropdownWidth;
       if (left < 8) left = rect.left;
       if (left + dropdownWidth > window.innerWidth - 8) left = window.innerWidth - dropdownWidth - 8;
-      setActionDropdown({ teacherId, top: rect.bottom + 6, left });
+      // انعكاس للأعلى إذا لم تكن هناك مساحة كافية أسفل الزر
+      const showAbove = rect.bottom + estimatedHeight > window.innerHeight - 10;
+      const top = showAbove ? rect.top - estimatedHeight - 6 : rect.bottom + 6;
+      setActionDropdown({ teacherId, top, left });
   };
 
   useEffect(() => {
@@ -668,68 +680,83 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       </div>
 
        {/* ══════ Action Bar (Hidden in Print) ══════ */}
-       <div className="flex flex-wrap items-center gap-3 mb-6 print:hidden">
+       <div className="flex flex-col gap-3 mb-6 print:hidden">
            <input type="file" ref={fileInputRef} hidden accept=".xlsx, .xls" onChange={handleFileUpload} />
 
-           <button
-               onClick={openAddModal}
-               className="flex items-center gap-2 px-6 py-3 bg-[#655ac1] text-white rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5448a8] transition-all hover:scale-105 active:scale-95"
-           >
-               <Plus size={20} />
-               إضافة معلم
-           </button>
+           {/* Primary Row */}
+           <div className="flex flex-wrap items-center gap-3">
+               <button
+                   onClick={openAddModal}
+                   className="flex items-center gap-2 px-6 py-3 bg-[#655ac1] text-white rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5448a8] transition-all hover:scale-105 active:scale-95"
+               >
+                   <Plus size={20} />
+                   إضافة معلم
+               </button>
 
-           <button
-               onClick={() => fileInputRef.current?.click()}
-               className="flex items-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-           >
-               <Upload size={20} className="text-[#8779fb]" />
-               {loading ? 'جاري الاستيراد...' : 'استيراد من Excel'}
-           </button>
+               <button
+                   onClick={() => fileInputRef.current?.click()}
+                   className="flex items-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
+               >
+                   <Upload size={20} className="text-[#8779fb]" />
+                   {loading ? 'جاري الاستيراد...' : 'استيراد من Excel'}
+               </button>
+           </div>
 
-           <button
-               onClick={() => setShowConstraintsModal(true)}
-               className="flex items-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-           >
-               <Sliders size={20} className="text-[#8779fb]" />
-                قيود المعلمين
-           </button>
+           {/* Secondary Row */}
+           <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 flex flex-wrap items-center gap-2">
+               {/* Right side */}
+               <button
+                   onClick={() => setShowConstraintsModal(true)}
+                   className="flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
+               >
+                   <Sliders size={16} className="text-[#8779fb]" />
+                   قيود المعلمين
+               </button>
 
-           <div className="flex-1"></div>
+               <button
+                   onClick={() => setShowMeetingsModal(true)}
+                   className="flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
+               >
+                   <Calendar size={16} className="text-[#8779fb]" />
+                   الاجتماعات التخصصية
+               </button>
 
-           {/* Updated Edit Button */}
-           <button 
-               onClick={handleBulkEditToggle}
-               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 border ${
-                   isBulkEdit 
-                   ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20' 
-                   : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
-               }`}
-           >
-               {isBulkEdit ? <Check size={20} /> : <Edit size={20} className="text-[#8779fb]" />}
-               {isBulkEdit ? 'حفظ التعديلات' : 'تعديل الكل'}
-           </button>
+               <div className="flex-1"></div>
 
-           <button
-               onClick={handlePrint}
-               className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-               title="طباعة القائمة الحالية"
-           >
-               <Printer size={20} className="text-[#8779fb]" />
-               طباعة
-           </button>
+               {/* Left side */}
+               <button
+                   onClick={handleBulkEditToggle}
+                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105 active:scale-95 border ${
+                       isBulkEdit
+                       ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
+                       : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                   }`}
+               >
+                   {isBulkEdit ? <Check size={16} /> : <Edit size={16} className="text-[#8779fb]" />}
+                   {isBulkEdit ? 'حفظ التعديلات' : 'تعديل الكل'}
+               </button>
 
-           <button 
-               onClick={handleDeleteAll}
-               disabled={teachers.length === 0}
-               className="flex items-center gap-2 px-6 py-3 bg-white text-rose-600 border border-rose-100 rounded-xl font-bold hover:bg-rose-500 hover:text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-               <Trash2 size={20} />
-               حذف الكل
-           </button>
+               <button
+                   onClick={handlePrint}
+                   className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
+                   title="طباعة القائمة الحالية"
+               >
+                   <Printer size={16} className="text-[#8779fb]" />
+                   طباعة
+               </button>
+
+               <button
+                   onClick={handleDeleteAll}
+                   disabled={teachers.length === 0}
+                   className="flex items-center gap-2 px-4 py-2 bg-white text-rose-600 border border-rose-100 rounded-xl text-sm font-bold hover:bg-rose-500 hover:text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                   <Trash2 size={16} />
+                   حذف الكل
+               </button>
+           </div>
        </div>
 
-        {/* ══════ Search & Stats Frame (Hidden in Print) ══════ */}
+       {/* ══════ Search & Stats Frame (Hidden in Print) ══════ */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col-reverse lg:flex-row items-center gap-4 justify-between print:hidden">
              
              {/* Right Side: Search & Filter */}
@@ -968,10 +995,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                             {!isBulkEdit && (
                                                 <button
                                                     onClick={e => openActionDropdown(e, t.id)}
-                                                    className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-all border border-slate-300"
-                                                    title="الإجراءات"
+                                                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb] mx-auto"
+                                                    title="إجراءات"
                                                 >
-                                                    <Pen size={14} />
+                                                    <Edit2 size={14} />
                                                 </button>
                                             )}
                                         </td>
@@ -1308,19 +1335,48 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
 
            {/* Header */}
-           <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
-             <div>
-               <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                 <AlertCircle size={22} className="text-amber-500" />
-                 مراجعة التعارضات
-               </h3>
-               <p className="text-xs text-slate-400 font-bold mt-0.5">
-                 {importReviewItems.length} حالة تحتاج مراجعة — راجع وأكد الاختيار لكل سجل
-               </p>
+           <div className="p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
+             <div className="flex justify-between items-start">
+               <div>
+                 <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                   <AlertCircle size={22} className="text-amber-500" />
+                   وجدنا معلمين مشابهين — راجع قبل الإضافة
+                 </h3>
+                 <p className="text-xs text-slate-400 font-bold mt-0.5">
+                   وجدنا {importReviewItems.length} معلماً في الملف يشبه معلماً موجوداً — ماذا تريد أن تفعل بكل واحد؟
+                 </p>
+               </div>
+               <button onClick={() => { setShowImportReviewModal(false); setShowSelectAllConfirm(false); }} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all shrink-0">
+                 <X size={20} />
+               </button>
              </div>
-             <button onClick={() => setShowImportReviewModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-               <X size={20} />
-             </button>
+             {!showSelectAllConfirm ? (
+               <button
+                 onClick={() => setShowSelectAllConfirm(true)}
+                 className="mt-3 w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-black text-slate-600 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
+               >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                 اعتبرهم جميعاً أشخاصاً مختلفين
+               </button>
+             ) : (
+               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                 <p className="text-xs font-black text-amber-800 text-center">سيتم اعتبار الجميع أشخاصاً مختلفين وإضافتهم كمعلمين جدد — هل أنت متأكد؟</p>
+                 <div className="flex gap-2">
+                   <button
+                     onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); setShowSelectAllConfirm(false); }}
+                     className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-black transition-all"
+                   >
+                     نعم، تابع
+                   </button>
+                   <button
+                     onClick={() => setShowSelectAllConfirm(false)}
+                     className="flex-1 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-black transition-all"
+                   >
+                     إلغاء
+                   </button>
+                 </div>
+               </div>
+             )}
            </div>
 
            {/* List */}
@@ -1337,12 +1393,12 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                        isPartial ? 'bg-amber-100 text-amber-700' :
                                    'bg-blue-100 text-blue-700'
                      }`}>
-                       {isId ? '✓ رقم هوية' : isPartial ? '⚠ تشابه جزئي' : '≈ تطابق تام'}
+                       {isId ? '✓ نفس رقم الهوية' : isPartial ? '⚠ الاسم متشابه — تحقق' : '≈ نفس الاسم تماماً'}
                      </span>
                      <div className="flex-1 min-w-0">
                        <p className="text-sm font-black text-slate-800 truncate">{item.row.name}</p>
                        <p className="text-xs text-slate-400 font-bold mt-0.5">
-                         في الملف → يشبه <span className="text-slate-600">{item.existing.name}</span> في {item.existingSchoolName}
+                         المعلم في الملف يشبه: <span className="text-slate-600">{item.existing.name}</span> في {item.existingSchoolName}
                        </p>
                        {isPartial && <p className="text-[11px] text-amber-600 font-bold mt-1">تشابه في الاسم الأول والأخير فقط — تحقق بعناية</p>}
                      </div>
@@ -1357,7 +1413,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                            : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/40'
                        }`}
                      >
-                       ربط كمشترك
+                       نعم، نفس المعلم
                      </button>
                      {isId ? (
                        <button
@@ -1379,7 +1435,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                          }`}
                        >
-                         إضافة كجديد
+                         لا، شخص مختلف
                        </button>
                      )}
                    </div>
@@ -1390,18 +1446,12 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
            {/* Footer */}
            <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex items-center gap-3 shrink-0">
-             <button
-               onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); }}
-               className="text-xs text-slate-400 hover:text-slate-600 font-bold transition-colors underline underline-offset-2"
-             >
-               تجاهل الكل وإضافة كمعلمين جدد
-             </button>
              <div className="flex-1" />
-             <button onClick={() => setShowImportReviewModal(false)} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
+             <button onClick={() => { setShowImportReviewModal(false); setShowSelectAllConfirm(false); }} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
                إلغاء
              </button>
              <button onClick={confirmImportReview} className="px-6 py-2.5 bg-[#655ac1] text-white rounded-xl text-sm font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all">
-               تطبيق الكل
+               تأكيد وإضافة
              </button>
            </div>
          </div>
@@ -1417,12 +1467,6 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
          ...(schoolInfo.sharedSchools ?? []).map(s => ({ id: s.id, name: s.name })),
        ];
        const availableSchools = allSchools.filter(s => !currentSchoolIds.includes(s.id));
-       const schoolTeachers = linkSchoolSelectedId
-         ? teachers.filter(t => t.id !== linkSchoolTeacherId && (t.schools?.some(s => s.schoolId === linkSchoolSelectedId) || t.schoolId === linkSchoolSelectedId))
-         : [];
-       const searchResults = linkSchoolSearch.trim()
-         ? schoolTeachers.filter(t => t.name.includes(linkSchoolSearch.trim()))
-         : schoolTeachers;
        return (
          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
@@ -1443,7 +1487,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  ) : (
                    <select
                      value={linkSchoolSelectedId}
-                     onChange={e => { setLinkSchoolSelectedId(e.target.value); setLinkSchoolSearch(''); setLinkSchoolDuplicate('new'); }}
+                     onChange={e => { setLinkSchoolSelectedId(e.target.value); setLinkSchoolDuplicate(''); setLinkSchoolLessons(24); setLinkSchoolWaiting(0); }}
                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
                    >
                      <option value="">— اختر المدرسة —</option>
@@ -1452,32 +1496,110 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  )}
                </div>
 
-               {/* الخطوة 2: البحث عن سجل مكرر (بعد اختيار المدرسة) */}
-               {linkSchoolSelectedId && (
-                 <div>
-                   <label className="block text-sm font-black text-slate-700 mb-2">ابحث عن سجل مكرر بالاسم <span className="font-normal text-slate-400">(اختياري)</span></label>
-                   <input
-                     value={linkSchoolSearch}
-                     onChange={e => { setLinkSchoolSearch(e.target.value); setLinkSchoolDuplicate('new'); }}
-                     placeholder="اكتب اسم المعلم للبحث..."
-                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
-                   />
-                   {/* نتائج البحث كـ radio buttons */}
-                   <div className="mt-3 space-y-2">
-                     {searchResults.map(t => (
-                       <label key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${linkSchoolDuplicate === t.id ? 'border-[#655ac1]/40 bg-[#f5f3ff]' : 'border-slate-100 hover:border-[#655ac1]/20 hover:bg-slate-50'}`}>
-                         <input type="radio" name="linkDuplicate" value={t.id} checked={linkSchoolDuplicate === t.id} onChange={() => setLinkSchoolDuplicate(t.id)} className="accent-[#655ac1]" />
-                         <span className="text-sm font-bold text-slate-700">{t.name}</span>
-                         <span className="text-xs text-slate-400 mr-auto">{getSpecializationName(t.specializationId)}</span>
-                       </label>
-                     ))}
-                     <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${linkSchoolDuplicate === 'new' ? 'border-[#655ac1]/40 bg-[#f5f3ff]' : 'border-slate-100 hover:border-[#655ac1]/20 hover:bg-slate-50'}`}>
-                       <input type="radio" name="linkDuplicate" value="new" checked={linkSchoolDuplicate === 'new'} onChange={() => setLinkSchoolDuplicate('new')} className="accent-[#655ac1]" />
-                       <span className="text-sm font-bold text-slate-500">لا يوجد سجل، أضفه تلقائياً</span>
-                     </label>
+               {/* المنطق الذكي بعد اختيار المدرسة */}
+               {linkSchoolSelectedId && (() => {
+                 const currentTeacher = teachers.find(t => t.id === linkSchoolTeacherId);
+                 const selectedSchoolName = linkSchoolSelectedId === 'main'
+                   ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+                   : schoolInfo.sharedSchools?.find(s => s.id === linkSchoolSelectedId)?.name || linkSchoolSelectedId;
+                 const schoolTeachers = teachers.filter(t =>
+                   t.id !== linkSchoolTeacherId &&
+                   (t.schools?.some(s => s.schoolId === linkSchoolSelectedId) || t.schoolId === linkSchoolSelectedId)
+                 );
+                 const autoMatch = currentTeacher
+                   ? schoolTeachers.find(t => t.name.trim() === currentTeacher.name.trim())
+                   : null;
+
+                 // حالة: يوجد معلم بنفس الاسم ولم يُجب المستخدم بعد
+                 if (autoMatch && linkSchoolDuplicate === '') {
+                   return (
+                     <div className="space-y-3">
+                       <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                         <div>
+                           <p className="text-sm font-black text-amber-800">وجدنا معلماً بنفس الاسم في مدرسة {selectedSchoolName}</p>
+                           <p className="text-xs text-amber-700 mt-1">الاسم: <span className="font-bold">{autoMatch.name}</span> — هل هو نفس الشخص؟</p>
+                         </div>
+                       </div>
+                       <button
+                         onClick={() => setLinkSchoolDuplicate(autoMatch.id)}
+                         className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all text-right"
+                       >
+                         <span className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg flex-shrink-0">✓</span>
+                         <div>
+                           <p className="text-sm font-black text-slate-700">نعم، نفس المعلم</p>
+                           <p className="text-xs text-slate-400">سيتم توحيد بياناته تلقائياً</p>
+                         </div>
+                       </button>
+                       <button
+                         onClick={() => setLinkSchoolDuplicate('new')}
+                         className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-slate-200 hover:border-[#655ac1] hover:bg-[#f5f3ff] transition-all text-right"
+                       >
+                         <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-lg flex-shrink-0">+</span>
+                         <div>
+                           <p className="text-sm font-black text-slate-700">لا، شخص مختلف</p>
+                           <p className="text-xs text-slate-400">سيُضاف كمعلم مشترك مستقل</p>
+                         </div>
+                       </button>
+                     </div>
+                   );
+                 }
+
+                 // حالة: تم اختيار "نعم، نفس المعلم"
+                 if (autoMatch && linkSchoolDuplicate === autoMatch.id) {
+                   return (
+                     <div className="space-y-3">
+                       <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                         <div>
+                           <p className="text-sm font-black text-emerald-800">سيتم توحيد بيانات المعلم في مدرسة {selectedSchoolName}</p>
+                           <p className="text-xs text-emerald-700 mt-0.5">سيُدمج سجله مع السجل الموجود تلقائياً عند الضغط على "تأكيد"</p>
+                         </div>
+                       </div>
+                       <button onClick={() => setLinkSchoolDuplicate('')} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">← تغيير الإجابة</button>
+                     </div>
+                   );
+                 }
+
+                 // حالة: لا يوجد تطابق أو اختار "لا، شخص مختلف"
+                 const existingTotal = currentTeacher
+                   ? (currentTeacher.schools && currentTeacher.schools.length > 0
+                       ? currentTeacher.schools.reduce((sum, s) => sum + (s.lessons || 0) + (s.waiting || 0), 0)
+                       : (currentTeacher.quotaLimit || 0) + (currentTeacher.waitingQuota || 0))
+                   : 0;
+                 const newTotal = existingTotal + linkSchoolLessons + linkSchoolWaiting;
+                 const isOverQuota = newTotal > 24;
+                 return (
+                   <div className="space-y-3">
+                     {linkSchoolDuplicate === 'new' && autoMatch && (
+                       <button onClick={() => setLinkSchoolDuplicate('')} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">← تغيير الإجابة</button>
+                     )}
+                     <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                       <label className="block text-sm font-black text-slate-700 mb-3">نصاب المعلم في مدرسة {selectedSchoolName}</label>
+                       <div className="grid grid-cols-2 gap-3">
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 mb-1.5">نصاب الحصص</label>
+                           <input type="number" value={linkSchoolLessons} onChange={e => setLinkSchoolLessons(Number(e.target.value))} min={0} max={24}
+                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold text-center focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all" />
+                         </div>
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 mb-1.5">نصاب الانتظار</label>
+                           <input type="number" value={linkSchoolWaiting} onChange={e => setLinkSchoolWaiting(Number(e.target.value))} min={0}
+                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold text-center focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all" />
+                         </div>
+                       </div>
+                     </div>
+                     {isOverQuota && (
+                       <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                         <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                           إجمالي نصاب المعلم في جميع المدارس سيكون <span className="text-amber-900">{newTotal}</span> حصة، وهو يتجاوز النصاب الرسمي (24). يمكنك المتابعة لكن يُنصح بمراجعة النصاب.
+                         </p>
+                       </div>
+                     )}
                    </div>
-                 </div>
-               )}
+                 );
+               })()}
              </div>
              {/* Footer */}
              <div className="p-6 border-t border-slate-100 flex gap-3 justify-end">
@@ -1487,7 +1609,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  disabled={!linkSchoolSelectedId}
                  className="px-5 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                >
-                 {linkSchoolDuplicate === 'new' ? 'ربط وإضافة' : 'ربط ودمج السجلات'}
+                 {linkSchoolDuplicate === 'new' ? 'ربط وإضافة' : 'ربط ودمج'}
                </button>
              </div>
            </div>
@@ -1542,7 +1664,191 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
        );
      })()}
 
-     <TeacherConstraintsModal
+     {/* ══════ Meetings Modal ══════ */}
+     {showMeetingsModal && (() => {
+       const meetings = scheduleSettings?.meetings || [];
+       const activeDays = schoolInfo.timing?.activeDays || ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+       const periodsPerDay = Math.max(7, ...(Object.values(schoolInfo.timing?.periodCounts || {}) as number[]));
+       const periods = Array.from({ length: Math.max(1, Math.min(20, Math.floor(periodsPerDay))) }, (_, i) => i + 1);
+       const days = activeDays.filter(Boolean);
+       const dayMap: Record<string, string> = { sunday:'الأحد', monday:'الإثنين', tuesday:'الثلاثاء', wednesday:'الأربعاء', thursday:'الخميس', friday:'الجمعة', saturday:'السبت' };
+       const getDayLbl = (d: string) => dayMap[d?.toLowerCase()] ?? d;
+       const onChangeMeetings = (m: SpecializedMeeting[]) => setScheduleSettings && setScheduleSettings(prev => ({ ...prev, meetings: m }));
+       const initDay = mForm.day || days[0] || 'الأحد';
+
+       return (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+             {/* Header */}
+             <div className="p-5 border-b border-slate-100 bg-violet-50/50 flex justify-between items-center flex-shrink-0">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-xl bg-white text-violet-600 flex items-center justify-center shadow-sm">
+                   <Calendar size={20} />
+                 </div>
+                 <div>
+                   <h3 className="font-black text-slate-800">الاجتماعات التخصصية</h3>
+                   <p className="text-xs font-bold text-slate-500">مواعيد ثابتة لاجتماع معلمي التخصص</p>
+                 </div>
+               </div>
+               <button onClick={() => setShowMeetingsModal(false)} className="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors"><X size={18} /></button>
+             </div>
+
+             {/* Body */}
+             <div className="p-5 overflow-y-auto space-y-4">
+               {/* Add Form */}
+               <div className="p-4 bg-violet-50/50 rounded-xl border border-violet-100 grid grid-cols-5 gap-3 items-end">
+                 <div className="col-span-2">
+                   <label className="text-[10px] font-bold block mb-1.5 text-slate-600">التخصص</label>
+                   <select
+                     value={mForm.specId}
+                     onChange={e => setMForm({...mForm, specId: e.target.value})}
+                     className="w-full p-2.5 text-xs font-bold rounded-lg border border-slate-200 bg-white outline-none focus:border-violet-500"
+                   >
+                     <option value="">اختر...</option>
+                     {specializations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-bold block mb-1.5 text-slate-600">اليوم</label>
+                   <select
+                     value={initDay}
+                     onChange={e => setMForm({...mForm, day: e.target.value})}
+                     className="w-full p-2.5 text-xs font-bold rounded-lg border border-slate-200 bg-white outline-none focus:border-violet-500"
+                   >
+                     {days.map(d => <option key={d} value={d}>{getDayLbl(d)}</option>)}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="text-[10px] font-bold block mb-1.5 text-slate-600">الحصة</label>
+                   <select
+                     value={mForm.period}
+                     onChange={e => setMForm({...mForm, period: Number(e.target.value)})}
+                     className="w-full p-2.5 text-xs font-bold rounded-lg border border-slate-200 bg-white outline-none focus:border-violet-500"
+                   >
+                     {periods.map(p => <option key={p} value={p}>{p}</option>)}
+                   </select>
+                 </div>
+                 <button
+                   onClick={() => {
+                     if (!mForm.specId) { alert('الرجاء اختيار التخصص'); return; }
+                     const tids = teachers.filter(t => t.specializationId === mForm.specId).map(t => t.id);
+                     if (tids.length === 0) { alert('لا يوجد معلمين في هذا التخصص'); return; }
+                     if (tids.length > 5) {
+                       setDistributeModal({ teachers: tids, specId: mForm.specId, day: initDay, period: mForm.period });
+                       return;
+                     }
+                     const newMeeting: SpecializedMeeting = { id: `m-${Date.now()}`, specializationId: mForm.specId, day: initDay, period: mForm.period, teacherIds: tids };
+                     onChangeMeetings([...meetings, newMeeting]);
+                   }}
+                   className="bg-[#655ac1] text-white p-2.5 rounded-lg text-xs font-bold hover:bg-[#5046b5] transition-all shadow-lg shadow-violet-200 flex items-center justify-center gap-2"
+                 >
+                   <Plus size={16} /> إضافة للجميع
+                 </button>
+               </div>
+
+               {/* Meetings List */}
+               {meetings.length > 0 ? (
+                 <div className="space-y-2">
+                   {meetings.map((m, i) => (
+                     <div key={i} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl bg-white hover:border-violet-100 transition-colors">
+                       <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
+                           <Users size={16} />
+                         </div>
+                         <div>
+                           <div className="text-xs font-bold text-violet-900">{specializations.find(s => s.id === m.specializationId)?.name}</div>
+                           <div className="text-[10px] text-slate-400 font-bold mt-0.5">{getDayLbl(m.day)} - الحصة {m.period} • {m.teacherIds.length} معلمين</div>
+                         </div>
+                       </div>
+                       <button onClick={() => onChangeMeetings(meetings.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"><X size={16} /></button>
+                     </div>
+                   ))}
+                 </div>
+               ) : (
+                 <div className="text-center py-8 text-slate-300 text-xs font-bold border-2 border-dashed border-slate-100 rounded-xl">لا توجد اجتماعات مضافة</div>
+               )}
+             </div>
+
+             {/* Footer */}
+             <div className="p-4 border-t border-slate-100 flex-shrink-0">
+               <button onClick={() => setShowMeetingsModal(false)} className="px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448a8] transition-all">إغلاق</button>
+             </div>
+           </div>
+
+           {/* Smart Distribution Sub-Modal */}
+           {distributeModal && (
+             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+               <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                 <div className="p-5 border-b border-slate-100 bg-violet-50/50 flex justify-between items-center">
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-xl bg-white text-violet-600 flex items-center justify-center shadow-sm">
+                       <Sparkles size={20} />
+                     </div>
+                     <div>
+                       <h3 className="font-black text-slate-800">توزيع ذكي للمعلمين</h3>
+                       <p className="text-xs font-bold text-slate-500">عدد المعلمين كبير ({distributeModal.teachers.length})، اختر طريقة التوزيع</p>
+                     </div>
+                   </div>
+                   <button onClick={() => setDistributeModal(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                 </div>
+                 <div className="p-5 space-y-3">
+                   <button onClick={() => {
+                     const newMeeting: SpecializedMeeting = { id: `m-${Date.now()}`, specializationId: distributeModal.specId, day: distributeModal.day, period: distributeModal.period, teacherIds: distributeModal.teachers };
+                     onChangeMeetings([...meetings, newMeeting]);
+                     setDistributeModal(null);
+                   }} className="w-full text-right p-4 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group">
+                     <div className="font-bold text-slate-700 group-hover:text-violet-700">جمع الجميع في يوم واحد</div>
+                     <div className="text-xs text-slate-400 mt-1">إضافة {distributeModal.teachers.length} معلم في {getDayLbl(distributeModal.day)} - الحصة {distributeModal.period}</div>
+                   </button>
+
+                   {days.length >= 2 && (
+                     <button onClick={() => {
+                       const half = Math.ceil(distributeModal.teachers.length / 2);
+                       const g1 = distributeModal.teachers.slice(0, half);
+                       const g2 = distributeModal.teachers.slice(half);
+                       const idx2 = days.indexOf(distributeModal.day);
+                       const d2 = days[(idx2 === -1 ? 0 : idx2 + 1) % days.length];
+                       const m1: SpecializedMeeting = { id: `m-${Date.now()}-1`, specializationId: distributeModal.specId, day: distributeModal.day, period: distributeModal.period, teacherIds: g1 };
+                       const m2: SpecializedMeeting = { id: `m-${Date.now()}-2`, specializationId: distributeModal.specId, day: d2, period: distributeModal.period, teacherIds: g2 };
+                       onChangeMeetings([...meetings, m1, m2]);
+                       setDistributeModal(null);
+                     }} className="w-full text-right p-4 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
+                       <div className="flex items-center justify-between">
+                         <div className="font-bold text-slate-700 group-hover:text-emerald-700">توزيع على يومين (50/50)</div>
+                         <span className="text-[10px] font-black px-2 py-1 bg-emerald-100 text-emerald-600 rounded-lg">موصى به</span>
+                       </div>
+                       <div className="text-xs text-slate-400 mt-1">يوم {getDayLbl(distributeModal.day)} ({Math.ceil(distributeModal.teachers.length/2)}) + اليوم التالي ({Math.floor(distributeModal.teachers.length/2)})</div>
+                     </button>
+                   )}
+
+                   {days.length >= 3 && distributeModal.teachers.length > 8 && (
+                     <button onClick={() => {
+                       const third = Math.ceil(distributeModal.teachers.length / 3);
+                       const g1 = distributeModal.teachers.slice(0, third);
+                       const g2 = distributeModal.teachers.slice(third, third * 2);
+                       const g3 = distributeModal.teachers.slice(third * 2);
+                       const idx3 = days.indexOf(distributeModal.day);
+                       const d2 = days[(idx3 + 1) % days.length];
+                       const d3 = days[(idx3 + 2) % days.length];
+                       const m1: SpecializedMeeting = { id: `m-${Date.now()}-1`, specializationId: distributeModal.specId, day: distributeModal.day, period: distributeModal.period, teacherIds: g1 };
+                       const m2: SpecializedMeeting = { id: `m-${Date.now()}-2`, specializationId: distributeModal.specId, day: d2, period: distributeModal.period, teacherIds: g2 };
+                       const m3: SpecializedMeeting = { id: `m-${Date.now()}-3`, specializationId: distributeModal.specId, day: d3, period: distributeModal.period, teacherIds: g3 };
+                       onChangeMeetings([...meetings, m1, m2, m3]);
+                       setDistributeModal(null);
+                     }} className="w-full text-right p-4 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50 transition-all group">
+                       <div className="font-bold text-slate-700 group-hover:text-sky-700">توزيع على 3 أيام</div>
+                       <div className="text-xs text-slate-400 mt-1">توزيع {distributeModal.teachers.length} معلم على 3 أيام متتالية</div>
+                     </button>
+                   )}
+                 </div>
+               </div>
+             </div>
+           )}
+         </div>
+       );
+     })()}
+
+          <TeacherConstraintsModal
         isOpen={showConstraintsModal}
         onClose={() => setShowConstraintsModal(false)}
         teachers={teachers}

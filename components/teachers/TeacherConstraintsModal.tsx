@@ -298,9 +298,9 @@ export default function TeacherConstraintsModal({
   // --- Render Helpers ---
   const renderSectionHeader = (key: string, bg: string, border: string, iconBg: string, iconCol: string, Icon: React.ElementType, title: string, subtitle: string) => (
     <button onClick={() => setOpen(prev => ({ ...prev, [key]: !prev[key] }))}
-      className={`w-full flex items-center justify-between p-4 rounded-2xl ${bg} border ${border} transition-all hover:opacity-90`}>
+      className={`w-full flex items-center justify-between p-4 rounded-2xl bg-white border transition-all hover:opacity-90 ${open[key] ? 'border-[#8779fb]' : 'border-slate-200'}`}>
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center ${iconCol}`}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${iconCol}`}>
           <Icon size={18} />
         </div>
         <div className="text-right">
@@ -384,7 +384,6 @@ export default function TeacherConstraintsModal({
                 return (
                   <button key={t.id} onClick={() => setSelId(t.id)}
                     className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-colors ${isSel ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white border-transparent hover:bg-slate-50'}`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${isSel ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>{t.name.charAt(0)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-bold truncate">{t.name}</div>
                       <div className={`text-[10px] truncate ${isSel ? 'text-white/70' : 'text-slate-400'}`}>{spName}</div>
@@ -409,7 +408,6 @@ export default function TeacherConstraintsModal({
                 {/* Info Card */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#e5e1fe] flex items-center justify-center text-[#655ac1] font-black text-lg">{selTeacher.name.charAt(0)}</div>
                     <div>
                       <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
                       <div className="flex gap-2 mt-1">
@@ -422,7 +420,7 @@ export default function TeacherConstraintsModal({
                   <button
                     onClick={() => setShowCopyModal(true)}
                     title="نسخ القيود لمعلم آخر"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-[#eeecff] text-[#8779fb] border-[#c8c1fd] hover:bg-[#e5e1fe] transition-all"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-white text-slate-700 border-[#8779fb] hover:bg-violet-50 transition-all"
                   >
                     <Copy size={14} />
                     <span>نسخ القيود لمعلم آخر</span>
@@ -954,93 +952,7 @@ export default function TeacherConstraintsModal({
                   )}
                 </div>
 
-                {/* فاصل بصري */}
-                <div className="flex items-center gap-3 px-1">
-                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                </div>
 
-                {/* 6. Meetings */}
-                <div className="space-y-2">
-                  {renderSectionHeader('c6', 'bg-violet-50', 'border-violet-200', 'bg-violet-100', 'text-violet-600', Calendar, 'الاجتماعات', 'مواعيد ثابتة للتخصص')}
-                  {open.c6 && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                      <div className="p-4 bg-violet-50/50 rounded-xl border border-violet-100 grid grid-cols-4 gap-4 items-end">
-                        <div className="col-span-1">
-                           <label className="text-[10px] font-bold block mb-1.5 text-slate-600">التخصص</label>
-                           <div className="relative">
-                               <select value={mForm.specId} onChange={e => setMForm({...mForm, specId: e.target.value})} className="w-full p-2.5 text-xs font-bold rounded-lg border border-slate-200 bg-white outline-none focus:border-violet-500">
-                                 <option value="">اختر التخصص...</option>
-                                 {specializations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                               </select>
-                           </div>
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-bold block mb-1.5 text-slate-600">اليوم</label>
-                           <div className="relative">
-                               <select value={mForm.day} onChange={e => setMForm({...mForm, day: e.target.value})} className="w-full p-2.5 text-xs font-bold rounded-lg border border-slate-200 bg-white outline-none focus:border-violet-500">
-                                 {days.map(d => <option key={d} value={d}>{getDayLabel(d)}</option>)}
-                               </select>
-                           </div>
-                        </div>
-                        <div>
-                           <label className="text-[10px] font-bold block mb-1.5 text-slate-600">الحصة</label>
-                           <div className="relative">
-                               <select value={mForm.period} onChange={e => setMForm({...mForm, period: Number(e.target.value)})} className="w-full p-2.5 text-xs font-bold rounded-lg border border-slate-200 bg-white outline-none focus:border-violet-500">
-                                 {periods.map(p => <option key={p} value={p}>{p}</option>)}
-                               </select>
-                           </div>
-                        </div>
-                        <button onClick={() => {
-                          if (!mForm.specId) { alert('الرجاء اختيار التخصص'); return; }
-                          
-                          // Find all teachers
-                          const tids = teachers.filter(t => t.specializationId === mForm.specId).map(t => t.id);
-                          
-                          if (tids.length === 0) { alert('لا يوجد معلمين في هذا التخصص'); return; }
-
-                          // Smart Warning / Mode
-                          if (tids.length > 5) {
-                             setDistributeModal({ teachers: tids, specId: mForm.specId, day: mForm.day, period: mForm.period });
-                             return;
-                          }
-
-                          const newMeeting: SpecializedMeeting = {
-                              id: `m-${Date.now()}`, 
-                              specializationId: mForm.specId, 
-                              day: mForm.day, 
-                              period: mForm.period, 
-                              teacherIds: tids 
-                          };
-
-                          onChangeMeetings([...meetings, newMeeting]);
-                        }} className="bg-[#655ac1] text-white p-2.5 rounded-lg text-xs font-bold hover:bg-[#5046b5] transition-all shadow-lg shadow-violet-200 flex items-center justify-center gap-2">
-                            <Plus size={16} /> إضافة للجميع
-                        </button>
-                      </div>
-                      
-                      {meetings.length > 0 ? (
-                        <div className="space-y-2">
-                          {meetings.map((m, i) => (
-                            <div key={i} className="flex justify-between items-center p-3 border border-slate-100 rounded-xl bg-white hover:border-violet-100 transition-colors">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
-                                    <Users size={16} />
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold text-violet-900">{specializations.find(s=>s.id===m.specializationId)?.name}</div>
-                                    <div className="text-[10px] text-slate-400 font-bold mt-0.5">{getDayLabel(m.day)} - الحصة {m.period} • {m.teacherIds.length} معلمين</div>
-                                </div>
-                              </div>
-                              <button onClick={() => onChangeMeetings(meetings.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"><X size={16} /></button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                          <div className="text-center py-6 text-slate-300 text-xs font-bold border-2 border-dashed border-slate-100 rounded-xl">لا توجد اجتماعات مضافة</div>
-                      )}
-                    </div>
-                  )}
-                </div>
 
                 {/* ══════════════════════════════════════════════════════════════
                     القيد السابع — تخصيص أيام التواجد (للمعلم المشترك فقط)
@@ -1201,9 +1113,9 @@ export default function TeacherConstraintsModal({
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowCopyModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-[#eeecff]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#e5e1fe] text-[#8779fb] flex items-center justify-center"><Copy size={18} /></div>
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><Copy size={18} /></div>
                 <div>
                   <h3 className="font-black text-slate-800 text-sm">نسخ القيود والاستثناءات</h3>
                   <p className="text-[10px] text-slate-400 mt-0.5">نسخ قيود <span className="font-bold text-[#8779fb]">{selTeacher.name}</span> إلى معلمين آخرين</p>
@@ -1233,7 +1145,7 @@ export default function TeacherConstraintsModal({
                     { k: 'firstLast', l: 'أولى / أخيرة' },
                     { k: 'earlyEntry', l: 'خروج مبكر' }
                   ].map((opt, idx) => (
-                    <label key={opt.k} className={`flex items-center gap-2.5 bg-white px-4 py-3 rounded-xl border border-slate-200 cursor-pointer hover:border-[#a99ffc] hover:bg-[#eeecff]/40 transition-colors select-none ${idx === 4 ? 'col-span-2' : ''}`}>
+                    <label key={opt.k} className={`flex items-center gap-2.5 bg-white px-4 py-3 rounded-xl border border-slate-200 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-colors select-none ${idx === 4 ? 'col-span-2' : ''}`}>
                       <input type="checkbox" checked={copyOpts[opt.k as keyof typeof copyOpts]}
                         onChange={e => setCopyOpts({ ...copyOpts, [opt.k]: e.target.checked })} className="accent-[#8779fb] w-4 h-4 rounded shrink-0" />
                       <span className="text-xs font-bold text-slate-600">{opt.l}</span>
@@ -1243,7 +1155,7 @@ export default function TeacherConstraintsModal({
               </div>
 
               {/* Teacher Selection */}
-              <div className="flex justify-between items-center bg-[#eeecff]/50 p-4 rounded-xl border border-[#dbd7fe]">
+              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <h4 className="font-bold text-slate-700 text-sm">تحديد المعلمين</h4>
                   <p className="text-xs text-slate-400 mt-1">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
@@ -1256,7 +1168,7 @@ export default function TeacherConstraintsModal({
                       if (copyTargets.length === allIds.length) setCopyTargets([]);
                       else setCopyTargets(allIds);
                     }}
-                    className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] px-3 py-1.5 hover:bg-[#eeecff] rounded-lg transition-colors"
+                    className="text-xs font-bold text-slate-600 hover:text-[#655ac1] px-3 py-1.5 hover:bg-slate-100 rounded-lg transition-colors"
                   >
                     {copyTargets.length === filteredTeachers.filter(t => t.id !== selId).length ? 'إلغاء الكل' : 'تحديد الكل'}
                   </button>
