@@ -11,6 +11,7 @@ export interface TeacherData {
   isAdmin: boolean;
   adminRole?: string;
   sortIndex: number;
+  idNumber?: string | null; // رقم السجل المدني
 }
 
 const normalizeSpecialization = (input: string): string => {
@@ -65,6 +66,7 @@ export const parseTeachersExcel = (file: File): Promise<TeacherData[]> => {
            const specializationStr = row['التخصص'] || row['Specialization'] || '';
            const mobile = row['الجوال'] || row['Mobile'] || row['رقم الجوال'] || '';
            const quota = row['نصاب الحصص'] || row['Quota'] || 24;
+           const idNumber = row['رقم الهوية'] || row['رقم السجل المدني'] || row['idNumber'] || null;
 
            if (!name) return null; // Skip invalid rows
 
@@ -76,7 +78,8 @@ export const parseTeachersExcel = (file: File): Promise<TeacherData[]> => {
              weeklyQuota: Number(quota) || 24,
              waitingQuota: 0,
              isAdmin: false,
-             sortIndex: index
+             sortIndex: index,
+             idNumber: idNumber ? String(idNumber).trim() : null,
            };
         }).filter(t => t !== null) as TeacherData[];
 

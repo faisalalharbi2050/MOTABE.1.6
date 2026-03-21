@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Upload, Trash2, Plus, User, UserPlus, Save, Edit, X, Check, Shield, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Search, Filter, SortAsc, LayoutGrid, List, Printer, Users } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Upload, Trash2, Plus, User, UserPlus, Save, Edit, X, Check, Shield, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Search, Filter, SortAsc, LayoutGrid, List, Printer, Users, MoreHorizontal, Copy } from "lucide-react";
 import { parseTeachersExcel, TeacherData } from "../utils/excelTeachers";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
@@ -484,8 +485,8 @@ export default function TeachersAndStaff() {
             <style dangerouslySetInnerHTML={{ __html: printStyles }} />
 
             {/* Header Section */}
-            <PageHeader 
-                title="المعلمون والإداريون" 
+            <PageHeader
+                title="إدارة المعلمون"
                 subtitle="إدارة بيانات الكادر التعليمي والإداري ومتابعة الأنصبة"
             >
                 {/* Toolbar Content - New Layout */}
@@ -889,7 +890,29 @@ export default function TeachersAndStaff() {
 
 // Teacher Table Component
 function TeacherTable({ teachers, showSortControls, onMoveUp, onMoveDown, onEdit, onDelete, isBulkEdit, onUpdateTeacher }: any) {
+    const [dropdown, setDropdown] = useState<{ teacherId: string; top: number; right: number } | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+    const openDropdown = (e: React.MouseEvent, teacherId: string) => {
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setDeleteConfirm(null);
+        setDropdown({ teacherId, top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    };
+
+    useEffect(() => {
+        if (!dropdown) return;
+        const close = () => setDropdown(null);
+        document.addEventListener('click', close);
+        document.addEventListener('scroll', close, true);
+        return () => {
+            document.removeEventListener('click', close);
+            document.removeEventListener('scroll', close, true);
+        };
+    }, [dropdown]);
+
     return (
+        <>
         <table className="w-full text-right">
             <thead className="bg-white border-b text-sm text-gray-500">
                 <tr>
@@ -961,18 +984,86 @@ function TeacherTable({ teachers, showSortControls, onMoveUp, onMoveDown, onEdit
                         </td>
                         <td className="px-6 py-4 text-center font-black text-primary">{(t.weeklyQuota || 0) + (t.waitingQuota || 0)}</td>
                         
-                        <td className="px-6 py-4 flex items-center gap-2 print:hidden">
+                        <td className="px-6 py-4 print:hidden">
                             {!isBulkEdit && (
-                                <>
-                                    <button onClick={() => onEdit(t)} className="text-blue-400 hover:text-blue-600 p-2 rounded hover:bg-blue-50"><Edit className="w-4 h-4"/></button>
-                                    <button onClick={() => onDelete(t.id)} className="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50"><Trash2 className="w-4 h-4"/></button>
-                                </>
+                                <button
+                                    onClick={e => openDropdown(e, t.id)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 transition-all"
+                                >
+                                    <MoreHorizontal size={16} />
+                                </button>
                             )}
                         </td>
                     </tr>
                 ))}
             </tbody>
         </table>
+
+        {/* Dropdown Portal */}
+        {dropdown && createPortal(
+            <div
+                className="fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5"
+                style={{ top: dropdown.top, right: dropdown.right, minWidth: 175 }}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* تعديل */}
+                <button
+                    onClick={() => {
+                        const t = teachers.find((x: any) => x.id === dropdown.teacherId);
+                        if (t) { onEdit(t); setDropdown(null); }
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
+                >
+                    <Edit size={15} className="text-primary" /> تعديل
+                </button>
+
+                {/* نسخ النصاب */}
+                <button
+                    onClick={() => {
+                        const t = teachers.find((x: any) => x.id === dropdown.teacherId);
+                        if (t && onUpdateTeacher) {
+                            teachers.forEach((other: any) => {
+                                if (other.id !== t.id) {
+                                    onUpdateTeacher({ ...other, weeklyQuota: t.weeklyQuota, waitingQuota: t.waitingQuota });
+                                }
+                            });
+                        }
+                        setDropdown(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
+                >
+                    <Copy size={15} className="text-primary" /> نسخ النصاب
+                </button>
+
+                <div className="border-t border-slate-100 my-1" />
+
+                {/* حذف */}
+                {deleteConfirm === dropdown.teacherId ? (
+                    <div className="px-4 py-2.5">
+                        <p className="text-xs text-rose-600 font-bold mb-2">تأكيد الحذف؟</p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => { onDelete(dropdown.teacherId); setDropdown(null); setDeleteConfirm(null); }}
+                                className="flex-1 py-1.5 bg-rose-500 text-white text-xs rounded-lg font-black"
+                            >حذف</button>
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="flex-1 py-1.5 bg-slate-100 text-slate-600 text-xs rounded-lg font-black"
+                            >إلغاء</button>
+                        </div>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => setDeleteConfirm(dropdown.teacherId)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-500 hover:bg-rose-50 font-bold transition-colors"
+                    >
+                        <Trash2 size={15} /> حذف المعلم
+                    </button>
+                )}
+            </div>,
+            document.body
+        )}
+        </>
     );
 }
 

@@ -242,6 +242,24 @@ export interface Subject {
   isArchived?: boolean;
 }
 
+export interface TeacherSchoolEntry {
+  schoolId: string;
+  schoolName: string;
+  subjects: string[];
+  classes: string[];
+  lessons: number;
+  waiting: number;
+}
+
+export interface TeacherConstraintMap {
+  consecutiveLessons?: number;
+  excludedSlots?: Record<string, number[]>;
+  firstLastLessons?: { maxFirst?: number; maxLast?: number };
+  earlyExit?: Record<string, number>;
+  meetings?: string[];
+  presenceDays?: Record<string, string[]>; // { [schoolId]: ['sun','mon',...] }
+}
+
 export interface Teacher {
   id: string;
   name: string;
@@ -252,8 +270,13 @@ export interface Teacher {
   phone: string;
   targetPhase?: Phase;
   sortIndex?: number;
-  schoolId?: string; // 'main' or 'second'
-  sharedWithSchools?: string[]; // IDs of SharedSchools this teacher also works at
+  schoolId?: string; // 'main' or 'second' — legacy, kept for compatibility
+  sharedWithSchools?: string[]; // legacy
+  // ── New fields ──────────────────────────────
+  isShared?: boolean;                   // هل المعلم مشترك بين مدرستين؟
+  idNumber?: string | null;             // رقم الهوية
+  schools?: TeacherSchoolEntry[];       // بيانات المعلم لكل مدرسة
+  constraints?: TeacherConstraintMap;   // القيود (presenceDays جديد فقط)
 }
 
 export interface ClassInfo {
@@ -415,6 +438,11 @@ export interface TeacherConstraint {
   maxFirstPeriods?: number;         // الحد الأقصى للحصص الأولى أسبوعياً
   earlyExit?: Record<string, number>; // يوم → آخر حصة مسموحة (الخروج المبكر)
   earlyExitMode?: 'manual' | 'auto';  // نمط الخروج المبكر: يدوي أو تلقائي
+  // القيد السادس — أيام تواجد المعلم المشترك لكل مدرسة
+  // { schoolId: ['الأحد','الإثنين',...] }
+  // تأثير الخوارزمية: إذا كان presenceDays غير فارغ، لا تُسند للمعلم أي حصة
+  //   في مدرسة معينة في يوم غير مدرج في presenceDays[schoolId].
+  presenceDays?: Record<string, string[]>;
 }
 
 export interface SpecializedMeeting {

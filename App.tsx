@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react'; // For the lock UI
 import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType } from './types';
 import { INITIAL_SPECIALIZATIONS, INITIAL_SUBJECTS } from './constants';
+import { migrateTeacherStructure } from './utils/migrateTeachers';
 import { MessageArchiveProvider } from './components/messaging/MessageArchiveContext';
 import ToastProvider from './components/ui/ToastProvider';
 
@@ -114,6 +115,7 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
+    migrateTeacherStructure(); // تحديث هيكل بيانات المعلمين قبل تحميل الحالة
     const saved = localStorage.getItem('school_assignment_v4');
     if (saved) {
       try {

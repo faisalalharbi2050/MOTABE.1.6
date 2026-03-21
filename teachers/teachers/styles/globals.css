@@ -79,7 +79,6 @@ body {
   body, main, div {
     background: white !important;
     box-shadow: none !important;
-    border: none !important;
     overflow: visible !important;
   }
 

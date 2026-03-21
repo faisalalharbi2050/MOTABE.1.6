@@ -130,7 +130,7 @@ export default function TeacherConstraintsModal({
   });
   
   // Sections Expansions
-  const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c4: false, c5: false, c6: false });
+  const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c4: false, c5: false, c6: false, c7: false });
 
   // --- التوزيع التلقائي الفوري (Reactive Engine) ---
   // يُشغَّل فور فتح النافذة أو تغيّر الفصول / الأيام / المعلمين
@@ -1041,7 +1041,152 @@ export default function TeacherConstraintsModal({
                     </div>
                   )}
                 </div>
-                
+
+                {/* ══════════════════════════════════════════════════════════════
+                    القيد السابع — تخصيص أيام التواجد (للمعلم المشترك فقط)
+                    ══════════════════════════════════════════════════════════════ */}
+                {selTeacher?.isShared && (selTeacher.schools?.length ?? 0) > 0 && (
+                  <>
+                    {/* فاصل بصري */}
+                    <div className="flex items-center gap-3 px-1">
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                    </div>
+
+                    <div className="space-y-2">
+                      {renderSectionHeader('c7', 'bg-teal-50', 'border-teal-200', 'bg-teal-100', 'text-teal-600', Calendar, 'تخصيص أيام التواجد', 'أيام وجود المعلم المشترك في كل مدرسة')}
+
+                      {open.c7 && (() => {
+                        const schools      = selTeacher.schools!;
+                        const presenceDays = sc?.presenceDays ?? {};
+
+                        /** الأيام الفعلية لمدرسة (محفوظة أو تلقائية) */
+                        const getEffective = (schoolId: string, schoolIdx: number): string[] => {
+                          if (presenceDays[schoolId] !== undefined) return presenceDays[schoolId];
+                          if (schoolIdx === 0) return [];
+                          // تلقائي: الأيام غير المختارة في المدرسة الأولى
+                          const firstDays = presenceDays[schools[0].schoolId] ?? [];
+                          return days.filter(d => !firstDays.includes(d));
+                        };
+
+                        return (
+                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                            {schools.map((school, idx) => {
+                              const savedDays  = presenceDays[school.schoolId]; // undefined = auto
+                              const isAutoMode = idx > 0 && savedDays === undefined;
+                              const displayDays = isAutoMode ? getEffective(school.schoolId, idx) : (savedDays ?? []);
+
+                              // كشف التعارض: أيام هذه المدرسة تظهر في مدرسة أخرى أيضاً
+                              const otherEffective = schools.flatMap((s, si) =>
+                                si !== idx ? getEffective(s.schoolId, si) : []
+                              );
+                              const conflicts = displayDays.filter(d => otherEffective.includes(d));
+
+                              const toggleDay = (day: string) => {
+                                const current = isAutoMode
+                                  ? getEffective(school.schoolId, idx)
+                                  : (savedDays ?? []);
+                                const newDays = current.includes(day)
+                                  ? current.filter(d => d !== day)
+                                  : [...current, day];
+                                // clicking in auto mode switches to manual automatically
+                                updC(selId!, { presenceDays: { ...presenceDays, [school.schoolId]: newDays } });
+                              };
+
+                              const resetToAuto = () => {
+                                const pd = { ...presenceDays };
+                                delete pd[school.schoolId];
+                                updC(selId!, { presenceDays: pd });
+                              };
+
+                              return (
+                                <div
+                                  key={school.schoolId}
+                                  className={`p-4 rounded-2xl border transition-colors ${
+                                    conflicts.length > 0
+                                      ? 'border-rose-300 bg-rose-50/40'
+                                      : idx === 0
+                                        ? 'border-slate-200 bg-white'
+                                        : 'border-dashed border-slate-200 bg-slate-50/40'
+                                  }`}
+                                >
+                                  {/* اسم المدرسة + badge */}
+                                  <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm font-black text-slate-800">{school.schoolName}</p>
+                                    <div className="flex items-center gap-2">
+                                      {isAutoMode && (
+                                        <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                                          الأيام المتبقية تُحدد تلقائياً
+                                        </span>
+                                      )}
+                                      {!isAutoMode && idx > 0 && (
+                                        <button
+                                          onClick={resetToAuto}
+                                          className="text-[10px] font-bold text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
+                                        >
+                                          إعادة تلقائي
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* أزرار الأيام */}
+                                  <div className="flex flex-wrap gap-2">
+                                    {days.map(day => {
+                                      const isSelected  = displayDays.includes(day);
+                                      const isConflict  = conflicts.includes(day) && isSelected;
+                                      return (
+                                        <button
+                                          key={day}
+                                          type="button"
+                                          onClick={() => toggleDay(day)}
+                                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                                            isConflict  ? 'bg-rose-50 border-rose-400 text-rose-600 shadow-sm' :
+                                            isSelected  ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20' :
+                                            isAutoMode  ? 'bg-teal-50 text-teal-600 border-teal-200 opacity-80' :
+                                                          'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40'
+                                          }`}
+                                        >
+                                          {isConflict  && <AlertTriangle size={11} />}
+                                          {isSelected && !isConflict && <Check size={11} strokeWidth={3} />}
+                                          {getDayLabel(day)}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {/* تحذيرات التعارض */}
+                                  {conflicts.map(cd => (
+                                    <p key={cd} className="text-[11px] text-rose-600 font-bold mt-2 flex items-center gap-1">
+                                      <AlertTriangle size={11} />
+                                      يوم {getDayLabel(cd)} محدد في مدرستين في نفس الوقت
+                                    </p>
+                                  ))}
+
+                                  {/* تلميح للمدرسة الثانية عند عدم تحديد المدرسة الأولى بعد */}
+                                  {isAutoMode && displayDays.length === 0 && (
+                                    <p className="text-[10px] text-slate-400 font-bold mt-2">
+                                      حدّد أيام المدرسة الأولى أولاً لتُحسَب الأيام هنا تلقائياً
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                            {/* ── تأثير القيد على الخوارزمية ──────────────────────────────────
+                                عند إنشاء الجدول، إذا كان presenceDays غير فارغ:
+                                لا تُسند للمعلم أي حصة في مدرسة في يوم
+                                غير مدرج في presenceDays[schoolId] لتلك المدرسة.
+                                ─────────────────────────────────────────────────────────────── */}
+                            <div className="p-3 bg-teal-50/60 border border-teal-100 rounded-xl text-[10px] text-slate-500 font-bold leading-relaxed">
+                              💡 عند إنشاء الجدول، لن تُسند للمعلم أي حصة في مدرسة في يوم لم يُحدَّد كيوم تواجد لتلك المدرسة.
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+
               </div>
             )}
           </div>

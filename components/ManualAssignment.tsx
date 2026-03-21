@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, Phase, SchoolInfo, Specialization } from '../types';
+import SchoolTabs from './wizard/SchoolTabs';
 import { 
   Search, X, Trash2, ChevronDown, Filter, Check, Layers, Briefcase, 
   Printer, Users, CheckCircle2, User, HelpCircle, AlertTriangle, LayoutTemplate,
@@ -25,16 +26,21 @@ const ManualAssignment: React.FC<Props> = ({
   setAssignments, schoolInfo, gradeSubjectMap, specializations
 }) => {
   const [showReport, setShowReport] = useState(false);
-  
+
+  // -- Shared Schools --
+  const sharedSchools = schoolInfo.sharedSchools || [];
+  const hasSharedSchools = sharedSchools.length > 0;
+  const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
+
   // -- Filter States --
   const [teacherSearch, setTeacherSearch] = useState('');
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>([]);
   const [selectedTeacherFilterIds, setSelectedTeacherFilterIds] = useState<string[]>([]);
-  
+
   // -- Class Filter States (Multi-Select) --
   const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
-  
+
   // -- Selection States --
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
 
@@ -64,6 +70,23 @@ const ManualAssignment: React.FC<Props> = ({
   const THEME_COLOR = '#655ac1';
   const THEME_BG = '#e5e1fe';
 
+  // -- School-aware helpers --
+  const currentSchoolPhases = activeSchoolTab === 'main'
+    ? schoolInfo.phases
+    : (sharedSchools.find(s => s.id === activeSchoolTab)?.phases || schoolInfo.phases);
+
+  const isClassInCurrentSchool = (c: { schoolId?: string }) => {
+    if (!hasSharedSchools) return true;
+    if (activeSchoolTab === 'main') return !c.schoolId || c.schoolId === 'main';
+    return c.schoolId === activeSchoolTab;
+  };
+
+  const isTeacherInCurrentSchool = (t: { schoolId?: string }) => {
+    if (!hasSharedSchools) return true;
+    if (activeSchoolTab === 'main') return !t.schoolId || t.schoolId === 'main';
+    return t.schoolId === activeSchoolTab;
+  };
+
   // -- Helpers --
   const getTeacherLoad = (tId: string) => {
     return assignments.filter(a => a.teacherId === tId).reduce((total, a) => {
@@ -76,14 +99,14 @@ const ManualAssignment: React.FC<Props> = ({
     let totalPeriods = 0;
     let totalSubjects = 0;
     
-    classes.filter(c => schoolInfo.phases.includes(c.phase)).forEach(cls => {
-        const relevantSubjects = subjects.filter(s => 
-            !s.isArchived && 
+    classes.filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)).forEach(cls => {
+        const relevantSubjects = subjects.filter(s =>
+            !s.isArchived &&
             (gradeSubjectMap[`${cls.phase}-${cls.grade}`]?.includes(s.id) || cls.subjectIds?.includes(s.id))
         );
         // unique subjects for THIS class instance
         const uniqueSubjects = Array.from(new Set(relevantSubjects.map(s => s.id))).map(id => relevantSubjects.find(s => s.id === id)!);
-        
+
         uniqueSubjects.forEach(s => {
             totalPeriods += s.periodsPerClass;
         });
@@ -103,9 +126,9 @@ const ManualAssignment: React.FC<Props> = ({
 
   const getUnassignedClassesCount = () => {
       let count = 0;
-      classes.filter(c => schoolInfo.phases.includes(c.phase)).forEach(cls => {
-            const relevantSubjects = subjects.filter(s => 
-                !s.isArchived && 
+      classes.filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)).forEach(cls => {
+            const relevantSubjects = subjects.filter(s =>
+                !s.isArchived &&
                 (gradeSubjectMap[`${cls.phase}-${cls.grade}`]?.includes(s.id) || cls.subjectIds?.includes(s.id))
             );
             const uniqueSubjects = Array.from(new Set(relevantSubjects.map(s => s.id))).map(id => relevantSubjects.find(s => s.id === id)!);
@@ -124,16 +147,11 @@ const ManualAssignment: React.FC<Props> = ({
     return teachers.filter(t => {
       // 1. Filter by ID Selection (if any selected)
       const matchId = selectedTeacherFilterIds.length === 0 || selectedTeacherFilterIds.includes(t.id);
-      // 2. Filter by Search (text) - Only if not selecting specific IDs via dropdown (or combine logic?)
-      // Current requirement: "Dropdown with search text... select teacher or group...". 
-      // So search filters the list usually, but here we likely want the search to filter the DROPDOWN list, and the MAIN list shows selected.
-      // However, if no IDs selected, show ALL.
-      
       const matchSpec = selectedSpecs.length === 0 || selectedSpecs.includes(t.specializationId);
-      
-      return matchId && matchSpec;
+      const matchSchool = isTeacherInCurrentSchool(t);
+      return matchId && matchSpec && matchSchool;
     });
-  }, [teachers, selectedTeacherFilterIds, selectedSpecs]);
+  }, [teachers, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab]);
 
   // Dynamic Specializations (Only used ones)
   const availableSpecializations = useMemo(() => {
@@ -149,21 +167,22 @@ const ManualAssignment: React.FC<Props> = ({
   const activeGrades = useMemo(() => {
       const grades = new Set<number>();
       classes.forEach(c => {
-          if (schoolInfo.phases.includes(c.phase)) {
+          if (currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)) {
               grades.add(c.grade);
           }
       });
       return Array.from(grades).sort((a,b) => a - b);
-  }, [classes, schoolInfo.phases]);
+  }, [classes, currentSchoolPhases, activeSchoolTab]);
 
   // -- Derived State for Classes in Dropdown --
   const availableClassesForDropdown = useMemo(() => {
       return classes.filter(c => {
-          const phaseMatch = schoolInfo.phases.includes(c.phase);
+          const phaseMatch = currentSchoolPhases.includes(c.phase);
+          const schoolMatch = isClassInCurrentSchool(c);
           const gradeMatch = selectedGrades.length === 0 || selectedGrades.includes(c.grade);
-          return phaseMatch && gradeMatch;
+          return phaseMatch && schoolMatch && gradeMatch;
       });
-  }, [classes, schoolInfo.phases, selectedGrades]);
+  }, [classes, currentSchoolPhases, selectedGrades, activeSchoolTab]);
 
   // -- Filtered Content Logic (Workspace) --
   const displayedGrades = useMemo(() => {
@@ -185,7 +204,7 @@ const ManualAssignment: React.FC<Props> = ({
   }, [selectedGrades, selectedClassIds, activeGrades, classes]);
 
   const displayedClasses = (grade: number) => {
-      let gradeClasses = classes.filter(c => schoolInfo.phases.includes(c.phase) && c.grade === grade);
+      let gradeClasses = classes.filter(c => currentSchoolPhases.includes(c.phase) && c.grade === grade && isClassInCurrentSchool(c));
       
       // If specific classes selected, filter further
       if (selectedClassIds.length > 0) {
@@ -193,6 +212,16 @@ const ManualAssignment: React.FC<Props> = ({
       }
       return gradeClasses;
   }
+
+  // -- Switch School Tab --
+  const switchSchoolTab = (tabId: string) => {
+    setActiveSchoolTab(tabId);
+    setSelectedTeacherId(null);
+    setSelectedTeacherFilterIds([]);
+    setSelectedGrades([]);
+    setSelectedClassIds([]);
+    setSelectedSpecs([]);
+  };
 
   // -- Toggle Helpers --
   const toggleTeacherFilter = (id: string) => {
@@ -400,6 +429,15 @@ const ManualAssignment: React.FC<Props> = ({
         </h3>
         <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إضافة إسناد المواد للمعلمين عبر واجهة تفاعلية سهلة</p>
       </div>
+
+      {/* Shared Schools Tabs — شريط مستقل */}
+      {hasSharedSchools && (
+        <SchoolTabs
+          schoolInfo={schoolInfo}
+          activeSchoolId={activeSchoolTab}
+          onTabChange={switchSchoolTab}
+        />
+      )}
 
       {/* 2. ROW 2: Action Bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
