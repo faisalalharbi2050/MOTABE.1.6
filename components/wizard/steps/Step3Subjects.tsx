@@ -361,8 +361,9 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       </div>
 
       {/* Secondary Action Bar */}
-      <div className="flex gap-2">
-          <button 
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200/60 flex flex-col lg:flex-row lg:items-center gap-4 transition-all">
+        <div className="flex gap-2 flex-wrap">
+          <button
             onClick={() => setShowAbbreviationsModal(true)}
             title="اختصارات المواد"
             className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
@@ -372,14 +373,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           </button>
 
           {scheduleSettings && setScheduleSettings && (
-            <button 
+            <button
               onClick={() => setShowConstraintsModal(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+              className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] min-w-[145px]"
             >
               <Ban size={18} className="text-rose-500" />
               <span>قيود المواد</span>
             </button>
           )}
+        </div>
       </div>
 
       {/* Custom Plans Render Area */}

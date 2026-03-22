@@ -39,6 +39,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   });
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
+  const [confirmDeleteBreak, setConfirmDeleteBreak] = useState<number | null>(null);
+  const [confirmDeletePrayer, setConfirmDeletePrayer] = useState<number | null>(null);
 
   // Ensure config exists for main and shared schools
   useEffect(() => {
@@ -431,7 +433,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
            name: 'الصلاة',
            duration: 20,
            afterPeriod,
-           isEnabled: true
+           isEnabled: false
        };
        updateTiming({ prayers: [...(currentTiming.prayers || []), newPrayer] });
   };
@@ -474,6 +476,25 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       const themeColor = currentTiming.season === 'summer' ? '#f59e0b' : currentTiming.season === 'winter' ? '#2a93d5' : '#3bb273';
       const bgColor = currentTiming.season === 'summer' ? '#fffbeb' : currentTiming.season === 'winter' ? '#eaf6fd' : '#ebf9f2';
 
+      // Current date in Gregorian and Hijri
+      const now = new Date();
+      const gregDate = now.toLocaleDateString('ar-SA-u-ca-gregory', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const hijriDate = now.toLocaleDateString('ar-SA-u-ca-islamic', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const dayName = now.toLocaleDateString('ar-SA', { weekday: 'long' });
+
+      // Semester label
+      const currentSemester = (schoolInfo.semesters || []).find(s => s.id === schoolInfo.currentSemesterId);
+      const semesterLabel = currentSemester?.name || '';
+
+      // Ministry of Education logo SVG (simplified)
+      const moeLogo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="80" height="80">
+        <circle cx="50" cy="50" r="48" fill="none" stroke="#1a5276" stroke-width="3"/>
+        <text x="50" y="38" text-anchor="middle" font-size="9" font-weight="bold" fill="#1a5276" font-family="Tajawal,sans-serif">وزارة</text>
+        <text x="50" y="52" text-anchor="middle" font-size="9" font-weight="bold" fill="#1a5276" font-family="Tajawal,sans-serif">التعليم</text>
+        <text x="50" y="66" text-anchor="middle" font-size="7" fill="#1a5276" font-family="Tajawal,sans-serif">المملكة العربية</text>
+        <text x="50" y="78" text-anchor="middle" font-size="7" fill="#1a5276" font-family="Tajawal,sans-serif">السعودية</text>
+      </svg>`;
+
       const html = `
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
@@ -481,59 +502,76 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           <title>${title}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
-            body { font-family: 'Tajawal', sans-serif; padding: 40px; }
-            .header { display: flex; justify-content: space-between; items-center; margin-bottom: 40px; border-bottom: 3px solid ${themeColor}; padding-bottom: 20px; }
-            .school-info h1 { font-size: 24px; font-weight: 900; margin: 0 0 10px; color: #1e293b; }
-            .school-info p { margin: 0; color: #64748b; font-weight: bold; }
-            .logo h2 { font-size: 32px; font-weight: 900; color: ${themeColor}; margin: 0; }
-            .schedule-title { text-align: center; margin-bottom: 30px; }
-            .schedule-title h2 { font-size: 28px; font-weight: 900; color: #1e293b; margin: 0; }
-            .schedule-title p { color: #64748b; margin-top: 5px; font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-            th { background: ${bgColor}; color: #1e293b; font-weight: 900; padding: 15px; text-align: right; border: 2px solid ${themeColor}; }
-            td { padding: 15px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155; }
+            * { box-sizing: border-box; }
+            @page { size: A4 portrait; margin: 10mm 12mm; }
+            html, body { width: 210mm; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; font-size: 11px; }
+            .page-wrapper { width: 100%; padding: 0; }
+            .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; border-bottom: 2px solid ${themeColor}; padding-bottom: 8px; }
+            .header-right { text-align: right; }
+            .header-right p { margin: 2px 0; font-size: 10px; font-weight: bold; color: #1e293b; }
+            .header-right p span { color: #334155; }
+            .header-center { text-align: center; flex: 0 0 70px; display: flex; flex-direction: column; align-items: center; }
+            .header-left { text-align: left; }
+            .header-left p { margin: 2px 0; font-size: 10px; font-weight: bold; color: #1e293b; }
+            .header-left p span { color: #334155; }
+            .schedule-title { text-align: center; margin: 6px 0 8px; }
+            .schedule-title h2 { font-size: 14px; font-weight: 900; color: #1e293b; margin: 0 0 3px; }
+            .schedule-title .season-badge { display: inline-block; background: ${bgColor}; color: #1e293b; border: 1px solid ${themeColor}; border-radius: 5px; padding: 1px 10px; font-size: 10px; font-weight: bold; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+            th { background: ${bgColor}; color: #1e293b; font-weight: 900; padding: 5px 8px; text-align: right; border: 1px solid ${themeColor}; font-size: 10px; }
+            td { padding: 4px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155; font-size: 10px; }
             .time-cell { text-align: center; direction: ltr; font-family: sans-serif; }
-            .footer { display: flex; justify-content: space-between; margin-top: 60px; }
+            .footer { display: flex; justify-content: flex-end; margin-top: 16px; }
             .signature { text-align: center; }
-            .signature p { font-weight: bold; margin-bottom: 60px; color: #1e293b; }
-            .signature .line { width: 200px; border-bottom: 2px solid #cbd5e1; margin: 0 auto; }
-            .notes { background: ${bgColor}; padding: 20px; border-radius: 12px; border: 1px solid ${themeColor}; margin-top: 20px; }
+            .signature p { font-weight: bold; margin-bottom: 20px; color: #1e293b; font-size: 10px; }
+            .signature .line { width: 140px; border-bottom: 1.5px solid #cbd5e1; margin: 0 auto; }
+            .notes { background: ${bgColor}; padding: 6px 10px; border-radius: 5px; border: 1px solid ${themeColor}; margin-top: 8px; font-size: 10px; }
             @media print {
-               body { padding: 0; }
                .no-print { display: none; }
             }
           </style>
         </head>
         <body>
-          <div class="header">
-             <div class="school-info">
-                <h1>${schoolInfo.schoolName}</h1>
-                <p>إدارة التعليم: ${schoolInfo.educationAdministration || ''}</p>
-                <p>المرحلة: ${(schoolInfo.phases || []).join('، ')}</p>
-             </div>
-             <div class="logo">
-                ${schoolInfo.logo ? `<img src="${schoolInfo.logo}" style="height: 100px;" />` : `<h2>${schoolInfo.schoolName}</h2>`}
-             </div>
+          <div class="page-header">
+            <!-- Right side -->
+            <div class="header-right">
+              <p>المملكة العربية السعودية</p>
+              <p>وزارة التعليم</p>
+              <p>إدارة التعليم بمنطقة <span>${schoolInfo.region || ''}</span></p>
+              <p>المدرسة: <span>${schoolInfo.schoolName || ''}</span></p>
+            </div>
+            <!-- Center: logo -->
+            <div class="header-center">
+              ${moeLogo}
+            </div>
+            <!-- Left side -->
+            <div class="header-left">
+              <p>العام الدراسي: <span>${schoolInfo.academicYear || ''}</span></p>
+              ${semesterLabel ? `<p>الفصل الدراسي: <span>${semesterLabel}</span></p>` : ''}
+              <p>اليوم: <span>${dayName}</span></p>
+              <p>التاريخ: <span>${hijriDate}</span></p>
+              <p style="font-size:11px;color:#64748b;">${gregDate}</p>
+            </div>
           </div>
-          
+
           <div class="schedule-title">
-             <h2>${title}</h2>
-             <p>العام الدراسي ${schoolInfo.academicYear || '1445'}</p>
+            <h2>التوقيت الزمني</h2>
+            <span class="season-badge">${title}</span>
           </div>
-          
+
           <table>
              <thead>
                 <tr>
-                   <th style="width: 60px;">#</th>
-                   <th>الفعالية/الحصة</th>
-                   <th style="width: 150px; text-align: center;">بداية الوقت</th>
-                   <th style="width: 150px; text-align: center;">نهاية الوقت</th>
+                   <th style="width: 55px;">#</th>
+                   <th>الفعالية / الحصة</th>
+                   <th style="width: 140px; text-align: center;">بداية الوقت</th>
+                   <th style="width: 140px; text-align: center;">نهاية الوقت</th>
                    <th style="width: 100px; text-align: center;">المدة</th>
                 </tr>
              </thead>
              <tbody>
                 ${schedule.map((item, idx) => `
-                   ${!printOptions.showBreaks && item.type === 'break' ? '' : 
+                   ${!printOptions.showBreaks && item.type === 'break' ? '' :
                      !printOptions.showPrayer && item.type === 'prayer' ? '' :
                     `<tr>
                       <td>${idx + 1}</td>
@@ -546,22 +584,20 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                 `).join('')}
              </tbody>
           </table>
-          
+
           ${currentTiming.notes && printOptions.showNotes ? `
              <div class="notes">
                 <strong>ملاحظات:</strong>
                 <p>${currentTiming.notes}</p>
              </div>
           ` : ''}
-          
+
           <div class="footer">
              <div class="signature">
                 <p>مدير المدرسة</p>
-                <p>${schoolInfo.principal || '....................'}</p>
-             </div>
-             <div class="signature">
-                <p>وكيل الشؤون المدرسية</p>
+                <p>${schoolInfo.principal || ''}</p>
                 <div class="line"></div>
+                <p style="margin-top:8px;font-size:11px;color:#94a3b8;">التوقيع</p>
              </div>
           </div>
         </body>
@@ -571,7 +607,6 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       printWindow.document.write(html);
       printWindow.document.close();
       printWindow.focus();
-      // Wait for images to load if any
       setTimeout(() => {
         printWindow.print();
         printWindow.close();
@@ -627,6 +662,17 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       <div className="space-y-6 print:hidden">
          
           <div className="space-y-6">
+                  {/* School Tabs - always visible for shared schools */}
+                  {schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0 && (
+                      <div className="animate-in slide-in-from-top-2 duration-300">
+                          <SchoolTabs
+                              schoolInfo={schoolInfo}
+                              activeSchoolId={activeTab}
+                              onTabChange={setActiveTab}
+                          />
+                      </div>
+                  )}
+
                   {/* Shared School Mode Selection - Separate Card */}
                   {schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0 && (
                       <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
@@ -635,11 +681,11 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* Option 1: Unified Timing */}
-                              <div 
+                              <div
                                   onClick={() => handleSharedModeChange('unified')}
                                   className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 group ${
                                       (currentTiming.sharedSchoolMode || 'unified') === 'unified'
-                                      ? 'bg-[#f0effb] border-[#655ac1] shadow-md'
+                                      ? 'bg-white border-[#655ac1] shadow-md'
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
@@ -668,11 +714,11 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                               </div>
 
                               {/* Option 2: Separate Timing */}
-                              <div 
+                              <div
                                   onClick={() => handleSharedModeChange('separate')}
                                   className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 group ${
                                       currentTiming.sharedSchoolMode === 'separate'
-                                      ? 'bg-[#f0effb] border-[#655ac1] shadow-md'
+                                      ? 'bg-white border-[#655ac1] shadow-md'
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
@@ -700,17 +746,6 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                   )}
                               </div>
                           </div>
-                      </div>
-                  )}
-
-                  {/* School Tabs - Moved here */}
-                  {schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0 && currentTiming.sharedSchoolMode === 'separate' && (
-                      <div className="mt-6 animate-in slide-in-from-top-2 duration-300">
-                          <SchoolTabs 
-                              schoolInfo={schoolInfo}
-                              activeSchoolId={activeTab}
-                              onTabChange={setActiveTab}
-                          />
                       </div>
                   )}
 
@@ -786,22 +821,29 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                   </div>
 
                    {/* Weekly Total - Bottom Left */}
-                   <div className="absolute bottom-4 right-4 bg-[#e5e1fe] text-[#655ac1] px-4 py-1 rounded-xl text-xs font-black shadow-sm flex items-center gap-2 border border-[#8779fb]/20">
-                      <span className="text-slate-600">الإجمالي الأسبوعي:</span>
-                      <span className="text-xl">{WeeklyTotal}</span>
-                      <span className="text-[10px] opacity-75">حصة</span>
+                   <div className="absolute bottom-4 right-4 bg-white text-[#655ac1] px-4 py-1 rounded-xl text-xs font-black shadow-sm flex items-center gap-2 border border-[#8779fb]">
+                      <span className="text-[#655ac1]">الإجمالي الأسبوعي:</span>
+                      <span className="text-xl text-[#655ac1]">{WeeklyTotal}</span>
+                      <span className="text-[10px] text-[#8779fb] opacity-75">حصة</span>
                    </div>
               </div>
               </div>
               
               {/* Settings Group - Time, Breaks, Prayers */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                      <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                          <Clock size={20} className="text-[#655ac1]" />
+                          إعدادات التوقيت
+                      </h2>
+                      <span className="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-lg font-bold">اختياري</span>
+                  </div>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-slate-100">
                       
                       {/* Column 1: Time Settings */}
                       <div className="lg:pl-6">
                          <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-6">
-                             <Clock size={20} className="text-[#655ac1]" /> إعدادات الوقت الأساسية
+                             <Clock size={20} className="text-[#655ac1]" /> التوقيت الزمني
                          </h3>
                          <div className="space-y-4">
                              <div className="space-y-2">
@@ -842,63 +884,44 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                             </button>
                         </div>
                         
-                        <div className="space-y-3">
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                             {currentTiming.breaks?.map((b, idx) => (
-                                <div key={b.id} className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3 relative group hover:border-[#8779fb]/50 transition-all">
-                                    <button 
-                                        onClick={() => {
-                                            const newBreaks = currentTiming.breaks?.filter((_, i) => i !== idx);
-                                            updateTiming({ breaks: newBreaks });
-                                        }}
-                                        className="absolute top-2 left-2 text-slate-300 hover:text-rose-500 p-1 rounded-full hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100"
-                                        title="حذف الفسحة"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 block">مسمى الفسحة</label>
-                                        <input 
-                                            value={b.name}
-                                            onChange={(e) => {
-                                                const newBreaks = [...(currentTiming.breaks || [])];
-                                                newBreaks[idx] = { ...newBreaks[idx], name: e.target.value };
-                                                updateTiming({ breaks: newBreaks });
-                                            }}
-                                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-sm outline-none focus:border-[#8779fb] focus:bg-white transition-all"
-                                            placeholder="مثال: الفسحة الأولى"
-                                        />
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-2">
-                                             <label className="text-xs font-bold text-slate-500 block">بعد الحصة</label>
-                                             <select 
-                                                value={b.afterPeriod}
-                                                onChange={(e) => {
-                                                    const newBreaks = [...(currentTiming.breaks || [])];
-                                                    newBreaks[idx] = { ...newBreaks[idx], afterPeriod: parseInt(e.target.value) };
-                                                    updateTiming({ breaks: newBreaks });
-                                                }}
-                                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-sm outline-none focus:border-[#8779fb] focus:bg-white transition-all"
-                                             >
-                                                {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
-                                             </select>
+                                <div key={b.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:border-[#8779fb]/50 transition-all">
+                                    {confirmDeleteBreak === idx ? (
+                                        <div className="p-3 bg-rose-50 flex items-center justify-between gap-2">
+                                            <span className="text-xs font-bold text-rose-600">حذف "{b.name}"؟</span>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => { const nb = currentTiming.breaks?.filter((_, i) => i !== idx); updateTiming({ breaks: nb }); setConfirmDeleteBreak(null); }} className="text-xs bg-rose-500 text-white px-3 py-1 rounded-lg font-bold hover:bg-rose-600 transition-colors">حذف</button>
+                                                <button onClick={() => setConfirmDeleteBreak(null)} className="text-xs bg-white text-slate-600 border border-slate-200 px-3 py-1 rounded-lg font-bold hover:bg-slate-50 transition-colors">إلغاء</button>
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-500 block">المدة (د)</label>
-                                            <input 
-                                                type="number" 
-                                                value={b.duration}
-                                                onChange={(e) => {
-                                                    const newBreaks = [...(currentTiming.breaks || [])];
-                                                    newBreaks[idx] = { ...newBreaks[idx], duration: parseInt(e.target.value) };
-                                                    updateTiming({ breaks: newBreaks });
-                                                }}
-                                                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-sm outline-none focus:border-[#8779fb] focus:bg-white transition-all text-center"
-                                            />
+                                    ) : (
+                                        <div className="p-3 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    value={b.name}
+                                                    onChange={(e) => { const nb = [...(currentTiming.breaks || [])]; nb[idx] = { ...nb[idx], name: e.target.value }; updateTiming({ breaks: nb }); }}
+                                                    className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-xs outline-none focus:border-[#8779fb] focus:bg-white transition-all"
+                                                    placeholder="مسمى الفسحة"
+                                                />
+                                                <button onClick={() => setConfirmDeleteBreak(idx)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex-shrink-0" title="حذف">
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-400 block mb-1">بعد الحصة</label>
+                                                    <select value={b.afterPeriod} onChange={(e) => { const nb = [...(currentTiming.breaks || [])]; nb[idx] = { ...nb[idx], afterPeriod: parseInt(e.target.value) }; updateTiming({ breaks: nb }); }} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-xs outline-none focus:border-[#8779fb] transition-all">
+                                                        {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-bold text-slate-400 block mb-1">المدة (د)</label>
+                                                    <input type="number" value={b.duration} onChange={(e) => { const nb = [...(currentTiming.breaks || [])]; nb[idx] = { ...nb[idx], duration: parseInt(e.target.value) }; updateTiming({ breaks: nb }); }} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-xs outline-none focus:border-[#8779fb] transition-all text-center" />
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             ))}
                             {(!currentTiming.breaks || currentTiming.breaks.length === 0) && (
@@ -923,79 +946,56 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                              </button>
                           </div>
                           
-                          <div className="space-y-3">
+                          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                               {currentTiming.prayers?.map((p, idx) => (
-                                  <div key={p.id} className={`p-4 rounded-xl border transition-all space-y-3 relative group ${p.isEnabled ? 'bg-[#e5e1fe]/30 border-[#e5e1fe]' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
-                                      <div className="absolute top-2 left-2 flex items-center gap-1">
-                                          <button 
-                                             onClick={() => {
-                                                 const newPrayers = [...(currentTiming.prayers || [])];
-                                                 newPrayers[idx] = { ...newPrayers[idx], isEnabled: !newPrayers[idx].isEnabled };
-                                                 updateTiming({ prayers: newPrayers });
-                                             }}
-                                             className={`p-1 rounded-full transition-colors ${p.isEnabled ? 'text-[#655ac1] hover:bg-[#e5e1fe]' : 'text-slate-400 hover:text-[#655ac1]'}`}
-                                             title={p.isEnabled ? 'إخفاء من الجدول' : 'إظهار في الجدول'}
-                                          >
-                                              <Check size={16} className={p.isEnabled ? 'opacity-100' : 'opacity-0'} />
-                                              {!p.isEnabled && <div className="w-4 h-4 rounded-full border-2 border-slate-300"></div>}
-                                          </button>
-                                          <button 
-                                             onClick={() => {
-                                                 const newPrayers = currentTiming.prayers?.filter((_, i) => i !== idx);
-                                                 updateTiming({ prayers: newPrayers });
-                                             }}
-                                             className="text-slate-300 hover:text-rose-500 p-1 rounded-full hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100"
-                                             title="حذف الصلاة"
-                                          >
-                                              <Trash2 size={16} />
-                                          </button>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                          <label className="text-xs font-bold text-slate-500 block">الصلاة</label>
-                                          <input 
-                                              type="text"
-                                              value={p.name}
-                                              onChange={(e) => {
-                                                  const newPrayers = [...(currentTiming.prayers || [])];
-                                                  newPrayers[idx] = { ...newPrayers[idx], name: e.target.value };
-                                                  updateTiming({ prayers: newPrayers });
-                                              }}
-                                              className="w-full p-2.5 bg-white border border-[#e5e1fe] rounded-lg font-bold text-sm outline-none focus:border-[#8779fb] focus:bg-white transition-all text-[#655ac1]"
-                                              placeholder="اسم الصلاة"
-                                          />
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-3">
-                                           <div className="space-y-2">
-                                               <label className="text-xs font-bold text-slate-500 block">بعد الحصة</label>
-                                               <select 
-                                                   value={p.afterPeriod}
-                                                   onChange={(e) => {
-                                                      const newPrayers = [...(currentTiming.prayers || [])];
-                                                      newPrayers[idx] = { ...newPrayers[idx], afterPeriod: parseInt(e.target.value) };
-                                                      updateTiming({ prayers: newPrayers });
-                                                   }}
-                                                   className="w-full p-2.5 bg-white border border-[#e5e1fe] rounded-lg font-bold text-sm outline-none focus:border-[#8779fb] focus:bg-white transition-all text-[#655ac1]"
-                                               >
-                                                   {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
-                                               </select>
-                                           </div>
-                                           <div className="space-y-2">
-                                               <label className="text-xs font-bold text-slate-500 block">المدة (د)</label>
-                                               <input 
-                                                   type="number" 
-                                                   value={p.duration}
-                                                   onChange={(e) => {
-                                                      const newPrayers = [...(currentTiming.prayers || [])];
-                                                      newPrayers[idx] = { ...newPrayers[idx], duration: parseInt(e.target.value) };
-                                                      updateTiming({ prayers: newPrayers });
-                                                   }}
-                                                   className="w-full p-2.5 bg-white border border-[#e5e1fe] rounded-lg font-bold text-sm outline-none focus:border-[#8779fb] focus:bg-white transition-all text-[#655ac1] text-center"
-                                               />
-                                           </div>
-                                      </div>
-                                   </div>
-                               ))}
+                                  <div key={p.id} className={`rounded-xl border overflow-hidden transition-all ${p.isEnabled ? 'border-[#e5e1fe]' : 'border-slate-200'}`}>
+                                      {confirmDeletePrayer === idx ? (
+                                          <div className="p-3 bg-rose-50 flex items-center justify-between gap-2">
+                                              <span className="text-xs font-bold text-rose-600">حذف "{p.name}"؟</span>
+                                              <div className="flex gap-2">
+                                                  <button onClick={() => { const np = currentTiming.prayers?.filter((_, i) => i !== idx); updateTiming({ prayers: np }); setConfirmDeletePrayer(null); }} className="text-xs bg-rose-500 text-white px-3 py-1 rounded-lg font-bold hover:bg-rose-600 transition-colors">حذف</button>
+                                                  <button onClick={() => setConfirmDeletePrayer(null)} className="text-xs bg-white text-slate-600 border border-slate-200 px-3 py-1 rounded-lg font-bold hover:bg-slate-50 transition-colors">إلغاء</button>
+                                              </div>
+                                          </div>
+                                      ) : (
+                                          <div className={`p-3 space-y-2 ${p.isEnabled ? 'bg-[#e5e1fe]/20' : 'bg-slate-50'}`}>
+                                              {/* Header row: toggle + name + delete */}
+                                              <div className="flex items-center gap-2">
+                                                  <button
+                                                      onClick={() => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], isEnabled: !np[idx].isEnabled }; updateTiming({ prayers: np }); }}
+                                                      className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold transition-all border ${p.isEnabled ? 'bg-[#e5e1fe] text-[#655ac1] border-[#8779fb]/30' : 'bg-white text-slate-400 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1]'}`}
+                                                      title={p.isEnabled ? 'إلغاء التفعيل' : 'تفعيل'}
+                                                  >
+                                                      {p.isEnabled ? <CheckCircle size={12} /> : <div className="w-3 h-3 rounded-full border-2 border-slate-300" />}
+                                                      {p.isEnabled ? 'مفعّل' : 'غير مفعّل'}
+                                                  </button>
+                                                  <input
+                                                      type="text"
+                                                      value={p.name}
+                                                      onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], name: e.target.value }; updateTiming({ prayers: np }); }}
+                                                      className="flex-1 p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700"
+                                                      placeholder="اسم الصلاة"
+                                                  />
+                                                  <button onClick={() => setConfirmDeletePrayer(idx)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex-shrink-0" title="حذف">
+                                                      <Trash2 size={15} />
+                                                  </button>
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                  <div>
+                                                      <label className="text-[10px] font-bold text-slate-400 block mb-1">بعد الحصة</label>
+                                                      <select value={p.afterPeriod} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], afterPeriod: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700">
+                                                          {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
+                                                      </select>
+                                                  </div>
+                                                  <div>
+                                                      <label className="text-[10px] font-bold text-slate-400 block mb-1">المدة (د)</label>
+                                                      <input type="number" value={p.duration} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], duration: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-center text-slate-700" />
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+                              ))}
                                {(!currentTiming.prayers || currentTiming.prayers.length === 0) && (
                                   <div className="text-center p-4 text-slate-400 text-sm font-bold border-2 border-dashed border-slate-100 rounded-xl">
                                       لا توجد صلوات مضافة
@@ -1097,13 +1097,19 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                 <td className="px-6 py-4 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                         {/* Add Below Button */}
-                                         <button 
-                                            onClick={() => handleAddRowBelow(item, index)} 
-                                            className="text-emerald-500 hover:text-emerald-600 p-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
-                                            title="إضافة فعالية جديدة أسفل هذا الصف"
-                                        >
+                                        <div className="relative group/tooltip">
+                                          <button
+                                            onClick={() => handleAddRowBelow(item, index)}
+                                            className="text-[#655ac1] hover:text-[#8779fb] p-1.5 rounded-lg hover:bg-[#e5e1fe] transition-colors"
+                                            title="إضافة فعالية"
+                                          >
                                             <Plus size={18} />
-                                        </button>
+                                          </button>
+                                          <div className="absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-44 bg-white text-[#655ac1] text-xs rounded-xl px-3 py-2 font-bold opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 text-center leading-relaxed shadow-lg border border-[#8779fb]/30">
+                                            أضف فعالية: حصة - فسحة - ...
+                                            <div className="absolute top-full right-1/2 translate-x-1/2 border-4 border-transparent border-t-white"></div>
+                                          </div>
+                                        </div>
 
                                         {/* Delete Button - ALWAYS visible for all removable items */}
                                         <button 

@@ -158,6 +158,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   const handleBulkEditToggle = () => {
       if (!isBulkEdit) {
+          if (currentSchoolTeachers.length === 0) {
+              showToast('لا يوجد معلمون في القائمة للتعديل', 'warning');
+              return;
+          }
           // Entering Edit Mode: Snapshot current state
           teachersSnapshot.current = JSON.stringify(teachers);
           setIsBulkEdit(true);
@@ -1029,7 +1033,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       {/* ══════ Modals (Hidden in Print) ══════ */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
-             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
+             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                         {modalMode === 'add' ? <User size={24} className="text-emerald-500" /> : <Edit size={24} className="text-[#655ac1]" />}
@@ -1040,7 +1044,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     </button>
                 </div>
                 
-                <div className="p-8 space-y-6">
+                <div className="p-8 space-y-6 overflow-y-auto flex-1">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-2">اسم المعلم <span className="text-rose-500">*</span></label>
                         <input 
@@ -1125,11 +1129,23 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                             </div>
                         </div>
                      </div>
+
+                     {(() => {
+                       const quotaTotal = Number(currentTeacher.quotaLimit ?? 0) + Number(currentTeacher.waitingQuota ?? 0);
+                       return quotaTotal > 24 ? (
+                         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                           <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                             إجمالي النصاب الحالي <span className="text-amber-900">{quotaTotal}</span> حصة، وهو يتجاوز النصاب الرسمي (24). يمكنك المتابعة لكن يُنصح بمراجعة النصاب.
+                           </p>
+                         </div>
+                       ) : null;
+                     })()}
                 </div>
 
                 <div className="p-6 bg-slate-50 flex gap-3">
-                    <button 
-                        onClick={saveTeacher} 
+                    <button
+                        onClick={saveTeacher}
                         className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all flex items-center justify-center gap-2"
                     >
                         <CheckCircle2 size={18} /> حفظ البيانات
@@ -1893,8 +1909,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 <Copy size={15} className="text-[#655ac1]" /> نسخ النصاب
             </button>
 
-            {/* ربط بمدرسة أخرى — يظهر فقط إذا المعلم غير مشترك */}
-            {!teachers.find(x => x.id === actionDropdown.teacherId)?.isShared && (
+            {/* ربط بمدرسة أخرى — يظهر فقط إذا وجدت مدارس مشتركة والمعلم غير مشترك */}
+            {schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0 && !teachers.find(x => x.id === actionDropdown.teacherId)?.isShared && (
                 <button
                     onClick={() => { openLinkSchoolModal(actionDropdown.teacherId); setActionDropdown(null); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"

@@ -705,11 +705,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           </div>
 
           {/* ── Bulk Action Bar ── */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200/60 flex flex-wrap items-center justify-between gap-3 transition-all">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#e5e1fe] flex items-center justify-center flex-shrink-0">
-                <Settings2 size={16} className="text-[#655ac1]" />
-              </div>
+              <Settings2 size={20} className="text-[#655ac1]" />
               <div>
                 <span className="text-sm font-black text-slate-700">إجراءات الفصول</span>
                 {selectedClasses.size > 0 && (
@@ -717,27 +715,27 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => { if (selectedClasses.size > 0) setShowGlobalRenameModal(true); }}
                 disabled={selectedClasses.size === 0}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#8779fb] hover:text-[#655ac1] text-slate-600"
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
               >
-                <Pencil size={13} /> تعديل المسمى
+                <Pencil size={15} className="text-indigo-500" /> تعديل المسمى
               </button>
               <button
                 onClick={() => { if (selectedClasses.size > 0) setShowGlobalPeriodsModal(true); }}
                 disabled={selectedClasses.size === 0}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#8779fb] hover:text-[#655ac1] text-slate-600"
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
               >
-                <Clock size={13} /> تخصيص حصص
+                <Clock size={15} className="text-[#655ac1]" /> تخصيص الحصص
               </button>
               <button
                 onClick={() => { if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true); }}
                 disabled={selectedClasses.size === 0}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-50 text-rose-500"
+                className="flex items-center gap-2 bg-white hover:bg-rose-50 text-rose-500 border border-rose-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-rose-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
               >
-                <Trash2 size={13} /> حذف المحدد
+                <Trash2 size={15} /> حذف المحدد
               </button>
               {currentSchoolClasses.length > 0 && (
                 <button

@@ -478,6 +478,9 @@ export default function TeachersAndStaff() {
     setShowModal(false);
   };
 
+  const quotaTotal = Number(currentTeacher.weeklyQuota ?? 0) + Number(currentTeacher.waitingQuota ?? 0);
+  const showQuotaWarning = modalMode !== 'add_admin' && quotaTotal >= 24;
+
   return (
     <div className="p-8">
         <div className="animate-fade-in">
@@ -875,6 +878,41 @@ export default function TeachersAndStaff() {
                                 <input type="number" value={currentTeacher.waitingQuota} onChange={e => setCurrentTeacher({...currentTeacher, waitingQuota: Number(e.target.value)})} className="w-full p-2 border rounded-lg text-center font-bold" disabled={currentTeacher.weeklyQuota === 24 && !currentTeacher.isAdmin} />
                              </div>
                         </div>
+
+                        {/* Quota Warning - outside grid */}
+                        {modalMode !== 'add_admin' && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '12px',
+                                background: '#fffbeb',
+                                border: '1.5px solid #f59e0b',
+                                borderRadius: '12px',
+                                padding: '12px 16px'
+                            }}>
+                                <div style={{
+                                    flexShrink: 0,
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    background: '#f59e0b',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontWeight: 900,
+                                    fontSize: '16px'
+                                }}>!</div>
+                                <div>
+                                    <p style={{margin: 0, fontWeight: 800, fontSize: '14px', color: '#92400e'}}>
+                                        تنبيه: النصاب الرسمي (24)
+                                    </p>
+                                    <p style={{margin: '3px 0 0', fontSize: '12px', color: '#b45309'}}>
+                                        إجمالي النصاب الحالي {quotaTotal} حصة — يمكنك المتابعة.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
                             <Button variant="ghost" onClick={() => setShowModal(false)}>إلغاء</Button>
