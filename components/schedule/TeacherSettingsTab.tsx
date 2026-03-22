@@ -261,7 +261,7 @@ export default function TeacherSettingsTab({
           <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center text-[#655ac1]">
             <Shield size={20} />
           </div>
-          <h3 className="font-black text-slate-700 text-sm">ملاحظة عن قيود المعلمين</h3>
+          <h3 className="font-black text-slate-700 text-sm">ملاحظة عن قيود المعلمون</h3>
         </div>
         <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
           جميع المعلمين لديهم حد تتابع تلقائي (4 حصص متتالية كحد أقصى). يمكنك تخصيص قيود إضافية لكل معلم من القائمة الجانبية وتحديد أوقات الخروج المبكر.

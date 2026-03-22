@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { INITIAL_SPECIALIZATIONS } from '../constants';
+import { normalizeSpecializationId } from './migrateTeachers';
 
 export interface TeacherData {
   id: string;
@@ -16,36 +17,35 @@ export interface TeacherData {
 
 const normalizeSpecialization = (input: string): string => {
   const s = input.trim();
-  
-  // Direct match check
+
+  // Direct name match
   const directMatch = INITIAL_SPECIALIZATIONS.find(spec => spec.name === s);
   if (directMatch) return directMatch.id;
 
-  // Fuzzy Mapping Rules
-  if (/اسلام|دين|قرآن|توحيد|فقه|حديث|تفسير/.test(s)) return "1"; // الدراسات الإسلامية
-  if (/عرب|لغتي/.test(s)) return "2"; // اللغة العربية
-  if (/نجليز|English|E/.test(s)) return "5"; // اللغة الإنجليزية
-  if (/اجتماع|تاريخ|جغرافيا|وطنية/.test(s)) return "6"; // الاجتماعيات
-  if (/حاسب|رقمي|تقنية/.test(s)) return "7"; // الحاسب الآلي
-  if (/فنية|فني/.test(s)) return "8"; // التربية الفنية
-  if (/بدني|رياضة/.test(s)) return "9"; // التربية البدنية
+  // Shared normalization map (covers exact & common variant names)
+  const fromMap = normalizeSpecializationId(s);
+  if (fromMap !== '99') return fromMap;
+
+  // Additional fuzzy regex for Excel column values
+  if (/[اإ]سلام|دراسات\s*[اإ]سلام|قرآن|توحيد|فقه|حديث|تفسير/.test(s)) return "1";
+  if (/عرب|لغتي/.test(s)) return "2";
+  if (/نجليز|English/.test(s)) return "5";
+  if (/اجتماع|تاريخ|جغرافيا|وطنية/.test(s)) return "6";
+  if (/حاسب|رقمي/.test(s)) return "7";
+  if (/فنية|فني/.test(s)) return "8";
+  if (/بدني|رياضة/.test(s)) return "9";
   if (/كيمياء/.test(s)) return "10";
   if (/فيزياء/.test(s)) return "12";
-  if (/أحياء/.test(s)) return "11";
-  if (/علوم/.test(s)) return "4"; // العلوم (if not bio/chem/phys)
-  
-  if (/رياضيات|جبر|هندسة/.test(s)) return "3"; // الرياضيات
-  if (/علوم إدارية|إدارة/.test(s)) return "13"; // الإدارة المالية / علوم إدارية
-  if (/مكتب|مصادر/.test(s)) return "24"; // المكتبات
-  if (/فكر/.test(s)) return "14"; // تربية فكرية
-  if (/صعوب/.test(s)) return "15"; // صعوبات تعلم
-  if (/توحد/.test(s)) return "16"; // توحد
-  if (/مهار/.test(s)) return "17"; // المهارات الحياتية
-  if (/تفكر/.test(s)) return "18"; // التفكير الناقد
-  if (/نفس/.test(s)) return "19"; // الدراسات النفسية
-  if (/أرض/.test(s)) return "20"; // علم الأرض والفضاء
-  
-  return "99"; // أخرى
+  if (/[أا]حياء/.test(s)) return "11";
+  if (/علوم/.test(s)) return "4";
+  if (/رياضيات|جبر|هندسة/.test(s)) return "3";
+  if (/[اإ]دارة/.test(s)) return "13";
+  if (/مكتب|مصادر/.test(s)) return "17";
+  if (/فكر/.test(s)) return "14";
+  if (/صعوب/.test(s)) return "15";
+  if (/توحد/.test(s)) return "16";
+
+  return "99";
 };
 
 export const parseTeachersExcel = (file: File): Promise<TeacherData[]> => {

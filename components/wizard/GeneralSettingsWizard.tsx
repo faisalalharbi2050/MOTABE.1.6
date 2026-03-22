@@ -42,6 +42,8 @@ interface WizardProps {
   setAdmins: React.Dispatch<React.SetStateAction<Admin[]>>;
   gradeSubjectMap: Record<string, string[]>;
   setGradeSubjectMap: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  phaseDepartmentMap: Record<string, string>;
+  setPhaseDepartmentMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onComplete: () => void;
   scheduleSettings: ScheduleSettingsData;
   setScheduleSettings: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
@@ -56,6 +58,7 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
     students, setStudents,
     admins, setAdmins,
     gradeSubjectMap, setGradeSubjectMap,
+    phaseDepartmentMap, setPhaseDepartmentMap,
     onComplete,
     scheduleSettings, setScheduleSettings,
     assignments
@@ -116,7 +119,7 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
       case 1: return <Step1General schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 2: return <Step2AcademicYear schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 3: return <Step2Timing schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
-      case 4: return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
+      case 4: return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} phaseDepartmentMap={phaseDepartmentMap} setPhaseDepartmentMap={setPhaseDepartmentMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 5: return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 6: return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 7: return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} classes={classes} />;

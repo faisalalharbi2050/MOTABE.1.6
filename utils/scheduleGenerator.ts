@@ -56,6 +56,12 @@ export async function generateSchedule(
     if (existingTimetable) {
         Object.keys(existingTimetable).forEach(key => {
             teacherOccupied.add(key);
+            // key format: "teacherId-day-period"
+            const parts = key.split('-');
+            const p = parseInt(parts[parts.length - 1]);
+            const tid = parts.slice(0, parts.length - 2).join('-');
+            if (p === 1) teacherFirstPeriodCount.set(tid, (teacherFirstPeriodCount.get(tid) || 0) + 1);
+            if (p === periodsPerDay) teacherLastPeriodCount.set(tid, (teacherLastPeriodCount.get(tid) || 0) + 1);
         });
     }
     
@@ -66,6 +72,10 @@ export async function generateSchedule(
     // Detailed Teacher Tracking for balanced distribution
     // Number of periods a teacher teaches per day: "teacherId-day" => count
     const teacherDailyLoad = new Map<string, number>();
+
+    // Track first/last period assignments per teacher (across all days/classes)
+    const teacherFirstPeriodCount = new Map<string, number>(); // teacherId => count
+    const teacherLastPeriodCount  = new Map<string, number>(); // teacherId => count
 
     // ── Facility Capacity Constraint ──────────────────────────────────────
     // Identify facility entries (grade === 0 with linkedSubjectIds)
@@ -277,7 +287,25 @@ export async function generateSchedule(
                          return false;
                     }
                 }
-                
+
+                // Check First/Last Period Limits
+                if (!isBypassingConflicts && constraint) {
+                    if (period === 1 && constraint.maxFirstPeriods !== undefined) {
+                        const used = teacherFirstPeriodCount.get(t.id) || 0;
+                        if (used >= constraint.maxFirstPeriods) {
+                            if (slotIndex === 0) console.log(`   -> REJECTED: Teacher reached maxFirstPeriods (${constraint.maxFirstPeriods})`);
+                            return false;
+                        }
+                    }
+                    if (period === periodsPerDay && constraint.maxLastPeriods !== undefined) {
+                        const used = teacherLastPeriodCount.get(t.id) || 0;
+                        if (used >= constraint.maxLastPeriods) {
+                            if (slotIndex === 0) console.log(`   -> REJECTED: Teacher reached maxLastPeriods (${constraint.maxLastPeriods})`);
+                            return false;
+                        }
+                    }
+                }
+
                 return true;
             });
             
@@ -297,6 +325,8 @@ export async function generateSchedule(
                 teacherOccupied.add(`${validTeacher.id}-${day}-${period}`);
                 classSubjectCounts.set(`${classId}-${subj.id}`, (classSubjectCounts.get(`${classId}-${subj.id}`) || 0) + 1);
                 teacherDailyLoad.set(`${validTeacher.id}-${day}`, (teacherDailyLoad.get(`${validTeacher.id}-${day}`) || 0) + 1);
+                if (period === 1) teacherFirstPeriodCount.set(validTeacher.id, (teacherFirstPeriodCount.get(validTeacher.id) || 0) + 1);
+                if (period === periodsPerDay) teacherLastPeriodCount.set(validTeacher.id, (teacherLastPeriodCount.get(validTeacher.id) || 0) + 1);
 
                 // ── Update facility usage counter ─────────────────────────
                 const assignedFacilities = subjectFacilityMap.get(subj.id);

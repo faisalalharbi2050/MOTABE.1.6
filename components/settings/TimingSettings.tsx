@@ -833,7 +833,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                   <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
                       <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                          <Clock size={20} className="text-[#655ac1]" />
+                          <Settings size={20} className="text-[#655ac1]" />
                           إعدادات التوقيت
                       </h2>
                       <span className="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-lg font-bold">اختياري</span>

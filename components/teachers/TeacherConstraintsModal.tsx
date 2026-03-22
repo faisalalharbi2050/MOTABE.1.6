@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Teacher, Specialization, TeacherConstraint, SpecializedMeeting, ClassInfo } from '../../types';
-import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Plus, Repeat, GripVertical, ChevronUp, ChevronDown, Calendar, Sparkles, Check, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Teacher, Specialization, TeacherConstraint, SpecializedMeeting, ClassInfo, Phase } from '../../types';
+import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Plus, Repeat, GripVertical, ChevronUp, ChevronDown, Calendar, Sparkles, Check, CheckCircle2, RotateCcw, MapPin } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -28,6 +28,8 @@ interface Props {
   periodCounts?: Record<string, number>; // عدد الحصص لكل يوم على حدة
   warnings?: ValidationWarning[];
   classes?: ClassInfo[];
+  mainSchoolName?: string;
+  schoolPhasesMap?: Record<string, Phase[]>; // schoolId => phases
   onChangeConstraints: (c: TeacherConstraint[]) => void;
   onChangeMeetings: (m: SpecializedMeeting[]) => void;
 }
@@ -36,7 +38,7 @@ export default function TeacherConstraintsModal({
   isOpen, onClose,
   teachers = [], specializations = [], constraints = [], meetings = [], activeDays = [], periodsPerDay = 7,
   periodCounts = {},
-  warnings = [], classes = [], onChangeConstraints, onChangeMeetings
+  warnings = [], classes = [], mainSchoolName = 'المدرسة الرئيسية', schoolPhasesMap = {}, onChangeConstraints, onChangeMeetings
 }: Props) {
 
   // --- Safe Locals ---
@@ -110,7 +112,32 @@ export default function TeacherConstraintsModal({
   const [selId, setSelId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'spec' | 'alpha'>('spec');
-  const [specOrder, setSpecOrder] = useState<string[]>(() => INITIAL_SPECIALIZATIONS.map(s => s.id));
+  // Only include specialization IDs that are actually used by teachers
+  const usedSpecIds = useMemo(() => {
+    const ids = Array.from(new Set(teachers.map(t => t.specializationId).filter(Boolean))) as string[];
+    // Preserve order from INITIAL_SPECIALIZATIONS for known IDs, append unknowns at the end
+    const ordered = INITIAL_SPECIALIZATIONS.map(s => s.id).filter(id => ids.includes(id));
+    const extras = ids.filter(id => !INITIAL_SPECIALIZATIONS.some(s => s.id === id));
+    return [...ordered, ...extras];
+  }, [teachers]);
+
+  const [specOrder, setSpecOrder] = useState<string[]>(() => {
+    const ids = Array.from(new Set(teachers.map(t => t.specializationId).filter(Boolean))) as string[];
+    const ordered = INITIAL_SPECIALIZATIONS.map(s => s.id).filter(id => ids.includes(id));
+    const extras = ids.filter(id => !INITIAL_SPECIALIZATIONS.some(s => s.id === id));
+    return [...ordered, ...extras];
+  });
+
+  // Sync specOrder when teachers change (add/remove)
+  useEffect(() => {
+    setSpecOrder(prev => {
+      // Keep existing order for IDs still in use, add new ones at end, remove unused
+      const kept = prev.filter(id => usedSpecIds.includes(id));
+      const added = usedSpecIds.filter(id => !prev.includes(id));
+      return [...kept, ...added];
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usedSpecIds]);
   const [showSpecPanel, setShowSpecPanel] = useState(false);
   const [showCopy, setShowCopy] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
@@ -124,10 +151,10 @@ export default function TeacherConstraintsModal({
   const [copyOpts, setCopyOpts] = useState({
     consecutive: true,
     excluded: true,
-    allocation: true,
     firstLast: true,
     earlyEntry: true,
   });
+  const [copySearch, setCopySearch] = useState('');
   
   // Sections Expansions
   const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c4: false, c5: false, c6: false, c7: false });
@@ -278,7 +305,8 @@ export default function TeacherConstraintsModal({
   // --- Filters ---
   const filteredTeachers = teachers.filter(t => {
     if (!t || !t.name) return false;
-    const sName = specializations.find(s => s.id === t.specializationId)?.name || '';
+    const sName = specializations.find(s => s.id === t.specializationId)?.name
+      || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name || '';
     const term = search.toLowerCase();
     return t.name.toLowerCase().includes(term) || sName.toLowerCase().includes(term);
   }).sort((a, b) => {
@@ -321,7 +349,7 @@ export default function TeacherConstraintsModal({
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1]"><Sliders size={22} /></div>
             <div>
-              <h2 className="text-lg font-black text-slate-800">قيود المعلمين</h2>
+              <h2 className="text-lg font-black text-slate-800">قيود المعلمون</h2>
               <p className="text-[11px] text-slate-400 font-bold">إدارة القيود والتفضيلات الفردية للمعلمين</p>
             </div>
           </div>
@@ -341,7 +369,11 @@ export default function TeacherConstraintsModal({
                 <button onClick={() => setSortBy('spec')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${sortBy==='spec'?'bg-[#655ac1] text-white':'bg-slate-100 text-slate-500'}`}>التخصص</button>
                 <button onClick={() => setSortBy('alpha')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${sortBy==='alpha'?'bg-[#655ac1] text-white':'bg-slate-100 text-slate-500'}`}>أبجدي</button>
                 {sortBy === 'spec' && (
-                  <button onClick={() => setShowSpecPanel(!showSpecPanel)} className={`p-1.5 rounded-lg transition-all ${showSpecPanel?'bg-[#655ac1] text-white':'bg-slate-100 text-slate-500'}`}><GripVertical size={14} /></button>
+                  <button onClick={() => setShowSpecPanel(!showSpecPanel)}
+                    className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${showSpecPanel ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                    <GripVertical size={12} />
+                    ترتيب
+                  </button>
                 )}
               </div>
               {/* Spec Sorting Panel */}
@@ -379,16 +411,18 @@ export default function TeacherConstraintsModal({
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {filteredTeachers.map(t => {
                 const isSel = selId === t.id;
-                const spName = specializations.find(s => s.id === t.specializationId)?.name || '';
+                const spName = specializations.find(s => s.id === t.specializationId)?.name
+                  || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name
+                  || '';
                 const hasC = constraints.some(c => c.teacherId === t.id);
                 return (
                   <button key={t.id} onClick={() => setSelId(t.id)}
-                    className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-colors ${isSel ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white border-transparent hover:bg-slate-50'}`}>
+                    className={`w-full text-right p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${isSel ? 'bg-white border-[#655ac1] shadow-sm shadow-[#655ac1]/10' : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'}`}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold truncate">{t.name}</div>
-                      <div className={`text-[10px] truncate ${isSel ? 'text-white/70' : 'text-slate-400'}`}>{spName}</div>
+                      <div className={`text-xs font-bold truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                      <div className={`text-[10px] truncate ${isSel ? 'text-[#655ac1]/60' : 'text-slate-400'}`}>{spName}</div>
                     </div>
-                    {hasC && <div className={`w-1.5 h-1.5 rounded-full ${isSel ? 'bg-white' : 'bg-[#655ac1]'}`} />}
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${isSel ? 'bg-emerald-500' : hasC ? 'bg-[#655ac1]/40' : 'hidden'}`} />
                   </button>
                 );
               })}
@@ -448,7 +482,7 @@ export default function TeacherConstraintsModal({
                           const isAct = (sc?.maxConsecutive ?? 2) === n;
                           return (
                             <button key={n} onClick={() => updC(selTeacher.id, { maxConsecutive: n })}
-                              className={`w-14 h-12 rounded-xl border-2 flex items-center justify-center transition-all ${isAct ? 'border-violet-500 bg-violet-50 shadow-sm shadow-violet-100' : 'border-slate-100 hover:border-violet-200 bg-white'}`}>
+                              className={`w-14 h-12 rounded-xl border-2 flex items-center justify-center transition-all ${isAct ? 'border-violet-500 bg-white shadow-sm shadow-violet-100' : 'border-slate-100 hover:border-violet-200 bg-white'}`}>
                               <span className={`text-base font-black ${isAct ? 'text-violet-600' : 'text-slate-400'}`}>{n}</span>
                             </button>
                           );
@@ -458,96 +492,111 @@ export default function TeacherConstraintsModal({
                   )}
                 </div>
 
-                {/* 2. Excluded Slots - Improved Layout, Check (Available) vs X (Excluded) */}
+                {/* 2. Excluded Slots */}
                 <div className="space-y-2">
                   {renderSectionHeader('c2', 'bg-rose-50', 'border-rose-200', 'bg-rose-100', 'text-rose-600', Ban, 'استثناء الحصص', 'منع إسناد حصص معينة')}
                   {open.c2 && (
-                      <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-x-auto">
+                    <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm overflow-x-auto">
 
-                        {/* توجيه سريع */}
-                        <div className="flex flex-wrap gap-3 mb-4 min-w-[600px]">
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-xl">
-                            <Ban size={11} className="text-rose-400 shrink-0" />
-                            <span className="text-[10px] font-bold text-rose-600">انقر على <span className="font-black">رقم الحصة</span> لإغلاق تلك الحصة في جميع الأيام</span>
+                      {/* توجيه سريع */}
+                      <div className="flex flex-wrap gap-2 mb-4 min-w-[520px]">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg flex-1">
+                          <div className="w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center shrink-0">
+                            <span className="text-white font-black text-[9px]">١</span>
                           </div>
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-xl">
-                            <Ban size={11} className="text-rose-400 shrink-0" />
-                            <span className="text-[10px] font-bold text-rose-600">انقر على <span className="font-black">اسم اليوم</span> لإغلاق جميع حصصه دفعةً واحدة</span>
-                          </div>
+                          <span className="text-[10px] font-bold text-rose-700">انقر على <span className="font-black underline decoration-rose-400">رقم الحصة</span> لإغلاق تلك الحصة في جميع الأيام</span>
                         </div>
-
-                        <div className="min-w-[600px]">
-                          {/* Header */}
-                          <div className="flex mb-3 gap-2">
-                             <div className="w-24 shrink-0"></div>
-                             {periods.map(p => (
-                               <div key={p} className="flex-1 text-center">
-                                  <button onClick={() => {
-                                      const c = getC(selTeacher.id);
-                                      const currentSlots = c.excludedSlots || {};
-                                      const allBlocked = days.every(d => (currentSlots[d] || []).includes(p));
-                                      const newSlots = { ...currentSlots };
-                                      days.forEach(d => {
-                                        const daySlots = newSlots[d] || [];
-                                        if (allBlocked) newSlots[d] = daySlots.filter(x => x !== p);
-                                        else if (!daySlots.includes(p)) newSlots[d] = [...daySlots, p];
-                                      });
-                                      updC(selTeacher.id, { excludedSlots: newSlots });
-                                  }} className="w-8 h-8 rounded-full bg-slate-50 text-[10px] font-black text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors mx-auto flex items-center justify-center">
-                                    {p}
-                                  </button>
-                               </div>
-                             ))}
+                        <div className="flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg flex-1">
+                          <div className="w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center shrink-0">
+                            <span className="text-white font-black text-[9px]">٢</span>
                           </div>
-                          
-                          {/* Body */}
-                          <div className="space-y-2">
-                            {days.map(d => (
-                              <div key={d} className="flex items-center gap-2 group">
-                                <button onClick={() => {
-                                      const c = getC(selTeacher.id);
-                                      const current = c.excludedSlots?.[d] || [];
-                                      const newSlots = { ...(c.excludedSlots || {}) };
-                                      newSlots[d] = current.length === safePeriodsCount ? [] : [...periods];
-                                      updC(selTeacher.id, { excludedSlots: newSlots });
-                                }} className="w-24 shrink-0 text-right px-3 py-2 text-[11px] font-bold text-slate-500 rounded-xl group-hover:bg-slate-50 group-hover:text-slate-700 transition-colors">
-                                  {getDayLabel(d)}
-                                </button>
-                                
-                                {periods.map(p => {
-                                    const isEx = (sc?.excludedSlots?.[d] || []).includes(p);
-                                    const isEarly = (sc?.earlyExit?.[d] !== undefined) && p > sc.earlyExit[d];
-                                    
-                                    return (
-                                      <div key={p} className="flex-1 flex justify-center">
-                                        <button 
-                                          onClick={() => {
-                                            if (isEarly) return;
-                                            const c = getC(selTeacher.id);
-                                            const cur = c.excludedSlots?.[d] || [];
-                                            const newSlots = { ...(c.excludedSlots || {}) };
-                                            newSlots[d] = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p];
-                                            updC(selTeacher.id, { excludedSlots: newSlots });
-                                          }}
-                                          disabled={isEarly}
-                                          className={`w-full max-w-[3rem] h-9 rounded-lg flex items-center justify-center transition-all duration-200
-                                            ${isEarly ? 'bg-slate-50 border border-slate-100 opacity-50 cursor-not-allowed' : 
-                                              isEx 
-                                                ? 'bg-rose-50 border border-rose-100 text-rose-500 hover:border-rose-300 hover:shadow-sm' // Excluded
-                                                : 'bg-emerald-50 border border-emerald-100 text-emerald-500 hover:border-emerald-300 hover:shadow-sm' // Available
-                                            }`}>
-                                          {isEarly && <span className="text-slate-300">-</span>}
-                                          {!isEarly && isEx && <X size={16} strokeWidth={3} />}
-                                          {!isEarly && !isEx && <Check size={16} strokeWidth={3} />}
-                                        </button>
-                                      </div>
-                                    );
-                                })}
-                              </div>
-                            ))}
-                          </div>
+                          <span className="text-[10px] font-bold text-rose-700">انقر على <span className="font-black underline decoration-rose-400">اسم اليوم</span> لإغلاق جميع حصصه دفعةً واحدة</span>
                         </div>
                       </div>
+
+                      <div className="min-w-[520px]">
+                        <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
+
+                          {/* Header - Period Numbers */}
+                          <div className="flex bg-slate-50 border-b-2 border-slate-200">
+                            <div className="w-20 shrink-0 border-r-2 border-slate-200 px-2 py-2 flex items-center justify-center">
+                              <span className="text-[8px] font-black text-slate-400 tracking-wider">اليوم / الحصة</span>
+                            </div>
+                            {periods.map((p, pi) => {
+                              const allBlocked = days.every(d => (sc?.excludedSlots?.[d] || []).includes(p));
+                              return (
+                                <div key={p} className={`flex-1 flex justify-center items-center py-2 ${pi < periods.length - 1 ? 'border-r border-slate-200' : ''}`}>
+                                  <button onClick={() => {
+                                    const c = getC(selTeacher.id);
+                                    const currentSlots = c.excludedSlots || {};
+                                    const isAllBlocked = days.every(d => (currentSlots[d] || []).includes(p));
+                                    const newSlots = { ...currentSlots };
+                                    days.forEach(d => {
+                                      const daySlots = newSlots[d] || [];
+                                      if (isAllBlocked) newSlots[d] = daySlots.filter(x => x !== p);
+                                      else if (!daySlots.includes(p)) newSlots[d] = [...daySlots, p];
+                                    });
+                                    updC(selTeacher.id, { excludedSlots: newSlots });
+                                  }} className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs transition-all
+                                    ${allBlocked
+                                      ? 'bg-rose-500 text-white border-2 border-rose-500'
+                                      : 'bg-white border-2 border-slate-300 text-slate-600 hover:border-rose-400 hover:text-rose-500 hover:bg-rose-50'
+                                    }`}>
+                                    {p}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Body - Days */}
+                          {days.map((d, di) => (
+                            <div key={d} className={`flex ${di < days.length - 1 ? 'border-b border-slate-200' : ''}`}>
+                              <button onClick={() => {
+                                const c = getC(selTeacher.id);
+                                const current = c.excludedSlots?.[d] || [];
+                                const newSlots = { ...(c.excludedSlots || {}) };
+                                newSlots[d] = current.length === safePeriodsCount ? [] : [...periods];
+                                updC(selTeacher.id, { excludedSlots: newSlots });
+                              }} className="w-20 shrink-0 border-r-2 border-slate-200 px-2 py-2 text-center text-[10px] font-black text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                {getDayLabel(d)}
+                              </button>
+
+                              {periods.map((p, pi) => {
+                                const isEx = (sc?.excludedSlots?.[d] || []).includes(p);
+                                const isEarly = (sc?.earlyExit?.[d] !== undefined) && p > sc.earlyExit[d];
+
+                                return (
+                                  <div key={p} className={`flex-1 flex justify-center items-center py-1.5 ${pi < periods.length - 1 ? 'border-r border-slate-200' : ''} ${isEx ? 'bg-rose-50/60' : ''}`}>
+                                    <button
+                                      onClick={() => {
+                                        if (isEarly) return;
+                                        const c = getC(selTeacher.id);
+                                        const cur = c.excludedSlots?.[d] || [];
+                                        const newSlots = { ...(c.excludedSlots || {}) };
+                                        newSlots[d] = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p];
+                                        updC(selTeacher.id, { excludedSlots: newSlots });
+                                      }}
+                                      disabled={isEarly}
+                                      className={`w-8 h-7 rounded-lg flex items-center justify-center transition-all duration-200
+                                        ${isEarly
+                                          ? 'opacity-25 cursor-not-allowed bg-slate-100 border-2 border-slate-200'
+                                          : isEx
+                                            ? 'bg-rose-100 border-2 border-rose-400 text-rose-500 hover:bg-rose-200 shadow-sm shadow-rose-100'
+                                            : 'bg-emerald-50 border-2 border-emerald-300 text-emerald-500 hover:bg-emerald-100 shadow-sm shadow-emerald-100'
+                                        }`}>
+                                      {isEarly && <span className="text-slate-300 font-bold text-xs">—</span>}
+                                      {!isEarly && isEx && <X size={12} strokeWidth={3} />}
+                                      {!isEarly && !isEx && <Check size={12} strokeWidth={3} />}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -561,26 +610,26 @@ export default function TeacherConstraintsModal({
                       <div className="px-5 pt-4 pb-4 border-b border-slate-100 bg-slate-50/60 space-y-3">
                         <div className="flex items-start gap-2.5">
                           <div className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0 mt-0.5 font-black text-[10px]">١</div>
-                          <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                          <p className="text-xs text-slate-600 leading-relaxed font-medium">
                             <span className="font-black text-slate-700">التوزيع التلقائي:</span> يقوم النظام آلياً بحساب <span className="text-[#655ac1] font-black">عدد الفصول × عدد الأيام</span> = عدد الحصص الأولى والأخيرة المطلوبة، ثم يوزعها بالتساوي على جميع المعلمين.
                           </p>
                         </div>
                         <div className="flex items-start gap-2.5">
                           <div className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0 mt-0.5 font-black text-[10px]">٢</div>
                           <div className="space-y-1.5">
-                            <p className="text-[11px] text-slate-700 font-black">التخصيص اليدوي:</p>
+                            <p className="text-xs text-slate-700 font-black">التخصيص اليدوي:</p>
                             <ul className="space-y-1">
-                              <li className="flex items-start gap-1.5 text-[11px] text-slate-600 font-medium leading-relaxed">
+                              <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
                                 <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
                                 يمكنك تعديل نصيب أي معلم يدوياً من الجدول أدناه، وسيتكيّف النظام تلقائياً مع تعديلاتك.
                               </li>
-                              <li className="flex items-start gap-1.5 text-[11px] text-slate-600 font-medium leading-relaxed">
+                              <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
                                 <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
                                 تتبّع شريط التغطية أدناه لمعرفة حالة التوزيع، وفي حال وجود نقص سيظهر لك تنبيه تلقائي.
                               </li>
-                              <li className="flex items-start gap-1.5 text-[11px] text-slate-600 font-medium leading-relaxed">
+                              <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
                                 <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
-                                إذا رغبت في العودة للتوزيع العادل التلقائي استخدم <span className="font-black text-[#655ac1]">زر الإعادة</span>.
+                                إذا رغبت في العودة للتوزيع العادل التلقائي استخدم <span className="font-black text-[#655ac1]">زر إعادة التوزيع التلقائي بالأسفل</span>.
                               </li>
                             </ul>
                           </div>
@@ -592,30 +641,19 @@ export default function TeacherConstraintsModal({
 
                         {/* إحصاءات: فصول × أيام = مطلوب + معلمون + نصيب */}
                         <div className="grid grid-cols-6 gap-2">
-                          <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <span className="text-2xl font-black text-slate-800">{periodEngine.numClasses}</span>
-                            <span className="text-[9px] font-bold text-slate-400">فصل</span>
-                          </div>
-                          <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <span className="text-2xl font-black text-slate-800">{periodEngine.numDays}</span>
-                            <span className="text-[9px] font-bold text-slate-400">يوم دراسي</span>
-                          </div>
-                          <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <span className="text-2xl font-black text-slate-800">{periodEngine.totalNeeded}</span>
-                            <span className="text-[9px] font-bold text-slate-400">حصة مطلوبة</span>
-                          </div>
-                          <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <span className="text-2xl font-black text-slate-800">{periodEngine.numQualified}</span>
-                            <span className="text-[9px] font-bold text-slate-400">عدد المعلمين</span>
-                          </div>
-                          <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <span className="text-2xl font-black text-slate-800">{periodEngine.teacherShare}</span>
-                            <span className="text-[9px] font-bold text-slate-400">نصيب المعلم أولى</span>
-                          </div>
-                          <div className="flex flex-col items-center justify-center gap-0.5 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <span className="text-2xl font-black text-slate-800">{periodEngine.teacherShare}</span>
-                            <span className="text-[9px] font-bold text-slate-400">نصيب المعلم أخيرة</span>
-                          </div>
+                          {[
+                            { value: periodEngine.numClasses,    label: 'فصل' },
+                            { value: periodEngine.numDays,       label: 'يوم دراسي' },
+                            { value: periodEngine.totalNeeded,   label: 'حصة مطلوبة' },
+                            { value: periodEngine.numQualified,  label: 'عدد المعلمين' },
+                            { value: periodEngine.teacherShare,  label: 'نصيب المعلم أولى' },
+                            { value: periodEngine.teacherShare,  label: 'نصيب المعلم أخيرة' },
+                          ].map(({ value, label }) => (
+                            <div key={label} className="flex flex-col items-center justify-center gap-1 py-3 bg-white border border-slate-200 rounded-xl shadow-sm shadow-slate-100">
+                              <span className="text-2xl font-black text-[#655ac1]">{value}</span>
+                              <span className="text-[10px] font-bold text-slate-400">{label}</span>
+                            </div>
+                          ))}
                         </div>
 
                         {/* شريطا تغطية */}
@@ -683,7 +721,7 @@ export default function TeacherConstraintsModal({
                           className="w-full flex items-center justify-center gap-2 py-2 border border-[#655ac1]/40 bg-[#e5e1fe]/40 hover:bg-[#e5e1fe] hover:border-[#655ac1] active:scale-[0.98] text-[#655ac1] text-[11px] font-black rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <RotateCcw size={13} />
-                          إعادة التوزيع العادل التلقائي
+                          إعادة التوزيع التلقائي
                         </button>
                       </div>
 
@@ -880,70 +918,96 @@ export default function TeacherConstraintsModal({
                 <div className="space-y-2">
                   {renderSectionHeader('c5', 'bg-violet-50', 'border-violet-200', 'bg-violet-100', 'text-violet-600', Clock, 'الخروج المبكر', 'إنهاء الدوام مبكراً')}
                   {open.c5 && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-                      
-                      <div className="flex justify-center">
-                        <div className="bg-slate-100 p-1.5 rounded-xl inline-flex relative">
-                           {['manual', 'auto'].map(m => {
-                             const isSel = (sc?.earlyExitMode || 'manual') === m;
-                             return (
-                               <button key={m} onClick={() => updC(selTeacher.id, { earlyExitMode: m as any })}
-                                 className={`relative z-10 px-6 py-2 rounded-lg text-xs font-bold transition-all ${isSel ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                                 {m === 'manual' ? 'تحديد يوم يدوي' : 'تحديد يوم تلقائي'}
-                               </button>
-                             );
-                           })}
-                        </div>
+                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+
+                      {/* اختيار الوضع */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          {
+                            mode: 'manual',
+                            title: 'تحديد يدوي',
+                            desc: 'أنت تختار اليوم والحصة التي ينهي فيها المعلم دوامه مبكراً',
+                          },
+                          {
+                            mode: 'auto',
+                            title: 'تحديد تلقائي',
+                            desc: 'النظام يُحدد يوم الخروج تلقائياً بناءً على الجدول الدراسي',
+                          },
+                        ].map(({ mode, title, desc }) => {
+                          const isSel = (sc?.earlyExitMode || 'manual') === mode;
+                          return (
+                            <button key={mode}
+                              onClick={() => updC(selTeacher.id, { earlyExitMode: mode as any })}
+                              className={`text-right p-4 rounded-2xl border-2 transition-all duration-200 ${
+                                isSel
+                                  ? 'border-slate-400 bg-white shadow-sm shadow-slate-200'
+                                  : 'border-slate-200 bg-white hover:border-slate-300'
+                              }`}>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'border-slate-600 bg-slate-600' : 'border-slate-300'}`}>
+                                  {isSel && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                </div>
+                                <span className={`text-sm font-black transition-colors ${isSel ? 'text-slate-700' : 'text-slate-500'}`}>{title}</span>
+                              </div>
+                              <p className="text-[10px] font-medium text-slate-400 leading-relaxed pr-5">{desc}</p>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      <div className="bg-violet-50/50 rounded-2xl p-6 border border-violet-100/50 flex flex-col md:flex-row gap-6 items-center">
+                      {/* الإعدادات */}
+                      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
                         {(sc?.earlyExitMode || 'manual') === 'manual' && (
-                          <div className="w-full md:w-1/2">
-                            <label className="text-xs font-bold text-slate-500 block mb-2">اليوم المطلوب</label>
+                          <div className="flex-1">
+                            <label className="text-xs font-black text-slate-600 block mb-2">اليوم المطلوب</label>
+                            <p className="text-[10px] text-slate-400 font-medium mb-2">اختر اليوم الذي يخرج فيه المعلم مبكراً</p>
                             <div className="relative">
-                                <select 
-                                  value={sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : ''}
-                                  onChange={e => {
-                                    const d = e.target.value;
-                                    if (!d) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                    const oldP = sc?.earlyExit ? Object.values(sc.earlyExit)[0] : (safePeriodsCount - 1);
-                                    updC(selTeacher.id, { earlyExit: { [d]: oldP || (safePeriodsCount - 1) } });
-                                  }}
-                                  className="w-full p-3 bg-white border border-violet-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-violet-100 outline-none">
-                                  <option value="">-- اختر يوماً --</option>
-                                  {days.map(d => <option key={d} value={d}>{getDayLabel(d)}</option>)}
-                                </select>
-                                <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                              <select
+                                value={sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : ''}
+                                onChange={e => {
+                                  const d = e.target.value;
+                                  if (!d) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                  const oldP = sc?.earlyExit ? Object.values(sc.earlyExit)[0] : (safePeriodsCount - 1);
+                                  updC(selTeacher.id, { earlyExit: { [d]: oldP || (safePeriodsCount - 1) } });
+                                }}
+                                className="w-full p-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold focus:border-slate-400 focus:ring-4 focus:ring-slate-50 outline-none appearance-none transition-all">
+                                <option value="">— اختر اليوم —</option>
+                                {days.map(d => <option key={d} value={d}>{getDayLabel(d)}</option>)}
+                              </select>
+                              <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
                           </div>
                         )}
 
-                        <div className="w-full md:w-1/2">
-                          <label className="text-xs font-bold text-slate-500 block mb-2">الخروج بعد الحصة</label>
+                        <div className="flex-1">
+                          <label className="text-xs font-black text-slate-600 block mb-2">الخروج بعد الحصة</label>
+                          <p className="text-[10px] text-slate-400 font-medium mb-2">رقم الحصة الأخيرة التي يُدرّسها المعلم</p>
                           <div className="relative">
-                              <select 
-                                value={sc?.earlyExit ? Object.values(sc.earlyExit)[0] || '' : ''}
-                                onChange={e => {
-                                  const v = Number(e.target.value);
-                                  const mode = sc?.earlyExitMode || 'manual';
-                                  const day = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] : (mode === 'auto' ? days[0] : '');
-                                  if (!day && mode === 'manual') return;
-                                  const targetDay = day || days[0];
-                                  
-                                  // Conflict Check
-                                  const p = v;
-                                  const maxTotal = p + (days.length - 1) * safePeriodsCount;
-                                  if (maxTotal < selTeacher.quotaLimit) {
-                                    alert('تنبيه: هذا التوقيت يتعارض مع نصاب المعلم!');
-                                  }
-                                  
-                                  updC(selTeacher.id, { earlyExit: { [targetDay]: v } });
-                                }}
-                                className="w-full p-3 bg-white border border-violet-200 rounded-xl text-sm font-bold focus:ring-4 focus:ring-violet-100 outline-none">
-                                <option value="">-- اختر --</option>
-                                {periods.slice(0, -1).map(p => <option key={p} value={p}>{p}</option>)}
-                              </select>
-                              <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <select
+                              value={sc?.earlyExit ? Object.values(sc.earlyExit)[0] || '' : ''}
+                              onChange={e => {
+                                const v = Number(e.target.value);
+                                const mode = sc?.earlyExitMode || 'manual';
+                                const day = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] : (mode === 'auto' ? days[0] : '');
+                                if (!day && mode === 'manual') return;
+                                const targetDay = day || days[0];
+
+                                // Conflict Check
+                                const p = v;
+                                const maxTotal = p + (days.length - 1) * safePeriodsCount;
+                                if (maxTotal < selTeacher.quotaLimit) {
+                                  alert('تنبيه: هذا التوقيت يتعارض مع نصاب المعلم!');
+                                }
+
+                                updC(selTeacher.id, { earlyExit: { [targetDay]: v } });
+                              }}
+                              className="w-full p-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold focus:border-slate-400 focus:ring-4 focus:ring-slate-50 outline-none appearance-none transition-all">
+                              <option value="">— اختر رقم الحصة —</option>
+                              {periods.slice(0, -1).map(p => (
+                                <option key={p} value={p}>الحصة {p}{p === 1 ? ' (الأولى)' : p === 2 ? ' (الثانية)' : p === 3 ? ' (الثالثة)' : p === 4 ? ' (الرابعة)' : p === 5 ? ' (الخامسة)' : p === 6 ? ' (السادسة)' : ''}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                           </div>
                         </div>
                       </div>
@@ -965,26 +1029,34 @@ export default function TeacherConstraintsModal({
                     </div>
 
                     <div className="space-y-2">
-                      {renderSectionHeader('c7', 'bg-teal-50', 'border-teal-200', 'bg-teal-100', 'text-teal-600', Calendar, 'تخصيص أيام التواجد', 'أيام وجود المعلم المشترك في كل مدرسة')}
+                      {renderSectionHeader('c7', 'bg-teal-50', 'border-teal-200', 'bg-teal-100', 'text-teal-600', MapPin, 'تخصيص أيام تواجد المعلم', 'أيام وجود المعلم المشترك في كل مدرسة')}
 
                       {open.c7 && (() => {
-                        const schools      = selTeacher.schools!;
+                        const rawSchools = selTeacher.schools ?? [];
+                        // المدرسة الرئيسية تظهر دائماً أولاً باسمها الفعلي من schoolInfo
+                        const hasMain = rawSchools.some(s => s.schoolId === 'main');
+                        const schools = hasMain
+                          ? rawSchools.map(s => s.schoolId === 'main' ? { ...s, schoolName: mainSchoolName } : s)
+                          : [{ schoolId: 'main', schoolName: mainSchoolName, subjects: [], classes: [] }, ...rawSchools];
                         const presenceDays = sc?.presenceDays ?? {};
+                        // المدرسة الرئيسية: جميع الأيام محددة تلقائياً إذا لم يُعدَّل
+                        const mainEffectiveDays = presenceDays['main'] ?? days;
 
                         /** الأيام الفعلية لمدرسة (محفوظة أو تلقائية) */
                         const getEffective = (schoolId: string, schoolIdx: number): string[] => {
                           if (presenceDays[schoolId] !== undefined) return presenceDays[schoolId];
-                          if (schoolIdx === 0) return [];
-                          // تلقائي: الأيام غير المختارة في المدرسة الأولى
-                          const firstDays = presenceDays[schools[0].schoolId] ?? [];
-                          return days.filter(d => !firstDays.includes(d));
+                          // المدرسة الرئيسية: جميع الأيام افتراضياً
+                          if (schoolId === 'main') return days;
+                          // المدارس الأخرى: بدون تفعيل حتى يحددها المستخدم
+                          return [];
                         };
 
                         return (
                           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                             {schools.map((school, idx) => {
                               const savedDays  = presenceDays[school.schoolId]; // undefined = auto
-                              const isAutoMode = idx > 0 && savedDays === undefined;
+                              const isMainSchool = school.schoolId === 'main';
+                              const isAutoMode = isMainSchool ? savedDays === undefined : false;
                               const displayDays = isAutoMode ? getEffective(school.schoolId, idx) : (savedDays ?? []);
 
                               // كشف التعارض: أيام هذه المدرسة تظهر في مدرسة أخرى أيضاً
@@ -1023,14 +1095,19 @@ export default function TeacherConstraintsModal({
                                 >
                                   {/* اسم المدرسة + badge */}
                                   <div className="flex items-center justify-between mb-3">
-                                    <p className="text-sm font-black text-slate-800">{school.schoolName}</p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="text-sm font-black text-slate-800">{school.schoolName}</p>
+                                      {(schoolPhasesMap[school.schoolId] ?? []).map(ph => (
+                                        <span key={ph} className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">{ph}</span>
+                                      ))}
+                                    </div>
                                     <div className="flex items-center gap-2">
                                       {isAutoMode && (
                                         <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-                                          الأيام المتبقية تُحدد تلقائياً
+                                          جميع الأيام (افتراضي)
                                         </span>
                                       )}
-                                      {!isAutoMode && idx > 0 && (
+                                      {!isAutoMode && isMainSchool && (
                                         <button
                                           onClick={resetToAuto}
                                           className="text-[10px] font-bold text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
@@ -1051,11 +1128,11 @@ export default function TeacherConstraintsModal({
                                           key={day}
                                           type="button"
                                           onClick={() => toggleDay(day)}
-                                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                                            isConflict  ? 'bg-rose-50 border-rose-400 text-rose-600 shadow-sm' :
-                                            isSelected  ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20' :
-                                            isAutoMode  ? 'bg-teal-50 text-teal-600 border-teal-200 opacity-80' :
-                                                          'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40'
+                                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-bold transition-all ${
+                                            isConflict  ? 'bg-white border-rose-400 text-rose-600 shadow-sm' :
+                                            isSelected  ? 'bg-white border-[#655ac1] text-[#655ac1] shadow-sm shadow-[#655ac1]/10' :
+                                            isAutoMode  ? 'bg-white text-teal-600 border-teal-200 opacity-80' :
+                                                          'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
                                           }`}
                                         >
                                           {isConflict  && <AlertTriangle size={11} />}
@@ -1090,7 +1167,7 @@ export default function TeacherConstraintsModal({
                                 غير مدرج في presenceDays[schoolId] لتلك المدرسة.
                                 ─────────────────────────────────────────────────────────────── */}
                             <div className="p-3 bg-teal-50/60 border border-teal-100 rounded-xl text-[10px] text-slate-500 font-bold leading-relaxed">
-                              💡 عند إنشاء الجدول، لن تُسند للمعلم أي حصة في مدرسة في يوم لم يُحدَّد كيوم تواجد لتلك المدرسة.
+                              💡 حدّد في أي أيام يكون المعلم موجوداً في كل مدرسة. لن يُضاف له أي درس في يوم غير محدد لتلك المدرسة.
                             </div>
                           </div>
                         );
@@ -1117,7 +1194,7 @@ export default function TeacherConstraintsModal({
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><Copy size={18} /></div>
                 <div>
-                  <h3 className="font-black text-slate-800 text-sm">نسخ القيود والاستثناءات</h3>
+                  <h3 className="font-black text-slate-800 text-sm">نسخ القيود لمعلم آخر</h3>
                   <p className="text-[10px] text-slate-400 mt-0.5">نسخ قيود <span className="font-bold text-[#8779fb]">{selTeacher.name}</span> إلى معلمين آخرين</p>
                 </div>
               </div>
@@ -1129,10 +1206,10 @@ export default function TeacherConstraintsModal({
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-bold text-slate-700 text-sm">خيارات النسخ</h4>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-[#8779fb] hover:text-[#655ac1]">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-700 hover:text-slate-900">
                     <input type="checkbox"
-                      checked={copyOpts.consecutive && copyOpts.excluded && copyOpts.allocation && copyOpts.firstLast && copyOpts.earlyEntry}
-                      onChange={e => { const v = e.target.checked; setCopyOpts({ consecutive: v, excluded: v, allocation: v, firstLast: v, earlyEntry: v }); }}
+                      checked={copyOpts.consecutive && copyOpts.excluded && copyOpts.firstLast && copyOpts.earlyEntry}
+                      onChange={e => { const v = e.target.checked; setCopyOpts({ consecutive: v, excluded: v, firstLast: v, earlyEntry: v }); }}
                       className="accent-[#8779fb] w-4 h-4 rounded" />
                     <span>تحديد الكل</span>
                   </label>
@@ -1141,11 +1218,10 @@ export default function TeacherConstraintsModal({
                   {[
                     { k: 'consecutive', l: 'تتابع الحصص' },
                     { k: 'excluded', l: 'استثناء الحصص' },
-                    { k: 'allocation', l: 'تخصيص يومي' },
                     { k: 'firstLast', l: 'أولى / أخيرة' },
-                    { k: 'earlyEntry', l: 'خروج مبكر' }
-                  ].map((opt, idx) => (
-                    <label key={opt.k} className={`flex items-center gap-2.5 bg-white px-4 py-3 rounded-xl border border-slate-200 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-colors select-none ${idx === 4 ? 'col-span-2' : ''}`}>
+                    { k: 'earlyEntry', l: 'خروج مبكر' },
+                  ].map(opt => (
+                    <label key={opt.k} className="flex items-center gap-2.5 bg-white px-4 py-3 rounded-xl border border-slate-200 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-colors select-none">
                       <input type="checkbox" checked={copyOpts[opt.k as keyof typeof copyOpts]}
                         onChange={e => setCopyOpts({ ...copyOpts, [opt.k]: e.target.checked })} className="accent-[#8779fb] w-4 h-4 rounded shrink-0" />
                       <span className="text-xs font-bold text-slate-600">{opt.l}</span>
@@ -1155,29 +1231,42 @@ export default function TeacherConstraintsModal({
               </div>
 
               {/* Teacher Selection */}
-              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div>
-                  <h4 className="font-bold text-slate-700 text-sm">تحديد المعلمين</h4>
-                  <p className="text-xs text-slate-400 mt-1">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-slate-700 text-sm">تحديد المعلمين</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">{copyTargets.length} محددين</span>
+                    <button
+                      onClick={() => {
+                        const allIds = filteredTeachers.filter(t => t.id !== selId).map(t => t.id);
+                        if (copyTargets.length === allIds.length) setCopyTargets([]);
+                        else setCopyTargets(allIds);
+                      }}
+                      className="text-xs font-bold text-slate-600 hover:text-[#655ac1] px-2.5 py-1 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
+                    >
+                      {copyTargets.length === filteredTeachers.filter(t => t.id !== selId).length ? 'إلغاء الكل' : 'تحديد الكل'}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">{copyTargets.length} محددين</span>
-                  <button
-                    onClick={() => {
-                      const allIds = filteredTeachers.filter(t => t.id !== selId).map(t => t.id);
-                      if (copyTargets.length === allIds.length) setCopyTargets([]);
-                      else setCopyTargets(allIds);
-                    }}
-                    className="text-xs font-bold text-slate-600 hover:text-[#655ac1] px-3 py-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    {copyTargets.length === filteredTeachers.filter(t => t.id !== selId).length ? 'إلغاء الكل' : 'تحديد الكل'}
-                  </button>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={copySearch}
+                    onChange={e => setCopySearch(e.target.value)}
+                    placeholder="بحث عن معلم..."
+                    className="w-full pr-8 pl-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-slate-400 transition-all"
+                  />
                 </div>
               </div>
 
               {/* Teachers List */}
               <div className="max-h-52 overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1 bg-slate-50/50">
-                {filteredTeachers.filter(t => t.id !== selId).map(t => (
+                {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).map(t => (
                   <label key={t.id} className="flex items-center gap-3 p-2.5 hover:bg-white border border-transparent hover:border-slate-100 rounded-xl cursor-pointer transition-all">
                     <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${copyTargets.includes(t.id) ? 'bg-[#8779fb] border-[#8779fb]' : 'bg-white border-slate-300'}`}>
                       {copyTargets.includes(t.id) && <Check size={14} className="text-white" strokeWidth={3} />}
@@ -1189,8 +1278,10 @@ export default function TeacherConstraintsModal({
                     }} />
                   </label>
                 ))}
-                {filteredTeachers.filter(t => t.id !== selId).length === 0 && (
-                  <div className="text-center py-4 text-xs text-slate-400">لا يوجد معلمين آخرين للنسخ إليهم</div>
+                {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).length === 0 && (
+                  <div className="text-center py-4 text-xs text-slate-400">
+                    {copySearch ? 'لا توجد نتائج مطابقة للبحث' : 'لا يوجد معلمين آخرين للنسخ إليهم'}
+                  </div>
                 )}
               </div>
             </div>
@@ -1210,7 +1301,6 @@ export default function TeacherConstraintsModal({
                     const n = { ...existing };
                     if (copyOpts.consecutive) n.maxConsecutive = src.maxConsecutive;
                     if (copyOpts.excluded) n.excludedSlots = src.excludedSlots;
-                    if (copyOpts.allocation) n.dailyLimits = src.dailyLimits;
                     if (copyOpts.firstLast) { n.maxFirstPeriods = src.maxFirstPeriods; n.maxLastPeriods = src.maxLastPeriods; }
                     if (copyOpts.earlyEntry) { n.earlyExit = src.earlyExit; n.earlyExitMode = src.earlyExitMode; }
                     if (idx >= 0) nc[idx] = n; else nc.push(n);

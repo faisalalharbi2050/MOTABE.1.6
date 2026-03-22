@@ -59,6 +59,7 @@ const App: React.FC = () => {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [gradeSubjectMap, setGradeSubjectMap] = useState<Record<string, string[]>>({});
+  const [phaseDepartmentMap, setPhaseDepartmentMap] = useState<Record<string, string>>({});
   const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData>({
     subjectConstraints: [],
     teacherConstraints: [],
@@ -127,7 +128,16 @@ const App: React.FC = () => {
         setAdmins(data.admins || []);
         setAssignments(data.assignments || []);
         setGradeSubjectMap(data.gradeSubjectMap || {});
-        if (data.specializations) setSpecializations(data.specializations);
+        if (data.phaseDepartmentMap) setPhaseDepartmentMap(data.phaseDepartmentMap);
+        if (data.specializations) {
+          // Merge: always include all INITIAL_SPECIALIZATIONS (with updated names),
+          // then append any custom specializations from saved data that aren't in the defaults
+          const merged = [
+            ...INITIAL_SPECIALIZATIONS,
+            ...data.specializations.filter((s: any) => !INITIAL_SPECIALIZATIONS.some(i => i.id === s.id)),
+          ];
+          setSpecializations(merged);
+        }
         if (data.subjects) setSubjects(data.subjects);
         if (data.scheduleSettings) setScheduleSettings(data.scheduleSettings);
         if (data.subscription) setSubscription(data.subscription);
@@ -167,7 +177,7 @@ const App: React.FC = () => {
   }, [schoolInfo.hasSecondSchool, schoolInfo.secondSchoolName, schoolInfo.secondSchoolPhases]);
 
   useEffect(() => {
-    const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings, subscription, timestamp: Date.now() };
+    const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription, timestamp: Date.now() };
     localStorage.setItem('school_assignment_v4', JSON.stringify(data));
   }, [schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings, subscription]);
 
@@ -233,7 +243,7 @@ const App: React.FC = () => {
       );
       case 'settings_timing': return <TimingSettings schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 'settings_classes': return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
-      case 'settings_subjects': return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
+      case 'settings_subjects': return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} phaseDepartmentMap={phaseDepartmentMap} setPhaseDepartmentMap={setPhaseDepartmentMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 'settings_students': return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 'settings_teachers': return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} classes={classes} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 'settings_admins': return <Step7Admins admins={admins} setAdmins={setAdmins} />;

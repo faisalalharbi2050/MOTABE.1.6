@@ -114,7 +114,7 @@ const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
             {/* Info Text (if ready) */}
             {status === 'ready' && (
                 <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-800 text-sm font-medium leading-relaxed">
-                    سيقوم النظام ببناء الجدول تلقائياً بناءً على {stats.assignments} إسناد ومعالجة قيود المعلمين والمواد. تأكد من مراجعة تقرير التعارضات قبل البدء.
+                    سيقوم النظام ببناء الجدول تلقائياً بناءً على {stats.assignments} إسناد ومعالجة قيود المعلمون والمواد. تأكد من مراجعة تقرير التعارضات قبل البدء.
                 </div>
             )}
 

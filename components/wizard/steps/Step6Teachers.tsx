@@ -71,6 +71,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
     { id: '14', name: 'تربية فكرية' },
     { id: '15', name: 'صعوبات تعلم' },
     { id: '16', name: 'توحد' },
+    { id: '17', name: 'المكتبات' },
     { id: '99', name: 'آخر' },
   ];
 
@@ -370,7 +371,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   const openEditModal = (t: Teacher) => {
     setModalMode('edit');
-    const knownIds = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','99'];
+    const knownIds = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','99'];
     if (!knownIds.includes(t.specializationId)) {
         setCustomSpecName(t.specializationId);
         setCurrentTeacher({ ...t, specializationId: '99' });
@@ -390,8 +391,19 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
           specId = customSpecName.trim();
       }
 
-      const teacherToSave = { ...currentTeacher, specializationId: specId, schoolId: currentTeacher.schoolId || activeSchoolId } as Teacher;
-      
+      const schoolIdForSave = currentTeacher.schoolId || activeSchoolId;
+      const schoolNameForSave = schoolIdForSave === 'main'
+        ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+        : schoolInfo.sharedSchools?.find(s => s.id === schoolIdForSave)?.name || schoolIdForSave;
+      const teacherToSave = {
+        ...currentTeacher,
+        specializationId: specId,
+        schoolId: schoolIdForSave,
+        schools: currentTeacher.schools?.length
+          ? currentTeacher.schools
+          : [{ schoolId: schoolIdForSave, schoolName: schoolNameForSave, subjects: [], classes: [], lessons: currentTeacher.quotaLimit || 0, waiting: currentTeacher.waitingQuota || 0 }],
+      } as Teacher;
+
       if (modalMode === 'add') {
           setTeachers(prev => [...prev, teacherToSave]);
       } else {
@@ -422,7 +434,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
     setLinkSchoolTeacherId(teacherId);
     setLinkSchoolSelectedId('');
     setLinkSchoolDuplicate('');
-    setLinkSchoolLessons(24);
+    setLinkSchoolLessons(0);
     setLinkSchoolWaiting(0);
     setShowLinkSchoolModal(true);
   };
@@ -451,12 +463,32 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         })
       );
     } else {
-      // إضافة مدرسة جديدة للمعلم الحالي
+      // إضافة مدرسة جديدة للمعلم الحالي — بدون خصم من المدرسة الحالية
       setTeachers(prev => prev.map(t => {
         if (t.id !== linkSchoolTeacherId) return t;
+        const primaryId = t.schoolId || 'main';
+        const primaryName = primaryId === 'main'
+          ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+          : schoolInfo.sharedSchools?.find(s => s.id === primaryId)?.name || primaryId;
+        // ابدأ من schools[] الموجودة، أو أنشئ مدخلاً للمدرسة الأساسية
+        let baseSchools = t.schools?.length ? [...t.schools] : [];
+        // تأكد من وجود مدخل للمدرسة الأساسية بالنصاب الصحيح
+        if (!baseSchools.some(s => s.schoolId === primaryId)) {
+          baseSchools = [
+            { schoolId: primaryId, schoolName: primaryName, subjects: [], classes: [], lessons: t.quotaLimit || 0, waiting: t.waitingQuota || 0 },
+            ...baseSchools,
+          ];
+        } else {
+          // إذا كانت schools[0].lessons لا تعكس quotaLimit الفعلي للمعلم غير المشترك، صحّحها
+          if (!t.isShared) {
+            baseSchools = baseSchools.map(s =>
+              s.schoolId === primaryId ? { ...s, lessons: t.quotaLimit || s.lessons, waiting: t.waitingQuota ?? s.waiting } : s
+            );
+          }
+        }
         return {
           ...t, isShared: true,
-          schools: [...(t.schools || []), { schoolId: linkSchoolSelectedId, schoolName, subjects: [], classes: [], lessons: linkSchoolLessons, waiting: linkSchoolWaiting }],
+          schools: [...baseSchools, { schoolId: linkSchoolSelectedId, schoolName, subjects: [], classes: [], lessons: linkSchoolLessons, waiting: linkSchoolWaiting }],
         };
       }));
     }
@@ -714,7 +746,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                    className="flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
                >
                    <Sliders size={16} className="text-[#8779fb]" />
-                   قيود المعلمين
+                   قيود المعلمون
                </button>
 
                <button
@@ -964,35 +996,74 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                         </td>
                                         <td className="p-4 text-center print:border-l print:border-slate-300 print:p-2">
                                              {isBulkEdit ? (
-                                                <input 
-                                                    type="number" 
-                                                    value={t.quotaLimit} 
-                                                    onChange={e => setTeachers(prev => prev.map(pt => pt.id === t.id ? {...pt, quotaLimit: Number(e.target.value)} : pt))} 
+                                                <input
+                                                    type="number"
+                                                    value={t.isShared
+                                                        ? (t.schools?.find(s => s.schoolId === activeSchoolId)?.lessons ?? 0)
+                                                        : t.quotaLimit}
+                                                    onChange={e => {
+                                                        const val = Number(e.target.value);
+                                                        setTeachers(prev => prev.map(pt => {
+                                                            if (pt.id !== t.id) return pt;
+                                                            if (pt.isShared && pt.schools) {
+                                                                return {
+                                                                    ...pt,
+                                                                    schools: pt.schools.map(s =>
+                                                                        s.schoolId === activeSchoolId ? { ...s, lessons: val } : s
+                                                                    ),
+                                                                };
+                                                            }
+                                                            return { ...pt, quotaLimit: val };
+                                                        }));
+                                                    }}
                                                     className="w-20 p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-center font-bold shadow-sm mx-auto"
                                                 />
                                             ) : (
                                                 <span className="inline-block px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-600 print:bg-transparent print:text-black print:p-0">
-                                                    {t.quotaLimit}
+                                                    {t.isShared
+                                                        ? (t.schools?.find(s => s.schoolId === activeSchoolId)?.lessons ?? 0)
+                                                        : t.quotaLimit}
                                                 </span>
                                             )}
                                         </td>
                                         <td className="p-4 text-center print:border-l print:border-slate-300 print:p-2">
                                              {isBulkEdit ? (
-                                                <input 
-                                                    type="number" 
-                                                    value={t.waitingQuota || 0} 
-                                                    onChange={e => setTeachers(prev => prev.map(pt => pt.id === t.id ? {...pt, waitingQuota: Number(e.target.value)} : pt))} 
+                                                <input
+                                                    type="number"
+                                                    value={t.isShared
+                                                        ? (t.schools?.find(s => s.schoolId === activeSchoolId)?.waiting ?? 0)
+                                                        : (t.waitingQuota || 0)}
+                                                    onChange={e => {
+                                                        const val = Number(e.target.value);
+                                                        setTeachers(prev => prev.map(pt => {
+                                                            if (pt.id !== t.id) return pt;
+                                                            if (pt.isShared && pt.schools) {
+                                                                return {
+                                                                    ...pt,
+                                                                    schools: pt.schools.map(s =>
+                                                                        s.schoolId === activeSchoolId ? { ...s, waiting: val } : s
+                                                                    ),
+                                                                };
+                                                            }
+                                                            return { ...pt, waitingQuota: val };
+                                                        }));
+                                                    }}
                                                     className="w-20 p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-center font-bold shadow-sm mx-auto"
                                                 />
                                             ) : (
                                                 <span className="inline-block px-3 py-1 bg-orange-50 rounded-full text-xs font-bold text-orange-600 print:bg-transparent print:text-black print:p-0">
-                                                    {t.waitingQuota || 0}
+                                                    {t.isShared
+                                                        ? (t.schools?.find(s => s.schoolId === activeSchoolId)?.waiting ?? 0)
+                                                        : (t.waitingQuota || 0)}
                                                 </span>
                                             )}
                                         </td>
                                          <td className="p-4 text-center print:p-2">
                                             <span className="inline-block px-3 py-1 bg-[#e5e1fe] rounded-full text-xs font-black text-[#655ac1] print:bg-transparent print:text-black print:p-0">
-                                                {(t.quotaLimit || 0) + (t.waitingQuota || 0)}
+                                                {t.isShared
+                                                    ? ((t.schools?.find(s => s.schoolId === activeSchoolId)?.lessons ?? 0) +
+                                                       (t.schools?.find(s => s.schoolId === activeSchoolId)?.waiting ?? 0))
+                                                    : ((t.quotaLimit || 0) + (t.waitingQuota || 0))}
                                             </span>
                                         </td>
                                         <td className="p-4 text-center print:hidden">
@@ -1478,6 +1549,17 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
      {showLinkSchoolModal && linkSchoolTeacherId && (() => {
        const teacher = teachers.find(t => t.id === linkSchoolTeacherId)!;
        const currentSchoolIds = teacher.schools?.map(s => s.schoolId) ?? [teacher.schoolId ?? 'main'];
+       // حساب النصاب المتاح للربط (24 - مجموع نصاب المدارس الحالية)
+       // للمعلم غير المشترك: quotaLimit هو المرجع الصحيح (قد يكون مختلفاً عن schools[0].lessons بعد bulk edit)
+       const _usedQuota = teacher.isShared && teacher.schools?.length
+         ? teacher.schools.reduce((sum, s) => sum + (s.lessons || 0) + (s.waiting || 0), 0)
+         : (teacher.quotaLimit || 0) + (teacher.waitingQuota || 0);
+       const _availableQuota = Math.max(0, 24 - _usedQuota);
+       const _autoMatchId = linkSchoolSelectedId
+         ? teachers.find(t => t.id !== linkSchoolTeacherId && t.name.trim() === teacher.name.trim() && (t.schools?.some(s => s.schoolId === linkSchoolSelectedId) || t.schoolId === linkSchoolSelectedId))?.id ?? null
+         : null;
+       const _isMerge = _autoMatchId && linkSchoolDuplicate === _autoMatchId;
+       const _confirmDisabled = !linkSchoolSelectedId || (!_isMerge && (linkSchoolLessons <= 0 || linkSchoolLessons + linkSchoolWaiting > _availableQuota));
        const allSchools = [
          { id: 'main', name: schoolInfo.schoolName || 'المدرسة الرئيسية' },
          ...(schoolInfo.sharedSchools ?? []).map(s => ({ id: s.id, name: s.name })),
@@ -1503,7 +1585,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  ) : (
                    <select
                      value={linkSchoolSelectedId}
-                     onChange={e => { setLinkSchoolSelectedId(e.target.value); setLinkSchoolDuplicate(''); setLinkSchoolLessons(24); setLinkSchoolWaiting(0); }}
+                     onChange={e => { setLinkSchoolSelectedId(e.target.value); setLinkSchoolDuplicate(''); setLinkSchoolLessons(0); setLinkSchoolWaiting(0); }}
                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
                    >
                      <option value="">— اختر المدرسة —</option>
@@ -1578,38 +1660,61 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  }
 
                  // حالة: لا يوجد تطابق أو اختار "لا، شخص مختلف"
-                 const existingTotal = currentTeacher
-                   ? (currentTeacher.schools && currentTeacher.schools.length > 0
-                       ? currentTeacher.schools.reduce((sum, s) => sum + (s.lessons || 0) + (s.waiting || 0), 0)
-                       : (currentTeacher.quotaLimit || 0) + (currentTeacher.waitingQuota || 0))
-                   : 0;
-                 const newTotal = existingTotal + linkSchoolLessons + linkSchoolWaiting;
-                 const isOverQuota = newTotal > 24;
+                 const usedQuota = currentTeacher?.isShared && currentTeacher?.schools?.length
+                   ? currentTeacher.schools.reduce((sum, s) => sum + (s.lessons || 0) + (s.waiting || 0), 0)
+                   : (currentTeacher ? (currentTeacher.quotaLimit || 0) + (currentTeacher.waitingQuota || 0) : 0);
+                 const availableQuota = Math.max(0, 24 - usedQuota);
+                 const maxLessons = Math.max(0, availableQuota - linkSchoolWaiting);
+                 const maxWaiting = Math.max(0, availableQuota - linkSchoolLessons);
+                 const newTotal = linkSchoolLessons + linkSchoolWaiting;
+                 const isOverQuota = newTotal > availableQuota;
+                 const noLessons = linkSchoolLessons <= 0;
                  return (
                    <div className="space-y-3">
                      {linkSchoolDuplicate === 'new' && autoMatch && (
                        <button onClick={() => setLinkSchoolDuplicate('')} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">← تغيير الإجابة</button>
                      )}
                      <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                       <label className="block text-sm font-black text-slate-700 mb-3">نصاب المعلم في مدرسة {selectedSchoolName}</label>
+                       <div className="flex items-center justify-between mb-3">
+                         <label className="text-sm font-black text-slate-700">نصاب المعلم في مدرسة {selectedSchoolName}</label>
+                         <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                           المتاح: <span className={`font-black ${availableQuota === 0 ? 'text-rose-500' : 'text-[#655ac1]'}`}>{availableQuota}</span> حصة
+                         </span>
+                       </div>
                        <div className="grid grid-cols-2 gap-3">
                          <div>
-                           <label className="block text-xs font-bold text-slate-500 mb-1.5">نصاب الحصص</label>
-                           <input type="number" value={linkSchoolLessons} onChange={e => setLinkSchoolLessons(Number(e.target.value))} min={0} max={24}
-                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold text-center focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all" />
+                           <label className="block text-xs font-bold text-slate-500 mb-1.5">نصاب الحصص <span className="text-rose-500">*</span></label>
+                           <input
+                             type="number"
+                             value={linkSchoolLessons}
+                             onChange={e => setLinkSchoolLessons(Math.max(0, Number(e.target.value)))}
+                             min={1} max={availableQuota}
+                             className={`w-full p-3 bg-slate-50 border rounded-xl outline-none text-sm font-bold text-center focus:ring-4 transition-all ${isOverQuota ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-[#655ac1] focus:ring-[#e5e1fe]'}`}
+                           />
                          </div>
                          <div>
                            <label className="block text-xs font-bold text-slate-500 mb-1.5">نصاب الانتظار</label>
-                           <input type="number" value={linkSchoolWaiting} onChange={e => setLinkSchoolWaiting(Number(e.target.value))} min={0}
-                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold text-center focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all" />
+                           <input
+                             type="number"
+                             value={linkSchoolWaiting}
+                             onChange={e => setLinkSchoolWaiting(Math.max(0, Number(e.target.value)))}
+                             min={0} max={availableQuota}
+                             className={`w-full p-3 bg-slate-50 border rounded-xl outline-none text-sm font-bold text-center focus:ring-4 transition-all ${isOverQuota ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-[#655ac1] focus:ring-[#e5e1fe]'}`}
+                           />
                          </div>
                        </div>
+                       {newTotal > 0 && (
+                         <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-400">
+                           <span>المجموع: <span className={isOverQuota ? 'text-rose-600' : 'text-slate-600'}>{newTotal}</span> حصة</span>
+                           <span>يتبقى: <span className="text-emerald-600">{Math.max(0, availableQuota - newTotal)}</span> حصة</span>
+                         </div>
+                       )}
                      </div>
                      {isOverQuota && (
-                       <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                         <p className="text-xs font-bold text-amber-700 leading-relaxed">
-                           إجمالي نصاب المعلم في جميع المدارس سيكون <span className="text-amber-900">{newTotal}</span> حصة، وهو يتجاوز النصاب الرسمي (24). يمكنك المتابعة لكن يُنصح بمراجعة النصاب.
+                       <div className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                         <p className="text-xs font-bold text-rose-700">
+                           المجموع ({newTotal}) يتجاوز المتاح ({availableQuota} حصة). قلّل النصاب للمتابعة.
                          </p>
                        </div>
                      )}
@@ -1622,10 +1727,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                <button onClick={() => setShowLinkSchoolModal(false)} className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">إلغاء</button>
                <button
                  onClick={confirmLinkSchool}
-                 disabled={!linkSchoolSelectedId}
+                 disabled={_confirmDisabled}
                  className="px-5 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                >
-                 {linkSchoolDuplicate === 'new' ? 'ربط وإضافة' : 'ربط ودمج'}
+                 {_isMerge ? 'ربط ودمج' : 'ربط وإضافة'}
                </button>
              </div>
            </div>
@@ -1672,7 +1777,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  disabled={!unlinkSchoolSelectedId}
                  className="px-5 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 shadow-lg shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                >
-                 تأكيد الفك
+                 إلغاء الربط
                </button>
              </div>
            </div>
@@ -1876,6 +1981,11 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         periodCounts={schoolInfo.timing?.periodCounts || {}}
         warnings={[]} // Optional: Pass actual warnings if needed/calculated
         classes={classes}
+        mainSchoolName={schoolInfo.schoolName || 'المدرسة الرئيسية'}
+        schoolPhasesMap={{
+          'main': schoolInfo.phases || [],
+          ...Object.fromEntries((schoolInfo.sharedSchools || []).map(s => [s.id, s.phases || []]))
+        }}
         onChangeConstraints={c => setScheduleSettings && setScheduleSettings(prev => ({ ...prev, teacherConstraints: c }))}
         onChangeMeetings={m => setScheduleSettings && setScheduleSettings(prev => ({ ...prev, meetings: m }))}
      />

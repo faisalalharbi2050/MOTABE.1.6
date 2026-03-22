@@ -2,31 +2,23 @@ import { Phase, Specialization, Subject } from "./types";
 import { STUDY_PLANS } from './study_plans';
 
 export const INITIAL_SPECIALIZATIONS: Specialization[] = [
-  { id: "1", name: "الدراسات الإسلامية" },
-  { id: "2", name: "اللغة العربية" },
-  { id: "3", name: "الرياضيات" },
-  { id: "4", name: "العلوم" },
-  { id: "5", name: "اللغة الإنجليزية" },
-  { id: "6", name: "الاجتماعيات" },
-  { id: "7", name: "الحاسب الآلي" },
-  { id: "8", name: "التربية الفنية" },
-  { id: "9", name: "التربية البدنية" },
+  { id: "1",  name: "دين" },
+  { id: "2",  name: "عربي" },
+  { id: "3",  name: "رياضيات" },
+  { id: "4",  name: "علوم" },
+  { id: "5",  name: "انجليزي" },
+  { id: "6",  name: "الاجتماعيات" },
+  { id: "7",  name: "الحاسب" },
+  { id: "8",  name: "الفنية" },
+  { id: "9",  name: "البدنية" },
   { id: "10", name: "كيمياء" },
   { id: "11", name: "أحياء" },
   { id: "12", name: "فيزياء" },
-  { id: "13", name: "الإدارة المالية" },
+  { id: "13", name: "علوم إدارية" },
   { id: "14", name: "تربية فكرية" },
   { id: "15", name: "صعوبات تعلم" },
   { id: "16", name: "توحد" },
-  { id: "17", name: "المهارات الحياتية" },
-  { id: "18", name: "التفكير الناقد" },
-  { id: "19", name: "الدراسات النفسية" },
-  { id: "20", name: "علم الأرض والفضاء" },
-  { id: "21", name: "صناعة القرار" },
-  { id: "22", name: "علوم وهندسة" },
-  { id: "23", name: "تقنية رقمية" },
-  { id: "24", name: "المكتبات" },
-  { id: "99", name: "أخرى" }
+  { id: "17", name: "المكتبات" },
 ];
 
 export const DETAILED_TEMPLATES: Record<string, Subject[]> = {

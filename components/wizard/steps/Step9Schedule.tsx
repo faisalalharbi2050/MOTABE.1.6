@@ -239,7 +239,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
       
       let destination = "";
       if (type === 'subject') destination = "صفحة المواد -> قيود المواد";
-      if (type === 'teacher') destination = "صفحة المعلمين -> قيود المعلمين";
+      if (type === 'teacher') destination = "صفحة المعلمين -> قيود المعلمون";
       if (type === 'general') destination = "صفحة إعدادات الجدول أو البيانات الأساسية";
       
       alert(`للحل، يرجى الانتقال إلى: ${destination}\n${id ? `\n(تلميح للبحث: ${id})` : ''}`);

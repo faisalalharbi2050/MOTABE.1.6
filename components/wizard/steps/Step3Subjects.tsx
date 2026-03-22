@@ -19,15 +19,18 @@ interface Props {
   schoolInfo: SchoolInfo;
   gradeSubjectMap: Record<string, string[]>;
   setGradeSubjectMap: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  phaseDepartmentMap: Record<string, string>;
+  setPhaseDepartmentMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   scheduleSettings?: ScheduleSettingsData;
   setScheduleSettings?: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
 }
 
-const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gradeSubjectMap, setGradeSubjectMap, scheduleSettings, setScheduleSettings }) => {
+const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, setPhaseDepartmentMap, scheduleSettings, setScheduleSettings }) => {
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showConstraintsModal, setShowConstraintsModal] = useState(false);
+  const [deletePlanPhase, setDeletePlanPhase] = useState<Phase | null>(null);
   const [showAbbreviationsModal, setShowAbbreviationsModal] = useState(false);
   
   // Grade Details Modal State
@@ -39,7 +42,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   } | null>(null);
 
   // State to track approved department per phase
-  const [phaseDepartmentMap, setPhaseDepartmentMap] = useState<Record<Phase, string>>({} as Record<Phase, string>);
 
   const customPlans = useMemo(() => {
       return subjects.reduce((acc, sub) => {
@@ -51,22 +53,37 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       }, {} as Record<string, Subject[]>);
   }, [subjects]);
 
-  // Helper to check if we have data for the current view
+  // Helper to check if the ACTIVE school has approved plans
   const hasData = useMemo(() => {
-     // We should only check if there is data for the ACTIVE school context
-     // But for simplicity, we check generally. 
-     // A better check would be filtering subjects by the current phases.
      const hasCustomPlans = Object.keys(customPlans).length > 0;
-     const hasMinistryPlans = Object.keys(gradeSubjectMap).length > 0;
-     
+     // check if any gradeSubjectMap key belongs to the current school
+     const hasMinistryPlans = Object.keys(gradeSubjectMap).some(key => {
+       // new format: "schoolId-phase-grade"
+       const newFmt = key.match(/^([^-]+)-([^-]+)-(\d+)$/);
+       if (newFmt) return newFmt[1] === activeSchoolId;
+       // legacy format: "phase-grade" → belongs to main school
+       return activeSchoolId === 'main';
+     });
      return subjects.length > 0 && (hasMinistryPlans || hasCustomPlans);
-  }, [subjects, gradeSubjectMap, customPlans]);
+  }, [subjects, gradeSubjectMap, customPlans, activeSchoolId]);
 
-  // Determine Active Phases based on Active School + Added Subjects
+  // ── helpers: build school-scoped gradeKey (e.g. "main-elementary-1")
+  //    Backward-compat: old keys have no schoolId prefix → treated as 'main'
+  const makeGradeKey = (schoolId: string, phase: Phase, grade: number) =>
+    `${schoolId}-${phase}-${grade}`;
+
+  const getSchoolGradeSubjectIds = (schoolId: string, phase: Phase, grade: number): string[] => {
+    const newKey = makeGradeKey(schoolId, phase, grade);
+    if (gradeSubjectMap[newKey]) return gradeSubjectMap[newKey];
+    // fallback to legacy key (no prefix) for main school backward compat
+    if (schoolId === 'main') return gradeSubjectMap[`${phase}-${grade}`] || [];
+    return [];
+  };
+
+  // Determine Active Phases based on Active School + Approved plans for this school
   const currentPhases = useMemo(() => {
       let activePhases: Phase[] = [];
-      
-      // 1. Get Configured Phases
+
       if (activeSchoolId === 'main') {
           activePhases = schoolInfo.phases || [];
       } else {
@@ -74,19 +91,27 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           activePhases = shared?.phases || [];
       }
 
-      // 2. Add Phases from Existing Subjects (so they don't disappear)
-      const subjectPhases = new Set(subjects.map(s => s.phases[0]));
-      
-      // 3. Merge and Deduplicate
-      const merged = Array.from(new Set([...activePhases, ...Array.from(subjectPhases)])) as Phase[];
-      
-      // 4. Default if empty
-      if (merged.length === 0) return [Phase.ELEMENTARY];
+      // Add phases that already have approved plans for THIS school (new + legacy keys)
+      const approvedPhases = new Set<Phase>();
+      Object.keys(gradeSubjectMap).forEach(key => {
+          // new format: "schoolId-phase-grade"
+          const newFmt = key.match(/^([^-]+)-([^-]+)-(\d+)$/);
+          if (newFmt && newFmt[1] === activeSchoolId) {
+              approvedPhases.add(newFmt[2] as Phase);
+              return;
+          }
+          // legacy format: "phase-grade" (belongs to main)
+          if (activeSchoolId === 'main') {
+              const legacyFmt = key.match(/^([^-]+)-(\d+)$/);
+              if (legacyFmt) approvedPhases.add(legacyFmt[1] as Phase);
+          }
+      });
 
-      // 5. Sort by educational order
+      const merged = Array.from(new Set([...activePhases, ...Array.from(approvedPhases)])) as Phase[];
+      if (merged.length === 0) return [Phase.ELEMENTARY];
       const order = [Phase.ELEMENTARY, Phase.MIDDLE, Phase.HIGH, Phase.OTHER];
       return merged.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-  }, [activeSchoolId, schoolInfo, subjects]);
+  }, [activeSchoolId, schoolInfo, gradeSubjectMap]);
 
 
   // --- Helper Functions ---
@@ -169,9 +194,10 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           }
 
           if (grade > 0) {
-             const gradeKey = `${phase}-${grade}`;
+             const gradeKey = makeGradeKey(activeSchoolId, phase, grade);
+             const existing = getSchoolGradeSubjectIds(activeSchoolId, phase, grade);
              newMapUpdates[gradeKey] = [
-                 ...(gradeSubjectMap[gradeKey] || []),
+                 ...existing,
                  ...(newMapUpdates[gradeKey] || []),
                  ...templates.map(s => s.id)
              ];
@@ -194,23 +220,30 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   // School Selection Dropdown State
   const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
   
-  const handleDeletePlan = (phase: Phase) => {
-      if (confirm('هل أنت متأكد من حذف الخطة الدراسية لهذه المرحلة؟ سيتم حذف جميع المواد المرتبطة بها.')) {
+  const confirmDeletePlan = () => {
+      const phase = deletePlanPhase;
+      if (!phase) return;
+      setDeletePlanPhase(null);
+      {
           // Identify subjects to remove (those in the gradeSubjectMap for this phase)
           const grades = getGradesForPhase(phase);
           let subjectsToRemove: string[] = [];
           
           grades.forEach(g => {
-              const key = `${phase}-${g}`;
-              if (gradeSubjectMap[key]) {
-                  subjectsToRemove = [...subjectsToRemove, ...gradeSubjectMap[key]];
-              }
+              const newKey = makeGradeKey(activeSchoolId, phase, g);
+              const legacyKey = `${phase}-${g}`;
+              const ids = gradeSubjectMap[newKey] || gradeSubjectMap[legacyKey] || [];
+              subjectsToRemove = [...subjectsToRemove, ...ids];
           });
 
-          // Update Map (Remove keys for this phase)
+          // Update Map (Remove keys for this phase + this school)
           setGradeSubjectMap(prev => {
               const next = { ...prev };
-              grades.forEach(g => delete next[`${phase}-${g}`]);
+              grades.forEach(g => {
+                  delete next[makeGradeKey(activeSchoolId, phase, g)];
+                  // also remove legacy key if it exists and we are main
+                  if (activeSchoolId === 'main') delete next[`${phase}-${g}`];
+              });
               return next;
           });
 
@@ -337,6 +370,13 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       </div>
 
 
+
+      {/* School Tabs */}
+      <SchoolTabs
+        schoolInfo={schoolInfo}
+        activeSchoolId={activeSchoolId}
+        onTabChange={setActiveSchoolId}
+      />
 
       {/* Action Bar */}
       <div className="flex flex-wrap items-center gap-4">
@@ -475,8 +515,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
              {currentPhases.map(phase => {
                  const grades = getGradesForPhase(phase);
                  const phaseData = grades.map(grade => {
-                     const gradeKey = `${phase}-${grade}`;
-                     const subjectIds = gradeSubjectMap[gradeKey] || [];
+                     const gradeKey = makeGradeKey(activeSchoolId, phase, grade);
+                     const subjectIds = getSchoolGradeSubjectIds(activeSchoolId, phase, grade);
                      const gradeSubjects = subjects.filter(s => subjectIds.includes(s.id));
                      const totalPeriods = gradeSubjects.reduce((acc, curr) => acc + curr.periodsPerClass, 0);
                      
@@ -503,32 +543,24 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
                   return (
                       <div key={phase} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                          <div className="p-6 border-b border-slate-100 bg-[#f8f7ff] flex justify-between items-center">
-                              <h4 className="font-black text-lg text-[#655ac1] flex items-center gap-2">
+                          <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center">
+                              <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
                                   <span className="text-slate-700">{activeSchoolName}</span>
                                   <span className="text-slate-300">|</span>
-                                  {getPhaseLabel(phase)}
+                                  <span className="text-[#655ac1]">{getPhaseLabel(phase)}</span>
                                   {departmentName && (
-                                      <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200">
+                                      <span className="text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
                                           {departmentName}
                                       </span>
                                   )}
                               </h4>
                              <div className="flex gap-3">
-                                  <button onClick={() => alert('تم اعتماد الخطة بنجاح')} className="group flex items-center gap-2 bg-gradient-to-l from-emerald-500 to-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shadow-md shadow-emerald-200 hover:shadow-lg hover:shadow-emerald-300 hover:-translate-y-0.5">
-                                      <CheckCircle2 size={18} className="transition-transform group-hover:scale-110" /> 
-                                      اعتماد
-                                  </button>
-                                  <button onClick={() => window.print()} className="group flex items-center gap-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-800 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shadow-sm hover:shadow-md">
-                                      <Printer size={18} className="transition-transform group-hover:scale-110" /> 
-                                      طباعة
-                                  </button>
-                                  <button 
-                                      onClick={() => handleDeletePlan(phase)}
+                                  <button
+                                      onClick={() => setDeletePlanPhase(phase)}
                                       className="group flex items-center gap-2 bg-white text-rose-500 border border-rose-200 hover:bg-rose-500 hover:text-white hover:border-rose-500 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-rose-200"
                                       title="حذف الخطة"
                                   >
-                                      <Trash2 size={18} className="transition-transform group-hover:scale-110" /> 
+                                      <Trash2 size={18} className="transition-transform group-hover:scale-110" />
                                       حذف
                                   </button>
                               </div>
@@ -565,12 +597,12 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                                              </td>
                                              <td className="px-6 py-4">
                                                  <div className="flex items-center justify-center gap-2">
-                                                     <button 
+                                                     <button
                                                         onClick={() => handleOpenGradeDetails(row.gradeKey, row.gradeName, phase)}
-                                                        className="p-2 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg text-slate-400 hover:text-[#655ac1] transition-all"
+                                                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb]"
                                                         title="معاينة وتعديل"
                                                      >
-                                                         <List size={18} />
+                                                         <Edit2 size={14} />
                                                      </button>
                                                  </div>
                                              </td>
@@ -672,6 +704,37 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           }
         }}
       />
+
+      {/* Delete Plan Confirmation Modal */}
+      {deletePlanPhase && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} className="text-rose-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">حذف الخطة الدراسية</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                هل أنت متأكد من حذف خطة <span className="text-[#655ac1] font-black">{getPhaseLabel(deletePlanPhase)}</span>؟ سيتم حذف جميع المواد المرتبطة بها ولا يمكن التراجع عن هذا الإجراء.
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setDeletePlanPhase(null)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={confirmDeletePlan}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

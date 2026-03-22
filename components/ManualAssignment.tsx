@@ -81,8 +81,14 @@ const ManualAssignment: React.FC<Props> = ({
     return c.schoolId === activeSchoolTab;
   };
 
-  const isTeacherInCurrentSchool = (t: { schoolId?: string }) => {
+  const isTeacherInCurrentSchool = (t: { schoolId?: string; isShared?: boolean; schools?: { schoolId: string }[] }) => {
     if (!hasSharedSchools) return true;
+    if (t.isShared) {
+      // المدرسة الأصلية (schoolId) + كل مدارس schools[]
+      const originalId = t.schoolId || 'main';
+      if (activeSchoolTab === originalId) return true;
+      return (t.schools || []).some(s => s.schoolId === activeSchoolTab);
+    }
     if (activeSchoolTab === 'main') return !t.schoolId || t.schoolId === 'main';
     return t.schoolId === activeSchoolTab;
   };
@@ -641,10 +647,48 @@ const ManualAssignment: React.FC<Props> = ({
                                     <div className="flex items-center gap-3 overflow-hidden">
                                         {/* Avatar Removed */}
                                         <div className="flex flex-col min-w-0">
-                                            <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</h4>
+                                            <div className="flex items-center gap-1.5">
+                                                <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</h4>
+                                                {t.isShared && (() => {
+                                                    // بناء قائمة كاملة بمدارس المعلم (الأصلية + المشتركة)
+                                                    const originalId = t.schoolId || 'main';
+                                                    const originalName = originalId === 'main'
+                                                        ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+                                                        : (sharedSchools.find(s => s.id === originalId)?.name || originalId);
+                                                    const allSchools = [
+                                                        { schoolId: originalId, schoolName: originalName },
+                                                        ...(t.schools || []).filter(s => s.schoolId !== originalId),
+                                                    ];
+                                                    const otherSchools = allSchools
+                                                        .filter(s => s.schoolId !== activeSchoolTab)
+                                                        .map(s => s.schoolName)
+                                                        .join('، ');
+                                                    return (
+                                                        <span title={`مشترك مع: ${otherSchools || 'مدارس أخرى'}`} className="shrink-0 text-[#655ac1]">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                                            </svg>
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
                                             <span className="text-[10px] text-slate-400 font-bold truncate">
                                                 {specializations.find(s => s.id === t.specializationId)?.name || 'عام'}
                                             </span>
+                                            {(() => {
+                                                const days = t.constraints?.presenceDays?.[activeSchoolTab];
+                                                if (!days || days.length === 0) return null;
+                                                const dayNames: Record<string, string> = {
+                                                    sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء',
+                                                    wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة', sat: 'السبت'
+                                                };
+                                                return (
+                                                    <span className="text-[9px] text-[#655ac1] font-bold truncate mt-0.5">
+                                                        {days.map(d => dayNames[d] || d).join('، ')}
+                                                    </span>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                     
