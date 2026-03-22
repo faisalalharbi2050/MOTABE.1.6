@@ -1,16 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { SchoolInfo, Phase, SharedSchool, EntityType } from '../../../types';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
-import { School, Building2, Plus, Trash2, MapPin, Phone, Mail, FileText, CheckCircle2, Upload, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { School, Building2, Plus, Trash2, MapPin, Phone, Mail, CheckCircle2, Upload, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Step1Props {
   schoolInfo: SchoolInfo;
   setSchoolInfo: React.Dispatch<React.SetStateAction<SchoolInfo>>;
+  isEditMode?: boolean;
 }
 
-const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
+const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditMode = true }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Shared School State (Inline Mode)
   const [expandedSharedSchoolId, setExpandedSharedSchoolId] = useState<string | null>(null);
   const sharedSchoolFileInputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
@@ -153,7 +154,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         value={schoolInfo.schoolName}
                         onChange={handleChange}
                         placeholder="أدخل اسم المدرسة"
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                        disabled={!isEditMode}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -169,12 +171,15 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             key={p}
                             type="button"
                             onClick={() => {
+                              if (!isEditMode) return;
                               setSchoolInfo(prev => ({
                                 ...prev,
                                 phases: [p]
                               }));
                             }}
-                            className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none active:scale-95 flex items-center gap-2
+                            disabled={!isEditMode}
+                            className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed
+                              ${isEditMode ? 'active:scale-95' : ''}
                               ${isSelected
                                 ? 'border-[#8779fb] bg-white text-[#8779fb] shadow-md shadow-[#8779fb]/10'
                                 : 'border-slate-200 bg-white text-slate-500 hover:border-[#8779fb]/40 hover:text-[#8779fb] hover:bg-[#8779fb]/5'
@@ -201,7 +206,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         name="gender"
                         value={schoolInfo.gender}
                         onChange={handleChange}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium appearance-none"
+                        disabled={!isEditMode}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <option value="بنين">بنين</option>
                         <option value="بنات">بنات</option>
@@ -215,7 +221,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         value={schoolInfo.educationAdministration || ''}
                         onChange={handleChange}
                         placeholder="مثال: الرياض"
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                        disabled={!isEditMode}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
                 
@@ -226,7 +233,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         value={schoolInfo.region || ''}
                         onChange={handleChange}
                         placeholder="المنطقة"
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                        disabled={!isEditMode}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -238,7 +246,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             name="address"
                             value={schoolInfo.address || ''}
                             onChange={handleChange}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                            disabled={!isEditMode}
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                     </div>
                 </div>
@@ -252,7 +261,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             name="email"
                             value={schoolInfo.email || ''}
                             onChange={handleChange}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                            disabled={!isEditMode}
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
                         />
                     </div>
@@ -267,7 +277,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             name="phone"
                             value={schoolInfo.phone || ''}
                             onChange={handleChange}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                            disabled={!isEditMode}
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
                         />
                     </div>
@@ -279,7 +290,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                         name="principal"
                         value={schoolInfo.principal}
                         onChange={handleChange}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                        disabled={!isEditMode}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         placeholder="الاسم الثلاثي"
                     />
                 </div>
@@ -292,7 +304,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             name="principalMobile"
                             value={schoolInfo.principalMobile || ''}
                             onChange={handleChange}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                            disabled={!isEditMode}
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             placeholder="05xxxxxxxx"
                             dir="ltr"
                         />
@@ -303,30 +316,33 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                 <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-2">
                     <label className="text-sm font-bold text-slate-600 block mb-2">شعار المدرسة</label>
                     <div className="flex items-center gap-4">
-                        <div 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-6 py-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-2 text-xs font-bold text-slate-500"
+                        <div
+                            onClick={() => isEditMode && fileInputRef.current?.click()}
+                            className={`px-6 py-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                         >
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
                                 accept="image/*"
                                 onChange={handleLogoUpload}
+                                disabled={!isEditMode}
                             />
-                            <Upload size={14} /> 
+                            <Upload size={14} />
                             {schoolInfo.logo ? 'تغيير الشعار' : 'رفع شعار المدرسة'}
                         </div>
                         {schoolInfo.logo && (
                             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold">
-                                <CheckCircle2 size={14} /> 
+                                <CheckCircle2 size={14} />
                                 <span>تم الرفع</span>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); setSchoolInfo(prev => ({ ...prev, logo: undefined })); }}
-                                    className="hover:text-rose-500 mr-2 flex items-center"
-                                >
-                                    <X size={14} />
-                                </button>
+                                {isEditMode && (
+                                  <button
+                                      onClick={(e) => { e.stopPropagation(); setSchoolInfo(prev => ({ ...prev, logo: undefined })); }}
+                                      className="hover:text-rose-500 mr-2 flex items-center"
+                                  >
+                                      <X size={14} />
+                                  </button>
+                                )}
                             </div>
                         )}
                          {schoolInfo.logo && (
@@ -346,11 +362,12 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
           <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600">اسم الكيان <span className="text-rose-500">*</span></label>
               <input
-                  name="schoolName" // Reuse schoolName for Entity Name
+                  name="schoolName"
                   value={schoolInfo.schoolName}
                   onChange={handleChange}
                   placeholder={`أدخل اسم ${schoolInfo.entityType || 'الكيان'}`}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                  disabled={!isEditMode}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               />
           </div>
 
@@ -361,7 +378,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                   value={schoolInfo.country || ''}
                   onChange={handleChange}
                   placeholder="الدولة"
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                  disabled={!isEditMode}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               />
           </div>
 
@@ -383,7 +401,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                   value={schoolInfo.city || ''}
                   onChange={handleChange}
                   placeholder="المدينة"
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                  disabled={!isEditMode}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               />
           </div>
            
@@ -396,7 +415,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                      name="email"
                      value={schoolInfo.email || ''}
                      onChange={handleChange}
-                     className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                     disabled={!isEditMode}
+                     className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                      dir="ltr"
                  />
               </div>
@@ -410,7 +430,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                    name="principal"
                    value={schoolInfo.principal}
                    onChange={handleChange}
-                   className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                   disabled={!isEditMode}
+                   className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                />
           </div>
            <div className="space-y-2">
@@ -422,7 +443,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                      name="principalMobile"
                      value={schoolInfo.principalMobile || ''}
                      onChange={handleChange}
-                     className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                     disabled={!isEditMode}
+                     className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                      placeholder="05xxxxxxxx"
                      dir="ltr"
                  />
@@ -434,8 +456,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
               <label className="text-sm font-bold text-slate-600">شعار الكيان</label>
               <div className="flex items-center gap-3">
                  <div
-                     onClick={() => fileInputRef.current?.click()}
-                     className="flex-1 p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-2 text-xs font-bold text-slate-500"
+                     onClick={() => isEditMode && fileInputRef.current?.click()}
+                     className={`flex-1 p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                  >
                      <input
                          type="file"
@@ -443,6 +465,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                          className="hidden"
                          accept="image/*"
                          onChange={handleLogoUpload}
+                         disabled={!isEditMode}
                      />
                      <Upload size={14} />
                      {schoolInfo.logo ? 'تغيير الشعار' : 'رفع شعار الكيان'}
@@ -451,12 +474,14 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                      <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold">
                          <CheckCircle2 size={14} />
                          <span>تم الرفع</span>
-                         <button
-                             onClick={(e) => { e.stopPropagation(); setSchoolInfo(prev => ({ ...prev, logo: undefined })); }}
-                             className="hover:text-rose-500 mr-1 flex items-center"
-                         >
-                             <X size={14} />
-                         </button>
+                         {isEditMode && (
+                           <button
+                               onClick={(e) => { e.stopPropagation(); setSchoolInfo(prev => ({ ...prev, logo: undefined })); }}
+                               className="hover:text-rose-500 mr-1 flex items-center"
+                           >
+                               <X size={14} />
+                           </button>
+                         )}
                      </div>
                  )}
                  {schoolInfo.logo && (
@@ -490,9 +515,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                </div>
             </div>
             <div className="flex items-center gap-2">
-               <button 
+               <button
                   onClick={(e) => { e.stopPropagation(); deleteSharedSchool(school.id); }}
-                  className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                  className="p-2 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-lg transition-colors"
                   title="حذف المدرسة"
                >
                   <Trash2 size={16} />
@@ -503,16 +528,18 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
 
          {/* Card Content (Form) */}
          {isExpanded && (
-            <div className="p-6 border-t border-slate-100 bg-white animate-in slide-in-from-top-2 duration-300">
+            <div className="p-6 border-t border-slate-100 bg-white animate-in slide-in-from-top-2 duration-300" onClick={e => e.stopPropagation()}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                    {/* School Name */}
                    <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3">
                       <label className="text-xs font-bold text-slate-500">اسم المدرسة <span className="text-rose-500">*</span></label>
-                      <input 
+                      <input
                          value={school.name}
                          onChange={(e) => updateSharedSchool(school.id, 'name', e.target.value)}
+                         onClick={(e) => e.stopPropagation()}
                          placeholder="أدخل اسم المدرسة"
-                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all"
+                         disabled={!isEditMode}
+                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                    </div>
 
@@ -528,8 +555,10 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             <button
                               key={p}
                               type="button"
-                              onClick={() => updateSharedSchool(school.id, 'phases', [p])}
-                              className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none active:scale-95 flex items-center gap-2
+                              onClick={(e) => { e.stopPropagation(); if (isEditMode) updateSharedSchool(school.id, 'phases', [p]); }}
+                              disabled={!isEditMode}
+                              className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed
+                                ${isEditMode ? 'active:scale-95' : ''}
                                 ${isSelected
                                   ? 'border-[#8779fb] bg-white text-[#8779fb] shadow-md shadow-[#8779fb]/10'
                                   : 'border-slate-200 bg-white text-slate-500 hover:border-[#8779fb]/40 hover:text-[#8779fb] hover:bg-[#8779fb]/5'
@@ -553,10 +582,11 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                    {/* Other Fields */}
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500">نوع المدرسة</label>
-                      <select 
+                      <select
                          value={school.gender}
                          onChange={(e) => updateSharedSchool(school.id, 'gender', e.target.value)}
-                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none appearance-none"
+                         disabled={!isEditMode}
+                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                          <option value="بنين">بنين</option>
                          <option value="بنات">بنات</option>
@@ -565,79 +595,85 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
 
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500">إدارة التعليم</label>
-                      <input 
+                      <input
                          value={school.educationAdministration || ''}
                          onChange={(e) => updateSharedSchool(school.id, 'educationAdministration', e.target.value)}
-                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none"
+                         disabled={!isEditMode}
+                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                    </div>
-                   
+
                    <div className="space-y-2">
                        <label className="text-xs font-bold text-slate-500">المنطقة</label>
-                       <input 
+                       <input
                           value={school.region || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'region', e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none"
+                          disabled={!isEditMode}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                        />
                    </div>
 
                    <div className="space-y-2">
                        <label className="text-xs font-bold text-slate-500">العنوان</label>
-                       <input 
+                       <input
                           value={school.address || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'address', e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none"
+                          disabled={!isEditMode}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                        />
                    </div>
 
                    <div className="space-y-2">
                        <label className="text-xs font-bold text-slate-500">البريد الإلكتروني</label>
-                       <input 
+                       <input
                           value={school.email || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'email', e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none"
+                          disabled={!isEditMode}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           dir="ltr"
                        />
                    </div>
 
                    <div className="space-y-2">
                        <label className="text-xs font-bold text-slate-500">هاتف المدرسة</label>
-                       <input 
+                       <input
                           value={school.phone || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'phone', e.target.value)}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none"
+                          disabled={!isEditMode}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           dir="ltr"
                        />
                    </div>
 
-
-                   
                    {/* Logo */}
                    <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-2">
                       <div className="flex items-center gap-4">
-                         <div 
-                             onClick={() => sharedSchoolFileInputRefs.current[school.id]?.click()}
-                             className="px-6 py-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors flex items-center gap-2 text-xs font-bold text-slate-500"
+                         <div
+                             onClick={() => isEditMode && sharedSchoolFileInputRefs.current[school.id]?.click()}
+                             className={`px-6 py-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                          >
-                            <input 
-                               type="file" 
+                            <input
+                               type="file"
                                ref={(el) => { sharedSchoolFileInputRefs.current[school.id] = el; }}
                                className="hidden"
                                accept="image/*"
                                onChange={(e) => handleSharedSchoolLogoUpload(school.id, e)}
+                               disabled={!isEditMode}
                             />
-                            <Upload size={14} /> 
+                            <Upload size={14} />
                             {school.logo ? 'تغيير الشعار' : 'رفع شعار المدرسة'}
                          </div>
                          {school.logo && (
                             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold">
                                <CheckCircle2 size={14} /> تم الرفع
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); updateSharedSchool(school.id, 'logo', null); }}
-                                 className="hover:text-rose-500 mr-2"
-                               >
-                                 <X size={14} />
-                               </button>
+                               {isEditMode && (
+                                 <button
+                                   onClick={(e) => { e.stopPropagation(); updateSharedSchool(school.id, 'logo', null); }}
+                                   className="hover:text-rose-500 mr-2"
+                                 >
+                                   <X size={14} />
+                                 </button>
+                               )}
                             </div>
                          )}
                       </div>
@@ -655,7 +691,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
       {/* 0. Page Header */}
       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-          
+
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
             <School size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              المعلومات العامة
@@ -675,7 +711,8 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                       name="entityType"
                       value={schoolInfo.entityType || EntityType.SCHOOL}
                       onChange={handleChange}
-                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium appearance-none"
+                      disabled={!isEditMode}
+                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                       {Object.values(EntityType).map(type => (
                          <option key={type} value={type}>{type}</option>
@@ -698,7 +735,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                             <div className="p-2 bg-purple-50 text-purple-600 rounded-xl"><Building2 size={24} /></div>
                             المدارس المشتركة
                         </h3>
-                        <button 
+                        <button
                           onClick={addSharedSchool}
                           className="flex items-center gap-2 px-4 py-2 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all active:scale-95"
                         >
@@ -720,7 +757,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo }) => {
                                 <p className="text-xs text-slate-400 mt-1">يمكنك إضافة المدارس المشتركة لإدارتها</p>
                             </div>
                          </div>
-                         <button 
+                         <button
                             onClick={addSharedSchool}
                             className="flex items-center gap-2 px-6 py-2.5 bg-[#8779fb] text-white rounded-xl font-bold text-sm hover:bg-[#7366e8] transition-all active:scale-95"
                           >
