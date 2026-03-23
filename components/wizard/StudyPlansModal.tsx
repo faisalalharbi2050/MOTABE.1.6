@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { X, Book, GraduationCap, Building, School, Activity, Star, Check, Printer, Eye, ChevronDown, ChevronLeft, Info, CheckCircle2 } from 'lucide-react';
+import { X, Book, GraduationCap, Building, School, Activity, Star, Check, Printer, Eye, ChevronDown, ChevronLeft, Info, CheckCircle2, Layers } from 'lucide-react';
 import { Phase, SchoolInfo } from '../../types';
 import { STUDY_PLANS_CONFIG, StudyPlanDepartment, StudyPlanEntry } from '../../study_plans_config';
 import { DETAILED_TEMPLATES } from '../../constants';
@@ -229,12 +229,12 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
         {/* ── Header ── */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#e5e1fe] flex items-center justify-center text-[#655ac1]">
-              <Book size={24} />
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-[#655ac1]">
+              <Layers size={24} />
             </div>
             <div>
               <h3 className="text-xl font-black text-slate-800">الخطط الدراسية</h3>
-              <p className="text-sm text-slate-500 font-medium">تصفح ومعاينة واعتماد الخطط الوزارية</p>
+              <p className="text-sm text-slate-500 font-medium">معاينة واعتماد الخطط الدراسية</p>
             </div>
           </div>
           <button onClick={onClose} className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all no-print">
