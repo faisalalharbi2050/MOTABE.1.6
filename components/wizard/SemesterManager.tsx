@@ -685,8 +685,8 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                const isFullHoliday = weekActiveCount === 0;
                                const isPartialHoliday = weekActiveCount > 0 && weekActiveCount < weekActiveDays.length;
 
-                               const firstDay = week.days[0];
-                               const lastDay = week.days[week.days.length - 1];
+                               const firstDay = weekActiveDays[0];
+                               const lastDay = weekActiveDays[weekActiveDays.length - 1];
 
                                return (
                                <div
@@ -728,12 +728,12 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                         </span>
                                      </div>
                                      {/* Week date range */}
-                                     <div className={`text-xs font-bold flex items-center gap-1 ${
+                                     <div className={`text-xs font-bold text-right ${
                                         isFullHoliday ? 'text-rose-500' : isPartialHoliday ? 'text-amber-500' : 'text-[#8779fb]'
                                      }`}>
-                                        <span dir="ltr">{firstDay.dateObj.format('D/M')}</span>
-                                        <span className="opacity-50">—</span>
-                                        <span dir="ltr">{lastDay.dateObj.format('D/M')}</span>
+                                        <bdi dir="ltr">{firstDay.dateObj.format('M/D')}</bdi>
+                                        <span className="opacity-50 mx-1">—</span>
+                                        <bdi dir="ltr">{lastDay.dateObj.format('M/D')}</bdi>
                                      </div>
                                   </div>
 
