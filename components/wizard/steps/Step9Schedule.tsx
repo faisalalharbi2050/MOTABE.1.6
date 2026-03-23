@@ -857,7 +857,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                   <div className="flex flex-col items-center text-center max-w-md animate-in zoom-in duration-300">
                       <CalendarDays size={64} className="text-[#655ac1] mb-7" strokeWidth={1.3} />
                       <h4 className="text-2xl font-black text-slate-800 mb-3">لم يتم إنشاء الجدول بعد</h4>
-                      <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">
+                      <p className="text-sm font-medium text-slate-500 mb-8 whitespace-nowrap">
                           اضغط على زر <span className="text-[#655ac1] font-bold">إنشاء جدول الحصص</span> لبدء توزيع الحصص بناءً على البيانات والقيود المدخلة
                       </p>
                       <button
