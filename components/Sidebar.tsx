@@ -37,6 +37,7 @@ import {
   School,
   BookOpen,
   LayoutGrid,
+  CalendarDays,
   UserCog,
   Lock,
   Printer,
@@ -333,8 +334,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <SubNavItem
                      active={activeTab === "classes_waiting"}
                      onClick={() => handleTabClick("classes_waiting")}
-                   label="إدارة الجدول"
-                     icon={<Clock size={18} />}
+                     label="إنشاء وإدارة الجدول"
+                     icon={<CalendarDays size={18} />}
                      inverted={true}
                   />
                   <SubNavItem

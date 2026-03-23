@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo } from 'react';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject } from '../../types';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight } from 'lucide-react';
 
 export type TeacherSortMode = 'alpha' | 'specialization' | 'custom';
 
@@ -47,6 +47,7 @@ interface InlineScheduleViewProps {
     teacherCustomOrder?: string[];
     specializationCustomOrder?: string[];
     specializationNames?: Record<string, string>;
+    onEditRequest?: () => void;
 }
 
 const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
@@ -55,6 +56,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     teacherCustomOrder = [],
     specializationCustomOrder = [],
     specializationNames: _specNames = {},
+    onEditRequest,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
@@ -352,18 +354,6 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         return (
             <div className="w-full relative">
-                {/* Toolbar */}
-                <div className="flex justify-end mb-2 gap-2 px-1">
-                    {(isTeachers || isWaiting) && (
-                        <button onClick={()=>setShowWaitingCounts(!showWaitingCounts)}
-                            className="text-xs px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-2 font-semibold"
-                            style={{background: showWaitingCounts ? '#f4f2ff' : '#f8fafc', color:'#655ac1', borderColor: showWaitingCounts ? '#c4bfee' : '#e2e8f0'}}>
-                            <div className={`w-2.5 h-2.5 rounded-full ${showWaitingCounts?'bg-[#8e85d6]':'bg-slate-300'}`}/>
-                            {showWaitingCounts ? 'إخفاء أعداد الانتظار' : 'إظهار أعداد الانتظار'}
-                        </button>
-                    )}
-                </div>
-
                 {/* Table wrapper */}
                 <div style={{borderRadius:'16px', overflow:'hidden', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
                 <div className="overflow-x-auto">
@@ -720,18 +710,31 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         return (
             <div className="fixed inset-0 z-[200] bg-slate-100 flex flex-col overflow-hidden" style={{direction:'rtl'}}>
                 {/* Top bar */}
-                <div className="bg-white shadow-md px-5 py-3 flex items-center justify-between shrink-0 z-50 print:hidden">
-                    <h2 className="text-xl font-black text-slate-800">{titleMap[type]}</h2>
+                <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between shrink-0 z-50 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                        {/* Print button — available for all general views in fullscreen */}
-                        <button onClick={()=>window.print()}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm border transition-all"
-                            style={{background:'#f0fdf4', color:'#15803d', borderColor:'#bbf7d0'}}>
-                            🖨 طباعة
-                        </button>
-                        <button onClick={handleCloseFullScreen}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-bold text-sm border border-red-100 transition-colors">
-                            <Minimize2 size={16}/>
+                        {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
+                        {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
+                        {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
+                        <div>
+                            <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
+                            <div className="h-1 w-10 rounded-full mt-0.5" style={{background: C_BG}}></div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {type === 'general_teachers' && onEditRequest && (
+                            <button
+                                onClick={() => { handleCloseFullScreen(); onEditRequest(); }}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.03] active:scale-95"
+                                style={{background:'#655ac1', color:'#fff', boxShadow:'0 4px 14px rgba(101,90,193,0.25)'}}>
+                                <Pencil size={15}/>
+                                <span>تعديل</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={handleCloseFullScreen}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all hover:bg-slate-50 active:scale-95"
+                            style={{color:'#64748b', borderColor:'#e2e8f0'}}>
+                            <ArrowRight size={16}/>
                             <span>رجوع</span>
                         </button>
                     </div>
@@ -749,24 +752,22 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         <div className="bg-white font-sans w-full relative p-2" style={{direction:'rtl'}}>
             {/* Inline Header — general views only */}
             {isGeneral && (
-                <div className="flex items-center justify-between mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200 print:hidden">
-                    <div className="text-right flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center">
-                            <span className="font-black text-lg">ج</span>
-                        </div>
+                <div className="flex items-center justify-between mb-5 px-1 print:hidden">
+                    <div className="flex items-center gap-3">
+                        {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
+                        {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
+                        {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
                         <div>
-                            <h2 className="text-lg font-black text-slate-800">{titleMap[type]}</h2>
-                            <p className="text-xs text-slate-500 font-bold mt-0.5">عرض وتعديل الجدول العام</p>
+                            <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
+                            <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={()=>setIsFullScreen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#655ac1] hover:border-[#655ac1] rounded-lg font-bold text-sm transition-all shadow-sm"
-                            title="تكبير الشاشة">
-                            <Maximize2 size={16}/>
-                            <span>تكبير الشاشة</span>
-                        </button>
-                    </div>
+                    <button onClick={()=>setIsFullScreen(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:bg-[#f4f2ff] active:scale-95"
+                        style={{background: '#fff', color: C_BG, border: `1.5px solid ${C_BG}`}}>
+                        <Maximize2 size={15}/>
+                        <span>{type === 'general_teachers' ? 'تعديل ومعاينة' : 'معاينة'}</span>
+                    </button>
                 </div>
             )}
             {/* Table */}

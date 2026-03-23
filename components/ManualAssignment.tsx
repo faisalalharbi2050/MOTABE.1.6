@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, Phase, SchoolInfo, Specialization } from '../types';
 import SchoolTabs from './wizard/SchoolTabs';
-import { 
-  Search, X, Trash2, ChevronDown, Filter, Check, Layers, Briefcase, 
+import {
+  Search, X, Trash2, ChevronDown, Filter, Check, Layers, Briefcase,
   Printer, Users, CheckCircle2, User, HelpCircle, AlertTriangle, LayoutTemplate,
   Eye, ArrowUp, ClipboardList, BookOpen, ChevronRight, Calculator, GraduationCap,
-  ListFilter, School, LayoutGrid
+  ListFilter, School, LayoutGrid, ShieldAlert
 } from 'lucide-react';
 import AssignmentReport from './AssignmentReport';
+import { useToast } from './ui/ToastProvider';
 
 interface Props {
   teachers: Teacher[];
@@ -21,10 +22,22 @@ interface Props {
   gradeSubjectMap: Record<string, string[]>;
 }
 
-const ManualAssignment: React.FC<Props> = ({ 
-  teachers, setTeachers, subjects, classes, assignments, 
+// ── نوع مودال التأكيد ──
+interface ConfirmDialog {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  type: 'danger' | 'warning';
+  onConfirm: () => void;
+}
+
+const ManualAssignment: React.FC<Props> = ({
+  teachers, setTeachers, subjects, classes, assignments,
   setAssignments, schoolInfo, gradeSubjectMap, specializations
 }) => {
+  const { showToast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
+
   const [showReport, setShowReport] = useState(false);
 
   // -- Shared Schools --
@@ -94,6 +107,17 @@ const ManualAssignment: React.FC<Props> = ({
   };
 
   // -- Helpers --
+
+  // يحل مفتاح gradeSubjectMap بالصيغتين: الجديدة "{schoolId}-{phase}-{grade}" والقديمة "{phase}-{grade}"
+  const getGradeSubjectIds = (cls: { phase: string; grade: number; schoolId?: string }): string[] => {
+    const schoolId = cls.schoolId || 'main';
+    return (
+      gradeSubjectMap[`${schoolId}-${cls.phase}-${cls.grade}`] ||
+      gradeSubjectMap[`${cls.phase}-${cls.grade}`] ||
+      []
+    );
+  };
+
   const getTeacherLoad = (tId: string) => {
     return assignments.filter(a => a.teacherId === tId).reduce((total, a) => {
       const sub = subjects.find(s => s.id === a.subjectId);
@@ -108,7 +132,7 @@ const ManualAssignment: React.FC<Props> = ({
     classes.filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)).forEach(cls => {
         const relevantSubjects = subjects.filter(s =>
             !s.isArchived &&
-            (gradeSubjectMap[`${cls.phase}-${cls.grade}`]?.includes(s.id) || cls.subjectIds?.includes(s.id))
+            (getGradeSubjectIds(cls).includes(s.id) || cls.subjectIds?.includes(s.id))
         );
         // unique subjects for THIS class instance
         const uniqueSubjects = Array.from(new Set(relevantSubjects.map(s => s.id))).map(id => relevantSubjects.find(s => s.id === id)!);
@@ -135,7 +159,7 @@ const ManualAssignment: React.FC<Props> = ({
       classes.filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)).forEach(cls => {
             const relevantSubjects = subjects.filter(s =>
                 !s.isArchived &&
-                (gradeSubjectMap[`${cls.phase}-${cls.grade}`]?.includes(s.id) || cls.subjectIds?.includes(s.id))
+                (getGradeSubjectIds(cls).includes(s.id) || cls.subjectIds?.includes(s.id))
             );
             const uniqueSubjects = Array.from(new Set(relevantSubjects.map(s => s.id))).map(id => relevantSubjects.find(s => s.id === id)!);
             if (uniqueSubjects.length > 0) {
@@ -259,34 +283,50 @@ const ManualAssignment: React.FC<Props> = ({
   // -- Assignment Actions --
   const handleAssign = (classId: string, subjectId: string) => {
     if (!selectedTeacherId) {
-        alert("يرجى اختيار معلم أولاً من القائمة اليمنى");
+        showToast('يرجى اختيار معلم أولاً من القائمة اليمنى', 'warning');
         return;
     }
 
     const teacher = teachers.find(t => t.id === selectedTeacherId);
-    if (!teacher) return;
+    if (!teacher) {
+      showToast('يرجى اختيار معلم أولاً من القائمة اليمنى', 'warning');
+      return;
+    }
     
     const existingAssignment = assignments.find(a => a.classId === classId && a.subjectId === subjectId);
     if (existingAssignment) {
-        if (existingAssignment.teacherId === selectedTeacherId) return; // Already assigned to self
+        if (existingAssignment.teacherId === selectedTeacherId) return;
     }
 
     const subject = subjects.find(s => s.id === subjectId);
     const subjectLoad = subject?.periodsPerClass || 0;
     const currentLoad = getTeacherLoad(teacher.id);
-    
-    // Check Quota
-    if (currentLoad + subjectLoad > teacher.quotaLimit) {
-        if (!confirm(`هذا الإسناد سيتجاوز نصاب المعلم (${teacher.quotaLimit}). هل أنت متأكد؟`)) {
-            return;
-        }
+
+    // النصاب الفعّال: للمعلم المشترك = مجموع نصابي المدرستين، للعادي = quotaLimit
+    const effectiveQuota = teacher.isShared && teacher.schools?.length
+      ? teacher.schools.reduce((sum, s) => sum + (s.lessons || 0), 0)
+      : teacher.quotaLimit;
+
+    const doAssign = () => {
+      setAssignments(prev => {
+        const filtered = prev.filter(a => !(a.classId === classId && a.subjectId === subjectId));
+        return [...filtered, { teacherId: selectedTeacherId, classId, subjectId }];
+      });
+    };
+
+    // تنبيه فقط عند تجاوز النصاب الكلي للمعلم في المدرستين
+    if (currentLoad + subjectLoad > effectiveQuota) {
+        setConfirmDialog({
+            title: 'تجاوز النصاب الكلي',
+            message: `هذا الإسناد سيتجاوز إجمالي نصاب المعلم (${effectiveQuota} حصة في المدرستين). هل أنت متأكد من المتابعة؟`,
+            confirmLabel: 'متابعة رغم ذلك',
+            type: 'warning',
+            onConfirm: doAssign,
+        });
+        return;
     }
 
-    setAssignments(prev => {
-      // Remove any existing assignment for this class/subject
-      const filtered = prev.filter(a => !(a.classId === classId && a.subjectId === subjectId));
-      return [...filtered, { teacherId: selectedTeacherId, classId, subjectId }];
-    });
+    doAssign();
   };
 
   const handleUnassign = (classId: string, subjectId: string) => {
@@ -294,17 +334,50 @@ const ManualAssignment: React.FC<Props> = ({
   };
 
   const handleUnassignTeacher = (tId: string, tName: string) => {
-    if (confirm(`هل أنت متأكد من حذف جميع الإسنادات للمعلم: ${tName}؟`)) {
-      setAssignments(prev => prev.filter(a => a.teacherId !== tId));
-    }
+    const currentSchool = activeSchoolTab;
+    const schoolLabel = currentSchool === 'main'
+      ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+      : (sharedSchools.find(s => s.id === currentSchool)?.name || currentSchool);
+
+    setConfirmDialog({
+      title: 'حذف إسنادات المعلم',
+      message: `سيتم حذف إسنادات المعلم "${tName}" في "${schoolLabel}" فقط. إسناداته في المدارس الأخرى لن تتأثر.`,
+      confirmLabel: 'حذف الإسنادات',
+      type: 'danger',
+      onConfirm: () => setAssignments(prev => prev.filter(a => {
+        if (a.teacherId !== tId) return true; // احتفظ بإسنادات بقية المعلمين
+        // احذف فقط إسنادات المعلم في فصول المدرسة الحالية
+        const cls = classes.find(c => c.id === a.classId);
+        const clsSchool = cls?.schoolId || 'main';
+        return clsSchool !== currentSchool;
+      })),
+    });
   };
 
   const handleDeleteAll = () => {
-    if (assignments.length === 0) return;
-    if (confirm("هل أنت متأكد من حذف جميع الإسنادات؟ لا يمكن التراجع عن ذلك.")) {
-        setAssignments([]);
-    }
-  }
+    const currentSchool = activeSchoolTab;
+    // تحقق من وجود إسنادات في المدرسة الحالية فقط
+    const currentSchoolAssignments = assignments.filter(a => {
+      const cls = classes.find(c => c.id === a.classId);
+      return (cls?.schoolId || 'main') === currentSchool;
+    });
+    if (currentSchoolAssignments.length === 0) return;
+
+    const schoolLabel = currentSchool === 'main'
+      ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+      : (sharedSchools.find(s => s.id === currentSchool)?.name || currentSchool);
+
+    setConfirmDialog({
+      title: 'حذف جميع الإسنادات',
+      message: `سيتم حذف جميع الإسنادات في "${schoolLabel}" نهائياً. إسنادات المدارس الأخرى لن تتأثر.`,
+      confirmLabel: 'حذف الكل',
+      type: 'danger',
+      onConfirm: () => setAssignments(prev => prev.filter(a => {
+        const cls = classes.find(c => c.id === a.classId);
+        return (cls?.schoolId || 'main') !== currentSchool;
+      })),
+    });
+  };
 
   const toggleSpec = (id: string) => {
     setSelectedSpecs(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -348,7 +421,58 @@ const ManualAssignment: React.FC<Props> = ({
   const TeacherDetailsModal = () => {
       if (!viewingTeacher) return null;
       const teacherAssignments = assignments.filter(a => a.teacherId === viewingTeacher.id);
-      
+
+      // ── مساعد: عرض صف مادة واحدة ──
+      const AssignmentRow = ({ a, idx }: { a: typeof teacherAssignments[0]; idx: number }) => {
+          const cls = classes.find(c => c.id === a.classId);
+          const sub = subjects.find(s => s.id === a.subjectId);
+          return (
+              <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white rounded-lg border border-slate-100 text-[#655ac1]">
+                          <Briefcase size={16}/>
+                      </div>
+                      <div>
+                          <h4 className="text-sm font-black text-slate-700">{sub?.name}</h4>
+                          <span className="text-[10px] font-bold text-slate-400">الفصل {cls?.grade} / {cls?.section}</span>
+                      </div>
+                  </div>
+                  <div className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
+                      {sub?.periodsPerClass} حصص
+                  </div>
+              </div>
+          );
+      };
+
+      // ── عرض مجموعة مدرسة مع نصابها ──
+      const SchoolSection = ({
+          schoolName,
+          schoolAssignments,
+          quota,
+      }: { schoolName: string; schoolAssignments: typeof teacherAssignments; quota: number }) => {
+          const total = schoolAssignments.reduce((sum, a) => {
+              const sub = subjects.find(s => s.id === a.subjectId);
+              return sum + (sub?.periodsPerClass || 0);
+          }, 0);
+          return (
+              <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-black text-[#655ac1]">{schoolName}</span>
+                      <span className="text-[10px] font-bold text-slate-500 bg-[#e5e1fe] px-2 py-0.5 rounded-full">
+                          {total} / {quota} حصة
+                      </span>
+                  </div>
+                  {schoolAssignments.length > 0 ? (
+                      schoolAssignments.map((a, idx) => <AssignmentRow key={idx} a={a} idx={idx} />)
+                  ) : (
+                      <div className="py-4 text-center text-slate-400 text-xs font-medium bg-slate-50 rounded-xl">
+                          لا توجد مواد مسندة في هذه المدرسة بعد.
+                      </div>
+                  )}
+              </div>
+          );
+      };
+
       return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
               <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl m-4">
@@ -366,36 +490,69 @@ const ManualAssignment: React.FC<Props> = ({
                           <X size={20}/>
                       </button>
                   </div>
-                  
+
                   <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-3">
-                      {teacherAssignments.length > 0 ? (
-                            teacherAssignments.map((a, idx) => {
-                                const cls = classes.find(c => c.id === a.classId);
-                                const sub = subjects.find(s => s.id === a.subjectId);
-                                return (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-white rounded-lg border border-slate-100 text-[#655ac1]">
-                                                <Briefcase size={16}/>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-sm font-black text-slate-700">{sub?.name}</h4>
-                                                <span className="text-[10px] font-bold text-slate-400">الفصل {cls?.grade} / {cls?.section}</span>
-                                            </div>
-                                        </div>
-                                        <div className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
-                                            {sub?.periodsPerClass} حصص
-                                        </div>
-                                    </div>
-                                );
-                            })
-                      ) : (
-                          <div className="py-8 text-center text-slate-400 font-medium">
-                              لا توجد مواد مسندة لهذا المعلم بعد.
-                          </div>
+                      {viewingTeacher.isShared ? (() => {
+                          // ── عرض مشترك: مدرستان منفصلتان ──
+                          const schoolA_Id = viewingTeacher.schoolId || 'main';
+                          const schoolA_Name = schoolA_Id === 'main'
+                              ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+                              : (sharedSchools.find(s => s.id === schoolA_Id)?.name || schoolA_Id);
+                          const schoolB_Entry = (viewingTeacher.schools || []).find(s => s.schoolId !== schoolA_Id);
+                          const schoolB_Id = schoolB_Entry?.schoolId;
+                          const schoolB_Name = schoolB_Entry?.schoolName || '';
+
+                          const isClassOfSchool = (classId: string, sId: string) => {
+                              const cls = classes.find(c => c.id === classId);
+                              const clsSchool = cls?.schoolId || 'main';
+                              return clsSchool === sId;
+                          };
+
+                          const assignmentsA = teacherAssignments.filter(a => isClassOfSchool(a.classId, schoolA_Id));
+
+                          // النصاب من البيانات المخزونة لكل مدرسة (مستقل — لا يعتمد على quotaLimit)
+                          const schoolA_Entry = (viewingTeacher.schools || []).find(s => s.schoolId === schoolA_Id);
+                          const schoolA_Quota = schoolA_Entry?.lessons || viewingTeacher.quotaLimit || 24;
+                          const schoolB_Quota = schoolB_Entry?.lessons || 0;
+                          const assignmentsB = schoolB_Id
+                              ? teacherAssignments.filter(a => isClassOfSchool(a.classId, schoolB_Id))
+                              : [];
+
+                          const totalAll = teacherAssignments.reduce((sum, a) => {
+                              const sub = subjects.find(s => s.id === a.subjectId);
+                              return sum + (sub?.periodsPerClass || 0);
+                          }, 0);
+
+                          return (
+                              <>
+                                  <SchoolSection schoolName={schoolA_Name} schoolAssignments={assignmentsA} quota={schoolA_Quota} />
+                                  {schoolB_Entry && (
+                                      <>
+                                          <div className="h-px bg-slate-100 my-1" />
+                                          <SchoolSection schoolName={schoolB_Name} schoolAssignments={assignmentsB} quota={schoolB_Quota} />
+                                      </>
+                                  )}
+                                  <div className="h-px bg-slate-200 my-1" />
+                                  <div className="flex items-center justify-between px-1 pt-1">
+                                      <span className="text-xs font-black text-slate-600">إجمالي الإسناد</span>
+                                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                          {totalAll} / {schoolA_Quota + schoolB_Quota} حصة
+                                      </span>
+                                  </div>
+                              </>
+                          );
+                      })() : (
+                          // ── عرض عادي: مدرسة واحدة ──
+                          teacherAssignments.length > 0 ? (
+                              teacherAssignments.map((a, idx) => <AssignmentRow key={idx} a={a} idx={idx} />)
+                          ) : (
+                              <div className="py-8 text-center text-slate-400 font-medium">
+                                  لا توجد مواد مسندة لهذا المعلم بعد.
+                              </div>
+                          )
                       )}
                   </div>
-                  
+
                   <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
                       <button onClick={() => setViewingTeacher(null)} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">
                           إغلاق
@@ -425,6 +582,42 @@ const ManualAssignment: React.FC<Props> = ({
     <div className="space-y-6 animate-in fade-in duration-500 pb-24" ref={mainScrollRef}>
         
       {viewingTeacher && <TeacherDetailsModal />}
+
+      {/* ── مودال التأكيد الاحترافي ── */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md mx-4 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+            {/* Header */}
+            <div className={`p-6 pb-4 flex items-center gap-4 ${confirmDialog.type === 'danger' ? 'bg-rose-50' : 'bg-amber-50'}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${confirmDialog.type === 'danger' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+                {confirmDialog.type === 'danger' ? <ShieldAlert size={24} /> : <AlertTriangle size={24} />}
+              </div>
+              <h3 className={`text-lg font-black ${confirmDialog.type === 'danger' ? 'text-rose-700' : 'text-amber-700'}`}>
+                {confirmDialog.title}
+              </h3>
+            </div>
+            {/* Body */}
+            <div className="px-6 py-5">
+              <p className="text-sm font-medium text-slate-600 leading-relaxed">{confirmDialog.message}</p>
+            </div>
+            {/* Footer */}
+            <div className="px-6 pb-6 flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                className={`px-5 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 active:scale-95 ${confirmDialog.type === 'danger' ? 'bg-rose-500 hover:bg-rose-600' : 'bg-amber-500 hover:bg-amber-600'}`}
+              >
+                {confirmDialog.confirmLabel || 'تأكيد'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* 1. ROW 1: Header */}
       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
@@ -720,43 +913,117 @@ const ManualAssignment: React.FC<Props> = ({
                                 </div>
 
                                 {/* Progress Bar & Quota */}
-                                <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
-                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                                        <span className="flex items-center gap-1">
-                                            نصاب: 
-                                            {editingQuotaTeacherId === t.id ? (
-                                                <div className="inline-flex items-center gap-1 mr-1" onClick={e => e.stopPropagation()}>
-                                                    <input 
-                                                        type="number" 
-                                                        value={tempQuota}
-                                                        onChange={e => setTempQuota(Number(e.target.value))}
-                                                        className="w-10 text-center border border-[#655ac1] rounded px-0.5 py-0 focus:outline-none bg-white font-black text-[#655ac1]"
-                                                        autoFocus
-                                                    />
-                                                    <button onClick={(e) => saveQuota(e, t)} className="text-emerald-600 hover:bg-emerald-50 rounded p-0.5"><Check size={12}/></button>
+                                {t.isShared ? (() => {
+                                    // ── شريطان للمعلم المشترك ──
+                                    const schoolA_Id = t.schoolId || 'main';
+                                    const schoolA_Name = schoolA_Id === 'main'
+                                        ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+                                        : (sharedSchools.find(s => s.id === schoolA_Id)?.name || schoolA_Id);
+
+                                    // النصاب المخصص لكل مدرسة (المخزون في schools[].lessons من خطوة إضافة المعلمين)
+                                    const schoolA_Entry = (t.schools || []).find(s => s.schoolId === schoolA_Id);
+                                    const schoolA_Quota = schoolA_Entry?.lessons || t.quotaLimit || 24;
+
+                                    // الحصص الفعلية المسندة في المدرسة الأولى (من assignments)
+                                    const schoolA_Actual = assignments
+                                        .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === schoolA_Id)
+                                        .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+
+                                    const aIsOver = schoolA_Actual >= schoolA_Quota;
+                                    const aIsHigh = schoolA_Actual >= 20;
+                                    const aColor = aIsOver ? 'bg-rose-500' : aIsHigh ? 'bg-amber-500' : 'bg-emerald-500';
+                                    const aTextCls = aIsOver ? 'bg-rose-100 text-rose-600' : aIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
+                                    const aProgress = schoolA_Quota > 0 ? Math.min(100, Math.round((schoolA_Actual / schoolA_Quota) * 100)) : 0;
+
+                                    const schoolB_Entry = (t.schools || []).find(s => s.schoolId !== schoolA_Id);
+                                    const schoolB_Id = schoolB_Entry?.schoolId;
+                                    const schoolB_Name = schoolB_Entry?.schoolName || '';
+
+                                    // النصاب المخصص للمدرسة الثانية (مستقل لا يعتمد على المدرسة الأولى)
+                                    const schoolB_Quota = schoolB_Entry?.lessons || 0;
+
+                                    // الحصص الفعلية المسندة في المدرسة الثانية (من assignments)
+                                    const schoolB_Actual = schoolB_Id
+                                        ? assignments
+                                            .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === schoolB_Id)
+                                            .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0)
+                                        : 0;
+
+                                    const threshold = schoolB_Quota - 4;
+                                    const bIsOver = schoolB_Actual >= schoolB_Quota;
+                                    const bIsHigh = schoolB_Actual >= threshold;
+                                    const bColor = bIsOver ? 'bg-rose-500' : bIsHigh ? 'bg-amber-500' : 'bg-emerald-500';
+                                    const bTextCls = bIsOver ? 'bg-rose-100 text-rose-600' : bIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
+                                    const bProgress = schoolB_Quota > 0 ? Math.min(100, Math.round((schoolB_Actual / schoolB_Quota) * 100)) : 0;
+
+                                    return (
+                                        <div className="space-y-1.5">
+                                            {/* الشريط الأول — المدرسة الأولى */}
+                                            <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                                <div className="text-[9px] font-black text-slate-400 truncate">{schoolA_Name}</div>
+                                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                                    <span>نصاب: <span className="mr-1">{schoolA_Quota}</span></span>
+                                                    <span className={`px-1.5 py-0.5 rounded-md ${aTextCls}`}>{schoolA_Actual} حصة</span>
                                                 </div>
-                                            ) : (
-                                                <span 
-                                                    className="mr-1 cursor-pointer hover:text-[#655ac1] hover:bg-white px-1.5 py-0.5 rounded transition-all border border-transparent hover:border-slate-200 hover:shadow-sm"
-                                                    onClick={(e) => startEditingQuota(e, t)}
-                                                    title="اضغط لتعديل النصاب"
-                                                >
-                                                    {t.quotaLimit}
-                                                </span>
+                                                <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                                    <div className={`h-full ${aColor} transition-all duration-700 ease-out shadow-sm`} style={{width: `${aProgress}%`}} />
+                                                </div>
+                                            </div>
+                                            {/* الشريط الثاني — المدرسة الثانية */}
+                                            {schoolB_Entry && (
+                                                <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                                    <div className="text-[9px] font-black text-slate-400 truncate">{schoolB_Name}</div>
+                                                    <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                                        <span>نصاب: <span className="mr-1">{schoolB_Quota}</span></span>
+                                                        <span className={`px-1.5 py-0.5 rounded-md ${bTextCls}`}>{schoolB_Actual} حصة</span>
+                                                    </div>
+                                                    <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${bColor} transition-all duration-700 ease-out shadow-sm`} style={{width: `${bProgress}%`}} />
+                                                    </div>
+                                                </div>
                                             )}
-                                        </span>
-                                        
-                                        <span className={`px-1.5 py-0.5 rounded-md ${isOverLimit ? 'bg-rose-100 text-rose-600' : isHighLoad ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                            {assignedLoad} حصة
-                                        </span>
+                                        </div>
+                                    );
+                                })() : (
+                                    // ── شريط واحد للمعلم غير المشترك (بدون تغيير) ──
+                                    <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                            <span className="flex items-center gap-1">
+                                                نصاب:
+                                                {editingQuotaTeacherId === t.id ? (
+                                                    <div className="inline-flex items-center gap-1 mr-1" onClick={e => e.stopPropagation()}>
+                                                        <input
+                                                            type="number"
+                                                            value={tempQuota}
+                                                            onChange={e => setTempQuota(Number(e.target.value))}
+                                                            className="w-10 text-center border border-[#655ac1] rounded px-0.5 py-0 focus:outline-none bg-white font-black text-[#655ac1]"
+                                                            autoFocus
+                                                        />
+                                                        <button onClick={(e) => saveQuota(e, t)} className="text-emerald-600 hover:bg-emerald-50 rounded p-0.5"><Check size={12}/></button>
+                                                    </div>
+                                                ) : (
+                                                    <span
+                                                        className="mr-1 cursor-pointer hover:text-[#655ac1] hover:bg-white px-1.5 py-0.5 rounded transition-all border border-transparent hover:border-slate-200 hover:shadow-sm"
+                                                        onClick={(e) => startEditingQuota(e, t)}
+                                                        title="اضغط لتعديل النصاب"
+                                                    >
+                                                        {t.quotaLimit}
+                                                    </span>
+                                                )}
+                                            </span>
+
+                                            <span className={`px-1.5 py-0.5 rounded-md ${isOverLimit ? 'bg-rose-100 text-rose-600' : isHighLoad ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                {assignedLoad} حصة
+                                            </span>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full ${progressColor} transition-all duration-700 ease-out shadow-sm`}
+                                                style={{width: `${progressValue}%`}}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full ${progressColor} transition-all duration-700 ease-out shadow-sm`} 
-                                            style={{width: `${progressValue}%`}}
-                                        />
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         );
                     })
@@ -880,7 +1147,7 @@ const ManualAssignment: React.FC<Props> = ({
                                 {gradeClasses.map(cls => {
                                     // Filter and Deduplicate Subjects
                                     const rawSubjects: Subject[] = sourceSubjects.filter(
-                                        (s) => gradeSubjectMap[`${cls.phase}-${cls.grade}`]?.includes(s.id) || cls.subjectIds?.includes(s.id)
+                                        (s) => getGradeSubjectIds(cls).includes(s.id) || cls.subjectIds?.includes(s.id)
                                     );
                                     const classSubjects: Subject[] = Array.from(new Map(rawSubjects.map(s => [s.id, s])).values());
                                     
@@ -929,7 +1196,7 @@ const ManualAssignment: React.FC<Props> = ({
                                                                 onClick={() => {
                                                                     if (!isAssigned) {
                                                                         if (selectedTeacherId) handleAssign(cls.id, sub.id);
-                                                                        else alert("اختر معلماً أولاً");
+                                                                        else showToast('اختر معلماً أولاً من القائمة اليمنى', 'warning');
                                                                     }
                                                                 }}
                                                                 onDoubleClick={() => isAssigned && handleUnassign(cls.id, sub.id)}

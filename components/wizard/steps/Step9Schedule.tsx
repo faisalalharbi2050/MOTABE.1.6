@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
-  Calendar, 
-  Play, 
+  Calendar,
+  CalendarDays,
+  Play,
   Edit, 
   Lock, 
   Unlock,
@@ -27,6 +29,7 @@ import {
   CalendarClock,
   LayoutGrid,
   MonitorPlay,
+  Eye,
   FileText,
   BookOpen,
   GripVertical,
@@ -108,6 +111,21 @@ const Step9Schedule: React.FC<Step9Props> = ({
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [showSendSchedule, setShowSendSchedule] = useState(false);
   const [showEditMenu, setShowEditMenu] = useState(false);
+  const [showViewDropdown, setShowViewDropdown] = useState(false);
+  const [viewDropdownPos, setViewDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const viewDropdownRef = useRef<HTMLDivElement>(null);
+  const viewDropdownBtnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!showViewDropdown) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const inMenu = viewDropdownRef.current && viewDropdownRef.current.contains(target);
+      const inBtn = viewDropdownBtnRef.current && viewDropdownBtnRef.current.contains(target);
+      if (!inMenu && !inBtn) setShowViewDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showViewDropdown]);
 
   // ── Quick-action deep-link from Dashboard ─────────────────────────
   useEffect(() => {
@@ -376,10 +394,10 @@ const Step9Schedule: React.FC<Step9Props> = ({
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
 
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <Calendar size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-             إدارة الجدول
+            <CalendarDays size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+            إنشاء وإدارة الجدول
           </h3>
-          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إدارة وإعداد جداول الحصص والانتظار عبر واجهة تفاعلية وسلسة</p>
+          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إنشاء وإدارة جدول الحصص والانتظار عبر واجهة تفاعلية سهلة وسلسة</p>
           
           {hasSharedSchools && (
               <div className="mt-6 flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10 p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -435,7 +453,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                 className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
                 {isGenerating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={20} className="animate-pulse" />}
-                <span>{isGenerating ? 'جاري البناء...' : 'إنشاء الجدول'}</span>
+                <span>{isGenerating ? 'جاري البناء...' : 'إنشاء جدول الحصص'}</span>
             </button>
             
             <div className="w-px h-6 bg-slate-200 mx-2"></div>
@@ -505,7 +523,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
         </div>
 
         {/* Secondary Toolbar (Management and Logs) */}
-        <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-2 px-3 shadow-sm border border-slate-200">
+        <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-3.5 px-3 shadow-sm border border-slate-200">
             <div className="flex gap-2">
                  <button 
                    onClick={() => setShowWaitingSettings(true)}
@@ -521,14 +539,14 @@ const Step9Schedule: React.FC<Step9Props> = ({
                        if (!hasSchedule) {
                            setMissingDataAlert({
                                title: "لم يتم إنشاء جدول الحصص",
-                               message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"التوليد الذكي للجدول\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
+                               message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"إنشاء جدول الحصص\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
                            });
                            return;
                        }
                        if (!isScheduleLocked) {
                            setMissingDataAlert({
                                title: "الجدول غير مقفل",
-                               message: "يجب قفل جدول الحصص أولاً قبل إنشاء الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
+                               message: "يجب قفل جدول الحصص أولاً قبل إنشاء حصص الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
                            });
                            return;
                        }
@@ -542,18 +560,104 @@ const Step9Schedule: React.FC<Step9Props> = ({
                        // تنفيذ التوزيع مباشرةً بالإعدادات الحالية
                        handleDistributeWaiting(scheduleSettings.substitution);
                    }}
-                   title="إنشاء الانتظار"
-                   className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#7668ea] text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-[#8779fb]/20 transition-all hover:scale-105 active:scale-95"
+                   title="إنشاء حصص الانتظار"
+                   className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
                  >
                    <CalendarClock size={18} />
-                   <span>إنشاء الانتظار</span>
+                   <span>إنشاء حصص الانتظار</span>
                  </button>
             </div>
 
             <div className="flex gap-2">
-                 <button 
+                 {/* زر عرض الجداول مع قائمة منسدلة */}
+                 <div className="relative">
+                   <button
+                     ref={viewDropdownBtnRef}
+                     onClick={() => {
+                       if (viewDropdownBtnRef.current) {
+                         const rect = viewDropdownBtnRef.current.getBoundingClientRect();
+                         setViewDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                       }
+                       setShowViewDropdown(v => !v);
+                     }}
+                     className={`flex items-center gap-2 bg-white hover:bg-slate-50 border px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] ${activeDisplayView ? 'border-[#8779fb] text-[#655ac1]' : 'border-slate-200 text-slate-700'}`}
+                   >
+                     <Eye size={18} className="text-[#655ac1]" />
+                     <span>
+                       {activeDisplayView
+                         ? (() => {
+                             const labels: Record<string, string> = {
+                               general_teachers:  'الجدول العام للمعلمين',
+                               general_waiting:   'الجدول العام للانتظار',
+                               individual_teacher:'جدول معلم',
+                               general_classes:   'الجدول العام للفصول',
+                               individual_class:  'جدول فصل',
+                             };
+                             return labels[activeDisplayView] ?? 'عرض الجداول';
+                           })()
+                         : 'عرض الجداول'}
+                     </span>
+                     <ChevronDown size={14} className={`transition-transform duration-200 ${showViewDropdown ? 'rotate-180' : 'opacity-50'}`} />
+                   </button>
+
+                   {showViewDropdown && createPortal(
+                     <div
+                       ref={viewDropdownRef}
+                       className="fixed w-60 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-[9999]"
+                       style={{ top: viewDropdownPos.top, right: viewDropdownPos.right }}
+                     >
+                       {/* خيارات العرض */}
+                       {([
+                         { id: 'general_teachers',   title: 'الجدول العام للمعلمين',  icon: <Users size={16} /> },
+                         { id: 'general_waiting',    title: 'الجدول العام للانتظار',  icon: <CalendarClock size={16} /> },
+                         { id: 'individual_teacher', title: 'جدول معلم',              icon: <User size={16} /> },
+                         { id: 'general_classes',    title: 'الجدول العام للفصول',   icon: <LayoutGrid size={16} /> },
+                         { id: 'individual_class',   title: 'جدول فصل',              icon: <LayoutGrid size={16} /> },
+                       ] as Array<{ id: string; title: string; icon: React.ReactNode }>).map(opt => (
+                         <button
+                           key={opt.id}
+                           onClick={() => {
+                             setActiveDisplayView(opt.id as typeof activeDisplayView);
+                             setSelectedDisplayIds([]);
+                             setIndividualSearchQuery('');
+                             setShowIndividualDropdown(false);
+                             setShowViewDropdown(false);
+                           }}
+                           className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold rounded-xl transition-colors mb-0.5 ${
+                             activeDisplayView === opt.id
+                               ? 'bg-[#e5e1fe] text-[#655ac1]'
+                               : 'text-slate-600 hover:bg-slate-50 hover:text-[#655ac1]'
+                           }`}
+                         >
+                           <span className={activeDisplayView === opt.id ? 'text-[#655ac1]' : 'text-slate-400'}>{opt.icon}</span>
+                           {opt.title}
+                         </button>
+                       ))}
+                       {/* فاصل + إلغاء العرض */}
+                       {activeDisplayView && (
+                         <>
+                           <div className="h-px bg-slate-100 my-1.5" />
+                           <button
+                             onClick={() => {
+                               setActiveDisplayView(null);
+                               setSelectedDisplayIds([]);
+                               setShowViewDropdown(false);
+                             }}
+                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold rounded-xl text-rose-500 hover:bg-rose-50 transition-colors"
+                           >
+                             <X size={16} />
+                             إلغاء العرض
+                           </button>
+                         </>
+                       )}
+                     </div>,
+                     document.body
+                   )}
+                 </div>
+
+                 <button
                     onClick={() => setShowManageSchedules(true)}
-                    title="إدارة الجداول" 
+                    title="إدارة الجداول"
                     className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
                  >
                    <Save size={18} className="text-[#655ac1]" />
@@ -575,57 +679,9 @@ const Step9Schedule: React.FC<Step9Props> = ({
         </div>
       </div>
 
-      {/* ══════ View Selector ══════ */}
-      {(() => {
-        type DisplayViewType = 'general_teachers' | 'general_classes' | 'general_waiting' | 'individual_teacher' | 'individual_class';
-        const viewOptions: Array<{
-          id: DisplayViewType;
-          title: string;
-          icon: React.ReactNode;
-        }> = [
-          { id: 'general_teachers',  title: 'الجدول العام للمعلمين',  icon: <Users size={20} /> },
-          { id: 'general_waiting',   title: 'الجدول العام للانتظار',  icon: <CalendarClock size={20} /> },
-          { id: 'individual_teacher', title: 'جدول معلم',               icon: <User size={20} /> },
-          { id: 'general_classes',   title: 'الجدول العام للفصول',    icon: <LayoutGrid size={20} /> },
-          { id: 'individual_class',   title: 'جدول فصل',               icon: <BookOpen size={20} /> },
-        ];
-
-        return (
-          <div className="mb-6">
-            {/* Header — right-aligned, no box */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Table size={17} className="text-[#655ac1]" />
-                <span className="text-base font-black text-slate-700">عرض الجداول</span>
-              </div>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            {/* Option Cards — rectangular */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {viewOptions.map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={() => {
-                    setActiveDisplayView(opt.id);
-                    setSelectedDisplayIds([]);
-                    setIndividualSearchQuery('');
-                    setShowIndividualDropdown(false);
-                  }}
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 font-bold text-sm transition-all duration-200 ${
-                    activeDisplayView === opt.id
-                      ? 'border-[#8779fb] bg-white text-[#655ac1] shadow-sm scale-[1.02]'
-                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-[#8779fb]/50 hover:bg-slate-100 hover:text-[#655ac1]'
-                  }`}
-                >
-                  <span className="shrink-0 text-[#655ac1]">
-                    {opt.icon}
-                  </span>
-                  <span className="text-right leading-tight">{opt.title}</span>
-                </button>
-              ))}
-            </div>
-
+      {/* ══════ خيارات العرض الفرعية (تظهر بعد اختيار نوع الجدول) ══════ */}
+      {activeDisplayView && (
+        <div className="mb-6 space-y-3">
             {/* Individual Multi-Select */}
             {(activeDisplayView === 'individual_teacher' || activeDisplayView === 'individual_class') && (() => {
               const isTeacherView = activeDisplayView === 'individual_teacher';
@@ -641,13 +697,13 @@ const Step9Schedule: React.FC<Step9Props> = ({
                 <div className="mt-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-2 space-y-3">
                   {/* Row: icon + label + search + dropdown button */}
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#e5e1fe] flex items-center justify-center shrink-0">
-                      {isTeacherView ? <User size={18} className="text-[#655ac1]" /> : <BookOpen size={18} className="text-[#655ac1]" />}
+                    <div className="shrink-0">
+                      {isTeacherView ? <User size={20} className="text-[#655ac1]" /> : <LayoutGrid size={20} className="text-[#655ac1]" />}
                     </div>
+                    <p className="text-xs font-black text-slate-500 shrink-0">
+                      {isTeacherView ? 'اختر معلماً أو أكثر لعرض جداولهم' : 'اختر فصلاً أو أكثر لعرض جداولها'}
+                    </p>
                     <div className="flex-1 relative">
-                      <p className="text-xs font-black text-slate-500 mb-1.5">
-                        {isTeacherView ? 'اختر معلماً أو أكثر لعرض جداولهم' : 'اختر فصلاً أو أكثر لعرض جداولها'}
-                      </p>
                       <div className="relative">
                         <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                         <input
@@ -719,12 +775,11 @@ const Step9Schedule: React.FC<Step9Props> = ({
             {/* Teacher Sort Controls — shown for teacher views */}
             {(activeDisplayView === 'general_teachers' || activeDisplayView === 'general_waiting') && (
               <div className="mt-3 flex flex-wrap items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
-                <div className="w-9 h-9 rounded-xl bg-[#e5e1fe] flex items-center justify-center shrink-0">
-                  <Users size={18} className="text-[#655ac1]" />
+                <div className="shrink-0">
+                  <Users size={20} className="text-[#655ac1]" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs font-black text-slate-500 mb-2">ترتيب عرض المعلمين</p>
-                  <div className="flex gap-2 flex-wrap">
+                <p className="text-xs font-black text-slate-500 shrink-0">ترتيب عرض المعلمين</p>
+                <div className="flex gap-2 flex-wrap flex-1">
                     {([
                       { id: 'alpha', label: 'أبجدي' },
                       { id: 'specialization', label: 'التخصص' },
@@ -785,13 +840,11 @@ const Step9Schedule: React.FC<Step9Props> = ({
                         تعديل ترتيب التخصصات
                       </button>
                     )}
-                  </div>
                 </div>
               </div>
             )}
-          </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* ══════ Main Content Area ══════ */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm min-h-[500px] relative">
@@ -800,25 +853,19 @@ const Step9Schedule: React.FC<Step9Props> = ({
 
           {/* State: No Schedule Alert */}
           {!hasSchedule && !isGenerating && !activeDisplayView && (
-              <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
-                  <div className="w-full max-w-2xl bg-amber-50 border-r-4 border-amber-500 rounded-xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-in zoom-in duration-300">
-                      <div className="flex items-center gap-4 text-center sm:text-right">
-                          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 shrink-0 mx-auto sm:mx-0">
-                              <Sparkles size={24} />
-                          </div>
-                          <div>
-                              <h4 className="text-lg font-black text-slate-800 mb-1">لم يتم إنشاء الجدول بعد</h4>
-                              <p className="text-sm font-medium text-slate-600 leading-relaxed">
-                                  اضغط على زر "التوليد الذكي للجدول" لبدء عملية التوزيع الآلي للحصص بناءً على القيود والبيانات المدخلة
-                              </p>
-                          </div>
-                      </div>
-                      <button 
+              <div className="flex flex-col items-center justify-center h-full min-h-[480px] p-8">
+                  <div className="flex flex-col items-center text-center max-w-md animate-in zoom-in duration-300">
+                      <CalendarDays size={64} className="text-[#655ac1] mb-7" strokeWidth={1.3} />
+                      <h4 className="text-2xl font-black text-slate-800 mb-3">لم يتم إنشاء الجدول بعد</h4>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">
+                          اضغط على زر <span className="text-[#655ac1] font-bold">إنشاء جدول الحصص</span> لبدء توزيع الحصص بناءً على البيانات والقيود المدخلة
+                      </p>
+                      <button
                           onClick={handleValidation}
-                          className="px-6 py-3 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all active:scale-95 flex items-center gap-2 shrink-0"
+                          className="px-8 py-3.5 bg-[#655ac1] text-white rounded-2xl font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/30 transition-all active:scale-95 hover:scale-[1.03] flex items-center gap-2.5 text-base"
                       >
                           <Play size={18} fill="currentColor" />
-                          <span>التوليد الذكي للجدول</span>
+                          <span>إنشاء جدول الحصص</span>
                       </button>
                   </div>
               </div>
@@ -839,7 +886,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     }`}>
                       {activeDisplayView === 'individual_teacher'
                         ? <User size={28} className="text-amber-400" />
-                        : <MonitorPlay size={28} className="text-indigo-400" />}
+                        : <LayoutGrid size={28} className="text-[#655ac1]" />}
                     </div>
                     <p className="text-sm font-bold">
                       {activeDisplayView === 'individual_teacher' ? 'ابحث عن معلم واختره من القائمة أعلاه' : 'ابحث عن فصل واختره من القائمة أعلاه'}
@@ -895,6 +942,10 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     teacherCustomOrder={teacherCustomOrder}
                     specializationCustomOrder={specializationCustomOrder}
                     specializationNames={specNames}
+                    onEditRequest={activeDisplayView === 'general_teachers' ? () => {
+                      setActiveDisplayView(null);
+                      setActiveView('grid');
+                    } : undefined}
                   />
                 </div>
               );
