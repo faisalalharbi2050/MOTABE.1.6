@@ -111,6 +111,17 @@ const Step9Schedule: React.FC<Step9Props> = ({
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [showSendSchedule, setShowSendSchedule] = useState(false);
   const [showEditMenu, setShowEditMenu] = useState(false);
+  const editMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showEditMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (editMenuRef.current && !editMenuRef.current.contains(e.target as Node)) {
+        setShowEditMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEditMenu]);
   const [showViewDropdown, setShowViewDropdown] = useState(false);
   const [viewDropdownPos, setViewDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const viewDropdownRef = useRef<HTMLDivElement>(null);
@@ -458,8 +469,8 @@ const Step9Schedule: React.FC<Step9Props> = ({
             
             <div className="w-px h-6 bg-slate-200 mx-2"></div>
             
-            <div className="relative">
-                <button 
+            <div className="relative" ref={editMenuRef}>
+                <button
                     onClick={() => setShowEditMenu(!showEditMenu)}
                     className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
                 >
@@ -479,7 +490,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                             className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
                         >
                             <Grid size={16} className="-mt-0.5" />
-                            الجدول العام
+                            العام للمعلمين
                         </button>
                         <button 
                             onClick={() => {
@@ -501,7 +512,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                             className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors mt-1 ${activeView === 'individual' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
                         >
                             <Users size={16} className="-mt-0.5" />
-                            معلمين متعددين
+                            مقارنة وتعديل
                         </button>
                     </div>
                 )}

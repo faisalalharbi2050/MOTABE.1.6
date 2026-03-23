@@ -265,7 +265,7 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
                     <div>
                         <h4 className="text-lg font-black text-slate-800 flex items-center gap-2">
                             <Users size={20} className="text-[#655ac1]" />
-                            التعديل الفردي المتعدد
+                            مقارنة وتعديل
                         </h4>
                         <p className="text-sm font-medium text-slate-500 mt-1">
                             اختر المعلمين المراد التعديل بينهم جنباً إلى جنب بشكل مباشر.
