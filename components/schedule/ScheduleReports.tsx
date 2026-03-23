@@ -136,7 +136,7 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
               </div>
               <div className="text-center">
                 <p className="font-bold text-slate-800">معاينة وطباعة</p>
-                <p className="text-xs text-slate-500">معاينة الجدول</p>
+                <p className="text-xs text-slate-500">معاينة وطباعة الجدول</p>
               </div>
             </button>
 

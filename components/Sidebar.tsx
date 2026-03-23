@@ -39,6 +39,7 @@ import {
   LayoutGrid,
   UserCog,
   Lock,
+  Printer,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -339,8 +340,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <SubNavItem
                      active={activeTab === "schedule_reports"}
                      onClick={() => handleTabClick("schedule_reports")}
-                     label="تصدير الجدول"
-                     icon={<Download size={18} />}
+                     label="طباعة وتصدير الجدول"
+                     icon={<Printer size={18} />}
                      inverted={true}
                   />
                </div>
