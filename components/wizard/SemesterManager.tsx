@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Trash2, Check, Plus, AlertCircle, X, CheckCircle2, FileText } from 'lucide-react';
+import { Calendar, Trash2, Check, Plus, AlertCircle, X, CheckCircle2, FileText, MousePointerClick } from 'lucide-react';
 import { SemesterInfo } from '../../types';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
@@ -617,60 +617,164 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   )}
 
                   {generatedWeeks.length > 0 && (
-                     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-6 shadow-sm">
-                        <div className="bg-slate-50 border-b border-slate-200 p-4 py-3 flex justify-between items-center">
-                           <h4 className="font-bold text-slate-700 font-readex flex items-center gap-2 text-sm">
-                              <Calendar size={16} className="text-primary" />
-                              الأسابيع الدراسية
-                           </h4>
-                           <div className="text-xs text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                              الأسابيع الفعالة: <span className="font-bold text-primary text-sm">{activeCalendarWeeks}</span> من <span className="font-bold text-slate-700">{generatedWeeks.length}</span>
+                     <div className="bg-white border border-[#8779fb]/20 rounded-2xl overflow-hidden mt-6 shadow-lg">
+
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-[#655ac1]/8 to-[#8779fb]/6 border-b border-[#8779fb]/15 px-5 py-4 flex flex-wrap justify-between items-center gap-3">
+                           <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-[#655ac1]/10 rounded-xl flex items-center justify-center">
+                                 <Calendar size={18} className="text-[#655ac1]" />
+                              </div>
+                              <div>
+                                 <h4 className="font-bold text-slate-800 text-sm">الأسابيع الدراسية</h4>
+                                 <p className="text-[11px] text-slate-400">انقر على يوم أو رأس أسبوع لتحديده كإجازة</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-2">
+                              <div className="bg-white rounded-xl border border-[#8779fb]/25 px-4 py-2 text-center shadow-sm min-w-[72px]">
+                                 <div className="text-[10px] text-slate-400 font-bold mb-0.5">فعّال</div>
+                                 <div className="text-xl font-black text-[#655ac1] leading-none">{activeCalendarWeeks}</div>
+                              </div>
+                              <div className="text-slate-300 text-xl font-light">/</div>
+                              <div className="bg-white rounded-xl border border-slate-200 px-4 py-2 text-center shadow-sm min-w-[72px]">
+                                 <div className="text-[10px] text-slate-400 font-bold mb-0.5">إجمالي</div>
+                                 <div className="text-xl font-black text-slate-500 leading-none">{generatedWeeks.length}</div>
+                              </div>
                            </div>
                         </div>
-                        
-                        {/* Legend */}
-                        <div className="bg-white px-4 py-3 flex flex-wrap justify-center items-center gap-6 text-[11px] font-bold text-slate-600 shadow-sm z-10 relative">
-                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-white border border-slate-300 shadow-sm"></div> يوم دراسي </div>
-                            <div className="flex items-center gap-2 hover:bg-rose-50 px-2 py-1 rounded-md transition-colors"><div className="w-4 h-4 rounded-md bg-rose-100 border border-rose-200 shadow-inner"></div> <span className="text-rose-700">يوم إجازة (انقر للتبديل)</span> </div>
-                            <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-md bg-slate-100 border border-slate-200"></div> النقر على رأس الأسبوع يحدد الكل </div>
+
+                        {/* Interaction Guide */}
+                        <div className="bg-indigo-50/70 border-b border-indigo-100 px-5 py-3">
+                           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+                              <div className="flex items-center gap-2 text-[11px] text-indigo-700 font-bold">
+                                 <MousePointerClick size={13} className="text-[#655ac1] shrink-0" />
+                                 <span>انقر على <span className="underline underline-offset-2">اليوم</span> لتحويله إلى إجازة أو عمل</span>
+                              </div>
+                              <div className="w-px h-4 bg-indigo-200 hidden md:block" />
+                              <div className="flex items-center gap-2 text-[11px] text-indigo-700 font-bold">
+                                 <MousePointerClick size={13} className="text-[#655ac1] shrink-0" />
+                                 <span>انقر على <span className="underline underline-offset-2">رأس الأسبوع</span> لتحويل الأسبوع كاملاً</span>
+                              </div>
+                              <div className="w-px h-4 bg-indigo-200 hidden md:block" />
+                              <div className="flex items-center gap-3 text-[11px]">
+                                 <span className="flex items-center gap-1.5 text-[#655ac1] font-bold">
+                                    <span className="w-3 h-3 rounded-sm bg-[#8779fb]/20 border border-[#8779fb]/40 inline-block" />
+                                    عمل
+                                 </span>
+                                 <span className="flex items-center gap-1.5 text-rose-600 font-bold">
+                                    <span className="w-3 h-3 rounded-sm bg-rose-200 border border-rose-300 inline-block" />
+                                    إجازة
+                                 </span>
+                              </div>
+                           </div>
                         </div>
 
-                        <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 bg-slate-50/50 border-t border-slate-100 shadow-inner">
-                           {generatedWeeks.map((week, idx) => {
+                        {/* Weeks Grid */}
+                        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 bg-slate-50/30">
+                           {(() => {
+                              let visibleWeekIndex = 0;
+                              const totalVisibleWeeks = generatedWeeks.filter((w: any) => w.days.filter((d: any) => d.isWorkingDay).length > 0).length;
+                              return generatedWeeks.map((week, idx) => {
                                const weekActiveDays = week.days.filter((d: any) => d.isWorkingDay);
-                               if (weekActiveDays.length === 0) return null; // لا نعرض الأسابيع التي لا تحتوي على أي يوم عمل
+                               if (weekActiveDays.length === 0) return null;
+
+                               const currentVisibleIndex = visibleWeekIndex++;
+                               const progressPercent = Math.round(((currentVisibleIndex + 1) / totalVisibleWeeks) * 100);
 
                                const weekActiveCount = weekActiveDays.filter((d: any) => !d.isHoliday).length;
                                const isFullHoliday = weekActiveCount === 0;
-                               
+                               const isPartialHoliday = weekActiveCount > 0 && weekActiveCount < weekActiveDays.length;
+
+                               const firstDay = week.days[0];
+                               const lastDay = week.days[week.days.length - 1];
+
                                return (
-                               <div key={idx} className={`border rounded-xl overflow-hidden shadow-sm transition-all duration-300 ${isFullHoliday ? 'bg-rose-50/50 border-rose-200 opacity-80' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
-                                  <div 
-                                      className={`p-2.5 text-center border-b text-sm font-bold cursor-pointer transition-colors ${isFullHoliday ? 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
-                                      onClick={() => handleToggleWeekHolidays(week.days)}
-                                      title="انقر لتحويل الأسبوع كاملاً إلى إجازة / دوام"
+                               <div
+                                  key={idx}
+                                  className={`rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-md flex flex-col ${
+                                     isFullHoliday
+                                        ? 'bg-rose-50 border border-rose-200 shadow-sm'
+                                        : isPartialHoliday
+                                           ? 'bg-white border border-amber-200 shadow-sm'
+                                           : 'bg-white border border-[#8779fb]/20 shadow-sm hover:border-[#8779fb]/40'
+                                  }`}
+                               >
+                                  {/* Week Header */}
+                                  <div
+                                     className={`px-3 pt-2.5 pb-2 cursor-pointer select-none transition-all ${
+                                        isFullHoliday
+                                           ? 'bg-rose-100 hover:bg-rose-200'
+                                           : isPartialHoliday
+                                              ? 'bg-amber-50 hover:bg-amber-100'
+                                              : 'bg-gradient-to-l from-[#655ac1]/6 to-[#8779fb]/10 hover:from-[#655ac1]/12 hover:to-[#8779fb]/18'
+                                     }`}
+                                     onClick={() => handleToggleWeekHolidays(week.days)}
+                                     title="انقر لتحويل الأسبوع كاملاً إلى إجازة / عمل"
                                   >
-                                      الأسبوع {week.weekNumber}
+                                     <div className="flex items-center justify-between mb-1.5">
+                                        <span className={`text-lg font-black leading-none ${
+                                           isFullHoliday ? 'text-rose-700' : isPartialHoliday ? 'text-amber-700' : 'text-[#655ac1]'
+                                        }`}>
+                                           {week.weekNumber}
+                                        </span>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                           isFullHoliday
+                                              ? 'bg-rose-200 text-rose-700'
+                                              : isPartialHoliday
+                                                 ? 'bg-amber-100 text-amber-700'
+                                                 : 'bg-[#655ac1]/10 text-[#655ac1]'
+                                        }`}>
+                                           {weekActiveCount}/{weekActiveDays.length}
+                                        </span>
+                                     </div>
+                                     {/* Week date range */}
+                                     <div className={`text-xs font-bold flex items-center gap-1 ${
+                                        isFullHoliday ? 'text-rose-500' : isPartialHoliday ? 'text-amber-500' : 'text-[#8779fb]'
+                                     }`}>
+                                        <span dir="ltr">{firstDay.dateObj.format('D/M')}</span>
+                                        <span className="opacity-50">—</span>
+                                        <span dir="ltr">{lastDay.dateObj.format('D/M')}</span>
+                                     </div>
                                   </div>
-                                  <div className="p-3 space-y-2 min-h-[120px]">
-                                      {weekActiveDays.map((day: any) => (
-                                          <div 
-                                              key={day.date} 
-                                              onClick={() => handleToggleHoliday(day.date)}
-                                              className={`text-xs px-3 py-2 rounded-lg flex justify-between items-center cursor-pointer transition-all border ${
-                                                  day.isHoliday 
-                                                  ? 'bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200 hover:border-rose-300 shadow-inner' 
-                                                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-primary/30 shadow-sm hover:shadow-md hover:text-primary'
-                                              }`}
-                                              title="انقر للتبديل بين إجازة ودوام"
-                                          >
-                                              <span className="font-bold truncate" title={day.label}>{day.label}</span>
-                                              <span dir="ltr" className="opacity-70 font-medium">{day.dateObj.format('MM/DD')}</span>
-                                          </div>
-                                      ))}
+
+                                  {/* Days List */}
+                                  <div className="p-2 space-y-1.5 flex-1">
+                                     {weekActiveDays.map((day: any) => (
+                                        <div
+                                           key={day.date}
+                                           onClick={() => handleToggleHoliday(day.date)}
+                                           className={`text-xs px-2.5 py-1.5 rounded-xl flex justify-between items-center cursor-pointer select-none transition-all ${
+                                              day.isHoliday
+                                                 ? 'bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200'
+                                                 : 'bg-white text-[#655ac1] hover:bg-[#8779fb]/6 border border-[#8779fb]/15 hover:border-[#8779fb]/35'
+                                           }`}
+                                           title="انقر للتبديل بين إجازة وعمل"
+                                        >
+                                           <span className="font-bold">{day.label}</span>
+                                           <span dir="ltr" className="opacity-50 font-medium text-[10px]">{day.dateObj.format('MM/DD')}</span>
+                                        </div>
+                                     ))}
+                                  </div>
+
+                                  {/* Progress Bar */}
+                                  <div className="px-2 pb-2 pt-1">
+                                     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                           className={`h-full rounded-full transition-all duration-500 ${
+                                              isFullHoliday
+                                                 ? 'bg-rose-300'
+                                                 : isPartialHoliday
+                                                    ? 'bg-amber-300'
+                                                    : 'bg-gradient-to-l from-[#655ac1] to-[#8779fb]'
+                                           }`}
+                                           style={{ width: `${progressPercent}%` }}
+                                        />
+                                     </div>
                                   </div>
                                </div>
-                           )})}
+                               );
+                              });
+                           })()}
                         </div>
 
                      </div>

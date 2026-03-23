@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { X, Calendar, AlertCircle } from 'lucide-react';
 import { SchoolInfo } from '../../types';
 import SemesterManager from '../wizard/SemesterManager';
 
@@ -20,6 +20,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
   
   const hasData = !!schoolInfo.academicYear || (schoolInfo.semesters && schoolInfo.semesters.length > 0);
   const showForm = isStarted || hasData;
+  const hideNotes = !!(schoolInfo.academicYear && schoolInfo.semesters && schoolInfo.semesters.length > 0);
 
   if (!isOpen) return null;
 
@@ -58,7 +59,6 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
               <div className="w-20 h-20 bg-[#8779fb]/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
                 <Calendar size={40} className="text-[#8779fb]" />
               </div>
-              <h4 className="text-slate-800 font-black text-lg mb-2">لنبدأ في التنظيم</h4>
               <p className="text-slate-500 mb-8 max-w-md mx-auto">
                 حدد الفصول الدراسية والتقويم الدراسي للعام الحالي
               </p>
@@ -71,38 +71,24 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Academic Year Info Card */}
-              <div className="bg-gradient-to-r from-[#655ac1]/5 to-[#8779fb]/5 border border-[#8779fb]/20 rounded-2xl p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <FileText size={20} className="text-[#655ac1]" />
-                  <h4 className="font-bold text-slate-800">معلومات العام الدراسي</h4>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 block mb-1.5">
-                      العام الدراسي
-                    </label>
-                    <input
-                      type="text"
-                      value={schoolInfo.academicYear || ''}
-                      onChange={(e) => setSchoolInfo(prev => ({ ...prev, academicYear: e.target.value }))}
-                      className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-800 outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/25 transition-all"
-                      placeholder="مثال: 1445-1446"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 block mb-1.5">
-                      الحالة
-                    </label>
-                    <div className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl">
-                      <div className={`w-2 h-2 rounded-full ${hasData ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                      <span className="text-sm font-bold text-slate-700">
-                        {hasData ? 'تم الإعداد' : 'قيد الإعداد'}
-                      </span>
+              {/* Clarification Notes - shown at top, hidden after adding year and semesters */}
+              {!hideNotes && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <h5 className="font-bold text-amber-800 text-sm mb-2">توضيح :</h5>
+                      <ul className="text-xs text-amber-700 space-y-1.5">
+                        <li>• يمكنك اختيار نوع التقويم هجري / ميلادي</li>
+                        <li>• يمكنك اختيار العام الدراسي وإضافة الفصول الدراسية</li>
+                        <li>• حدد تاريخ البدء والانتهاء لكل فصل دراسي</li>
+                        <li>• يمكنك تحديد أيام العطل الرسمية والإجازات بنقرة زر</li>
+                        <li>• النظام سيحسب تلقائياً عدد الأسابيع الدراسية</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Semesters Management */}
               <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
@@ -110,7 +96,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                   <Calendar size={20} className="text-[#655ac1]" />
                   <h4 className="font-bold text-slate-800">إدارة الفصول الدراسية</h4>
                 </div>
-                <SemesterManager 
+                <SemesterManager
                   semesters={schoolInfo.semesters || []}
                   setSemesters={(semesters) => setSchoolInfo(prev => ({ ...prev, semesters }))}
                   currentSemesterId={schoolInfo.currentSemesterId}
@@ -118,22 +104,6 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                   academicYear={schoolInfo.academicYear || ''}
                   onAcademicYearChange={(year) => setSchoolInfo(prev => ({ ...prev, academicYear: year }))}
                 />
-              </div>
-
-              {/* Help Section */}
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle size={18} className="text-amber-600 mt-0.5" />
-                  <div>
-                    <h5 className="font-bold text-amber-800 text-sm mb-1">ملاحظات هامة</h5>
-                    <ul className="text-xs text-amber-700 space-y-1">
-                      <li>• يمكنك إضافة حتى 3 فصول دراسية في العام الواحد</li>
-                      <li>• حدد تاريخ البدء والانتهاء لكل فصل</li>
-                      <li>• يمكنك تحديد أيام العطل الرسمية والإجازات</li>
-                      <li>• النظام سيحسب تلقائياً عدد الأسابيع الدراسية</li>
-                    </ul>
-                  </div>
-                </div>
               </div>
             </div>
           )}
