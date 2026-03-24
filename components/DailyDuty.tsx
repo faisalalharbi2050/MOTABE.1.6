@@ -26,6 +26,7 @@ import {
 import DutyScheduleBuilder from './duty/DutyScheduleBuilder';
 import SchoolTabs from './wizard/SchoolTabs';
 import AcademicYearPopup from './duty/AcademicYearPopup';
+import AcademicCalendarModal from './dashboard/AcademicCalendarModal';
 import DutySettingsPage from './duty/DutySettingsPage';
 import DutyMonitoringModal from './duty/DutyMonitoring';
 import DutyPrintModal from './duty/modals/DutyPrintModal';
@@ -68,6 +69,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   // ===== State =====
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showAcademicPopup, setShowAcademicPopup] = useState(false);
+  const [showAcademicCalendarModal, setShowAcademicCalendarModal] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState<boolean>(
     () => localStorage.getItem('duty_settings_saved') === 'true'
@@ -539,10 +541,22 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
           setSchoolInfo={setSchoolInfo}
           onClose={() => setShowAcademicPopup(false)}
           showToast={showToast}
+          onOpenAcademicCalendar={() => {
+            setShowAcademicPopup(false);
+            setShowAcademicCalendarModal(true);
+          }}
         />
       )}
 
-       {/* Delete Confirmation Modal */}
+       {/* Academic Calendar Modal */}
+      <AcademicCalendarModal
+        isOpen={showAcademicCalendarModal}
+        onClose={() => setShowAcademicCalendarModal(false)}
+        schoolInfo={schoolInfo}
+        setSchoolInfo={setSchoolInfo}
+      />
+
+      {/* Delete Confirmation Modal */}
        {showGlobalDeleteConfirm && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">

@@ -1,8 +1,25 @@
 import React, { useState } from 'react';
 import {
-  MapPin, Plus, Trash2, Edit, Check, X, GripVertical,
-  ToggleLeft, ToggleRight, Clock
+  MapPin, Plus, Trash2, Edit, Check, X, GripVertical, Clock
 } from 'lucide-react';
+
+const Toggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
+  <div className="flex items-center gap-2 shrink-0">
+    <span className={`text-xs font-bold transition-colors duration-200 min-w-[2rem] text-center ${checked ? 'text-green-600' : 'text-slate-400'}`}>
+      {checked ? 'مفعّل' : 'معطّل'}
+    </span>
+    <button
+      onClick={onChange}
+      className={`relative h-6 w-10 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+        checked ? 'bg-green-500 focus:ring-green-400' : 'bg-slate-200 focus:ring-slate-300'
+      }`}
+    >
+      <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+        checked ? 'right-1' : 'left-1'
+      }`} />
+    </button>
+  </div>
+);
 import {
   SchoolInfo, SupervisionLocation, SupervisionPeriodConfig
 } from '../../types';
@@ -183,10 +200,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
               ) : (
                 <span className="flex-1 text-sm font-bold text-slate-700">{loc.name}</span>
               )}
-              <Badge variant={loc.isActive ? 'success' : 'neutral'}>
-                {loc.isActive ? 'مفعّل' : 'معطّل'}
-              </Badge>
-              <div className="flex items-center gap-1">
+<div className="flex items-center gap-1">
                 {editingId === loc.id ? (
                   <>
                     <button onClick={() => handleSaveEdit(loc.id)} className="p-2 rounded-xl hover:bg-green-50 text-green-600 border border-transparent hover:border-green-100 transition-colors">
@@ -201,9 +215,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
                     <button onClick={() => { setEditingId(loc.id); setEditName(loc.name); }} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 border border-transparent hover:border-slate-200 transition-colors">
                       <Edit size={18} />
                     </button>
-                    <button onClick={() => handleToggle(loc.id)} className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
-                      {loc.isActive ? <ToggleRight size={24} className="text-green-500" /> : <ToggleLeft size={24} className="text-slate-400" />}
-                    </button>
+                    <Toggle checked={loc.isActive} onChange={() => handleToggle(loc.id)} />
                     <button onClick={() => handleDelete(loc.id)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 border border-transparent hover:border-red-100 transition-colors">
                       <Trash2 size={18} />
                     </button>
@@ -269,9 +281,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
                     </p>
                   </div>
                 </div>
-                <button onClick={() => handleTogglePeriod(period.id)} className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
-                  {period.isEnabled ? <ToggleRight size={32} className="text-green-500" /> : <ToggleLeft size={32} className="text-slate-400" />}
-                </button>
+                <Toggle checked={period.isEnabled} onChange={() => handleTogglePeriod(period.id)} />
               </div>
             ))
           )}

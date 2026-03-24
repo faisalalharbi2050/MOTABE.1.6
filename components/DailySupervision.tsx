@@ -45,12 +45,13 @@ interface DailySupervisionProps {
   teachers: Teacher[];
   admins: Admin[];
   scheduleSettings: ScheduleSettingsData;
+  onNavigateToTiming?: () => void;
 }
 
 type TabId = 'settings' | 'schedule' | 'monitoring' | 'reports';
 
 const DailySupervision: React.FC<DailySupervisionProps> = ({
-  schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings
+  schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings, onNavigateToTiming
 }) => {
   // ===== State =====
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
@@ -631,6 +632,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
           setSchoolInfo={setSchoolInfo}
           onClose={() => setShowTimingPopup(false)}
           showToast={showToast}
+          onNavigateToTiming={onNavigateToTiming}
         />
       )}
 
