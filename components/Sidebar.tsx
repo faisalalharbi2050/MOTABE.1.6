@@ -373,7 +373,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                )}
 
                <div className={`flex items-center gap-4 ${isCollapsed ? "" : ""}`}>
-                  <Shield size={22} className={isSupervisionExpanded && !isCollapsed ? "text-[#655ac1]" : "text-white/70 group-hover:text-white"} />
+                  <ShieldCheck size={22} className={isSupervisionExpanded && !isCollapsed ? "text-[#655ac1]" : "text-white/70 group-hover:text-white"} />
                   {!isCollapsed && (
                       <span className={`text-base font-bold ${isSupervisionExpanded ? "text-[#655ac1]" : ""}`}>الإشراف والمناوبة</span>
                   )}
