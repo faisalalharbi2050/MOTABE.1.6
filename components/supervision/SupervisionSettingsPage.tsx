@@ -36,7 +36,7 @@ interface Props {
 type TabId = 'settings' | 'staff' | 'locations' | 'periods' | 'reminders';
 
 const TABS: { id: TabId; title: string; icon: React.ElementType; subtitle: string }[] = [
-  { id: 'settings',   title: 'قواعد الإشراف',       icon: Shield,   subtitle: 'ضبط قواعد توزيع الإشراف' },
+  { id: 'settings',   title: 'قواعد الإشراف',       icon: Shield,   subtitle: '' },
   { id: 'staff',      title: 'المشرفون',            icon: Users,    subtitle: 'تحديد من يشارك في الإشراف' },
   { id: 'locations',  title: 'المواقع',             icon: MapPin,   subtitle: 'إدارة مواقع الإشراف في المدرسة' },
   { id: 'periods',    title: 'الفترات',             icon: Clock,    subtitle: 'تحديد الفترات والحصص المُشرَف عليها' },
@@ -82,9 +82,7 @@ const SupervisionSettingsPage: React.FC<Props> = ({
           <Settings size={36} strokeWidth={1.8} className="text-[#655ac1]" />
           <div>
             <h3 className="text-xl font-black text-slate-800">إعدادات الإشراف اليومي</h3>
-            <p className="text-slate-500 font-medium text-sm mt-0.5 transition-all duration-300">
-              {activeTabInfo.subtitle}
-            </p>
+            {/* تم إخفاء الوصف تحت العنوان حسب طلب المستخدم */}
           </div>
         </div>
       </div>
