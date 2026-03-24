@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Users, Settings, Check } from 'lucide-react';
+import { ArrowRight, Users, Settings, Check, Save } from 'lucide-react';
 import {
   Teacher, Admin, SchoolInfo,
   DutyStaffExclusion, DutySettings,
@@ -8,6 +8,7 @@ import DutyStaffPanel from './DutyStaffPanel';
 
 interface Props {
   onBack: () => void;
+  onSave: () => void;
   teachers: Teacher[];
   admins: Admin[];
   totalStaffCount: number;
@@ -27,7 +28,7 @@ const STEPS = [
 ];
 
 const DutySettingsPage: React.FC<Props> = ({
-  onBack,
+  onBack, onSave,
   teachers, admins, totalStaffCount,
   exclusions, setExclusions, settings, setSettings,
   availableCount, suggestExclude,
@@ -51,13 +52,22 @@ const DutySettingsPage: React.FC<Props> = ({
             </div>
           </div>
 
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1] shrink-0"
-          >
-            <ArrowRight size={18} className="text-[#655ac1]" />
-            <span>رجوع</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1] shrink-0"
+            >
+              <ArrowRight size={18} className="text-[#655ac1]" />
+              <span>رجوع</span>
+            </button>
+            <button
+              onClick={() => { onSave(); onBack(); }}
+              className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-[#655ac1]/20 hover:scale-105 active:scale-95 shrink-0"
+            >
+              <Save size={18} />
+              <span>حفظ الإعدادات</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { FileText, Printer, Send, Download, FileSpreadsheet, Calendar, MessageCircle, Smartphone, Upload } from 'lucide-react';
+import { FileText, Printer, Send, Download, FileSpreadsheet, Calendar, MessageCircle, Smartphone, Upload, LayoutGrid, X, School, Check } from 'lucide-react';
 import { SchoolInfo, Teacher, Subject, ClassInfo, Assignment, Specialization, TimetableData } from '../../types';
 import { generateExtensionXML, downloadFile } from '../../utils/scheduleExport';
 import { getKey } from '../../utils/scheduleInteractive';
@@ -14,6 +14,7 @@ interface ScheduleReportsProps {
   assignments: Assignment[];
   specializations: Specialization[];
   timetable: TimetableData;
+  generationMode?: 'unified' | 'separate';
 }
 
 const ScheduleReports: React.FC<ScheduleReportsProps> = ({
@@ -23,20 +24,44 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
   classes,
   assignments,
   specializations,
-  timetable
+  timetable,
+  generationMode = 'unified'
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
 
+  const hasSharedSchools = schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0;
+  const isSeparateMode = hasSharedSchools && generationMode === 'separate';
+
+  // School picker state for separate mode
+  const [schoolPicker, setSchoolPicker] = useState<{ action: 'print' | 'xml' | 'excel' | 'send' } | null>(null);
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('main');
+
+  const getSchoolName = (sid: string) => {
+    if (sid === 'main') return schoolInfo.schoolName || 'المدرسة الرئيسية';
+    return schoolInfo.sharedSchools?.find(s => s.id === sid)?.name || sid;
+  };
+
+  const getTimetableForSchool = (sid: string): TimetableData => {
+    const schoolClassIds = new Set(
+      classes.filter(c => c.schoolId === sid || (!c.schoolId && sid === 'main')).map(c => c.id)
+    );
+    return Object.fromEntries(
+      Object.entries(timetable).filter(([, slot]: any) => schoolClassIds.has(slot.classId))
+    ) as TimetableData;
+  };
+
   // Print functionality
   const handlePrint = () => {
+    if (isSeparateMode) { setSchoolPicker({ action: 'print' }); return; }
     setShowPrintModal(true);
   };
 
   // Send functionality (email)
   const handleSend = () => {
+    if (isSeparateMode) { setSchoolPicker({ action: 'send' }); return; }
     setShowSendModal(true);
   };
 
@@ -58,6 +83,7 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
 
   // XML Export functionality
   const handleExportXML = () => {
+    if (isSeparateMode) { setSchoolPicker({ action: 'xml' }); return; }
     setIsGenerating(true);
     try {
       const xmlData = generateExtensionXML(timetable, teachers, subjects, classes, schoolInfo);
@@ -72,10 +98,10 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
 
   // Excel Export functionality
   const handleExportExcel = () => {
+    if (isSeparateMode) { setSchoolPicker({ action: 'excel' }); return; }
     setIsGenerating(true);
     try {
-      // Generate CSV content for Excel
-      const csvContent = generateCSVContent();
+      const csvContent = generateCSVContent(timetable);
       downloadFile(csvContent, `schedule-${schoolInfo.schoolName}-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
     } catch (error) {
       console.error('Error generating Excel:', error);
@@ -85,14 +111,17 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
     }
   };
 
-  const generateCSVContent = () => {
+  const generateCSVContent = (tt: TimetableData) => {
     const headers = ['المعلم', 'المادة', 'الفصل', 'اليوم', 'الحصة'];
-    const rows = Object.entries(timetable).map(([key, slot]) => {
-      const [teacherId, day, period] = key.split('-');
+    const rows = Object.entries(tt).map(([key, slot]) => {
+      const parts = key.split('-');
+      const teacherId = parts.slice(0, parts.length - 2).join('-');
+      const day = parts[parts.length - 2];
+      const period = parts[parts.length - 1];
       const teacher = teachers.find(t => t.id === teacherId);
       const subject = subjects.find(s => s.id === slot.subjectId);
       const cls = classes.find(c => c.id === slot.classId);
-      
+
       return [
         teacher?.name || '',
         subject?.name || '',
@@ -101,8 +130,40 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
         period || ''
       ].join(',');
     });
-    
+
     return [headers.join(','), ...rows].join('\n');
+  };
+
+  // Execute action after school selection in separate mode
+  const executeSchoolAction = () => {
+    if (!schoolPicker) return;
+    const schoolTT = getTimetableForSchool(selectedSchoolId);
+    const name = getSchoolName(selectedSchoolId);
+
+    switch (schoolPicker.action) {
+      case 'print':
+        setSchoolPicker(null);
+        setShowPrintModal(true);
+        break;
+      case 'xml':
+        try {
+          const xmlData = generateExtensionXML(schoolTT, teachers, subjects, classes, schoolInfo);
+          downloadFile(xmlData, `schedule-${name}-${new Date().toISOString().split('T')[0]}.xml`, 'application/xml');
+        } catch (e) { alert('حدث خطأ أثناء تصدير الملف XML'); }
+        setSchoolPicker(null);
+        break;
+      case 'excel':
+        try {
+          const csv = generateCSVContent(schoolTT);
+          downloadFile(csv, `schedule-${name}-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+        } catch (e) { alert('حدث خطأ أثناء تصدير الملف Excel'); }
+        setSchoolPicker(null);
+        break;
+      case 'send':
+        setSchoolPicker(null);
+        setShowSendModal(true);
+        break;
+    }
   };
 
   return (
@@ -232,7 +293,7 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
         isOpen={showPrintModal}
         onClose={() => setShowPrintModal(false)}
         settings={{
-          timetable: timetable,
+          timetable: isSeparateMode ? getTimetableForSchool(selectedSchoolId) : timetable,
           savedSchedules: [],
           activeScheduleId: '',
           subjectConstraints: [],
@@ -257,7 +318,69 @@ const ScheduleReports: React.FC<ScheduleReportsProps> = ({
         onClose={() => setShowSendModal(false)}
         teachers={teachers}
         classes={classes}
+        schoolName={isSeparateMode ? getSchoolName(selectedSchoolId) : undefined}
       />
+
+      {/* ══════ School Picker Modal (separate mode) ══════ */}
+      {schoolPicker && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col animate-in zoom-in-95 overflow-hidden">
+            <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <School size={24} className="text-[#655ac1] shrink-0" />
+                <div>
+                  <h3 className="font-black text-slate-800 text-lg">اختر المدرسة</h3>
+                  <p className="text-sm font-medium text-slate-500">
+                    {schoolPicker.action === 'print' && 'معاينة وطباعة جدول المدرسة'}
+                    {schoolPicker.action === 'xml' && 'تصدير XML لجدول المدرسة'}
+                    {schoolPicker.action === 'excel' && 'تصدير Excel لجدول المدرسة'}
+                    {schoolPicker.action === 'send' && 'إرسال جدول المدرسة'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setSchoolPicker(null)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {['main', ...(schoolInfo.sharedSchools || []).map(s => s.id)].map(sid => (
+                <button
+                  key={sid}
+                  onClick={() => setSelectedSchoolId(sid)}
+                  className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl border-2 font-bold text-sm transition-all ${
+                    selectedSchoolId === sid
+                      ? 'border-[#655ac1] bg-white text-[#655ac1]'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {selectedSchoolId === sid
+                    ? <Check size={18} className="text-[#655ac1] shrink-0" />
+                    : <div className="w-[18px] h-[18px] rounded-full border-2 border-slate-300 shrink-0" />
+                  }
+                  {getSchoolName(sid)}
+                </button>
+              ))}
+            </div>
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+              <button
+                onClick={() => setSchoolPicker(null)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={executeSchoolAction}
+                className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all"
+              >
+                {schoolPicker.action === 'print' && 'معاينة وطباعة'}
+                {schoolPicker.action === 'xml' && 'تصدير XML'}
+                {schoolPicker.action === 'excel' && 'تصدير Excel'}
+                {schoolPicker.action === 'send' && 'إرسال'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

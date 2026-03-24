@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Share2, Copy, CheckCircle2, Building, Users, User, Link as LinkIcon, MessageCircle } from 'lucide-react';
+import { X, Share2, Copy, CheckCircle2, Users, UserCog, GraduationCap, Link as LinkIcon, MessageCircle } from 'lucide-react';
 import { Teacher, ClassInfo } from '../../types';
 
 interface SendScheduleModalProps {
@@ -7,6 +7,7 @@ interface SendScheduleModalProps {
     onClose: () => void;
     teachers: Teacher[];
     classes: ClassInfo[];
+    schoolName?: string; // Optional: displays which school's schedule is being sent (separate mode)
 }
 
 const WhatsAppIcon = () => (
@@ -15,7 +16,7 @@ const WhatsAppIcon = () => (
     </svg>
 );
 
-const SendScheduleModal: React.FC<SendScheduleModalProps> = ({ isOpen, onClose, teachers, classes }) => {
+const SendScheduleModal: React.FC<SendScheduleModalProps> = ({ isOpen, onClose, teachers, classes, schoolName }) => {
     const [selectedTarget, setSelectedTarget] = useState('');
     const [selectedType, setSelectedType]   = useState('');
     const [selectedIds, setSelectedIds]     = useState<string[]>([]);
@@ -25,16 +26,16 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return null;
 
     const targetGroups = [
-        { id: 'teachers', title: 'المعلمون',             icon: <User size={20} /> },
-        { id: 'students', title: 'الطلاب / أولياء الأمور', icon: <Users size={20} /> },
-        { id: 'admin',    title: 'الإداريون',             icon: <Building size={20} /> },
+        { id: 'teachers', title: 'المعلمون',               icon: <Users size={20} /> },
+        { id: 'admin',    title: 'الإداريون',               icon: <UserCog size={20} /> },
+        { id: 'students', title: 'الطلاب / أولياء الأمور', icon: <GraduationCap size={20} /> },
     ];
 
     const scheduleTypes = [
         { id: 'general_teachers',   title: 'الجدول العام للمعلمين' },
-        { id: 'general_classes',    title: 'الجدول العام للفصول'   },
         { id: 'general_waiting',    title: 'الجدول العام للانتظار' },
         { id: 'individual_teacher', title: 'جدول معلم'              },
+        { id: 'general_classes',    title: 'الجدول العام للفصول'   },
         { id: 'individual_class',   title: 'جدول فصل'               },
     ];
 
@@ -90,7 +91,11 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({ isOpen, onClose, 
                         </div>
                         <div>
                             <h3 className="font-black text-slate-800 text-xl">إرسال الجداول</h3>
-                            <p className="text-sm font-bold text-slate-500">مشاركة الجداول مع المستفيدين عبر روابط ذكية</p>
+                            <p className="text-sm font-bold text-slate-500">
+                                {schoolName
+                                    ? `مشاركة جدول ${schoolName} عبر روابط ذكية`
+                                    : 'مشاركة الجداول مع المستفيدين عبر روابط ذكية'}
+                            </p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">

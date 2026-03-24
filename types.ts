@@ -488,6 +488,7 @@ export interface ScheduleSettingsData {
   subjectAbbreviations?: Record<string, string>; // subjectId -> abbreviation
   savedSchedules?: SavedSchedule[];
   activeScheduleId?: string; // ID of the currently adopted saved schedule
+  generationMode?: 'unified' | 'separate'; // نوع الجدول للمدارس المشتركة
 }
 
 // ===== Audit Log Types =====

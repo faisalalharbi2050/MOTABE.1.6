@@ -251,7 +251,7 @@ const App: React.FC = () => {
       // Schedule Section
       case 'manual': return <ManualAssignment teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
       case 'classes_waiting': return <Step9Schedule teachers={teachers} subjects={subjects} classes={classes} specializations={specializations} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} />;
-      case 'schedule_reports': return <ScheduleReports schoolInfo={schoolInfo} teachers={teachers} subjects={subjects} classes={classes} assignments={assignments} specializations={specializations} timetable={scheduleSettings.timetable || {}} />;
+      case 'schedule_reports': return <ScheduleReports schoolInfo={schoolInfo} teachers={teachers} subjects={subjects} classes={classes} assignments={assignments} specializations={specializations} timetable={scheduleSettings.timetable || {}} generationMode={scheduleSettings.generationMode} />;
 
       // Supervision and Duty
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} />;

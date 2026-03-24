@@ -29,6 +29,7 @@ import {
 // ===== Sub-component imports =====
 // ===== Sub-component imports =====
 import SupervisionScheduleBuilder from './supervision/SupervisionScheduleBuilder';
+import SchoolTabs from './wizard/SchoolTabs';
 import TimingPopup from './supervision/TimingPopup';
 import SupervisionSettingsPage from './supervision/SupervisionSettingsPage';
 import SupervisionMonitoringModal from './supervision/modals/SupervisionMonitoringModal';
@@ -55,6 +56,9 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showTimingPopup, setShowTimingPopup] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState<boolean>(
+    () => localStorage.getItem('supervision_settings_saved') === 'true'
+  );
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scheduleChangeAlert, setScheduleChangeAlert] = useState(false);
   
@@ -293,6 +297,11 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
     return (
       <SupervisionSettingsPage
         onBack={() => setShowSettingsPage(false)}
+        onSave={() => {
+          localStorage.setItem('supervision_settings_saved', 'true');
+          setSettingsSaved(true);
+          showToast('تم حفظ إعدادات الإشراف بنجاح', 'success');
+        }}
         teachers={teachers}
         admins={admins}
         totalStaffCount={availableStaff.length}
@@ -337,44 +346,21 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
               الإشراف اليومي
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">
-              إدارة الإشراف اليومي على الطلاب أثناء اليوم الدراسي بطريقة ذكية.
+              إنشاء وإدارة جدول الإشراف اليومي أثناء اليوم الدراسي بطريقة ذكية
             </p>
           </div>
         </div>
 
-        {/* Shared Schools Tabs */}
-        {hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' && (
-          <div className="mt-6 border-t border-slate-100 pt-6 relative z-10">
-            <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl w-max">
-              <button
-                onClick={() => setActiveSchoolTab('main')}
-                className={`flex flex-col px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                  activeSchoolTab === 'main'
-                    ? 'bg-white text-[#655ac1] shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                }`}
-              >
-                <span>{schoolInfo.schoolName || 'المدرسة الرئيسية'}</span>
-                <span className="text-[10px] font-medium opacity-70">المدرسة الأساسية</span>
-              </button>
-              {sharedSchools.map(school => (
-                <button
-                  key={school.id}
-                  onClick={() => setActiveSchoolTab(school.id)}
-                  className={`flex flex-col px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-                    activeSchoolTab === school.id
-                      ? 'bg-white text-[#655ac1] shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                  }`}
-                >
-                  <span>{school.name}</span>
-                  <span className="text-[10px] font-medium opacity-70">مدرسة مشتركة</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Shared Schools Tabs — شريط مستقل */}
+      {hasSharedSchools && supervisionData.settings.sharedSchoolMode === 'separate' && (
+        <SchoolTabs
+          schoolInfo={schoolInfo}
+          activeSchoolId={activeSchoolTab}
+          onTabChange={setActiveSchoolTab}
+        />
+      )}
 
       {/* ══════ Toolbar / Action Bar ══════ */}
       <div className="flex flex-col gap-4 mb-6">
@@ -384,17 +370,23 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowSettingsPage(true)}
-              className="flex items-center gap-2 bg-[#8779fb] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm shadow-[#8779fb]/20 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
             >
-              <Settings size={18} className="text-white" />
-              <span className="text-white">إعدادات الإشراف</span>
+              <Settings size={18} className="text-[#655ac1]" />
+              <span>إعدادات الإشراف</span>
             </button>
             <button
-              onClick={() => setIsCreateScheduleOpen(true)}
+              onClick={() => {
+                if (!settingsSaved) {
+                  showToast('يُرجى الذهاب إلى إعدادات الإشراف وحفظها أولاً قبل إنشاء الجدول', 'warning');
+                  return;
+                }
+                setIsCreateScheduleOpen(true);
+              }}
               className="flex items-center gap-2 bg-[#655ac1] text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
             >
               <Zap size={18} />
-              <span>إنشاء الجدول</span>
+              <span>إنشاء جدول الإشراف</span>
             </button>
           </div>
 
@@ -644,7 +636,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-top-4 duration-300">
           <div className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl shadow-xl border font-bold text-sm
             ${toast.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : ''}
             ${toast.type === 'warning' ? 'bg-amber-50 text-amber-800 border-amber-200' : ''}

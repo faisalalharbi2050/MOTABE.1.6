@@ -32,6 +32,7 @@ import {
   Eye,
   FileText,
   BookOpen,
+  School,
   GripVertical,
   Minus,
   Plus,
@@ -98,7 +99,12 @@ const Step9Schedule: React.FC<Step9Props> = ({
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
   const [activeView, setActiveView] = useState<'grid' | 'individual'>('grid');
   const [isBypassingConflicts, setIsBypassingConflicts] = useState(false);
-  const [sharedSchoolMode, setSharedSchoolMode] = useState<'separated' | 'merged'>('separated');
+  const generationMode = scheduleSettings.generationMode || 'unified';
+  const setGenerationMode = (mode: 'unified' | 'separate') => {
+    setScheduleSettings(prev => ({ ...prev, generationMode: mode }));
+  };
+  // sharedSchoolMode is now derived from generationMode for backward compat
+  const sharedSchoolMode = generationMode === 'separate' ? 'separated' : 'merged';
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [missingDataAlert, setMissingDataAlert] = useState<{title: string, message: string} | null>(null);
   const [showAuditLog, setShowAuditLog] = useState(false);
@@ -303,31 +309,70 @@ const Step9Schedule: React.FC<Step9Props> = ({
             const periodCountsValues = Object.values(timing.periodCounts || {}) as number[];
             const periodsPerDay = Math.max(...periodCountsValues);
 
-            // In separated mode, only generate for the active school
-            let targetClasses = classes;
-             if (hasSharedSchools && sharedSchoolMode === 'separated') {
-                targetClasses = classes.filter(c => c.schoolId === activeSchoolId || (!c.schoolId && activeSchoolId === 'main'));
+            let finalTimetable: Record<string, any> = {};
+
+            if (hasSharedSchools && generationMode === 'separate') {
+                // ── Separate Mode: Generate per school sequentially ──
+                // Each school gets its own generation pass, but shared
+                // teachers' time-slots are propagated via existingTimetable
+                // so the generator's teacherSlots constraint prevents conflicts.
+                const schoolIds = ['main', ...(schoolInfo.sharedSchools || []).map(s => s.id)];
+                let accumulatedTimetable: Record<string, any> = {};
+
+                for (let i = 0; i < schoolIds.length; i++) {
+                    const sid = schoolIds[i];
+                    const schoolClasses = classes.filter(c =>
+                        c.schoolId === sid || (!c.schoolId && sid === 'main')
+                    );
+
+                    const timetable = await generateSchedule(
+                        teachers,
+                        subjects,
+                        schoolClasses,
+                        scheduleSettings,
+                        {
+                            activeDays: timing.activeDays,
+                            periodsPerDay: periodsPerDay,
+                            weekDays: timing.activeDays.length
+                        },
+                        (progress) => setGenerationProgress(Math.floor((i * 100 + progress) / schoolIds.length)),
+                        assignments,
+                        isBypassingConflicts,
+                        Object.keys(accumulatedTimetable).length > 0 ? accumulatedTimetable : undefined
+                    );
+
+                    accumulatedTimetable = { ...accumulatedTimetable, ...timetable };
+                }
+
+                finalTimetable = accumulatedTimetable;
+            } else {
+                // ── Unified Mode (or no shared schools) ──
+                // In separated sharedSchoolMode, only generate for active school
+                let targetClasses = classes;
+                if (hasSharedSchools && sharedSchoolMode === 'separated') {
+                    targetClasses = classes.filter(c => c.schoolId === activeSchoolId || (!c.schoolId && activeSchoolId === 'main'));
+                }
+
+                const timetable = await generateSchedule(
+                    teachers,
+                    subjects,
+                    targetClasses,
+                    scheduleSettings,
+                    {
+                        activeDays: timing.activeDays,
+                        periodsPerDay: periodsPerDay,
+                        weekDays: timing.activeDays.length
+                    },
+                    (progress) => setGenerationProgress(progress),
+                    assignments,
+                    isBypassingConflicts,
+                    sharedSchoolMode === 'separated' ? scheduleSettings.timetable : undefined
+                );
+
+                // If merging timetable for separated schools, keep existing timetable for other schools
+                const existingTimetable = sharedSchoolMode === 'separated' ? (scheduleSettings.timetable || {}) : {};
+                finalTimetable = { ...existingTimetable, ...timetable };
             }
-
-            const timetable = await generateSchedule(
-                teachers,
-                subjects,
-                targetClasses,
-                scheduleSettings,
-                {
-                    activeDays: timing.activeDays,
-                    periodsPerDay: periodsPerDay,
-                    weekDays: timing.activeDays.length
-                },
-                (progress) => setGenerationProgress(progress), // Update Progress
-                assignments, // Pass the actual assignments
-                isBypassingConflicts,
-                sharedSchoolMode === 'separated' ? scheduleSettings.timetable : undefined
-            );
-
-            // If merging timetable for separated schools, keep existing timetable for other schools
-            const existingTimetable = sharedSchoolMode === 'separated' ? (scheduleSettings.timetable || {}) : {};
-            const mergedTimetable = { ...existingTimetable, ...timetable };
 
             // Auto-save new schedule to savedSchedules
             const prevSaved = scheduleSettings.savedSchedules || [];
@@ -338,20 +383,20 @@ const Step9Schedule: React.FC<Step9Props> = ({
                 name: `جدول رقم ${autoScheduleNumber}`,
                 createdAt: new Date().toISOString(),
                 createdBy: 'النظام',
-                timetable: JSON.parse(JSON.stringify(mergedTimetable)),
+                timetable: JSON.parse(JSON.stringify(finalTimetable)),
             };
             const updatedSaved = [newSavedEntry, ...prevSaved].slice(0, 10);
 
             setScheduleSettings({
                 ...scheduleSettings,
-                timetable: mergedTimetable,
+                timetable: finalTimetable,
                 savedSchedules: updatedSaved,
                 activeScheduleId: newId,
             });
             setGenerationStatus('success');
             setGenerationProgress(100);
-            
-            // Auto close after success? Or let user close.
+
+            // Auto close after success
             setTimeout(() => {
                 setShowGenerationModal(false);
             }, 2000);
@@ -405,13 +450,96 @@ const Step9Schedule: React.FC<Step9Props> = ({
     }
   };
 
+  // ── Helper: filter timetable entries by schoolId ──
+  const getTimetableForSchool = (schoolId: string) => {
+    const timetable = scheduleSettings.timetable || {};
+    const schoolClassIds = new Set(
+      classes
+        .filter(c => c.schoolId === schoolId || (!c.schoolId && schoolId === 'main'))
+        .map(c => c.id)
+    );
+    return Object.fromEntries(
+      Object.entries(timetable).filter(([, slot]: any) => schoolClassIds.has(slot.classId))
+    );
+  };
+
+  const getSchoolName = (schoolId: string) => {
+    if (schoolId === 'main') return schoolInfo.schoolName || 'المدرسة الرئيسية';
+    return schoolInfo.sharedSchools?.find(s => s.id === schoolId)?.name || schoolId;
+  };
+
+  // State for school picker in separate mode (print/export/send)
+  const [separateSchoolPicker, setSeparateSchoolPicker] = useState<{
+    action: 'print' | 'xml' | 'excel' | 'send';
+  } | null>(null);
+  const [selectedExportSchoolId, setSelectedExportSchoolId] = useState<string>('main');
+
   const handleXMLExport = () => {
+    if (hasSharedSchools && generationMode === 'separate') {
+      setSeparateSchoolPicker({ action: 'xml' });
+      return;
+    }
     const xml = generateExtensionXML(scheduleSettings.timetable || {}, teachers, subjects, classes, schoolInfo);
     downloadFile(xml, `schedule_${schoolInfo.schoolName}.xml`, 'text/xml');
   };
 
   const handlePrint = () => {
-      window.print();
+    if (hasSharedSchools && generationMode === 'separate') {
+      setSeparateSchoolPicker({ action: 'print' });
+      return;
+    }
+    setShowPrintOptions(true);
+  };
+
+  const handleSendSchedule = () => {
+    if (hasSharedSchools && generationMode === 'separate') {
+      setSeparateSchoolPicker({ action: 'send' });
+      return;
+    }
+    setShowSendSchedule(true);
+  };
+
+  const executeSeparateAction = () => {
+    if (!separateSchoolPicker) return;
+    const schoolId = selectedExportSchoolId;
+    const schoolTimetable = getTimetableForSchool(schoolId);
+    const name = getSchoolName(schoolId);
+
+    switch (separateSchoolPicker.action) {
+      case 'print':
+        // Set timetable temporarily for print modal, then open it
+        setSeparateSchoolPicker(null);
+        setShowPrintOptions(true);
+        break;
+      case 'xml': {
+        const xml = generateExtensionXML(schoolTimetable, teachers, subjects, classes, schoolInfo);
+        downloadFile(xml, `schedule_${name}.xml`, 'text/xml');
+        setSeparateSchoolPicker(null);
+        break;
+      }
+      case 'excel': {
+        // Generate CSV for the selected school
+        const headers = ['المعلم', 'المادة', 'الفصل', 'اليوم', 'الحصة'];
+        const rows = Object.entries(schoolTimetable).map(([key, slot]: any) => {
+          const parts = key.split('-');
+          const teacherId = parts.slice(0, parts.length - 2).join('-');
+          const day = parts[parts.length - 2];
+          const period = parts[parts.length - 1];
+          const teacher = teachers.find(t => t.id === teacherId);
+          const subject = subjects.find(s => s.id === slot.subjectId);
+          const cls = classes.find(c => c.id === slot.classId);
+          return [teacher?.name || '', subject?.name || '', cls?.name || '', day, period].join(',');
+        });
+        const csv = [headers.join(','), ...rows].join('\n');
+        downloadFile(csv, `schedule_${name}.csv`, 'text/csv');
+        setSeparateSchoolPicker(null);
+        break;
+      }
+      case 'send':
+        setSeparateSchoolPicker(null);
+        setShowSendSchedule(true);
+        break;
+    }
   };
 
   return (
@@ -427,46 +555,58 @@ const Step9Schedule: React.FC<Step9Props> = ({
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إنشاء وإدارة جدول الحصص والانتظار عبر واجهة تفاعلية سهلة وسلسة</p>
           
-          {hasSharedSchools && (
-              <div className="mt-6 flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2 text-slate-700 font-bold">
-                      <Share2 size={18} className="text-[#655ac1]" />
-                      <span>نظام المدارس المشتركة:</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                      <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm shrink-0">
-                          <button 
-                              onClick={() => setSharedSchoolMode('separated')}
-                              className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${sharedSchoolMode === 'separated' ? 'bg-[#655ac1] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
-                          >
-                              جدولة مستقلة (ينصح به)
-                          </button>
-                          <button 
-                              onClick={() => setSharedSchoolMode('merged')}
-                              className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${sharedSchoolMode === 'merged' ? 'bg-[#655ac1] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
-                          >
-                              دمج الجداول
-                          </button>
-                      </div>
-                      
-                      {sharedSchoolMode === 'separated' && (
-                          <div className="flex-1 min-w-[200px]">
-                              <select
-                                  value={activeSchoolId}
-                                  onChange={(e) => setActiveSchoolId(e.target.value)}
-                                  className="w-full p-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1] transition-all text-sm font-bold text-slate-700"
-                              >
-                                  <option value="main">{schoolInfo.schoolName || 'المدرسة الرئيسية'}</option>
-                                  {schoolInfo.sharedSchools.map(school => (
-                                      <option key={school.id} value={school.id}>{school.name}</option>
-                                  ))}
-                              </select>
-                          </div>
-                      )}
-                  </div>
-              </div>
-          )}
       </div>
+
+      {/* ══════ اختيار نوع الجدول (للمدارس المشتركة) ══════ */}
+      {hasSharedSchools && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-2">
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <Calendar size={20} className="text-[#655ac1] shrink-0" />
+            <h4 className="font-black text-slate-800 text-sm shrink-0">نوع الجدول</h4>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] bg-gradient-to-l from-[#f5f3ff] to-[#ede9fe] px-3 py-1.5 rounded-full border border-[#c4b5fd] shadow-sm shadow-[#655ac1]/10">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#655ac1] opacity-60 shrink-0"></span>
+                {schoolInfo.schoolName || 'المدرسة الرئيسية'}
+              </span>
+              {schoolInfo.sharedSchools?.map((s) => (
+                <React.Fragment key={s.id}>
+                  <span className="text-[#c4b5fd] text-xs font-bold">+</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] bg-gradient-to-l from-[#f5f3ff] to-[#ede9fe] px-3 py-1.5 rounded-full border border-[#c4b5fd] shadow-sm shadow-[#655ac1]/10">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#655ac1] opacity-60 shrink-0"></span>
+                    {s.name}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setGenerationMode('unified')}
+              className={`flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all border-2 ${
+                generationMode === 'unified'
+                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
+                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
+              }`}
+            >
+              {generationMode === 'unified' && <Check size={16} className="text-[#655ac1]" />}
+              <Grid size={16} />
+              جدول موحد
+            </button>
+            <button
+              onClick={() => setGenerationMode('separate')}
+              className={`flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all border-2 ${
+                generationMode === 'separate'
+                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
+                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
+              }`}
+            >
+              {generationMode === 'separate' && <Check size={16} className="text-[#655ac1]" />}
+              <LayoutGrid size={16} />
+              جدولان منفصلان
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ══════ Toolbar ══════ */}
       <div className="flex flex-col gap-3 mb-6">
@@ -1341,10 +1481,13 @@ const Step9Schedule: React.FC<Step9Props> = ({
             currentTimetable={scheduleSettings.timetable}
         />
 
-        <PrintOptionsModal 
+        <PrintOptionsModal
             isOpen={showPrintOptions}
             onClose={() => setShowPrintOptions(false)}
-            settings={scheduleSettings}
+            settings={hasSharedSchools && generationMode === 'separate'
+              ? { ...scheduleSettings, timetable: getTimetableForSchool(selectedExportSchoolId) }
+              : scheduleSettings
+            }
             teachers={teachers}
             classes={classes}
             subjects={subjects}
@@ -1356,6 +1499,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
             onClose={() => setShowSendSchedule(false)}
             teachers={teachers}
             classes={classes}
+            schoolName={hasSharedSchools && generationMode === 'separate' ? getSchoolName(selectedExportSchoolId) : undefined}
         />
 
         {/* ══════ تأكيد تغيير طريقة التوزيع من يدوي ══════ */}
@@ -1401,6 +1545,67 @@ const Step9Schedule: React.FC<Step9Props> = ({
                             className="px-5 py-2.5 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-all"
                         >
                             حذف والمتابعة
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* ══════ اختيار المدرسة للتصدير/الطباعة/الإرسال (وضع منفصل) ══════ */}
+        {separateSchoolPicker && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
+                <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col animate-in zoom-in-95 overflow-hidden">
+                    <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <School size={24} className="text-[#655ac1] shrink-0" />
+                            <div>
+                                <h3 className="font-black text-slate-800 text-lg">اختر المدرسة</h3>
+                                <p className="text-sm font-medium text-slate-500">
+                                    {separateSchoolPicker.action === 'print' && 'معاينة وطباعة جدول المدرسة'}
+                                    {separateSchoolPicker.action === 'xml' && 'تصدير XML لجدول المدرسة'}
+                                    {separateSchoolPicker.action === 'excel' && 'تصدير Excel لجدول المدرسة'}
+                                    {separateSchoolPicker.action === 'send' && 'إرسال جدول المدرسة'}
+                                </p>
+                            </div>
+                        </div>
+                        <button onClick={() => setSeparateSchoolPicker(null)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="p-6 space-y-3">
+                        {['main', ...(schoolInfo.sharedSchools || []).map(s => s.id)].map(sid => (
+                            <button
+                                key={sid}
+                                onClick={() => setSelectedExportSchoolId(sid)}
+                                className={`w-full flex items-center gap-3 px-5 py-4 rounded-xl border-2 font-bold text-sm transition-all ${
+                                    selectedExportSchoolId === sid
+                                        ? 'border-[#655ac1] bg-white text-[#655ac1]'
+                                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                                }`}
+                            >
+                                {selectedExportSchoolId === sid
+                                    ? <Check size={18} className="text-[#655ac1] shrink-0" />
+                                    : <div className="w-[18px] h-[18px] rounded-full border-2 border-slate-300 shrink-0" />
+                                }
+                                {getSchoolName(sid)}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+                        <button
+                            onClick={() => setSeparateSchoolPicker(null)}
+                            className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-all"
+                        >
+                            إلغاء
+                        </button>
+                        <button
+                            onClick={executeSeparateAction}
+                            className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all"
+                        >
+                            {separateSchoolPicker.action === 'print' && 'معاينة وطباعة'}
+                            {separateSchoolPicker.action === 'xml' && 'تصدير XML'}
+                            {separateSchoolPicker.action === 'excel' && 'تصدير Excel'}
+                            {separateSchoolPicker.action === 'send' && 'إرسال'}
                         </button>
                     </div>
                 </div>

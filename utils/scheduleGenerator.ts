@@ -48,6 +48,31 @@ export async function generateSchedule(
         });
     });
     
+    // ── Shared Teacher Time-Conflict Prevention ──────────────────────
+    // Global map: teacherId => Set of "day-period" slots already occupied
+    // across ALL schools. This prevents a shared teacher from being
+    // double-booked in the same time slot across different schools.
+    const teacherSlots: Record<string, Set<string>> = {};
+    teachers.forEach(t => {
+        teacherSlots[t.id] = new Set<string>();
+    });
+
+    // If we have an existing timetable (separated school generation),
+    // seed teacherSlots from it so the new generation respects prior bookings.
+    if (existingTimetable) {
+        Object.keys(existingTimetable).forEach(key => {
+            const parts = key.split('-');
+            const period = parts[parts.length - 1];
+            const day = parts[parts.length - 2];
+            const teacherId = parts.slice(0, parts.length - 2).join('-');
+            const slotKey = `${day}-${period}`;
+            if (teacherSlots[teacherId]) {
+                teacherSlots[teacherId].add(slotKey);
+            }
+        });
+    }
+    // ─────────────────────────────────────────────────────────────────
+
     // Track Teacher Availability (Day-Period => TeacherId[])
     // To avoid double booking.
     const teacherOccupied = new Set<string>(); // "teacherId-day-period"
@@ -253,6 +278,31 @@ export async function generateSchedule(
             // We can use `checkConflicts` logic here but localized.
             
             const validTeacher = potentialTeachers.find(t => {
+                // ── Shared Teacher: Time-Slot Conflict Check ─────────
+                // Prevent a teacher from being assigned to the same
+                // (day, period) in two different schools.
+                const slotKey = `${day}-${period}`;
+                if (teacherSlots[t.id] && teacherSlots[t.id].has(slotKey)) {
+                    if (slotIndex === 0) console.log(`   -> REJECTED: Shared teacher ${t.name} already occupied at ${slotKey}`);
+                    return false;
+                }
+
+                // ── Shared Teacher: Presence Days Constraint ─────────
+                // If the teacher is shared and has presenceDays defined,
+                // only allow scheduling on allowed days for this school.
+                if (t.isShared && t.constraints?.presenceDays) {
+                    const currentClassObj = classes.find(c => c.id === classId);
+                    const currentSchoolId = currentClassObj?.schoolId || 'main';
+                    const allowedDays = t.constraints.presenceDays[currentSchoolId];
+                    if (allowedDays && allowedDays.length > 0) {
+                        if (!allowedDays.includes(day)) {
+                            if (slotIndex === 0) console.log(`   -> REJECTED: Shared teacher ${t.name} not allowed on ${day} for school ${currentSchoolId}`);
+                            return false;
+                        }
+                    }
+                }
+                // ─────────────────────────────────────────────────────
+
                 // Check Max Daily (Smart Distribution)
                 // e.g. 24 limit -> 5 max per day. 20 limit -> 4 max per day.
                 // We'll calculate a target max per day based on quota.
@@ -323,6 +373,10 @@ export async function generateSchedule(
                 
                 // Update State
                 teacherOccupied.add(`${validTeacher.id}-${day}-${period}`);
+                // Update shared-teacher global slot tracker
+                if (teacherSlots[validTeacher.id]) {
+                    teacherSlots[validTeacher.id].add(`${day}-${period}`);
+                }
                 classSubjectCounts.set(`${classId}-${subj.id}`, (classSubjectCounts.get(`${classId}-${subj.id}`) || 0) + 1);
                 teacherDailyLoad.set(`${validTeacher.id}-${day}`, (teacherDailyLoad.get(`${validTeacher.id}-${day}`) || 0) + 1);
                 if (period === 1) teacherFirstPeriodCount.set(validTeacher.id, (teacherFirstPeriodCount.get(validTeacher.id) || 0) + 1);
