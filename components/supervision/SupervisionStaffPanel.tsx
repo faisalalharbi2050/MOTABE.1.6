@@ -112,7 +112,7 @@ const SupervisionStaffPanel: React.FC<Props> = ({
              </div>
              <div>
                 <h3 className="text-xl font-black text-[#655ac1] flex items-center gap-2">
-                  الموظفين
+                  المشرفون
                 </h3>
                 <p className="text-sm font-medium text-slate-500 mt-1">البحث، والفرز، واستثناء الموظفين من الإشراف</p>
              </div>

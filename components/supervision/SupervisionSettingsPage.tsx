@@ -37,7 +37,7 @@ type TabId = 'settings' | 'staff' | 'locations' | 'periods' | 'reminders';
 
 const TABS: { id: TabId; title: string; icon: React.ElementType; subtitle: string }[] = [
   { id: 'settings',   title: 'قواعد الإشراف',       icon: Shield,   subtitle: 'ضبط قواعد توزيع الإشراف' },
-  { id: 'staff',      title: 'الموظفون',            icon: Users,    subtitle: 'تحديد من يشارك في الإشراف' },
+  { id: 'staff',      title: 'المشرفون',            icon: Users,    subtitle: 'تحديد من يشارك في الإشراف' },
   { id: 'locations',  title: 'المواقع',             icon: MapPin,   subtitle: 'إدارة مواقع الإشراف في المدرسة' },
   { id: 'periods',    title: 'الفترات',             icon: Clock,    subtitle: 'تحديد الفترات والحصص المُشرَف عليها' },
   { id: 'reminders',  title: 'التذكيرات',           icon: Bell,     subtitle: 'إعداد رسائل التذكير اليومية للمشرفين' },
