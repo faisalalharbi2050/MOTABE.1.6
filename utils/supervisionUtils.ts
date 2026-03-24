@@ -519,7 +519,7 @@ export function getDefaultSupervisionData(schoolInfo: SchoolInfo): SupervisionSc
     attendanceRecords: [],
     settings: {
       autoExcludeTeachersWhen5Admins: false,
-      excludeVicePrincipals: true,
+      excludeVicePrincipals: false,
       enableAutoAssignment: true,
       sharedSchoolMode: 'unified',
       reminderMessageTemplate: '',
