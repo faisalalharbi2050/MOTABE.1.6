@@ -40,7 +40,7 @@ const TABS: { id: TabId; title: string; icon: React.ElementType; subtitle: strin
   { id: 'staff',      title: 'المشرفون',            icon: Users,    subtitle: 'تحديد من يشارك في الإشراف' },
   { id: 'locations',  title: 'المواقع',             icon: MapPin,   subtitle: 'إدارة مواقع الإشراف في المدرسة' },
   { id: 'periods',    title: 'الفترات',             icon: Clock,    subtitle: 'تحديد الفترات والحصص المُشرَف عليها' },
-  { id: 'reminders',  title: 'التذكيرات',           icon: Bell,     subtitle: 'إعداد رسائل التذكير اليومية للمشرفين' },
+  { id: 'reminders',  title: 'الإشعارات',           icon: Bell,     subtitle: 'إعداد الإشعارات اليومية للمشرفين' },
 ];
 
 const SupervisionSettingsPage: React.FC<Props> = ({
@@ -198,19 +198,16 @@ const SupervisionSettingsPage: React.FC<Props> = ({
                 <Bell size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-[#655ac1]">التذكيرات</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1">إعداد رسائل التذكير اليومية للمشرفين</p>
+                <h3 className="text-xl font-black text-[#655ac1]">الإشعارات</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">إعداد الإشعارات اليومية للمشرفين</p>
               </div>
             </div>
 
             <div className="relative z-10 space-y-4 animate-in fade-in duration-500">
 
-              {/* 1. إرسال رسالة التذكير */}
+              {/* 1. اختر آلية إرسال الإشعارات بالإشراف اليومي */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
-                <div>
-                  <p className="text-base font-bold text-slate-700">إرسال رسالة التذكير بالإشراف اليومي</p>
-                  <p className="text-sm text-slate-500 mt-0.5">إرسال رسالة التذكير للمشرفين بطريقة تلقائية أو يدوية</p>
-                </div>
+                <p className="text-base font-bold text-slate-700">اختر آلية إرسال الإشعارات بالإشراف اليومي</p>
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
                     <input
@@ -235,15 +232,11 @@ const SupervisionSettingsPage: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* 2. وقت إرسال رسالة التذكير */}
+              {/* 2. اختر وقت إرسال الإشعارات التلقائية */}
               <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${settings.autoSendReminder ? 'hover:border-slate-200' : 'opacity-50 pointer-events-none'}`}>
-                <div>
-                  <p className="text-base flex items-center gap-2 font-bold text-slate-700">
-                    <Clock size={16} className="text-[#655ac1]" />
-                    وقت إرسال رسالة التذكير
-                  </p>
-                  <p className="text-sm text-slate-500 mt-0.5">الوقت المفضل لإرسال رسائل التذكير تلقائياً</p>
-                </div>
+                <p className="text-base font-bold text-slate-700">
+                  اختر وقت إرسال الإشعارات التلقائية
+                </p>
                 <input
                   type="time"
                   value={settings.reminderSendTime || '07:00'}
@@ -252,12 +245,9 @@ const SupervisionSettingsPage: React.FC<Props> = ({
                 />
               </div>
 
-              {/* 3. طريقة إرسال رسالة التذكير */}
+              {/* 3. اختر طريقة إرسال الإشعارات التلقائية */}
               <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${settings.autoSendReminder ? 'hover:border-slate-200' : 'opacity-50 pointer-events-none'}`}>
-                <div>
-                  <p className="text-base font-bold text-slate-700">طريقة إرسال رسالة التذكير</p>
-                  <p className="text-sm text-slate-500 mt-0.5">اختر القناة المستخدمة عند الإرسال التلقائي</p>
-                </div>
+                <p className="text-base font-bold text-slate-700">اختر طريقة إرسال الإشعارات التلقائية</p>
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
                     <input
