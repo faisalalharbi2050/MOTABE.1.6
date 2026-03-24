@@ -97,18 +97,18 @@ const App: React.FC = () => {
   ]);
   const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
     const today = new Date();
-    const trialEnd = new Date(today);
-    trialEnd.setDate(today.getDate() + 10);
+    const semesterEnd = new Date(today);
+    semesterEnd.setDate(today.getDate() + 90);
     return {
       packageTier: 'advanced',
-      isTrial: true,
+      isTrial: false,
       trialStartDate: today.toISOString().split('T')[0],
-      trialEndDate: trialEnd.toISOString().split('T')[0],
+      trialEndDate: today.toISOString().split('T')[0],
       totalMessages: 0,
       remainingMessages: 0,
       startDate: today.toISOString().split('T')[0],
-      endDate: trialEnd.toISOString().split('T')[0],
-      planName: 'الباقة المتقدمة (تجريبية)',
+      endDate: semesterEnd.toISOString().split('T')[0],
+      planName: 'الباقة المتقدمة',
       transactions: [],
       freeSmsRemaining: 10,
       freeWaRemaining: 50
