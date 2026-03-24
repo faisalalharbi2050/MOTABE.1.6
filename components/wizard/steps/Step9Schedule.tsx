@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Calendar,
@@ -107,6 +107,9 @@ const Step9Schedule: React.FC<Step9Props> = ({
   // NEW: Toolbar Enhancements States
   const [isScheduleLocked, setIsScheduleLocked] = useState(false);
   const [showWaitingSettings, setShowWaitingSettings] = useState(false);
+  const [showMethodChangeConfirm, setShowMethodChangeConfirm] = useState(false);
+  const [pendingSubstitutionConfig, setPendingSubstitutionConfig] = useState<any>(null);
+  const [hideWaitingAlert, setHideWaitingAlert] = useState(false);
   const [showManageSchedules, setShowManageSchedules] = useState(false);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [showSendSchedule, setShowSendSchedule] = useState(false);
@@ -151,6 +154,20 @@ const Step9Schedule: React.FC<Step9Props> = ({
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // Manual waiting: compute teachers with incomplete distribution
+  const isManualMode = scheduleSettings.substitution?.method === 'manual';
+  const incompleteWaitingCount = useMemo(() => {
+    if (!isManualMode) return 0;
+    return teachers.filter(t => {
+      const quota = t.waitingQuota || 0;
+      if (quota === 0) return false;
+      const placed = Object.values(scheduleSettings.timetable || {}).filter(
+        (slot: any) => slot.type === 'waiting' && slot.teacherId === t.id
+      ).length;
+      return placed < quota;
+    }).length;
+  }, [isManualMode, teachers, scheduleSettings.timetable]);
 
   // NEW: Display View State
   type DisplayViewType = 'general_teachers' | 'general_classes' | 'general_waiting' | 'individual_teacher' | 'individual_class';
@@ -520,13 +537,13 @@ const Step9Schedule: React.FC<Step9Props> = ({
             
             <div className="w-px h-6 bg-slate-200 mx-2"></div>
             
-             <button 
-               title={isScheduleLocked ? "فك الجدول" : "قفل الجدول"}
+             <button
+               title={isScheduleLocked ? "إلغاء القفل" : "قفل الجدول"}
                onClick={() => setIsScheduleLocked(!isScheduleLocked)}
                className={`flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb] ${isScheduleLocked ? 'text-rose-500' : 'text-slate-700'}`}
              >
                {isScheduleLocked ? <Lock size={18} /> : <Unlock size={18} className="text-rose-500" />}
-               <span className="hidden md:inline">{isScheduleLocked ? 'فك الجدول' : 'قفل للجدول'}</span>
+               <span className="hidden md:inline">{isScheduleLocked ? 'إلغاء القفل' : 'قفل الجدول'}</span>
              </button>
           </div>
 
@@ -545,38 +562,43 @@ const Step9Schedule: React.FC<Step9Props> = ({
                    <span>إعدادات الانتظار</span>
                  </button>
                  
-                 <button 
-                   onClick={() => {
-                       if (!hasSchedule) {
-                           setMissingDataAlert({
-                               title: "لم يتم إنشاء جدول الحصص",
-                               message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"إنشاء جدول الحصص\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
-                           });
-                           return;
-                       }
-                       if (!isScheduleLocked) {
-                           setMissingDataAlert({
-                               title: "الجدول غير مقفل",
-                               message: "يجب قفل جدول الحصص أولاً قبل إنشاء حصص الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
-                           });
-                           return;
-                       }
-                       if (!scheduleSettings.substitution?.method) {
-                           setMissingDataAlert({
-                               title: "إعدادات الانتظار غير مكتملة",
-                               message: "يرجى فتح \"إعدادات الانتظار\" وتحديد طريقة التوزيع (تلقائي / محدد / يدوي) قبل إنشاء جدول الانتظار."
-                           });
-                           return;
-                       }
-                       // تنفيذ التوزيع مباشرةً بالإعدادات الحالية
-                       handleDistributeWaiting(scheduleSettings.substitution);
-                   }}
-                   title="إنشاء حصص الانتظار"
-                   className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
-                 >
-                   <CalendarClock size={18} />
-                   <span>إنشاء حصص الانتظار</span>
-                 </button>
+                 <div title={isManualMode ? "التوزيع اليدوي مفعّل — استخدم بطاقات الانتظار في الجدول لتوزيع الحصص يدوياً" : ""}>
+                   <button
+                     disabled={isManualMode}
+                     onClick={() => {
+                         if (!hasSchedule) {
+                             setMissingDataAlert({
+                                 title: "لم يتم إنشاء جدول الحصص",
+                                 message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"إنشاء جدول الحصص\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
+                             });
+                             return;
+                         }
+                         if (!isScheduleLocked) {
+                             setMissingDataAlert({
+                                 title: "الجدول غير مقفل",
+                                 message: "يجب قفل جدول الحصص أولاً قبل إنشاء حصص الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
+                             });
+                             return;
+                         }
+                         if (!scheduleSettings.substitution?.method) {
+                             setMissingDataAlert({
+                                 title: "إعدادات الانتظار غير مكتملة",
+                                 message: "يرجى فتح \"إعدادات الانتظار\" وتحديد طريقة التوزيع (تلقائي / محدد / يدوي) قبل إنشاء جدول الانتظار."
+                             });
+                             return;
+                         }
+                         handleDistributeWaiting(scheduleSettings.substitution);
+                     }}
+                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all ${
+                       isManualMode
+                         ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                         : 'bg-[#655ac1] hover:bg-[#5046a0] text-white shadow-lg shadow-[#655ac1]/20 hover:scale-105 active:scale-95'
+                     }`}
+                   >
+                     <CalendarClock size={18} />
+                     <span>إنشاء حصص الانتظار</span>
+                   </button>
+                 </div>
             </div>
 
             <div className="flex gap-2">
@@ -689,6 +711,23 @@ const Step9Schedule: React.FC<Step9Props> = ({
             </div>
         </div>
       </div>
+
+      {/* ══════ تنبيه حصص الانتظار غير الموزّعة ══════ */}
+      {isManualMode && incompleteWaitingCount > 0 && !hideWaitingAlert && (
+        <div
+          onClick={() => setHideWaitingAlert(true)}
+          className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-amber-100 transition-all"
+          title="انقر لإخفاء هذا التنبيه"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+            <span className="text-sm font-bold text-amber-700">
+              يوجد {incompleteWaitingCount} {incompleteWaitingCount === 1 ? 'معلم' : 'معلمين'} لم تكتمل حصص انتظارهم — اسحب البطاقات من عمود الانتظار لإكمال التوزيع
+            </span>
+          </div>
+          <span className="text-xs text-amber-400 font-medium shrink-0">انقر للإخفاء</span>
+        </div>
+      )}
 
       {/* ══════ خيارات العرض الفرعية (تظهر بعد اختيار نوع الجدول) ══════ */}
       {activeDisplayView && (
@@ -934,6 +973,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                           teacherCustomOrder={teacherCustomOrder}
                           specializationCustomOrder={specializationCustomOrder}
                           specializationNames={specNames}
+                          onUpdateSettings={setScheduleSettings}
                         />
                       </div>
                     ))}
@@ -953,6 +993,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     teacherCustomOrder={teacherCustomOrder}
                     specializationCustomOrder={specializationCustomOrder}
                     specializationNames={specNames}
+                    onUpdateSettings={setScheduleSettings}
                     onEditRequest={activeDisplayView === 'general_teachers' ? () => {
                       setActiveDisplayView(null);
                       setActiveView('grid');
@@ -1243,7 +1284,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-black text-slate-800">إعدادات الانتظار</h3>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">تخصيص طريقة التوزيع وسقوف حصص الانتظار</p>
+                                    <p className="text-xs text-slate-500 font-medium mt-0.5">إعدادات توزيع حصص الانتظار على المعلمين</p>
                                 </div>
                             </div>
                             <button
@@ -1261,7 +1302,21 @@ const Step9Schedule: React.FC<Step9Props> = ({
                                 weekDays={weekDays}
                                 periodsPerDay={periodsPerDay}
                                 warnings={warnings}
-                                onChange={s => setScheduleSettings(prev => ({ ...prev, substitution: s }))}
+                                onChange={s => {
+                                    const currentMethod = scheduleSettings.substitution?.method;
+                                    const newMethod = s.method;
+                                    if (currentMethod === 'manual' && newMethod !== 'manual') {
+                                        const hasPlacedWaiting = Object.values(scheduleSettings.timetable || {}).some(
+                                            (slot: any) => slot.type === 'waiting'
+                                        );
+                                        if (hasPlacedWaiting) {
+                                            setPendingSubstitutionConfig(s);
+                                            setShowMethodChangeConfirm(true);
+                                            return;
+                                        }
+                                    }
+                                    setScheduleSettings(prev => ({ ...prev, substitution: s }));
+                                }}
                             />
                         </div>
                         {/* Footer */}
@@ -1302,6 +1357,55 @@ const Step9Schedule: React.FC<Step9Props> = ({
             teachers={teachers}
             classes={classes}
         />
+
+        {/* ══════ تأكيد تغيير طريقة التوزيع من يدوي ══════ */}
+        {showMethodChangeConfirm && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                            <AlertTriangle size={20} className="text-rose-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-800">تغيير طريقة التوزيع</h3>
+                            <p className="text-xs text-slate-500 mt-0.5">سيتم حذف جميع حصص الانتظار التي تم توزيعها يدوياً</p>
+                        </div>
+                    </div>
+                    <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
+                        لديك حصص انتظار موزّعة يدوياً. تغيير الطريقة سيحذفها نهائياً. هل تريد المتابعة؟
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                        <button
+                            onClick={() => { setShowMethodChangeConfirm(false); setPendingSubstitutionConfig(null); }}
+                            className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
+                        >
+                            إلغاء
+                        </button>
+                        <button
+                            onClick={() => {
+                                // حذف جميع حصص الانتظار وتطبيق الطريقة الجديدة
+                                const newTimetable = Object.fromEntries(
+                                    Object.entries(scheduleSettings.timetable || {}).filter(
+                                        ([, slot]: any) => slot.type !== 'waiting'
+                                    )
+                                );
+                                setScheduleSettings(prev => ({
+                                    ...prev,
+                                    substitution: pendingSubstitutionConfig,
+                                    timetable: newTimetable
+                                }));
+                                setHideWaitingAlert(false);
+                                setShowMethodChangeConfirm(false);
+                                setPendingSubstitutionConfig(null);
+                            }}
+                            className="px-5 py-2.5 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-all"
+                        >
+                            حذف والمتابعة
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* ══════ Toast Notification ══════ */}
         {toast && (

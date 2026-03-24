@@ -48,6 +48,7 @@ interface InlineScheduleViewProps {
     specializationCustomOrder?: string[];
     specializationNames?: Record<string, string>;
     onEditRequest?: () => void;
+    onUpdateSettings?: (s: ScheduleSettingsData) => void;
 }
 
 const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
@@ -57,15 +58,20 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     specializationCustomOrder = [],
     specializationNames: _specNames = {},
     onEditRequest,
+    onUpdateSettings,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
+    const [draggingWaiting, setDraggingWaiting] = useState<'card'|'slot'|null>(null);
+    const [draggingSlotKey, setDraggingSlotKey] = useState<string|null>(null);
+    const [hoverTarget, setHoverTarget] = useState<string|null>(null);
     const settings          = _settings;
     const teachers          = _teachers;
     const classes           = _classes;
     const subjects          = _subjects;
     const specializationNames = _specNames;
     const timetable = settings.timetable || {};
+    const isManualMode = settings.substitution?.method === 'manual';
 
     /* ── look-up helpers ─────────────────────────────── */
     const subjName    = (id: string) => subjects.find(s => s.id === id)?.name || '';
@@ -94,6 +100,18 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const classLessonCount = useMemo(() => {
         const m = new Map<string,number>();
         Object.values(timetable).forEach(s => { if(s.classId && s.type==='lesson') m.set(s.classId,(m.get(s.classId)||0)+1); });
+        return m;
+    }, [timetable]);
+
+    /* ── placed waiting count per teacher (for manual mode) ─ */
+    const placedWaitingPerTeacher = useMemo(() => {
+        const m = new Map<string, number>();
+        Object.entries(timetable).forEach(([key, slot]) => {
+            if (slot.type === 'waiting') {
+                const tid = key.split('-')[0];
+                m.set(tid, (m.get(tid) || 0) + 1);
+            }
+        });
         return m;
     }, [timetable]);
 
@@ -541,7 +559,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         </div>
 
                         {/* Stats pills — نصاب الحصص + نصاب الانتظار فقط */}
-                        <div className="flex flex-wrap gap-2 shrink-0">
+                        <div className="flex flex-wrap gap-2 shrink-0 items-center">
                             <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[68px]">
                                 <span className="text-white/60 text-[10px] font-semibold leading-none mb-1">
                                     {isTeacher ? 'نصاب الحصص' : 'عدد الحصص'}
@@ -556,6 +574,35 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     <span className="text-white font-black text-2xl leading-none">{teacher ? tWQ(teacher) : 0}</span>
                                 </div>
                             )}
+                            {/* Manual waiting distribution card */}
+                            {isTeacher && teacher && isManualMode && onUpdateSettings && (() => {
+                                const waitingQuota = tWQ(teacher);
+                                const placed = placedWaitingPerTeacher.get(teacher.id) || 0;
+                                const remaining = waitingQuota - placed;
+                                if (waitingQuota === 0) return null;
+                                if (remaining === 0) return (
+                                    <div className="flex flex-col items-center px-3 py-2 rounded-xl border-2 backdrop-blur-sm min-w-[60px]"
+                                         style={{background:'rgba(16,185,129,0.15)', borderColor:'rgba(16,185,129,0.5)'}}>
+                                        <span className="text-[9px] font-bold leading-none mb-1" style={{color:'#6ee7b7'}}>اكتمل</span>
+                                        <span className="font-black text-lg leading-none" style={{color:'#6ee7b7'}}>✓</span>
+                                    </div>
+                                );
+                                return (
+                                    <div
+                                        draggable
+                                        onDragStart={e => {
+                                            e.dataTransfer.setData('dragType', 'waitingCard');
+                                            e.dataTransfer.setData('teacherId', teacher.id);
+                                            setDraggingWaiting('card');
+                                        }}
+                                        onDragEnd={() => setDraggingWaiting(null)}
+                                        className="flex flex-col items-center px-3 py-2 rounded-xl border-2 backdrop-blur-sm min-w-[60px] cursor-grab active:cursor-grabbing select-none"
+                                        style={{background:'rgba(251,146,60,0.15)', borderColor:'rgba(251,146,60,0.5)'}}>
+                                        <span className="text-[9px] font-bold leading-none mb-1" style={{color:'#fed7aa'}}>م انتظار</span>
+                                        <span className="font-black text-lg leading-none" style={{color:'#fb923c'}}>{remaining}/{waitingQuota}</span>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -615,23 +662,50 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     </td>
                                     {/* Period cells */}
                                     {Array.from({length:MAX_PERIODS}).map((_,pi)=>{
+                                        const slotKey = targetId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1);
                                         const slot = isTeacher
-                                            ? timetable[targetId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1)]
-                                            : classSlotMap.get(targetId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1));
+                                            ? timetable[slotKey]
+                                            : classSlotMap.get(slotKey);
                                         const isWaiting = isTeacher && slot && (slot.type==='waiting'||slot.isSubstitution);
-                                        
+                                        const isHovered = hoverTarget === slotKey;
+                                        const canDrop = isTeacher && isManualMode && onUpdateSettings && draggingWaiting !== null && !slot;
+                                        const canDropOnWaiting = isTeacher && isManualMode && onUpdateSettings && draggingWaiting === 'slot' && isWaiting;
+
                                         let cellContent = null;
                                         if (!slot) {
                                             cellContent = (
-                                                <div className="w-full h-full rounded-xl border-2 border-dashed flex items-center justify-center"
-                                                     style={{borderColor:'#e2e8f0', background:'transparent', minHeight:'56px'}}>
-                                                    <span className="text-[10px] font-bold" style={{color:'#cbd5e1'}}>—</span>
+                                                <div className="w-full h-full rounded-xl border-2 border-dashed flex items-center justify-center transition-colors"
+                                                     style={{
+                                                         borderColor: (canDrop && isHovered) ? '#fb923c' : '#e2e8f0',
+                                                         background: (canDrop && isHovered) ? '#fff7ed' : 'transparent',
+                                                         minHeight:'56px'
+                                                     }}>
+                                                    <span className="text-[10px] font-bold" style={{color: (canDrop && isHovered) ? '#fb923c' : '#cbd5e1'}}>
+                                                        {(canDrop && isHovered) ? '+' : '—'}
+                                                    </span>
                                                 </div>
                                             );
                                         } else if (isWaiting) {
                                             cellContent = (
-                                                <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-2 gap-1"
-                                                     style={{background:'#fff8ee', borderColor:'#fbd28a', minHeight:'56px'}}>
+                                                <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-2 gap-1 relative group"
+                                                     style={{
+                                                         background: (canDropOnWaiting && isHovered) ? '#fff7ed' : '#fff8ee',
+                                                         borderColor: (canDropOnWaiting && isHovered) ? '#fb923c' : '#fbd28a',
+                                                         minHeight:'56px'
+                                                     }}>
+                                                    {/* Delete button */}
+                                                    {isTeacher && isManualMode && onUpdateSettings && (
+                                                        <button
+                                                            onMouseDown={e => {
+                                                                e.stopPropagation();
+                                                                e.preventDefault();
+                                                                const newTimetable = { ...settings.timetable };
+                                                                delete newTimetable[slotKey];
+                                                                onUpdateSettings({ ...settings, timetable: newTimetable });
+                                                            }}
+                                                            className="absolute -top-1 -left-1 w-4 h-4 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-10 text-[8px] font-black leading-none"
+                                                        >✕</button>
+                                                    )}
                                                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black"
                                                           style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d'}}>
                                                         انتظار
@@ -675,8 +749,53 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                             );
                                         }
 
+                                        // Make waiting slots draggable in manual mode
+                                        const waitingDragProps = (isTeacher && isManualMode && onUpdateSettings && isWaiting) ? {
+                                            draggable: true,
+                                            onDragStart: (e: React.DragEvent) => {
+                                                e.dataTransfer.setData('dragType', 'waitingSlot');
+                                                e.dataTransfer.setData('slotKey', slotKey);
+                                                e.dataTransfer.setData('teacherId', targetId || '');
+                                                setDraggingWaiting('slot');
+                                                setDraggingSlotKey(slotKey);
+                                            },
+                                            onDragEnd: () => { setDraggingWaiting(null); setDraggingSlotKey(null); },
+                                        } : {};
+
                                         return (
                                             <td key={pi}
+                                                {...waitingDragProps}
+                                                onDragOver={e => {
+                                                    if (!isTeacher || !isManualMode || !onUpdateSettings) return;
+                                                    if (draggingWaiting === null) return;
+                                                    if (!slot || (draggingWaiting === 'slot' && isWaiting && slotKey !== draggingSlotKey)) {
+                                                        e.preventDefault();
+                                                        setHoverTarget(slotKey);
+                                                    }
+                                                }}
+                                                onDragLeave={() => setHoverTarget(null)}
+                                                onDrop={e => {
+                                                    e.preventDefault();
+                                                    setHoverTarget(null);
+                                                    setDraggingWaiting(null);
+                                                    if (!isTeacher || !isManualMode || !onUpdateSettings) return;
+                                                    const dragType = e.dataTransfer.getData('dragType');
+                                                    const tid = e.dataTransfer.getData('teacherId');
+                                                    if (tid !== targetId) return;
+                                                    if (dragType === 'waitingCard' && !slot) {
+                                                        const newTimetable = { ...settings.timetable, [slotKey]: { type: 'waiting' as const, teacherId: tid } };
+                                                        onUpdateSettings({ ...settings, timetable: newTimetable });
+                                                    } else if (dragType === 'waitingSlot') {
+                                                        const fromKey = e.dataTransfer.getData('slotKey');
+                                                        if (fromKey === slotKey) return;
+                                                        if (!slot) {
+                                                            const newTimetable = { ...settings.timetable };
+                                                            newTimetable[slotKey] = newTimetable[fromKey];
+                                                            delete newTimetable[fromKey];
+                                                            onUpdateSettings({ ...settings, timetable: newTimetable });
+                                                        }
+                                                    }
+                                                }}
                                                 style={{
                                                     height:'76px',
                                                     minWidth:'110px',
@@ -684,7 +803,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                     borderLeft:'1px solid '+C_BORDER,
                                                     borderBottom:'1px solid '+C_BORDER,
                                                     padding:'6px 5px',
-                                                    verticalAlign:'middle'
+                                                    verticalAlign:'middle',
+                                                    position:'relative',
+                                                    cursor: (isTeacher && isManualMode && isWaiting) ? 'grab' : undefined,
                                                 }}>
                                                 {cellContent}
                                             </td>
