@@ -623,10 +623,10 @@ const ManualAssignment: React.FC<Props> = ({
       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
         <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <Briefcase size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+            <ClipboardList size={36} strokeWidth={1.8} className="text-[#655ac1]" />
             إسناد المواد
         </h3>
-        <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إضافة إسناد المواد للمعلمين عبر واجهة تفاعلية سهلة</p>
+        <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إسناد المواد للمعلمين بطريقة تفاعلية سهلة</p>
       </div>
 
       {/* Shared Schools Tabs — شريط مستقل */}
@@ -644,7 +644,7 @@ const ManualAssignment: React.FC<Props> = ({
             {/* Stat 1: Unassigned Periods (Refined) */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center transition-all">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><Layers size={18} className="text-[#655ac1]" /></div>
+                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><BookOpen size={18} className="text-[#655ac1]" /></div>
                     <span className="text-xs font-bold text-slate-500">حصص غير مسندة</span>
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -665,7 +665,7 @@ const ManualAssignment: React.FC<Props> = ({
             {/* Stat 3: Unassigned Subjects (Refined Color) */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center transition-all">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><BookOpen size={18} className="text-[#655ac1]" /></div>
+                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><Layers size={18} className="text-[#655ac1]" /></div>
                     <span className="text-xs font-bold text-slate-500">مواد غير مسندة</span>
                 </div>
                 <span className="text-3xl font-black leading-none text-[#655ac1]">{unassignedSubjectsCount}</span>
@@ -701,7 +701,7 @@ const ManualAssignment: React.FC<Props> = ({
             <div className="p-5 bg-white relative">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#f0f0ff] flex items-center justify-center text-[#655ac1] shadow-sm border border-[#e5e1fe]">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[#655ac1]">
                              <Users size={20} />
                         </div>
                         <div>
@@ -1063,18 +1063,18 @@ const ManualAssignment: React.FC<Props> = ({
                          
                          {showGradeDropdown && (
                              <div className="absolute top-full right-0 mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 p-1">
-                                 <button 
+                                 <button
                                     onClick={() => setSelectedGrades([])}
-                                    className={`w-full text-right px-3 py-2 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors ${selectedGrades.length === 0 ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600'}`}
+                                    className={`w-full text-right px-3 py-2 rounded-xl font-bold text-xs transition-all border ${selectedGrades.length === 0 ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
                                  >
                                      عرض الكل
                                  </button>
                                  <div className="my-1 border-t border-slate-50"></div>
                                  {activeGrades.map(g => (
-                                    <button 
+                                    <button
                                         key={g}
                                         onClick={() => toggleGradeFilter(g)}
-                                        className={`w-full flex justify-between items-center px-3 py-2 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors ${selectedGrades.includes(g) ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600'}`}
+                                        className={`w-full flex justify-between items-center px-3 py-2 rounded-xl font-bold text-xs transition-all border ${selectedGrades.includes(g) ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
                                      >
                                         <span>الصف {g}</span>
                                         {selectedGrades.includes(g) && <Check size={12}/>}
@@ -1098,19 +1098,19 @@ const ManualAssignment: React.FC<Props> = ({
                          
                          {showClassDropdown && (
                              <div className="absolute top-full right-0 mt-2 w-full bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 p-1 max-h-60 overflow-y-auto custom-scrollbar">
-                                 <button 
+                                 <button
                                     onClick={() => setSelectedClassIds([])}
-                                    className={`w-full text-right px-3 py-2 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors ${selectedClassIds.length === 0 ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600'}`}
+                                    className={`w-full text-right px-3 py-2 rounded-xl font-bold text-xs transition-all border ${selectedClassIds.length === 0 ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
                                  >
                                      عرض الكل
                                  </button>
                                  <div className="my-1 border-t border-slate-50"></div>
                                  {availableClassesForDropdown.length > 0 ? (
                                      availableClassesForDropdown.map(c => (
-                                        <button 
+                                        <button
                                             key={c.id}
                                             onClick={() => toggleClassFilter(c.id)}
-                                            className={`w-full flex justify-between items-center px-3 py-2 rounded-xl font-bold text-xs hover:bg-slate-50 transition-colors ${selectedClassIds.includes(c.id) ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600'}`}
+                                            className={`w-full flex justify-between items-center px-3 py-2 rounded-xl font-bold text-xs transition-all border ${selectedClassIds.includes(c.id) ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
                                         >
                                             <span>فصل {c.grade} / {c.section}</span>
                                             {selectedClassIds.includes(c.id) && <Check size={12}/>}
@@ -1267,12 +1267,12 @@ const ManualAssignment: React.FC<Props> = ({
                 })
              ) : (
                  <div className="flex-1 flex flex-col items-center justify-center bg-white rounded-[2rem] border-2 border-dashed border-slate-100 p-12 text-center min-h-[400px]">
-                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-6 animate-pulse">
-                         <Layers size={40} />
+                     <div className="w-20 h-20 rounded-full flex items-center justify-center text-slate-300 mb-6 animate-pulse">
+                         <LayoutGrid size={40} />
                      </div>
                      <h3 className="text-xl font-black text-slate-700 mb-2">لا توجد فصول دراسية</h3>
                      <p className="text-slate-400 font-medium max-w-md mx-auto mb-8">
-                         لم يتم العثور على فصول تطابق البحث الحالي.
+                         قم بإنشائها من صفحة الفصول
                      </p>
                  </div>
              )}
