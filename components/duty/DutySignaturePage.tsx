@@ -229,7 +229,7 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
 
         {/* Header */}
-        <div className="bg-gradient-to-l from-[#655ac1] to-[#8779fb] px-6 py-5">
+        <div className="bg-[#655ac1] px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
               <PenLine size={24} className="text-white" />

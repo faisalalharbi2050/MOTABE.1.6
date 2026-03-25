@@ -142,15 +142,13 @@ const DutyMonitoringModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1] shadow-sm">
-              <Eye size={24} />
-            </div>
+            <Eye size={24} className="text-[#655ac1]" />
             <div>
               <h2 className="text-xl font-black text-slate-800">المتابعة اليومية</h2>
               <p className="text-sm font-medium text-slate-500 mt-0.5">متابعة أداء المناوبين للمناوبة اليومية</p>
@@ -194,9 +192,9 @@ const DutyMonitoringModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => dateInputRef.current?.showPicker()}
-                  className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 hover:border-[#8779fb] hover:bg-[#f5f3ff] transition-all shadow-sm cursor-pointer"
+                  className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 hover:border-[#655ac1] hover:bg-[#f5f3ff] transition-all shadow-sm cursor-pointer"
                 >
-                  <Calendar size={16} className="text-[#8779fb] shrink-0" />
+                  <Calendar size={16} className="text-[#655ac1] shrink-0" />
                   <div className="flex flex-col text-right">
                     <span className="text-lg font-black text-[#655ac1] leading-tight">{dayName}</span>
                     <span className="text-xs font-bold text-slate-500 mt-0.5">{formattedDate}</span>

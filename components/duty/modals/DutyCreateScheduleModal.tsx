@@ -92,13 +92,13 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
             <button
               onClick={() => setSelectedMode('auto')}
               className={`p-6 rounded-2xl border-2 text-right transition-all duration-300 relative overflow-hidden group ${
-                selectedMode === 'auto' 
-                  ? 'border-[#8779fb] bg-violet-50/50 ring-4 ring-[#8779fb]/10' 
-                  : 'border-slate-200 bg-white hover:border-[#8779fb]/50 hover:bg-slate-50'
+                selectedMode === 'auto'
+                  ? 'border-[#655ac1] bg-violet-50/50 ring-4 ring-[#655ac1]/10'
+                  : 'border-slate-200 bg-white hover:border-[#655ac1]/50 hover:bg-slate-50'
               }`}
             >
-              <div className={`absolute top-0 right-0 w-2 h-full transition-colors ${selectedMode === 'auto' ? 'bg-[#8779fb]' : 'bg-transparent group-hover:bg-[#8779fb]/30'}`} />
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${selectedMode === 'auto' ? 'bg-[#8779fb] text-white shadow-md' : 'bg-slate-100 text-slate-500 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'}`}>
+              <div className={`absolute top-0 right-0 w-2 h-full transition-colors ${selectedMode === 'auto' ? 'bg-[#655ac1]' : 'bg-transparent group-hover:bg-[#655ac1]/20'}`} />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${selectedMode === 'auto' ? 'bg-[#655ac1] text-white shadow-md' : 'bg-slate-100 text-slate-500 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'}`}>
                 <Zap size={24} />
               </div>
               <h3 className={`text-lg font-black mb-2 transition-colors ${selectedMode === 'auto' ? 'text-[#655ac1]' : 'text-slate-800'}`}>التوزيع التلقائي</h3>
@@ -115,13 +115,13 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
             <button
               onClick={() => setSelectedMode('manual')}
               className={`p-6 rounded-2xl border-2 text-right transition-all duration-300 relative overflow-hidden group ${
-                selectedMode === 'manual' 
-                  ? 'border-[#8779fb] bg-violet-50/50 ring-4 ring-[#8779fb]/10' 
-                  : 'border-slate-200 bg-white hover:border-[#8779fb]/50 hover:bg-slate-50'
+                selectedMode === 'manual'
+                  ? 'border-[#655ac1] bg-violet-50/50 ring-4 ring-[#655ac1]/10'
+                  : 'border-slate-200 bg-white hover:border-[#655ac1]/50 hover:bg-slate-50'
               }`}
             >
-              <div className={`absolute top-0 right-0 w-2 h-full transition-colors ${selectedMode === 'manual' ? 'bg-[#8779fb]' : 'bg-transparent group-hover:bg-[#8779fb]/30'}`} />
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${selectedMode === 'manual' ? 'bg-[#8779fb] text-white shadow-md' : 'bg-slate-100 text-slate-500 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'}`}>
+              <div className={`absolute top-0 right-0 w-2 h-full transition-colors ${selectedMode === 'manual' ? 'bg-[#655ac1]' : 'bg-transparent group-hover:bg-[#655ac1]/20'}`} />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${selectedMode === 'manual' ? 'bg-[#655ac1] text-white shadow-md' : 'bg-slate-100 text-slate-500 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'}`}>
                 <UserPlus size={24} />
               </div>
               <h3 className={`text-lg font-black mb-2 transition-colors ${selectedMode === 'manual' ? 'text-[#655ac1]' : 'text-slate-800'}`}>التوزيع اليدوي</h3>
@@ -145,7 +145,7 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
             onClick={selectedMode === 'auto' ? handleAutoAssign : handleManualAssign}
             className={`px-8 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-md ${
               selectedMode 
-                ? 'bg-[#8779fb] hover:bg-[#655ac1] shadow-[#8779fb]/20 hover:scale-105 active:scale-95' 
+                ? 'bg-[#655ac1] hover:bg-[#5046a0] shadow-[#655ac1]/20 hover:scale-105 active:scale-95'
                 : 'bg-slate-300 cursor-not-allowed opacity-70'
             }`}
           >

@@ -1,8 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Users, UserCheck, UserX, Search, Filter, Shield,
-  ToggleLeft, ToggleRight, Info, Clock, Send
+  Users, UserCheck, UserX, Search, Filter, Shield, Info
 } from 'lucide-react';
+
+// ── Toggle component — نفس تصميم صفحة الإشراف ──────────────────────────────
+const Toggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
+  <div className="flex items-center gap-2 shrink-0">
+    <span className={`text-xs font-bold transition-colors duration-200 min-w-[2rem] text-center ${checked ? 'text-green-600' : 'text-slate-400'}`}>
+      {checked ? 'مفعّل' : 'معطّل'}
+    </span>
+    <button
+      onClick={onChange}
+      className={`relative h-6 w-10 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+        checked ? 'bg-green-500 focus:ring-green-400' : 'bg-slate-200 focus:ring-slate-300'
+      }`}
+    >
+      <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+        checked ? 'right-1' : 'left-1'
+      }`} />
+    </button>
+  </div>
+);
 import {
   Teacher, Admin, DutyStaffExclusion, DutySettings
 } from '../../types';
@@ -20,11 +38,12 @@ interface Props {
   availableCount: number;
   suggestExclude: boolean;
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
+  hasSharedSchools?: boolean;
 }
 
 const DutyStaffPanel: React.FC<Props> = ({
   teachers, admins, exclusions, setExclusions, settings, setSettings,
-  availableCount, suggestExclude, showToast, activeView
+  availableCount, suggestExclude, showToast, activeView, hasSharedSchools = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'teachers' | 'admins'>('all');
@@ -167,10 +186,10 @@ const DutyStaffPanel: React.FC<Props> = ({
                   <p className="text-xs text-slate-400">
                     {staff.type === 'teacher' ? 'معلم' : staff.role || 'إداري'}
                     {isVP && settings.excludeVicePrincipals && (
-                      <span className="text-[#8779fb] mr-1">(مستثنى تلقائياً - وكيل)</span>
+                      <span className="text-[#655ac1] mr-1">(مستثنى تلقائياً - وكيل)</span>
                     )}
                     {isGuard && settings.excludeGuards && (
-                      <span className="text-[#8779fb] mr-1">(مستثنى تلقائياً - حارس)</span>
+                      <span className="text-[#655ac1] mr-1">(مستثنى تلقائياً - حارس)</span>
                     )}
                   </p>
                 </div>
@@ -209,8 +228,8 @@ const DutyStaffPanel: React.FC<Props> = ({
                <Shield size={24} />
              </div>
              <div className="text-right">
-                <h3 className="text-xl font-black text-[#655ac1] flex items-center gap-2">إعدادات أساسية</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1">حدد الإعدادات الأساسية لإنشاء جدول المناوبة وتوزيع المهام.</p>
+                <h3 className="text-xl font-black text-[#655ac1] flex items-center gap-2">قواعد المناوبة</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">تحديد قواعد المشاركة والاستثناء لإنشاء جدول المناوبة.</p>
              </div>
           </div>
         </div>
@@ -219,8 +238,7 @@ const DutyStaffPanel: React.FC<Props> = ({
             {/* 1. Officers Count per Day */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
               <div>
-                <p className="text-base font-bold text-slate-700">عدد المناوبين يوميًا</p>
-                <p className="text-sm text-slate-500 mt-0.5">عدد موظفي المناوبة المطلوب تواجدهم كل يوم</p>
+                <p className="text-base font-bold text-slate-700">العدد اليومي للمناوبين</p>
               </div>
               <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                 <button
@@ -242,143 +260,50 @@ const DutyStaffPanel: React.FC<Props> = ({
             {/* 2. VP Auto Exclude */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
               <div>
-                <p className="text-base font-bold text-slate-700">استثناء الوكلاء تلقائياً</p>
-                <p className="text-sm text-slate-500 mt-0.5">تفعيل أو تعطيل إدراج الوكلاء في قائمة المناوبة</p>
+                <p className="text-base font-bold text-slate-700">استثناء الوكلاء من المناوبة</p>
               </div>
-              <button 
-                onClick={() => setSettings(prev => ({ ...prev, excludeVicePrincipals: !prev.excludeVicePrincipals }))}
-                className="focus:outline-none transition-transform hover:scale-105 active:scale-95"
-              >
-                {settings.excludeVicePrincipals ? <ToggleRight size={32} className="text-green-500" /> : <ToggleLeft size={32} className="text-slate-300" />}
-              </button>
+              <Toggle
+                checked={settings.excludeVicePrincipals}
+                onChange={() => setSettings(prev => ({ ...prev, excludeVicePrincipals: !prev.excludeVicePrincipals }))}
+              />
             </div>
 
             {/* 3. Auto Exclude Teachers when 5+ admins */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
               <div>
-                <p className="text-base font-bold text-slate-700">استثناء المعلمين عند وجود 5+ إداريين</p>
-                <p className="text-sm text-slate-500 mt-0.5">عند وجود 5 مساعدين إداريين أو أكثر، يُستثنى المعلمون الممارسون</p>
+                <p className="text-base font-bold text-slate-700">استثناء المعلمين من المناوبة عند وجود أكثر من 5 مساعدين إداريين</p>
               </div>
-              <button 
-                onClick={() => setSettings(prev => ({ ...prev, autoExcludeTeachersWhen5Admins: !prev.autoExcludeTeachersWhen5Admins }))}
-                className="focus:outline-none transition-transform hover:scale-105 active:scale-95"
-              >
-                {settings.autoExcludeTeachersWhen5Admins ? <ToggleRight size={32} className="text-green-500" /> : <ToggleLeft size={32} className="text-slate-300" />}
-              </button>
-            </div>
-
-            {/* 4. Shared School Mode */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
-              <div>
-                <p className="text-base font-bold text-slate-700">نمط المدارس المشتركة</p>
-                <p className="text-sm text-slate-500 mt-0.5">جدول إشراف موحد أو منفصل لكل مدرسة</p>
-              </div>
-              <select
-                value={settings.sharedSchoolMode}
-                onChange={e => setSettings(prev => ({ ...prev, sharedSchoolMode: e.target.value as any }))}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 bg-white focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1] outline-none cursor-pointer hover:border-slate-300 transition-colors"
-              >
-                <option value="unified">موحد</option>
-                <option value="separate">منفصل</option>
-              </select>
-            </div>
-
-            {/* 4.5 Include Report Link in Reminder */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
-              <div>
-                <p className="text-base font-bold text-slate-700">تضمين رابط نموذج التقرير في رسالة التذكير</p>
-                <p className="text-sm text-slate-500 mt-0.5">إضافة رابط نموذج التقرير اليومي للمناوب ضمن رسائل التذكير اليومية</p>
-              </div>
-              <button
-                onClick={() => setSettings(prev => ({ ...prev, includeReportLinkInReminder: !(prev.includeReportLinkInReminder ?? true) }))}
-                className="focus:outline-none transition-transform hover:scale-105 active:scale-95"
-              >
-                {(settings.includeReportLinkInReminder ?? true) ? <ToggleRight size={32} className="text-green-500" /> : <ToggleLeft size={32} className="text-slate-300" />}
-              </button>
-            </div>
-
-            {/* 5. Send Links Settings */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
-              <div>
-                <p className="text-base font-bold text-slate-700">إرسال رابط التقرير يومياً</p>
-                <p className="text-sm text-slate-500 mt-0.5">إرسال رابط المناوبة للمناوبين بطريقة تلقائية أو يدوية</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="autoSendLinks"
-                    checked={settings.autoSendLinks}
-                    onChange={() => setSettings(prev => ({ ...prev, autoSendLinks: true }))}
-                    className="w-4 h-4 text-[#655ac1] focus:ring-[#655ac1]"
-                  />
-                  تلقائي
-                </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer border-r pr-3 border-slate-300">
-                  <input
-                    type="radio"
-                    name="autoSendLinks"
-                    checked={!settings.autoSendLinks}
-                    onChange={() => setSettings(prev => ({ ...prev, autoSendLinks: false }))}
-                    className="w-4 h-4 text-[#655ac1] focus:ring-[#655ac1]"
-                  />
-                  يدوي
-                </label>
-              </div>
-            </div>
-
-            {/* 6. Send Time — disabled when manual */}
-            <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${settings.autoSendLinks ? 'hover:border-slate-200' : 'opacity-50 pointer-events-none'}`}>
-              <div>
-                <p className="text-base flex items-center gap-2 font-bold text-slate-700">
-                  <Clock size={16} className="text-[#655ac1]" />
-                  وقت إرسال رابط المناوبة
-                </p>
-                <p className="text-sm text-slate-500 mt-0.5">الوقت المفضل لإرسال رسائل التذكير</p>
-              </div>
-              <input
-                type="time"
-                value={settings.reminderSendTime || '08:00'}
-                onChange={(e) => setSettings(prev => ({ ...prev, reminderSendTime: e.target.value }))}
-                className="px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1] font-bold text-slate-700"
+              <Toggle
+                checked={settings.autoExcludeTeachersWhen5Admins}
+                onChange={() => setSettings(prev => ({ ...prev, autoExcludeTeachersWhen5Admins: !prev.autoExcludeTeachersWhen5Admins }))}
               />
             </div>
 
-            {/* 7. Send Channel — disabled when manual */}
-            <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${settings.autoSendLinks ? 'hover:border-slate-200' : 'opacity-50 pointer-events-none'}`}>
+            {/* 4. Shared School Mode */}
+            <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${hasSharedSchools ? 'hover:border-slate-200' : 'opacity-50'}`}>
               <div>
-                <p className="text-base font-bold text-slate-700">طريقة إرسال رسالة التذكير</p>
-                <p className="text-sm text-slate-500 mt-0.5">اختر القناة المستخدمة عند الإرسال التلقائي</p>
+                <p className="text-base font-bold text-slate-700">للمدارس المشتركة اختر جدول موحد أو منفصل</p>
+                {!hasSharedSchools && (
+                  <p className="text-xs text-slate-400 mt-0.5">يتطلب إضافة مدرسة مشتركة في قسم معلومات عامة</p>
+                )}
               </div>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="dutyReminderChannel"
-                    checked={settings.reminderSendChannel === 'whatsapp'}
-                    onChange={() => setSettings(prev => ({ ...prev, reminderSendChannel: 'whatsapp' }))}
-                    className="w-4 h-4 text-[#25D366] focus:ring-[#25D366]"
-                  />
-                  <span className="flex items-center gap-1.5">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#25D366">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                    </svg>
-                    واتساب
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer border-r pr-3 border-slate-300">
-                  <input
-                    type="radio"
-                    name="dutyReminderChannel"
-                    checked={settings.reminderSendChannel === 'sms'}
-                    onChange={() => setSettings(prev => ({ ...prev, reminderSendChannel: 'sms' }))}
-                    className="w-4 h-4 text-[#007AFF] focus:ring-[#007AFF]"
-                  />
-                  <span className="flex items-center gap-1.5">
-                    <Send size={15} className="text-[#007AFF]" />
-                    نصية
-                  </span>
-                </label>
+              <div className={`flex gap-1.5 bg-slate-100 rounded-xl p-1 shrink-0 ${!hasSharedSchools ? 'pointer-events-none' : ''}`}>
+                {[
+                  { value: 'unified', label: 'موحد' },
+                  { value: 'separate', label: 'منفصل' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSettings(prev => ({ ...prev, sharedSchoolMode: opt.value as any }))}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                      settings.sharedSchoolMode === opt.value
+                        ? 'bg-white text-[#655ac1] shadow-sm ring-1 ring-slate-200/50'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
 

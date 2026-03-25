@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
-  Calendar, Plus, X, Trash2, Zap,
+  Calendar, Plus, X, Trash2,
   AlertTriangle, Search, Shield, Info, CheckCircle2, Check, BarChart2,
-  FileText, UmbrellaOff, ClipboardCheck, ClipboardX,
+  FileText, CalendarOff, Laptop, ClipboardCheck, ClipboardX,
   Bell, Send, Eye, PenLine, Hourglass
 } from 'lucide-react';
 import {
@@ -404,21 +404,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Top Action Bar */}
-      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-50/50 to-transparent rounded-bl-full pointer-events-none" />
-
-        <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
-          <div className="w-12 h-12 rounded-2xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0 shadow-sm">
-            <Calendar size={24} />
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-slate-800">بناء جدول المناوبة</h3>
-            <p className="text-sm font-medium text-slate-500 mt-1">توزيع المناوبين يدويًا أو تلقائيًا</p>
-          </div>
-        </div>
-
-      </div>
 
       {/* Distribution Report Modal Popup */}
       {showDistributionReport && dayAssignments.length > 0 && (
@@ -560,29 +545,32 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                   )}
                 </div>
               )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-right border-collapse">
+              <div>
+                <table className="w-full text-sm text-right border-collapse table-fixed">
                   <thead>
-                    <tr className="bg-white border-b border-slate-200">
-                      <th className="p-4 font-black text-slate-700 w-24 border-l border-slate-200/60">اليوم</th>
-                      <th className="p-4 font-black text-slate-700 w-28 border-l border-slate-200/60">التاريخ</th>
-                      <th className="p-4 font-black text-slate-700 max-w-[160px] border-l border-slate-200/60">المناوب</th>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="p-3 font-black text-slate-700 w-[8%] border-l border-slate-200/60 text-center">اليوم</th>
+                      <th className="p-3 font-black text-slate-700 w-[9%] border-l border-slate-200/60 text-center">التاريخ</th>
+                      <th className="p-3 font-black text-slate-700 w-[30%] border-l border-slate-200/60 text-center">المناوب</th>
                       {/* Signature column */}
-                      <th className="p-4 font-black text-slate-700 text-center w-32 border-l border-slate-200/60">
+                      <th className="p-3 font-black text-slate-700 text-center w-[10%] border-l border-slate-200/60">
                         <div className="flex items-center justify-center gap-1.5">
                           <PenLine size={14} className="text-[#655ac1]" />
                           <span>التوقيع</span>
                         </div>
                       </th>
-                      {/* New: Report Form column — hidden when printing */}
-                      <th className="p-3 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden w-32 leading-snug">
-                        <span className="block">معاينة وطباعة نموذج</span>
+                      {/* Report Form column */}
+                      <th className="p-3 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden w-[13%] leading-snug">
+                        <span className="block">معاينة وطباعة</span>
                         <span className="block">التقرير اليومي</span>
                       </th>
-                      {/* New: Report Submission status column */}
-                      <th className="p-4 font-black text-slate-700 w-40 text-center border-l border-slate-200/60 print:hidden">متابعة تسليم النموذج اليومي</th>
+                      {/* Report Submission status column */}
+                      <th className="p-3 font-black text-slate-700 w-[18%] text-center border-l border-slate-200/60 print:hidden leading-snug">
+                        <span className="block">متابعة تسليم</span>
+                        <span className="block">النموذج اليومي</span>
+                      </th>
                       {/* Actions column */}
-                      <th className="p-4 font-black text-slate-700 w-28 text-center print:hidden">الإجراءات</th>
+                      <th className="p-3 font-black text-slate-700 w-[12%] text-center print:hidden">الإجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -596,16 +584,16 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       return (
                         <tr key={dayId} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors align-top">
                           {/* Day Column */}
-                          <td className="p-4 border-l border-slate-200/60 align-middle bg-gradient-to-br from-violet-50/20 to-transparent">
+                          <td className="p-4 border-l border-slate-200/60 align-middle bg-gradient-to-br from-indigo-50/20 to-transparent">
                             <div className="flex flex-col justify-center items-center text-center gap-1">
-                              <h4 className="font-black text-slate-800 text-base">{DAY_NAMES[da.day]}</h4>
+                              <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[da.day]}</h4>
                             </div>
                           </td>
 
                           {/* Date Column */}
                           <td className="p-4 border-l border-slate-200/60 align-middle text-center">
                             {da.date ? (
-                              <span className="font-bold text-slate-700 text-xs bg-violet-50 px-2 py-1 rounded-lg border border-violet-200 shadow-sm">
+                              <span className="font-bold text-[#655ac1] text-xs bg-[#e5e1fe]/40 px-2 py-1 rounded-lg border border-[#655ac1]/20 shadow-sm">
                                 {formatDisplayDate(da.date)}
                               </span>
                             ) : (
@@ -627,7 +615,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                               <div className="flex flex-col gap-2">
                                 {/* Assigned staff */}
                                 {staffAssignments.map((sa, idx) => (
-                                  <div key={sa.staffId} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm hover:border-indigo-200 transition-all group">
+                                  <div key={sa.staffId} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm hover:border-[#655ac1]/20 transition-all group">
                                     <span className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
                                     <span className="font-bold text-slate-800 text-sm flex-1 text-right">{sa.staffName}</span>
                                     {/* Per-staff delete icon */}
@@ -646,57 +634,65 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   <div className="relative">
                                     <button
                                       onClick={() => { setShowAddPanel(dayId); setSelectedStaffIds([]); setAddSearch(''); }}
-                                      className="w-full min-h-[38px] border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#655ac1] hover:border-indigo-300 hover:bg-violet-50/50 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                                      className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/50 hover:bg-[#e5e1fe]/30 font-bold text-xs flex items-center justify-center gap-1 transition-all"
                                     >
                                       <Plus size={13} /> إضافة مناوب
                                     </button>
 
                                     {/* Dropdown */}
                                     {showAdd && (
-                                      <div className="absolute top-[calc(100%+0.5rem)] right-0 w-72 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.25)] border border-slate-200 z-[99]" onClick={e => e.stopPropagation()}>
-                                        <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between rounded-t-2xl">
-                                          <span className="text-xs font-black text-slate-700">{DAY_NAMES[da.day]} {da.date && `(${da.date})`}</span>
-                                          <button onClick={() => setShowAddPanel(null)} className="p-1 text-slate-400 hover:text-rose-500"><X size={14} /></button>
-                                        </div>
-                                        <div className="p-2 border-b border-slate-100">
-                                          <div className="relative">
-                                            <Search size={14} className="absolute right-2.5 top-2.5 text-slate-400" />
-                                            <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#8779fb]/30" />
+                                      <>
+                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); }} />
+                                        <div className="absolute top-[calc(100%+0.5rem)] right-0 w-72 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden" onClick={e => e.stopPropagation()}>
+                                          <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                            <span className="text-xs font-black text-slate-700">تحديد المناوبين</span>
+                                            <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">{unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch)).length} متاح</span>
+                                          </div>
+                                          <div className="p-2 border-b border-slate-100">
+                                            <div className="relative">
+                                              <Search size={14} className="absolute right-2.5 top-2.5 text-slate-400" />
+                                              <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث عن مناوب متاح..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]" />
+                                            </div>
+                                          </div>
+                                          <div className="max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                                            {(() => {
+                                              const filtered = unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch));
+                                              if (filtered.length === 0) {
+                                                return (
+                                                  <div className="text-center py-6 text-slate-400 text-xs font-bold">
+                                                    <Shield size={24} className="mx-auto mb-2 opacity-30" />
+                                                    {addSearch.trim() ? 'لا نتائج تطابق البحث' : 'جميع الموظفين مخصصون'}
+                                                  </div>
+                                                );
+                                              }
+                                              return filtered.map(staff => {
+                                                const isSelected = selectedStaffIds.includes(staff.id);
+                                                return (
+                                                  <button key={staff.id} onClick={() => toggleStaffSelection(staff.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all outline-none ${isSelected ? 'bg-[#e5e1fe]/40 border-[#655ac1]/20' : 'bg-white border-transparent hover:bg-slate-50'}`}>
+                                                    <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
+                                                      {isSelected && <Check size={11} />}
+                                                    </div>
+                                                    <div className="flex-1 flex flex-col">
+                                                      <span className={`text-sm font-bold ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{staff.name}</span>
+                                                      <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] text-slate-500">{staff.type === 'teacher' ? '(معلم)' : '(إداري)'}</span>
+                                                        {assignedStaffIds.has(staff.id) && (
+                                                          <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">مسند مسبقاً</span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </button>
+                                                );
+                                              });
+                                            })()}
+                                          </div>
+                                          <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md shadow-[#655ac1]/20 transition-all">
+                                              حفظ المحدد ({selectedStaffIds.length})
+                                            </button>
                                           </div>
                                         </div>
-                                        <div className="max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                                          {unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch)).map(staff => {
-                                            const isSelected = selectedStaffIds.includes(staff.id);
-                                            return (
-                                              <button key={staff.id} onClick={() => toggleStaffSelection(staff.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all outline-none ${isSelected ? 'bg-violet-50 border-[#c4b8fb]' : 'bg-white border-transparent hover:bg-slate-50'}`}>
-                                                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-[#8779fb] border-[#8779fb] text-white' : 'bg-white border-slate-300'}`}>
-                                                  {isSelected && <Check size={11} />}
-                                                </div>
-                                                <div className="flex-1 flex flex-col">
-                                                  <span className={`text-sm font-bold ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{staff.name}</span>
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-[10px] text-slate-500">{staff.type === 'teacher' ? '(معلم)' : '(إداري)'}</span>
-                                                    {assignedStaffIds.has(staff.id) && (
-                                                      <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">مسند مسبقاً</span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </button>
-                                            );
-                                          })}
-                                          {unassignedStaff.length === 0 && (
-                                            <div className="text-center py-6 text-slate-400 text-xs font-bold">
-                                              <Shield size={22} className="mx-auto mb-2 opacity-30" />
-                                              جميع الموظفين مخصصون
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end rounded-b-2xl">
-                                          <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#8779fb] hover:bg-[#655ac1] text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md transition-all">
-                                            حفظ ({selectedStaffIds.length})
-                                          </button>
-                                        </div>
-                                      </div>
+                                      </>
                                     )}
                                   </div>
                                 )}
@@ -769,7 +765,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                           ? submittedReport?.manuallySubmitted
                                             ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                                             : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                                          : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-violet-50 hover:text-[#655ac1] hover:border-violet-200'
+                                          : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-[#e5e1fe]/30 hover:text-[#655ac1] hover:border-[#655ac1]/20'
                                       }`}
                                     >
                                       <Eye size={14} />
@@ -841,31 +837,41 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           {/* ── Actions Column (hidden in print) ── */}
                           <td className="p-3 align-middle print:hidden">
                             <div className="flex flex-row gap-2 items-center justify-center">
+
                               {/* Official Leave toggle */}
-                              <button
-                                onClick={() => toggleOfficialLeave(dayId)}
-                                title={da.isOfficialLeave ? 'إلغاء الإجازة الرسمية' : 'تحويل اليوم إلى إجازة رسمية'}
-                                className={`w-8 h-8 flex items-center justify-center rounded-xl border shadow-sm transition-all ${
-                                  da.isOfficialLeave
-                                    ? 'bg-amber-50 text-amber-600 border-amber-200'
-                                    : 'bg-white text-slate-400 border-slate-200 hover:text-amber-500 hover:border-amber-200 hover:bg-amber-50'
-                                }`}
-                              >
-                                <UmbrellaOff size={14} className={da.isOfficialLeave ? 'fill-amber-100' : ''} />
-                              </button>
+                              <div className="relative group">
+                                <button
+                                  onClick={() => toggleOfficialLeave(dayId)}
+                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 ${
+                                    da.isOfficialLeave
+                                      ? 'bg-amber-50 text-amber-600 border-amber-300'
+                                      : 'bg-white text-slate-400 border-slate-200 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50'
+                                  }`}
+                                >
+                                  <CalendarOff size={15} />
+                                </button>
+                                <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
+                                  {da.isOfficialLeave ? 'إلغاء الإجازة الرسمية' : 'تعيين إجازة رسمية'}
+                                </span>
+                              </div>
 
                               {/* Remote Work toggle */}
-                              <button
-                                onClick={() => toggleRemoteWork(dayId)}
-                                title={da.isRemoteWork ? 'إلغاء وضع العمل عن بعد' : 'تحويل اليوم إلى عمل عن بعد – مدرستي'}
-                                className={`w-8 h-8 flex items-center justify-center rounded-xl border shadow-sm transition-all ${
-                                  da.isRemoteWork
-                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                    : 'bg-white text-slate-400 border-slate-200 hover:text-emerald-500 hover:border-emerald-200 hover:bg-emerald-50'
-                                }`}
-                              >
-                                <Zap size={14} className={da.isRemoteWork ? 'fill-emerald-200' : ''} />
-                              </button>
+                              <div className="relative group">
+                                <button
+                                  onClick={() => toggleRemoteWork(dayId)}
+                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 ${
+                                    da.isRemoteWork
+                                      ? 'bg-emerald-50 text-emerald-600 border-emerald-300'
+                                      : 'bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50'
+                                  }`}
+                                >
+                                  <Laptop size={15} />
+                                </button>
+                                <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
+                                  {da.isRemoteWork ? 'إلغاء العمل عن بعد' : 'تعيين عمل عن بعد'}
+                                </span>
+                              </div>
+
                             </div>
                           </td>
 

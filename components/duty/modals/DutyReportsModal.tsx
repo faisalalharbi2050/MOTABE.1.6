@@ -389,18 +389,17 @@ const DutyReportsModalContent: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 gap-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1] shadow-sm">
-              <BarChart3 size={24} />
-            </div>
+            <BarChart3 size={24} className="text-[#655ac1]" />
             <div>
               <h2 className="text-xl font-black text-slate-800">تقارير المناوبة</h2>
+              <p className="text-sm font-medium text-slate-500 mt-0.5">تقارير الأداء والسلوك والتأخر</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors self-end sm:self-auto">
+          <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
             <X size={22} />
           </button>
         </div>
@@ -413,7 +412,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
               onClick={() => setMainTab('performance')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 mainTab === 'performance'
-                  ? 'bg-[#8779fb] text-white shadow-md'
+                  ? 'bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
               }`}
             >
@@ -423,7 +422,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
               onClick={() => setMainTab('daily')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 mainTab === 'daily'
-                  ? 'bg-[#8779fb] text-white shadow-md'
+                  ? 'bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
               }`}
             >
@@ -460,20 +459,20 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {/* ── الفترة الزمنية ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-                  <Calendar size={17} className="text-[#8779fb]" /> تحديد الفترة الزمنية
+                  <Calendar size={17} className="text-[#655ac1]" /> تحديد الفترة الزمنية
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
                     <input type="date" value={perfFromDate} onChange={e => setPerfFromDate(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
-                    {perfFromDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(perfFromDate)}</p>}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50" />
+                    {perfFromDate && <p className="text-xs text-[#655ac1] font-bold mt-1">{toHijriShort(perfFromDate)}</p>}
                   </div>
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
                     <input type="date" value={perfToDate} onChange={e => setPerfToDate(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
-                    {perfToDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(perfToDate)}</p>}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50" />
+                    {perfToDate && <p className="text-xs text-[#655ac1] font-bold mt-1">{toHijriShort(perfToDate)}</p>}
                   </div>
                 </div>
               </div>
@@ -481,18 +480,18 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {/* ── اختيار المناوب ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-                  <User size={17} className="text-[#8779fb]" /> اختيار المناوب
+                  <User size={17} className="text-[#655ac1]" /> اختيار المناوب
                 </p>
                 <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-100 w-fit mb-4">
                   <button onClick={() => { setPerfStaffMode('all'); setSelectedStaffId(''); }}
                     className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                      perfStaffMode === 'all' ? 'bg-[#8779fb] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
+                      perfStaffMode === 'all' ? 'bg-[#655ac1] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
                     }`}>
                     جميع المناوبين
                   </button>
                   <button onClick={() => setPerfStaffMode('specific')}
                     className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                      perfStaffMode === 'specific' ? 'bg-[#8779fb] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
+                      perfStaffMode === 'specific' ? 'bg-[#655ac1] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
                     }`}>
                     مناوب محدد
                   </button>
@@ -505,7 +504,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                       onChange={e => setSelectedStaffSearch(e.target.value)}
                       onFocus={() => setIsDropdownOpen(true)}
                       onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-                      className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#8779fb]" />
+                      className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1]" />
                     {isDropdownOpen && (
                       <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-white rounded-xl shadow-xl border border-slate-100 max-h-52 overflow-y-auto z-[99]">
                         {filteredStaff.length > 0 ? filteredStaff.map(s => (
@@ -513,7 +512,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                             onClick={() => { setSelectedStaffId(s.id); setSelectedStaffSearch(''); setIsDropdownOpen(false); }}
                             className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between">
                             {s.name}
-                            {selectedStaffId === s.id && <Check size={16} className="text-[#8779fb]" />}
+                            {selectedStaffId === s.id && <Check size={16} className="text-[#655ac1]" />}
                           </button>
                         )) : <div className="p-4 text-center text-sm text-slate-500">لا توجد نتائج</div>}
                       </div>
@@ -529,7 +528,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                 )}
                 <div className="mt-5 pt-4 border-t border-slate-100">
                   <button onClick={handlePrintAttendanceReport}
-                    className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95">
+                    className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm shadow-[#655ac1]/25 transition-all active:scale-95">
                     <Printer size={16} /> طباعة التقرير
                   </button>
                 </div>
@@ -547,20 +546,20 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {/* ── تحديد الفترة ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-                  <Calendar size={17} className="text-[#8779fb]" /> تحديد الفترة الزمنية
+                  <Calendar size={17} className="text-[#655ac1]" /> تحديد الفترة الزمنية
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
                     <input type="date" value={dailyFromDate} onChange={e => setDailyFromDate(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
-                    {dailyFromDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(dailyFromDate)}</p>}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50" />
+                    {dailyFromDate && <p className="text-xs text-[#655ac1] font-bold mt-1">{toHijriShort(dailyFromDate)}</p>}
                   </div>
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
                     <input type="date" value={dailyToDate} onChange={e => setDailyToDate(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#8779fb] bg-slate-50" />
-                    {dailyToDate && <p className="text-xs text-[#8779fb] font-bold mt-1">{toHijriShort(dailyToDate)}</p>}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50" />
+                    {dailyToDate && <p className="text-xs text-[#655ac1] font-bold mt-1">{toHijriShort(dailyToDate)}</p>}
                   </div>
                 </div>
               </div>
@@ -583,7 +582,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                   <p className="text-sm font-black text-amber-700">الطلاب المتأخرون</p>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-5 border border-slate-300 text-center shadow-sm hover:scale-105 transition-transform max-w-sm sm:max-w-full mx-auto sm:mx-0">
-                  <p className="text-4xl font-black text-[#8779fb] mb-1">{dailyFilteredViolations.length}</p>
+                  <p className="text-4xl font-black text-[#655ac1] mb-1">{dailyFilteredViolations.length}</p>
                   <p className="text-sm font-black text-[#655ac1]">الطلاب المخالفون سلوكيًا</p>
                 </div>
                 {/* تم حذف بطاقة الطلاب الفريدين بناءً على طلب المستخدم */}
@@ -593,7 +592,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {dailyChartDates.length > 0 && (
                 <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                   <p className="text-sm font-black text-slate-700 mb-5 flex items-center gap-2">
-                    <BarChart3 size={17} className="text-[#8779fb]" /> التوزيع اليومي للبيانات
+                    <BarChart3 size={17} className="text-[#655ac1]" /> التوزيع اليومي للبيانات
                   </p>
                   <div className="overflow-x-auto pb-2">
                     <div className="flex gap-3 items-end min-w-min">
@@ -605,7 +604,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                           <div key={date} className="flex flex-col items-center gap-1 min-w-[44px]">
                             <span className="text-[9px] font-bold text-slate-500">{lateCount + violationCount}</span>
                             <div className="w-8 flex flex-col justify-end gap-0.5" style={{ height: '68px' }}>
-                              {violationCount > 0 && <div className="w-full bg-[#8779fb] rounded-sm" style={{ height: `${violH}px` }} title={`مخالفة: ${violationCount}`} />}
+                              {violationCount > 0 && <div className="w-full bg-[#655ac1] rounded-sm" style={{ height: `${violH}px` }} title={`مخالفة: ${violationCount}`} />}
                               {lateCount > 0 && <div className="w-full bg-amber-400 rounded-sm" style={{ height: `${lateH}px` }} title={`تأخر: ${lateCount}`} />}
                             </div>
                             <span className="text-[8px] text-slate-400 text-center leading-tight max-w-[44px] break-words">
@@ -620,7 +619,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                   </div>
                   <div className="flex gap-5 mt-3 text-xs font-bold text-slate-600">
                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-amber-400 rounded-sm inline-block" /> تأخر</span>
-                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#8779fb] rounded-sm inline-block" /> مخالفة سلوكية</span>
+                    <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#655ac1] rounded-sm inline-block" /> مخالفة سلوكية</span>
                   </div>
                 </div>
               )}
@@ -628,7 +627,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {/* ── Student Search ────────────────────────────────────────── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-                  <Search size={17} className="text-[#8779fb]" /> البحث عن طالب
+                  <Search size={17} className="text-[#655ac1]" /> البحث عن طالب
                 </p>
                 <div className="relative mb-4">
                   <Search size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -637,7 +636,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                     placeholder="اكتب اسم الطالب للبحث في السجلات..."
                     value={studentSearch}
                     onChange={e => setStudentSearch(e.target.value)}
-                    className="w-full pr-10 pl-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-1 focus:border-[#8779fb] focus:ring-[#8779fb]/30"
+                    className="w-full pr-10 pl-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-1 focus:border-[#655ac1] focus:ring-[#655ac1]/30"
                   />
                   {studentSearch && (
                     <button onClick={() => setStudentSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full transition-colors">
@@ -708,7 +707,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
                     {(studentFilteredLate.length > 0 || studentFilteredViolations.length > 0) && (
                       <button
                         onClick={() => handlePrintStudentReport(studentSearch.trim(), studentFilteredLate, studentFilteredViolations)}
-                        className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-[#8779fb]/20 transition-all active:scale-95"
+                        className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-all active:scale-95"
                       >
                         <Printer size={15} /> طباعة تقرير الطالب
                       </button>
@@ -724,11 +723,11 @@ const DutyReportsModalContent: React.FC<Props> = ({
                 <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-black text-slate-700 flex items-center gap-2">
-                      <FileText size={17} className="text-[#8779fb]" /> جميع السجلات في الفترة
+                      <FileText size={17} className="text-[#655ac1]" /> جميع السجلات في الفترة
                     </p>
                     <button
                       onClick={() => handlePrintDailyReport(dailyFilteredLate, dailyFilteredViolations)}
-                      className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95"
+                      className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm shadow-[#655ac1]/25 transition-all active:scale-95"
                     >
                       <Printer size={13} /> طباعة
                     </button>

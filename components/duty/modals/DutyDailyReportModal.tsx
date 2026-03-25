@@ -113,7 +113,7 @@ const DutyDailyReportModal: React.FC<Props> = ({
   .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #655ac1; padding-bottom: 8px; margin-bottom: 10px; }
   .doc-header .logo-area { text-align: center; }
   .doc-title { font-size: 14px; font-weight: 900; color: #655ac1; text-align: center; }
-  .doc-subtitle { font-size: 10px; font-weight: bold; color: #8779fb; text-align: center; margin-top: 2px; }
+  .doc-subtitle { font-size: 10px; font-weight: bold; color: #655ac1; text-align: center; margin-top: 2px; }
   .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px; }
   .meta-box { border: 1px solid #ddd6fe; border-radius: 4px; padding: 4px 6px; text-align: center; }
   .meta-box label { font-size: 8px; font-weight: bold; color: #64748b; display: block; }
@@ -269,7 +269,7 @@ const DutyDailyReportModal: React.FC<Props> = ({
               onClick={() => setShowSignatures(v => !v)}
               className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-xl transition-colors"
             >
-              {showSignatures ? <ToggleRight size={18} className="text-[#8779fb]" /> : <ToggleLeft size={18} />}
+              {showSignatures ? <ToggleRight size={18} className="text-[#655ac1]" /> : <ToggleLeft size={18} />}
               التوقيعات
             </button>
             <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
@@ -418,7 +418,7 @@ const DutyDailyReportModal: React.FC<Props> = ({
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
           >
             <Printer size={18} /> طباعة التقرير
           </button>

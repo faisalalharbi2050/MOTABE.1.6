@@ -1,19 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Eye, Settings, Calendar, Download, Send, Printer,
-  CheckCircle, AlertTriangle, Shield, ShieldCheck, Clock, Plus, Trash2, Edit,
-  RefreshCw, BarChart3, MessageSquare, ChevronDown, ChevronUp,
-  GripVertical, Copy, Search, Filter, X, Save, AlertCircle,
-  UserCheck, UserX, Info, Bell, Zap, FileText, Check
+  Eye, Settings, Send, Printer,
+  CheckCircle, AlertTriangle, ShieldCheck,
+  RefreshCw, BarChart3,
+  X, Save, AlertCircle,
+  Info, Zap
 } from 'lucide-react';
 import {
-  SchoolInfo, Teacher, Admin, ScheduleSettingsData, Phase,
-  DutyScheduleData, DutySettings, DutyDayAssignment, DutyStaffAssignment,
-  DutyStaffExclusion, DutyReportRecord, TimingConfig
+  SchoolInfo, Teacher, Admin, ScheduleSettingsData,
+  DutyScheduleData,
 } from '../types';
-import { Button } from './ui/Button';
-import { Card } from './ui/Card';
-import { Badge } from './ui/Badge';
 
 import {
   DAYS, DAY_NAMES,
@@ -23,6 +19,7 @@ import {
   generateSmartDutyAssignment, validateDutyGoldenRule
 } from '../utils/dutyUtils';
 
+// ===== Sub-component imports =====
 import DutyScheduleBuilder from './duty/DutyScheduleBuilder';
 import SchoolTabs from './wizard/SchoolTabs';
 import AcademicYearPopup from './duty/AcademicYearPopup';
@@ -34,12 +31,13 @@ import DutyMessagingModal from './duty/modals/DutyMessagingModal';
 import DutyReportsModal from './duty/modals/DutyReportsModal';
 import DutyManageSchedulesModal from './duty/modals/DutyManageSchedulesModal';
 import DutyCreateScheduleModal from './duty/modals/DutyCreateScheduleModal';
+import DutyPreCheckModal, { DutyPreCheckItem } from './duty/modals/DutyPreCheckModal';
 
 // Provide default data if none exists
 const getDefaultDutyData = (): DutyScheduleData => ({
   exclusions: [],
   settings: {
-    excludeVicePrincipals: true,
+    excludeVicePrincipals: false,
     excludeGuards: true,
     autoExcludeTeachersWhen5Admins: false,
     suggestedCountPerDay: 4,
@@ -71,15 +69,13 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   const [showAcademicPopup, setShowAcademicPopup] = useState(false);
   const [showAcademicCalendarModal, setShowAcademicCalendarModal] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState<boolean>(
-    () => localStorage.getItem('duty_settings_saved') === 'true'
-  );
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
+  const [scheduleChangeAlert, setScheduleChangeAlert] = useState(false);
 
   // ===== Shared Schools Validation =====
   const sharedSchools = schoolInfo.sharedSchools || [];
   const hasSharedSchools = sharedSchools.length > 0;
-  
+
   // Modals state
   const [isMonitoringOpen, setIsMonitoringOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
@@ -87,6 +83,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isManageSchedulesOpen, setIsManageSchedulesOpen] = useState(false);
   const [isCreateScheduleOpen, setIsCreateScheduleOpen] = useState(false);
+  const [showPreCheckModal, setShowPreCheckModal] = useState(false);
 
   // ── Quick-action deep-link from Dashboard ─────────────────────────
   useEffect(() => {
@@ -94,16 +91,13 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     window.addEventListener('motabe:send_duty', handler);
     return () => window.removeEventListener('motabe:send_duty', handler);
   }, []);
-  
-  // Confirmation state
-  const [showGlobalDeleteConfirm, setShowGlobalDeleteConfirm] = useState(false);
 
   const storageKey = activeSchoolTab === 'main' ? 'duty_data_v1' : `duty_data_v1_${activeSchoolTab}`;
 
   const [dutyData, setDutyData] = useState<DutyScheduleData>(() => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
-      try { 
+      try {
         const parsed = JSON.parse(saved);
         return {
           ...getDefaultDutyData(),
@@ -133,7 +127,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
 
     const saved = localStorage.getItem(storageKey);
     if (saved) {
-      try { 
+      try {
         const parsed = JSON.parse(saved);
         setDutyData({
           ...getDefaultDutyData(),
@@ -147,7 +141,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
             sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified'
           }
         });
-      } catch { 
+      } catch {
         const d = getDefaultDutyData();
         setDutyData({
           ...d,
@@ -166,7 +160,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   // ===== Persistence =====
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(dutyData));
-    
+
     // Sync sharedSchoolMode to main to ensure it acts globally across tabs
     if (activeSchoolTab !== 'main') {
       try {
@@ -175,31 +169,39 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         let mData = localStorage.getItem(mainKey);
         let usedKey = mainKey;
         if (!mData) {
-           mData = localStorage.getItem(fallbackKey);
-           usedKey = fallbackKey;
+          mData = localStorage.getItem(fallbackKey);
+          usedKey = fallbackKey;
         }
         if (mData) {
-           const pData = JSON.parse(mData);
-           if (pData.settings && pData.settings.sharedSchoolMode !== dutyData.settings.sharedSchoolMode) {
-              pData.settings.sharedSchoolMode = dutyData.settings.sharedSchoolMode;
-              localStorage.setItem(usedKey, JSON.stringify(pData));
-           }
+          const pData = JSON.parse(mData);
+          if (pData.settings && pData.settings.sharedSchoolMode !== dutyData.settings.sharedSchoolMode) {
+            pData.settings.sharedSchoolMode = dutyData.settings.sharedSchoolMode;
+            localStorage.setItem(usedKey, JSON.stringify(pData));
+          }
         }
-      } catch(e) {}
+      } catch (e) {}
     }
   }, [dutyData, storageKey, activeSchoolTab]);
 
   // ===== Academic Year Check =====
   useEffect(() => {
-    // Don't show academic popup when page is opened via a duty report reminder link
     const params = new URLSearchParams(window.location.search);
     const isReportLink = params.get('staffId') && params.get('day') && params.get('date');
     if (isReportLink) return;
-    // Check if academic year and basic semester details are mapped
     if (!schoolInfo.academicYear || !(schoolInfo.semesters && schoolInfo.semesters.length > 0)) {
-       setShowAcademicPopup(true);
+      setShowAcademicPopup(true);
     }
   }, [schoolInfo]);
+
+  // ===== Schedule Change Detection =====
+  const prevTimetableRef = React.useRef(scheduleSettings.timetable);
+  useEffect(() => {
+    if (prevTimetableRef.current !== scheduleSettings.timetable && dutyData.dayAssignments.length > 0) {
+      setScheduleChangeAlert(true);
+      showToast('تم تغيير جدول الحصص - يُرجى مراجعة المناوبة اليومية', 'warning');
+    }
+    prevTimetableRef.current = scheduleSettings.timetable;
+  }, [scheduleSettings.timetable]);
 
   // ===== Toast =====
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error') => {
@@ -220,7 +222,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
 
     return getAvailableStaffForDuty(targetTeachers, targetAdmins, dutyData.exclusions, dutyData.settings);
   }, [teachers, admins, dutyData.exclusions, dutyData.settings, hasSharedSchools, activeSchoolTab]);
-  
+
   const suggestExcludeTeachers = useMemo(() => canSuggestExcludeTeachers(admins), [admins]);
   const suggestedCount = useMemo(
     () => getSuggestedDutyCountPerDay(availableStaff.length, timing.activeDays?.length || 5),
@@ -249,9 +251,9 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
       setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
       showToast('تم التوزيع الذكي بنجاح', 'success');
       if (alerts.length > 0) {
-         showToast(alerts[0], 'warning');
+        showToast(alerts[0], 'warning');
       }
-    } catch(err) {
+    } catch (err) {
       showToast('حدث خطأ أثناء التوزيع', 'error');
     }
   };
@@ -269,18 +271,30 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     showToast('تم اعتماد جدول المناوبة', 'success');
   };
 
-  const handleDeleteCurrentSchedule = () => {
-    setDutyData(prev => ({
-      ...prev,
-      dayAssignments: [],
-      weekAssignments: [],
-      dutyAssignmentCounts: {},
-      isApproved: false,
-      activeScheduleId: undefined,
-    }));
-    setShowGlobalDeleteConfirm(false);
-    showToast('تم حذف الجدول بالكامل', 'success');
-  };
+  // ===== Pre-check items =====
+  const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
+  const hasSemesterDates = !!(currentSemester?.startDate && currentSemester?.endDate);
+  const preChecks: DutyPreCheckItem[] = [
+    {
+      label: 'الفصل الدراسي',
+      detail: hasSemesterDates
+        ? `${currentSemester!.name || 'الفصل الدراسي'}: من ${currentSemester!.startDate} إلى ${currentSemester!.endDate}`
+        : 'لم يتم تحديد تاريخ بداية ونهاية الفصل الدراسي — يتطلبه إنشاء جدول المناوبة',
+      status: hasSemesterDates ? 'ok' : 'error',
+    },
+    {
+      label: 'المناوبون المتاحون',
+      detail: availableStaff.length > 0
+        ? `${availableStaff.length} مناوب متاح للتوزيع`
+        : 'لا يوجد مناوبون متاحون',
+      status: availableStaff.length === 0 ? 'error' : availableStaff.length >= suggestedCount ? 'ok' : 'warning',
+    },
+    ...(dutyData.dayAssignments.length > 0 ? [{
+      label: 'الجدول الحالي',
+      detail: 'يوجد جدول حالي — سيتم استبداله بالجدول الجديد',
+      status: 'warning' as const,
+    }] : []),
+  ];
 
   // ===== Settings Page =====
   if (showSettingsPage) {
@@ -288,8 +302,6 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
       <DutySettingsPage
         onBack={() => setShowSettingsPage(false)}
         onSave={() => {
-          localStorage.setItem('duty_settings_saved', 'true');
-          setSettingsSaved(true);
           showToast('تم حفظ إعدادات المناوبة بنجاح', 'success');
         }}
         teachers={teachers}
@@ -313,6 +325,14 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     );
   }
 
+  // ===== Staff filter helper =====
+  const filteredTeachers = hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate'
+    ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'))
+    : teachers;
+  const filteredAdmins = hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate'
+    ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main'))
+    : admins;
+
   return (
     <div className="space-y-6 pb-20">
       {/* ══════ Header ══════ */}
@@ -330,10 +350,9 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
             </p>
           </div>
         </div>
-
       </div>
 
-      {/* Shared Schools Tabs — شريط مستقل */}
+      {/* Shared Schools Tabs */}
       {hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' && (
         <SchoolTabs
           schoolInfo={schoolInfo}
@@ -345,7 +364,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
       {/* ══════ Toolbar / Action Bar ══════ */}
       <div className="flex flex-col gap-4 mb-6">
         {/* ROW 1 */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Right Side */}
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -356,13 +375,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
               <span>إعدادات المناوبة</span>
             </button>
             <button
-              onClick={() => {
-                if (!settingsSaved) {
-                  showToast('يُرجى الذهاب إلى إعدادات المناوبة وحفظها أولاً قبل إنشاء الجدول', 'warning');
-                  return;
-                }
-                setIsCreateScheduleOpen(true);
-              }}
+              onClick={() => setShowPreCheckModal(true)}
               className="flex items-center gap-2 bg-[#655ac1] text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
             >
               <Zap size={18} />
@@ -370,69 +383,61 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
             </button>
           </div>
 
-          {/* Left Side */}
-          <div className="flex flex-wrap items-center gap-2">
-          </div>
+          {/* Left Side — placeholder for future actions */}
+          <div className="flex flex-wrap items-center gap-2"></div>
         </div>
 
         {/* ROW 2 */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-           {/* Right Side */}
-           <div className="flex flex-wrap items-center gap-2">
-             <button
-               onClick={() => setIsManageSchedulesOpen(true)}
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
-             >
-               <Save size={18} className="text-[#8779fb]" />
-               <span>إدارة الجداول</span>
-             </button>
-             <button
-               onClick={() => setIsPrintOpen(true)}
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
-             >
-               <Printer size={18} className="text-[#8779fb]" />
-               <span>طباعة المناوبة</span>
-             </button>
-             <button
-               onClick={() => setIsMessagingOpen(true)}
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
-             >
-               <Send size={18} className="text-[#8779fb]" />
-               <span>إرسال المناوبة</span>
-             </button>
-             <button
-               onClick={() => setShowGlobalDeleteConfirm(true)}
-               className="flex items-center gap-2 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-rose-300"
-             >
-               <Trash2 size={18} className="text-rose-500" />
-               <span>حذف الجدول</span>
-             </button>
-           </div>
+          {/* Right Side */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsPrintOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Printer size={18} className="text-[#655ac1]" />
+              <span>طباعة المناوبة</span>
+            </button>
+            <button
+              onClick={() => setIsMessagingOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Send size={18} className="text-[#655ac1]" />
+              <span>إرسال المناوبة</span>
+            </button>
+            <button
+              onClick={() => setIsMonitoringOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Eye size={18} className="text-[#655ac1]" />
+              <span>المتابعة اليومية</span>
+            </button>
+          </div>
 
-           {/* Left Side */}
-           <div className="flex flex-wrap items-center gap-2">
-             <button
-               onClick={() => setIsMonitoringOpen(true)}
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
-             >
-               <Eye size={18} className="text-[#8779fb]" />
-               <span>المتابعة اليومية</span>
-             </button>
-             <button
-               onClick={() => setIsReportsOpen(true)}
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
-             >
-               <BarChart3 size={18} className="text-[#8779fb]" />
-               <span>تقارير المناوبة</span>
-             </button>
-           </div>
+          {/* Left Side */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsReportsOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <BarChart3 size={18} className="text-[#655ac1]" />
+              <span>تقارير المناوبة</span>
+            </button>
+            <button
+              onClick={() => setIsManageSchedulesOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Save size={18} className="text-[#655ac1]" />
+              <span>إدارة الجداول</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Admin Suggestion Banner */}
       {suggestExcludeTeachers && !dutyData.settings.autoExcludeTeachersWhen5Admins && (
-        <div className="bg-violet-50/50 border-2 border-[#8779fb]/30 rounded-2xl p-5 mb-6 flex items-start gap-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-1 bg-[#8779fb] h-full rounded-r-2xl"></div>
+        <div className="bg-[#fcfbff] border-2 border-[#655ac1]/20 rounded-2xl p-5 mb-6 flex items-start gap-4 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-1 bg-[#655ac1] h-full rounded-r-2xl"></div>
           <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center shrink-0">
             <Info size={22} className="text-[#655ac1]" />
           </div>
@@ -452,87 +457,132 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
               }));
               showToast('تم تفعيل استثناء المعلمين من المناوبة', 'success');
             }}
-            className="shrink-0 px-6 py-2.5 bg-[#8779fb] hover:bg-[#655ac1] text-white text-sm font-bold rounded-xl transition-all shadow-md mt-auto mb-auto hover:scale-105 active:scale-95"
+            className="shrink-0 px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md mt-auto mb-auto hover:scale-105 active:scale-95"
           >
             تفعيل التلقائي
           </button>
         </div>
       )}
 
-      {/* Main Content Area - Schedule Viewer and Builder */}
+      {/* Schedule Change Alert */}
+      {scheduleChangeAlert && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 mb-6 flex items-start gap-4 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-1 bg-amber-500 h-full rounded-r-2xl"></div>
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+            <AlertTriangle size={22} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-black text-amber-900">
+              تم تعديل جدول الحصص - يُرجى مراجعة توزيع المناوبة
+            </p>
+            <p className="text-sm font-medium text-amber-700/80 mt-1">
+              قد تكون هناك تغيرات تؤثر على أيام المناوبة. يُنصح بإعادة التوزيع.
+            </p>
+          </div>
+          <div className="flex gap-2 items-center mt-auto mb-auto">
+            <button
+              onClick={() => {
+                handleAutoAssign();
+                setScheduleChangeAlert(false);
+              }}
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+            >
+              <RefreshCw size={16} />
+              <span>إعادة التوزيع</span>
+            </button>
+            <button
+              onClick={() => setScheduleChangeAlert(false)}
+              className="p-2.5 text-slate-400 hover:bg-amber-100 hover:text-slate-600 rounded-xl transition-colors"
+              title="إغلاق التنبيه"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
       <div id="schedule-builder-section" className="mt-2">
-         <DutyScheduleBuilder
-            dutyData={dutyData}
-            setDutyData={setDutyData}
-            teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
-            admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
-            scheduleSettings={scheduleSettings}
-            schoolInfo={schoolInfo}
-            showToast={showToast}
-          />
+        <DutyScheduleBuilder
+          dutyData={dutyData}
+          setDutyData={setDutyData}
+          teachers={filteredTeachers}
+          admins={filteredAdmins}
+          scheduleSettings={scheduleSettings}
+          schoolInfo={schoolInfo}
+          showToast={showToast}
+        />
       </div>
 
       {/* ══════ Modals ══════ */}
-       <DutyMonitoringModal
-         isOpen={isMonitoringOpen}
-         onClose={() => setIsMonitoringOpen(false)}
-         dutyData={dutyData}
-         setDutyData={setDutyData}
-         schoolInfo={schoolInfo}
-         showToast={showToast}
-       />
+      <DutyMonitoringModal
+        isOpen={isMonitoringOpen}
+        onClose={() => setIsMonitoringOpen(false)}
+        dutyData={dutyData}
+        setDutyData={setDutyData}
+        schoolInfo={schoolInfo}
+        showToast={showToast}
+      />
 
-       <DutyPrintModal
-         isOpen={isPrintOpen}
-         onClose={() => setIsPrintOpen(false)}
-         dutyData={dutyData}
-         schoolInfo={schoolInfo}
-         showToast={showToast}
-       />
+      <DutyPrintModal
+        isOpen={isPrintOpen}
+        onClose={() => setIsPrintOpen(false)}
+        dutyData={dutyData}
+        schoolInfo={schoolInfo}
+        showToast={showToast}
+      />
 
-       <DutyMessagingModal
-         isOpen={isMessagingOpen}
-         onClose={() => setIsMessagingOpen(false)}
-         dutyData={dutyData}
-         setDutyData={setDutyData}
-         schoolInfo={schoolInfo}
-         teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
-         admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
-         showToast={showToast}
-       />
+      <DutyMessagingModal
+        isOpen={isMessagingOpen}
+        onClose={() => setIsMessagingOpen(false)}
+        dutyData={dutyData}
+        setDutyData={setDutyData}
+        schoolInfo={schoolInfo}
+        teachers={filteredTeachers}
+        admins={filteredAdmins}
+        showToast={showToast}
+      />
 
-       <DutyManageSchedulesModal
-         isOpen={isManageSchedulesOpen}
-         onClose={() => setIsManageSchedulesOpen(false)}
-         dutyData={dutyData}
-         setDutyData={setDutyData}
-         showToast={showToast}
-       />
+      <DutyManageSchedulesModal
+        isOpen={isManageSchedulesOpen}
+        onClose={() => setIsManageSchedulesOpen(false)}
+        dutyData={dutyData}
+        setDutyData={setDutyData}
+        showToast={showToast}
+      />
 
-       <DutyReportsModal
-         isOpen={isReportsOpen}
-         onClose={() => setIsReportsOpen(false)}
-         dutyData={dutyData}
-         schoolInfo={schoolInfo}
-         teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
-         admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
-         showToast={showToast}
-       />
+      <DutyReportsModal
+        isOpen={isReportsOpen}
+        onClose={() => setIsReportsOpen(false)}
+        dutyData={dutyData}
+        schoolInfo={schoolInfo}
+        teachers={filteredTeachers}
+        admins={filteredAdmins}
+        showToast={showToast}
+      />
 
-       <DutyCreateScheduleModal
-         isOpen={isCreateScheduleOpen}
-         onClose={() => setIsCreateScheduleOpen(false)}
-         dutyData={dutyData}
-         setDutyData={setDutyData}
-         teachers={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main')) : teachers}
-         admins={hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate' ? admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main')) : admins}
-         scheduleSettings={scheduleSettings}
-         schoolInfo={schoolInfo}
-         suggestedCount={suggestedCount}
-         showToast={showToast}
-         activeDaysCount={timing.activeDays?.length || 5}
-         availableStaffCount={availableStaff.length}
-       />
+      <DutyCreateScheduleModal
+        isOpen={isCreateScheduleOpen}
+        onClose={() => setIsCreateScheduleOpen(false)}
+        dutyData={dutyData}
+        setDutyData={setDutyData}
+        teachers={filteredTeachers}
+        admins={filteredAdmins}
+        scheduleSettings={scheduleSettings}
+        schoolInfo={schoolInfo}
+        suggestedCount={suggestedCount}
+        showToast={showToast}
+        activeDaysCount={timing.activeDays?.length || 5}
+        availableStaffCount={availableStaff.length}
+      />
+
+      <DutyPreCheckModal
+        isOpen={showPreCheckModal}
+        onClose={() => setShowPreCheckModal(false)}
+        onProceed={() => { setShowPreCheckModal(false); setIsCreateScheduleOpen(true); }}
+        onGoToSettings={() => { setShowPreCheckModal(false); setShowSettingsPage(true); }}
+        checks={preChecks}
+      />
 
       {/* Academic Year Popup */}
       {showAcademicPopup && (
@@ -548,7 +598,6 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         />
       )}
 
-       {/* Academic Calendar Modal */}
       <AcademicCalendarModal
         isOpen={showAcademicCalendarModal}
         onClose={() => setShowAcademicCalendarModal(false)}
@@ -556,48 +605,17 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         setSchoolInfo={setSchoolInfo}
       />
 
-      {/* Delete Confirmation Modal */}
-       {showGlobalDeleteConfirm && (
-         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-             <div className="p-6 text-center">
-               <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <Trash2 size={32} className="text-rose-500" />
-               </div>
-               <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد حذف الجدول</h2>
-               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                 هل أنت متأكد من رغبتك في حذف الجدول الحالي بالكامل؟ سيتم هذا الإجراء ولاتمكن التراجع عنه، وسيتم حذفه من قائمة الجداول المحفوظة إذا كان محفوظاً مسبقاً.
-               </p>
-             </div>
-             <div className="p-6 pt-0 flex gap-3">
-               <button
-                 onClick={() => setShowGlobalDeleteConfirm(false)}
-                 className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-               >
-                 تراجع
-               </button>
-               <button
-                 onClick={handleDeleteCurrentSchedule}
-                 className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
-               >
-                 نعم، احذف الجدول
-               </button>
-             </div>
-           </div>
-         </div>
-       )}
-
       {/* Toast */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-top-4 duration-300">
           <div className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl shadow-xl border font-bold text-sm
             ${toast.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : ''}
             ${toast.type === 'warning' ? 'bg-amber-50 text-amber-800 border-amber-200' : ''}
-            ${toast.type === 'error' ? 'bg-red-50 text-red-800 border-red-200' : ''}
+            ${toast.type === 'error'   ? 'bg-red-50 text-red-800 border-red-200'       : ''}
           `}>
-            {toast.type === 'success' && <CheckCircle size={18} />}
+            {toast.type === 'success' && <CheckCircle  size={18} />}
             {toast.type === 'warning' && <AlertTriangle size={18} />}
-            {toast.type === 'error' && <AlertCircle size={18} />}
+            {toast.type === 'error'   && <AlertCircle  size={18} />}
             {toast.message}
           </div>
         </div>
@@ -607,4 +625,3 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
 };
 
 export default DailyDuty;
-

@@ -394,7 +394,7 @@ const ReportFormPreview: React.FC<PreviewProps> = ({
           </div>
           {/* Center */}
           <div className="flex flex-col items-center gap-1 text-center">
-            <div className="w-11 h-11 rounded-full bg-[#e5e1fe] border-[3px] border-[#8779fb]/30 flex items-center justify-center shadow-sm">
+            <div className="w-11 h-11 rounded-full bg-[#e5e1fe] border-[3px] border-[#655ac1]/20 flex items-center justify-center shadow-sm">
               <Shield size={20} className="text-[#655ac1]" />
             </div>
             <p className="text-[9.5px] font-black text-slate-800 leading-tight">نموذج تقرير المناوبة اليومية</p>

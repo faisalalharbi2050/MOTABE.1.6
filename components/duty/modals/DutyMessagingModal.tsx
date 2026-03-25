@@ -1,7 +1,7 @@
 ﻿import React, { useState, useMemo, useRef } from 'react';
 import {
   X, Send, Copy, RefreshCw, Check, ChevronDown,
-  Eye, PenLine, Link2, Hourglass, MessageSquare, Bell
+  Eye, PenLine, Link2, Hourglass, MessageSquare, Bell, AlertTriangle
 } from 'lucide-react';
 import { SchoolInfo, DutyScheduleData, Teacher, Admin } from '../../../types';
 import {
@@ -74,6 +74,38 @@ function formatDate(dateStr: string, calType: 'hijri' | 'gregorian' = 'hijri'): 
   } catch { return dateStr; }
 }
 
+// ─── Bulk Confirm Dialog ──────────────────────────────────────────────────────
+interface BulkConfirmProps {
+  count: number;
+  method: 'whatsapp' | 'sms';
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+const BulkConfirmDialog: React.FC<BulkConfirmProps> = ({ count, method, onConfirm, onCancel }) => (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10002] flex items-center justify-center p-4" onClick={onCancel}>
+    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-5" dir="rtl" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-3">
+        <AlertTriangle size={22} className="text-amber-500 shrink-0" />
+        <h3 className="text-base font-black text-slate-800">تأكيد الإرسال الجماعي</h3>
+      </div>
+      <p className="text-sm font-medium text-slate-600 leading-relaxed">
+        سيتم إرسال <span className="font-black text-[#655ac1]">{count} رسالة</span> عبر{' '}
+        <span className="font-black">{method === 'whatsapp' ? 'واتساب' : 'رسائل نصية'}</span>.
+        {method === 'whatsapp' && (
+          <span className="block text-xs text-slate-400 mt-1">سيتم فتح نافذة لكل مناوب تباعاً.</span>
+        )}
+      </p>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-colors">إلغاء</button>
+        <button onClick={onConfirm} className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2">
+          {method === 'whatsapp' ? <WhatsAppIcon size={15} /> : <Send size={14} />}
+          إرسال
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // ─── Signature Preview Modal ──────────────────────────────────────────────────
 interface PreviewProps {
   row: ElectronicRow;
@@ -136,7 +168,7 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[10001] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
-        <div className="bg-gradient-to-l from-[#655ac1] to-[#8779fb] px-6 py-4 flex items-center justify-between">
+        <div className="bg-[#655ac1] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
               <PenLine size={20} className="text-white" />
@@ -256,6 +288,7 @@ const DutyMessagingModal: React.FC<Props> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [includeReportLink, setIncludeReportLink] = useState(true);
   const [previewRow, setPreviewRow] = useState<ElectronicRow | null>(null);
+  const [bulkConfirm, setBulkConfirm] = useState<{ method: 'whatsapp' | 'sms'; count: number } | null>(null);
 
   const calendarType = (schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0])?.calendarType || 'hijri';
   const timing = getTimingConfig(schoolInfo);
@@ -418,8 +451,16 @@ const DutyMessagingModal: React.FC<Props> = ({
   const sendBulk = (method: 'whatsapp' | 'sms') => {
     const targets = activeRows.filter(r => selectedIds.has(r.key));
     if (!targets.length) { showToast('لم يتم تحديد أي موظف', 'warning'); return; }
+    setBulkConfirm({ method, count: targets.length });
+  };
+
+  const executeBulk = () => {
+    if (!bulkConfirm) return;
+    const { method } = bulkConfirm;
+    const targets = activeRows.filter(r => selectedIds.has(r.key));
     targets.forEach(r => sendOne(r, method));
     showToast(`تم فتح ${targets.length} رسالة ${method === 'whatsapp' ? 'واتساب' : 'نصية'}`, 'success');
+    setBulkConfirm(null);
   };
 
   const showWeekCol = filterWeek === 'all' && weeks.length > 1;
@@ -637,6 +678,14 @@ const DutyMessagingModal: React.FC<Props> = ({
           calendarType={calendarType}
           onClose={() => setPreviewRow(null)}
           onSigned={handleSigned}
+        />
+      )}
+      {bulkConfirm && (
+        <BulkConfirmDialog
+          count={bulkConfirm.count}
+          method={bulkConfirm.method}
+          onConfirm={executeBulk}
+          onCancel={() => setBulkConfirm(null)}
         />
       )}
     </>

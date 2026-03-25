@@ -49,7 +49,7 @@ const MultiSelectDropdown: React.FC<{
       <button
         type="button"
         onClick={() => setOpen(p => !p)}
-        className="w-full text-right bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:border-[#8779fb] focus:ring-[#8779fb] flex items-center gap-1 relative z-[91] min-h-[28px]"
+        className="w-full text-right bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:border-[#655ac1] focus:ring-[#655ac1]/30 flex items-center gap-1 relative z-[91] min-h-[28px]"
       >
         <span className="truncate flex-1 text-right">
           {selected.length === 0
@@ -69,7 +69,7 @@ const MultiSelectDropdown: React.FC<{
               className="w-full text-right px-3 py-2 text-xs font-medium hover:bg-violet-50 flex items-center gap-2 transition-colors"
             >
               <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                selected.includes(o) ? 'bg-[#8779fb] border-[#8779fb]' : 'border-slate-300'
+                selected.includes(o) ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
               }`}>
                 {selected.includes(o) && <Check size={9} className="text-white" />}
               </span>
@@ -172,7 +172,7 @@ const DutyReportEntry: React.FC<Props> = ({
   };
 
   // ── shared input style ───────────────────────────────────────────────────
-  const inp = 'w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:border-[#8779fb] focus:ring-[#8779fb]';
+  const inp = 'w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:border-[#655ac1] focus:ring-[#655ac1]/30';
   const sel = inp + ' cursor-pointer';
 
   // ── Success Screen ────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ const DutyReportEntry: React.FC<Props> = ({
         </div>
         <button
           onClick={onClose}
-          className="px-10 py-3.5 bg-[#8779fb] hover:bg-[#655ac1] active:scale-95 text-white rounded-2xl font-black shadow-lg shadow-[#8779fb]/20 transition-all"
+          className="px-10 py-3.5 bg-[#655ac1] hover:bg-[#5046a0] active:scale-95 text-white rounded-2xl font-black shadow-lg shadow-[#655ac1]/20 transition-all"
         >
           إغلاق
         </button>
@@ -231,7 +231,7 @@ const DutyReportEntry: React.FC<Props> = ({
 
               {/* Center: Emblem + Title */}
               <div className="flex flex-col items-center gap-2 text-center">
-                <div className="w-16 h-16 rounded-full bg-[#e5e1fe] border-4 border-[#8779fb]/30 flex items-center justify-center shadow-md shrink-0">
+                <div className="w-16 h-16 rounded-full bg-[#e5e1fe] border-4 border-[#655ac1]/20 flex items-center justify-center shadow-md shrink-0">
                   <Shield size={30} className="text-[#655ac1]" />
                 </div>
                 <p className="text-[11px] font-black text-slate-800 leading-tight">نموذج تقرير المناوبة اليومية</p>
@@ -395,7 +395,7 @@ const DutyReportEntry: React.FC<Props> = ({
                 ))}
               </tbody>
             </table>
-            <button onClick={addViolationRow} className="mt-3 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#8779fb] hover:border-violet-300 hover:bg-violet-50/50 text-xs font-bold flex items-center justify-center gap-1 transition-all">
+            <button onClick={addViolationRow} className="mt-3 w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-[#655ac1] hover:border-violet-300 hover:bg-violet-50/50 text-xs font-bold flex items-center justify-center gap-1 transition-all">
               <Plus size={13} /> إضافة صف
             </button>
           </div>
@@ -404,7 +404,7 @@ const DutyReportEntry: React.FC<Props> = ({
         {/* ── Signature Pad ────────────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
           <h3 className="font-black text-slate-800 text-sm mb-3 flex items-center gap-2">
-            <Edit3 size={18} className="text-[#8779fb]" /> التوقيع
+            <Edit3 size={18} className="text-[#655ac1]" /> التوقيع
           </h3>
           <div className="border-2 border-dashed border-slate-200 rounded-2xl h-40 bg-slate-50 relative overflow-hidden group">
             <SignaturePad
@@ -431,7 +431,7 @@ const DutyReportEntry: React.FC<Props> = ({
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="w-full bg-[#8779fb] hover:bg-[#655ac1] active:scale-95 text-white py-4 rounded-2xl font-black shadow-lg shadow-[#8779fb]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100"
+            className="w-full bg-[#655ac1] hover:bg-[#5046a0] active:scale-95 text-white py-4 rounded-2xl font-black shadow-lg shadow-[#655ac1]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:active:scale-100"
           >
             {isSubmitting ? (
               <span className="animate-pulse">جاري الإرسال...</span>

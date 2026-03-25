@@ -51,47 +51,57 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Tajawal', sans-serif; direction: rtl; background: #fff; font-size: 11px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 10.5px; }
-    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 6px 4px; font-weight: bold; text-align: center; }
-    td { border: 1px solid #94a3b8; padding: 5px 6px; text-align: center; vertical-align: middle; }
+    body { font-family: 'Tajawal', 'Arial', sans-serif; padding: 40px; direction: rtl; background: #fff; }
+    .print-container { max-width: 100%; margin: 0 auto; }
+    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
+    .header-right { width: 33%; text-align: right; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
+    .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+    .logo-text { font-size: 9px; color: #94a3b8; }
+    .header-title { font-size: 16px; font-weight: 900; color: #1e293b; margin-bottom: 4px; }
+    .header-left { width: 33%; text-align: left; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11px; }
+    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 8px 6px; font-weight: bold; text-align: center; }
+    td { border: 1px solid #94a3b8; padding: 7px 8px; text-align: center; vertical-align: middle; }
     tr:nth-child(even) { background-color: #f8fafc; }
-    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
+    .day-header { background-color: #f1f5f9 !important; font-weight: 900; color: #655ac1; border: 1px solid #94a3b8; }
     .empty-state { color: #94a3b8; font-style: italic; }
     .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
-    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: bold; color: #64748b; padding: 5px 20px; border-top: 1px dashed #94a3b8; background: white; }
-    .principal-sig { text-align: left; margin-top: 16px; font-size: 11px; font-weight: bold; color: #334155; padding-left: 20px; }
-    .principal-sig .sig-line { display: inline-block; min-width: 160px; border-top: 1px dotted #94a3b8; margin-top: 16px; padding-top: 3px; }
-    .week-block { margin-bottom: 16px; }
+    .week-block { margin-bottom: 20px; }
+    .footer { margin-top: 30px; text-align: center; font-size: 13px; font-weight: bold; color: #475569; padding-top: 16px; border-top: 2px dashed #94a3b8; }
+    .principal-sig { margin-top: 40px; padding-right: 40px; font-weight: bold; font-size: 13px; color: #334155; text-align: right; }
+    .principal-sig .sig-line { margin-top: 28px; border-top: 1px dotted #94a3b8; padding-top: 4px; font-size: 12px; color: #94a3b8; }
     @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .header-wrapper { border-bottom: 2px solid #1e293b !important; }
       th { background-color: #f1f5f9 !important; color: #1e293b !important; }
-      .day-header { background-color: #e2e8f0 !important; }
+      .day-header { background-color: #f1f5f9 !important; color: #655ac1 !important; }
       tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
 </head>
 <body>
-  <div class="page-header">
-    <div class="school-info">
-      <div>المملكة العربية السعودية</div>
-      <div>وزارة التعليم</div>
-      <div>${schoolInfo.region || 'إدارة التعليم'}</div>
-      <div>مدرسة ${printData.schoolName || '..........'}</div>
-      <div>الفصل الدراسي: ${printData.semester}</div>
+  <div class="print-container">
+    <div class="header-wrapper">
+      <div class="header-right">
+        <p>المملكة العربية السعودية</p>
+        <p>وزارة التعليم</p>
+        <p>${schoolInfo.region || 'إدارة التعليم'}</p>
+        <p>مدرسة ${printData.schoolName || '..........'}</p>
+        <p>الفصل الدراسي: ${printData.semester}</p>
+      </div>
+      <div class="header-center">
+        ${schoolInfo.logo
+          ? `<img src="${schoolInfo.logo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;" />`
+          : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
+        }
+        <h1 class="header-title">${printData.title}</h1>
+      </div>
+      <div class="header-left">
+        <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+        <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
+      </div>
     </div>
-    <div class="doc-title">
-      ${schoolInfo.logo
-        ? `<img src="${schoolInfo.logo}" style="width:50px;height:50px;object-fit:contain;margin-bottom:6px;" />`
-        : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
-      }
-      <h1>${printData.title}</h1>
-    </div>
-    <div class="doc-date">
-      <div>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
-      <div>العام الدراسي: ${schoolInfo.academicYear || ''}</div>
-    </div>
-  </div>
 
   ${printData.weeks.map(week => `
   <div class="week-block">
@@ -134,11 +144,12 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   </div>
   `).join('')}
 
-  <div class="page-footer">${footerText || printData.footerText}</div>
+  <div class="footer">${footerText || printData.footerText}</div>
   <div class="principal-sig">
     <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
-    <span class="sig-line">التوقيع</span>
+    <div class="sig-line">التوقيع</div>
   </div>
+</div>
 </body>
 </html>`);
 
@@ -161,45 +172,59 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Tajawal', sans-serif; direction: rtl; background: #fff; font-size: 11px; }
-    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
+    body { font-family: 'Tajawal', sans-serif; padding: 40px; direction: rtl; background: #fff; font-size: 11px; }
+    .print-container { max-width: 100%; margin: 0 auto; }
+    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
+    .header-right { width: 33%; text-align: right; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
+    .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+    .logo-text { font-size: 9px; color: #94a3b8; }
+    .header-title { font-size: 16px; font-weight: 900; color: #1e293b; margin-bottom: 4px; }
+    .header-left { width: 33%; text-align: left; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 8px 6px; font-weight: bold; text-align: center; }
+    td { border: 1px solid #94a3b8; padding: 7px 8px; text-align: center; vertical-align: middle; }
+    tr:nth-child(even) { background-color: #f8fafc; }
+    .day-header { background-color: #f1f5f9 !important; font-weight: 900; color: #655ac1; border: 1px solid #94a3b8; }
     .empty-state { color: #94a3b8; font-style: italic; }
     .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
-    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: bold; color: #64748b; padding: 5px 20px; border-top: 1px dashed #94a3b8; background: white; }
-    .principal-sig { text-align: left; margin-top: 16px; font-size: 11px; font-weight: bold; color: #334155; padding-left: 20px; }
-    .principal-sig .sig-line { display: inline-block; min-width: 160px; border-top: 1px dotted #94a3b8; margin-top: 16px; padding-top: 3px; }
-    .week-block { margin-bottom: 16px; }
+    .week-block { margin-bottom: 20px; }
+    .footer { margin-top: 30px; text-align: center; font-size: 13px; font-weight: bold; color: #475569; padding-top: 16px; border-top: 2px dashed #94a3b8; }
+    .principal-sig { margin-top: 40px; padding-right: 40px; font-weight: bold; font-size: 13px; color: #334155; text-align: right; }
+    .principal-sig .sig-line { margin-top: 28px; border-top: 1px dotted #94a3b8; padding-top: 4px; font-size: 12px; color: #94a3b8; }
     .sig-img { max-height: 44px; max-width: 130px; display: block; margin: 0 auto; }
     .sig-empty { display: inline-block; width: 100px; border-top: 1px dotted #94a3b8; margin-top: 20px; }
     @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .header-wrapper { border-bottom: 2px solid #1e293b !important; }
       th { background-color: #f1f5f9 !important; color: #1e293b !important; }
-      .day-header { background-color: #e2e8f0 !important; }
+      .day-header { background-color: #f1f5f9 !important; color: #655ac1 !important; }
       tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
 </head>
 <body>
-  <div class="page-header">
-    <div class="school-info">
-      <div>المملكة العربية السعودية</div>
-      <div>وزارة التعليم</div>
-      <div>${schoolInfo.region || 'إدارة التعليم'}</div>
-      <div>مدرسة ${printData.schoolName || '..........'}</div>
-      <div>الفصل الدراسي: ${printData.semester}</div>
+  <div class="print-container">
+    <div class="header-wrapper">
+      <div class="header-right">
+        <p>المملكة العربية السعودية</p>
+        <p>وزارة التعليم</p>
+        <p>${schoolInfo.region || 'إدارة التعليم'}</p>
+        <p>مدرسة ${printData.schoolName || '..........'}</p>
+        <p>الفصل الدراسي: ${printData.semester}</p>
+      </div>
+      <div class="header-center">
+        ${schoolInfo.logo
+          ? `<img src="${schoolInfo.logo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;" />`
+          : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
+        }
+        <h1 class="header-title">${printData.title}</h1>
+      </div>
+      <div class="header-left">
+        <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+        <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
+      </div>
     </div>
-    <div class="doc-title">
-      ${schoolInfo.logo
-        ? `<img src="${schoolInfo.logo}" style="width:50px;height:50px;object-fit:contain;margin-bottom:6px;" />`
-        : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`
-      }
-      <h1>${printData.title}</h1>
-    </div>
-    <div class="doc-date">
-      <div>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
-      <div>العام الدراسي: ${schoolInfo.academicYear || ''}</div>
-    </div>
-  </div>
 
   ${printData.weeks.map(week => `
   <div class="week-block">
@@ -247,11 +272,12 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   </div>
   `).join('')}
 
-  <div class="page-footer">${footerText || printData.footerText}</div>
+  <div class="footer">${footerText || printData.footerText}</div>
   <div class="principal-sig">
     <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
-    <span class="sig-line">التوقيع</span>
+    <div class="sig-line">التوقيع</div>
   </div>
+</div>
 </body>
 </html>`);
 
@@ -270,41 +296,48 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   const VIOLATION_ROWS = 5;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+      dir="rtl"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
 
         {/* ── Header ── */}
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-white border-b border-slate-100 px-6 py-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1] shadow-sm">
-              <Printer size={24} />
-            </div>
+            <Printer size={26} className="text-[#655ac1]" />
             <div>
               <h2 className="text-xl font-black text-slate-800">طباعة المناوبة</h2>
-              <p className="text-sm font-medium text-slate-500 mt-0.5">معاينة وطباعة جدول المناوبة أو نموذج التقرير اليومي</p>
+              <p className="text-xs font-medium text-slate-400 mt-0.5">معاينة وطباعة جدول المناوبة أو نموذج التقرير اليومي</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
-            <X size={22} />
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+            <X size={20} />
           </button>
         </div>
 
         {/* ── Print sub-bar ── */}
         {activeTab === 'schedule' && (
-          <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-2.5 flex items-center justify-between shrink-0">
-            <p className="text-xs font-bold text-[#655ac1]/70">اختر نوع الطباعة</p>
-            <div className="flex items-center gap-2">
+          <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4">
+            <p className="text-sm font-black text-slate-600">اختر نوع الطباعة:</p>
+            <div className="flex items-center gap-3">
               <button
                 onClick={handlePrintSchedule}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-95"
+                className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-white border-2 border-slate-200 hover:border-[#655ac1]/50 text-slate-700 hover:text-[#655ac1] font-bold transition-all shadow-sm hover:shadow active:scale-95"
               >
-                <FileText size={14} /> طباعة بدون توقيع
+                <FileText size={18} />
+                <span>طباعة بدون توقيع</span>
               </button>
               <button
                 onClick={handlePrintScheduleSigned}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-xs font-bold transition-all shadow-md shadow-[#655ac1]/20 hover:shadow-[#655ac1]/30 active:scale-95"
+                className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold transition-all shadow-md shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 active:scale-95"
               >
-                <PenLine size={14} /> الطباعة بالتوقيع الالكتروني
+                <PenLine size={18} />
+                <span>الطباعة بالتوقيع الإلكتروني</span>
               </button>
             </div>
           </div>
@@ -316,7 +349,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
             onClick={() => setActiveTab('schedule')}
             className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'schedule'
-                ? 'border-[#8779fb] text-[#655ac1]'
+                ? 'border-[#655ac1] text-[#655ac1]'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -326,7 +359,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
             onClick={() => setActiveTab('report')}
             className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'report'
-                ? 'border-[#8779fb] text-[#655ac1]'
+                ? 'border-[#655ac1] text-[#655ac1]'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -562,7 +595,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
                 </button>
                 <button
                   onClick={handlePrintBlankReport}
-                  className="flex items-center gap-2 bg-[#8779fb] hover:bg-[#655ac1] text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg transition-all hover:scale-105 active:scale-95"
+                  className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/25 transition-all hover:scale-105 active:scale-95"
                 >
                   <Printer size={18} /> طباعة النموذج
                 </button>
