@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Eye, UserCheck, UserX, Clock, Check, AlertTriangle,
   CheckCircle, Calendar, Save,
-  Bell, RefreshCw, Shield
+  Bell, RefreshCw, Shield, ChevronRight, ChevronLeft
 } from 'lucide-react';
 import {
   SchoolInfo, SupervisionScheduleData, SupervisionAttendanceRecord,
@@ -74,8 +74,12 @@ const SupervisionMonitoring: React.FC<Props> = ({
   // Check if already recorded
   const isAlreadyRecorded = existingRecords.length > 0;
 
-  // Save attendance
-  const saveAttendance = (status: SupervisionAttendanceStatus, staffId: string) => {
+  // Save attendance — يقبل قيم الوقت والملاحظة مباشرة لتجنب race condition
+  const saveAttendance = (
+    status: SupervisionAttendanceStatus,
+    staffId: string,
+    overrides?: { withdrawalTime?: string; lateTime?: string; notes?: string }
+  ) => {
     const sa = currentDayAssignment?.staffAssignments.find(s => s.staffId === staffId);
     if (!sa) return;
 
@@ -87,9 +91,13 @@ const SupervisionMonitoring: React.FC<Props> = ({
       staffType: sa.staffType,
       staffName: sa.staffName,
       status,
-      withdrawalTime: status === 'withdrawn' ? (withdrawalTimes[staffId] || '') : undefined,
-      lateTime: status === 'late' ? (lateTimes[staffId] || '') : undefined,
-      notes: notes[staffId] || '',
+      withdrawalTime: status === 'withdrawn'
+        ? (overrides?.withdrawalTime ?? withdrawalTimes[staffId] ?? '')
+        : undefined,
+      lateTime: status === 'late'
+        ? (overrides?.lateTime ?? lateTimes[staffId] ?? '')
+        : undefined,
+      notes: overrides?.notes ?? notes[staffId] ?? '',
       recordedAt: new Date().toISOString(),
     };
 
@@ -97,20 +105,35 @@ const SupervisionMonitoring: React.FC<Props> = ({
       const existingIdx = prev.attendanceRecords.findIndex(
         r => r.date === selectedDate && r.staffId === staffId
       );
+      const updated = [...prev.attendanceRecords];
       if (existingIdx >= 0) {
-        const updated = [...prev.attendanceRecords];
         updated[existingIdx] = record;
-        return { ...prev, attendanceRecords: updated };
+      } else {
+        updated.push(record);
       }
-      return { ...prev, attendanceRecords: [...prev.attendanceRecords, record] };
+      return { ...prev, attendanceRecords: updated };
     });
   };
 
-  // Mark all present
+  // Mark all present — دفعة واحدة لتجنب race condition في setState
   const markAllPresent = () => {
     if (!currentDayAssignment) return;
-    currentDayAssignment.staffAssignments.forEach(sa => {
-      saveAttendance('present', sa.staffId);
+    const newRecords: SupervisionAttendanceRecord[] = currentDayAssignment.staffAssignments.map(sa => ({
+      id: `att-${selectedDate}-${sa.staffId}`,
+      date: selectedDate,
+      day: selectedDayOfWeek,
+      staffId: sa.staffId,
+      staffType: sa.staffType,
+      staffName: sa.staffName,
+      status: 'present' as SupervisionAttendanceStatus,
+      notes: notes[sa.staffId] ?? '',
+      recordedAt: new Date().toISOString(),
+    }));
+    setSupervisionData(prev => {
+      const filtered = prev.attendanceRecords.filter(
+        r => r.date !== selectedDate || !newRecords.find(nr => nr.staffId === r.staffId)
+      );
+      return { ...prev, attendanceRecords: [...filtered, ...newRecords] };
     });
     showToast('تم تسجيل الحضور لجميع المشرفين', 'success');
   };
@@ -159,15 +182,15 @@ const SupervisionMonitoring: React.FC<Props> = ({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
-            { label: 'حاضر', value: todayStats.present, color: 'text-green-600', bg: 'bg-slate-50 border-slate-300' },
-            { label: 'غائب', value: todayStats.absent, color: 'text-red-600', bg: 'bg-slate-50 border-slate-300' },
-            { label: 'مستأذن', value: todayStats.excused, color: 'text-blue-600', bg: 'bg-slate-50 border-slate-300' },
-            { label: 'منسحب', value: todayStats.withdrawn, color: 'text-orange-600', bg: 'bg-slate-50 border-slate-300' },
-            { label: 'متأخر', value: todayStats.late, color: 'text-amber-600', bg: 'bg-slate-50 border-slate-300' },
+            { label: 'حاضر',    value: todayStats.present,   numColor: 'text-green-600',  bg: 'bg-slate-50 border-slate-200' },
+            { label: 'غائب',    value: todayStats.absent,    numColor: 'text-red-600',    bg: 'bg-slate-50 border-slate-200' },
+            { label: 'مستأذن', value: todayStats.excused,   numColor: 'text-blue-600',   bg: 'bg-slate-50 border-slate-200' },
+            { label: 'منسحب',  value: todayStats.withdrawn, numColor: 'text-orange-600', bg: 'bg-slate-50 border-slate-200' },
+            { label: 'متأخر',  value: todayStats.late,      numColor: 'text-amber-600',  bg: 'bg-slate-50 border-slate-200' },
           ].map(s => (
             <div key={s.label} className={`${s.bg} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
-              <p className={`text-3xl font-black ${s.color} mb-1`}>{s.value}</p>
-              <p className={`text-sm font-bold ${s.color}`}>{s.label}</p>
+              <p className={`text-3xl font-black ${s.numColor} mb-1`}>{s.value}</p>
+              <p className="text-sm font-bold text-slate-500">{s.label}</p>
             </div>
           ))}
         </div>
@@ -177,11 +200,21 @@ const SupervisionMonitoring: React.FC<Props> = ({
       <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 relative group">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#e5e1fe]/50 to-transparent rounded-br-full -z-0 pointer-events-none" />
         <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 relative z-10">اليوم والتاريخ</p>
-        <div className="relative z-10 inline-block">
+        <div className="relative z-10 flex items-center gap-2">
+          {/* زر اليوم التالي (يمين في RTL = للأمام) */}
+          <button
+            onClick={() => changeDate(1)}
+            className="p-2.5 rounded-xl bg-slate-50 hover:bg-[#f5f3ff] border border-slate-200 hover:border-[#655ac1]/40 text-slate-400 hover:text-[#655ac1] transition-all active:scale-95"
+            title="اليوم التالي"
+          >
+            <ChevronRight size={18} />
+          </button>
+
           <button
             type="button"
             onClick={() => dateInputRef.current?.showPicker()}
             className="cursor-pointer inline-flex items-center gap-3 bg-slate-50 hover:bg-[#f5f3ff] border border-slate-200 hover:border-[#655ac1]/40 px-5 py-3 rounded-2xl transition-all"
+            title="اضغط لاختيار تاريخ محدد"
           >
             <Calendar size={18} className="text-[#655ac1]" />
             <div>
@@ -189,6 +222,16 @@ const SupervisionMonitoring: React.FC<Props> = ({
               <p className="text-sm font-medium text-slate-500">{formattedDate}</p>
             </div>
           </button>
+
+          {/* زر اليوم السابق */}
+          <button
+            onClick={() => changeDate(-1)}
+            className="p-2.5 rounded-xl bg-slate-50 hover:bg-[#f5f3ff] border border-slate-200 hover:border-[#655ac1]/40 text-slate-400 hover:text-[#655ac1] transition-all active:scale-95"
+            title="اليوم السابق"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
           <input
             ref={dateInputRef}
             type="date"
@@ -201,28 +244,26 @@ const SupervisionMonitoring: React.FC<Props> = ({
 
       {/* Weekend Notice */}
       {isWeekend && (
-        <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-10 text-center relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe]/30 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-          <div className="relative z-10">
-            <div className="w-20 h-20 mx-auto bg-[#e5e1fe] rounded-3xl flex items-center justify-center text-[#655ac1] mb-4 shadow-sm">
-              <Calendar size={40} />
-            </div>
-            <p className="font-black text-2xl text-slate-700 mb-2">إجازة رسمية</p>
-            <p className="text-sm font-medium text-slate-500">تمتع بعطلة نهاية الأسبوع.</p>
+        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+          <div className="shrink-0 w-11 h-11 rounded-xl bg-[#f3f0ff] flex items-center justify-center">
+            <Calendar size={22} className="text-[#655ac1]" />
+          </div>
+          <div>
+            <p className="font-black text-base text-slate-800">إجازة نهاية الأسبوع</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">لا يوجد إشراف في هذا اليوم — تمتع بعطلتك.</p>
           </div>
         </div>
       )}
 
       {/* No assignment */}
       {!isWeekend && !currentDayAssignment && (
-        <div className="bg-amber-50 border border-amber-100/50 rounded-[2rem] p-10 text-center relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100/30 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-          <div className="relative z-10">
-            <div className="w-20 h-20 mx-auto bg-amber-100 rounded-3xl flex items-center justify-center text-amber-500 mb-4 shadow-sm">
-              <AlertTriangle size={40} />
-            </div>
-            <p className="font-black text-2xl text-amber-700 mb-2">لم يتم تعيين مشرفين لهذا اليوم</p>
-            <p className="text-sm font-medium text-amber-500">يُرجى إعداد جدول الإشراف أولاً لتتمكن من رصد الحضور والحالات.</p>
+        <div className="bg-white border border-amber-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+          <div className="shrink-0 w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center">
+            <AlertTriangle size={22} className="text-amber-500" />
+          </div>
+          <div>
+            <p className="font-black text-base text-slate-800">لا يوجد جدول إشراف لهذا اليوم</p>
+            <p className="text-sm text-slate-400 font-medium mt-0.5">يُرجى إنشاء جدول الإشراف أولاً لتتمكن من رصد الحضور.</p>
           </div>
         </div>
       )}
@@ -321,17 +362,18 @@ const SupervisionMonitoring: React.FC<Props> = ({
                             type="time"
                             value={
                               currentStatus === 'withdrawn'
-                                ? (withdrawalTimes[sup.staffId] || currentRecord?.withdrawalTime || '')
-                                : (lateTimes[sup.staffId] || currentRecord?.lateTime || '')
+                                ? (withdrawalTimes[sup.staffId] ?? currentRecord?.withdrawalTime ?? '')
+                                : (lateTimes[sup.staffId] ?? currentRecord?.lateTime ?? '')
                             }
                             onChange={e => {
+                              const val = e.target.value;
                               if (currentStatus === 'withdrawn') {
-                                setWithdrawalTimes(prev => ({ ...prev, [sup.staffId]: e.target.value }));
+                                setWithdrawalTimes(prev => ({ ...prev, [sup.staffId]: val }));
+                                saveAttendance(currentStatus, sup.staffId, { withdrawalTime: val });
                               } else {
-                                setLateTimes(prev => ({ ...prev, [sup.staffId]: e.target.value }));
+                                setLateTimes(prev => ({ ...prev, [sup.staffId]: val }));
+                                saveAttendance(currentStatus, sup.staffId, { lateTime: val });
                               }
-                              // Auto-save
-                              saveAttendance(currentStatus, sup.staffId);
                             }}
                             className="w-24 px-2 py-1 rounded border border-slate-200 text-xs outline-none focus:ring-1 focus:ring-[#655ac1]/30 text-center"
                           />
@@ -344,8 +386,12 @@ const SupervisionMonitoring: React.FC<Props> = ({
                         <input
                           type="text"
                           placeholder="ملاحظة..."
-                          value={notes[sup.staffId] || currentRecord?.notes || ''}
-                          onChange={e => setNotes(prev => ({ ...prev, [sup.staffId]: e.target.value }))}
+                          value={notes[sup.staffId] ?? currentRecord?.notes ?? ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setNotes(prev => ({ ...prev, [sup.staffId]: val }));
+                            saveAttendance(currentStatus, sup.staffId, { notes: val });
+                          }}
                           className="w-full px-2 py-1 rounded border border-slate-200 text-xs outline-none focus:ring-1 focus:ring-[#655ac1]/30"
                         />
                       </td>
