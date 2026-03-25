@@ -1,7 +1,7 @@
-﻿import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   X, Send, Copy, RefreshCw, Check, ChevronDown, Eye, PenLine,
-  Link2, Hourglass, MessageSquare, Bell
+  Link2, Hourglass, MessageSquare, Bell, AlertTriangle
 } from 'lucide-react';
 import {
   SchoolInfo, SupervisionScheduleData, Teacher, Admin
@@ -48,6 +48,38 @@ interface ElectronicRow extends BaseRow {
   signatureStatus?: 'not-sent' | 'pending' | 'signed';
 }
 
+// نافذة تأكيد الإرسال الجماعي
+interface BulkConfirmProps {
+  count: number;
+  method: 'whatsapp' | 'sms';
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+const BulkConfirmDialog: React.FC<BulkConfirmProps> = ({ count, method, onConfirm, onCancel }) => (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10002] flex items-center justify-center p-4" onClick={onCancel}>
+    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-5" dir="rtl" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-3">
+        <AlertTriangle size={22} className="text-amber-500 shrink-0" />
+        <h3 className="text-base font-black text-slate-800">تأكيد الإرسال الجماعي</h3>
+      </div>
+      <p className="text-sm font-medium text-slate-600 leading-relaxed">
+        سيتم إرسال <span className="font-black text-[#655ac1]">{count} رسالة</span> عبر{' '}
+        <span className="font-black">{method === 'whatsapp' ? 'واتساب' : 'رسائل نصية'}</span>.
+        {method === 'whatsapp' && (
+          <span className="block text-xs text-slate-400 mt-1">سيتم فتح نافذة لكل مشرف تباعاً.</span>
+        )}
+      </p>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-colors">إلغاء</button>
+        <button onClick={onConfirm} className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2">
+          {method === 'whatsapp' ? <WhatsAppIcon size={15} /> : <Send size={14} />}
+          إرسال
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 function buildToken(staffId: string, day: string): string {
   try { return btoa(`supervision_${staffId}_${day}`); }
   catch { return `supervision_${staffId}_${day}`; }
@@ -81,7 +113,7 @@ function buildElectronicMsgFollowUp(
   return `الزميل الفاضل، نشعركم بإسناد مهمة متابعة الإشراف اليومي لكم في يوم ${DAY_NAMES[day] || day}${datePart}.\nالرجاء التوقيع عبر الرابط:\n${link}`;
 }
 
-// ── Signature preview modal ──────────────────────────────────────────────────
+// ── نافذة معاينة التوقيع ──────────────────────────────────────────────────────
 interface PreviewProps {
   row: ElectronicRow;
   supervisionData: SupervisionScheduleData;
@@ -138,9 +170,7 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({ row, supervisionData, s
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
         <div className="bg-gradient-to-l from-[#655ac1] to-[#8779fb] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-              <PenLine size={20} className="text-white" />
-            </div>
+            <PenLine size={22} className="text-white" />
             <div>
               <h2 className="text-base font-black text-white">معاينة صفحة التكليف</h2>
               <p className="text-xs text-white/70 mt-0.5">هذه الصفحة ستُرسل للمشرف عبر الرابط</p>
@@ -151,9 +181,7 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({ row, supervisionData, s
         <div className="p-5 bg-slate-50 overflow-y-auto space-y-4">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
-              <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center">
-                <PenLine size={22} className="text-[#655ac1]" />
-              </div>
+              <PenLine size={22} className="text-[#655ac1]" />
               <div>
                 <h3 className="font-black text-slate-800 text-sm">نظام الإشراف الإلكتروني</h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">{schoolInfo.schoolName}</p>
@@ -223,9 +251,7 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({ row, supervisionData, s
             </div>
           ) : (
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center shadow-sm">
-              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Check size={28} className="text-emerald-600" />
-              </div>
+              <Check size={28} className="text-emerald-600 mx-auto mb-3" />
               <h3 className="text-base font-black text-emerald-800">تم استلام توقيعك بنجاح</h3>
               <p className="text-sm text-emerald-600 font-medium mt-1">شاكرين حسن تعاونكم</p>
             </div>
@@ -236,7 +262,7 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({ row, supervisionData, s
   );
 };
 
-// ── Main modal ───────────────────────────────────────────────────────────────
+// ── المكوّن الرئيسي ───────────────────────────────────────────────────────────
 const SupervisionMessagingModal: React.FC<Props> = ({
   isOpen, onClose, supervisionData, setSupervisionData, schoolInfo, teachers, admins, showToast
 }) => {
@@ -244,9 +270,14 @@ const SupervisionMessagingModal: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>('electronic');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [masterTemplate, setMasterTemplate] = useState('');
+  // customMessages محفوظة بشكل مستقل عن التاب — لا تُفقد عند التنقل
   const [customMessages, setCustomMessages] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [previewRow, setPreviewRow] = useState<ElectronicRow | null>(null);
+  // تتبع الرسائل المُرسلة (للتابات النصية)
+  const [sentKeys, setSentKeys] = useState<Set<string>>(new Set());
+  // نافذة تأكيد الإرسال الجماعي
+  const [bulkConfirm, setBulkConfirm] = useState<{ method: 'whatsapp' | 'sms' } | null>(null);
 
   const timing = getTimingConfig(schoolInfo);
   const activeDays = timing.activeDays || DAYS.slice();
@@ -269,6 +300,7 @@ const SupervisionMessagingModal: React.FC<Props> = ({
       window.open(`https://wa.me/${p.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
     } else showToast('لم يُعثر على رقم الهاتف', 'warning');
   };
+
   const sendSMS = async (staffId: string, staffName: string, staffType: 'teacher'|'admin', msg: string) => {
     const p = getPhone(staffId);
     if (p) {
@@ -285,7 +317,7 @@ const SupervisionMessagingModal: React.FC<Props> = ({
     } else showToast('لم يُعثر على رقم الهاتف', 'warning');
   };
 
-  // Electronic rows
+  // صفوف التكليف الإلكتروني
   const electronicRows = useMemo((): ElectronicRow[] => {
     const days = selectedDay === 'all' ? activeDays : [selectedDay];
     const result: ElectronicRow[] = [];
@@ -309,7 +341,7 @@ const SupervisionMessagingModal: React.FC<Props> = ({
     return result;
   }, [supervisionData, selectedDay, activeDays, customMessages]);
 
-  // Text rows
+  // صفوف التكليف النصي
   const textRows = useMemo(() => {
     const days = selectedDay === 'all' ? activeDays : [selectedDay];
     const result: BaseRow[] = [];
@@ -326,7 +358,7 @@ const SupervisionMessagingModal: React.FC<Props> = ({
     return result;
   }, [supervisionData, selectedDay, activeDays, customMessages, schoolInfo.gender]);
 
-  // Reminder rows
+  // صفوف الإشعار اليومي
   const reminderRows = useMemo(() => {
     const days = selectedDay === 'all' ? activeDays : [selectedDay];
     const result: BaseRow[] = [];
@@ -347,9 +379,32 @@ const SupervisionMessagingModal: React.FC<Props> = ({
   const allSelected = activeRows.length>0 && activeRows.every(r=>selectedIds.has(r.key));
   const toggleAll = () => { if(allSelected) setSelectedIds(new Set()); else setSelectedIds(new Set(activeRows.map(r=>r.key))); };
   const toggleRow = (key:string) => setSelectedIds(prev => { const n=new Set(prev); n.has(key)?n.delete(key):n.add(key); return n; });
-  const applyMaster = () => { if(!masterTemplate.trim()) return; const n={...customMessages}; activeRows.forEach(r=>{n[r.key]=masterTemplate;}); setCustomMessages(n); showToast('تم اعتماد القالب','success'); };
-  const copyAll = () => { navigator.clipboard?.writeText(activeRows.map(r=>r.message).join('\n\n────────\n\n')); showToast('تم نسخ جميع الرسائل','success'); };
-  const resetAll = () => { setCustomMessages({}); setMasterTemplate(''); showToast('تمت استعادة القوالب','success'); };
+
+  const applyMaster = () => {
+    if(!masterTemplate.trim()) return;
+    const n={...customMessages};
+    activeRows.forEach(r=>{n[r.key]=masterTemplate;});
+    setCustomMessages(n);
+    showToast('تم اعتماد القالب','success');
+  };
+
+  const copyAll = () => {
+    navigator.clipboard?.writeText(activeRows.map(r=>r.message).join('\n\n────────\n\n'));
+    showToast('تم نسخ جميع الرسائل','success');
+  };
+
+  const resetAll = () => {
+    // إعادة تعيين القوالب الخاصة بالتاب الحالي فقط
+    const prefix = activeTab === 'electronic' ? 'elec-' : activeTab === 'text' ? 'text-' : 'rem-';
+    setCustomMessages(prev => {
+      const n = {...prev};
+      Object.keys(n).forEach(k => { if(k.startsWith(prefix)) delete n[k]; });
+      return n;
+    });
+    setMasterTemplate('');
+    showToast('تمت استعادة القوالب','success');
+  };
+
   const selectedCount = activeRows.filter(r=>selectedIds.has(r.key)).length;
 
   const markPending = (row: ElectronicRow) => {
@@ -385,12 +440,25 @@ const SupervisionMessagingModal: React.FC<Props> = ({
     if (method==='whatsapp') await sendWhatsApp(row.staffId, row.staffName, row.staffType, row.message);
     else await sendSMS(row.staffId, row.staffName, row.staffType, row.message);
     if (activeTab==='electronic') markPending(row as ElectronicRow);
+    // تسجيل الإرسال في التابات النصية
+    setSentKeys(prev => new Set(prev).add(row.key));
   };
-  const sendBulk = (method: 'whatsapp'|'sms') => {
+
+  // إرسال جماعي مرتّب (sequential) بدلاً من forEach
+  const executeBulkSend = async (method: 'whatsapp'|'sms') => {
     const targets = activeRows.filter(r=>selectedIds.has(r.key));
     if (!targets.length) { showToast('لم يتم تحديد أي موظف','warning'); return; }
-    targets.forEach(r => sendOne(r, method));
-    showToast(`تم فتح ${targets.length} رسالة ${ method==='whatsapp'?'واتساب':'نصية' }`, 'success');
+    for (const r of targets) {
+      await sendOne(r, method);
+    }
+    showToast(`تم إرسال ${targets.length} رسالة ${method==='whatsapp'?'واتساب':'نصية'}`, 'success');
+  };
+
+  const handleBulkConfirmed = async () => {
+    if (!bulkConfirm) return;
+    const method = bulkConfirm.method;
+    setBulkConfirm(null);
+    await executeBulkSend(method);
   };
 
   if (!isOpen) return null;
@@ -400,12 +468,10 @@ const SupervisionMessagingModal: React.FC<Props> = ({
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
         <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-7xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e=>e.stopPropagation()}>
 
-          {/* Header */}
+          {/* الهيدر */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-[#25D366]/10 rounded-2xl flex items-center justify-center shadow-sm">
-                <WhatsAppIcon size={24} />
-              </div>
+              <Send size={22} className="text-[#655ac1]" />
               <div>
                 <h2 className="text-lg font-black text-slate-800">إرسال إشعارات الإشراف</h2>
                 <p className="text-xs font-medium text-slate-500 mt-0.5">تبليغ المشرفين بمهامهم عبر واتساب أو رسالة نصية</p>
@@ -414,41 +480,46 @@ const SupervisionMessagingModal: React.FC<Props> = ({
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20}/></button>
           </div>
 
-          {/* Tabs */}
+          {/* التابات */}
           <div className="bg-white border-b border-slate-100 px-5 py-3 flex items-center gap-2 shrink-0 overflow-x-auto">
             {([{
-              id:'electronic' as TabId, label:'إرسال التكليف إلكترونياً', sub:'(رسالة + رابط توقيع)', icon:<PenLine size={15}/>
+              id:'electronic' as TabId, label:'تكليف مع رابط توقيع', icon:<PenLine size={15}/>
             }, {
-              id:'text' as TabId, label:'إرسال التكليف نصيًا', sub:'', icon:<MessageSquare size={15}/>
+              id:'text' as TabId, label:'إرسال التكليف نصيًا', icon:<MessageSquare size={15}/>
             }, {
-              id:'reminder' as TabId, label:'إرسال التذكير اليومي', sub:'', icon:<Bell size={15}/>
+              id:'reminder' as TabId, label:'إرسال الإشعار اليومي', icon:<Bell size={15}/>
             }] as const).map((tab, i) => (
               <React.Fragment key={tab.id}>
                 {i>0 && <div className="w-px h-7 bg-slate-200 rounded-full shrink-0"/>}
                 <button
-                  onClick={() => { setActiveTab(tab.id); setCustomMessages({}); setMasterTemplate(''); setSelectedIds(new Set()); }}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    // لا نحذف customMessages — تُحفظ عبر كل التابات
+                    setSelectedIds(new Set());
+                  }}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border-2 shrink-0 ${
                     activeTab===tab.id ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm scale-[1.02]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-slate-700'
                   }`}
                 >
                   {tab.icon} {tab.label}
-                  {tab.sub && <span className="text-[10px] font-medium opacity-60">{tab.sub}</span>}
                 </button>
               </React.Fragment>
             ))}
           </div>
 
-          {/* Electronic banner */}
+          {/* بانر التكليف الإلكتروني */}
           {activeTab==='electronic' && (
             <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-3 flex items-center gap-3 shrink-0">
-              <div className="w-8 h-8 bg-[#e5e1fe] rounded-lg flex items-center justify-center shrink-0">
-                <Link2 size={14} className="text-[#655ac1]"/>
-              </div>
+              <Link2 size={16} className="text-[#655ac1] shrink-0"/>
               <p className="text-xs font-bold text-[#655ac1] flex-1">
-                سيتم توليد رابط فريد لكل مشرف — يمكن للمشرف التوقيع عبر الرابط ويُحدَث عمود التوقيع في الجدول تلقائياً.
+                سيتم توليد رابط لكل مشرف — يمكن للمشرف التوقيع عبر الرابط ويُحدَث عمود التوقيع في الجدول تلقائياً.
               </p>
               {electronicRows.length>0 && (
-                <button onClick={() => setPreviewRow(electronicRows[0])} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#655ac1] text-white text-xs font-bold hover:bg-[#5046a0] shrink-0">
+                <button
+                  onClick={() => setPreviewRow(electronicRows[0])}
+                  title="معاينة نموذج صفحة التوقيع"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#655ac1] text-white text-xs font-bold hover:bg-[#5046a0] shrink-0"
+                >
                   <Eye size={13}/> معاينة صفحة التوقيع
                 </button>
               )}
@@ -457,12 +528,16 @@ const SupervisionMessagingModal: React.FC<Props> = ({
 
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
-            {/* Controls */}
+            {/* أدوات التحكم */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex gap-2 mr-auto">
-                  <button onClick={copyAll} disabled={activeRows.length===0} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold disabled:opacity-40"><Copy size={13}/> نسخ الكل</button>
-                  <button onClick={resetAll} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-500 text-xs font-bold"><RefreshCw size={13}/></button>
+                  <button onClick={copyAll} disabled={activeRows.length===0} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold disabled:opacity-40">
+                    <Copy size={13}/> نسخ الكل
+                  </button>
+                  <button onClick={resetAll} title="استعادة القوالب الافتراضية" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-100 text-rose-500 text-xs font-bold">
+                    <RefreshCw size={13}/>
+                  </button>
                 </div>
               </div>
               <div className="flex gap-3 items-start">
@@ -478,25 +553,31 @@ const SupervisionMessagingModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Table */}
+            {/* الجدول */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
                 <span className="text-sm font-black text-slate-700">
                   {activeRows.length>0 ? `${activeRows.length} موظف${selectedCount>0?` • ${selectedCount} محدد`:''}` : 'لا يوجد مشرفون'}
                 </span>
                 <div className="flex items-center gap-2">
-                  <button onClick={()=>sendBulk('whatsapp')} disabled={selectedCount===0}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-bold border border-[#25D366]/20 disabled:opacity-40">
+                  <button
+                    onClick={() => { if(selectedCount===0){showToast('لم يتم تحديد أي موظف','warning');return;} setBulkConfirm({method:'whatsapp'}); }}
+                    disabled={selectedCount===0}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-bold border border-[#25D366]/20 disabled:opacity-40"
+                  >
                     <WhatsAppIcon size={14}/> واتساب للكل {selectedCount>0&&`(${selectedCount})`}
                   </button>
-                  <button onClick={()=>sendBulk('sms')} disabled={selectedCount===0}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] text-xs font-bold border border-[#007AFF]/20 disabled:opacity-40">
+                  <button
+                    onClick={() => { if(selectedCount===0){showToast('لم يتم تحديد أي موظف','warning');return;} setBulkConfirm({method:'sms'}); }}
+                    disabled={selectedCount===0}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] text-xs font-bold border border-[#007AFF]/20 disabled:opacity-40"
+                  >
                     <Send size={13}/> نصية للكل {selectedCount>0&&`(${selectedCount})`}
                   </button>
                 </div>
               </div>
 
-              {/* Day filter bar */}
+              {/* تصفية الأيام */}
               <div className="px-5 py-3 border-b border-[#655ac1]/10 bg-[#f3f0ff]/40 flex items-center gap-3">
                 <span className="text-xs font-black text-[#655ac1]">تصفية حسب اليوم:</span>
                 <div className="relative">
@@ -511,7 +592,7 @@ const SupervisionMessagingModal: React.FC<Props> = ({
 
               {activeRows.length===0 ? (
                 <div className="text-center py-16 text-slate-400">
-                  <div className="w-16 h-16 mx-auto bg-slate-100 rounded-2xl flex items-center justify-center mb-3"><WhatsAppIcon size={32}/></div>
+                  <Send size={32} className="mx-auto mb-3 text-slate-300" />
                   <p className="font-bold text-slate-500">لا يوجد مشرفون للأيام المحددة</p>
                   <p className="text-sm mt-1">يُرجى إعداد جدول الإشراف أولاً</p>
                 </div>
@@ -531,13 +612,42 @@ const SupervisionMessagingModal: React.FC<Props> = ({
                         <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-24">اليوم</th>
                         <th className="px-3 py-3 font-black text-slate-700 text-xs">الرسالة</th>
                         <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">الإجراءات</th>
-                        {activeTab==='electronic' && <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">حالة التوقيع</th>}
+                        <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">الحالة</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {activeRows.map((row, idx) => {
                         const checked = selectedIds.has(row.key);
                         const eRow = activeTab==='electronic' ? row as ElectronicRow : null;
+                        const isSent = sentKeys.has(row.key);
+
+                        // تحديد حالة العمود
+                        let statusEl: React.ReactNode;
+                        if (activeTab === 'electronic' && eRow) {
+                          if (eRow.signatureData) {
+                            statusEl = (
+                              <div className="flex flex-col items-center gap-1">
+                                <img src={eRow.signatureData} alt="توقيع" className="h-8 max-w-[70px] object-contain border border-emerald-200 rounded bg-white"/>
+                                <span className="text-[10px] text-emerald-600 font-bold">موقّع</span>
+                              </div>
+                            );
+                          } else if (eRow.signatureStatus === 'pending') {
+                            statusEl = (
+                              <div className="flex flex-col items-center gap-1">
+                                <Hourglass size={16} className="text-amber-500 animate-pulse" />
+                                <span className="text-[10px] text-amber-600 font-bold">بانتظار التوقيع</span>
+                              </div>
+                            );
+                          } else {
+                            statusEl = <span className="text-[10px] text-slate-400 font-bold">لم يُرسل</span>;
+                          }
+                        } else {
+                          // التابات النصية — تتبع الإرسال
+                          statusEl = isSent
+                            ? <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 justify-center"><Check size={11}/> أُرسل</span>
+                            : <span className="text-[10px] text-slate-400 font-bold">لم يُرسل</span>;
+                        }
+
                         return (
                           <tr key={row.key} className={`hover:bg-slate-50/60 transition-colors ${checked?'bg-[#f3f0ff]/60':''}`}>
                             <td className="px-4 py-3">
@@ -564,29 +674,23 @@ const SupervisionMessagingModal: React.FC<Props> = ({
                             </td>
                             <td className="px-3 py-3">
                               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                <button onClick={()=>sendOne(row,'whatsapp')} title="واتساب" className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/25 border border-[#25D366]/20 active:scale-90"><WhatsAppIcon size={15}/></button>
-                                <button onClick={()=>sendOne(row,'sms')} title="رسالة نصية" className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/25 border border-[#007AFF]/20 active:scale-90"><Send size={13} className="text-[#007AFF]"/></button>
-                                <button onClick={()=>{navigator.clipboard?.writeText(row.message);showToast('تم نسخ الرسالة','success');}} title="نسخ" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600"><Copy size={14}/></button>
-                                {eRow && <button onClick={()=>setPreviewRow(eRow)} title="معاينة صفحة التوقيع" className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#655ac1]/10 hover:bg-[#655ac1]/20 text-[#655ac1] active:scale-90"><Eye size={14}/></button>}
+                                <button onClick={()=>sendOne(row,'whatsapp')} title="واتساب" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#25D366]/10 active:scale-90 transition-colors">
+                                  <WhatsAppIcon size={16}/>
+                                </button>
+                                <button onClick={()=>sendOne(row,'sms')} title="رسالة نصية" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#007AFF]/10 active:scale-90 transition-colors">
+                                  <Send size={14} className="text-[#007AFF]"/>
+                                </button>
+                                <button onClick={()=>{navigator.clipboard?.writeText(row.message);showToast('تم نسخ الرسالة','success');}} title="نسخ" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
+                                  <Copy size={14}/>
+                                </button>
+                                {eRow && (
+                                  <button onClick={()=>setPreviewRow(eRow)} title="معاينة صفحة التوقيع" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#655ac1]/10 text-[#655ac1] active:scale-90 transition-colors">
+                                    <Eye size={14}/>
+                                  </button>
+                                )}
                               </div>
                             </td>
-                            {activeTab==='electronic' && eRow && (
-                              <td className="px-3 py-3 text-center">
-                                {eRow.signatureData ? (
-                                  <div className="flex flex-col items-center gap-1">
-                                    <img src={eRow.signatureData} alt="توقيع" className="h-8 max-w-[70px] object-contain border border-emerald-200 rounded bg-white"/>
-                                    <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
-                                  </div>
-                                ) : eRow.signatureStatus==='pending' ? (
-                                  <div className="flex flex-col items-center gap-1">
-                                    <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center animate-pulse border border-amber-200"><Hourglass size={14} className="text-amber-500"/></div>
-                                    <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[9px] text-slate-300 font-bold">لم يُرسل</span>
-                                )}
-                              </td>
-                            )}
+                            <td className="px-3 py-3 text-center">{statusEl}</td>
                           </tr>
                         );
                       })}
@@ -603,6 +707,15 @@ const SupervisionMessagingModal: React.FC<Props> = ({
         <SignaturePreviewModal
           row={previewRow} supervisionData={supervisionData} schoolInfo={schoolInfo}
           onClose={()=>setPreviewRow(null)} onSigned={handleSigned}
+        />
+      )}
+
+      {bulkConfirm && (
+        <BulkConfirmDialog
+          count={selectedCount}
+          method={bulkConfirm.method}
+          onConfirm={handleBulkConfirmed}
+          onCancel={()=>setBulkConfirm(null)}
         />
       )}
     </>

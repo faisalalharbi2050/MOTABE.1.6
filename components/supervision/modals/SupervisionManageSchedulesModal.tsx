@@ -18,6 +18,7 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showDeleteCurrentConfirm, setShowDeleteCurrentConfirm] = useState(false);
 
   if (!isOpen) return null;
 
@@ -102,6 +103,17 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
     showToast('تم اعتماد الجدول كخطة أساسية', 'success');
   };
 
+  const handleDeleteCurrent = () => {
+    setSupervisionData(prev => ({
+      ...prev,
+      dayAssignments: [],
+      isApproved: false,
+      activeScheduleId: undefined,
+    }));
+    setShowDeleteCurrentConfirm(false);
+    showToast('تم حذف الجدول الحالي', 'success');
+  };
+
   const saveRename = (id: string) => {
     if (!editName.trim()) return;
     setSupervisionData(prev => ({
@@ -178,6 +190,15 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
                   <Plus size={18} />
                   <span>حفظ بمسودة الجداول ({savedSchedules.length}/10)</span>
                 </button>
+                {supervisionData.dayAssignments.length > 0 && (
+                  <button
+                    onClick={() => setShowDeleteCurrentConfirm(true)}
+                    className="w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 py-2.5 rounded-xl text-sm font-bold transition-all mt-2"
+                  >
+                    <Trash2 size={16} />
+                    <span>حذف الجدول الحالي</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -271,6 +292,37 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {/* Delete Current Schedule Confirmation */}
+      {showDeleteCurrentConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} className="text-rose-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">حذف الجدول الحالي</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                هل أنت متأكد من رغبتك في حذف الجدول الحالي بالكامل؟ سيتم هذا الإجراء ولا يمكن التراجع عنه.
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowDeleteCurrentConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={handleDeleteCurrent}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                نعم، احذف الجدول
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {deleteConfirmId && (

@@ -1,29 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Eye, Settings, Calendar, Download, Send, Printer,
-  CheckCircle, AlertTriangle, Shield, Clock, Plus, Trash2, Edit,
-  RefreshCw, BarChart3, MessageSquare, ChevronDown, ChevronUp,
-  GripVertical, Copy, Search, Filter, X, Save, AlertCircle,
-  UserCheck, UserX, Info, Bell, Zap, FileText, Check
+  Eye, Settings, Send, Printer,
+  CheckCircle, AlertTriangle,
+  RefreshCw, BarChart3,
+  X, Save, AlertCircle,
+  Info, Zap
 } from 'lucide-react';
 import {
-  SchoolInfo, Teacher, Admin, ScheduleSettingsData, Phase,
-  SupervisionScheduleData, SupervisionLocation, SupervisionPeriodConfig,
-  SupervisionStaffExclusion, SupervisionDayAssignment, SupervisionStaffAssignment,
-  SupervisionAttendanceRecord, SupervisionAttendanceStatus, SupervisionSettings,
-  TimingConfig
+  SchoolInfo, Teacher, Admin, ScheduleSettingsData,
+  SupervisionScheduleData,
 } from '../types';
-import { Button } from './ui/Button';
-import { Card } from './ui/Card';
-import { Badge } from './ui/Badge';
 import {
-  DAYS, DAY_NAMES, LOCATION_CATEGORIES, FLOOR_NAMES,
-  getDefaultLocations, getDefaultSupervisionData, getTimingConfig,
+  getDefaultSupervisionData, getTimingConfig,
   hasTimingData, getSupervisionPeriods, getAvailableStaff,
   shouldSuggestExcludeTeachers, getSuggestedCountPerDay,
-  generateSmartAssignment, validateGoldenRule, getBalanceInfo,
-  getAttendanceStats, generateAssignmentMessage, generateReminderMessage,
-  getSupervisionPrintData, detectScheduleChanges
+  generateSmartAssignment, validateGoldenRule,
+  detectScheduleChanges
 } from '../utils/supervisionUtils';
 
 // ===== Sub-component imports =====
@@ -38,6 +30,7 @@ import SupervisionMessagingModal from './supervision/modals/SupervisionMessaging
 import SupervisionReportsModal from './supervision/modals/SupervisionReportsModal';
 import SupervisionManageSchedulesModal from './supervision/modals/SupervisionManageSchedulesModal';
 import SupervisionCreateScheduleModal from './supervision/modals/SupervisionCreateScheduleModal';
+import SupervisionPreCheckModal, { PreCheckItem } from './supervision/modals/SupervisionPreCheckModal';
 
 interface DailySupervisionProps {
   schoolInfo: SchoolInfo;
@@ -57,9 +50,6 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showTimingPopup, setShowTimingPopup] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState<boolean>(
-    () => localStorage.getItem('supervision_settings_saved') === 'true'
-  );
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scheduleChangeAlert, setScheduleChangeAlert] = useState(false);
   
@@ -83,7 +73,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   }, []);
   
   // Confirmation state
-  const [showGlobalDeleteConfirm, setShowGlobalDeleteConfirm] = useState(false);
+  const [showPreCheckModal, setShowPreCheckModal] = useState(false);
 
   const storageKey = activeSchoolTab === 'main' ? 'supervision_data_v1' : `supervision_data_v1_${activeSchoolTab}`;
 
@@ -236,10 +226,6 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
     () => getSuggestedCountPerDay(availableStaff.length, timing.activeDays?.length || 5),
     [availableStaff.length, timing]
   );
-  const balanceInfo = useMemo(
-    () => getBalanceInfo(supervisionData.dayAssignments),
-    [supervisionData.dayAssignments]
-  );
   const goldenRuleCheck = useMemo(
     () => validateGoldenRule(supervisionData.dayAssignments),
     [supervisionData.dayAssignments]
@@ -278,29 +264,40 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
     showToast('تم اعتماد جدول الإشراف', 'success');
   };
 
-  const handleDeleteCurrentSchedule = () => {
-    setSupervisionData(prev => ({
-      ...prev,
-      dayAssignments: [],
-      isApproved: false,
-      activeScheduleId: undefined, // Deselect saved schedule
-      savedSchedules: (prev.savedSchedules || []).filter(s => s.id !== prev.activeScheduleId) // Delete from saved list if active
-    }));
-    setShowGlobalDeleteConfirm(false);
-    showToast('تم حذف الجدول بالكامل من النظام', 'success');
-  };
+  // ===== Pre-check items for schedule creation modal =====
+  const activeLocsCount = supervisionData.locations.filter(l => l.isActive).length;
+  const preChecks: PreCheckItem[] = [
+    {
+      label: 'التوقيت',
+      detail: hasTimingData(schoolInfo) ? 'أوقات الفسح والصلاة محددة' : 'لم يتم تحديد أوقات الفسح والصلاة بعد',
+      status: (hasTimingData(schoolInfo) ? 'ok' : 'error') as 'ok' | 'warning' | 'error',
+    },
+    {
+      label: 'مواقع الإشراف',
+      detail: activeLocsCount > 0 ? `${activeLocsCount} موقع إشراف نشط` : 'لا توجد مواقع إشراف مفعّلة',
+      status: (activeLocsCount > 0 ? 'ok' : 'warning') as 'ok' | 'warning' | 'error',
+    },
+    {
+      label: 'المشرفون المتاحون',
+      detail: availableStaff.length > 0 ? `${availableStaff.length} مشرف متاح للتوزيع` : 'لا يوجد مشرفون متاحون',
+      status: (availableStaff.length === 0 ? 'error' : availableStaff.length >= suggestedCount ? 'ok' : 'warning') as 'ok' | 'warning' | 'error',
+    },
+    ...(supervisionData.dayAssignments.length > 0 ? [{
+      label: 'الجدول الحالي',
+      detail: 'يوجد جدول حالي — سيتم استبداله بالجدول الجديد',
+      status: 'warning' as const,
+    }] : []),
+  ];
 
   // ===== Shared Schools Tabs =====
   // moved to the top
-  
+
   // ===== Settings Page =====
   if (showSettingsPage) {
     return (
       <SupervisionSettingsPage
         onBack={() => setShowSettingsPage(false)}
         onSave={() => {
-          localStorage.setItem('supervision_settings_saved', 'true');
-          setSettingsSaved(true);
           showToast('تم حفظ إعدادات الإشراف بنجاح', 'success');
         }}
         teachers={teachers}
@@ -377,13 +374,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
               <span>إعدادات الإشراف</span>
             </button>
             <button
-              onClick={() => {
-                if (!settingsSaved) {
-                  showToast('يُرجى الذهاب إلى إعدادات الإشراف وحفظها أولاً قبل إنشاء الجدول', 'warning');
-                  return;
-                }
-                setIsCreateScheduleOpen(true);
-              }}
+              onClick={() => setShowPreCheckModal(true)}
               className="flex items-center gap-2 bg-[#655ac1] text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
             >
               <Zap size={18} />
@@ -420,13 +411,6 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
              >
                <Send size={18} className="text-[#655ac1]" />
                <span>إرسال الإشراف</span>
-             </button>
-             <button
-               onClick={() => setShowGlobalDeleteConfirm(true)}
-               className="flex items-center gap-2 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-rose-300"
-             >
-               <Trash2 size={18} className="text-rose-500" />
-               <span>حذف الجدول</span>
              </button>
            </div>
 
@@ -546,6 +530,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
          isOpen={isPrintOpen}
          onClose={() => setIsPrintOpen(false)}
          supervisionData={supervisionData}
+         setSupervisionData={setSupervisionData}
          schoolInfo={schoolInfo}
          showToast={showToast}
        />
@@ -594,36 +579,13 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
          availableStaffCount={availableStaff.length}
        />
 
-       {/* Delete Confirmation Modal */}
-       {showGlobalDeleteConfirm && (
-         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-             <div className="p-6 text-center">
-               <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <Trash2 size={32} className="text-rose-500" />
-               </div>
-               <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد حذف الجدول</h2>
-               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                 هل أنت متأكد من رغبتك في حذف الجدول الحالي بالكامل؟ سيتم هذا الإجراء ولاتمكن التراجع عنه، وسيتم حذفه من قائمة الجداول المحفوظة إذا كان محفوظاً مسبقاً.
-               </p>
-             </div>
-             <div className="p-6 pt-0 flex gap-3">
-               <button
-                 onClick={() => setShowGlobalDeleteConfirm(false)}
-                 className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-               >
-                 تراجع
-               </button>
-               <button
-                 onClick={handleDeleteCurrentSchedule}
-                 className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
-               >
-                 نعم، احذف الجدول
-               </button>
-             </div>
-           </div>
-         </div>
-       )}
+       <SupervisionPreCheckModal
+         isOpen={showPreCheckModal}
+         onClose={() => setShowPreCheckModal(false)}
+         onProceed={() => { setShowPreCheckModal(false); setIsCreateScheduleOpen(true); }}
+         onGoToSettings={() => setShowSettingsPage(true)}
+         checks={preChecks}
+       />
 
       {/* Timing Popup */}
       {showTimingPopup && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Edit, PenLine, FileText } from 'lucide-react';
+import { X, Printer, Edit, PenLine, FileText, Eye, EyeOff } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData } from '../../../types';
 import { getSupervisionPrintData, DAY_NAMES } from '../../../utils/supervisionUtils';
 
@@ -7,23 +7,30 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   supervisionData: SupervisionScheduleData;
+  setSupervisionData: React.Dispatch<React.SetStateAction<SupervisionScheduleData>>;
   schoolInfo: SchoolInfo;
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
 }
 
 const SupervisionPrintModal: React.FC<Props> = ({
-  isOpen, onClose, supervisionData, schoolInfo, showToast
+  isOpen, onClose, supervisionData, setSupervisionData, schoolInfo, showToast
 }) => {
   const [footerText, setFooterText] = useState(supervisionData.footerText || '');
   const [editingFooter, setEditingFooter] = useState(false);
-  const showSupervisorSig = true;
-  const showFollowUpSig = true;
+  const [showSupervisorSig, setShowSupervisorSig] = useState(true);
+  const [showFollowUpSig, setShowFollowUpSig] = useState(true);
 
   if (!isOpen) return null;
 
   const printData = getSupervisionPrintData(supervisionData, schoolInfo);
+  const hasData = printData.days.some(d => d.supervisors.length > 0);
 
-  // Build a lookup map keyed by Arabic dayName: dayName -> supervisorName -> signatureData
+  const handleSaveFooter = () => {
+    setEditingFooter(false);
+    setSupervisionData(prev => ({ ...prev, footerText }));
+    showToast('تم حفظ التذييل', 'success');
+  };
+
   const buildSigMap = () => {
     const map: Record<string, { supSigs: Record<string, string>; followUpSig: string }> = {};
     supervisionData.dayAssignments.forEach(da => {
@@ -49,37 +56,37 @@ const SupervisionPrintModal: React.FC<Props> = ({
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Tajawal', sans-serif; padding: 40px; direction: rtl; background: #fff; }
-    
+    body { font-family: 'Tajawal', 'Arial', sans-serif; padding: 40px; direction: rtl; background: #fff; }
+
     .print-container { max-width: 100%; margin: 0 auto; }
-    
+
     .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
-    
+
     .header-right { width: 33%; text-align: right; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
-    
+
     .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
     .logo-text { font-size: 9px; color: #94a3b8; }
     .header-title { font-size: 18px; font-weight: 900; color: #1e293b; margin-bottom: 4px; }
-    
+
     .header-left { width: 33%; text-align: left; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
-    
+
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
     th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 12px; font-weight: bold; }
     td { border: 1px solid #94a3b8; padding: 10px; }
     tr:nth-child(even) { background-color: #f8fafc; }
     .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 2px solid #94a3b8; }
-    
+
     .empty-state { color: #94a3b8; font-style: italic; }
-    
+
     .footer { margin-top: 40px; text-align: center; font-size: 14px; font-weight: bold; color: #475569; padding-top: 20px; border-top: 2px dashed #94a3b8; }
-    
+
     .signatures { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 40px; font-weight: bold; font-size: 14px; color: #334155; }
     .sig-box { text-align: center; width: 200px; }
     .sig-line { margin-top: 30px; border-top: 1px dotted #94a3b8; }
-    
-    @media print { 
-      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+
+    @media print {
+      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .header-wrapper { border-bottom: 2px solid #1e293b !important; }
       th { background-color: #f1f5f9 !important; color: #1e293b !important; }
       .day-header { background-color: #e2e8f0 !important; border: 2px solid #94a3b8 !important; }
@@ -97,7 +104,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
         <p>مدرسة ${printData.schoolName || '..........'}</p>
         <p>الفصل الدراسي: ${printData.semester}</p>
       </div>
-      
+
       <div class="header-center">
         ${schoolInfo.logo
           ? `<img src="${schoolInfo.logo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;" />`
@@ -105,7 +112,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
         }
         <h1 class="header-title">${printData.title}</h1>
       </div>
-      
+
       <div class="header-left">
         <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
         <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
@@ -164,36 +171,42 @@ const SupervisionPrintModal: React.FC<Props> = ({
     <p>${footerText || printData.footerText}</p>
   </div>
 
-  <div class="signatures">
-    <div class="sig-box">
-      <p>مدير المدرسة / ${schoolInfo.principal || '............................'}</p>
-      <div class="sig-line">التوقيع</div>
-    </div>
-    <div class="sig-box">
-      <p>الختم الرسمي</p>
-      <div class="sig-line"></div>
-    </div>
+  <div style="margin-top: 50px; padding-right: 40px; font-weight: bold; font-size: 14px; color: #334155; text-align: right;">
+    <p>مدير المدرسة / ${schoolInfo.principal || '............................'}</p>
+    <p style="margin-top: 30px; border-top: 1px dotted #94a3b8; padding-top: 4px;">التوقيع</p>
   </div>
   </div>
+
+  <script>
+    document.fonts.ready.then(() => { window.print(); });
+    setTimeout(() => { window.print(); }, 1200);
+  </script>
 </body>
 </html>
     `);
 
     printWindow.document.close();
-    setTimeout(() => printWindow.print(), 300);
     showToast('تم فتح نافذة الطباعة', 'success');
   };
 
+  // بناء خريطة التوقيعات للمعاينة الداخلية
+  const previewSigMap = buildSigMap();
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* الهيدر */}
+        <div className="bg-white border-b border-slate-100 px-6 py-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-[#e5e1fe] rounded-2xl flex items-center justify-center shadow-sm">
-              <Printer size={22} className="text-[#655ac1]" />
-            </div>
+            <Printer size={26} className="text-[#655ac1]" />
             <div>
-              <h2 className="text-lg font-black text-slate-800">طباعة الإشراف</h2>
+              <h2 className="text-xl font-black text-slate-800">طباعة الإشراف</h2>
               <p className="text-xs font-medium text-slate-400 mt-0.5">معاينة وطباعة جدول الإشراف اليومي</p>
             </div>
           </div>
@@ -202,38 +215,77 @@ const SupervisionPrintModal: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Print buttons sub-bar */}
-        <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-2.5 flex items-center justify-between shrink-0">
-          <p className="text-xs font-bold text-[#655ac1]/70">اختر نوع الطباعة</p>
-          <div className="flex items-center gap-2">
+        {/* شريط أزرار الطباعة */}
+        <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4">
+          <p className="text-sm font-black text-slate-600">اختر نوع الطباعة:</p>
+          <div className="flex items-center gap-3">
             <button
               onClick={() => handlePrint(false)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-95"
+              className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-white border-2 border-slate-200 hover:border-[#655ac1]/50 text-slate-700 hover:text-[#655ac1] font-bold transition-all shadow-sm hover:shadow active:scale-95"
             >
-              <FileText size={14} /> طباعة بدون توقيع
+              <FileText size={18} />
+              <span>طباعة بدون توقيع</span>
             </button>
             <button
               onClick={() => handlePrint(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-xs font-bold transition-all shadow-md shadow-[#655ac1]/20 hover:shadow-[#655ac1]/30 active:scale-95"
+              className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold transition-all shadow-md shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 active:scale-95"
             >
-              <PenLine size={14} /> الطباعة بالتوقيع الالكتروني
+              <PenLine size={18} />
+              <span>الطباعة بالتوقيع الإلكتروني</span>
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-            {/* Footer / Notes card */}
-            <div className="border border-[#655ac1]/20 bg-[#655ac1]/5 rounded-2xl p-4 mb-5">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+          {/* خيارات الأعمدة */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
+            <div className="flex items-start gap-2">
+              <Eye size={15} className="text-[#655ac1] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-black text-slate-700">أعمدة التوقيع في المطبوعة</p>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  يمكنك إخفاء أعمدة التوقيع من الجدول المطبوع — مفيد عند الطباعة قبل اكتمال التوقيعات
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                onClick={() => setShowSupervisorSig(v => !v)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                  showSupervisorSig
+                    ? 'bg-white border-[#655ac1] text-[#655ac1] shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                {showSupervisorSig ? <Eye size={14}/> : <EyeOff size={14}/>}
+                عمود توقيع المشرف
+              </button>
+              <button
+                onClick={() => setShowFollowUpSig(v => !v)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                  showFollowUpSig
+                    ? 'bg-white border-[#655ac1] text-[#655ac1] shadow-sm'
+                    : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                {showFollowUpSig ? <Eye size={14}/> : <EyeOff size={14}/>}
+                عمود توقيع المتابع
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-5">
+
+            {/* بطاقة التذييل */}
+            <div className="border border-[#655ac1]/20 bg-[#655ac1]/5 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-[#e5e1fe] rounded-lg flex items-center justify-center">
-                    <Edit size={13} className="text-[#655ac1]" />
-                  </div>
+                  <Edit size={15} className="text-[#655ac1]" />
                   <label className="text-sm font-black text-[#655ac1]">التذييل / الملاحظات</label>
                 </div>
                 <button
-                  onClick={() => setEditingFooter(!editingFooter)}
+                  onClick={() => editingFooter ? handleSaveFooter() : setEditingFooter(true)}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
                     editingFooter
                       ? 'bg-[#655ac1] text-white border-[#655ac1]'
@@ -258,64 +310,91 @@ const SupervisionPrintModal: React.FC<Props> = ({
               )}
             </div>
 
-            {/* Preview */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6">
-              <div className="text-center mb-4 pb-4 border-b-2 border-double border-slate-300">
-                <h4 className="text-lg font-black text-slate-800 mb-1">{printData.schoolName}</h4>
-                <h5 className="text-sm font-bold text-slate-500">{printData.title}</h5>
+            {/* المعاينة */}
+            {!hasData ? (
+              <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl">
+                <Printer size={36} className="mx-auto mb-3 text-slate-300" />
+                <p className="font-bold text-slate-500">لا يوجد جدول إشراف لطباعته</p>
+                <p className="text-sm mt-1">يُرجى إنشاء جدول الإشراف أولاً</p>
               </div>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-xl p-6">
+                <div className="text-center mb-4 pb-4 border-b-2 border-double border-slate-300">
+                  <h4 className="text-lg font-black text-slate-800 mb-1">{printData.schoolName}</h4>
+                  <h5 className="text-sm font-bold text-slate-500">{printData.title}</h5>
+                </div>
 
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-700">
-                    <th className="border border-slate-300 p-2">اليوم</th>
-                    <th className="border border-slate-300 p-2">المشرف</th>
-                    <th className="border border-slate-300 p-2">المواقع</th>
-                    {showSupervisorSig && <th className="border border-slate-300 p-2">توقيع المشرف</th>}
-                    <th className="border border-slate-300 p-2">المشرف المتابع</th>
-                    {showFollowUpSig && <th className="border border-slate-300 p-2">توقيع المتابع</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {printData.days.map(day => (
-                    <React.Fragment key={day.dayName}>
-                      {day.supervisors.length === 0 ? (
-                        <tr>
-                          <td className="border border-slate-300 p-2 font-bold bg-slate-50">{day.dayName}</td>
-                          <td className="border border-slate-300 p-2 text-slate-400 text-center" colSpan={2 + (showSupervisorSig ? 1 : 0) + 1 + (showFollowUpSig ? 1 : 0)}>لم يتم التعيين</td>
-                        </tr>
-                      ) : (
-                        day.supervisors.map((sup, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/50">
-                            {idx === 0 && (
-                              <td className="border border-slate-300 p-2 font-bold bg-slate-50 text-center" rowSpan={day.supervisors.length}>
-                                {day.dayName}
-                              </td>
-                            )}
-                            <td className="border border-slate-300 p-2 text-right">{sup.name}</td>
-                            <td className="border border-slate-300 p-2 text-center text-slate-600">{sup.locations || '-'}</td>
-                            {showSupervisorSig && <td className="border border-slate-300 p-2"></td>}
-                            {idx === 0 && (
-                              <td className="border border-slate-300 p-2 text-center text-amber-700 font-bold" rowSpan={day.supervisors.length}>
-                                {day.followUpSupervisor || '—'}
-                              </td>
-                            )}
-                            {showFollowUpSig && idx === 0 && (
-                              <td className="border border-slate-300 p-2 border-r" rowSpan={day.supervisors.length}></td>
-                            )}
-                          </tr>
-                        ))
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-              <div className="mt-8 text-left pl-10">
-                 <p className="font-bold text-sm text-slate-800 tracking-wide mb-3">مدير المدرسة: {schoolInfo.principal || '----------------'}</p>
-                 <p className="font-bold text-sm text-slate-800 tracking-wide">التوقيع: ..........................</p>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700">
+                      <th className="border border-slate-300 p-2">اليوم</th>
+                      <th className="border border-slate-300 p-2">المشرف</th>
+                      <th className="border border-slate-300 p-2">المواقع</th>
+                      {showSupervisorSig && <th className="border border-slate-300 p-2">توقيع المشرف</th>}
+                      <th className="border border-slate-300 p-2">المشرف المتابع</th>
+                      {showFollowUpSig && <th className="border border-slate-300 p-2">توقيع المتابع</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printData.days.map(day => {
+                      const daySigMap = previewSigMap[day.dayName] || { supSigs: {}, followUpSig: '' };
+                      return (
+                        <React.Fragment key={day.dayName}>
+                          {day.supervisors.length === 0 ? (
+                            <tr>
+                              <td className="border border-slate-300 p-2 font-bold bg-slate-50">{day.dayName}</td>
+                              <td className="border border-slate-300 p-2 text-slate-400 text-center" colSpan={2 + (showSupervisorSig ? 1 : 0) + 1 + (showFollowUpSig ? 1 : 0)}>لم يتم التعيين</td>
+                            </tr>
+                          ) : (
+                            day.supervisors.map((sup, idx) => {
+                              const supSigData = daySigMap.supSigs[sup.name] || '';
+                              const fuSigData = daySigMap.followUpSig || '';
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  {idx === 0 && (
+                                    <td className="border border-slate-300 p-2 font-bold bg-slate-50 text-center" rowSpan={day.supervisors.length}>
+                                      {day.dayName}
+                                    </td>
+                                  )}
+                                  <td className="border border-slate-300 p-2 text-right">{sup.name}</td>
+                                  <td className="border border-slate-300 p-2 text-center text-slate-600">{sup.locations || '-'}</td>
+                                  {showSupervisorSig && (
+                                    <td className="border border-slate-300 p-2 text-center">
+                                      {supSigData
+                                        ? <img src={supSigData} alt="توقيع" className="h-6 max-w-[60px] object-contain mx-auto" />
+                                        : null}
+                                    </td>
+                                  )}
+                                  {idx === 0 && (
+                                    <td className="border border-slate-300 p-2 text-center text-amber-700 font-bold" rowSpan={day.supervisors.length}>
+                                      {day.followUpSupervisor || '—'}
+                                    </td>
+                                  )}
+                                  {showFollowUpSig && idx === 0 && (
+                                    <td className="border border-slate-300 p-2 text-center" rowSpan={day.supervisors.length}>
+                                      {fuSigData
+                                        ? <img src={fuSigData} alt="توقيع" className="h-6 max-w-[60px] object-contain mx-auto" />
+                                        : null}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                <div className="mt-8 flex justify-start pr-10">
+                  <div className="text-right">
+                    <p className="font-bold text-sm text-slate-800">مدير المدرسة / {schoolInfo.principal || '............................'}</p>
+                    <p className="font-bold text-xs text-slate-400 mt-5 border-t border-dotted border-slate-300 pt-1">التوقيع</p>
+                  </div>
+                </div>
               </div>
-            </div>
-            
+            )}
 
           </div>
         </div>

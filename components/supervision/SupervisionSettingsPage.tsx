@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Users, MapPin, Settings, Shield, Clock, Save, Bell, Send, ToggleLeft, ToggleRight, Check } from 'lucide-react';
+import { ArrowRight, Users, MapPin, Settings, Shield, Clock, Save, Bell, Send, Check, AlertTriangle } from 'lucide-react';
 import {
   Teacher, Admin, SchoolInfo,
   SupervisionStaffExclusion, SupervisionSettings,
@@ -54,8 +54,7 @@ const SupervisionSettingsPage: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>('settings');
   const [hasSaved, setHasSaved] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
-
-  const activeTabInfo = TABS.find(t => t.id === activeTab)!;
+  const [showBackConfirm, setShowBackConfirm] = useState(false);
 
   const handleSave = () => {
     onSave();
@@ -67,7 +66,8 @@ const SupervisionSettingsPage: React.FC<Props> = ({
 
   const handleBack = () => {
     if (!hasSaved) {
-      if (!window.confirm('لم تقم بحفظ الإعدادات بعد. هل تريد الخروج بدون حفظ؟')) return;
+      setShowBackConfirm(true);
+      return;
     }
     onBack();
   };
@@ -285,6 +285,37 @@ const SupervisionSettingsPage: React.FC<Props> = ({
         )}
 
       </div>
+
+      {/* ══════ Back Without Save Confirmation ══════ */}
+      {showBackConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={32} className="text-amber-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">الإعدادات غير محفوظة</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                لم تقم بحفظ الإعدادات بعد. هل تريد الخروج بدون حفظ؟
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowBackConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                البقاء والحفظ
+              </button>
+              <button
+                onClick={() => { setShowBackConfirm(false); onBack(); }}
+                className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-amber-500/20"
+              >
+                خروج بدون حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
