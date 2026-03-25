@@ -392,13 +392,6 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
            {/* Right Side */}
            <div className="flex flex-wrap items-center gap-2">
              <button
-               onClick={() => setIsManageSchedulesOpen(true)}
-               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-             >
-               <Save size={18} className="text-[#655ac1]" />
-               <span>إدارة الجداول</span>
-             </button>
-             <button
                onClick={() => setIsPrintOpen(true)}
                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
              >
@@ -412,10 +405,6 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
                <Send size={18} className="text-[#655ac1]" />
                <span>إرسال الإشراف</span>
              </button>
-           </div>
-
-           {/* Left Side */}
-           <div className="flex flex-wrap items-center gap-2">
              <button
                onClick={() => setIsMonitoringOpen(true)}
                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
@@ -423,12 +412,23 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
                <Eye size={18} className="text-[#655ac1]" />
                <span>المتابعة اليومية</span>
              </button>
+           </div>
+
+           {/* Left Side */}
+           <div className="flex flex-wrap items-center gap-2">
              <button
                onClick={() => setIsReportsOpen(true)}
                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
              >
                <BarChart3 size={18} className="text-[#655ac1]" />
                <span>تقارير الإشراف</span>
+             </button>
+             <button
+               onClick={() => setIsManageSchedulesOpen(true)}
+               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+             >
+               <Save size={18} className="text-[#655ac1]" />
+               <span>إدارة الجداول</span>
              </button>
            </div>
         </div>

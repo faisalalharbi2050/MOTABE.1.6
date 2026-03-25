@@ -75,7 +75,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
     th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 12px; font-weight: bold; }
     td { border: 1px solid #94a3b8; padding: 10px; }
     tr:nth-child(even) { background-color: #f8fafc; }
-    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 2px solid #94a3b8; }
+    .day-header { background-color: #f1f5f9 !important; font-weight: 900; color: #655ac1; border: 1px solid #94a3b8; }
 
     .empty-state { color: #94a3b8; font-style: italic; }
 
@@ -89,7 +89,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
       body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .header-wrapper { border-bottom: 2px solid #1e293b !important; }
       th { background-color: #f1f5f9 !important; color: #1e293b !important; }
-      .day-header { background-color: #e2e8f0 !important; border: 2px solid #94a3b8 !important; }
+      .day-header { background-color: #f1f5f9 !important; color: #655ac1 !important; border: 1px solid #94a3b8 !important; }
       tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
@@ -158,7 +158,7 @@ const SupervisionPrintModal: React.FC<Props> = ({
             <td style="text-align: right; font-weight: bold; color: #1e293b;">${sup.name}</td>
             <td style="color: #475569;">${sup.locations || '-'}</td>
             ${supSigCell}
-            ${idx === 0 ? `<td rowspan="${day.supervisors.length}" style="font-weight: bold; color: #b45309; vertical-align: middle;">${day.followUpSupervisor || '\u2014'}</td>` : ''}
+            ${idx === 0 ? `<td rowspan="${day.supervisors.length}" style="font-weight: bold; color: #655ac1; vertical-align: middle;">${day.followUpSupervisor || '\u2014'}</td>` : ''}
             ${fuSigCell}
           </tr>
         `;
