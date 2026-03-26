@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, Phase, SchoolInfo, Specialization } from '../types';
 import SchoolTabs from './wizard/SchoolTabs';
 import {
-  Search, X, Trash2, ChevronDown, Filter, Check, Layers, Briefcase,
+  Search, X, Trash2, ChevronDown, Filter, Check, CheckCheck, Layers, Briefcase,
   Printer, Users, CheckCircle2, User, HelpCircle, AlertTriangle, LayoutTemplate,
   Eye, ArrowUp, ClipboardList, BookOpen, ChevronRight, Calculator, GraduationCap,
   ListFilter, School, LayoutGrid, ShieldAlert
@@ -179,10 +179,11 @@ const ManualAssignment: React.FC<Props> = ({
       const matchId = selectedTeacherFilterIds.length === 0 || selectedTeacherFilterIds.includes(t.id);
       const matchSpec = selectedSpecs.length === 0 || selectedSpecs.includes(t.specializationId);
       const matchSchool = isTeacherInCurrentSchool(t);
-      const matchSearch = teacherSearch.trim() === '' || t.name.toLowerCase().includes(teacherSearch.toLowerCase());
+      const specName = specializations.find(s => s.id === t.specializationId)?.name?.toLowerCase() || '';
+      const matchSearch = teacherSearch.trim() === '' || t.name.toLowerCase().includes(teacherSearch.toLowerCase()) || specName.includes(teacherSearch.toLowerCase());
       return matchId && matchSpec && matchSchool && matchSearch;
     });
-  }, [teachers, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab, teacherSearch]);
+  }, [teachers, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab, teacherSearch, specializations]);
 
   // Dynamic Specializations (Only used ones)
   const availableSpecializations = useMemo(() => {
@@ -717,7 +718,7 @@ const ManualAssignment: React.FC<Props> = ({
                     <Search className="absolute right-2.5 top-2.5 text-slate-400" size={13}/>
                     <input
                         type="text"
-                        placeholder="بحث عن معلم..."
+                        placeholder="بحث عن معلم أو تخصص..."
                         className="w-full pr-8 pl-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#8779fb] focus:bg-white transition-all"
                         value={teacherSearch}
                         onChange={e => setTeacherSearch(e.target.value)}
@@ -739,36 +740,35 @@ const ManualAssignment: React.FC<Props> = ({
                         </button>
 
                         {showTeacherFilterDropdown && (
-                             <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                 <div className="max-h-52 overflow-y-auto custom-scrollbar p-1">
-                                    {/* Action buttons */}
-                                    <div className="flex gap-1 mb-1 px-1">
-                                        <button
-                                            onClick={() => setSelectedTeacherFilterIds([])}
-                                            className="text-[10px] flex-1 py-1.5 bg-slate-50 hover:bg-[#e5e1fe] hover:text-[#655ac1] rounded font-bold text-slate-500 transition-colors"
-                                        >
-                                            إلغاء التحديد
-                                        </button>
-                                        <button
-                                            onClick={() => setSelectedTeacherFilterIds(teachers.map(t => t.id))}
-                                            className="text-[10px] flex-1 py-1.5 bg-slate-50 hover:bg-[#e5e1fe] hover:text-[#655ac1] rounded font-bold text-slate-500 transition-colors"
-                                        >
-                                            تحديد الكل
-                                        </button>
-                                    </div>
-
+                            <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                {/* Action buttons */}
+                                <div className="flex gap-2 p-2 border-b border-slate-50">
+                                    <button
+                                        onClick={() => setSelectedTeacherFilterIds([])}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black border border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                                    >
+                                        <X size={11}/> إلغاء الكل
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedTeacherFilterIds(teachers.map(t => t.id))}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black border border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#e5e1fe] transition-all"
+                                    >
+                                        <CheckCheck size={11}/> تحديد الكل
+                                    </button>
+                                </div>
+                                <div className="max-h-72 overflow-y-auto custom-scrollbar p-1.5">
                                     {teachers.map(t => (
                                         <button
                                             key={t.id}
                                             onClick={() => toggleTeacherFilter(t.id)}
-                                            className={`w-full flex justify-between items-center px-3 py-2 rounded-xl text-xs font-bold transition-all mb-0.5 border ${selectedTeacherFilterIds.includes(t.id) ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
+                                            className={`w-full flex justify-between items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all mb-0.5 border ${selectedTeacherFilterIds.includes(t.id) ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
                                         >
                                             <span className="truncate">{t.name}</span>
                                             {selectedTeacherFilterIds.includes(t.id) && <Check size={12}/>}
                                         </button>
                                     ))}
-                                 </div>
-                             </div>
+                                </div>
+                            </div>
                         )}
                     </div>
                     
@@ -784,17 +784,34 @@ const ManualAssignment: React.FC<Props> = ({
                              <ChevronDown size={14} className={`text-slate-400 transition-transform ${showSpecDropdown ? 'rotate-180' : ''}`}/>
                         </button>
                         {showSpecDropdown && (
-                            <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto custom-scrollbar p-1.5 animate-in fade-in zoom-in-95 duration-200">
-                                {availableSpecializations.map(s => (
-                                    <button 
-                                        key={s.id} 
-                                        onClick={() => toggleSpec(s.id)}
-                                        className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-xs font-bold transition-all mb-0.5 ${selectedSpecs.includes(s.id) ? 'bg-[#e5e1fe] text-[#655ac1]' : 'hover:bg-slate-50 text-slate-600'}`}
+                            <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                {/* Action buttons */}
+                                <div className="flex gap-2 p-2 border-b border-slate-50">
+                                    <button
+                                        onClick={() => setSelectedSpecs([])}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black border border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
                                     >
-                                        {s.name}
-                                        {selectedSpecs.includes(s.id) && <Check size={12}/>}
+                                        <X size={11}/> إلغاء الكل
                                     </button>
-                                ))}
+                                    <button
+                                        onClick={() => setSelectedSpecs(availableSpecializations.map(s => s.id))}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black border border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#e5e1fe] transition-all"
+                                    >
+                                        <CheckCheck size={11}/> تحديد الكل
+                                    </button>
+                                </div>
+                                <div className="max-h-72 overflow-y-auto custom-scrollbar p-1.5">
+                                    {availableSpecializations.map(s => (
+                                        <button
+                                            key={s.id}
+                                            onClick={() => toggleSpec(s.id)}
+                                            className={`w-full flex justify-between items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all mb-0.5 border ${selectedSpecs.includes(s.id) ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
+                                        >
+                                            {s.name}
+                                            {selectedSpecs.includes(s.id) && <Check size={12}/>}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -904,7 +921,7 @@ const ManualAssignment: React.FC<Props> = ({
                                                     e.stopPropagation();
                                                     handleUnassignTeacher(t.id, t.name);
                                                 }}
-                                                className="text-rose-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0"
+                                                className="text-rose-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg transition-all"
                                                 title="حذف جميع إسنادات المعلم"
                                             >
                                                 <Trash2 size={14} />
