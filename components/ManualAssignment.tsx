@@ -179,9 +179,10 @@ const ManualAssignment: React.FC<Props> = ({
       const matchId = selectedTeacherFilterIds.length === 0 || selectedTeacherFilterIds.includes(t.id);
       const matchSpec = selectedSpecs.length === 0 || selectedSpecs.includes(t.specializationId);
       const matchSchool = isTeacherInCurrentSchool(t);
-      return matchId && matchSpec && matchSchool;
+      const matchSearch = teacherSearch.trim() === '' || t.name.toLowerCase().includes(teacherSearch.toLowerCase());
+      return matchId && matchSpec && matchSchool && matchSearch;
     });
-  }, [teachers, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab]);
+  }, [teachers, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab, teacherSearch]);
 
   // Dynamic Specializations (Only used ones)
   const availableSpecializations = useMemo(() => {
@@ -711,61 +712,56 @@ const ManualAssignment: React.FC<Props> = ({
                     </div>
                 </div>
 
+                {/* Search Bar */}
+                <div className="relative mb-3">
+                    <Search className="absolute right-2.5 top-2.5 text-slate-400" size={13}/>
+                    <input
+                        type="text"
+                        placeholder="بحث عن معلم..."
+                        className="w-full pr-8 pl-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#8779fb] focus:bg-white transition-all"
+                        value={teacherSearch}
+                        onChange={e => setTeacherSearch(e.target.value)}
+                    />
+                </div>
+
                 <div className="space-y-3">
-                    {/* Teacher Filter Dropdown with Search */}
+                    {/* Teacher Filter Dropdown */}
                      <div className="relative" ref={teacherFilterDropdownRef}>
-                        <button 
+                        <button
                             onClick={() => setShowTeacherFilterDropdown(!showTeacherFilterDropdown)}
                             className="w-full flex justify-between items-center px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl hover:bg-white hover:border-[#8779fb] transition-all"
                         >
                              <span className="text-xs font-bold text-slate-600 flex items-center gap-2 truncate">
-                                <ListFilter size={14}/> 
+                                <ListFilter size={14}/>
                                 {selectedTeacherFilterIds.length > 0 ? `تم تحديد (${selectedTeacherFilterIds.length})` : 'كل المعلمين'}
                              </span>
                              <ChevronDown size={14} className={`text-slate-400 transition-transform ${showTeacherFilterDropdown ? 'rotate-180' : ''}`}/>
                         </button>
-                        
+
                         {showTeacherFilterDropdown && (
                              <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                 {/* Internal Search */}
-                                 <div className="p-2 border-b border-slate-50">
-                                    <div className="relative">
-                                        <Search className="absolute right-2.5 top-2.5 text-slate-400" size={12}/>
-                                        <input 
-                                            type="text" 
-                                            placeholder="بحث..." 
-                                            className="w-full pr-8 pl-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold focus:outline-none focus:border-[#8779fb]"
-                                            value={teacherSearch}
-                                            onChange={e => setTeacherSearch(e.target.value)}
-                                            autoFocus
-                                        />
-                                    </div>
-                                 </div>
-                                 
                                  <div className="max-h-52 overflow-y-auto custom-scrollbar p-1">
                                     {/* Action buttons */}
                                     <div className="flex gap-1 mb-1 px-1">
-                                        <button 
-                                            onClick={() => setSelectedTeacherFilterIds([])} 
+                                        <button
+                                            onClick={() => setSelectedTeacherFilterIds([])}
                                             className="text-[10px] flex-1 py-1.5 bg-slate-50 hover:bg-[#e5e1fe] hover:text-[#655ac1] rounded font-bold text-slate-500 transition-colors"
                                         >
                                             إلغاء التحديد
                                         </button>
-                                        <button 
-                                            onClick={() => setSelectedTeacherFilterIds(teachers.map(t => t.id))} 
+                                        <button
+                                            onClick={() => setSelectedTeacherFilterIds(teachers.map(t => t.id))}
                                             className="text-[10px] flex-1 py-1.5 bg-slate-50 hover:bg-[#e5e1fe] hover:text-[#655ac1] rounded font-bold text-slate-500 transition-colors"
                                         >
                                             تحديد الكل
                                         </button>
                                     </div>
 
-                                    {teachers
-                                        .filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase()))
-                                        .map(t => (
-                                        <button 
-                                            key={t.id} 
+                                    {teachers.map(t => (
+                                        <button
+                                            key={t.id}
                                             onClick={() => toggleTeacherFilter(t.id)}
-                                            className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-xs font-bold transition-all mb-0.5 ${selectedTeacherFilterIds.includes(t.id) ? 'bg-[#e5e1fe] text-[#655ac1]' : 'hover:bg-slate-50 text-slate-600'}`}
+                                            className={`w-full flex justify-between items-center px-3 py-2 rounded-xl text-xs font-bold transition-all mb-0.5 border ${selectedTeacherFilterIds.includes(t.id) ? 'bg-white text-[#655ac1] border-[#655ac1]' : 'text-slate-600 border-transparent hover:bg-slate-50'}`}
                                         >
                                             <span className="truncate">{t.name}</span>
                                             {selectedTeacherFilterIds.includes(t.id) && <Check size={12}/>}
@@ -826,14 +822,14 @@ const ManualAssignment: React.FC<Props> = ({
                         const progressValue = Math.min(100, Math.round((assignedLoad / (t.quotaLimit || 24)) * 100));
 
                         return (
-                            <div 
-                                key={t.id} 
+                            <div
+                                key={t.id}
                                 onClick={() => setSelectedTeacherId(t.id)}
                                 className={`
-                                    p-3.5 rounded-2xl border cursor-pointer transition-all group relative overflow-hidden flex flex-col gap-2.5
-                                    ${isSelected 
-                                        ? 'bg-[#e5e1fe]/30 border-[#655ac1] shadow-sm transform scale-[1.02]' 
-                                        : 'bg-white border-slate-100 hover:border-[#8779fb]/50 hover:shadow-md hover:translate-x-[-2px]'}
+                                    p-3.5 rounded-2xl cursor-pointer transition-all group relative overflow-hidden flex flex-col gap-2.5
+                                    ${isSelected
+                                        ? 'bg-white border-2 border-[#655ac1] shadow-sm'
+                                        : 'bg-white border border-slate-100 hover:border-[#8779fb]/50 hover:shadow-md hover:translate-x-[-2px]'}
                                 `}
                             >
                                 <div className="flex items-start justify-between">
@@ -886,6 +882,11 @@ const ManualAssignment: React.FC<Props> = ({
                                     </div>
                                     
                                     <div className="flex items-center gap-1">
+                                        {isSelected && (
+                                            <span className="w-5 h-5 rounded-full bg-[#655ac1] flex items-center justify-center shrink-0">
+                                                <Check size={11} className="text-white" strokeWidth={3}/>
+                                            </span>
+                                        )}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
