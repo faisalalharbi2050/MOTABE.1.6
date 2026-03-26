@@ -52,7 +52,7 @@ function buildSignLink(token: string): string {
 }
 
 function buildElectronicMsg(
-  staffName: string,
+  _staffName: string,
   staffType: 'teacher' | 'admin',
   day: string,
   dateFormatted: string,
@@ -168,11 +168,9 @@ const SignaturePreviewModal: React.FC<PreviewProps> = ({
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[10001] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" dir="rtl" onClick={e => e.stopPropagation()}>
-        <div className="bg-[#655ac1] px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-l from-[#655ac1] to-[#8779fb] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-              <PenLine size={20} className="text-white" />
-            </div>
+            <PenLine size={22} className="text-white" />
             <div>
               <h2 className="text-base font-black text-white">معاينة صفحة التكليف</h2>
               <p className="text-xs text-white/70 mt-0.5">هذه الصفحة ستُرسل للمناوب عبر الرابط</p>
@@ -286,9 +284,9 @@ const DutyMessagingModal: React.FC<Props> = ({
   const [masterTemplate, setMasterTemplate] = useState('');
   const [customMessages, setCustomMessages] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [includeReportLink, setIncludeReportLink] = useState(true);
   const [previewRow, setPreviewRow] = useState<ElectronicRow | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState<{ method: 'whatsapp' | 'sms'; count: number } | null>(null);
+  const [sentKeys, setSentKeys] = useState<Set<string>>(new Set());
 
   const calendarType = (schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0])?.calendarType || 'hijri';
   const timing = getTimingConfig(schoolInfo);
@@ -447,6 +445,7 @@ const DutyMessagingModal: React.FC<Props> = ({
     if (method === 'whatsapp') await sendWhatsApp(row.staffId, row.staffName, row.staffType, row.message);
     else await sendSMS(row.staffId, row.staffName, row.staffType, row.message);
     if (activeTab === 'electronic') markPending(row as ElectronicRow);
+    setSentKeys(prev => new Set(prev).add(row.key));
   };
   const sendBulk = (method: 'whatsapp' | 'sms') => {
     const targets = activeRows.filter(r => selectedIds.has(r.key));
@@ -476,9 +475,7 @@ const DutyMessagingModal: React.FC<Props> = ({
           {/* Header */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-[#25D366]/10 rounded-2xl flex items-center justify-center shadow-sm">
-                <WhatsAppIcon size={24} />
-              </div>
+              <Send size={22} className="text-[#655ac1]" />
               <div>
                 <h2 className="text-lg font-black text-slate-800">إرسال إشعارات المناوبة</h2>
                 <p className="text-xs font-medium text-slate-500 mt-0.5">تبليغ المناوبين بمهامهم عبر الواتساب أو الرسائل النصية</p>
@@ -489,19 +486,20 @@ const DutyMessagingModal: React.FC<Props> = ({
 
           {/* Tabs */}
           <div className="bg-white border-b border-slate-100 px-5 py-3 flex items-center gap-2 shrink-0 overflow-x-auto">
-            {([
-              { id: 'electronic' as TabId, label: 'إرسال التكليف إلكترونياً', sub: '(رسالة + رابط توقيع)', icon: <PenLine size={15} /> },
-              { id: 'text' as TabId, label: 'إرسال التكليف نصيًا', sub: '', icon: <MessageSquare size={15} /> },
-              { id: 'reminder' as TabId, label: 'إرسال التذكير اليومي', sub: '', icon: <Bell size={15} /> },
-            ] as const).map((tab, i) => (
+            {([{
+              id: 'electronic' as TabId, label: 'تكليف مع رابط توقيع', icon: <PenLine size={15} />
+            }, {
+              id: 'text' as TabId, label: 'إرسال التكليف نصيًا', icon: <MessageSquare size={15} />
+            }, {
+              id: 'reminder' as TabId, label: 'إرسال الإشعار اليومي', icon: <Bell size={15} />
+            }] as const).map((tab, i) => (
               <React.Fragment key={tab.id}>
                 {i > 0 && <div className="w-px h-7 bg-slate-200 rounded-full shrink-0" />}
                 <button
-                  onClick={() => { setActiveTab(tab.id); setCustomMessages({}); setMasterTemplate(''); setSelectedIds(new Set()); }}
+                  onClick={() => { setActiveTab(tab.id); setSelectedIds(new Set()); }}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border-2 shrink-0 ${activeTab === tab.id ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm scale-[1.02]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-slate-700'}`}
                 >
                   {tab.icon} {tab.label}
-                  {tab.sub && <span className="text-[10px] font-medium opacity-60">{tab.sub}</span>}
                 </button>
               </React.Fragment>
             ))}
@@ -510,11 +508,9 @@ const DutyMessagingModal: React.FC<Props> = ({
           {/* Electronic banner */}
           {activeTab === 'electronic' && (
             <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-3 flex items-center gap-3 shrink-0">
-              <div className="w-8 h-8 bg-[#e5e1fe] rounded-lg flex items-center justify-center shrink-0">
-                <Link2 size={14} className="text-[#655ac1]" />
-              </div>
+              <Link2 size={16} className="text-[#655ac1] shrink-0" />
               <p className="text-xs font-bold text-[#655ac1] flex-1">
-                سيتم توليد رابط فريد لكل مناوب — يمكن للمناوب التوقيع عبر الرابط ويُحدَث عمود التوقيع في الجدول تلقائياً.
+                سيتم توليد رابط لكل مناوب — يمكن للمناوب التوقيع عبر الرابط ويُحدَث عمود التوقيع في الجدول تلقائياً.
               </p>
               {electronicRows.length > 0 && (
                 <button onClick={() => setPreviewRow(electronicRows[0])} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#655ac1] text-white text-xs font-bold hover:bg-[#5046a0] shrink-0">
@@ -584,9 +580,9 @@ const DutyMessagingModal: React.FC<Props> = ({
 
               {activeRows.length === 0 ? (
                 <div className="text-center py-16 text-slate-400">
-                  <div className="w-16 h-16 mx-auto bg-slate-100 rounded-2xl flex items-center justify-center mb-3"><WhatsAppIcon size={32} /></div>
-                  <p className="font-bold text-slate-500">لا يوجد مناوبون للفلتر المحدد</p>
-                  <p className="text-sm mt-1">يُرجى إعداد جدول المناوبة أولاً أو تغيير الفلتر</p>
+                  <Send size={32} className="mx-auto mb-3 text-slate-300" />
+                  <p className="font-bold text-slate-500">لا يوجد مناوبون</p>
+                  <p className="text-sm mt-1">يُرجى إعداد جدول المناوبة أولاً</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -606,7 +602,7 @@ const DutyMessagingModal: React.FC<Props> = ({
                         <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">التاريخ</th>
                         <th className="px-3 py-3 font-black text-slate-700 text-xs">الرسالة</th>
                         <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">الإجراءات</th>
-                        {activeTab === 'electronic' && <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">حالة التوقيع</th>}
+                        <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-28">الحالة</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -636,15 +632,15 @@ const DutyMessagingModal: React.FC<Props> = ({
                             </td>
                             <td className="px-3 py-3">
                               <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                <button onClick={() => sendOne(row, 'whatsapp')} title="واتساب" className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/25 border border-[#25D366]/20 active:scale-90"><WhatsAppIcon size={15} /></button>
-                                <button onClick={() => sendOne(row, 'sms')} title="رسالة نصية" className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/25 border border-[#007AFF]/20 active:scale-90"><Send size={13} className="text-[#007AFF]" /></button>
-                                <button onClick={() => { navigator.clipboard?.writeText(row.message); showToast('تم نسخ الرسالة', 'success'); }} title="نسخ" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600"><Copy size={14} /></button>
-                                {eRow && <button onClick={() => setPreviewRow(eRow)} title="معاينة صفحة التوقيع" className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#655ac1]/10 hover:bg-[#655ac1]/20 text-[#655ac1] active:scale-90"><Eye size={14} /></button>}
+                                <button onClick={() => sendOne(row, 'whatsapp')} title="واتساب" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#25D366]/10 active:scale-90 transition-colors"><WhatsAppIcon size={15} /></button>
+                                <button onClick={() => sendOne(row, 'sms')} title="رسالة نصية" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#007AFF]/10 active:scale-90 transition-colors"><Send size={13} className="text-[#007AFF]" /></button>
+                                <button onClick={() => { navigator.clipboard?.writeText(row.message); showToast('تم نسخ الرسالة', 'success'); }} title="نسخ" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"><Copy size={14} /></button>
+                                {eRow && <button onClick={() => setPreviewRow(eRow)} title="معاينة صفحة التوقيع" className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#655ac1]/10 text-[#655ac1] active:scale-90 transition-colors"><Eye size={14} /></button>}
                               </div>
                             </td>
-                            {activeTab === 'electronic' && eRow && (
-                              <td className="px-3 py-3 text-center">
-                                {eRow.signatureData ? (
+                            <td className="px-3 py-3 text-center">
+                              {activeTab === 'electronic' && eRow ? (
+                                eRow.signatureData ? (
                                   <div className="flex flex-col items-center gap-1">
                                     <img src={eRow.signatureData} alt="توقيع" className="h-8 max-w-[70px] object-contain border border-emerald-200 rounded bg-white" />
                                     <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
@@ -656,9 +652,13 @@ const DutyMessagingModal: React.FC<Props> = ({
                                   </div>
                                 ) : (
                                   <span className="text-[9px] text-slate-300 font-bold">لم يُرسل</span>
-                                )}
-                              </td>
-                            )}
+                                )
+                              ) : sentKeys.has(row.key) ? (
+                                <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 justify-center"><Check size={11} /> أُرسل</span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-bold">لم يُرسل</span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}

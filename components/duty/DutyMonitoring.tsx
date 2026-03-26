@@ -176,64 +176,77 @@ const DutyMonitoringModal: React.FC<Props> = ({
                   { label: 'مستأذن', val: todayStats.excused, color: 'text-blue-500', bg: 'bg-slate-50 border-slate-100' },
                   { label: 'منسحب', val: todayStats.withdrawn, color: 'text-orange-500', bg: 'bg-slate-50 border-slate-100' },
                 ].map(s => (
-                  <div key={s.label} className={`${s.bg.replace('border-slate-100','border-slate-300')} border rounded-2xl p-4 text-center transition-transform hover:scale-105`}>
-                    <p className={`text-3xl font-black ${s.color}`}>{s.val}</p>
-                    <p className={`text-sm font-bold ${s.color} mt-1`}>{s.label}</p>
+                  <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center transition-transform hover:scale-105">
+                    <p className={`text-3xl font-black ${s.color} mb-1`}>{s.val}</p>
+                    <p className="text-sm font-bold text-slate-500">{s.label}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Date Navigation */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 relative group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#e5e1fe]/50 to-transparent rounded-br-full -z-0 pointer-events-none" />
-              <p className="text-sm font-black text-slate-700 mb-4 relative z-10">اليوم والتاريخ</p>
-              <div className="relative z-10 inline-block">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 relative z-10">اليوم والتاريخ</p>
+              <div className="relative z-10 flex items-center gap-2">
+                <button
+                  onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-[#f5f3ff] border border-slate-200 hover:border-[#655ac1]/40 text-slate-400 hover:text-[#655ac1] transition-all active:scale-95"
+                  title="اليوم التالي"
+                >
+                  <ChevronRight size={18} />
+                </button>
                 <button
                   type="button"
                   onClick={() => dateInputRef.current?.showPicker()}
-                  className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 hover:border-[#655ac1] hover:bg-[#f5f3ff] transition-all shadow-sm cursor-pointer"
+                  className="cursor-pointer inline-flex items-center gap-3 bg-slate-50 hover:bg-[#f5f3ff] border border-slate-200 hover:border-[#655ac1]/40 px-5 py-3 rounded-2xl transition-all"
+                  title="اضغط لاختيار تاريخ محدد"
                 >
-                  <Calendar size={16} className="text-[#655ac1] shrink-0" />
-                  <div className="flex flex-col text-right">
-                    <span className="text-lg font-black text-[#655ac1] leading-tight">{dayName}</span>
-                    <span className="text-xs font-bold text-slate-500 mt-0.5">{formattedDate}</span>
+                  <Calendar size={18} className="text-[#655ac1]" />
+                  <div>
+                    <p className="text-base font-black text-[#655ac1]">{dayName}</p>
+                    <p className="text-sm font-medium text-slate-500">{formattedDate}</p>
                   </div>
+                </button>
+                <button
+                  onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                  className="p-2.5 rounded-xl bg-slate-50 hover:bg-[#f5f3ff] border border-slate-200 hover:border-[#655ac1]/40 text-slate-400 hover:text-[#655ac1] transition-all active:scale-95"
+                  title="اليوم السابق"
+                >
+                  <ChevronLeft size={18} />
                 </button>
                 <input
                   ref={dateInputRef}
                   type="date"
                   value={selectedDate}
                   onChange={e => setSelectedDate(e.target.value)}
-                  className="sr-only"
+                  className="absolute opacity-0 pointer-events-none w-0 h-0 bottom-0 right-0"
                 />
               </div>
             </div>
 
-            {/* Weekend Notice */}
+            {/* Weekend / Official Leave Notice */}
             {isWeekend && (
-              <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-10 text-center relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe]/30 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-                <div className="relative z-10">
-                  <div className="w-20 h-20 mx-auto bg-[#e5e1fe] rounded-3xl flex items-center justify-center text-[#655ac1] mb-4 shadow-sm">
-                    <Calendar size={40} />
-                  </div>
-                  <p className="font-black text-2xl text-slate-700 mb-2">إجازة رسمية</p>
-                  <p className="text-sm font-medium text-slate-500">تمتع بعطلة نهاية الأسبوع.</p>
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+                <div className="shrink-0 w-11 h-11 rounded-xl bg-[#f3f0ff] flex items-center justify-center">
+                  <Calendar size={22} className="text-[#655ac1]" />
+                </div>
+                <div>
+                  <p className="font-black text-base text-slate-800">إجازة رسمية</p>
+                  <p className="text-sm text-slate-400 font-medium mt-0.5">لا يوجد مناوبة في هذا اليوم — تمتع بعطلتك.</p>
                 </div>
               </div>
             )}
 
             {/* No assignment */}
             {!isWeekend && !currentDayAssignment && (
-              <div className="bg-amber-50 border border-amber-100/50 rounded-[2rem] p-10 text-center relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100/30 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-                <div className="relative z-10">
-                  <div className="w-20 h-20 mx-auto bg-amber-100 rounded-3xl flex items-center justify-center text-amber-500 mb-4 shadow-sm">
-                    <AlertTriangle size={40} />
-                  </div>
-                  <p className="font-black text-2xl text-amber-700 mb-2">لم يتم تعيين مناوبين لهذا اليوم</p>
-                  <p className="text-sm font-medium text-amber-500">يُرجى إعداد جدول المناوبة أولاً لتتمكن من رصد الحضور ومتابعة التقارير.</p>
+              <div className="bg-white border border-amber-100 rounded-2xl p-5 shadow-sm flex items-center gap-4">
+                <div className="shrink-0 w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <AlertTriangle size={22} className="text-amber-500" />
+                </div>
+                <div>
+                  <p className="font-black text-base text-slate-800">لم يتم تعيين مناوبين لهذا اليوم</p>
+                  <p className="text-sm text-slate-400 font-medium mt-0.5">يُرجى إعداد جدول المناوبة أولاً لتتمكن من رصد الحضور ومتابعة التقارير.</p>
                 </div>
               </div>
             )}

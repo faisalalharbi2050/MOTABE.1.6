@@ -718,6 +718,7 @@ export interface DutySettings {
   includeReportLinkInReminder?: boolean; // تضمين رابط نموذج التقرير في رسائل التذكير
   autoSendLinks: boolean; // إرسال تلقائي دون تدخل
   reminderSendChannel?: 'whatsapp' | 'sms'; // طريقة الإرسال
+  autoSendReminder?: boolean; // إرسال تذكير تلقائي
 }
 
 export interface DutyScheduleData {

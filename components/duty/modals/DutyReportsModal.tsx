@@ -156,6 +156,16 @@ const DutyReportsModalContent: React.FC<Props> = ({
   const stats = getDutyStats(filteredRecords);
   const allStats = getDutyStats(dutyData?.reports || []);
 
+  const staffSummary = useMemo(() => {
+    const map: Record<string, { name: string; present: number; absent: number; late: number; excused: number; withdrawn: number; submitted: number }> = {};
+    filteredRecords.forEach(r => {
+      if (!map[r.staffId]) map[r.staffId] = { name: r.staffName, present: 0, absent: 0, late: 0, excused: 0, withdrawn: 0, submitted: 0 };
+      map[r.staffId][r.status]++;
+      if (r.isSubmitted) map[r.staffId].submitted++;
+    });
+    return Object.values(map);
+  }, [filteredRecords]);
+
   // ═════ Daily Reports Hub – Computed Data ═════════════════════════════════
   interface EnrichedLate { studentName: string; gradeAndClass: string; exitTime: string; actionTaken: string; notes?: string; date: string; staffName: string; }
   interface EnrichedViolation { studentName: string; gradeAndClass: string; violationType: string; actionTaken: string; notes?: string; date: string; staffName: string; }
@@ -480,59 +490,125 @@ const DutyReportsModalContent: React.FC<Props> = ({
               {/* ── اختيار المناوب ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-                  <User size={17} className="text-[#655ac1]" /> اختيار المناوب
+                  <User size={17} className="text-[#655ac1]" /> المناوب
                 </p>
-                <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-100 w-fit mb-4">
+                <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200 w-fit mb-4">
                   <button onClick={() => { setPerfStaffMode('all'); setSelectedStaffId(''); }}
                     className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                      perfStaffMode === 'all' ? 'bg-[#655ac1] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
+                      perfStaffMode === 'all' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
                     }`}>
                     جميع المناوبين
                   </button>
                   <button onClick={() => setPerfStaffMode('specific')}
                     className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-                      perfStaffMode === 'specific' ? 'bg-[#655ac1] text-white shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'
+                      perfStaffMode === 'specific' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'
                     }`}>
                     مناوب محدد
                   </button>
                 </div>
                 {perfStaffMode === 'specific' && (
                   <div className="relative max-w-sm">
-                    <Search size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type="text" placeholder="ابحث عن مناوب..."
                       value={selectedStaffSearch}
                       onChange={e => setSelectedStaffSearch(e.target.value)}
                       onFocus={() => setIsDropdownOpen(true)}
                       onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-                      className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1]" />
+                      className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/20" />
                     {isDropdownOpen && (
                       <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-white rounded-xl shadow-xl border border-slate-100 max-h-52 overflow-y-auto z-[99]">
                         {filteredStaff.length > 0 ? filteredStaff.map(s => (
                           <button key={s.id}
                             onClick={() => { setSelectedStaffId(s.id); setSelectedStaffSearch(''); setIsDropdownOpen(false); }}
-                            className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between">
+                            className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between transition-colors">
                             {s.name}
-                            {selectedStaffId === s.id && <Check size={16} className="text-[#655ac1]" />}
+                            {selectedStaffId === s.id && <Check size={15} className="text-[#655ac1]" />}
                           </button>
-                        )) : <div className="p-4 text-center text-sm text-slate-500">لا توجد نتائج</div>}
+                        )) : <div className="p-4 text-center text-sm text-slate-400">لا توجد نتائج</div>}
                       </div>
                     )}
                     {selectedStaffId && !isDropdownOpen && (
-                      <div className="text-xs font-bold text-[#655ac1] bg-violet-50 px-3 py-1.5 rounded-lg flex items-center gap-2 w-max mt-2">
-                        <User size={13} />
-                        {allStaffWithRecords.find(s => s.id === selectedStaffId)?.name}
-                        <button onClick={() => setSelectedStaffId('')} className="hover:bg-violet-100 p-0.5 rounded-full"><X size={12}/></button>
+                      <div className="flex items-center gap-2 mt-2 w-fit px-3 py-1.5 bg-[#f3f0ff] rounded-lg border border-[#655ac1]/20">
+                        <User size={13} className="text-[#655ac1]" />
+                        <span className="text-xs font-bold text-[#655ac1]">
+                          {allStaffWithRecords.find(s => s.id === selectedStaffId)?.name}
+                        </span>
+                        <button onClick={() => setSelectedStaffId('')} className="hover:bg-[#655ac1]/20 p-0.5 rounded-full transition-colors">
+                          <X size={12} className="text-[#655ac1]" />
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
-                <div className="mt-5 pt-4 border-t border-slate-100">
-                  <button onClick={handlePrintAttendanceReport}
-                    className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm shadow-[#655ac1]/25 transition-all active:scale-95">
-                    <Printer size={16} /> طباعة التقرير
-                  </button>
-                </div>
               </div>
+
+              {/* ── معاينة النتائج ── */}
+              {(() => {
+                const staffLabel = perfStaffMode === 'specific' && selectedStaffId
+                  ? allStaffWithRecords.find(s => s.id === selectedStaffId)?.name || 'مناوب محدد'
+                  : 'جميع المناوبين';
+                const reportTitle = `تقرير أداء المناوبة – ${staffLabel}`;
+                const reportSubtitle = perfFromDate === perfToDate
+                  ? `تاريخ: ${toHijriShort(perfFromDate)}`
+                  : `من ${toHijriShort(perfFromDate)} إلى ${toHijriShort(perfToDate)}`;
+                return (
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                      <div>
+                        <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                          <FileText size={15} className="text-[#655ac1]" />
+                          {reportTitle}
+                        </p>
+                        <p className="text-xs text-slate-400 font-medium mt-0.5">{reportSubtitle}</p>
+                      </div>
+                      <button
+                        onClick={handlePrintAttendanceReport}
+                        className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-all active:scale-95 shrink-0"
+                      >
+                        <Printer size={15} /> طباعة التقرير
+                      </button>
+                    </div>
+                    {staffSummary.length === 0 ? (
+                      <div className="py-14 text-center">
+                        <BarChart3 size={32} className="mx-auto mb-3 text-slate-200" />
+                        <p className="font-bold text-slate-500">لا توجد سجلات في هذا النطاق</p>
+                        <p className="text-sm text-slate-400 mt-1">جرّب تغيير الفترة الزمنية أو المناوب المحدد</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-right">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100">
+                              <th className="px-4 py-3 font-black text-slate-500 text-xs w-10">م</th>
+                              <th className="px-4 py-3 font-black text-slate-700 text-xs">المناوب</th>
+                              <th className="px-4 py-3 font-black text-green-600  text-xs text-center">حاضر</th>
+                              <th className="px-4 py-3 font-black text-red-600    text-xs text-center">غائب</th>
+                              <th className="px-4 py-3 font-black text-amber-600  text-xs text-center">متأخر</th>
+                              <th className="px-4 py-3 font-black text-blue-600   text-xs text-center">مستأذن</th>
+                              <th className="px-4 py-3 font-black text-orange-600 text-xs text-center">منسحب</th>
+                              <th className="px-4 py-3 font-black text-violet-600 text-xs text-center">التقارير</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {staffSummary.map((d, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                                <td className="px-4 py-3 text-slate-400 font-bold text-xs">{idx + 1}</td>
+                                <td className="px-4 py-3 font-bold text-slate-800">{d.name}</td>
+                                <td className="px-4 py-3 text-center font-black text-green-600">{d.present   > 0 ? d.present   : <span className="text-slate-200">—</span>}</td>
+                                <td className="px-4 py-3 text-center font-black text-red-600">{d.absent    > 0 ? d.absent    : <span className="text-slate-200">—</span>}</td>
+                                <td className="px-4 py-3 text-center font-black text-amber-600">{d.late      > 0 ? d.late      : <span className="text-slate-200">—</span>}</td>
+                                <td className="px-4 py-3 text-center font-black text-blue-600">{d.excused   > 0 ? d.excused   : <span className="text-slate-200">—</span>}</td>
+                                <td className="px-4 py-3 text-center font-black text-orange-600">{d.withdrawn > 0 ? d.withdrawn : <span className="text-slate-200">—</span>}</td>
+                                <td className="px-4 py-3 text-center font-black text-violet-600">{d.submitted > 0 ? d.submitted : <span className="text-slate-200">—</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
             </div>
           )} {/* end mainTab === performance */}

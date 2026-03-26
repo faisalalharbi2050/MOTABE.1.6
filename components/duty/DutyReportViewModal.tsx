@@ -48,19 +48,21 @@ const PRINT_CSS = `
     font-size: 11px; padding: 8px 16px;
   }
   .page-header {
-    display: grid; grid-template-columns: 1fr 88px 1fr;
-    align-items: center; gap: 8px;
-    border-bottom: 2.5px solid #7c6ff0;
-    padding-bottom: 7px; margin-bottom: 7px;
+    display: grid; grid-template-columns: 1fr 120px 1fr;
+    align-items: start; gap: 8px;
+    background: #ffffff;
+    border-bottom: 2px solid #1e293b;
+    padding: 10px 4px 12px; margin-bottom: 8px;
+    overflow: visible;
   }
   .col-right { text-align: right; }
   .col-left  { text-align: left; }
   .col-center { text-align: center; }
   .emblem {
-    width: 52px; height: 52px; background: #ede9ff;
-    border-radius: 50%; border: 3px solid #a78bfa;
+    width: 48px; height: 48px; background: #e5e1fe;
+    border-radius: 50%; border: 2px solid rgba(101,90,193,0.2);
     margin: 0 auto 3px;
-    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
   }
   .form-title { font-size: 12px; font-weight: 900; color: #1e293b; }
   .badge-box { margin-top: 2px; }
@@ -85,6 +87,11 @@ const PRINT_CSS = `
   tbody tr:nth-child(even) { background: #f8f7ff; }
   td, th { border: 1px solid #d1d5db; padding: 3px 5px; text-align: center; }
   th { font-weight: 700; color: #4c1d95; font-size: 10px; }
+  /* blank-mode: gray style matching the weekly schedule preview */
+  .blank-mode .sec-late, .blank-mode .sec-violations { background: #e2e8f0 !important; color: #334155 !important; }
+  .blank-mode thead tr { background: #f1f5f9 !important; }
+  .blank-mode thead th { color: #334155 !important; }
+  .blank-mode tbody tr:nth-child(even) { background: #f8fafc !important; }
   td.num { width: 20px; color: #64748b; font-weight: bold; }
   td.txt { text-align: right; }
   tr.empty-row td { height: 20px; }
@@ -115,9 +122,9 @@ export const printDutyReport = (
   schoolInfo: SchoolInfo,
   blank = false
 ) => {
-  const hijriDate    = toHijri(date);
-  const gregDate     = toGregorian(date);
-  const dayName      = DAY_NAMES_AR[day] || day;
+  const hijriDate    = blank ? '......................' : toHijri(date);
+  const gregDate     = blank ? '......................' : toGregorian(date);
+  const dayName      = blank ? '......................' : (DAY_NAMES_AR[day] || day);
   const schoolName   = schoolInfo.schoolName || '—';
   const academicYear = schoolInfo.academicYear || '—';
   const currentSem   = schoolInfo.semesters?.find(s => s.isCurrent);
@@ -155,7 +162,7 @@ export const printDutyReport = (
 <title>نموذج تقرير المناوبة اليومية – ${staffName}</title>
 <style>${PRINT_CSS}</style>
 </head>
-<body>
+<body${blank ? ' class="blank-mode"' : ''}>
 <div class="page-header">
   <div class="col-right">
     <p class="lbl">المملكة العربية السعودية</p>
@@ -178,11 +185,11 @@ export const printDutyReport = (
     </div>
   </div>
 </div>
-<div class="sup-bar">
+${!blank ? `<div class="sup-bar">
   <span class="lbl">المناوب:</span>
   <span class="sup-name">${staffName}</span>
   ${raisedAt}
-</div>
+</div>` : ''}
 <div class="sec-title sec-late">⏱ الطلاب المتأخرون</div>
 <table>
   <thead><tr>
@@ -205,6 +212,20 @@ export const printDutyReport = (
   </tr></thead>
   <tbody>${violRows}</tbody>
 </table>
+${blank ? `
+<div class="sign-row">
+  <div class="sign-box" style="text-align:right;display:flex;flex-direction:column;justify-content:flex-end;padding-right:8px;">
+    <p style="font-size:10.5px;font-weight:700;color:#475569;white-space:nowrap;">
+      يُسلَّم هذا النموذج في اليوم التالي لوكيل الشؤون التعليمية
+    </p>
+  </div>
+  <div class="sign-box">
+    <p class="sign-label">مدير المدرسة وتوقيعه</p>
+    <div class="sign-line"></div>
+    ${principal ? `<p class="sign-name">${principal}</p>` : ''}
+  </div>
+</div>
+` : `
 <div class="footer-notice">⚠ يُسلَّم تقرير المناوبة لوكيل الشؤون التعليمية في اليوم التالي</div>
 <div class="sign-row">
   <div class="sign-box">
@@ -218,6 +239,7 @@ export const printDutyReport = (
     ${principal ? `<p class="sign-name">${principal}</p>` : ''}
   </div>
 </div>
+`}
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=960,height=720');
@@ -242,7 +264,7 @@ const DutyReportViewModal: React.FC<Props> = ({
   const principal    = schoolInfo.principal || '';
 
   const cell  = 'border border-slate-200 p-1.5 text-[10.5px] text-right align-top';
-  const hcell = (bg = '#655ac1') => `border border-slate-200 p-1.5 text-[10px] font-black text-center text-white`;
+  const hcell = (_bg?: string) => `border border-slate-200 p-1.5 text-[10px] font-black text-center text-white`;
 
   return (
     <div
@@ -383,7 +405,7 @@ const ReportFormPreview: React.FC<PreviewProps> = ({
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden" dir="rtl">
 
       {/* ── Compact header ── */}
-      <div className="bg-gradient-to-b from-[#f5f3ff] to-white border-b border-violet-100 px-4 py-2.5">
+      <div className="bg-white border-b border-slate-200 px-4 py-2.5">
         <div className="grid grid-cols-3 gap-2 items-center">
           {/* Right */}
           <div className="space-y-0.5">

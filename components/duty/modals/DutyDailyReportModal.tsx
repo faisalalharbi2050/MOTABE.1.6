@@ -245,15 +245,13 @@ const DutyDailyReportModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" dir="rtl" onClick={onClose}>
+      <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1] shadow-sm">
-              <FileText size={24} />
-            </div>
+            <FileText size={24} className="text-[#655ac1]" />
             <div>
               <h2 className="text-xl font-black text-slate-800">
                 {blankTemplate ? 'قالب تقرير المناوبة (فارغ)' : `تقرير يوم ${DAY_NAMES_AR[day] || day}`}
@@ -279,10 +277,11 @@ const DutyDailyReportModal: React.FC<Props> = ({
         </div>
 
         {/* Preview Body */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
-            {/* Meta info */}
+          {/* Meta info card */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <h3 className="text-base font-black text-slate-800 mb-4">بيانات اليوم</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'اليوم', val: DAY_NAMES_AR[day] || day },
@@ -290,125 +289,132 @@ const DutyDailyReportModal: React.FC<Props> = ({
                 { label: 'التاريخ الهجري', val: hijriDate || '—' },
                 { label: 'المدرسة', val: schoolInfo.schoolName || '—' },
               ].map(item => (
-                <div key={item.label} className="bg-violet-50 border border-violet-100 rounded-xl p-2.5 text-center">
-                  <p className="text-[10px] font-bold text-slate-500 mb-1">{item.label}</p>
+                <div key={item.label} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 mb-1">{item.label}</p>
                   <p className="text-xs font-black text-slate-800">{item.val}</p>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Staff table */}
-            <div>
-              <h4 className="text-sm font-black text-white bg-[#655ac1] px-3 py-1.5 rounded-t-lg">أولاً: المناوبون</h4>
-              <table className="w-full text-xs border-collapse">
+          {/* Staff table card */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <h3 className="text-base font-black text-slate-800 mb-4">أولاً: المناوبون</h3>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-[#f3f0ff] text-[#4c1d95]">
-                    <th className="border border-[#c4b5fd] p-2 w-10">م</th>
-                    <th className="border border-[#c4b5fd] p-2 text-right pr-3">الاسم</th>
-                    {showSignatures && <th className="border border-[#c4b5fd] p-2 w-32">التوقيع الرقمي</th>}
-                    <th className="border border-[#c4b5fd] p-2">ملاحظات</th>
+                  <tr className="bg-slate-50 text-slate-700 border-b border-slate-200">
+                    <th className="py-3 px-3 text-center font-black w-10">م</th>
+                    <th className="py-3 px-4 text-right font-black">الاسم</th>
+                    {showSignatures && <th className="py-3 px-3 text-center font-black w-32">التوقيع الرقمي</th>}
+                    <th className="py-3 px-3 text-center font-black">ملاحظات</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {blankTemplate
                     ? Array(3).fill(null).map((_, i) => (
-                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f9f7ff]'}>
-                        <td className="border border-[#ddd6fe] p-2 text-center text-slate-500">{i + 1}</td>
-                        <td className="border border-[#ddd6fe] p-2"></td>
-                        {showSignatures && <td className="border border-[#ddd6fe] p-2 h-12"></td>}
-                        <td className="border border-[#ddd6fe] p-2"></td>
+                      <tr key={i} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-3 text-center text-slate-400">{i + 1}</td>
+                        <td className="py-3 px-4"></td>
+                        {showSignatures && <td className="py-3 px-3 h-12"></td>}
+                        <td className="py-3 px-3"></td>
                       </tr>
                     ))
                     : staffList.map((sa, i) => {
                         const rep = dayReports.find(r => r.staffId === sa.staffId);
                         return (
-                          <tr key={sa.staffId} className={i % 2 === 0 ? 'bg-white' : 'bg-[#f9f7ff]'}>
-                            <td className="border border-[#ddd6fe] p-2 text-center text-slate-500">{i + 1}</td>
-                            <td className="border border-[#ddd6fe] p-2 font-bold text-slate-800 text-right pr-3">{sa.staffName}</td>
+                          <tr key={sa.staffId} className="hover:bg-slate-50/50">
+                            <td className="py-3 px-3 text-center text-slate-400">{i + 1}</td>
+                            <td className="py-3 px-4 font-bold text-slate-800">{sa.staffName}</td>
                             {showSignatures && (
-                              <td className="border border-[#ddd6fe] p-2 h-12 text-center">
+                              <td className="py-3 px-3 h-12 text-center">
                                 {rep?.signature
                                   ? <img src={rep.signature} className="h-10 max-w-[120px] object-contain mx-auto" alt="توقيع" />
-                                  : <span className="text-slate-300 text-[10px]">—</span>}
+                                  : <span className="text-slate-300">—</span>}
                               </td>
                             )}
-                            <td className="border border-[#ddd6fe] p-2"></td>
+                            <td className="py-3 px-3"></td>
                           </tr>
                         );
                       })}
                 </tbody>
               </table>
             </div>
+          </div>
 
-            {/* Late students */}
-            <div>
-              <h4 className="text-sm font-black text-white bg-blue-500 px-3 py-1.5 rounded-t-lg">ثانياً: المتأخرون</h4>
-              <table className="w-full text-xs border-collapse">
+          {/* Late students card */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <h3 className="text-base font-black text-slate-800 mb-4">ثانياً: المتأخرون</h3>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-blue-50 text-blue-800">
-                    <th className="border border-blue-100 p-2 w-8">م</th>
-                    <th className="border border-blue-100 p-2 text-right pr-3">اسم الطالب</th>
-                    <th className="border border-blue-100 p-2">الصف/الفصل</th>
-                    <th className="border border-blue-100 p-2">زمن الانصراف</th>
-                    <th className="border border-blue-100 p-2">الإجراء</th>
-                    <th className="border border-blue-100 p-2">ملاحظات</th>
+                  <tr className="bg-slate-50 text-slate-700 border-b border-slate-200">
+                    <th className="py-3 px-3 text-center font-black w-8">م</th>
+                    <th className="py-3 px-4 text-right font-black">اسم الطالب</th>
+                    <th className="py-3 px-3 text-center font-black">الصف/الفصل</th>
+                    <th className="py-3 px-3 text-center font-black">زمن الانصراف</th>
+                    <th className="py-3 px-3 text-center font-black">الإجراء</th>
+                    <th className="py-3 px-3 text-center font-black">ملاحظات</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {lateRows.map((s, i) => (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}>
-                      <td className="border border-blue-100 p-2 text-center text-slate-500">{i + 1}</td>
-                      <td className="border border-blue-100 p-2 font-bold text-slate-800 text-right pr-3">{(s as DutyStudentLate)?.studentName || ''}</td>
-                      <td className="border border-blue-100 p-2 text-center">{(s as DutyStudentLate)?.gradeAndClass || ''}</td>
-                      <td className="border border-blue-100 p-2 text-center">{(s as DutyStudentLate)?.exitTime || ''}</td>
-                      <td className="border border-blue-100 p-2 text-center">{(s as DutyStudentLate)?.actionTaken || ''}</td>
-                      <td className="border border-blue-100 p-2">{(s as DutyStudentLate)?.notes || ''}</td>
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-3 text-center text-slate-400">{i + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-800">{(s as DutyStudentLate)?.studentName || ''}</td>
+                      <td className="py-3 px-3 text-center">{(s as DutyStudentLate)?.gradeAndClass || ''}</td>
+                      <td className="py-3 px-3 text-center">{(s as DutyStudentLate)?.exitTime || ''}</td>
+                      <td className="py-3 px-3 text-center">{(s as DutyStudentLate)?.actionTaken || ''}</td>
+                      <td className="py-3 px-3">{(s as DutyStudentLate)?.notes || ''}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
 
-            {/* Violations */}
-            <div>
-              <h4 className="text-sm font-black text-white bg-rose-500 px-3 py-1.5 rounded-t-lg">ثالثاً: المخالفون</h4>
-              <table className="w-full text-xs border-collapse">
+          {/* Violations card */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <h3 className="text-base font-black text-slate-800 mb-4">ثالثاً: المخالفون</h3>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-rose-50 text-rose-800">
-                    <th className="border border-rose-100 p-2 w-8">م</th>
-                    <th className="border border-rose-100 p-2 text-right pr-3">اسم الطالب</th>
-                    <th className="border border-rose-100 p-2">الصف/الفصل</th>
-                    <th className="border border-rose-100 p-2">المخالفة</th>
-                    <th className="border border-rose-100 p-2">الإجراء</th>
-                    <th className="border border-rose-100 p-2">ملاحظات</th>
+                  <tr className="bg-slate-50 text-slate-700 border-b border-slate-200">
+                    <th className="py-3 px-3 text-center font-black w-8">م</th>
+                    <th className="py-3 px-4 text-right font-black">اسم الطالب</th>
+                    <th className="py-3 px-3 text-center font-black">الصف/الفصل</th>
+                    <th className="py-3 px-3 text-center font-black">المخالفة</th>
+                    <th className="py-3 px-3 text-center font-black">الإجراء</th>
+                    <th className="py-3 px-3 text-center font-black">ملاحظات</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {violationRows.map((s, i) => (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-rose-50/30'}>
-                      <td className="border border-rose-100 p-2 text-center text-slate-500">{i + 1}</td>
-                      <td className="border border-rose-100 p-2 font-bold text-slate-800 text-right pr-3">{(s as DutyStudentViolation)?.studentName || ''}</td>
-                      <td className="border border-rose-100 p-2 text-center">{(s as DutyStudentViolation)?.gradeAndClass || ''}</td>
-                      <td className="border border-rose-100 p-2 text-center">{(s as DutyStudentViolation)?.violationType || ''}</td>
-                      <td className="border border-rose-100 p-2 text-center">{(s as DutyStudentViolation)?.actionTaken || ''}</td>
-                      <td className="border border-rose-100 p-2">{(s as DutyStudentViolation)?.notes || ''}</td>
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="py-3 px-3 text-center text-slate-400">{i + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-800">{(s as DutyStudentViolation)?.studentName || ''}</td>
+                      <td className="py-3 px-3 text-center">{(s as DutyStudentViolation)?.gradeAndClass || ''}</td>
+                      <td className="py-3 px-3 text-center">{(s as DutyStudentViolation)?.violationType || ''}</td>
+                      <td className="py-3 px-3 text-center">{(s as DutyStudentViolation)?.actionTaken || ''}</td>
+                      <td className="py-3 px-3">{(s as DutyStudentViolation)?.notes || ''}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
 
-            {/* Footer */}
-            <div className="border-t border-slate-100 pt-4 flex justify-between items-end">
-              <div className="text-xs font-bold text-slate-500 max-w-xs">
-                سُلِّم هذا النموذج لوكيل الشؤون التعليمية
-              </div>
+          {/* Footer card */}
+          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+            <div className="flex justify-between items-end">
+              <p className="text-xs font-bold text-slate-400">سُلِّم هذا النموذج لوكيل الشؤون التعليمية</p>
               <div className="text-center">
                 <p className="text-sm font-black text-slate-800">مدير المدرسة / {schoolInfo.principal || '...'.repeat(8)}</p>
                 <p className="text-xs text-slate-400 mt-3 border-t border-dotted border-slate-300 pt-1">التوقيع</p>
               </div>
             </div>
           </div>
+
         </div>
 
         {/* Bottom Actions */}

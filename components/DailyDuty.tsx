@@ -59,6 +59,7 @@ interface DailyDutyProps {
   teachers: Teacher[];
   admins: Admin[];
   scheduleSettings: ScheduleSettingsData;
+  onNavigateToDashboard?: () => void;
 }
 
 const DailyDuty: React.FC<DailyDutyProps> = ({

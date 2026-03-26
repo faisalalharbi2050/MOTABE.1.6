@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Edit, Calendar, FileText, PenLine } from 'lucide-react';
+import { X, Printer, Edit, Calendar, FileText, PenLine, CheckCircle, Shield } from 'lucide-react';
 import { SchoolInfo, DutyScheduleData } from '../../../types';
 import { getDutyPrintData } from '../../../utils/dutyUtils';
 import { printDutyReport } from '../DutyReportViewModal';
@@ -51,37 +51,43 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Tajawal', 'Arial', sans-serif; padding: 40px; direction: rtl; background: #fff; }
-    .print-container { max-width: 100%; margin: 0 auto; }
-    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
+    body { font-family: 'Tajawal', 'Arial', sans-serif; direction: rtl; background: #fff;
+           padding: 150px 40px 80px 40px; }
+    .page-header { position: fixed; top: 0; left: 0; right: 0; background: #fff; z-index: 100;
+                   padding: 16px 40px 10px; border-bottom: 2px solid #1e293b; }
+    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; }
     .header-right { width: 33%; text-align: right; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
     .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
     .logo-text { font-size: 9px; color: #94a3b8; }
     .header-title { font-size: 16px; font-weight: 900; color: #1e293b; margin-bottom: 4px; }
     .header-left { width: 33%; text-align: left; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
+    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; z-index: 100;
+                   padding: 8px 40px 14px; border-top: 1px dashed #94a3b8;
+                   display: flex; justify-content: space-between; align-items: flex-start; }
+    .footer-note { font-size: 12px; font-weight: bold; color: #475569; }
+    .principal-sig { font-weight: bold; font-size: 13px; color: #334155; text-align: center; }
+    .sig-line { margin-top: 18px; border-top: 1px dotted #94a3b8; padding-top: 4px; font-size: 12px; color: #94a3b8; }
+    .print-container { max-width: 100%; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11px; }
     th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 8px 6px; font-weight: bold; text-align: center; }
     td { border: 1px solid #94a3b8; padding: 7px 8px; text-align: center; vertical-align: middle; }
     tr:nth-child(even) { background-color: #f8fafc; }
-    .day-header { background-color: #f1f5f9 !important; font-weight: 900; color: #655ac1; border: 1px solid #94a3b8; }
+    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
     .empty-state { color: #94a3b8; font-style: italic; }
     .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
     .week-block { margin-bottom: 20px; }
-    .footer { margin-top: 30px; text-align: center; font-size: 13px; font-weight: bold; color: #475569; padding-top: 16px; border-top: 2px dashed #94a3b8; }
-    .principal-sig { margin-top: 40px; padding-right: 40px; font-weight: bold; font-size: 13px; color: #334155; text-align: right; }
-    .principal-sig .sig-line { margin-top: 28px; border-top: 1px dotted #94a3b8; padding-top: 4px; font-size: 12px; color: #94a3b8; }
     @media print {
-      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .header-wrapper { border-bottom: 2px solid #1e293b !important; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-header { border-bottom: 2px solid #1e293b !important; }
       th { background-color: #f1f5f9 !important; color: #1e293b !important; }
-      .day-header { background-color: #f1f5f9 !important; color: #655ac1 !important; }
+      .day-header { background-color: #e2e8f0 !important; color: #334155 !important; }
       tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
 </head>
 <body>
-  <div class="print-container">
+  <div class="page-header">
     <div class="header-wrapper">
       <div class="header-right">
         <p>المملكة العربية السعودية</p>
@@ -102,7 +108,17 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
         <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
       </div>
     </div>
+  </div>
 
+  <div class="page-footer">
+    <p class="footer-note">${footerText || printData.footerText}</p>
+    <div class="principal-sig">
+      <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
+      <div class="sig-line">التوقيع</div>
+    </div>
+  </div>
+
+  <div class="print-container">
   ${printData.weeks.map(week => `
   <div class="week-block">
     <div class="week-title">${week.weekName}${week.startDate ? ` &nbsp; ${week.startDate} — ${week.endDate}` : ''}</div>
@@ -143,13 +159,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
     </table>
   </div>
   `).join('')}
-
-  <div class="footer">${footerText || printData.footerText}</div>
-  <div class="principal-sig">
-    <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
-    <div class="sig-line">التوقيع</div>
   </div>
-</div>
 </body>
 </html>`);
 
@@ -172,39 +182,45 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Tajawal', sans-serif; padding: 40px; direction: rtl; background: #fff; font-size: 11px; }
-    .print-container { max-width: 100%; margin: 0 auto; }
-    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 16px; margin-bottom: 24px; }
+    body { font-family: 'Tajawal', sans-serif; direction: rtl; background: #fff; font-size: 11px;
+           padding: 150px 40px 80px 40px; }
+    .page-header { position: fixed; top: 0; left: 0; right: 0; background: #fff; z-index: 100;
+                   padding: 16px 40px 10px; border-bottom: 2px solid #1e293b; }
+    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; }
     .header-right { width: 33%; text-align: right; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
     .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
     .logo-text { font-size: 9px; color: #94a3b8; }
     .header-title { font-size: 16px; font-weight: 900; color: #1e293b; margin-bottom: 4px; }
     .header-left { width: 33%; text-align: left; font-weight: bold; font-size: 12px; color: #1e293b; line-height: 1.8; }
+    .page-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; z-index: 100;
+                   padding: 8px 40px 14px; border-top: 1px dashed #94a3b8;
+                   display: flex; justify-content: space-between; align-items: flex-start; }
+    .footer-note { font-size: 12px; font-weight: bold; color: #475569; }
+    .principal-sig { font-weight: bold; font-size: 13px; color: #334155; text-align: center; }
+    .sig-line { margin-top: 18px; border-top: 1px dotted #94a3b8; padding-top: 4px; font-size: 12px; color: #94a3b8; }
+    .print-container { max-width: 100%; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
     th { background-color: #f1f5f9; color: #1e293b; border: 1px solid #94a3b8; padding: 8px 6px; font-weight: bold; text-align: center; }
     td { border: 1px solid #94a3b8; padding: 7px 8px; text-align: center; vertical-align: middle; }
     tr:nth-child(even) { background-color: #f8fafc; }
-    .day-header { background-color: #f1f5f9 !important; font-weight: 900; color: #655ac1; border: 1px solid #94a3b8; }
+    .day-header { background-color: #e2e8f0 !important; font-weight: 900; color: #334155; border: 1px solid #94a3b8; }
     .empty-state { color: #94a3b8; font-style: italic; }
     .week-title { font-size: 11px; font-weight: 900; color: #334155; background: #f1f5f9; padding: 5px 10px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
     .week-block { margin-bottom: 20px; }
-    .footer { margin-top: 30px; text-align: center; font-size: 13px; font-weight: bold; color: #475569; padding-top: 16px; border-top: 2px dashed #94a3b8; }
-    .principal-sig { margin-top: 40px; padding-right: 40px; font-weight: bold; font-size: 13px; color: #334155; text-align: right; }
-    .principal-sig .sig-line { margin-top: 28px; border-top: 1px dotted #94a3b8; padding-top: 4px; font-size: 12px; color: #94a3b8; }
     .sig-img { max-height: 44px; max-width: 130px; display: block; margin: 0 auto; }
     .sig-empty { display: inline-block; width: 100px; border-top: 1px dotted #94a3b8; margin-top: 20px; }
     @media print {
-      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .header-wrapper { border-bottom: 2px solid #1e293b !important; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-header { border-bottom: 2px solid #1e293b !important; }
       th { background-color: #f1f5f9 !important; color: #1e293b !important; }
-      .day-header { background-color: #f1f5f9 !important; color: #655ac1 !important; }
+      .day-header { background-color: #e2e8f0 !important; color: #334155 !important; }
       tr:nth-child(even) { background-color: #f8fafc !important; }
     }
   </style>
 </head>
 <body>
-  <div class="print-container">
+  <div class="page-header">
     <div class="header-wrapper">
       <div class="header-right">
         <p>المملكة العربية السعودية</p>
@@ -225,7 +241,17 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
         <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
       </div>
     </div>
+  </div>
 
+  <div class="page-footer">
+    <p class="footer-note">${footerText || printData.footerText}</p>
+    <div class="principal-sig">
+      <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
+      <div class="sig-line">التوقيع</div>
+    </div>
+  </div>
+
+  <div class="print-container">
   ${printData.weeks.map(week => `
   <div class="week-block">
     <div class="week-title">${week.weekName}${week.startDate ? ` &nbsp; ${week.startDate} — ${week.endDate}` : ''}</div>
@@ -271,13 +297,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
     </table>
   </div>
   `).join('')}
-
-  <div class="footer">${footerText || printData.footerText}</div>
-  <div class="principal-sig">
-    <div>مدير المدرسة / ${schoolInfo.principal || '..........................'}</div>
-    <div class="sig-line">التوقيع</div>
   </div>
-</div>
 </body>
 </html>`);
 
@@ -342,29 +362,42 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
             </div>
           </div>
         )}
+        {activeTab === 'report' && (
+          <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4">
+            <p className="text-sm font-black text-slate-600">معاينة نموذج التقرير اليومي الفارغ</p>
+            <button
+              onClick={handlePrintBlankReport}
+              className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold transition-all shadow-md shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 active:scale-95"
+            >
+              <Printer size={18} />
+              <span>طباعة النموذج</span>
+            </button>
+          </div>
+        )}
 
         {/* ── Tabs ── */}
-        <div className="bg-white border-b border-slate-200 px-6 flex gap-1 shrink-0">
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${
-              activeTab === 'schedule'
-                ? 'border-[#655ac1] text-[#655ac1]'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Calendar size={16} /> جدول المناوبة الأسبوعي
-          </button>
-          <button
-            onClick={() => setActiveTab('report')}
-            className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${
-              activeTab === 'report'
-                ? 'border-[#655ac1] text-[#655ac1]'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <FileText size={16} /> نموذج التقرير اليومي
-          </button>
+        <div className="bg-white border-b border-slate-100 px-6 py-3 flex gap-3 shrink-0">
+          {([
+            { id: 'schedule', label: 'جدول المناوبة الأسبوعي', Icon: Calendar },
+            { id: 'report',   label: 'نموذج التقرير اليومي',   Icon: FileText },
+          ] as const).map(({ id, label, Icon }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all bg-white text-[#655ac1] ${
+                  active
+                    ? 'border-[#655ac1] shadow-sm shadow-[#655ac1]/10'
+                    : 'border-[#655ac1]/30 hover:border-[#655ac1]/60'
+                }`}
+              >
+                <Icon size={15} className="text-[#655ac1]" />
+                {label}
+                {active && <CheckCircle size={14} className="text-[#655ac1] mr-1" />}
+              </button>
+            );
+          })}
         </div>
 
         {/* ── Tab Content ── */}
@@ -377,9 +410,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
               <div className="border border-[#655ac1]/20 bg-[#655ac1]/5 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-[#e5e1fe] rounded-lg flex items-center justify-center">
-                      <Edit size={13} className="text-[#655ac1]" />
-                    </div>
+                    <Edit size={15} className="text-[#655ac1]" />
                     <label className="text-sm font-black text-[#655ac1]">التذييل / الملاحظات</label>
                   </div>
                   <button
@@ -410,199 +441,205 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
 
               {/* Preview */}
               <div className="bg-white border border-slate-200 rounded-xl p-5 overflow-x-auto">
-                <div className="text-center mb-4 pb-4 border-b-2 border-double border-slate-300">
-                  <h4 className="text-base font-black text-slate-800 mb-1">{printData.schoolName}</h4>
-                  <h5 className="text-sm font-bold text-slate-500">{printData.title}</h5>
-                </div>
-
-                <div className="space-y-6">
-                  {printData.weeks.map(week => (
-                    <div key={week.weekName} className="mb-4">
-                      <h5 className="font-bold text-[#334155] bg-[#f1f5f9] py-1.5 px-3 rounded-lg mb-2 text-xs inline-block">
-                        {week.weekName} {week.startDate && <span className="text-slate-500 mr-1">({week.startDate} - {week.endDate})</span>}
-                      </h5>
-                      <table className="w-full text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-[#f1f5f9] text-[#1e293b]">
-                            <th className="border border-[#94a3b8] p-1.5 w-20">اليوم</th>
-                            <th className="border border-[#94a3b8] p-1.5 w-24">التاريخ</th>
-                            <th className="border border-[#94a3b8] p-1.5">المناوب</th>
-                            <th className="border border-[#94a3b8] p-1.5 w-28">التوقيع</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {week.days.map((day, rowIdx) => (
-                            <tr key={day.date || day.dayName} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}>
-                              <td className="border border-[#94a3b8] p-1.5 font-bold bg-[#e2e8f0] text-[#334155] text-center">{day.dayName}</td>
-                              <td className="border border-[#94a3b8] p-1.5 text-center text-slate-500 text-[10px]">{day.date || '—'}</td>
-                              <td className="border border-[#94a3b8] p-1.5 align-top">
-                                {day.supervisors.length === 0
-                                  ? <span className="text-slate-400 italic">لم يتم التعيين</span>
-                                  : <div className="flex flex-col gap-1">
-                                      {day.supervisors.map((sup, idx) => (
-                                        <div key={idx} className="flex items-center gap-1.5">
-                                          <span className="w-4 h-4 rounded-full bg-[#e2e8f0] text-[#334155] text-[9px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                                          <span className="font-bold text-slate-800">{sup.name}</span>
-                                        </div>
-                                      ))}
-                                    </div>}
-                              </td>
-                              <td className="border border-[#94a3b8] p-1.5"></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                {printData.weeks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-1">
+                      <Calendar size={28} className="text-slate-300" />
                     </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 border-t border-slate-100 pt-4 text-center">
-                  <p className="font-bold text-xs text-slate-500">{footerText || printData.footerText}</p>
-                  <div className="mt-4 flex justify-end">
-                    <div className="text-center">
-                      <p className="font-bold text-sm text-slate-800">مدير المدرسة: {schoolInfo.principal || '—'}</p>
-                      <p className="font-bold text-xs text-slate-400 mt-2">التوقيع: ..........................</p>
-                    </div>
+                    <p className="text-base font-black text-slate-500">لا يوجد جدول مناوبة لطباعته</p>
+                    <p className="text-sm font-medium text-slate-400">يُرجى إنشاء جدول المناوبة أولاً</p>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="text-center mb-4 pb-4 border-b-2 border-double border-slate-300">
+                      <h4 className="text-base font-black text-slate-800 mb-1">{printData.schoolName}</h4>
+                      <h5 className="text-sm font-bold text-slate-500">{printData.title}</h5>
+                    </div>
+                    <div className="space-y-6">
+                      {printData.weeks.map(week => (
+                        <div key={week.weekName} className="mb-4">
+                          <h5 className="font-bold text-[#334155] bg-[#f1f5f9] py-1.5 px-3 rounded-lg mb-2 text-xs inline-block">
+                            {week.weekName} {week.startDate && <span className="text-slate-500 mr-1">({week.startDate} - {week.endDate})</span>}
+                          </h5>
+                          <table className="w-full text-xs border-collapse">
+                            <thead>
+                              <tr className="bg-[#f1f5f9] text-[#1e293b]">
+                                <th className="border border-[#94a3b8] p-1.5 w-20">اليوم</th>
+                                <th className="border border-[#94a3b8] p-1.5 w-24">التاريخ</th>
+                                <th className="border border-[#94a3b8] p-1.5">المناوب</th>
+                                <th className="border border-[#94a3b8] p-1.5 w-28">التوقيع</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {week.days.map((day, rowIdx) => (
+                                <tr key={day.date || day.dayName} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}>
+                                  <td className="border border-[#94a3b8] p-1.5 font-bold bg-[#e2e8f0] text-[#334155] text-center">{day.dayName}</td>
+                                  <td className="border border-[#94a3b8] p-1.5 text-center text-slate-500 text-[10px]">{day.date || '—'}</td>
+                                  <td className="border border-[#94a3b8] p-1.5 align-top">
+                                    {day.supervisors.length === 0
+                                      ? <span className="text-slate-400 italic">لم يتم التعيين</span>
+                                      : <div className="flex flex-col gap-1">
+                                          {day.supervisors.map((sup, idx) => (
+                                            <div key={idx} className="flex items-center gap-1.5">
+                                              <span className="w-4 h-4 rounded-full bg-[#e2e8f0] text-[#334155] text-[9px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                                              <span className="font-bold text-slate-800">{sup.name}</span>
+                                            </div>
+                                          ))}
+                                        </div>}
+                                  </td>
+                                  <td className="border border-[#94a3b8] p-1.5"></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-5 border-t border-slate-100 pt-4 text-center">
+                      <p className="font-bold text-xs text-slate-500">{footerText || printData.footerText}</p>
+                      <div className="mt-4 flex justify-end">
+                        <div className="text-center">
+                          <p className="font-bold text-sm text-slate-800">مدير المدرسة: {schoolInfo.principal || '—'}</p>
+                          <p className="font-bold text-xs text-slate-400 mt-2">التوقيع: ..........................</p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-
-
             </div>
           )}
 
           {/* ═══════════════ TAB 2: Daily Report Template ═══════════════ */}
           {activeTab === 'report' && (
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 space-y-5">
-              {/* Preview of blank report */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 overflow-x-auto">
-                {/* Header */}
-                <div className="flex justify-between items-start border-b-2 border-[#1e293b] pb-3 mb-4">
-                  <div className="text-[10px] font-bold text-slate-500 leading-relaxed">
-                    <div>المملكة العربية السعودية | وزارة التعليم</div>
-                    <div>{schoolInfo.region || ''}</div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-black text-[#1e293b]">نموذج تقرير المناوبة اليومية</p>
-                    <p className="text-xs font-bold text-slate-500 mt-1">{schoolInfo.schoolName}</p>
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 text-left">
-                    <div>العام الدراسي: {schoolInfo.academicYear || '........'}</div>
-                  </div>
-                </div>
+            <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100">
 
-                {/* Meta boxes */}
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  {['اليوم', 'التاريخ الميلادي', 'التاريخ الهجري', 'المدرسة'].map(l => (
-                    <div key={l} className="border border-[#94a3b8] rounded-lg p-2 text-center">
-                      <p className="text-[9px] font-bold text-slate-400 mb-1">{l}</p>
-                      <p className="text-xs font-black text-slate-700">
-                        {l === 'المدرسة' ? schoolInfo.schoolName : '............'}
-                      </p>
+              {/* Official header */}
+              <div className="bg-white border-b border-slate-200 px-4 py-3">
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] font-bold text-slate-500">المملكة العربية السعودية</p>
+                    <p className="text-[9px] font-bold text-slate-500">وزارة التعليم</p>
+                    {schoolInfo.region && <p className="text-[9.5px] font-black text-[#655ac1]">{schoolInfo.region}</p>}
+                    <p className="text-[10.5px] font-black text-slate-800">{schoolInfo.schoolName}</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <div className="w-11 h-11 rounded-full bg-[#e5e1fe] border-[3px] border-[#655ac1]/20 flex items-center justify-center shadow-sm">
+                      <Shield size={20} className="text-[#655ac1]" />
                     </div>
-                  ))}
-                </div>
-
-                {/* Staff table – 2 rows */}
-                <div className="mb-3">
-                  <div className="bg-[#f1f5f9] text-[#1e293b] text-xs font-black px-3 py-1.5 rounded-t-lg border border-b-0 border-[#94a3b8]">أولاً: المناوبون</div>
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700">
-                        <th className="border border-slate-200 p-1.5 w-8">م</th>
-                        <th className="border border-slate-200 p-1.5 text-right pr-3">الاسم</th>
-                        <th className="border border-slate-200 p-1.5 w-28">التوقيع</th>
-                        <th className="border border-slate-200 p-1.5">ملاحظات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[1, 2].map((n, i) => (
-                        <tr key={n} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="border border-slate-200 p-1.5 text-center text-slate-400">{n}</td>
-                          <td className="border border-slate-200 p-1.5 h-10"></td>
-                          <td className="border border-slate-200 p-1.5 h-10"></td>
-                          <td className="border border-slate-200 p-1.5"></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Late students table */}
-                <div className="mb-3">
-                  <div className="bg-[#f1f5f9] text-[#1e293b] text-xs font-black px-3 py-1.5 rounded-t-lg border border-b-0 border-[#94a3b8]">ثانياً: المتأخرون</div>
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700">
-                        <th className="border border-slate-200 p-1.5 w-8">م</th>
-                        <th className="border border-slate-200 p-1.5 text-right pr-3">اسم الطالب</th>
-                        <th className="border border-slate-200 p-1.5">الصف/الفصل</th>
-                        <th className="border border-slate-200 p-1.5">زمن الانصراف</th>
-                        <th className="border border-slate-200 p-1.5">الإجراء</th>
-                        <th className="border border-slate-200 p-1.5">ملاحظات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array(LATE_ROWS).fill(null).map((_, i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="border border-slate-200 p-1.5 text-center text-slate-400">{i + 1}</td>
-                          {[1,2,3,4,5].map(c => <td key={c} className="border border-slate-200 p-1.5 h-7"></td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Violations table */}
-                <div className="mb-4">
-                  <div className="bg-[#f1f5f9] text-[#1e293b] text-xs font-black px-3 py-1.5 rounded-t-lg border border-b-0 border-[#94a3b8]">ثالثاً: المخالفون</div>
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700">
-                        <th className="border border-slate-200 p-1.5 w-8">م</th>
-                        <th className="border border-slate-200 p-1.5 text-right pr-3">اسم الطالب</th>
-                        <th className="border border-slate-200 p-1.5">الصف/الفصل</th>
-                        <th className="border border-slate-200 p-1.5">المخالفة</th>
-                        <th className="border border-slate-200 p-1.5">الإجراء</th>
-                        <th className="border border-slate-200 p-1.5">ملاحظات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array(VIOLATION_ROWS).fill(null).map((_, i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                          <td className="border border-slate-200 p-1.5 text-center text-slate-400">{i + 1}</td>
-                          {[1,2,3,4,5].map(c => <td key={c} className="border border-slate-200 p-1.5 h-7"></td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Footer */}
-                <div className="border-t border-slate-100 pt-4 flex justify-between items-end">
-                  <p className="text-[10px] font-bold text-slate-500">سُلِّم هذا النموذج لوكيل الشؤون التعليمية</p>
-                  <div className="text-center">
-                    <p className="text-xs font-black text-slate-800">مدير المدرسة / {schoolInfo.principal || '—'}</p>
-                    <p className="text-[10px] text-slate-400 mt-3 border-t border-dotted border-slate-300 pt-1">التوقيع</p>
+                    <p className="text-[9.5px] font-black text-slate-800 leading-tight">نموذج تقرير المناوبة اليومية</p>
+                  </div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-1.5 gap-y-px items-baseline">
+                    <span className="text-[8.5px] font-bold text-slate-500 text-right">العام الدراسي:</span>
+                    <span className="text-[9.5px] font-black text-slate-800">{schoolInfo.academicYear || '—'}</span>
+                    <span className="text-[8.5px] font-bold text-slate-500 text-right">الفصل الدراسي:</span>
+                    <span className="text-[9.5px] font-black text-slate-800">{schoolInfo.semesters?.find(s => s.isCurrent)?.name || '—'}</span>
+                    <span className="text-[8.5px] font-bold text-slate-500 text-right">اليوم:</span>
+                    <span className="text-[9.5px] font-medium text-slate-400">__________</span>
+                    <span className="text-[8.5px] font-bold text-slate-500 text-right">هجري:</span>
+                    <span className="text-[9.5px] font-medium text-slate-400">__________</span>
+                    <span className="text-[8.5px] font-bold text-slate-500 text-right">ميلادي:</span>
+                    <span className="text-[9.5px] font-medium text-slate-400">__________</span>
                   </div>
                 </div>
               </div>
 
-              {/* Print button */}
-              <div className="flex justify-end gap-3">
-                <button onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors">
-                  إلغاء
-                </button>
-                <button
-                  onClick={handlePrintBlankReport}
-                  className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/25 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Printer size={18} /> طباعة النموذج
-                </button>
+              {/* Staff table */}
+              <div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-[#e2e8f0] text-[#334155]">
+                  <span className="font-black text-xs">أولاً: المناوبون</span>
+                </div>
+                <table className="w-full text-[10.5px] border-collapse">
+                  <thead>
+                    <tr className="bg-[#f1f5f9]">
+                      {['م','الاسم','التوقيع','ملاحظات'].map(h => (
+                        <th key={h} className="border border-slate-200 p-1.5 text-[10px] font-black text-center text-[#334155]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[1,2].map((n,i) => (
+                      <tr key={n} className={i%2===0?'bg-white':'bg-[#f8fafc]'}>
+                        <td className="border border-slate-200 p-1 text-center text-[10px] font-bold text-slate-300 w-6">{n}</td>
+                        <td className="border border-slate-200 h-8" colSpan={3}/>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Late students table */}
+              <div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-[#e2e8f0] text-[#334155]">
+                  <span className="font-black text-xs">ثانياً: الطلاب المتأخرون</span>
+                </div>
+                <table className="w-full text-[10.5px] border-collapse">
+                  <thead>
+                    <tr className="bg-[#f1f5f9]">
+                      {['م','اسم الطالب','الصف/الفصل','زمن الانصراف','الإجراء','ملاحظات'].map(h => (
+                        <th key={h} className="border border-slate-200 p-1.5 text-[10px] font-black text-center text-[#334155]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array(LATE_ROWS).fill(null).map((_,i) => (
+                      <tr key={i} className={i%2===0?'bg-white':'bg-[#f8fafc]'}>
+                        <td className="border border-slate-200 p-1 text-center text-[10px] font-bold text-slate-300 w-6">{i+1}</td>
+                        <td className="border border-slate-200 h-6" colSpan={5}/>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Violations table */}
+              <div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-[#e2e8f0] text-[#334155]">
+                  <span className="font-black text-xs">ثالثاً: الطلاب المخالفون سلوكياً</span>
+                </div>
+                <table className="w-full text-[10.5px] border-collapse">
+                  <thead>
+                    <tr className="bg-[#f1f5f9]">
+                      {['م','اسم الطالب','الصف/الفصل','نوع المخالفة','الإجراء','ملاحظات'].map(h => (
+                        <th key={h} className="border border-slate-200 p-1.5 text-[10px] font-black text-center text-[#334155]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array(VIOLATION_ROWS).fill(null).map((_,i) => (
+                      <tr key={i} className={i%2===0?'bg-white':'bg-[#f8fafc]'}>
+                        <td className="border border-slate-200 p-1 text-center text-[10px] font-bold text-slate-300 w-6">{i+1}</td>
+                        <td className="border border-slate-200 h-6" colSpan={5}/>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer: notice (right) + principal (left) */}
+              <div className="flex items-end justify-between px-4 pb-5 pt-3 border-t border-slate-100 mt-1">
+                <p className="text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                  يُسلَّم هذا النموذج في اليوم التالي لوكيل الشؤون التعليمية
+                </p>
+                <div className="text-center">
+                  <p className="text-[9.5px] font-bold text-slate-500 mb-1.5">مدير المدرسة وتوقيعه</p>
+                  <div className="border-b-2 border-slate-400 mx-auto w-36 h-10" />
+                  {schoolInfo.principal && <p className="text-[9.5px] font-bold text-slate-700 mt-1">{schoolInfo.principal}</p>}
+                </div>
               </div>
             </div>
           )}
 
+        </div>
+
+        {/* ── Cancel footer ── */}
+        <div className="bg-white border-t border-slate-100 px-6 py-3 shrink-0 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-8 py-2.5 rounded-xl text-sm font-bold text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+          >
+            إلغاء
+          </button>
         </div>
       </div>
     </div>
