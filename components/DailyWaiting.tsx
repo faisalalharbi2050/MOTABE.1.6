@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom';
 import {
   UserX, UserPlus, Clock, X, Search,
-  AlertCircle, CheckCircle2, Info, Zap, ArrowLeftRight, Users,
+  AlertCircle, CheckCircle2, Info, Zap, ArrowLeftRight, Users, ClipboardList,
   Calendar, BookOpen, Layers, RefreshCw, Plus, Trash2,
-  BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle,
+  BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle, Scale, PieChart,
   ArrowRight, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
-  PenLine, Eye, Hourglass, Link2, ExternalLink
+  PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog
 } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo,
@@ -253,6 +253,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [showRankModal, setShowRankModal] = useState<'top' | 'bottom' | null>(null);
   const [assignModalTab, setAssignModalTab] = useState<'teachers' | 'admins'>('teachers');
   const [showShortageAlert, setShowShortageAlert] = useState(false);
+  const [showAutoConfirm, setShowAutoConfirm] = useState(false);
 
   // ── Phase 4: Messaging ──
   const [showSendModal, setShowSendModal] = useState(false);
@@ -297,6 +298,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [rptSelectedIds, setRptSelectedIds] = useState<Set<string>>(new Set());
   const [rptSearch, setRptSearch] = useState('');
   const [rptDropdownOpen, setRptDropdownOpen] = useState(false);
+
+  // ── Teacher Remove Confirm ──
+  const [showTeacherRemoveConfirm, setShowTeacherRemoveConfirm] = useState(false);
+
+  // ── Absent Teacher Delete Confirm ──
+  const [removeAbsentConfirm, setRemoveAbsentConfirm] = useState<{ id: string; name: string } | null>(null);
+
+  // ── Submit Absence Confirm ──
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // ── Balance Modal ──
   const [showBalanceModal, setShowBalanceModal] = useState(false);
@@ -918,8 +928,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     setShowAbsenceModal(false);
   };
 
-  const handleRemoveAbsent = (absentId: string, name: string) => {
-    if (!confirm(`هل تريد حذف "${name}" من قائمة الغائبين؟`)) return;
+  const handleRemoveAbsent = (absentId: string, teacherName: string) => {
     // Subtract quota counts for all assignments belonging to this absent teacher
     const removedAssignments = (currentSession?.assignments || []).filter(
       a => a.absentTeacherId === absentId && !a.isSwap
@@ -938,7 +947,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       absentTeachers: s.absentTeachers.filter(a => a.id !== absentId),
       assignments: s.assignments.filter(a => a.absentTeacherId !== absentId),
     }));
-    showToast(`تم حذف "${name}" من قائمة الغائبين`, 'info');
+    showToast(`تم حذف "${teacherName}" من قائمة الغائبين`, 'info');
+    setRemoveAbsentConfirm(null);
   };
 
   const handleAutoAssign = (period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
@@ -1382,49 +1392,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             الانتظار اليومي
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12">
-            إسناد حصص الانتظار مع مراعاة العدل والمساواة في التوزيع بطريقة ذكية
+            إسناد حصص الانتظار اليومية مع مراعاة العدل والمساواة في التوزيع بطريقة ذكية
           </p>
         </div>
       </div>
 
-      {/* ══════ Stats Strip ══════ */}
-      {/* تعريف المصفوفة خارج JSX */}
-      {/** بطاقة الإحصائية البنفسجية **/}
-      {(() => {
-        const statCards = [
-          { label: 'الغائبون اليوم',    value: totalAbsent,   icon: <UserX size={18} className="text-[#655ac1] drop-shadow" />,       color: 'text-[#655ac1]',   iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
-          { label: 'حصص الغائبون', value: totalPeriods,  icon: <BookOpen size={18} className="text-[#655ac1] drop-shadow" />,    color: 'text-amber-700',   iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
-          { label: 'الحصص المسندة',    value: totalAssigned, icon: <CheckCircle size={18} className="text-[#655ac1] drop-shadow" />, color: 'text-emerald-700', iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
-          { label: 'الحصص الغير مسندة', value: totalPending, icon: <Clock size={18} className="text-[#655ac1] drop-shadow" />,       color: 'text-rose-700',    iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
-        ];
-        return (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {statCards.map(s => (
-              <div key={s.label} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center transition-all">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <div className={`p-1.5 ${s.iconBg} ${s.iconColor} rounded-lg`}>{s.icon}</div>
-                  <span className="text-xs font-bold text-slate-500">{s.label}</span>
-                </div>
-                <span className={`text-3xl font-black leading-none ${s.color}`}>{s.value}</span>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-
-      {/* ══════ Divider ══════ */}
-      <div className="h-px bg-slate-200" />
-
       {/* ══════ Primary Toolbar ══════ */}
       <div className="flex flex-col gap-3 mb-6">
-        {/* Tier 1: Primary actions */}
+        {/* Tier 1: Primary CTA + زرا التوزيع */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Main CTA */}
           <button
             onClick={() => {
               setAbsenceForm({ teacherId: '', absenceType: 'full', selectedPeriods: new Set() });
               setTeacherSearch('');
               setAbsentQueue([]);
+              setShowSubmitConfirm(false);
               setShowAbsenceModal(true);
             }}
             className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
@@ -1432,62 +1414,93 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <UserX size={20} />
             تسجيل غياب معلم
           </button>
+
+          <div className="w-px h-8 bg-slate-200 rounded-full shrink-0" />
+
+          <button
+            onClick={() => {
+              if (!currentSession || currentSession.absentTeachers.length === 0) {
+                showToast('سجّل غياب معلم أولاً قبل التوزيع اليدوي', 'warning');
+                return;
+              }
+              if (manualDistMode) {
+                setManualDistMode(false);
+                return;
+              }
+              const hasExisting = (currentSession?.assignments || []).length > 0;
+              if (hasExisting) {
+                setShowManualOverwriteConfirm(true);
+              } else {
+                setManualDistMode(true);
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all border ${
+              manualDistMode
+                ? 'bg-white text-slate-700 border-[#8779fb]'
+                : 'bg-white hover:bg-white text-slate-700 border-slate-200 hover:border-[#8779fb]'
+            }`}
+          >
+            <PenLine size={18} className="text-[#655ac1]" />
+            <span>توزيع الانتظار يدويًا</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (!currentSession || currentSession.absentTeachers.length === 0) {
+                showToast('سجّل غياب معلم أولاً قبل التوزيع التلقائي', 'warning');
+                return;
+              }
+              setShowAutoConfirm(true);
+            }}
+            className={`flex items-center gap-2 bg-white hover:bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb] ${lastDistResult ? 'border-emerald-300' : ''}`}
+          >
+            <Zap size={18} className="text-[#8779fb]" />
+            <span>توزيع الانتظار تلقائيًا</span>
+          </button>
         </div>
 
         {/* Tier 2: Secondary actions bar */}
         <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-3 px-4 shadow-sm border border-slate-200">
 
-          {/* Right group: توزيع يدوي | توزيع تلقائي | إرسال الانتظار */}
+          {/* Right group: تقرير التوزيع اليومي | طباعة الانتظار */}
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                if (!currentSession || currentSession.absentTeachers.length === 0) {
-                  showToast('سجّل غياب معلم أولاً قبل التوزيع اليدوي', 'warning');
-                  return;
-                }
-                if (manualDistMode) {
-                  setManualDistMode(false);
-                  return;
-                }
-                const hasExisting = (currentSession?.assignments || []).length > 0;
-                if (hasExisting) {
-                  setShowManualOverwriteConfirm(true);
-                } else {
-                  setManualDistMode(true);
-                }
-              }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border ${
-                manualDistMode
-                  ? 'bg-white text-slate-700 border-[#8779fb]'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-[#655ac1]'
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border relative ${
+                lastDistResult
+                  ? 'bg-white hover:bg-white text-slate-700 border-slate-200 hover:border-[#8779fb]'
+                  : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
               }`}
+              onClick={() => { if (lastDistResult) setShowDistReport(true); }}
+              disabled={!lastDistResult}
+              title={!lastDistResult ? 'لا يوجد تقرير توزيع بعد' : 'عرض تقرير توزيع الانتظار'}
             >
-              <Users size={18} className="text-[#655ac1]" />
-              <span>توزيع يدوي</span>
-              {manualDistMode && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-black">مفعّل</span>}
+              <PieChart size={18} className={lastDistResult ? 'text-[#8779fb]' : 'text-slate-300'} />
+              <span>تقرير التوزيع اليومي</span>
+              {lastDistResult && (
+                <span className={`absolute -top-1.5 -right-1.5 w-5 h-5 text-white text-[9px] font-black rounded-full flex items-center justify-center ${
+                  lastDistResult.failed > 0 ? 'bg-rose-500' : 'bg-emerald-500'
+                }`}>
+                  {lastDistResult.failed > 0 ? lastDistResult.failed : lastDistResult.assigned}
+                </span>
+              )}
             </button>
 
             <button
-              onClick={() => {
-                const hasExisting = (currentSession?.assignments || []).length > 0;
-                if (hasExisting) {
-                  setPendingAutoFn(() => () => handleBatchAutoAssign(undefined, true));
-                  setShowAutoOverwriteConfirm(true);
-                } else {
-                  handleBatchAutoAssign();
-                }
-              }}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+              className="flex items-center gap-2 bg-white hover:bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+              onClick={() => setShowPrintModal(true)}
             >
-              <Zap size={18} className="text-[#8779fb]" />
-              <span>توزيع تلقائي</span>
+              <Printer size={18} className="text-[#655ac1]" />
+              <span>طباعة الانتظار</span>
             </button>
+          </div>
 
+          {/* Left group: إرسال الانتظار | رصيد الانتظار | تقارير الانتظار */}
+          <div className="flex gap-2">
             <button
-              className="flex items-center gap-2 bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-emerald-400 relative"
+              className="flex items-center gap-2 bg-white hover:bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] relative"
               onClick={() => { setShowSendTable(true); setShowSendModal(true); }}
             >
-              <MessageSquare size={18} className="text-emerald-500" />
+              <Send size={18} className="text-[#655ac1]" />
               <span>إرسال الانتظار</span>
               {currentSession && currentSession.assignments.filter(a => a.status === 'pending').length > 0 && (
                 <span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
@@ -1495,28 +1508,17 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 </span>
               )}
             </button>
-          </div>
-
-          {/* Left group: طباعة | رصيد الانتظار | تقارير الانتظار */}
-          <div className="flex gap-2">
-            <button
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
-              onClick={() => setShowPrintModal(true)}
-            >
-              <Printer size={18} className="text-[#655ac1]" />
-              <span>طباعة الانتظار</span>
-            </button>
 
             <button
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+              className="flex items-center gap-2 bg-white hover:bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
               onClick={() => { setResetConfirmStep('idle'); setShowBalanceModal(true); }}
             >
-              <BarChart3 size={18} className="text-[#655ac1]" />
+              <Scale size={18} className="text-[#655ac1]" />
               <span>رصيد الانتظار</span>
             </button>
 
             <button
-              className="flex items-center gap-2 bg-white hover:bg-violet-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1]"
+              className="flex items-center gap-2 bg-white hover:bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
               onClick={() => setShowReportsModal(true)}
             >
               <FileText size={18} className="text-[#655ac1]" />
@@ -1527,46 +1529,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
       </div>
 
-      {/* ══════ انتظار اليوم Card ══════ */}
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#e5e1fe] text-[#655ac1] rounded-2xl drop-shadow-[0_2px_8px_rgba(101,90,193,0.25)]">
-              <Users size={22} className="text-[#655ac1] drop-shadow-[0_2px_8px_rgba(101,90,193,0.25)]" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-slate-800">انتظار اليوم</h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">
-                {totalAbsent > 0
-                  ? `${totalAbsent} غائب · ${totalPeriods} حصة · ${totalAssigned} مُسندة · ${totalPending} غير مسندة`
-                  : 'لا يوجد غياب مسجّل لهذا اليوم'
-                }
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all border relative ${
-                lastDistResult
-                  ? 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-200 hover:border-emerald-400'
-                  : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
-              }`}
-              onClick={() => { if (lastDistResult) setShowDistReport(true); }}
-              disabled={!lastDistResult}
-              title={!lastDistResult ? 'لا يوجد تقرير توزيع بعد' : 'عرض تقرير توزيع الانتظار'}
-            >
-              <BarChart3 size={18} className={lastDistResult ? 'text-emerald-600' : 'text-slate-300'} />
-              <span>تقرير التوزيع</span>
-              {lastDistResult && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                  {lastDistResult.assigned}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ══════ Distribution Report Modal ══════ */}
       {showDistReport && lastDistResult && ReactDOM.createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4" onClick={() => setShowDistReport(false)}>
@@ -1575,7 +1537,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             {/* Header */}
             <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center">
+                <div className="w-11 h-11 flex items-center justify-center text-rose-500">
                   <AlertCircle size={22} />
                 </div>
                 <div>
@@ -1646,19 +1608,41 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         document.body
       )}
 
+      {/* ══════ Stats Strip ══════ */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm" dir="rtl">
+        <div className="flex divide-x divide-x-reverse divide-slate-100">
+          <div className="flex items-center gap-2 px-5 py-3 border-l border-slate-100 shrink-0">
+            <Clock size={15} className="text-[#8779fb]" />
+            <span className="text-sm font-black text-slate-600">انتظار اليوم</span>
+          </div>
+          {[
+            { label: 'الغائبون اليوم',     value: totalAbsent,   icon: <UserX size={16} className="text-[#8779fb]" />,         color: 'text-[#8779fb]'   },
+            { label: 'حصص الغائبون',       value: totalPeriods,  icon: <BookOpen size={16} className="text-amber-500" />,      color: 'text-amber-600'   },
+            { label: 'الحصص المسندة',      value: totalAssigned, icon: <CheckCircle size={16} className="text-emerald-500" />, color: 'text-emerald-600' },
+            { label: 'الحصص الغير مسندة', value: totalPending,  icon: <BookX size={16} className="text-rose-400" />,          color: 'text-rose-500'    },
+          ].map(s => (
+            <div key={s.label} className="flex-1 flex flex-col items-center justify-center px-5 py-3 gap-1">
+              <div className="flex items-center gap-1.5">
+                {s.icon}
+                <span className="text-[11px] font-bold text-slate-400">{s.label}</span>
+              </div>
+              <span className={`text-xl font-black leading-none ${s.color}`}>{s.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ══════ Empty State ══════ */}
       {totalAbsent === 0 && (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-16 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:shadow-md transition-all duration-300">
           <div className="absolute top-0 left-0 w-24 h-24 bg-slate-50 rounded-br-[3rem] -z-0" />
-          <div className="w-20 h-20 bg-[#e5e1fe] rounded-full flex items-center justify-center mb-5 relative z-10">
-            <Users size={38} className="text-[#655ac1]" />
-          </div>
+          <UserX size={48} className="text-[#655ac1] mb-5 relative z-10" strokeWidth={1.6} />
           <h3 className="text-xl font-black text-slate-700 mb-2 relative z-10">لا يوجد غياب مسجل لهذا اليوم</h3>
-          <p className="text-sm text-slate-400 font-medium mb-8 max-w-sm relative z-10">
-            اضغط على "تسجيل غياب معلم" لإضافة غائب وبدء عملية توزيع حصص الانتظار بشكل ذكي
+          <p className="text-sm text-slate-400 font-medium mb-8 relative z-10 whitespace-nowrap">
+            اضغط على "تسجيل غياب معلم" لإضافة غائب وبدء عملية توزيع حصص الانتظار
           </p>
           <button
-            onClick={() => { setAbsenceForm({ teacherId: '', absenceType: 'full', selectedPeriods: new Set() }); setTeacherSearch(''); setShowAbsenceModal(true); }}
+            onClick={() => { setAbsenceForm({ teacherId: '', absenceType: 'full', selectedPeriods: new Set() }); setTeacherSearch(''); setShowSubmitConfirm(false); setShowAbsenceModal(true); }}
             className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95 relative z-10"
           >
             <UserX size={18} /> تسجيل غياب معلم
@@ -1675,28 +1659,23 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         const isFullyCovered = coveredCount === totalCount && totalCount > 0;
 
         return (
-          <div key={absentTeacher.id} className={`bg-white rounded-[2rem] border shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 ${
-            isFullyCovered ? 'border-emerald-200' :
-            absentTeacher.absenceType === 'full' ? 'border-rose-200' : 'border-amber-200'
-          }`}>
+          <div key={absentTeacher.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
             {/* Card Header */}
-            <div
-              className={`flex items-center justify-between px-6 py-5 ${
-                absentTeacher.absenceType === 'full'
-                  ? 'border-r-4 border-rose-400'
-                  : 'border-r-4 border-amber-400'
-              } ${isFullyCovered ? 'border-r-4 border-emerald-400' : ''}`}
-            >
+            <div className="flex items-center justify-between px-6 py-3 relative">
+              {/* الشريط اللوني بجانب سلة الحذف */}
+              <div className={`absolute left-0 inset-y-0 w-1 transition-colors duration-300 ${
+                coveredCount > 0 ? 'bg-emerald-400' : 'bg-amber-400'
+              }`} />
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-[#e5e1fe] text-[#655ac1] drop-shadow-[0_2px_8px_rgba(101,90,193,0.25)]`}>
-                  {isFullyCovered ? <CheckCircle2 size={24} className="text-[#655ac1] drop-shadow-[0_2px_8px_rgba(101,90,193,0.25)]" /> : <UserX size={24} className="text-[#655ac1] drop-shadow-[0_2px_8px_rgba(101,90,193,0.25)]" />}
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-[#8779fb]">
+                  {isFullyCovered ? <CheckCircle2 size={24} /> : <UserX size={24} />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-black text-slate-800 text-base">{absentTeacher.teacherName}</h3>
-                    <span className={`text-xs font-black px-3 py-1 rounded-full ${
-                      isFullyCovered ? 'bg-emerald-100 text-emerald-600' :
-                      absentTeacher.absenceType === 'full' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-600'
+                    <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                      isFullyCovered ? 'bg-emerald-100 text-emerald-600 border-emerald-200' :
+                      absentTeacher.absenceType === 'full' ? 'bg-white text-[#8779fb] border-slate-300' : 'bg-white text-amber-600 border-slate-300'
                     }`}>
                       {isFullyCovered ? '✓ مكتمل' : absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
                     </span>
@@ -1706,30 +1685,20 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 font-medium mt-1">
-                    إجمالي: {totalCount} حصة ·{' '}
-                    <span className="text-emerald-600 font-black">{coveredCount} مُسند</span>
-                    {coveredCount < totalCount && (
-                      <span className="text-rose-500 font-black"> · {totalCount - coveredCount} غير مسندة</span>
-                    )}
-                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                {/* Progress ring compact */}
-                <div className="hidden sm:flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
-                  <div className="flex h-1.5 w-20 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${isFullyCovered ? 'bg-emerald-400' : 'bg-[#655ac1]'}`}
-                      style={{ width: `${totalCount > 0 ? Math.round((coveredCount / totalCount) * 100) : 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-black text-slate-500">{coveredCount}/{totalCount}</span>
-                </div>
+                <p className="text-xs text-slate-400 font-medium hidden sm:block">
+                  إجمالي: {totalCount} حصة ·{' '}
+                  <span className="text-emerald-600 font-black">{coveredCount} مُسند</span>
+                  {coveredCount < totalCount && (
+                    <span className="text-rose-500 font-black"> · {totalCount - coveredCount} غير مسندة</span>
+                  )}
+                </p>
                 <button
-                  onClick={e => { e.stopPropagation(); handleRemoveAbsent(absentTeacher.id, absentTeacher.teacherName); }}
-                  className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  onClick={e => { e.stopPropagation(); setRemoveAbsentConfirm({ id: absentTeacher.id, name: absentTeacher.teacherName }); }}
+                  className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -1774,7 +1743,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         return (
                           <tr key={period.periodNumber} className="hover:bg-slate-50/60 transition-colors">
                             <td className="px-5 py-3.5">
-                              <span className="inline-flex items-center justify-center w-9 h-9 bg-[#655ac1]/10 text-[#655ac1] font-black text-sm rounded-xl">
+                              <span className="inline-flex items-center justify-center w-8 h-8 bg-white text-[#8779fb] font-black text-sm rounded-md border border-slate-300">
                                 {period.periodNumber}
                               </span>
                             </td>
@@ -1860,27 +1829,19 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               )}
                             </td>
                             <td className="px-5 py-3.5">
-                              {!assignment ? (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  {hasSwapOption && (
-                                    <button
-                                      onClick={() => {
-                                        setSwapSendMode('manual');
-                                        setShowSwapConfirm({ swap: swapCandidates[0], period, absentId: absentTeacher.id, absentName: absentTeacher.teacherName });
-                                      }}
-                                      className="flex items-center gap-1.5 bg-white hover:bg-violet-50 text-violet-600 border border-violet-200 px-3 py-2 rounded-xl font-bold text-xs transition-all hover:border-violet-400 hover:scale-105 active:scale-95"
-                                    >
-                                      <ArrowLeftRight size={13} /> تبديل ذكي
-                                    </button>
-                                  )}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {!assignment && hasSwapOption && (
                                   <button
-                                    onClick={() => { setAssignmentSearch(''); setShowAssignModal({ period, absentTeacher }); }}
-                                    className="flex items-center gap-1.5 bg-[#8779fb] hover:bg-[#655ac1] text-white px-3 py-2 rounded-xl font-bold text-xs transition-all hover:scale-105 active:scale-95 shadow-sm"
+                                    onClick={() => {
+                                      setSwapSendMode('manual');
+                                      setShowSwapConfirm({ swap: swapCandidates[0], period, absentId: absentTeacher.id, absentName: absentTeacher.teacherName });
+                                    }}
+                                    className="flex items-center gap-1.5 bg-white hover:bg-violet-50 text-violet-600 border border-violet-200 px-3 py-2 rounded-xl font-bold text-xs transition-all hover:border-violet-400 hover:scale-105 active:scale-95"
                                   >
-                                    <Users size={13} /> يدوي
+                                    <ArrowLeftRight size={13} /> تبديل ذكي
                                   </button>
-                                </div>
-                              ) : (
+                                )}
+                                {assignment ? (
                                   <button
                                     disabled={assignment.status === 'signed'}
                                     title={
@@ -1913,7 +1874,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                    assignment.status === 'acknowledged' ? '👁 اطلع' :
                                    assignment.status === 'sent'         ? '📤 أُرسل' : '⏳ إرسال'}
                                 </button>
-                              )}
+                                ) : null}
+                                {manualDistMode && (
+                                  <button
+                                    onClick={() => { setAssignmentSearch(''); setShowAssignModal({ period, absentTeacher }); }}
+                                    className="flex items-center gap-1.5 bg-white text-[#8779fb] px-3 py-2 rounded-xl font-bold text-xs transition-all hover:scale-105 active:scale-95 hover:bg-slate-50"
+                                  >
+                                    <Edit3 size={13} /> توزيع يدوي
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1929,6 +1899,92 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       })}
 
       {/* ══════════════════════════════════════════════
+          MODAL: تأكيد التوزيع التلقائي
+      ══════════════════════════════════════════════ */}
+      {showAutoConfirm && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" dir="rtl">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                <Zap size={22} className="text-[#8779fb]" />
+              </div>
+              <div>
+                <h3 className="font-black text-slate-800 text-base">توزيع الانتظار تلقائيًا</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم توزيع حصص جميع الغائبين تلقائيًا</p>
+              </div>
+            </div>
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              {(currentSession?.assignments || []).length > 0
+                ? 'يوجد إسنادات سابقة — هل تريد الاستمرار وإعادة التوزيع؟ سيتم استبدال الإسنادات غير المكتملة.'
+                : `هل تريد بدء التوزيع التلقائي لـ ${currentSession?.absentTeachers.length || 0} معلم غائب؟`
+              }
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
+              <button
+                onClick={() => {
+                  setShowAutoConfirm(false);
+                  const hasExisting = (currentSession?.assignments || []).length > 0;
+                  if (hasExisting) {
+                    setPendingAutoFn(() => () => handleBatchAutoAssign(undefined, true));
+                    setShowAutoOverwriteConfirm(true);
+                  } else {
+                    handleBatchAutoAssign();
+                  }
+                }}
+                className="flex-1 py-2.5 bg-[#8779fb] hover:bg-[#655ac1] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Zap size={15} /> بدء التوزيع
+              </button>
+              <button
+                onClick={() => setShowAutoConfirm(false)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ══════════════════════════════════════════════
+          MODAL: تأكيد حذف المعلم الغائب
+      ══════════════════════════════════════════════ */}
+      {removeAbsentConfirm && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" dir="rtl">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center shrink-0">
+                <Trash2 size={22} className="text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-black text-slate-800 text-base">تأكيد الحذف</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">هذا الإجراء لا يمكن التراجع عنه</p>
+              </div>
+            </div>
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              هل تريد حذف <span className="font-black text-slate-800">"{removeAbsentConfirm.name}"</span> من قائمة الغائبين؟ سيتم حذف جميع الإسنادات المرتبطة به.
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
+              <button
+                onClick={() => handleRemoveAbsent(removeAbsentConfirm.id, removeAbsentConfirm.name)}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={15} /> تأكيد الحذف
+              </button>
+              <button
+                onClick={() => setRemoveAbsentConfirm(null)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ══════════════════════════════════════════════
           MODAL: تسجيل الغياب
       ══════════════════════════════════════════════ */}
       {showAbsenceModal && ReactDOM.createPortal(
@@ -1937,12 +1993,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-rose-50 rounded-2xl flex items-center justify-center">
-                  <UserX size={20} className="text-rose-500" />
+                <div className="flex items-center justify-center">
+                  <UserX size={24} className="text-[#655ac1]" />
                 </div>
                 <h3 className="font-black text-slate-800">تسجيل غياب معلم</h3>
               </div>
-              <button onClick={() => setShowAbsenceModal(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+              <button onClick={() => { setShowAbsenceModal(false); setShowTeacherRemoveConfirm(false); setShowSubmitConfirm(false); }} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
                 <X size={18} />
               </button>
             </div>
@@ -1968,7 +2024,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <span className="text-sm font-medium text-slate-600 flex-1">
                   {schoolInfo.calendarType === 'hijri' ? formatHijri(selectedDate) : formatGregorian(selectedDate)}
                 </span>
-                <span className="text-[10px] font-bold text-[#655ac1] opacity-0 group-hover:opacity-100 transition-all shrink-0">انقر للتغيير</span>
+                <span className="text-[10px] font-bold text-[#655ac1] shrink-0">انقر للتغيير</span>
               </div>
               <input
                 ref={absenceDateInputRef}
@@ -1980,11 +2036,51 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+              {/* ── قائمة الغائبين المضافين ── */}
               {absentQueue.length > 0 && (
-                <p className="text-xs font-black text-[#655ac1] flex items-center gap-2 -mb-1">
-                  <UserX size={13} /> إضافة معلم آخر
-                </p>
+                <div>
+                  <p className="text-xs font-black text-slate-600 mb-2.5 flex items-center gap-2">
+                    <UserX size={13} className="text-[#655ac1]" />
+                    الغائبون المضافون
+                    <span className="bg-[#655ac1] text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                      {absentQueue.length}
+                    </span>
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {absentQueue.map((entry, idx) => (
+                      <div
+                        key={entry.teacherId}
+                        className="flex items-center gap-3 bg-[#655ac1]/5 border border-[#655ac1]/20 rounded-xl px-4 py-2.5"
+                      >
+                        <div className="w-7 h-7 bg-[#655ac1]/10 rounded-lg flex items-center justify-center shrink-0">
+                          <span className="text-xs font-black text-[#655ac1]">{idx + 1}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-slate-800 text-sm truncate">{entry.teacherName}</p>
+                          <p className="text-xs text-slate-400 font-medium mt-0.5">
+                            {entry.absenceType === 'full'
+                              ? 'غياب يوم كامل'
+                              : `غياب جزئي · ${entry.selectedPeriods.size} حصة`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setAbsentQueue(prev => prev.filter(q => q.teacherId !== entry.teacherId))}
+                          className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all shrink-0"
+                          title="إزالة من القائمة"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 h-px bg-slate-100" />
+                  <p className="text-xs font-black text-[#655ac1] mt-3 flex items-center gap-1.5">
+                    <UserX size={12} /> إضافة معلم آخر
+                  </p>
+                </div>
               )}
+
               {/* Teacher Search */}
               <div>
                 <label className="block text-xs font-black text-slate-600 mb-2">المعلم الغائب</label>
@@ -2017,14 +2113,40 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   </div>
                 )}
                 {absenceForm.teacherId && (
-                  <div className="mt-2 flex items-center gap-2 bg-[#655ac1]/5 border border-[#655ac1]/20 rounded-xl px-4 py-2.5">
-                    <CheckCircle2 size={16} className="text-[#655ac1] shrink-0" />
+                  <div className="mt-2 flex items-center gap-2 bg-white border-2 border-[#655ac1] rounded-xl px-4 py-2.5">
+                    <CheckCircle2 size={22} className="text-[#655ac1] shrink-0" />
                     <span className="font-black text-[#655ac1] text-sm flex-1">
                       {teachers.find(t => t.id === absenceForm.teacherId)?.name}
                     </span>
-                    <button onClick={() => { setAbsenceForm(p => ({ ...p, teacherId: '', selectedPeriods: new Set() })); setTeacherSearch(''); }} className="text-slate-400 hover:text-rose-400">
-                      <X size={14} />
+                    <button
+                      onClick={() => setShowTeacherRemoveConfirm(true)}
+                      className="text-rose-500 hover:text-rose-600 transition-colors"
+                    >
+                      <Trash2 size={18} />
                     </button>
+                  </div>
+                )}
+                {showTeacherRemoveConfirm && (
+                  <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex flex-col gap-3">
+                    <p className="text-sm font-bold text-rose-700">هل تريد إلغاء اختيار هذا المعلم؟</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setAbsenceForm(p => ({ ...p, teacherId: '', selectedPeriods: new Set() }));
+                          setTeacherSearch('');
+                          setShowTeacherRemoveConfirm(false);
+                        }}
+                        className="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <Trash2 size={15} /> تأكيد الحذف
+                      </button>
+                      <button
+                        onClick={() => setShowTeacherRemoveConfirm(false)}
+                        className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2040,12 +2162,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         onClick={() => setAbsenceForm(p => ({ ...p, absenceType: type, selectedPeriods: new Set() }))}
                         className={`flex items-center gap-2 p-3 rounded-2xl border-2 font-bold text-sm transition-all ${
                           absenceForm.absenceType === type
-                            ? type === 'full' ? 'border-rose-400 bg-white text-slate-700' : 'border-amber-400 bg-white text-slate-700'
+                            ? 'border-[#655ac1] bg-white text-[#655ac1]'
                             : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                         }`}
                       >
-                        {type === 'full' ? <UserX size={16} /> : <Clock size={16} />}
-                        {type === 'full' ? 'غياب كامل' : 'غياب جزئي'}
+                        {absenceForm.absenceType === type
+                          ? <Check size={16} className="text-[#655ac1]" />
+                          : (type === 'full' ? <UserX size={16} /> : <Clock size={16} />)
+                        }
+                        {type === 'full' ? 'غياب يوم كامل' : 'غياب جزئي'}
                       </button>
                     ))}
                   </div>
@@ -2056,7 +2181,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               {absenceForm.teacherId && absenceForm.absenceType === 'partial' && (
                 <div>
                   <label className="block text-xs font-black text-slate-600 mb-2">
-                    الحصص المتغيبة
+                    حصص الغياب
                     <span className="font-normal text-slate-400 mr-1">(من جدول {dayName})</span>
                   </label>
                   {selectedTeacherSchedule.length > 0 ? (
@@ -2143,34 +2268,63 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 flex flex-col gap-3">
               {(() => {
                 const totalCount = absentQueue.length + (absenceForm.teacherId ? 1 : 0);
+
+                if (showSubmitConfirm) {
+                  return (
+                    <>
+                      <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                        <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+                        <p className="text-sm font-bold text-amber-800 flex-1">
+                          سيتم تسجيل غياب {totalCount} معلم{totalCount > 1 ? 'ين' : ''} — هل أنت متأكد؟
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setShowSubmitConfirm(false)}
+                          className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-sm transition-all"
+                        >
+                          تراجع
+                        </button>
+                        <button
+                          onClick={() => { setShowSubmitConfirm(false); handleSubmitAbsenceQueue(); }}
+                          className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-[#655ac1]/20 flex items-center justify-center gap-2 hover:scale-105 active:scale-95"
+                        >
+                          <CheckCircle2 size={16} />
+                          تأكيد التسجيل
+                        </button>
+                      </div>
+                    </>
+                  );
+                }
+
                 return (
-                  <>
+                  <div className="flex gap-3">
                     <button
-                      onClick={() => setShowAbsenceModal(false)}
-                      className="py-2.5 px-5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-sm transition-all hover:border-[#8779fb] shrink-0"
+                      onClick={() => { setShowAbsenceModal(false); setShowSubmitConfirm(false); }}
+                      className="flex-1 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl font-bold text-sm transition-all hover:border-slate-300"
                     >
                       إلغاء
                     </button>
                     <button
                       onClick={handleAddToQueue}
                       disabled={!absenceForm.teacherId}
-                      className="flex items-center gap-2 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                       <UserX size={15} />
                       أضف غيابًا آخر
                     </button>
                     <button
-                      onClick={handleSubmitAbsenceQueue}
+                      onClick={() => { if (totalCount > 0) setShowSubmitConfirm(true); }}
                       disabled={totalCount === 0}
                       className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#655ac1]/20 flex items-center justify-center gap-2"
                     >
                       <CheckCircle2 size={16} />
-                      {totalCount > 1 ? `تسجيل الغياب (${totalCount})` : 'تسجيل الغياب'}
+                      {totalCount > 1 ? `تسجيل (${totalCount})` : 'تسجيل الغياب'}
                     </button>
-                  </>
+                  </div>
                 );
               })()}
             </div>
@@ -2389,11 +2543,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 onClick={() => setAssignModalTab('teachers')}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${
                   assignModalTab === 'teachers'
-                    ? 'bg-white text-[#655ac1] shadow-sm border border-slate-200'
+                    ? 'bg-white text-[#8779fb] shadow-sm border border-slate-200'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <Users size={16} />
+                {assignModalTab === 'teachers' ? <Check size={16} className="text-[#8779fb]" /> : <Users size={16} />}
                 المعلمون
               </button>
               <button
@@ -2404,7 +2558,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <Shield size={16} />
+                {assignModalTab === 'admins' ? <Check size={16} className="text-[#8779fb]" /> : <UserCog size={16} />}
                 الإداريون
               </button>
             </div>
@@ -2462,9 +2616,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     });
 
                   if (waiters.length === 0) return (
-                    <div className="px-5 py-10 text-center text-slate-400">
-                      <Users size={32} className="mx-auto mb-3 text-slate-200" />
-                      <p className="text-sm font-bold">لا يوجد معلمون منتظرون</p>
+                    <div className="px-5 py-10 text-center text-slate-400 flex flex-col items-center gap-3">
+                      <div className="w-14 h-14 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center">
+                        <AlertCircle size={28} className="text-amber-400" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-600">لا يوجد معلمون منتظرون متاحون</p>
                     </div>
                   );
 
@@ -2749,53 +2905,50 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           onClick={() => setShowSendModal(false)}
         >
           <div
-            className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-[95vw] xl:max-w-7xl max-h-[92vh] flex flex-col overflow-hidden"
+            className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-[95vw] xl:max-w-7xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
             dir="rtl"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 bg-[#25D366]/10 rounded-2xl flex items-center justify-center shadow-sm">
-                  <WhatsAppIcon size={24} />
-                </div>
+                <Send size={22} className="text-[#655ac1]" />
                 <div>
                   <h2 className="text-lg font-black text-slate-800">إرسال الانتظار</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">اختر طريقة الإرسال المناسبة</p>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">اختر طريقة الإرسال المناسبة</p>
                 </div>
               </div>
-              <button onClick={() => setShowSendModal(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+              <button onClick={() => setShowSendModal(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400">
                 <X size={20} />
               </button>
             </div>
 
             {/* ── Mode Tabs ── */}
-            <div className="bg-white border-b border-slate-100 px-6 py-3 flex items-center gap-3 shrink-0">
+            <div className="bg-white border-b border-slate-100 px-5 py-3 flex items-center gap-2 shrink-0">
               <button
                 onClick={() => { setSendModalMode('notification'); setSendCustomMessages({}); }}
-                className={`flex items-center gap-2 rounded-xl font-bold text-sm transition-all border-2 ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border-2 shrink-0 ${
                   sendModalMode === 'notification'
-                    ? 'bg-white text-[#655ac1] border-[#655ac1] px-6 py-3 scale-105 shadow-sm'
-                    : 'bg-white text-slate-500 border-slate-200 px-5 py-2.5 hover:border-[#655ac1]/40 hover:text-slate-700'
+                    ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm scale-[1.02]'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-slate-700'
                 }`}
               >
-                <MessageSquare size={16} />
+                <MessageSquare size={15} />
                 إرسال إشعار الانتظار
                 <span className="text-[10px] font-medium opacity-70">(رسالة فقط)</span>
               </button>
 
-              {/* ── Visual Divider ── */}
-              <div className="w-px h-8 bg-slate-200 rounded-full shrink-0" />
+              <div className="w-px h-7 bg-slate-200 rounded-full shrink-0" />
 
               <button
                 onClick={() => { setSendModalMode('electronic'); setSendCustomMessages({}); }}
-                className={`flex items-center gap-2 rounded-xl font-bold text-sm transition-all border-2 ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border-2 shrink-0 ${
                   sendModalMode === 'electronic'
-                    ? 'bg-white text-[#655ac1] border-[#655ac1] px-6 py-3 scale-105 shadow-sm'
-                    : 'bg-white text-slate-500 border-slate-200 px-5 py-2.5 hover:border-[#655ac1]/40 hover:text-slate-700'
+                    ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm scale-[1.02]'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-slate-700'
                 }`}
               >
-                <PenLine size={16} />
+                <PenLine size={15} />
                 إرسال الانتظار إلكترونياً
                 <span className="text-[10px] font-medium opacity-70">(رسالة + رابط توقيع)</span>
               </button>
@@ -2803,10 +2956,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
             {/* Mode description banner */}
             {sendModalMode === 'electronic' && (
-              <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-6 py-3 flex items-center gap-3 shrink-0">
-                <div className="w-8 h-8 bg-[#e5e1fe] rounded-lg flex items-center justify-center shrink-0">
-                  <Link2 size={14} className="text-[#655ac1]" />
-                </div>
+              <div className="bg-[#655ac1]/5 border-b border-[#655ac1]/10 px-5 py-3 flex items-center gap-3 shrink-0">
+                <Link2 size={16} className="text-[#655ac1] shrink-0" />
                 <p className="text-xs font-bold text-[#655ac1] flex-1">
                   سيتم إرسال رابط توقيع إلكتروني مع كل رسالة — يمكن للمنتظر التوقيع عبر الرابط ويُحدَّث عمود التوقيع في الجدول تلقائياً.
                 </p>
@@ -2939,9 +3090,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       <tbody className="divide-y divide-slate-50">
                         {sendRows.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="text-center py-10 text-slate-400">
-                              <p className="text-sm font-medium text-slate-500">لا توجد حصص انتظار مسندة لهذا اليوم</p>
-                              <p className="text-xs mt-1">يُرجى تسجيل غياب معلم وتوزيع حصص الانتظار أولاً</p>
+                            <td colSpan={10} className="text-center py-14">
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-1">
+                                  <Send size={26} className="text-slate-300" />
+                                </div>
+                                <p className="text-sm font-black text-slate-500">لا توجد حصص انتظار مسندة لهذا اليوم</p>
+                                <p className="text-xs font-medium text-slate-400">يُرجى تسجيل غياب معلم وتوزيع حصص الانتظار أولاً</p>
+                              </div>
                             </td>
                           </tr>
                         ) : null}
@@ -3250,15 +3406,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           MODAL: تقارير الانتظار (NEW DESIGN)
       ════════════════════════════════════════════ */}
       {showReportsModal && ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" dir="rtl">
-          <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" dir="rtl" onClick={() => setShowReportsModal(false)}>
+          <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
 
             {/* ── Header ── */}
-            <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between shrink-0 gap-4">
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1] shadow-sm">
-                  <BarChart3 size={24} />
-                </div>
+                <FileText size={24} className="text-[#655ac1]" />
                 <div>
                   <h2 className="text-xl font-black text-slate-800">تقارير الانتظار</h2>
                   <p className="text-sm font-medium text-slate-500 mt-0.5">تقارير حصص الانتظار اليومي للمنتظرين</p>
@@ -3266,7 +3420,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </div>
               <button
                 onClick={() => setShowReportsModal(false)}
-                className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors self-end sm:self-auto"
+                className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
               >
                 <X size={22} />
               </button>
@@ -3341,7 +3495,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
                   <Users size={17} className="text-[#655ac1]" /> اختيار المنتظر
                 </p>
-                <div className="flex bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-fit mb-4">
+                <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200 w-fit mb-4">
                   <button
                     onClick={() => { setRptStaffMode('all'); setRptSelectedIds(new Set()); }}
                     className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${rptStaffMode === 'all' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'}`}
@@ -3406,11 +3560,22 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
               {/* ── جدول بيانات المنتظرين ── */}
               <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100">
-                  <h3 className="text-base font-black text-slate-800">بيانات الانتظار</h3>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5">
-                    {rptFromDate && rptToDate ? `من ${new Date(rptFromDate).toLocaleDateString('ar-SA', { day: 'numeric', month: 'long' })} إلى ${new Date(rptToDate).toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'كل البيانات'}
-                  </p>
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                  <div>
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      <FileText size={15} className="text-[#655ac1]" />
+                      بيانات الانتظار
+                    </p>
+                    <p className="text-xs text-slate-400 font-medium mt-0.5">
+                      {rptFromDate && rptToDate ? `من ${new Date(rptFromDate).toLocaleDateString('ar-SA', { day: 'numeric', month: 'long' })} إلى ${new Date(rptToDate).toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'كل البيانات'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleWaitingReportPrint}
+                    className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-all active:scale-95 shrink-0"
+                  >
+                    <Printer size={15} /> طباعة التقرير
+                  </button>
                 </div>
                 {rptTableData.length === 0 ? (
                   <div className="text-center text-slate-400 py-16 font-bold">
@@ -3470,16 +3635,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 )}
               </div>
 
-              {/* ── زر الطباعة ── */}
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-                <button
-                  onClick={handleWaitingReportPrint}
-                  className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
-                >
-                  <Printer size={16} />
-                  طباعة تقرير الانتظار
-                </button>
-              </div>
 
             </div>
           </div>
@@ -3497,9 +3652,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             {/* Modal header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
               <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                <div className="p-2 bg-[#e5e1fe] text-[#655ac1] rounded-xl">
-                  <BarChart3 size={22} />
-                </div>
+                <Scale size={22} className="text-[#655ac1]" />
                 رصيد الانتظار الأسبوعي
               </h2>
               <button
@@ -3528,8 +3681,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                     {statCards.map(s => (
                       <div key={s.label} className="bg-slate-50 border border-slate-300 rounded-2xl p-4 text-center">
+                        <p className="text-xs font-bold text-slate-500 mb-1">{s.label}</p>
                         <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
-                        <p className="text-xs font-bold text-slate-500 mt-1">{s.label}</p>
                       </div>
                     ))}
                   </div>

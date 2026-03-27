@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, FileText, LayoutGrid, CheckSquare } from 'lucide-react';
+import { X, Printer, FileText, LayoutGrid, CheckSquare, CheckCircle } from 'lucide-react';
 import { SchoolInfo } from '../types';
 
 export interface PrintAbsentTeacher {
@@ -383,50 +383,48 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
       <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         
         {/* Modal Header */}
-        <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-200 shrink-0 no-print">
+        <div className="bg-white border-b border-slate-100 px-6 py-5 flex items-center justify-between shrink-0 no-print">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#655ac1]/10 text-[#655ac1] rounded-xl flex items-center justify-center">
-              <Printer size={20} />
-            </div>
+            <Printer size={26} className="text-[#655ac1]" />
             <div>
-              <h2 className="text-lg font-black text-slate-800">طباعة الانتظار</h2>
-              <p className="text-xs font-semibold text-slate-500">طباعة الانتظار اليومي أو طباعة نموذج الانتظار فارغًا</p>
+              <h2 className="text-xl font-black text-slate-800">طباعة الانتظار</h2>
+              <p className="text-xs font-medium text-slate-400 mt-0.5">طباعة الانتظار اليومي أو طباعة نموذج الانتظار فارغًا</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <button onClick={onClose} className="p-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-700 transition-colors">
-              <X size={20} />
-            </button>
-          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+            <X size={20} />
+          </button>
         </div>
 
-        {/* Modal Tabs & Print Button */}
-        <div className="flex flex-col gap-4 p-4 bg-white border-b border-slate-100 shrink-0 no-print">
-          {!targetTeacherId ? (
-            <div className="flex gap-2 w-full">
-              <button
-                onClick={() => setActiveTab('print')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
-                  activeTab === 'print' ? 'bg-[#f3f0ff] text-[#655ac1] border border-[#d8d2fe]' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-transparent'
-                }`}
-              >
-                <LayoutGrid size={16} /> طباعة جداول الانتظار ({absentTeachers.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('blank')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
-                  activeTab === 'blank' ? 'bg-[#f3f0ff] text-[#655ac1] border border-[#d8d2fe]' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-transparent'
-                }`}
-              >
-                <FileText size={16} /> نموذج الانتظار اليومي (فارغ)
-              </button>
-            </div>
-          ) : null}
-        </div>
+        {/* Modal Tabs */}
+        {!targetTeacherId ? (
+          <div className="bg-white border-b border-slate-100 px-6 py-3 flex gap-3 shrink-0 no-print">
+            {([
+              { id: 'print', label: `طباعة جداول الانتظار (${absentTeachers.length})`, Icon: LayoutGrid },
+              { id: 'blank', label: 'نموذج الانتظار اليومي (فارغ)', Icon: FileText },
+            ] as const).map(({ id, label, Icon }) => {
+              const active = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all bg-white text-[#655ac1] ${
+                    active
+                      ? 'border-[#655ac1] shadow-sm shadow-[#655ac1]/10'
+                      : 'border-[#655ac1]/30 hover:border-[#655ac1]/60'
+                  }`}
+                >
+                  <Icon size={15} className="text-[#655ac1]" />
+                  {label}
+                  {active && <CheckCircle size={14} className="text-[#655ac1] mr-1" />}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* Modal Options / Filters */}
-        <div className="bg-white/50 px-6 py-4 border-b border-slate-200 shrink-0 flex items-center justify-between gap-4 no-print">
+        <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4 no-print">
           <div>
             {activeTab === 'print' && !targetTeacherId && (
                <label className="flex items-center gap-2 cursor-pointer group">
@@ -440,7 +438,7 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
           </div>
           <button
              onClick={handleExecutePrint}
-             className="flex items-center justify-center gap-2 bg-[#655ac1] hover:bg-[#52489e] text-white px-8 py-3 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+             className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold transition-all shadow-md shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 active:scale-95"
           >
              <Printer size={18} /> طباعة
           </button>
