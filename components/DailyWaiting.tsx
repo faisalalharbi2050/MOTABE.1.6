@@ -341,6 +341,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ===== Derived data =====
   const timetable: TimetableData = scheduleSettings?.timetable || {};
   const dayName = useMemo(() => getArabicDayFromDate(selectedDate), [selectedDate]);
+  // مفتاح اليوم بالإنجليزية لمطابقة مفاتيح الجدول الزمني (sunday, monday, ...)
+  const dayKey = useMemo(() => new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), [selectedDate]);
 
   const currentSession = useMemo(
     () => sessions.find(s => s.date === selectedDate) || null,
@@ -880,12 +882,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       const teacher = teachers.find(t => t.id === entry.teacherId);
       if (!teacher) continue;
 
-      const allDaySchedule = getTeacherDaySchedule(teacher.id, dayName);
+      const allDaySchedule = getTeacherDaySchedule(teacher.id, dayKey);
       let periods: AbsentPeriodEntry[];
 
       if (entry.absenceType === 'full') {
         periods = allDaySchedule.length > 0 ? allDaySchedule : Array.from(
-          { length: (schoolInfo.timing?.periodCounts?.[dayName] || 7) },
+          { length: (schoolInfo.timing?.periodCounts?.[dayKey] || 7) },
           (_, i) => ({
             periodNumber: i + 1, classId: '', className: '(غير محدد)',
             subjectId: teacher.assignedSubjectId || '',
@@ -905,7 +907,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       const swapCandidates: Record<number, SwapCandidate[]> = {};
       if (entry.absenceType === 'partial') {
         for (const period of periods) {
-          const candidates = findSwapCandidates(teacher.id, period, dayName, currentAbsentPlusNew);
+          const candidates = findSwapCandidates(teacher.id, period, dayKey, currentAbsentPlusNew);
           if (candidates.length > 0) swapCandidates[period.periodNumber] = candidates;
         }
       }
@@ -953,11 +955,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   const handleAutoAssign = (period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
     const existing = currentSession?.assignments || [];
-    const waiters = getWaitersWithQuota(period.periodNumber, dayName, existing);
+    const waiters = getWaitersWithQuota(period.periodNumber, dayKey, existing);
     // Filter with validator (skip any candidate with blocking violations)
     const eligible = waiters.filter(w => {
       if (absentTeacherIds.has(w.person.id)) return false;
-      return !hasBlockingViolations(validateAssignment(w.person, period, absentTeacher, existing, dayName));
+      return !hasBlockingViolations(validateAssignment(w.person, period, absentTeacher, existing, dayKey));
     });
 
     if (eligible.length === 0) { showToast('لا يوجد منتظرون متاحون لهذه الحصة', 'warning'); return; }
@@ -1044,7 +1046,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             if (absentTeacherIds.has(t.id)) return [];
             if (assignedThisPeriod.has(t.id)) return [];
             if (t.quotaLimit >= 24 && !t.waitingQuota) return [];
-            const busyKey = `${t.id}-${dayName}-${period.periodNumber}`;
+            const busyKey = `${t.id}-${dayKey}-${period.periodNumber}`;
             if (timetable[busyKey]?.type === 'lesson') return [];
             const total = t.waitingQuota || 10;
             const assigned = newCounts[t.id] || 0;
@@ -1138,7 +1140,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const handleManualAssign = (person: Teacher | Admin, period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
     const currentAssignments = currentSession?.assignments || [];
     // Phase 3: validate before assigning
-    const violations = validateAssignment(person, period, absentTeacher, currentAssignments, dayName);
+    const violations = validateAssignment(person, period, absentTeacher, currentAssignments, dayKey);
     if (hasBlockingViolations(violations)) {
       const blocking = violations.filter(v => v.severity === 'blocking');
       showToast(`❌ تعذّر الإسناد: ${blocking[0].message}`, 'error');
@@ -1316,7 +1318,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           a => a.absentTeacherId === absent.id && a.periodNumber === period.periodNumber
         );
         if (alreadyAssigned) continue;
-        const waiters = getWaitersWithQuota(period.periodNumber, dayName, currentSession.assignments);
+        const waiters = getWaitersWithQuota(period.periodNumber, dayKey, currentSession.assignments);
         const eligible = waiters.filter(w => (w.total - w.assigned) > 0);
         if (eligible.length === 0) {
           warnings.push({ absentName: absent.teacherName, periodNumber: period.periodNumber, className: period.className });
@@ -1324,21 +1326,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       }
     }
     return warnings;
-  }, [currentSession, dayName, getWaitersWithQuota]);
+  }, [currentSession, dayKey, getWaitersWithQuota]);
 
   const selectedTeacherSchedule = useMemo(
-    () => absenceForm.teacherId ? getTeacherDaySchedule(absenceForm.teacherId, dayName) : [],
-    [absenceForm.teacherId, dayName, getTeacherDaySchedule]
+    () => absenceForm.teacherId ? getTeacherDaySchedule(absenceForm.teacherId, dayKey) : [],
+    [absenceForm.teacherId, dayKey, getTeacherDaySchedule]
   );
 
   const maxPeriods = useMemo(() => {
     const tc = schoolInfo.timing?.periodCounts;
     if (tc) {
-      const key = Object.keys(tc).find(k => k === dayName);
+      const key = Object.keys(tc).find(k => k === dayKey);
       if (key) return tc[key];
     }
     return 7;
-  }, [schoolInfo.timing, dayName]);
+  }, [schoolInfo.timing, dayKey]);
 
   const filteredTeachers = useMemo(
     () => teachers.filter(t =>
@@ -1392,7 +1394,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             الانتظار اليومي
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12">
-            إسناد حصص الانتظار اليومية مع مراعاة العدل والمساواة في التوزيع بطريقة ذكية
+            إسناد حصص الانتظار اليومية توزيعًا يدويًا أو تلقائيًا بطريقة ذكية وعادلة
           </p>
         </div>
       </div>
@@ -2250,7 +2252,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       const entry = selectedTeacherSchedule.find(e => e.periodNumber === p) || {
                         periodNumber: p, classId: '', className: '', subjectId: '', subjectName: ''
                       };
-                      return findSwapCandidates(absenceForm.teacherId, entry, dayName, absentTeacherIds).length > 0;
+                      return findSwapCandidates(absenceForm.teacherId, entry, dayKey, absentTeacherIds).length > 0;
                     });
                     if (!hasPotential) return null;
                     return (
@@ -2600,11 +2602,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       const total = t.waitingQuota || 10;
                       const assigned = weeklyQuota.counts[t.id] || 0;
                       const remaining = total - assigned;
-                      const busyKey = `${t.id}-${dayName}-${showAssignModal.period.periodNumber}`;
+                      const busyKey = `${t.id}-${dayKey}-${showAssignModal.period.periodNumber}`;
                       const isBusy = timetable[busyKey]?.type === 'lesson';
                       const isQuotaFull = remaining <= 0;
                       // Phase 3: get validation result for this teacher
-                      const violations = validateAssignment(t, showAssignModal.period, showAssignModal.absentTeacher, currentSession?.assignments || [], dayName);
+                      const violations = validateAssignment(t, showAssignModal.period, showAssignModal.absentTeacher, currentSession?.assignments || [], dayKey);
                       const hasWarnings = violations.some(v => v.severity === 'warning');
                       const isBlocking = hasBlockingViolations(violations);
                       return { person: t as Teacher | Admin, assigned, total, remaining, isTeacher: true, isBusy, isQuotaFull: isBlocking, violations, hasWarnings };
@@ -2971,9 +2973,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       showToast('لا توجد حصص انتظار لمعاينتها', 'warning');
                     }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#655ac1] text-white text-xs font-bold transition-all hover:bg-[#5046a0] shrink-0"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] text-white text-sm font-bold transition-all hover:bg-[#5046a0] active:scale-95 shadow-md shadow-[#655ac1]/25 shrink-0"
                 >
-                  <Eye size={13} /> معاينة صفحة التوقيع
+                  <Eye size={15} /> معاينة صفحة التوقيع
                 </button>
               </div>
             )}
@@ -3758,12 +3760,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                           {resetConfirmStep === 'idle' ? (
                             <button
                               onClick={() => setResetConfirmStep('confirm')}
-                              className="flex flex-col items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-2xl px-4 py-2.5 transition-all group"
+                              className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl px-4 py-2.5 transition-all active:scale-95 group"
                             >
-                              <div className="w-8 h-8 bg-rose-100 group-hover:bg-rose-200 rounded-xl flex items-center justify-center transition-all">
-                                <RefreshCw size={15} className="text-rose-500" />
-                              </div>
-                              <span className="text-[10px] font-black text-rose-600 whitespace-nowrap">إعادة ضبط</span>
+                              <RefreshCw size={15} className="text-rose-500" />
+                              <span className="text-sm font-bold text-rose-600 whitespace-nowrap">إعادة ضبط</span>
                             </button>
                           ) : (
                             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex flex-col gap-2">
