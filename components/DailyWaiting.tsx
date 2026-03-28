@@ -3441,12 +3441,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-5 text-center">
                     <p className="text-3xl font-black text-[#655ac1]">{rptWeekTotal}</p>
                     <p className="text-sm font-bold text-slate-600 mt-1">انتظار الأسبوع</p>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">يتم تصفيره كل أسبوع</p>
                   </div>
                   <div className="bg-slate-100 border-2 border-slate-300 rounded-2xl p-5 text-center">
                     <p className="text-3xl font-black text-[#655ac1]">{rptMonthTotal}</p>
                     <p className="text-sm font-bold text-slate-600 mt-1">انتظار الشهر</p>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">يتم تصفيره كل شهر</p>
                   </div>
                 </div>
               </div>
