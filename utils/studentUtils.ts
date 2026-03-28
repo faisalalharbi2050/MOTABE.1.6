@@ -320,6 +320,12 @@ export function printStudentList(
 ) {
   const classMap = new Map(classes.map(c => [c.id, c]));
 
+  const getClassName = (classId: string) => {
+    const c = classMap.get(classId);
+    if (!c) return 'غير محدد';
+    return c.name || `${c.grade}/${c.section}`;
+  };
+
   const sorted = [...students].sort((a, b) => {
     if (sortBy === 'grade') {
       if (a.grade !== b.grade) return a.grade - b.grade;
@@ -338,63 +344,134 @@ export function printStudentList(
     }
   });
 
+  // Group students
+  const groups = new Map<string, { label: string; rows: Student[] }>();
+  for (const s of sorted) {
+    const gradeName = `الصف ${s.grade}`;
+    const clsName = getClassName(s.classId);
+    const key = sortBy === 'grade' ? gradeName : clsName;
+    const label = sortBy === 'grade' ? gradeName : `${gradeName} — ${clsName}`;
+    if (!groups.has(key)) groups.set(key, { label, rows: [] });
+    groups.get(key)!.rows.push(s);
+  }
+
+  // Build HTML groups
+  let groupsHtml = '';
+  for (const { label, rows } of groups.values()) {
+    let rowsHtml = '';
+    rows.forEach((s, i) => {
+      const gradeName = `الصف ${s.grade}`;
+      const clsName = getClassName(s.classId);
+      const hasMissing = !s.grade || !s.classId || !s.parentPhone;
+      rowsHtml += `
+        <tr class="${hasMissing ? 'row-warning' : ''}">
+          <td class="num">${i + 1}</td>
+          <td class="name">${s.name}</td>
+          <td class="center"><span class="grade-badge">${gradeName}</span></td>
+          <td class="center"><span class="class-badge">${clsName}</span></td>
+          <td class="center phone" dir="ltr">${s.parentPhone || '<span class="missing">—</span>'}</td>
+        </tr>`;
+    });
+    groupsHtml += `
+      <div class="group-block">
+        <div class="group-header">
+          <span>${label}</span>
+          <span class="group-count">${rows.length} طالب</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width:44px">م</th>
+              <th>اسم الطالب</th>
+              <th class="center" style="width:80px">الصف</th>
+              <th class="center" style="width:110px">الفصل</th>
+              <th class="center" style="width:130px">رقم ولي الأمر</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>`;
+  }
+
+  const title = customTitle || `قائمة الطلاب — ${new Date().toLocaleDateString('ar-SA')}`;
+  const printDate = new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
+
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
-  let tableRows = '';
-  let counter = 0;
-  let currentGroup = '';
+  printWindow.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Tajawal', sans-serif; background: #fff; direction: rtl; color: #1e293b; padding: 28px 32px; }
 
-  for (const s of sorted) {
-    const cls = classMap.get(s.classId);
-    const gradeName = `الصف ${s.grade}`;
-    const className = cls ? `${cls.grade}/${cls.section}` : 'غير محدد';
-    const groupKey = sortBy === 'grade' ? gradeName : className;
+    /* ─── Page Header ─── */
+    .page-header { text-align: center; padding-bottom: 18px; border-bottom: 3px solid #655ac1; margin-bottom: 28px; }
+    .school-name { font-size: 22px; font-weight: 900; color: #1e293b; }
+    .list-title  { font-size: 15px; color: #64748b; font-weight: 500; margin-top: 5px; }
+    .meta        { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 99px; margin-top: 10px; }
 
-    if (groupKey !== currentGroup) {
-      currentGroup = groupKey;
-      counter = 0;
-      tableRows += `<tr style="background:#f0f4ff;"><td colspan="5" style="padding:10px;font-weight:900;font-size:14px;color:#4338ca;border:1px solid #e2e8f0;">${groupKey}</td></tr>`;
+    /* ─── Group Block ─── */
+    .group-block  { margin-bottom: 24px; }
+    .group-header {
+      background: linear-gradient(to left, #655ac1, #8779fb);
+      color: #fff; padding: 9px 16px; border-radius: 10px 10px 0 0;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 14px; font-weight: 900;
     }
-    counter++;
-    tableRows += `
-      <tr>
-        <td style="padding:8px;text-align:center;border:1px solid #e2e8f0;font-size:12px;">${counter}</td>
-        <td style="padding:8px;border:1px solid #e2e8f0;font-size:12px;font-weight:700;">${s.name}</td>
-        <td style="padding:8px;text-align:center;border:1px solid #e2e8f0;font-size:12px;">${gradeName}</td>
-        <td style="padding:8px;text-align:center;border:1px solid #e2e8f0;font-size:12px;">${className}</td>
-        <td style="padding:8px;text-align:center;border:1px solid #e2e8f0;font-size:12px;" dir="ltr">${s.parentPhone || '-'}</td>
-      </tr>`;
-  }
+    .group-count { background: rgba(255,255,255,0.22); border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html dir="rtl" lang="ar">
-    <head>
-      <meta charset="UTF-8">
-      <title>قائمة الطلاب</title>
-      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
-      <style>
-        body { font-family: 'Tajawal', sans-serif; padding: 20px; direction: rtl; }
-        h1 { text-align: center; color: #1e293b; font-size: 20px; margin-bottom: 4px; }
-        h2 { text-align: center; color: #64748b; font-size: 14px; font-weight: 400; margin-top: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #4338ca; color: white; padding: 10px; font-size: 12px; border: 1px solid #4338ca; }
-        @media print { body { padding: 0; } }
-      </style>
-    </head>
-    <body>
-      <h1>${schoolInfo.schoolName || 'المدرسة'}</h1>
-      <h2>${customTitle || `قائمة الطلاب — ${new Date().toLocaleDateString('ar-SA')}`}</h2>
-      <table>
-        <thead>
-          <tr><th>#</th><th>اسم الطالب</th><th>الصف</th><th>الفصل</th><th>رقم ولي الأمر</th></tr>
-        </thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-    </body>
-    </html>
-  `);
+    /* ─── Table ─── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #f8fafc; padding: 9px 12px;
+      font-size: 12px; font-weight: 700; color: #64748b;
+      border-bottom: 2px solid #e2e8f0; text-align: right;
+    }
+    thead th.center { text-align: center; }
+    tbody tr { border-bottom: 1px solid #f1f5f9; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    tbody tr.row-warning { background: #fffbeb; }
+    tbody td { padding: 9px 12px; font-size: 13px; vertical-align: middle; }
+
+    .num   { text-align: center; color: #94a3b8; font-size: 12px; font-weight: 700; }
+    .name  { font-weight: 700; color: #1e293b; }
+    .center { text-align: center; }
+    .grade-badge { display: inline-block; background: #f1f5f9; color: #475569; padding: 3px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; }
+    .class-badge { display: inline-block; background: #ede9fe; color: #655ac1; padding: 3px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; }
+    .phone { font-family: monospace; font-size: 12px; color: #475569; }
+    .missing { color: #cbd5e1; }
+
+    /* ─── Footer ─── */
+    .page-footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px; }
+
+    /* ─── Print ─── */
+    @media print {
+      body { padding: 12px 16px; }
+      .group-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .class-badge  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .group-block  { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <div class="school-name">${schoolInfo.schoolName || 'المدرسة'}</div>
+    <div class="list-title">${title}</div>
+    <div class="meta">${printDate}</div>
+    <span class="total-badge">إجمالي الطلاب: ${students.length}</span>
+  </div>
+
+  ${groupsHtml}
+
+  <div class="page-footer">تم الإنشاء بواسطة منظومة متابع</div>
+</body>
+</html>`);
   printWindow.document.close();
   printWindow.print();
 }

@@ -1,16 +1,16 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, startTransition } from 'react';
+import ReactDOM from 'react-dom';
 import { ClassInfo, Student, SchoolInfo, Phase } from '../../../types';
 import { PHASE_CONFIG } from '../../../constants';
 import {
   Users, Upload, Search, Filter, Printer, Trash2, Plus, X, Pencil, Check,
   AlertTriangle, School, GraduationCap, ArrowUpCircle, Download,
   ChevronDown, Loader2, CheckCircle2, Phone, Hash, FileSpreadsheet,
-  RotateCcw, UserPlus, Trash
+  RotateCcw, UserPlus, Trash, Edit2, BookOpen
 } from 'lucide-react';
 import {
   parseStudentExcel,
   printStudentList,
-  filterStudents,
   getStudentStats,
 } from '../../../utils/studentUtils';
 import SchoolTabs from '../SchoolTabs';
@@ -21,6 +21,128 @@ interface Step5Props {
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   schoolInfo: SchoolInfo;
 }
+
+// ─── Memoized Student Row ─────────────────────────────────────
+// Defined outside the parent so React.memo works across renders.
+// Only re-renders when its own props change — prevents all rows from
+// re-rendering when a modal opens, dropdown toggles, etc.
+interface StudentRowProps {
+  student: Student;
+  idx: number;
+  isSelected: boolean;
+  isEditing: boolean;
+  editName: string;
+  editPhone: string;
+  editClassId: string;
+  gradeClasses: ClassInfo[];
+  getClassName: (classId: string) => string;
+  onToggleSelect: (id: string) => void;
+  onSetEditName: (v: string) => void;
+  onSetEditPhone: (v: string) => void;
+  onSetEditClassId: (v: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onOpenDropdown: (e: React.MouseEvent<HTMLButtonElement>, id: string) => void;
+}
+
+const StudentRow = React.memo<StudentRowProps>(function StudentRow({
+  student, idx, isSelected, isEditing,
+  editName, editPhone, editClassId, gradeClasses, getClassName,
+  onToggleSelect, onSetEditName, onSetEditPhone, onSetEditClassId,
+  onSaveEdit, onCancelEdit, onOpenDropdown,
+}) {
+  return (
+    <tr className={`transition-colors group ${
+      isSelected ? 'bg-[#e5e1fe]/20' : isEditing ? 'bg-[#f5f3ff]' : 'hover:bg-[#e5e1fe]/10'
+    }`}>
+      <td className="p-4 text-center relative">
+        <div className="flex items-center justify-center gap-1">
+          <div
+            onClick={() => onToggleSelect(student.id)}
+            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all absolute right-3 opacity-0 group-hover:opacity-100 ${
+              isSelected ? 'opacity-100 bg-[#655ac1] border-[#655ac1]' : 'border-slate-200 hover:border-[#655ac1]'
+            }`}
+          >
+            {isSelected && <Check size={11} className="text-white" />}
+          </div>
+          <span className={`text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full transition-opacity ${isSelected ? 'opacity-0' : 'group-hover:opacity-0'}`}>
+            {idx + 1}
+          </span>
+        </div>
+      </td>
+      <td className="p-4 font-bold text-slate-700">
+        {isEditing ? (
+          <input
+            type="text"
+            value={editName}
+            onChange={e => onSetEditName(e.target.value)}
+            className="w-full p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-sm font-bold shadow-sm"
+            autoFocus
+            onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit(); }}
+          />
+        ) : (
+          <span className="group-hover:text-[#655ac1] transition-colors">{student.name}</span>
+        )}
+      </td>
+      <td className="p-4 text-center">
+        {isEditing ? (
+          <select
+            value={editClassId}
+            onChange={e => onSetEditClassId(e.target.value)}
+            className="p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-xs font-bold w-full shadow-sm"
+          >
+            <option value="">غير محدد</option>
+            {gradeClasses.map(c => (
+              <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
+            ))}
+          </select>
+        ) : (
+          <span className={`inline-block text-sm font-bold px-3 py-1.5 rounded-xl ${
+            student.classId ? 'text-[#655ac1] bg-slate-100' : 'text-amber-600 bg-amber-50'
+          }`}>
+            {getClassName(student.classId)}
+          </span>
+        )}
+      </td>
+      <td className="p-4 text-center">
+        {isEditing ? (
+          <input
+            type="tel"
+            value={editPhone}
+            onChange={e => onSetEditPhone(e.target.value)}
+            className="w-full p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-xs font-bold text-center shadow-sm"
+            dir="ltr"
+            onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit(); }}
+          />
+        ) : (
+          <span className="text-sm font-bold text-slate-600 font-mono tracking-wide" dir="ltr">
+            {student.parentPhone || <span className="text-slate-300 font-normal">—</span>}
+          </span>
+        )}
+      </td>
+      <td className="p-4 text-center">
+        {isEditing ? (
+          <div className="flex items-center justify-center gap-1">
+            <button onClick={onSaveEdit} className="p-2 bg-[#655ac1] text-white rounded-lg hover:bg-[#5448a8] transition-all shadow-sm" title="حفظ">
+              <Check size={14} />
+            </button>
+            <button onClick={onCancelEdit} className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-all" title="إلغاء">
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={e => onOpenDropdown(e, student.id)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb] mx-auto"
+            title="إجراءات"
+          >
+            <Edit2 size={14} />
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+});
 
 const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, schoolInfo }) => {
   // ─── Core State ───
@@ -33,6 +155,10 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const [importResult, setImportResult] = useState<{ matched: number; unmatched: number; total: number; errors: string[] } | null>(null);
   const [showImportErrors, setShowImportErrors] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gradeDropdownRef = useRef<HTMLDivElement>(null);
+  const classDropdownRef = useRef<HTMLDivElement>(null);
+  // Ref keeps latest edit state so handleSaveEdit stays stable (no deps on edit fields)
+  const editStateRef = useRef({ editName: '', editPhone: '', editClassId: '', editingStudent: null as string | null });
 
   // ─── Manual Add/Edit State ───
   const [showAddForm, setShowAddForm] = useState(false);
@@ -47,20 +173,24 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
   // ─── Filter State ───
   const [searchText, setSearchText] = useState('');
-  const [filterGrade, setFilterGrade] = useState<number | ''>('');
-  const [filterClassId, setFilterClassId] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<number | null>(null); // For drill-down navigation
+  const [filterGrades, setFilterGrades] = useState<number[]>([]);
+  const [filterClassIds, setFilterClassIds] = useState<string[]>([]);
+  const [gradeDropdownOpen, setGradeDropdownOpen] = useState(false);
+  const [classDropdownOpen, setClassDropdownOpen] = useState(false);
+  // ─── Per-Grade Class Filter (chips inside each grade section) ───
+  const [gradeClassFilters, setGradeClassFilters] = useState<Record<number, string>>({});
 
   // ─── Selection State ───
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [showMissingDataOnly, setShowMissingDataOnly] = useState(false); // Filter for missing data
+  const [gradeDeleteTarget, setGradeDeleteTarget] = useState<{ grade: number; classId?: string; className?: string } | null>(null);
+  const [showMissingDataModal, setShowMissingDataModal] = useState(false);
 
 
   // ─── Print State ───
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const [printSelection, setPrintSelection] = useState<{ type: 'all' | 'grade' | 'class'; gradeValue: number | ''; classId: string }>({ type: 'all', gradeValue: '', classId: '' });
   const [showBulkCountModal, setShowBulkCountModal] = useState(false);
 
   // ─── Manual Bulk Entry State ───
@@ -76,6 +206,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
   // ─── Toast State ───
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // ─── Action Dropdown State ───
+  const [actionDropdown, setActionDropdown] = useState<{ studentId: string; top: number; left: number } | null>(null);
 
   // ─── Derived Data ───
   // Sync activePhase with activeSchoolId
@@ -118,21 +251,21 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const filteredStudents = useMemo(() => {
     let result = schoolStudents;
 
-    if (showMissingDataOnly) {
-      result = studentsWithMissingData;
-    } else {
-      result = filterStudents(result, {
-        searchText: searchText || undefined,
-        grade: filterGrade || undefined,
-        classId: filterClassId || undefined,
-      });
+    if (searchText) {
+      result = result.filter(s => s.name.includes(searchText));
+    }
+    if (filterGrades.length > 0) {
+      result = result.filter(s => filterGrades.includes(s.grade));
+    }
+    if (filterClassIds.length > 0) {
+      result = result.filter(s => filterClassIds.includes(s.classId));
     }
 
     return result.sort((a, b) => {
       if (a.grade !== b.grade) return a.grade - b.grade;
       return a.name.localeCompare(b.name, 'ar');
     });
-  }, [schoolStudents, searchText, filterGrade, filterClassId, showMissingDataOnly, studentsWithMissingData]);
+  }, [schoolStudents, searchText, filterGrades, filterClassIds]);
 
   const stats = useMemo(() => getStudentStats(schoolStudents, schoolClasses), [schoolStudents, schoolClasses]);
 
@@ -140,11 +273,53 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     return schoolClasses.filter(c => c.grade === addGrade);
   }, [schoolClasses, addGrade]);
 
+  // Classes available in the filter dropdown (limited by selected grades)
+  const classesForFilter = useMemo(() => {
+    if (filterGrades.length > 0) return schoolClasses.filter(c => filterGrades.includes(c.grade));
+    return schoolClasses;
+  }, [schoolClasses, filterGrades]);
+
+  const groupedByGrade = useMemo(() => {
+    const groups = new Map<number, Student[]>();
+    filteredStudents.forEach(s => {
+      if (!groups.has(s.grade)) groups.set(s.grade, []);
+      groups.get(s.grade)!.push(s);
+    });
+    return groups;
+  }, [filteredStudents]);
+
   // ─── Toast Helper ───
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   }, []);
+
+  // ─── Action Dropdown Close on Click/Scroll ───
+  useEffect(() => {
+    if (!actionDropdown) return;
+    const close = () => setActionDropdown(null);
+    document.addEventListener('click', close);
+    document.addEventListener('scroll', close, true);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('scroll', close, true);
+    };
+  }, [actionDropdown]);
+
+  // ─── Close filter dropdowns on outside click ───
+  useEffect(() => {
+    if (!gradeDropdownOpen && !classDropdownOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (gradeDropdownRef.current && !gradeDropdownRef.current.contains(e.target as Node)) {
+        setGradeDropdownOpen(false);
+      }
+      if (classDropdownRef.current && !classDropdownRef.current.contains(e.target as Node)) {
+        setClassDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [gradeDropdownOpen, classDropdownOpen]);
 
   // ─── Excel Import ───
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,7 +402,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     setEditClassId(s.classId);
   }, []);
 
+  // Sync latest edit state into ref so handleSaveEdit stays stable
+  useEffect(() => {
+    editStateRef.current = { editName, editPhone, editClassId, editingStudent };
+  }, [editName, editPhone, editClassId, editingStudent]);
+
+  // Stable — no deps on edit fields (reads from ref at call time)
   const handleSaveEdit = useCallback(() => {
+    const { editingStudent, editName, editPhone, editClassId } = editStateRef.current;
     if (!editingStudent) return;
     setStudents(prev => prev.map(s =>
       s.id === editingStudent ? {
@@ -239,7 +421,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     ));
     setEditingStudent(null);
     showToast('تم تحديث البيانات');
-  }, [editingStudent, editName, editPhone, editClassId, setStudents, showToast]);
+  }, [setStudents, showToast]);
+
+  const handleCancelEdit = useCallback(() => setEditingStudent(null), []);
 
   // ─── Delete ───
   const handleDeleteOne = useCallback((id: string) => {
@@ -247,12 +431,47 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     setSelectedStudents(prev => { const ns = new Set(prev); ns.delete(id); return ns; });
   }, [setStudents]);
 
+  // ─── Action Dropdown Helper ───
+  const openActionDropdown = useCallback((e: React.MouseEvent, studentId: string) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const dropdownWidth = 160;
+    const margin = 8;
+    // محاذاة القائمة لتبدأ من يمين الزر وتمتد يساراً، مع ضمان بقائها داخل الشاشة
+    const left = Math.max(margin, Math.min(rect.right - dropdownWidth, window.innerWidth - dropdownWidth - margin));
+    setActionDropdown({ studentId, top: rect.bottom + 4, left });
+  }, []);
+
   const handleBulkDelete = useCallback(() => {
+    const count = selectedStudents.size;
     setStudents(prev => prev.filter(s => !selectedStudents.has(s.id)));
     setSelectedStudents(new Set());
     setShowBulkDeleteConfirm(false);
-    showToast(`تم حذف ${selectedStudents.size} طالب`);
+    showToast(`تم حذف ${count} طالب`);
   }, [selectedStudents, setStudents, showToast]);
+
+  const handleDeleteGradeOrClass = useCallback(() => {
+    if (!gradeDeleteTarget) return;
+    const { grade, classId } = gradeDeleteTarget;
+    if (classId) {
+      const count = schoolStudents.filter(s => s.classId === classId).length;
+      setStudents(prev => prev.filter(s => !(s.classId === classId && (s.schoolId || 'main') === activeSchoolId)));
+      showToast(`تم حذف ${count} طالب من الفصل`);
+    } else {
+      const count = schoolStudents.filter(s => s.grade === grade).length;
+      setStudents(prev => prev.filter(s => !(s.grade === grade && (s.schoolId || 'main') === activeSchoolId)));
+      showToast(`تم حذف ${count} طالب من الصف ${grade}`);
+    }
+    setSelectedStudents(prev => {
+      const ns = new Set(prev);
+      const toRemove = classId
+        ? schoolStudents.filter(s => s.classId === classId).map(s => s.id)
+        : schoolStudents.filter(s => s.grade === grade).map(s => s.id);
+      toRemove.forEach(id => ns.delete(id));
+      return ns;
+    });
+    setGradeDeleteTarget(null);
+  }, [gradeDeleteTarget, schoolStudents, activeSchoolId, setStudents, showToast]);
 
   const handleDeleteAll = useCallback(() => {
     setStudents(prev => prev.filter(s => (s.schoolId || 'main') !== activeSchoolId));
@@ -290,21 +509,36 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     if (specificClassId) {
       listToPrint = schoolStudents.filter(s => s.classId === specificClassId);
       title = `قائمة طلاب ${getClassName(specificClassId)}`;
-    } else if (filterClassId) {
+    } else if (filterClassIds.length === 1) {
        listToPrint = filteredStudents;
-       title = `قائمة طلاب ${getClassName(filterClassId)}`;
+       title = `قائمة طلاب ${getClassName(filterClassIds[0])}`;
     }
 
     printStudentList(listToPrint, schoolClasses, schoolInfo, sortBy, title);
     setShowPrintMenu(false);
-  }, [schoolStudents, filteredStudents, schoolClasses, schoolInfo, filterClassId]);
+  }, [schoolStudents, filteredStudents, schoolClasses, schoolInfo, filterClassIds]);
 
-  // Helper: get class display name
-  const getClassName = (classId: string) => {
-    const cls = classes.find(c => c.id === classId);
-    if (!cls) return 'غير محدد';
-    return cls.name || `${cls.grade}/${cls.section}`;
-  };
+  // ─── O(1) class name lookup (Map instead of .find per render) ───
+  const classNameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    classes.forEach(c => m.set(c.id, c.name || `${c.grade}/${c.section}`));
+    return m;
+  }, [classes]);
+
+  const getClassName = useCallback((classId: string) => {
+    if (!classId) return 'غير محدد';
+    return classNameMap.get(classId) || 'غير محدد';
+  }, [classNameMap]);
+
+  // Pre-computed classes per grade → passed to StudentRow for edit select
+  const gradeClassesMap = useMemo(() => {
+    const m = new Map<number, ClassInfo[]>();
+    schoolClasses.forEach(c => {
+      if (!m.has(c.grade)) m.set(c.grade, []);
+      m.get(c.grade)!.push(c);
+    });
+    return m;
+  }, [schoolClasses]);
 
   // ══════════════════════════════════════════════════════
   //   R E N D E R
@@ -623,89 +857,12 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
                 {/* Print Button */}
                 <button
-                    onClick={() => setShowPrintModal(true)}
+                    onClick={() => { setPrintSelection({ type: 'all', gradeValue: '', classId: '' }); setShowPrintModal(true); }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:border-[#655ac1] transition-all hover:scale-105 active:scale-95"
                 >
                     <Printer size={18} className="text-[#655ac1]" />
                     طباعة
                 </button>
-
-                {/* Print Options Modal */}
-                {showPrintModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                                    <Printer size={20} className="text-[#655ac1]" /> خيارات الطباعة
-                                </h3>
-                                <button onClick={() => setShowPrintModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <div className="p-6 space-y-3">
-                                <button
-                                    onClick={() => { handlePrint('grade'); setShowPrintModal(false); }}
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl hover:border-[#655ac1] hover:bg-[#e5e1fe]/20 transition-all flex items-center gap-4 group text-right"
-                                >
-                                    <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 group-hover:border-[#e5e1fe]">
-                                        <GraduationCap size={24} className="text-slate-400 group-hover:text-[#655ac1]" />
-                                    </div>
-                                    <div>
-                                        <div className="font-black text-slate-700 group-hover:text-[#655ac1]">طباعة الكل (حسب الصف)</div>
-                                        <div className="text-xs text-slate-400 font-bold mt-1">يتم طباعة جميع الطلاب مرتبين حسب الصفوف</div>
-                                    </div>
-                                </button>
-                                <div className="relative">
-                                    <div className="absolute inset-x-0 top-1/2 border-t border-slate-100"></div>
-                                    <div className="relative flex justify-center">
-                                        <span className="bg-white px-2 text-xs font-bold text-slate-300">أو تحديد مخصص</span>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 mr-1">طباعة حسب الصف:</label>
-                                    <select
-                                        onChange={(e) => {
-                                            if (e.target.value) {
-                                                const grade = parseInt(e.target.value);
-                                                const gradeStudents = schoolStudents.filter(s => s.grade === grade);
-                                                printStudentList(gradeStudents, schoolClasses, schoolInfo, 'class', `قائمة طلاب الصف ${grade}`);
-                                                setShowPrintModal(false);
-                                            }
-                                        }}
-                                        className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
-                                    >
-                                        <option value="">اختر صفاً للطباعة...</option>
-                                        {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => (
-                                            <option key={grade} value={grade}>الصف {grade}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-500 mr-1">طباعة فصل محدد:</label>
-                                    <select
-                                        onChange={(e) => {
-                                            if (e.target.value) {
-                                                handlePrint('class', e.target.value);
-                                                setShowPrintModal(false);
-                                            }
-                                        }}
-                                        className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
-                                    >
-                                        <option value="">اختر فصلاً للطباعة...</option>
-                                        {schoolClasses.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="bg-slate-50 p-4 text-center">
-                                <button onClick={() => setShowPrintModal(false)} className="text-xs font-bold text-slate-400 hover:text-slate-600">
-                                    إلغاء
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {/* Delete All Button */}
                 <button
@@ -720,66 +877,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
 
             {/* ══════ Stats Cards (Drill-Down) ══════ */}
-            {schoolStudents.length > 0 && <div className="space-y-3">
-            {selectedGrade && (
-                <button
-                onClick={() => { setSelectedGrade(null); setFilterGrade(''); setFilterClassId(''); }}
-                className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-[#655ac1] transition-all pr-1"
-                >
-                <ArrowUpCircle size={14} className="rotate-90" /> عودة لجميع الصفوف
-                </button>
-            )}
-            
-            <div className={`grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 ${selectedGrade ? 'animate-in slide-in-from-right-4 duration-300' : ''}`}>
-                {!selectedGrade ? (
-                // Level 1: Grades
-                Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
-                    const count = stats.gradeMap.get(grade) || 0;
-                    return (
-                    <div
-                        key={grade}
-                        onClick={() => { setSelectedGrade(grade); setFilterGrade(grade); setFilterClassId(''); }}
-                        className="p-4 rounded-xl border-2 border-slate-100 bg-white hover:border-[#8779fb]/30 hover:shadow-md transition-all cursor-pointer text-center group flex flex-col justify-between h-28"
-                    >
-                         <div className="text-xs font-bold text-slate-500 group-hover:text-[#655ac1] mb-2">الصف {grade}</div>
-                        <div className="text-3xl font-black text-[#655ac1] group-hover:scale-110 transition-transform">{count}</div>
-                    </div>
-                    );
-                })
-                ) : (
-                // Level 2: Classes for Selected Grade
-                schoolClasses.filter(c => c.grade === selectedGrade).map(cls => {
-                    const count = stats.classMap.get(cls.id) || 0;
-                    const isSelected = filterClassId === cls.id;
-                    return (
-                    <div
-                        key={cls.id}
-                        onClick={() => setFilterClassId(isSelected ? '' : cls.id)}
-                        className={`p-4 rounded-xl border-2 transition-all cursor-pointer text-center group flex flex-col justify-between h-28 ${
-                        isSelected
-                            ? 'border-[#655ac1] bg-[#e5e1fe]/20 shadow-md'
-                            : 'border-slate-100 bg-white hover:border-[#8779fb]/30 hover:shadow-md'
-                        }`}
-                    >
-                        <div className={`text-xs font-bold mb-2 ${isSelected ? 'text-[#655ac1]' : 'text-slate-500'}`}>
-                        {cls.name || `${cls.grade}/${cls.section}`}
-                        </div>
-                        <div className={`text-3xl font-black transition-transform group-hover:scale-110 ${isSelected ? 'text-[#655ac1]' : 'text-slate-600'}`}>
-                        {count}
-                        </div>
-                    </div>
-                    );
-                })
-                )}
-                
-                {/* Show "No Classes" state if in grade view but no classes exist */}
-                {selectedGrade && schoolClasses.filter(c => c.grade === selectedGrade).length === 0 && (
-                <div className="col-span-full p-6 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <p className="text-xs font-bold">لا توجد فصول مضافة لهذا الصف بعد.</p>
-                </div>
-                )}
-            </div>
-            </div>}
 
           {/* ══════ Empty State ══════ */}
           {schoolStudents.length === 0 && !isImporting && (
@@ -885,7 +982,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
            <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300">
              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                 <UserPlus size={24} className="text-emerald-500" /> إضافة طالب جديد
+                 <UserPlus size={24} className="text-[#655ac1]" /> إضافة طالب جديد
                </h3>
                <button onClick={() => setShowAddForm(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
                  <X size={20} />
@@ -949,9 +1046,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     <button
                       onClick={() => { handleAddStudent(); setShowAddForm(false); }}
                       disabled={!addName.trim()}
-                      className="flex-1 py-4 bg-emerald-500 text-white font-black text-sm rounded-xl hover:bg-emerald-600 shadow-lg shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      <CheckCircle2 size={18} /> حفظ البيانات
+                      <CheckCircle2 size={18} /> حفظ
                     </button>
                     <button
                       onClick={() => setShowAddForm(false)}
@@ -1065,7 +1162,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     type="text"
                     placeholder="بحث عن طالب..."
                     value={searchText}
-                    onChange={e => setSearchText(e.target.value)}
+                    onChange={e => { const v = e.target.value; startTransition(() => setSearchText(v)); }}
                     className="w-full pr-12 pl-4 py-3 bg-slate-50 border-0 rounded-xl outline-none text-sm font-bold focus:ring-2 focus:ring-[#8779fb]/20 transition-all text-slate-600 placeholder:text-slate-400"
                 />
                 {searchText && (
@@ -1075,53 +1172,157 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 )}
                 </div>
 
-                {/* Split Filter (Grade -> Class) */}
+                {/* Split Filter (Grade -> Class) — Multi-select dropdowns */}
                 <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
-                    <select
-                        value={filterGrade}
-                        onChange={e => {
-                            const val = e.target.value ? parseInt(e.target.value) : '';
-                            setFilterGrade(val);
-                            if (val && filterClassId) {
-                                const cls = schoolClasses.find(c => c.id === filterClassId);
-                                if (cls && cls.grade !== val) setFilterClassId('');
-                            }
-                        }}
-                        className="w-full lg:w-36 px-4 py-3 bg-slate-50 border-0 rounded-xl outline-none text-sm font-bold text-slate-600 focus:ring-2 focus:ring-[#8779fb]/20 transition-all cursor-pointer"
-                    >
-                        <option value="">جميع الصفوف</option>
-                        {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => (
-                            <option key={grade} value={grade}>الصف {grade}</option>
-                        ))}
-                    </select>
 
-                    <select
-                        value={filterClassId}
-                        onChange={e => {
-                        setFilterClassId(e.target.value);
-                        if (e.target.value) {
-                            const cls = schoolClasses.find(c => c.id === e.target.value);
-                            if (cls) setFilterGrade(cls.grade);
-                        }
-                        }}
-                        className="w-full lg:w-40 px-4 py-3 bg-slate-50 border-0 rounded-xl outline-none text-sm font-bold text-slate-600 focus:ring-2 focus:ring-[#8779fb]/20 transition-all cursor-pointer"
-                    >
-                        <option value="">جميع الفصول</option>
-                        {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
-                            const classesInGrade = schoolClasses.filter(c => c.grade === grade);
-                            if (classesInGrade.length === 0) return null;
-                            if (filterGrade && filterGrade !== grade) return null;
-                            return (
-                                <optgroup key={grade} label={`الصف ${grade}`}>
-                                    {classesInGrade.map(c => (
-                                        <option key={c.id} value={c.id}>
-                                        {c.name || `${c.grade}/${c.section}`}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            );
-                        })}
-                    </select>
+                    {/* Grade multi-select */}
+                    <div className="relative" ref={gradeDropdownRef}>
+                        <button
+                            onClick={() => { setGradeDropdownOpen(prev => !prev); setClassDropdownOpen(false); }}
+                            className={`flex items-center gap-2 px-4 py-3 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[140px] ${
+                                filterGrades.length > 0
+                                    ? 'border-[#655ac1] bg-[#f5f3ff] text-[#655ac1]'
+                                    : 'border-slate-200 bg-slate-50 text-slate-600'
+                            }`}
+                        >
+                            <span className="flex-1 text-right">
+                                {filterGrades.length === 0 ? 'جميع الصفوف' :
+                                 filterGrades.length === 1 ? `الصف ${filterGrades[0]}` :
+                                 `${filterGrades.length} صفوف`}
+                            </span>
+                            {filterGrades.length > 0 && (
+                                <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
+                                    <Check size={9} className="text-white" strokeWidth={3} />
+                                </div>
+                            )}
+                            <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${gradeDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {gradeDropdownOpen && (
+                            <div className="absolute top-full mt-1.5 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] min-w-[160px] py-1.5 animate-in fade-in zoom-in-95 duration-100">
+                                {/* All grades */}
+                                <button
+                                    onClick={() => setFilterGrades([])}
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
+                                        filterGrades.length === 0 ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                        filterGrades.length === 0 ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
+                                    }`}>
+                                        {filterGrades.length === 0 && <Check size={11} className="text-white" />}
+                                    </div>
+                                    جميع الصفوف
+                                </button>
+                                <div className="my-1 border-t border-slate-100" />
+                                {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
+                                    const isSel = filterGrades.includes(grade);
+                                    return (
+                                        <button
+                                            key={grade}
+                                            onClick={() => setFilterGrades(prev => isSel ? prev.filter(g => g !== grade) : [...prev, grade])}
+                                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
+                                                isSel ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                                isSel ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
+                                            }`}>
+                                                {isSel && <Check size={11} className="text-white" />}
+                                            </div>
+                                            الصف {grade}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Class multi-select */}
+                    <div className="relative" ref={classDropdownRef}>
+                        <button
+                            onClick={() => { setClassDropdownOpen(prev => !prev); setGradeDropdownOpen(false); }}
+                            className={`flex items-center gap-2 px-4 py-3 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[150px] ${
+                                filterClassIds.length > 0
+                                    ? 'border-[#655ac1] bg-[#f5f3ff] text-[#655ac1]'
+                                    : 'border-slate-200 bg-slate-50 text-slate-600'
+                            }`}
+                        >
+                            <span className="flex-1 text-right">
+                                {filterClassIds.length === 0 ? 'جميع الفصول' :
+                                 filterClassIds.length === 1 ? getClassName(filterClassIds[0]) :
+                                 `${filterClassIds.length} فصول`}
+                            </span>
+                            {filterClassIds.length > 0 && (
+                                <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
+                                    <Check size={9} className="text-white" strokeWidth={3} />
+                                </div>
+                            )}
+                            <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${classDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {classDropdownOpen && (
+                            <div className="absolute top-full mt-1.5 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] min-w-[180px] py-1.5 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
+                                {/* All classes */}
+                                <button
+                                    onClick={() => setFilterClassIds([])}
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
+                                        filterClassIds.length === 0 ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                        filterClassIds.length === 0 ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
+                                    }`}>
+                                        {filterClassIds.length === 0 && <Check size={11} className="text-white" />}
+                                    </div>
+                                    جميع الفصول
+                                </button>
+                                <div className="my-1 border-t border-slate-100" />
+                                {/* Grouped by grade */}
+                                {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
+                                    const gradeClsItems = classesForFilter.filter(c => c.grade === grade);
+                                    if (gradeClsItems.length === 0) return null;
+                                    if (filterGrades.length > 0 && !filterGrades.includes(grade)) return null;
+                                    return (
+                                        <React.Fragment key={grade}>
+                                            <div className="px-4 py-1 text-[11px] font-black text-slate-400 bg-slate-50/70 uppercase tracking-wide">
+                                                الصف {grade}
+                                            </div>
+                                            {gradeClsItems.map(cls => {
+                                                const isSel = filterClassIds.includes(cls.id);
+                                                return (
+                                                    <button
+                                                        key={cls.id}
+                                                        onClick={() => setFilterClassIds(prev => isSel ? prev.filter(id => id !== cls.id) : [...prev, cls.id])}
+                                                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
+                                                            isSel ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                                            isSel ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
+                                                        }`}>
+                                                            {isSel && <Check size={11} className="text-white" />}
+                                                        </div>
+                                                        {cls.name || `${cls.grade}/${cls.section}`}
+                                                    </button>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {(filterGrades.length > 0 || filterClassIds.length > 0) && (
+                        <button
+                            onClick={() => { setFilterGrades([]); setFilterClassIds([]); }}
+                            className="p-2.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-500 rounded-xl text-slate-400 transition-all duration-100"
+                            title="مسح التصفية"
+                        >
+                            <X size={15} />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -1130,31 +1331,31 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             {/* Left Side: Stats (Fixed Width) */}
             <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end shrink-0">
                {/* Total Count */}
-               <div className="flex items-center gap-3 px-5 py-2 bg-[#e5e1fe]/50 rounded-xl min-w-[140px] cursor-default border border-[#e5e1fe] hover:shadow-sm transition-all h-[52px]">
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                    <Users size={20} className="text-[#655ac1]" />
+               <div className="flex items-center gap-4 px-6 py-3 bg-white rounded-2xl border-2 border-[#655ac1]/20 cursor-default hover:border-[#655ac1]/40 transition-all">
+                  <div className="p-2 bg-slate-100 rounded-xl">
+                    <GraduationCap size={22} className="text-[#655ac1]" />
                   </div>
                   <div className="flex flex-col justify-center">
-                      <span className="text-[10px] font-bold text-slate-400 leading-tight">الإجمالي</span>
-                      <span className="text-xl font-black text-[#655ac1] leading-none mt-0.5">{schoolStudents.length}</span>
+                      <span className="text-xs font-bold text-slate-400 leading-tight">إجمالي الطلاب</span>
+                      <span className="text-2xl font-black text-[#655ac1] leading-none mt-0.5">{schoolStudents.length}</span>
                   </div>
                </div>
-               
+
                {/* Missing Data Warning */}
-               <div 
-                  onClick={() => { if(studentsWithMissingData.length > 0) { setShowMissingDataOnly(!showMissingDataOnly); setFilterGrade(''); setFilterClassId(''); } }}
-                  className={`flex items-center gap-3 px-5 py-2 rounded-xl min-w-[140px] cursor-pointer transition-all border h-[52px] ${
-                      showMissingDataOnly 
-                      ? 'bg-amber-100 text-amber-700 border-amber-200 ring-2 ring-amber-200' 
-                      : 'bg-amber-50 text-amber-600 border-amber-100/50 hover:bg-amber-100'
+               <div
+                  onClick={() => { if (studentsWithMissingData.length > 0) setShowMissingDataModal(true); }}
+                  className={`flex items-center gap-4 px-6 py-3 rounded-2xl transition-all border-2 ${
+                      studentsWithMissingData.length === 0
+                        ? 'cursor-default border-slate-100 opacity-60'
+                        : 'cursor-pointer bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50/50'
                   }`}
                >
-                  <div className={`p-1.5 bg-white/60 rounded-lg ${studentsWithMissingData.length > 0 ? "animate-pulse" : ""}`}>
-                    <AlertTriangle size={20} className="text-amber-500" />
+                  <div className={`p-2 bg-amber-50 rounded-xl ${studentsWithMissingData.length > 0 ? 'animate-pulse' : ''}`}>
+                    <AlertTriangle size={22} className="text-amber-500" />
                   </div>
                   <div className="flex flex-col justify-center">
-                      <span className="text-[10px] font-bold text-amber-600/70 leading-tight">بيانات ناقصة</span>
-                      <span className="text-xl font-black text-amber-700 leading-none mt-0.5">{studentsWithMissingData.length}</span>
+                      <span className="text-xs font-bold text-amber-600/80 leading-tight">بيانات ناقصة</span>
+                      <span className="text-2xl font-black text-amber-700 leading-none mt-0.5">{studentsWithMissingData.length}</span>
                   </div>
                </div>
             </div>
@@ -1181,19 +1382,46 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             </div>
            )}
 
-          {/* Bulk Delete Confirmation */}
+          {/* Bulk Delete Confirmation Modal */}
           {showBulkDeleteConfirm && (
-            <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl animate-in zoom-in-95 duration-200">
-              <AlertTriangle size={20} className="text-rose-500" />
-              <span className="text-sm font-bold text-rose-700 flex-1">
-                هل أنت متأكد من حذف {selectedStudents.size} طالب؟
-              </span>
-              <button onClick={handleBulkDelete} className="px-4 py-2 bg-rose-500 text-white rounded-lg text-xs font-bold hover:bg-rose-600 transition-all">
-                نعم، احذف
-              </button>
-              <button onClick={() => setShowBulkDeleteConfirm(false)} className="px-4 py-2 bg-white text-slate-500 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all border border-slate-200">
-                إلغاء
-              </button>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Trash2 size={20} className="text-rose-500" /> حذف الطلاب المحددين
+                  </h3>
+                  <button onClick={() => setShowBulkDeleteConfirm(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-6">
+                  <div className="flex flex-col items-center text-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
+                      <AlertTriangle size={32} className="text-rose-500" />
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذف؟</p>
+                      <p className="text-sm text-slate-500 font-medium">
+                        سيتم حذف <span className="font-black text-rose-500">{selectedStudents.size}</span> طالب محدد بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleBulkDelete}
+                      className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={16} /> نعم، احذف المحدد
+                    </button>
+                    <button
+                      onClick={() => setShowBulkDeleteConfirm(false)}
+                      className="flex-1 px-4 py-3 bg-white text-slate-600 border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1240,172 +1468,175 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             </div>
           )}
 
-          {/* Student Table */}
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-[#655ac1]/5 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-[#f8f7ff] border-b border-slate-100">
-                    <th className="p-4 w-12 text-center">
-                      <div
-                        onClick={toggleSelectAll}
-                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mx-auto cursor-pointer transition-all ${
-                          filteredStudents.length > 0 && filteredStudents.every(s => selectedStudents.has(s.id))
-                            ? 'bg-[#655ac1] border-[#655ac1]'
-                            : 'border-slate-300 hover:border-[#655ac1]'
-                        }`}
-                      >
-                        {filteredStudents.length > 0 && filteredStudents.every(s => selectedStudents.has(s.id)) && (
-                          <Check size={12} className="text-white" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="p-4 text-right text-xs font-black text-[#655ac1] w-12">#</th>
-                    <th className="p-4 text-right text-xs font-black text-[#655ac1]">اسم الطالب</th>
-                    <th className="p-4 text-center text-xs font-black text-[#655ac1] w-24">الصف</th>
-                    <th className="p-4 text-center text-xs font-black text-[#655ac1] w-28">الفصل</th>
-                    <th className="p-4 text-center text-xs font-black text-[#655ac1] w-36">رقم ولي الأمر</th>
-                    <th className="p-4 text-center text-xs font-black text-[#655ac1] w-28">إجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.map((student, index) => {
-                    const isEditing = editingStudent === student.id;
-                    const isSelected = selectedStudents.has(student.id);
-
-                    return (
-                      <tr
-                        key={student.id}
-                        className={`border-b border-slate-50 transition-all group ${
-                          isSelected ? 'bg-[#e5e1fe]/30' : 'hover:bg-[#e5e1fe]/10'
-                        }`}
-                      >
-                        <td className="p-4 text-center">
-                          <div
-                            onClick={() => toggleSelect(student.id)}
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mx-auto cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-[#655ac1] border-[#655ac1]'
-                                : 'border-slate-200 opacity-40 group-hover:opacity-100 hover:border-[#655ac1]'
-                            }`}
-                          >
-                            {isSelected && <Check size={12} className="text-white" />}
-                          </div>
-                        </td>
-                        <td className="p-4 text-right text-xs font-bold text-slate-400">{index + 1}</td>
-                        <td className="p-4">
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              value={editName}
-                              onChange={e => setEditName(e.target.value)}
-                              className="w-full p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-sm font-bold"
-                              autoFocus
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveEdit();
-                                if (e.key === 'Escape') setEditingStudent(null);
-                              }}
-                            />
-                          ) : (
-                            <span className="text-sm font-bold text-slate-800">{student.name}</span>
-                          )}
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                            {student.grade}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          {isEditing ? (
-                            <select
-                              value={editClassId}
-                              onChange={e => setEditClassId(e.target.value)}
-                              className="p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-xs font-bold w-full"
-                            >
-                              <option value="">غير محدد</option>
-                              {schoolClasses.filter(c => c.grade === student.grade).map(c => (
-                                <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                              student.classId ? 'text-[#655ac1] bg-[#e5e1fe]' : 'text-amber-500 bg-amber-50'
-                            }`}>
-                              {getClassName(student.classId)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4 text-center">
-                          {isEditing ? (
-                            <input
-                              type="tel"
-                              value={editPhone}
-                              onChange={e => setEditPhone(e.target.value)}
-                              className="w-full p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-xs font-bold text-center"
-                              dir="ltr"
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveEdit();
-                                if (e.key === 'Escape') setEditingStudent(null);
-                              }}
-                            />
-                          ) : (
-                            <span className="text-xs font-bold text-slate-500" dir="ltr">
-                              {student.parentPhone || '-'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-2 opacity-100">
-                            {isEditing ? (
-                              <>
-                                <button
-                                  onClick={handleSaveEdit}
-                                  className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all shadow-sm"
-                                  title="حفظ"
-                                >
-                                  <Check size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setEditingStudent(null)}
-                                  className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-all"
-                                  title="إلغاء"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => handleStartEdit(student)}
-                                  className="p-2 text-slate-400 bg-slate-50 hover:text-[#655ac1] hover:bg-[#e5e1fe] rounded-lg transition-all"
-                                  title="تعديل"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteOne(student.id)}
-                                  className="p-2 text-slate-400 bg-slate-50 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                                  title="حذف"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredStudents.length === 0 && schoolStudents.length > 0 && (
-              <div className="p-10 text-center text-slate-400">
+          {/* Student Table — Grouped by Grade (matches teachers design) */}
+          <div className="space-y-6">
+            {filteredStudents.length === 0 && schoolStudents.length > 0 ? (
+              <div className="p-10 text-center text-slate-400 bg-white rounded-[2rem] border border-slate-100 shadow-sm">
                 <Search size={40} className="mx-auto mb-3 text-slate-200" />
                 <p className="font-bold text-sm">لا توجد نتائج مطابقة</p>
                 <p className="text-xs mt-1">جرب تعديل كلمات البحث أو الفلاتر</p>
               </div>
+            ) : (
+              Array.from(groupedByGrade.entries()).map(([grade, gradeStudents]) => {
+                const activeClassId = gradeClassFilters[grade] || '';
+                const displayStudents = activeClassId
+                  ? gradeStudents.filter(s => s.classId === activeClassId)
+                  : gradeStudents;
+                const gradeClasses = schoolClasses.filter(c => c.grade === grade);
+
+                return (
+                <div key={grade} className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-[#655ac1]/5 overflow-hidden">
+
+                  {/* Grade Section Header */}
+                  <div className="px-6 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white">
+
+                    {/* Row 1: Title + select-all */}
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-6 bg-[#655ac1] rounded-full" />
+                        <h4 className="font-black text-slate-800 text-lg">
+                          الصف {grade}
+                        </h4>
+                        <span className="px-2.5 py-0.5 bg-slate-100 text-[#655ac1] rounded-full text-sm font-black">
+                          {displayStudents.length}
+                          {activeClassId && gradeStudents.length !== displayStudents.length && (
+                            <span className="text-slate-400 font-bold"> / {gradeStudents.length}</span>
+                          )}
+                        </span>
+                      </div>
+                      {/* Actions: Delete grade/class + select-all */}
+                      <div className="flex items-center gap-2">
+                        {/* Delete grade or active class button */}
+                        <button
+                          onClick={() => {
+                            if (activeClassId) {
+                              const cls = gradeClasses.find(c => c.id === activeClassId);
+                              setGradeDeleteTarget({ grade, classId: activeClassId, className: cls?.name || `${grade}/${cls?.section}` });
+                            } else {
+                              setGradeDeleteTarget({ grade });
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-500 border border-rose-100 bg-rose-50/50 hover:bg-rose-50 hover:border-rose-300 transition-all duration-100"
+                          title={activeClassId ? 'حذف طلاب هذا الفصل' : `حذف طلاب الصف ${grade}`}
+                        >
+                          <Trash2 size={13} />
+                          {activeClassId
+                            ? `حذف طلاب الفصل`
+                            : `حذف طلاب الصف ${grade}`
+                          }
+                        </button>
+
+                        {/* Select all visible in grade */}
+                        <div
+                          onClick={() => {
+                            const ids = displayStudents.map(s => s.id);
+                            const allSelected = ids.length > 0 && ids.every(id => selectedStudents.has(id));
+                            setSelectedStudents(prev => {
+                              const ns = new Set(prev);
+                              ids.forEach(id => { if (allSelected) ns.delete(id); else ns.add(id); });
+                              return ns;
+                            });
+                          }}
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shrink-0 ${
+                            displayStudents.length > 0 && displayStudents.every(s => selectedStudents.has(s.id))
+                              ? 'bg-[#655ac1] border-[#655ac1]'
+                              : 'border-slate-300 hover:border-[#655ac1]'
+                          }`}
+                          title="تحديد الكل في هذا الصف"
+                        >
+                          {displayStudents.length > 0 && displayStudents.every(s => selectedStudents.has(s.id)) && (
+                            <Check size={12} className="text-white" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Class chips */}
+                    {gradeClasses.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* "الكل" chip */}
+                        <button
+                          onClick={() => setGradeClassFilters(prev => ({ ...prev, [grade]: '' }))}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors duration-100 border ${
+                            !activeClassId
+                              ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
+                          }`}
+                        >
+                          الكل
+                          <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${!activeClassId ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                            {gradeStudents.length}
+                          </span>
+                        </button>
+
+                        {/* Class chips */}
+                        {gradeClasses.map(cls => {
+                          const clsCount = gradeStudents.filter(s => s.classId === cls.id).length;
+                          const isActive = activeClassId === cls.id;
+                          return (
+                            <button
+                              key={cls.id}
+                              onClick={() => setGradeClassFilters(prev => ({
+                                ...prev,
+                                [grade]: isActive ? '' : cls.id
+                              }))}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors duration-100 border ${
+                                isActive
+                                  ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1] hover:bg-[#f5f3ff]'
+                              }`}
+                            >
+                              {cls.name || `${cls.grade}/${cls.section}`}
+                              <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                {clsCount}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right">
+                      <thead>
+                        <tr className="bg-white border-b border-slate-100">
+                          <th className="p-4 w-12 text-center text-sm font-black text-[#655ac1]">م</th>
+                          <th className="p-4 text-sm font-black text-[#655ac1]">اسم الطالب</th>
+                          <th className="p-4 text-center w-32 text-sm font-black text-[#655ac1]">الفصل</th>
+                          <th className="p-4 text-center w-40 text-sm font-black text-[#655ac1]">رقم ولي الأمر</th>
+                          <th className="p-4 w-20 text-center text-sm font-black text-[#655ac1]">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {displayStudents.map((student, idx) => (
+                          <StudentRow
+                            key={student.id}
+                            student={student}
+                            idx={idx}
+                            isSelected={selectedStudents.has(student.id)}
+                            isEditing={editingStudent === student.id}
+                            editName={editingStudent === student.id ? editName : ''}
+                            editPhone={editingStudent === student.id ? editPhone : ''}
+                            editClassId={editingStudent === student.id ? editClassId : ''}
+                            gradeClasses={gradeClassesMap.get(student.grade) ?? []}
+                            getClassName={getClassName}
+                            onToggleSelect={toggleSelect}
+                            onSetEditName={setEditName}
+                            onSetEditPhone={setEditPhone}
+                            onSetEditClassId={setEditClassId}
+                            onSaveEdit={handleSaveEdit}
+                            onCancelEdit={handleCancelEdit}
+                            onOpenDropdown={openActionDropdown}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+              })
             )}
           </div>
         </div>
@@ -1418,6 +1649,418 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
          </div>
       )}
 
+      {/* ══════ Print Options Modal ══════ */}
+      {showPrintModal && (() => {
+        // Compute the count of students that will be printed based on current selection
+        const printCount = printSelection.type === 'all'
+          ? schoolStudents.length
+          : printSelection.type === 'grade' && printSelection.gradeValue !== ''
+            ? schoolStudents.filter(s => s.grade === printSelection.gradeValue).length
+            : printSelection.type === 'class' && printSelection.classId
+              ? schoolStudents.filter(s => s.classId === printSelection.classId).length
+              : null;
+
+        const canPrint =
+          printSelection.type === 'all' ||
+          (printSelection.type === 'grade' && printSelection.gradeValue !== '') ||
+          (printSelection.type === 'class' && printSelection.classId !== '');
+
+        const handleConfirmPrint = () => {
+          if (!canPrint) return;
+          if (printSelection.type === 'all') {
+            handlePrint('grade');
+          } else if (printSelection.type === 'grade' && printSelection.gradeValue !== '') {
+            const gradeStudents = schoolStudents.filter(s => s.grade === printSelection.gradeValue);
+            printStudentList(gradeStudents, schoolClasses, schoolInfo, 'class', `قائمة طلاب الصف ${printSelection.gradeValue}`);
+          } else if (printSelection.type === 'class' && printSelection.classId) {
+            handlePrint('class', printSelection.classId);
+          }
+          setShowPrintModal(false);
+        };
+
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl">
+                    <Printer size={22} className="text-[#655ac1]" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-slate-800">خيارات الطباعة</h3>
+                    <p className="text-xs text-slate-400 font-bold mt-0.5">اختر نطاق الطباعة ثم أكد</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all shadow-sm"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Radio cards */}
+              <div className="p-6 space-y-3">
+                {/* Card: All */}
+                <button
+                  onClick={() => setPrintSelection({ type: 'all', gradeValue: '', classId: '' })}
+                  className={`w-full p-4 border rounded-2xl transition-all flex items-center gap-4 text-right ${
+                    printSelection.type === 'all'
+                      ? 'border-[#655ac1] bg-[#f5f3ff]'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl border shrink-0 transition-all ${
+                    printSelection.type === 'all'
+                      ? 'bg-[#655ac1] border-[#655ac1]'
+                      : 'bg-white border-slate-200'
+                  }`}>
+                    <GraduationCap size={20} className={printSelection.type === 'all' ? 'text-white' : 'text-slate-400'} />
+                  </div>
+                  <div className="flex-1">
+                    <div className={`font-black text-sm ${printSelection.type === 'all' ? 'text-[#655ac1]' : 'text-slate-700'}`}>جميع الطلاب</div>
+                    <div className="text-xs text-slate-400 font-bold mt-0.5">طباعة كل الطلاب مرتبين حسب الصفوف والفصول</div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                    printSelection.type === 'all' ? 'border-[#655ac1] bg-[#655ac1]' : 'border-slate-300'
+                  }`}>
+                    {printSelection.type === 'all' && <div className="w-2 h-2 rounded-full bg-white" />}
+                  </div>
+                </button>
+
+                {/* Card: By Grade */}
+                <button
+                  onClick={() => setPrintSelection(prev => ({ ...prev, type: 'grade', classId: '' }))}
+                  className={`w-full p-4 border rounded-2xl transition-all flex items-center gap-4 text-right ${
+                    printSelection.type === 'grade'
+                      ? 'border-[#655ac1] bg-[#f5f3ff]'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl border shrink-0 transition-all ${
+                    printSelection.type === 'grade'
+                      ? 'bg-[#655ac1] border-[#655ac1]'
+                      : 'bg-white border-slate-200'
+                  }`}>
+                    <BookOpen size={20} className={printSelection.type === 'grade' ? 'text-white' : 'text-slate-400'} />
+                  </div>
+                  <div className="flex-1">
+                    <div className={`font-black text-sm ${printSelection.type === 'grade' ? 'text-[#655ac1]' : 'text-slate-700'}`}>حسب الصف</div>
+                    <div className="text-xs text-slate-400 font-bold mt-0.5">طباعة طلاب صف دراسي محدد</div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                    printSelection.type === 'grade' ? 'border-[#655ac1] bg-[#655ac1]' : 'border-slate-300'
+                  }`}>
+                    {printSelection.type === 'grade' && <div className="w-2 h-2 rounded-full bg-white" />}
+                  </div>
+                </button>
+
+                {/* Grade dropdown (shown when grade selected) */}
+                {printSelection.type === 'grade' && (
+                  <div className="mr-14">
+                    <select
+                      value={printSelection.gradeValue}
+                      onChange={(e) => setPrintSelection(prev => ({ ...prev, gradeValue: e.target.value ? parseInt(e.target.value) : '' }))}
+                      className="w-full p-3 bg-white border border-[#e5e1fe] rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] transition-all cursor-pointer"
+                    >
+                      <option value="">اختر الصف...</option>
+                      {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => (
+                        <option key={grade} value={grade}>الصف {grade}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Card: By Class */}
+                <button
+                  onClick={() => setPrintSelection(prev => ({ ...prev, type: 'class', gradeValue: '' }))}
+                  className={`w-full p-4 border rounded-2xl transition-all flex items-center gap-4 text-right ${
+                    printSelection.type === 'class'
+                      ? 'border-[#655ac1] bg-[#f5f3ff]'
+                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl border shrink-0 transition-all ${
+                    printSelection.type === 'class'
+                      ? 'bg-[#655ac1] border-[#655ac1]'
+                      : 'bg-white border-slate-200'
+                  }`}>
+                    <Users size={20} className={printSelection.type === 'class' ? 'text-white' : 'text-slate-400'} />
+                  </div>
+                  <div className="flex-1">
+                    <div className={`font-black text-sm ${printSelection.type === 'class' ? 'text-[#655ac1]' : 'text-slate-700'}`}>فصل محدد</div>
+                    <div className="text-xs text-slate-400 font-bold mt-0.5">طباعة طلاب فصل دراسي بعينه</div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                    printSelection.type === 'class' ? 'border-[#655ac1] bg-[#655ac1]' : 'border-slate-300'
+                  }`}>
+                    {printSelection.type === 'class' && <div className="w-2 h-2 rounded-full bg-white" />}
+                  </div>
+                </button>
+
+                {/* Class dropdown (shown when class selected) */}
+                {printSelection.type === 'class' && (
+                  <div className="mr-14">
+                    <select
+                      value={printSelection.classId}
+                      onChange={(e) => setPrintSelection(prev => ({ ...prev, classId: e.target.value }))}
+                      className="w-full p-3 bg-white border border-[#e5e1fe] rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] transition-all cursor-pointer"
+                    >
+                      <option value="">اختر الفصل...</option>
+                      {schoolClasses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Summary badge */}
+                {printCount !== null && (
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5">
+                    <Printer size={14} className="text-[#655ac1] shrink-0" />
+                    <span className="text-xs font-bold text-slate-500">سيتم طباعة</span>
+                    <span className="text-sm font-black text-[#655ac1]">{printCount}</span>
+                    <span className="text-xs font-bold text-slate-500">طالب</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="bg-slate-50/60 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleConfirmPrint}
+                  disabled={!canPrint}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${
+                    canPrint
+                      ? 'bg-[#655ac1] text-white hover:bg-[#5448a8] shadow-sm'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Printer size={15} />
+                  طباعة الآن
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══════ Missing Data Modal ══════ */}
+      {showMissingDataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
+
+            {/* Header */}
+            <div className="p-6 border-b border-amber-100 flex items-center justify-between bg-amber-50/60 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-100 rounded-2xl">
+                  <AlertTriangle size={24} className="text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-slate-800">طلاب ببيانات ناقصة</h3>
+                  <p className="text-xs text-amber-600/80 font-bold mt-0.5">
+                    {studentsWithMissingData.length} طالب يحتاج إلى مراجعة وتحديث البيانات
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMissingDataModal(false)}
+                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all shadow-sm"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="px-6 py-4 border-b border-slate-100 flex gap-3 shrink-0">
+              <div className="flex-1 text-center p-3 bg-rose-50 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="text-xl font-black text-rose-500">
+                  {studentsWithMissingData.filter(s => !s.grade).length}
+                </div>
+                <div className="text-xs font-bold text-rose-600/80 mt-0.5">بدون صف</div>
+              </div>
+              <div className="flex-1 text-center p-3 bg-amber-50 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="text-xl font-black text-amber-500">
+                  {studentsWithMissingData.filter(s => !s.classId).length}
+                </div>
+                <div className="text-xs font-bold text-amber-600/80 mt-0.5">بدون فصل</div>
+              </div>
+              <div className="flex-1 text-center p-3 bg-orange-50 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="text-xl font-black text-orange-500">
+                  {studentsWithMissingData.filter(s => !s.parentPhone).length}
+                </div>
+                <div className="text-xs font-bold text-orange-600/80 mt-0.5">بدون رقم ولي الأمر</div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-y-auto custom-scrollbar flex-1">
+              <table className="w-full text-right">
+                <thead className="sticky top-0 bg-white border-b border-slate-100 z-10">
+                  <tr>
+                    <th className="p-4 text-xs font-black text-slate-400 w-12">م</th>
+                    <th className="p-4 text-xs font-black text-slate-500">اسم الطالب</th>
+                    <th className="p-4 text-center text-xs font-black text-slate-500 w-28">الصف</th>
+                    <th className="p-4 text-center text-xs font-black text-slate-500 w-40">الفصل</th>
+                    <th className="p-4 text-center text-xs font-black text-slate-500 w-44">رقم ولي الأمر</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {studentsWithMissingData.map((student, idx) => {
+                    const missingGrade = !student.grade;
+                    const missingClass = !student.classId;
+                    const missingPhone = !student.parentPhone;
+                    return (
+                      <tr key={student.id} className="hover:bg-amber-50/20 transition-colors">
+                        <td className="p-4 text-xs font-bold text-slate-300">{idx + 1}</td>
+                        <td className="p-4 font-bold text-slate-700 whitespace-nowrap">{student.name}</td>
+                        <td className="p-4 text-center">
+                          {missingGrade ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold border border-rose-100">
+                              <X size={11} /> غير محدد
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 rounded-lg text-xs font-bold">
+                              الصف {student.grade}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-center">
+                          {missingClass ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-bold border border-amber-100">
+                              <X size={11} /> غير محدد
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 rounded-lg text-sm font-bold">
+                              {getClassName(student.classId)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-center">
+                          {missingPhone ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-500 rounded-lg text-xs font-bold border border-orange-100">
+                              <X size={11} /> غير مسجل
+                            </span>
+                          ) : (
+                            <span className="text-sm font-bold text-slate-600 font-mono tracking-wide" dir="ltr">
+                              {student.parentPhone}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex justify-between items-center">
+              <p className="text-xs text-slate-400 font-bold">
+                يمكنك تعديل بيانات الطالب من خلال زر الإجراءات في الجدول الرئيسي
+              </p>
+              <button
+                onClick={() => setShowMissingDataModal(false)}
+                className="px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════ Grade / Class Delete Confirmation Modal ══════ */}
+      {gradeDeleteTarget && (() => {
+        const { grade, classId, className } = gradeDeleteTarget;
+        const targetStudents = classId
+          ? schoolStudents.filter(s => s.classId === classId)
+          : schoolStudents.filter(s => s.grade === grade);
+        const label = classId
+          ? `طلاب فصل ${className || classId}`
+          : `طلاب الصف ${grade}`;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                  <Trash2 size={20} className="text-rose-500" /> تأكيد الحذف
+                </h3>
+                <button onClick={() => setGradeDeleteTarget(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="flex flex-col items-center text-center gap-4 mb-6">
+                  <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
+                    <AlertTriangle size={32} className="text-rose-500" />
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذف؟</p>
+                    <p className="text-sm text-slate-500 font-medium">
+                      سيتم حذف جميع{' '}
+                      <span className="font-black text-rose-500">{targetStudents.length}</span>{' '}
+                      {label} بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDeleteGradeOrClass}
+                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={16} /> نعم، احذف {label}
+                  </button>
+                  <button
+                    onClick={() => setGradeDeleteTarget(null)}
+                    className="flex-1 px-4 py-3 bg-white text-slate-600 border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══════ Action Dropdown Portal ══════ */}
+      {actionDropdown && ReactDOM.createPortal(
+        <div
+          className="fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5 animate-in fade-in zoom-in-95 duration-150"
+          style={{ top: actionDropdown.top, left: actionDropdown.left, minWidth: 160 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              const s = students.find(x => x.id === actionDropdown.studentId);
+              if (s) { handleStartEdit(s); setActionDropdown(null); }
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
+          >
+            <Pencil size={15} className="text-[#655ac1]" /> تعديل
+          </button>
+          <div className="my-1 border-t border-slate-100" />
+          <button
+            onClick={() => {
+              handleDeleteOne(actionDropdown.studentId);
+              setActionDropdown(null);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 font-bold transition-colors"
+          >
+            <Trash2 size={15} /> حذف
+          </button>
+        </div>,
+        document.body
+      )}
 
     </div>
   );
