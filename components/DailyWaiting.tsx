@@ -1640,15 +1640,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <div className="absolute top-0 left-0 w-24 h-24 bg-slate-50 rounded-br-[3rem] -z-0" />
           <UserX size={48} className="text-[#655ac1] mb-5 relative z-10" strokeWidth={1.6} />
           <h3 className="text-xl font-black text-slate-700 mb-2 relative z-10">لا يوجد غياب مسجل لهذا اليوم</h3>
-          <p className="text-sm text-slate-400 font-medium mb-8 relative z-10 whitespace-nowrap">
+          <p className="text-sm text-slate-400 font-medium relative z-10 whitespace-nowrap">
             اضغط على "تسجيل غياب معلم" لإضافة غائب وبدء عملية توزيع حصص الانتظار
           </p>
-          <button
-            onClick={() => { setAbsenceForm({ teacherId: '', absenceType: 'full', selectedPeriods: new Set() }); setTeacherSearch(''); setShowSubmitConfirm(false); setShowAbsenceModal(true); }}
-            className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95 relative z-10"
-          >
-            <UserX size={18} /> تسجيل غياب معلم
-          </button>
         </div>
       )}
 

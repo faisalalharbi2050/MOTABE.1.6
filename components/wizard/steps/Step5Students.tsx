@@ -61,6 +61,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   // ─── Print State ───
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const [showBulkCountModal, setShowBulkCountModal] = useState(false);
 
   // ─── Manual Bulk Entry State ───
   const [isBulkEntryMode, setIsBulkEntryMode] = useState(false);
@@ -334,7 +335,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             <GraduationCap size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              إدارة الطلاب
           </h3>
-          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">استيراد وإضافة وإدارة بيانات الطلاب</p>
+          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">استيراد الطلاب أو إضافتهم يدويًا وإدارة بياناتهم.</p>
       </div>
 
        {/* ══════ School Tabs ══════ */}
@@ -379,22 +380,23 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
       })()}
 
       {/* ══════ Manual Bulk Entry Mode ══════ */}
-      {isBulkEntryMode && (
+      {isBulkEntryMode && (() => {
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const defaultGrade = availableGrades[0] ?? 1;
+        return (
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                      <FileSpreadsheet size={20} className="text-[#655ac1]" /> إضافة الطلاب يدويًا
+                      <Pencil size={20} className="text-[#655ac1]" /> إضافة الطلاب يدويًا
                   </h3>
                   <div className="flex items-center gap-2">
-                      <button 
+                      <button
                           onClick={() => {
-                            // Filter out empty rows before saving
                              const validStudents = bulkStudents.filter(s => s.name.trim().length > 0);
                              if (validStudents.length === 0) {
                                  showToast('لا يوجد طلاب للحفظ', 'error');
                                  return;
                              }
-                             
                              const newStudents: Student[] = validStudents.map(s => ({
                                  id: s.id,
                                  name: s.name,
@@ -403,7 +405,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                  parentPhone: s.parentPhone || undefined,
                                  schoolId: activeSchoolId
                              }));
-
                              setStudents(prev => [...prev, ...newStudents]);
                              setIsBulkEntryMode(false);
                              setBulkStudents([]);
@@ -413,7 +414,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                       >
                           <CheckCircle2 size={16} className="inline ml-2" /> حفظ الطلاب ({bulkStudents.filter(s => s.name.trim()).length})
                       </button>
-                      <button 
+                      <button
                           onClick={() => setIsBulkEntryMode(false)}
                           className="px-6 py-2 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
                       >
@@ -423,11 +424,17 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
               </div>
 
                {/* Batch Assignment Controls */}
-               <div className="p-4 bg-indigo-50/50 border-b border-indigo-50 flex flex-wrap items-center gap-4">
-                  <span className="text-xs font-bold text-[#655ac1] bg-white px-3 py-1 rounded-lg border border-[#e5e1fe]">تطبيق موحد:</span>
-                  
+               <div className="p-4 bg-[#f5f3ff] border-b border-[#e5e1fe] flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                      <div className="w-7 h-7 bg-[#655ac1] rounded-lg flex items-center justify-center">
+                          <Users size={14} className="text-white" />
+                      </div>
+                      <span className="text-sm font-black text-[#655ac1]">تعيين الصف والفصل لجميع الطلاب دفعة واحدة</span>
+                  </div>
+                  <div className="w-px h-6 bg-[#e5e1fe]"></div>
                   <select
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 focus:border-[#655ac1] outline-none"
+                      className="px-4 py-2 bg-white border border-[#e5e1fe] rounded-xl text-sm font-bold text-slate-600 focus:border-[#655ac1] outline-none shadow-sm"
+                      defaultValue=""
                       onChange={(e) => {
                           if (e.target.value) {
                               const grade = parseInt(e.target.value);
@@ -435,29 +442,37 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           }
                       }}
                   >
-                      <option value="">تحديد الصف للجميع...</option>
-                      {Array.from({ length: totalGrades }, (_, i) => i + 1).map(g => (
+                      <option value="">اختر الصف للجميع...</option>
+                      {availableGrades.map(g => (
                           <option key={g} value={g}>الصف {g}</option>
                       ))}
                   </select>
 
                   <select
-                       className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 focus:border-[#655ac1] outline-none"
+                       className="px-4 py-2 bg-white border border-[#e5e1fe] rounded-xl text-sm font-bold text-slate-600 focus:border-[#655ac1] outline-none shadow-sm"
+                       defaultValue=""
                        onChange={(e) => {
                           if (e.target.value) {
                               const classId = e.target.value;
-                              // Find grade for this class to ensure consistency
                               const cls = schoolClasses.find(c => c.id === classId);
-                              if(cls) {
+                              if (cls) {
                                   setBulkStudents(prev => prev.map(s => ({ ...s, classId, grade: cls.grade })));
                               }
                           }
                        }}
                   >
-                      <option value="">تحديد الفصل للجميع...</option>
-                      {schoolClasses.map(c => (
-                          <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
-                      ))}
+                      <option value="">اختر الفصل للجميع...</option>
+                      {availableGrades.map(g => {
+                          const gradeClasses = schoolClasses.filter(c => c.grade === g);
+                          if (gradeClasses.length === 0) return null;
+                          return (
+                              <optgroup key={g} label={`الصف ${g}`}>
+                                  {gradeClasses.map(c => (
+                                      <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
+                                  ))}
+                              </optgroup>
+                          );
+                      })}
                   </select>
                </div>
 
@@ -478,13 +493,12 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                               <tr key={student.id} className="group hover:bg-indigo-50/10 transition-colors">
                                   <td className="p-3 text-center text-slate-400 font-bold text-xs">{index + 1}</td>
                                   <td className="p-3">
-                                      <input 
+                                      <input
                                           type="text"
                                           placeholder="اسم الطالب رباعي"
                                           value={student.name}
                                           onChange={(e) => {
-                                              const updated = [...bulkStudents];
-                                              updated[index].name = e.target.value;
+                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, name: e.target.value } : s);
                                               setBulkStudents(updated);
                                           }}
                                           className={`w-full p-3 bg-slate-50 border-2 rounded-xl outline-none text-sm font-bold transition-all focus:bg-white ${
@@ -496,54 +510,50 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                       <select
                                           value={student.grade}
                                           onChange={(e) => {
-                                              const updated = [...bulkStudents];
-                                              updated[index].grade = parseInt(e.target.value);
-                                              updated[index].classId = ''; // Reset class
+                                              const grade = parseInt(e.target.value);
+                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, grade, classId: '' } : s);
                                               setBulkStudents(updated);
                                           }}
                                           className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1]"
                                       >
-                                          {Array.from({ length: totalGrades }, (_, i) => i + 1).map(g => (
+                                          {availableGrades.length > 0 ? availableGrades.map(g => (
                                               <option key={g} value={g}>الصف {g}</option>
-                                          ))}
+                                          )) : (
+                                              <option value="1">الصف 1</option>
+                                          )}
                                       </select>
                                   </td>
                                   <td className="p-3">
                                       <select
                                           value={student.classId}
                                           onChange={(e) => {
-                                              const updated = [...bulkStudents];
-                                              updated[index].classId = e.target.value;
+                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, classId: e.target.value } : s);
                                               setBulkStudents(updated);
                                           }}
                                           className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1]"
                                       >
-                                          <option value="">(تلقائي)</option>
+                                          <option value="">اختر الفصل</option>
                                           {schoolClasses.filter(c => c.grade === student.grade).map(c => (
                                               <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
                                           ))}
                                       </select>
                                   </td>
                                   <td className="p-3">
-                                      <input 
+                                      <input
                                           type="tel"
                                           dir="ltr"
                                           placeholder="05xxxxxxxx"
                                           value={student.parentPhone}
                                           onChange={(e) => {
-                                              const updated = [...bulkStudents];
-                                              updated[index].parentPhone = e.target.value;
+                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, parentPhone: e.target.value } : s);
                                               setBulkStudents(updated);
                                           }}
                                           className="w-full p-3 bg-slate-50 border border-transparent rounded-xl outline-none text-sm font-bold text-center group-hover:bg-white group-hover:border-slate-200 focus:!border-[#655ac1] focus:!bg-white transition-all"
                                       />
                                   </td>
                                    <td className="p-3 text-center">
-                                      <button 
-                                          onClick={() => {
-                                              const updated = bulkStudents.filter((_, i) => i !== index);
-                                              setBulkStudents(updated);
-                                          }}
+                                      <button
+                                          onClick={() => setBulkStudents(prev => prev.filter((_, i) => i !== index))}
                                           className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                                       >
                                           <X size={16} />
@@ -553,17 +563,16 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           ))}
                       </tbody>
                   </table>
-                  
+
                   {/* Add Row Button */}
                    <div className="p-4 border-t border-slate-100 bg-slate-50/30 text-center">
-                      <button 
+                      <button
                           onClick={() => {
-                               // Use last row's grade/class if available for continuity
                                const lastRow = bulkStudents[bulkStudents.length - 1];
                                setBulkStudents(prev => [...prev, {
                                   id: `student-bulk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                                   name: '',
-                                  grade: lastRow ? lastRow.grade : 1,
+                                  grade: lastRow ? lastRow.grade : defaultGrade,
                                   classId: lastRow ? lastRow.classId : '',
                                   parentPhone: ''
                                }]);
@@ -575,29 +584,39 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                    </div>
               </div>
           </div>
-      )}
+        );
+      })()}
 
-      {/* ══════ Stats Cards (Drill-Down) ══════ */}
-      {!isBulkEntryMode && schoolStudents.length > 0 && (
+      {/* ══════ Action Bar + Content ══════ */}
+      {!isBulkEntryMode && (
         <>
             {/* ══════ Action Bar ══════ */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-6 bg-white/60 backdrop-blur-md rounded-2xl py-3.5 px-4 shadow-sm border border-slate-200">
                 {/* Import Button */}
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold shadow-md shadow-[#655ac1]/20 hover:bg-[#5448a8] transition-all hover:scale-105 active:scale-95"
                 >
-                    <Upload size={20} className="text-[#8779fb]" />
+                    <Upload size={18} />
                     استيراد من Excel
                 </button>
 
                 {/* Add Student Button */}
                 <button
                     onClick={() => setShowAddForm(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#655ac1] text-white rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5448a8] transition-all hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
                 >
-                    <Plus size={20} />
+                    <Plus size={18} className="text-[#8779fb]" />
                     إضافة طالب
+                </button>
+
+                {/* Add Multiple Students Button */}
+                <button
+                    onClick={() => setShowBulkCountModal(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#9d8fe8] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
+                >
+                    <Users size={18} className="text-[#9d8fe8]" />
+                    إضافة عدة طلاب
                 </button>
 
                 <div className="flex-1"></div>
@@ -605,9 +624,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 {/* Print Button */}
                 <button
                     onClick={() => setShowPrintModal(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:border-slate-300 transition-all hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:border-[#655ac1] transition-all hover:scale-105 active:scale-95"
                 >
-                    <Printer size={20} />
+                    <Printer size={18} className="text-[#655ac1]" />
                     طباعة
                 </button>
 
@@ -623,7 +642,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                     <X size={20} />
                                 </button>
                             </div>
-                            
                             <div className="p-6 space-y-3">
                                 <button
                                     onClick={() => { handlePrint('grade'); setShowPrintModal(false); }}
@@ -637,38 +655,20 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                         <div className="text-xs text-slate-400 font-bold mt-1">يتم طباعة جميع الطلاب مرتبين حسب الصفوف</div>
                                     </div>
                                 </button>
-
-                                <div className="relative group">
+                                <div className="relative">
                                     <div className="absolute inset-x-0 top-1/2 border-t border-slate-100"></div>
                                     <div className="relative flex justify-center">
                                         <span className="bg-white px-2 text-xs font-bold text-slate-300">أو تحديد مخصص</span>
                                     </div>
                                 </div>
-
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-500 mr-1">طباعة حسب الصف:</label>
                                     <select
                                         onChange={(e) => {
                                             if (e.target.value) {
-                                                // Temporarily filter just for print, then revert? 
-                                                // Actually handlePrint logic needs to be flexible.
-                                                // For now, let's just trigger print with a filter.
-                                                // Ideally better to pass args to handlePrint directly without state side effects if possible, 
-                                                // but current handlePrint relies on state or args.
-                                                // Let's assume handlePrint can accept a 'grade' filter.
-                                                // Updating handlePrint to support a specific grade argument would be best.
-                                                // For now, we will select the grade and trigger print.
                                                 const grade = parseInt(e.target.value);
-                                                // Find all classes for this grade and print them? 
-                                                // The current handlePrint('grade') prints ALL grades.
-                                                // We need a way to print specific grade.
-                                                // Let's implement a 'specific_grade' mode in handlePrint logic later. 
-                                                // For this UI, we will just call handlePrint with 'class' but passing filtering logic is tricky.
-                                                // Simplified approach: Filter the list in the main view first? No, user wants direct print.
-                                                // We will need to update handlePrint to support passing a list of students.
-                                                // Let's pretend we have a helper for this.
                                                 const gradeStudents = schoolStudents.filter(s => s.grade === grade);
-                                                printStudentList(gradeStudents, schoolClasses, schoolInfo, 'class', `قائمة طلاب الصف ${grade}`); 
+                                                printStudentList(gradeStudents, schoolClasses, schoolInfo, 'class', `قائمة طلاب الصف ${grade}`);
                                                 setShowPrintModal(false);
                                             }
                                         }}
@@ -680,15 +680,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                         ))}
                                     </select>
                                 </div>
-
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-500 mr-1">طباعة فصل محدد:</label>
                                     <select
                                         onChange={(e) => {
-                                             if (e.target.value) {
+                                            if (e.target.value) {
                                                 handlePrint('class', e.target.value);
                                                 setShowPrintModal(false);
-                                             }
+                                            }
                                         }}
                                         className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
                                     >
@@ -698,7 +697,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                         ))}
                                     </select>
                                 </div>
-
                             </div>
                             <div className="bg-slate-50 p-4 text-center">
                                 <button onClick={() => setShowPrintModal(false)} className="text-xs font-bold text-slate-400 hover:text-slate-600">
@@ -708,13 +706,13 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         </div>
                     </div>
                 )}
-                
-                {/* Delete All with Confirmation */}
+
+                {/* Delete All Button */}
                 <button
                     onClick={() => setShowDeleteAllConfirm(true)}
-                    className="flex items-center gap-2 px-5 py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl font-bold hover:bg-rose-100 hover:border-rose-200 transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-rose-500 border border-slate-200 rounded-xl font-bold hover:border-[#655ac1] transition-all hover:scale-105 active:scale-95"
                 >
-                    <Trash2 size={18} />
+                    <Trash2 size={18} className="text-rose-500" />
                     حذف الكل
                 </button>
             </div>
@@ -722,7 +720,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
 
             {/* ══════ Stats Cards (Drill-Down) ══════ */}
-            <div className="space-y-3">
+            {schoolStudents.length > 0 && <div className="space-y-3">
             {selectedGrade && (
                 <button
                 onClick={() => { setSelectedGrade(null); setFilterGrade(''); setFilterClassId(''); }}
@@ -781,123 +779,43 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 </div>
                 )}
             </div>
+            </div>}
+
+          {/* ══════ Empty State ══════ */}
+          {schoolStudents.length === 0 && !isImporting && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <GraduationCap size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
+              <p className="text-slate-600 font-black text-lg mb-1">لا يوجد طلاب بعد</p>
+              <p className="text-slate-400 text-sm">استخدم زر <span className="font-bold" style={{ color: '#655ac1' }}>استيراد من Excel</span> أو <span className="font-bold" style={{ color: '#655ac1' }}>إضافة عدة طلاب</span> للبدء</p>
             </div>
+          )}
+
+          {/* ══════ Import Loading Overlay ══════ */}
+          {isImporting && (
+            <div className="flex flex-col items-center justify-center py-16 space-y-6 animate-in fade-in duration-300">
+              <div className="relative w-20 h-20">
+                <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                <div className="absolute inset-3 bg-primary/10 rounded-full flex items-center justify-center">
+                  <FileSpreadsheet size={24} className="text-primary" />
+                </div>
+              </div>
+              <div className="text-center">
+                <h4 className="font-black text-slate-700 mb-1">جاري تحميل البيانات...</h4>
+                <p className="text-sm text-slate-400">يتم قراءة ملف Excel ومطابقة الطلاب بالفصول</p>
+              </div>
+              <div className="w-full max-w-md">
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-l from-primary to-indigo-400 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${Math.min(importProgress, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-center text-slate-400 mt-2 font-bold">{Math.round(importProgress)}%</p>
+              </div>
+            </div>
+          )}
         </>
-      )}
-
-      {/* ══════ Excel Import Section (Visible Only if Empty or Importing) ══════ */}
-      {(schoolStudents.length === 0 || isImporting) && !isBulkEntryMode && (
-        <div className="space-y-6">
-            
-            {/* Import Card */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-indigo-50/50 overflow-hidden">
-                <div className="p-8">
-                <h3 className="font-black text-slate-800 flex items-center gap-3 mb-6">
-                    <div className="w-2 h-8 bg-primary rounded-full"></div>
-                    استيراد البيانات
-                </h3>
-
-                {isImporting ? (
-                    // ── Loading State ──
-                    <div className="flex flex-col items-center justify-center p-10 space-y-6 animate-in fade-in duration-300">
-                    <div className="relative w-20 h-20">
-                        <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
-                        <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-                        <div className="absolute inset-3 bg-primary/10 rounded-full flex items-center justify-center">
-                        <FileSpreadsheet size={24} className="text-primary" />
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <h4 className="font-black text-slate-700 mb-1">جاري تحميل البيانات...</h4>
-                        <p className="text-sm text-slate-400">يتم قراءة ملف Excel ومطابقة الطلاب بالفصول</p>
-                    </div>
-                    {/* Progress Bar */}
-                    <div className="w-full max-w-md">
-                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-gradient-to-l from-primary to-indigo-400 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${Math.min(importProgress, 100)}%` }}
-                        />
-                        </div>
-                        <p className="text-xs text-center text-slate-400 mt-2 font-bold">
-                        {Math.round(importProgress)}%
-                        </p>
-                    </div>
-                    </div>
-                ) : (
-                    // ── Upload Area ──
-                    <div className="space-y-4">
-                    <div
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-primary/5 hover:border-primary/30 transition-all cursor-pointer group"
-                    >
-                        <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all">
-                        <Upload size={32} className="text-primary" />
-                        </div>
-                        <h4 className="font-black text-slate-700 mb-2">استيراد من ملف Excel</h4>
-                        <p className="text-sm text-slate-400 text-center max-w-md">
-                        قم برفع ملف Excel (من نظام نور أو أي نظام آخر) يحتوي على أعمدة: <strong>اسم الطالب - الصف - الفصل - رقم جوال ولي الأمر</strong>
-                        </p>
-                        <div className="mt-4 px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold group-hover:shadow-lg group-hover:shadow-primary/20 transition-all">
-                        <Upload size={14} className="inline ml-2" /> اختيار ملف
-                        </div>
-                    </div>
-                    </div>
-                )}
-                </div>
-            </div>
-
-            {/* Manual Bulk Add Card */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-indigo-50/50 overflow-hidden">
-                <div className="p-8">
-                    <h3 className="font-black text-slate-800 flex items-center gap-3 mb-6">
-                        <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
-                        إضافة الطلاب يدويًا
-                    </h3>
-                    
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                        <div className="flex-1">
-                             <p className="text-sm text-slate-500 font-medium mb-4 leading-relaxed">
-                                يمكنك إضافة مجموعة من الطلاب دفعة واحدة يدوياً. حدد عدد الطلاب المتوقع إضافتهم وسيتم فتح جدول لتعبئة بياناتهم.
-                            </p>
-                            <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl max-w-md border border-slate-100">
-                                <span className="text-xs font-bold text-slate-400 mr-2">عدد الطلاب:</span>
-                                <input 
-                                    type="number" 
-                                    min="1" 
-                                    max="500"
-                                    value={bulkCount}
-                                    onChange={(e) => setBulkCount(parseInt(e.target.value) || 0)}
-                                    className="w-24 p-2 bg-white border border-slate-200 rounded-xl font-bold text-center outline-none focus:border-[#655ac1]"
-                                />
-                                <button
-                                    onClick={() => {
-                                        if (bulkCount > 0) {
-                                            const newRows = Array.from({ length: bulkCount }, (_, i) => ({
-                                                id: `student-bulk-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
-                                                name: '',
-                                                grade: 1,
-                                                classId: '',
-                                                parentPhone: ''
-                                            }));
-                                            setBulkStudents(newRows);
-                                            setIsBulkEntryMode(true);
-                                        }
-                                    }}
-                                    className="flex-1 py-2.5 bg-[#655ac1] text-white rounded-xl text-xs font-bold hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20"
-                                >
-                                    فتح جدول الإضافة
-                                </button>
-                            </div>
-                        </div>
-                        <div className="hidden md:flex justify-center p-6 bg-slate-50 rounded-full">
-                            <Users size={48} className="text-slate-300" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
       )}
       
       {/* Hidden Input for Header Button */}
@@ -1044,6 +962,67 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                  </div>
              </div>
            </div>
+        </div>
+      )}
+
+      {/* ══════ Bulk Count Modal ══════ */}
+      {showBulkCountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                <Users size={20} className="text-[#9d8fe8]" /> إضافة عدة طلاب
+              </h3>
+              <button onClick={() => setShowBulkCountModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-500 font-medium mb-5">حدد عدد الطلاب المتوقع إضافتهم وسيتم إنشاء جدول لتعبئة بياناتهم.</p>
+              <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-6">
+                <span className="text-sm font-bold text-slate-500 shrink-0">عدد الطلاب:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={bulkCount}
+                  onChange={(e) => setBulkCount(parseInt(e.target.value) || 0)}
+                  className="flex-1 p-2 bg-white border border-slate-200 rounded-xl font-bold text-center outline-none focus:border-[#9d8fe8] text-sm"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    if (bulkCount > 0) {
+                      const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+                      const defaultGrade = availableGrades[0] ?? 1;
+                      const newRows = Array.from({ length: bulkCount }, (_, i) => ({
+                        id: `student-bulk-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+                        name: '',
+                        grade: defaultGrade,
+                        classId: '',
+                        parentPhone: ''
+                      }));
+                      setBulkStudents(newRows);
+                      setShowBulkCountModal(false);
+                      setIsBulkEntryMode(true);
+                    }
+                  }}
+                  disabled={!bulkCount || bulkCount < 1}
+                  className="flex-1 py-3 bg-[#9d8fe8] text-white rounded-xl text-sm font-bold hover:bg-[#8779d0] transition-all shadow-md shadow-[#9d8fe8]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} /> إنشاء الجدول
+                </button>
+                <button
+                  onClick={() => setShowBulkCountModal(false)}
+                  className="flex-1 py-3 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1218,19 +1197,46 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             </div>
           )}
 
-          {/* Delete All Confirmation */}
+          {/* Delete All Confirmation Modal */}
           {showDeleteAllConfirm && (
-            <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl animate-in zoom-in-95 duration-200 mb-4">
-              <AlertTriangle size={20} className="text-rose-500" />
-              <span className="text-sm font-bold text-rose-700 flex-1">
-                هل تريد حذف جميع الطلاب ({schoolStudents.length})؟ لا يمكن التراجع عن هذا الإجراء.
-              </span>
-              <button onClick={handleDeleteAll} className="px-4 py-2 bg-rose-500 text-white rounded-lg text-xs font-bold hover:bg-rose-600 transition-all">
-                نعم، احذف الكل
-              </button>
-              <button onClick={() => setShowDeleteAllConfirm(false)} className="px-4 py-2 bg-white text-slate-500 rounded-lg text-xs font-bold hover:bg-slate-50 transition-all border border-slate-200">
-                إلغاء
-              </button>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Trash2 size={20} className="text-rose-500" /> تأكيد الحذف
+                  </h3>
+                  <button onClick={() => setShowDeleteAllConfirm(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-6">
+                  <div className="flex flex-col items-center text-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
+                      <AlertTriangle size={32} className="text-rose-500" />
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من حذف جميع الطلاب؟</p>
+                      <p className="text-sm text-slate-500 font-medium">
+                        سيتم حذف <span className="font-black text-rose-500">{schoolStudents.length}</span> طالب بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleDeleteAll}
+                      className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={16} /> نعم، احذف الكل
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteAllConfirm(false)}
+                      className="flex-1 px-4 py-3 bg-white text-slate-600 border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

@@ -1087,12 +1087,19 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         })}
          
          {filteredTeachers.length === 0 && (
-            <div className="p-12 text-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200 print:hidden">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search size={32} className="text-slate-300" />
-                </div>
-                <p className="font-bold text-slate-500">لا يوجد معلمين يطابقون البحث</p>
-                <p className="text-xs mt-2 text-slate-400">جرب البحث باسم آخر أو تغيير التخصص</p>
+            <div className="flex flex-col items-center justify-center py-24 text-center print:hidden">
+                {currentSchoolTeachers.length === 0
+                    ? <Users size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
+                    : <Search size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
+                }
+                <p className="text-slate-600 font-black text-lg mb-1">
+                    {currentSchoolTeachers.length === 0 ? 'لا يوجد معلمون بعد' : 'لا يوجد معلمون يطابقون البحث'}
+                </p>
+                <p className="text-slate-400 text-sm">
+                    {currentSchoolTeachers.length === 0
+                        ? <>استخدم زر <span className="font-bold" style={{ color: '#655ac1' }}>إضافة معلم</span> أو <span className="font-bold" style={{ color: '#655ac1' }}>استيراد من Excel</span> للبدء</>
+                        : 'جرب البحث باسم آخر أو تغيير التخصص'}
+                </p>
             </div>
         )}
       </div>
