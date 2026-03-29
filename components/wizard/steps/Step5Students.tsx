@@ -653,9 +653,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                {/* Batch Assignment Controls + Save/Cancel */}
                <div className="p-4 bg-white border-b border-slate-200 flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-7 h-7 bg-[#655ac1] rounded-lg flex items-center justify-center">
-                          <GraduationCap size={14} className="text-white" />
-                      </div>
+                      <GraduationCap size={20} className="text-[#655ac1]" />
                       <span className="text-sm font-black text-[#655ac1]">تعيين الصف والفصل لجميع الطلاب دفعة واحدة</span>
                   </div>
                   <div className="w-px h-6 bg-slate-200"></div>
