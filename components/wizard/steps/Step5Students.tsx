@@ -157,6 +157,10 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gradeDropdownRef = useRef<HTMLDivElement>(null);
   const classDropdownRef = useRef<HTMLDivElement>(null);
+  const bulkGradeDropdownRef = useRef<HTMLDivElement>(null);
+  const bulkClassDropdownRef = useRef<HTMLDivElement>(null);
+  const bulkGradeBtnRef = useRef<HTMLDivElement>(null);
+  const bulkClassBtnRef = useRef<HTMLDivElement>(null);
   // Ref keeps latest edit state so handleSaveEdit stays stable (no deps on edit fields)
   const editStateRef = useRef({ editName: '', editPhone: '', editClassId: '', editingStudent: null as string | null });
 
@@ -195,7 +199,13 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
   // ─── Manual Bulk Entry State ───
   const [isBulkEntryMode, setIsBulkEntryMode] = useState(false);
-  const [bulkCount, setBulkCount] = useState<number>(50);
+  const [bulkCount, setBulkCount] = useState<number>(20);
+  const [bulkSelectedGrade, setBulkSelectedGrade] = useState<number | ''>('');
+  const [bulkSelectedClassId, setBulkSelectedClassId] = useState<string>('');
+  const [bulkGradeDropdownOpen, setBulkGradeDropdownOpen] = useState(false);
+  const [bulkClassDropdownOpen, setBulkClassDropdownOpen] = useState(false);
+  const [bulkGradeDropdownPos, setBulkGradeDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const [bulkClassDropdownPos, setBulkClassDropdownPos] = useState<{ top: number; right: number } | null>(null);
   const [bulkStudents, setBulkStudents] = useState<Array<{
     id: string;
     name: string;
@@ -320,6 +330,21 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [gradeDropdownOpen, classDropdownOpen]);
+
+  useEffect(() => {
+    if (!bulkGradeDropdownOpen && !bulkClassDropdownOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const inGradeBtn = bulkGradeBtnRef.current?.contains(target);
+      const inGradeMenu = bulkGradeDropdownRef.current?.contains(target);
+      if (!inGradeBtn && !inGradeMenu) setBulkGradeDropdownOpen(false);
+      const inClassBtn = bulkClassBtnRef.current?.contains(target);
+      const inClassMenu = bulkClassDropdownRef.current?.contains(target);
+      if (!inClassBtn && !inClassMenu) setBulkClassDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [bulkGradeDropdownOpen, bulkClassDropdownOpen]);
 
   // ─── Excel Import ───
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -515,7 +540,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     }
 
     printStudentList(listToPrint, schoolClasses, schoolInfo, sortBy, title);
-    setShowPrintMenu(false);
+    setShowPrintModal(false);
   }, [schoolStudents, filteredStudents, schoolClasses, schoolInfo, filterClassIds]);
 
   // ─── O(1) class name lookup (Map instead of .find per render) ───
@@ -618,103 +643,183 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
         const defaultGrade = availableGrades[0] ?? 1;
         return (
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl animate-in slide-in-from-bottom-4 duration-500">
+              <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50 rounded-t-[2rem]">
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                      <Pencil size={20} className="text-[#655ac1]" /> إضافة الطلاب يدويًا
+                      <UserPlus size={20} className="text-[#655ac1]" /> إضافة عدة طلاب
                   </h3>
-                  <div className="flex items-center gap-2">
+              </div>
+
+               {/* Batch Assignment Controls + Save/Cancel */}
+               <div className="p-4 bg-white border-b border-slate-200 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
+                      <div className="w-7 h-7 bg-[#655ac1] rounded-lg flex items-center justify-center">
+                          <GraduationCap size={14} className="text-white" />
+                      </div>
+                      <span className="text-sm font-black text-[#655ac1]">تعيين الصف والفصل لجميع الطلاب دفعة واحدة</span>
+                  </div>
+                  <div className="w-px h-6 bg-slate-200"></div>
+
+                  {/* Grade custom dropdown — portal to escape transform stacking context */}
+                  <div className="relative" ref={bulkGradeBtnRef}>
+                      <button
+                          onClick={(e) => {
+                              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                              setBulkGradeDropdownPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                              setBulkGradeDropdownOpen(prev => !prev);
+                              setBulkClassDropdownOpen(false);
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[150px] ${
+                              bulkSelectedGrade !== ''
+                                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
+                                  : 'border-slate-200 bg-white text-slate-600'
+                          }`}
+                      >
+                          <span className="flex-1 text-right">
+                              {bulkSelectedGrade !== '' ? `الصف ${bulkSelectedGrade}` : 'اختر الصف للجميع'}
+                          </span>
+                          {bulkSelectedGrade !== '' && (
+                              <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
+                                  <Check size={9} className="text-white" strokeWidth={3} />
+                              </div>
+                          )}
+                          <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${bulkGradeDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {bulkGradeDropdownOpen && bulkGradeDropdownPos && ReactDOM.createPortal(
+                          <div
+                              ref={bulkGradeDropdownRef}
+                              style={{ position: 'fixed', top: bulkGradeDropdownPos.top, right: bulkGradeDropdownPos.right }}
+                              className="bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] min-w-[160px] py-1.5 animate-in fade-in zoom-in-95 duration-100"
+                          >
+                              {availableGrades.map(g => (
+                                  <button
+                                      key={g}
+                                      onClick={() => {
+                                          setBulkSelectedGrade(g);
+                                          setBulkSelectedClassId('');
+                                          setBulkStudents(prev => prev.map(s => ({ ...s, grade: g, classId: '' })));
+                                          setBulkGradeDropdownOpen(false);
+                                      }}
+                                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
+                                          bulkSelectedGrade === g ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
+                                      }`}
+                                  >
+                                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                          bulkSelectedGrade === g ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
+                                      }`}>
+                                          {bulkSelectedGrade === g && <Check size={11} className="text-white" />}
+                                      </div>
+                                      الصف {g}
+                                  </button>
+                              ))}
+                          </div>,
+                          document.body
+                      )}
+                  </div>
+
+                  {/* Class custom dropdown — portal to escape transform stacking context */}
+                  <div className="relative" ref={bulkClassBtnRef}>
+                      <button
+                          onClick={(e) => {
+                              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                              setBulkClassDropdownPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                              setBulkClassDropdownOpen(prev => !prev);
+                              setBulkGradeDropdownOpen(false);
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[160px] ${
+                              bulkSelectedClassId !== ''
+                                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
+                                  : 'border-slate-200 bg-white text-slate-600'
+                          }`}
+                      >
+                          <span className="flex-1 text-right">
+                              {bulkSelectedClassId !== ''
+                                  ? (schoolClasses.find(c => c.id === bulkSelectedClassId)?.name || bulkSelectedClassId)
+                                  : 'اختر الفصل للجميع'}
+                          </span>
+                          {bulkSelectedClassId !== '' && (
+                              <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
+                                  <Check size={9} className="text-white" strokeWidth={3} />
+                              </div>
+                          )}
+                          <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${bulkClassDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {bulkClassDropdownOpen && bulkClassDropdownPos && ReactDOM.createPortal(
+                          <div
+                              ref={bulkClassDropdownRef}
+                              style={{ position: 'fixed', top: bulkClassDropdownPos.top, right: bulkClassDropdownPos.right }}
+                              className="bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] min-w-[180px] py-1.5 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
+                          >
+                              {availableGrades.map(g => {
+                                  const gradeClasses = schoolClasses.filter(c => c.grade === g);
+                                  if (gradeClasses.length === 0) return null;
+                                  return (
+                                      <React.Fragment key={g}>
+                                          <div className="px-4 py-1 text-[11px] font-black text-slate-400 bg-slate-50/70 uppercase tracking-wide">
+                                              الصف {g}
+                                          </div>
+                                          {gradeClasses.map(cls => (
+                                              <button
+                                                  key={cls.id}
+                                                  onClick={() => {
+                                                      setBulkSelectedClassId(cls.id);
+                                                      setBulkSelectedGrade(cls.grade);
+                                                      setBulkStudents(prev => prev.map(s => ({ ...s, classId: cls.id, grade: cls.grade })));
+                                                      setBulkClassDropdownOpen(false);
+                                                  }}
+                                                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
+                                                      bulkSelectedClassId === cls.id ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
+                                                  }`}
+                                              >
+                                                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                                      bulkSelectedClassId === cls.id ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
+                                                  }`}>
+                                                      {bulkSelectedClassId === cls.id && <Check size={11} className="text-white" />}
+                                                  </div>
+                                                  {cls.name || `${cls.grade}/${cls.section}`}
+                                              </button>
+                                          ))}
+                                      </React.Fragment>
+                                  );
+                              })}
+                          </div>,
+                          document.body
+                      )}
+                  </div>
+
+                  {/* Save / Cancel */}
+                  <div className="flex items-center gap-2 mr-auto">
                       <button
                           onClick={() => {
                              const validStudents = bulkStudents.filter(s => s.name.trim().length > 0);
-                             if (validStudents.length === 0) {
-                                 showToast('لا يوجد طلاب للحفظ', 'error');
-                                 return;
-                             }
+                             if (validStudents.length === 0) { showToast('لا يوجد طلاب للحفظ', 'error'); return; }
                              const newStudents: Student[] = validStudents.map(s => ({
-                                 id: s.id,
-                                 name: s.name,
-                                 grade: s.grade,
-                                 classId: s.classId,
-                                 parentPhone: s.parentPhone || undefined,
-                                 schoolId: activeSchoolId
+                                 id: s.id, name: s.name, grade: s.grade, classId: s.classId,
+                                 parentPhone: s.parentPhone || undefined, schoolId: activeSchoolId
                              }));
                              setStudents(prev => [...prev, ...newStudents]);
-                             setIsBulkEntryMode(false);
-                             setBulkStudents([]);
+                             setIsBulkEntryMode(false); setBulkStudents([]);
+                             setBulkSelectedGrade(''); setBulkSelectedClassId('');
                              showToast(`تم إضافة ${newStudents.length} طالب بنجاح`, 'success');
                           }}
-                          className="px-6 py-2 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200"
+                          className="px-5 py-2 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 flex items-center gap-2"
                       >
-                          <CheckCircle2 size={16} className="inline ml-2" /> حفظ الطلاب ({bulkStudents.filter(s => s.name.trim()).length})
+                          <CheckCircle2 size={15} /> حفظ الطلاب ({bulkStudents.filter(s => s.name.trim()).length})
                       </button>
                       <button
-                          onClick={() => setIsBulkEntryMode(false)}
-                          className="px-6 py-2 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                          onClick={() => { setIsBulkEntryMode(false); setBulkSelectedGrade(''); setBulkSelectedClassId(''); }}
+                          className="px-5 py-2 bg-white text-slate-400 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
                       >
                           إلغاء
                       </button>
                   </div>
-              </div>
-
-               {/* Batch Assignment Controls */}
-               <div className="p-4 bg-[#f5f3ff] border-b border-[#e5e1fe] flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-7 h-7 bg-[#655ac1] rounded-lg flex items-center justify-center">
-                          <Users size={14} className="text-white" />
-                      </div>
-                      <span className="text-sm font-black text-[#655ac1]">تعيين الصف والفصل لجميع الطلاب دفعة واحدة</span>
-                  </div>
-                  <div className="w-px h-6 bg-[#e5e1fe]"></div>
-                  <select
-                      className="px-4 py-2 bg-white border border-[#e5e1fe] rounded-xl text-sm font-bold text-slate-600 focus:border-[#655ac1] outline-none shadow-sm"
-                      defaultValue=""
-                      onChange={(e) => {
-                          if (e.target.value) {
-                              const grade = parseInt(e.target.value);
-                              setBulkStudents(prev => prev.map(s => ({ ...s, grade, classId: '' })));
-                          }
-                      }}
-                  >
-                      <option value="">اختر الصف للجميع...</option>
-                      {availableGrades.map(g => (
-                          <option key={g} value={g}>الصف {g}</option>
-                      ))}
-                  </select>
-
-                  <select
-                       className="px-4 py-2 bg-white border border-[#e5e1fe] rounded-xl text-sm font-bold text-slate-600 focus:border-[#655ac1] outline-none shadow-sm"
-                       defaultValue=""
-                       onChange={(e) => {
-                          if (e.target.value) {
-                              const classId = e.target.value;
-                              const cls = schoolClasses.find(c => c.id === classId);
-                              if (cls) {
-                                  setBulkStudents(prev => prev.map(s => ({ ...s, classId, grade: cls.grade })));
-                              }
-                          }
-                       }}
-                  >
-                      <option value="">اختر الفصل للجميع...</option>
-                      {availableGrades.map(g => {
-                          const gradeClasses = schoolClasses.filter(c => c.grade === g);
-                          if (gradeClasses.length === 0) return null;
-                          return (
-                              <optgroup key={g} label={`الصف ${g}`}>
-                                  {gradeClasses.map(c => (
-                                      <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
-                                  ))}
-                              </optgroup>
-                          );
-                      })}
-                  </select>
                </div>
 
               <div className="p-0 custom-scrollbar">
                   <table className="w-full">
                       <thead className="sticky top-0 z-10 bg-white shadow-sm">
                           <tr className="bg-slate-50 border-b border-slate-200 text-slate-500">
-                              <th className="p-4 text-center w-16">#</th>
+                              <th className="p-4 text-center w-16">م</th>
                               <th className="p-4 text-right min-w-[200px]">اسم الطالب <span className="text-rose-500">*</span></th>
                               <th className="p-4 text-center w-40">الصف <span className="text-rose-500">*</span></th>
                               <th className="p-4 text-center w-48">الفصل</th>
@@ -799,7 +904,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   </table>
 
                   {/* Add Row Button */}
-                   <div className="p-4 border-t border-slate-100 bg-slate-50/30 text-center">
+                   <div className="p-4 border-t border-slate-100 bg-slate-50/30 text-center rounded-b-[2rem]">
                       <button
                           onClick={() => {
                                const lastRow = bulkStudents[bulkStudents.length - 1];
@@ -1068,7 +1173,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                <Users size={20} className="text-[#9d8fe8]" /> إضافة عدة طلاب
+                <UserPlus size={20} className="text-[#655ac1]" /> إضافة عدة طلاب
               </h3>
               <button onClick={() => setShowBulkCountModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
                 <X size={20} />
@@ -1107,9 +1212,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     }
                   }}
                   disabled={!bulkCount || bulkCount < 1}
-                  className="flex-1 py-3 bg-[#9d8fe8] text-white rounded-xl text-sm font-bold hover:bg-[#8779d0] transition-all shadow-md shadow-[#9d8fe8]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <Plus size={16} /> إنشاء الجدول
+                  <CheckCircle2 size={16} /> إضافة
                 </button>
                 <button
                   onClick={() => setShowBulkCountModal(false)}
@@ -1350,7 +1455,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         : 'cursor-pointer bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50/50'
                   }`}
                >
-                  <div className={`p-2 bg-amber-50 rounded-xl ${studentsWithMissingData.length > 0 ? 'animate-pulse' : ''}`}>
+                  <div className={`p-2 bg-slate-100 rounded-xl ${studentsWithMissingData.length > 0 ? 'animate-pulse' : ''}`}>
                     <AlertTriangle size={22} className="text-amber-500" />
                   </div>
                   <div className="flex flex-col justify-center">
