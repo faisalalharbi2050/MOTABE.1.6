@@ -123,7 +123,7 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
       case 5: return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 6: return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 7: return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} classes={classes} />;
-      case 8: return <Step7Admins admins={admins} setAdmins={setAdmins} />;
+      case 8: return <Step7Admins admins={admins} setAdmins={setAdmins} schoolInfo={schoolInfo} />;
       case 9: return <Step9Schedule schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} teachers={teachers} subjects={subjects} classes={classes} admins={admins} assignments={assignments} specializations={specializations} />;
       default: return null;
     }
