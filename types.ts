@@ -355,6 +355,11 @@ export interface MessageStats {
   activePackageName?: string;
   activePackageWA?: number;
   activePackageSMS?: number;
+
+  // Optional metadata about the الرسائل package subscription
+  messagePackageStartDate?: string; // ISO date YYYY-MM-DD
+  messagePackageEndDate?: string;   // ISO date YYYY-MM-DD
+  messagePackageIsTrial?: boolean;
 }
 
 export interface Message {

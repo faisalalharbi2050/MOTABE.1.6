@@ -62,12 +62,37 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
 
   const [stats, setStats] = useState<MessageStats>(() => {
     try {
-      return JSON.parse(localStorage.getItem('smart_messaging_stats_v2') || 'null') || {
-        totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0,
-        balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString()
+      const stored = JSON.parse(localStorage.getItem('smart_messaging_stats_v2') || 'null');
+      if (stored) {
+        return stored;
+      }
+      const nowIso = new Date().toISOString();
+      return {
+        totalSent: 0,
+        whatsappSent: 0,
+        smsSent: 0,
+        failedCount: 0,
+        balanceSMS: 10,
+        balanceWhatsApp: 50,
+        lastUpdated: nowIso,
+        messagePackageStartDate: undefined,
+        messagePackageEndDate: undefined,
+        messagePackageIsTrial: undefined,
       };
     } catch {
-      return { totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString() };
+      const nowIso = new Date().toISOString();
+      return {
+        totalSent: 0,
+        whatsappSent: 0,
+        smsSent: 0,
+        failedCount: 0,
+        balanceSMS: 10,
+        balanceWhatsApp: 50,
+        lastUpdated: nowIso,
+        messagePackageStartDate: undefined,
+        messagePackageEndDate: undefined,
+        messagePackageIsTrial: undefined,
+      };
     }
   });
 
@@ -257,10 +282,18 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
       ...prev,
       balanceWhatsApp: type === 'whatsapp' ? prev.balanceWhatsApp + amount : prev.balanceWhatsApp,
       balanceSMS: type === 'sms' ? prev.balanceSMS + amount : prev.balanceSMS,
+      lastUpdated: new Date().toISOString(),
     }));
   };
 
   const buyPackage = (pkg: { name: string; wa: number; sms: number }) => {
+    const start = new Date();
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + 1); // Validity: 12 months from purchase
+
+    const startDateIso = start.toISOString().slice(0, 10);
+    const endDateIso = end.toISOString().slice(0, 10);
+
     setStats(prev => ({
       ...prev,
       balanceWhatsApp: prev.balanceWhatsApp + pkg.wa,
@@ -268,6 +301,10 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
       activePackageName: pkg.name,
       activePackageWA: pkg.wa,
       activePackageSMS: pkg.sms,
+      messagePackageStartDate: startDateIso,
+      messagePackageEndDate: endDateIso,
+      messagePackageIsTrial: false,
+      lastUpdated: new Date().toISOString(),
     }));
   };
 
