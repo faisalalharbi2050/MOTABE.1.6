@@ -1,26 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, LayoutTemplate, History, BarChart3, ShoppingCart, BadgeCheck } from 'lucide-react';
+import { MessageSquare, LayoutTemplate, History, BarChart3 } from 'lucide-react';
 import MessageComposer from './messaging/MessageComposer';
 import MessageArchive from './messaging/MessageArchive';
 import MessageTemplates from './messaging/MessageTemplates';
 import FintechDashboard from './messaging/FintechDashboard';
-import MessageSubscriptions from './messaging/MessageSubscriptions';
-
-// To keep the signature of Messages component simple as it used in App.tsx without props,
-// we will fetch data from local storage here or ideally it should be passed from App.tsx.
-// Since we are mocking here and the user wants to integrate, we will load the mock data.
 import { Teacher, Admin, Student, ClassInfo, Specialization, SchoolInfo, SubscriptionInfo } from '../types';
 
 interface MessagesProps {
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
-  initialTab?: 'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions';
+  initialTab?: 'compose' | 'archive' | 'templates' | 'dashboard';
 }
 
 const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, initialTab }) => {
-  const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>(initialTab || 'compose');
+  const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard'>(initialTab || 'compose');
 
-  // Load necessary data for composer
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
@@ -44,21 +38,18 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
   }, []);
 
   const tabs = [
-    { id: 'compose', label: 'إرسال رسالة', icon: MessageSquare },
-    { id: 'templates', label: 'القوالب', icon: LayoutTemplate },
-    { id: 'archive', label: 'الأرشيف', icon: History },
-    { id: 'dashboard', label: 'الإحصائيات', icon: BarChart3 },
-    { id: 'subscriptions', label: 'اشتراك الرسائل', icon: BadgeCheck },
+    { id: 'compose',   label: 'إرسال رسالة', icon: MessageSquare },
+    { id: 'templates', label: 'القوالب',      icon: LayoutTemplate },
+    { id: 'archive',   label: 'الأرشيف',      icon: History        },
+    { id: 'dashboard', label: 'الإحصائيات',   icon: BarChart3      },
   ] as const;
 
   return (
     <div className="space-y-6 dir-rtl animate-fade-in max-w-[1400px] mx-auto">
-      
-      {/* ══════ Header Card ══════ */}
-      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
-        {/* Decorative corner accent */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
 
+      {/* Header Card */}
+      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
         <div className="relative z-10">
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
             <MessageSquare size={36} strokeWidth={1.8} className="text-[#655ac1]" />
@@ -91,8 +82,8 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'compose' && (
-          <MessageComposer 
-            schoolInfo={schoolInfo || {} as any}
+          <MessageComposer
+            schoolInfo={schoolInfo ?? { entityType: 'school', schoolName: '', region: '', phases: [] } as unknown as SchoolInfo}
             teachers={teachers}
             admins={admins}
             students={students}
@@ -109,10 +100,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
           <MessageTemplates />
         )}
         {activeTab === 'dashboard' && (
-          <FintechDashboard onNavigate={(tab) => setActiveTab(tab as any)} />
-        )}
-        {activeTab === 'subscriptions' && (
-          <MessageSubscriptions />
+          <FintechDashboard />
         )}
       </div>
 

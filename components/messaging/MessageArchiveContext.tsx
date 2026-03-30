@@ -1,22 +1,34 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { CentralMessage, MessageTemplate, MessageStats } from '../../types';
 
+// ─── Scheduled Batch Type ───────────────────────────────────────────────────
+interface ScheduledBatch {
+  id: string;
+  scheduledFor: string; // ISO timestamp
+  fallbackToSms: boolean;
+  messages: Array<Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>>;
+}
+
+// ─── Context Interface ───────────────────────────────────────────────────────
 interface MessageArchiveContextType {
   messages: CentralMessage[];
   templates: MessageTemplate[];
   stats: MessageStats;
-  sendMessage: (msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>) => Promise<void>;
+  scheduledBatches: ScheduledBatch[];
+  sendMessage: (msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>, fallbackToSms?: boolean) => Promise<void>;
+  scheduleMessage: (batch: { scheduledFor: string; fallbackToSms: boolean; messages: Array<Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>> }) => void;
   resendMessage: (id: string) => Promise<void>;
   addTemplate: (template: Omit<MessageTemplate, 'id'>) => void;
   updateTemplate: (template: MessageTemplate) => void;
   deleteTemplate: (id: string) => void;
   clearArchive: () => void;
   rechargeBalance: (amount: number, type: 'whatsapp' | 'sms') => void;
-  buyPackage: (pkg: {name: string, wa: number, sms: number}) => void;
+  buyPackage: (pkg: { name: string; wa: number; sms: number }) => void;
 }
 
 const MessageArchiveContext = createContext<MessageArchiveContextType | undefined>(undefined);
 
+// ─── Initial Templates ───────────────────────────────────────────────────────
 const INITIAL_TEMPLATES: MessageTemplate[] = [
   { id: 't1', title: 'غياب طالب', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نود إشعاركم بغياب ابنكم اليوم {اليوم} الموافق {التاريخ}.', isSystem: true, category: 'غياب طالب' },
   { id: 't2', title: 'تأخر طالب', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نود إشعاركم بتأخر ابنكم عن الطابور الصباحي اليوم {اليوم}.', isSystem: true, category: 'تأخر طالب' },
@@ -29,52 +41,47 @@ const INITIAL_TEMPLATES: MessageTemplate[] = [
   { id: 't9', title: 'التعميم الداخلي', content: 'المكرم / {اسم_المعلم}،{اسم_الإداري} ،نحيطكم علماً بالتعميم {عنوان_التعميم} المرفق نأمل الاطلاع وعمل اللازم.', isSystem: true, category: 'تعميم' },
 ];
 
+// ─── Provider ────────────────────────────────────────────────────────────────
 export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [messages, setMessages] = useState<CentralMessage[]>(() => {
     try { return JSON.parse(localStorage.getItem('smart_messaging_archive_v1') || '[]'); } catch { return []; }
   });
+
   const [templates, setTemplates] = useState<MessageTemplate[]>(() => {
-    try { 
+    try {
       let stored: MessageTemplate[] = JSON.parse(localStorage.getItem('smart_messaging_templates_v1') || JSON.stringify(INITIAL_TEMPLATES));
-      // Force update of system templates to reflect code changes
-      stored = stored.map(t => {
-        if (t.id === 't3') return INITIAL_TEMPLATES[2];
-        return t;
-      });
-      // Ensure all new system templates from INITIAL_TEMPLATES are present
+      stored = stored.map(t => (t.id === 't3' ? INITIAL_TEMPLATES[2] : t));
       INITIAL_TEMPLATES.forEach(sysTpl => {
-        const existingIndex = stored.findIndex(t => t.id === sysTpl.id);
-        if (existingIndex === -1) {
-          stored.push(sysTpl);
-        } else if (['t4', 't5', 't6', 't7', 't8', 't9'].includes(sysTpl.id)) {
-          stored[existingIndex] = sysTpl;
-        }
+        const idx = stored.findIndex(t => t.id === sysTpl.id);
+        if (idx === -1) stored.push(sysTpl);
+        else if (['t4', 't5', 't6', 't7', 't8', 't9'].includes(sysTpl.id)) stored[idx] = sysTpl;
       });
       return stored;
     } catch { return INITIAL_TEMPLATES; }
   });
+
   const [stats, setStats] = useState<MessageStats>(() => {
-    try { 
+    try {
       return JSON.parse(localStorage.getItem('smart_messaging_stats_v2') || 'null') || {
-        totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString()
+        totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0,
+        balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString()
       };
-    } catch { 
+    } catch {
       return { totalSent: 0, whatsappSent: 0, smsSent: 0, failedCount: 0, balanceSMS: 10, balanceWhatsApp: 50, lastUpdated: new Date().toISOString() };
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem('smart_messaging_archive_v1', JSON.stringify(messages));
-  }, [messages]);
+  const [scheduledBatches, setScheduledBatches] = useState<ScheduledBatch[]>(() => {
+    try { return JSON.parse(localStorage.getItem('smart_messaging_scheduled_v1') || '[]'); } catch { return []; }
+  });
 
-  useEffect(() => {
-    localStorage.setItem('smart_messaging_templates_v1', JSON.stringify(templates));
-  }, [templates]);
+  // ── Persistence ──────────────────────────────────────────────────────────
+  useEffect(() => { localStorage.setItem('smart_messaging_archive_v1', JSON.stringify(messages)); }, [messages]);
+  useEffect(() => { localStorage.setItem('smart_messaging_templates_v1', JSON.stringify(templates)); }, [templates]);
+  useEffect(() => { localStorage.setItem('smart_messaging_stats_v2', JSON.stringify(stats)); }, [stats]);
+  useEffect(() => { localStorage.setItem('smart_messaging_scheduled_v1', JSON.stringify(scheduledBatches)); }, [scheduledBatches]);
 
-  useEffect(() => {
-    localStorage.setItem('smart_messaging_stats_v2', JSON.stringify(stats));
-  }, [stats]);
-
+  // ── Helpers ──────────────────────────────────────────────────────────────
   const updateStats = (channel: 'whatsapp' | 'sms', status: 'sent' | 'failed') => {
     setStats(prev => {
       const isSent = status === 'sent';
@@ -92,66 +99,110 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
     });
   };
 
-  const simulateNetworkRequest = (shouldFail: boolean) => new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (shouldFail) reject(new Error('Network Failure'));
-      else resolve(true);
-    }, 800);
-  });
+  const simulateNetworkRequest = (shouldFail: boolean) =>
+    new Promise((resolve, reject) =>
+      setTimeout(() => (shouldFail ? reject(new Error('Network Failure')) : resolve(true)), 800)
+    );
 
-  const sendMessage = async (msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>) => {
+  // ── Core send logic (used by sendMessage + scheduled executor) ───────────
+  const sendMessageCore = async (
+    msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>,
+    fallbackToSms = false
+  ) => {
     const newMessage: CentralMessage = {
       ...msg,
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       timestamp: new Date().toISOString(),
       status: 'pending',
       retryCount: 0,
-      batchId: msg.batchId,
-      senderRole: msg.senderRole || 'مدير النظام',
     };
 
     setMessages(prev => [newMessage, ...prev]);
 
-    // Send Logic: Failover
     let finalChannel = msg.channel;
     let success = false;
     let failureReason = '';
 
     try {
-      // If WhatsApp, random chance to fail to show the failover, or based on some keyword
-      // Let's say if content includes 'failwa' it fails WhatsApp
-      const failWA = msg.content.includes('failwa');
-      await simulateNetworkRequest(failWA);
+      // Developer test: include 'failwa' in content to simulate WA failure
+      await simulateNetworkRequest(msg.content.includes('failwa'));
       success = true;
-    } catch (e: any) {
-      if (msg.channel === 'whatsapp') {
-        // Failover to SMS
+    } catch {
+      if (msg.channel === 'whatsapp' && fallbackToSms) {
+        // Only fall back to SMS when the user explicitly enabled the option
         try {
-          finalChannel = 'sms'; // switch channel
-          // SMS might strip attachments practically, but here we just send
-          const failSMS = msg.content.includes('failsms');
-          await simulateNetworkRequest(failSMS);
+          finalChannel = 'sms';
+          await simulateNetworkRequest(false);
           success = true;
-        } catch (smsError: any) {
+          failureReason = ''; // clear — fallback succeeded
+        } catch {
           success = false;
-          failureReason = 'فشل الإرسال عبر WhatsApp و SMS';
+          failureReason = 'فشل الإرسال عبر WhatsApp والرسائل النصية';
         }
       } else {
         success = false;
-        failureReason = 'خطأ في مزود خدمة SMS';
+        failureReason = msg.channel === 'whatsapp'
+          ? 'فشل الإرسال عبر WhatsApp'
+          : 'خطأ في مزود خدمة SMS';
       }
     }
 
     const finalStatus = success ? 'sent' : 'failed';
-    
-    setMessages(prev => prev.map(m => m.id === newMessage.id ? {
-      ...m,
-      status: finalStatus,
-      channel: finalChannel,
-      failureReason: success ? undefined : failureReason
-    } : m));
+
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === newMessage.id
+          ? { ...m, status: finalStatus, channel: finalChannel, failureReason: success ? undefined : failureReason }
+          : m
+      )
+    );
 
     updateStats(finalChannel, finalStatus);
+  };
+
+  // Keep a ref so the scheduler interval always calls the latest version
+  const sendMessageCoreRef = useRef(sendMessageCore);
+  useEffect(() => { sendMessageCoreRef.current = sendMessageCore; });
+
+  // ── Scheduled message executor ───────────────────────────────────────────
+  useEffect(() => {
+    const checkAndExecute = () => {
+      const now = new Date();
+      setScheduledBatches(prev => {
+        const due = prev.filter(b => new Date(b.scheduledFor) <= now);
+        if (due.length === 0) return prev;
+
+        due.forEach(batch => {
+          batch.messages.forEach(msg =>
+            sendMessageCoreRef.current(msg, batch.fallbackToSms)
+          );
+        });
+
+        return prev.filter(b => new Date(b.scheduledFor) > now);
+      });
+    };
+
+    checkAndExecute(); // Run immediately on mount to catch overdue messages
+    const interval = setInterval(checkAndExecute, 60_000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Public API ───────────────────────────────────────────────────────────
+  const sendMessage = (
+    msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>,
+    fallbackToSms = false
+  ) => sendMessageCore(msg, fallbackToSms);
+
+  const scheduleMessage = (batch: {
+    scheduledFor: string;
+    fallbackToSms: boolean;
+    messages: Array<Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>>;
+  }) => {
+    const newBatch: ScheduledBatch = {
+      id: `sched-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      ...batch,
+    };
+    setScheduledBatches(prev => [...prev, newBatch]);
   };
 
   const resendMessage = async (id: string) => {
@@ -165,7 +216,7 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
     let failureReason = '';
 
     try {
-      await simulateNetworkRequest(false); // second try highly likely to succeed in prototype
+      await simulateNetworkRequest(false);
       success = true;
     } catch {
       success = false;
@@ -174,13 +225,13 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
 
     const finalStatus = success ? 'sent' : 'failed';
 
-    setMessages(prev => prev.map(m => m.id === id ? {
-      ...m,
-      status: finalStatus,
-      channel: finalChannel,
-      failureReason: success ? undefined : failureReason,
-      retryCount: (m.retryCount || 0) + 1
-    } : m));
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === id
+          ? { ...m, status: finalStatus, channel: finalChannel, failureReason: success ? undefined : failureReason, retryCount: (m.retryCount || 0) + 1 }
+          : m
+      )
+    );
 
     updateStats(finalChannel, finalStatus);
   };
@@ -198,33 +249,34 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   };
 
   const clearArchive = () => {
-    if (confirm('هل أنت متأكد من مسح جميع السجلات؟')) {
-      setMessages([]);
-    }
+    if (confirm('هل أنت متأكد من مسح جميع السجلات؟')) setMessages([]);
   };
 
   const rechargeBalance = (amount: number, type: 'whatsapp' | 'sms') => {
     setStats(prev => ({
       ...prev,
       balanceWhatsApp: type === 'whatsapp' ? prev.balanceWhatsApp + amount : prev.balanceWhatsApp,
-      balanceSMS: type === 'sms' ? prev.balanceSMS + amount : prev.balanceSMS
+      balanceSMS: type === 'sms' ? prev.balanceSMS + amount : prev.balanceSMS,
     }));
   };
 
-  const buyPackage = (pkg: {name: string, wa: number, sms: number}) => {
+  const buyPackage = (pkg: { name: string; wa: number; sms: number }) => {
     setStats(prev => ({
       ...prev,
       balanceWhatsApp: prev.balanceWhatsApp + pkg.wa,
       balanceSMS: prev.balanceSMS + pkg.sms,
       activePackageName: pkg.name,
       activePackageWA: pkg.wa,
-      activePackageSMS: pkg.sms
+      activePackageSMS: pkg.sms,
     }));
   };
 
   return (
     <MessageArchiveContext.Provider value={{
-      messages, templates, stats, sendMessage, resendMessage, addTemplate, updateTemplate, deleteTemplate, clearArchive, rechargeBalance, buyPackage
+      messages, templates, stats, scheduledBatches,
+      sendMessage, scheduleMessage, resendMessage,
+      addTemplate, updateTemplate, deleteTemplate,
+      clearArchive, rechargeBalance, buyPackage,
     }}>
       {children}
     </MessageArchiveContext.Provider>
