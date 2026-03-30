@@ -25,7 +25,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ transactions }) => {
     <>
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800">سجل العمليات والفواتير</h3>
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <FileText size={20} className="text-[#655ac1]" />
+            سجل العمليات والفواتير
+          </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right text-slate-600">

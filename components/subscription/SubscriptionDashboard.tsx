@@ -69,7 +69,7 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
   const RemainingBadge: React.FC<{ value: number | null }> = ({ value }) => {
     const safe = Math.max(0, value ?? 0);
     return (
-      <div className="px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-center min-w-[130px]">
+      <div className="px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-center min-w-[130px] flex flex-col items-center">
         <div className="text-2xl font-black text-[#655ac1] leading-none">{safe}</div>
         <div className="text-xs font-bold text-[#8779fb] mt-1">
           {safe === 0 ? 'انتهت المدة' : 'يوم متبقٍ'}
@@ -128,7 +128,9 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
   const messageDaysLabel = formatDaysLabel(messageDaysRemaining);
 
   const mainPackageDisplay = PACKAGE_NAMES[subscription.packageTier] || subscription.planName;
-  const messagePackageDisplay = stats.activePackageName ? `الباقة ${stats.activePackageName}` : 'الباقة الأساسية';
+  const messagePackageDisplay = isMessageTrial
+    ? 'الباقة المجانية'
+    : (stats.activePackageName ? `الباقة ${stats.activePackageName}` : 'الباقة الأساسية');
 
   return (
     <div className="space-y-6">
@@ -139,39 +141,33 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3f0ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
           <div className="relative z-10 flex flex-col flex-1">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-5">
               <Crown size={22} className="text-[#8779fb]" />
               <h3 className="text-base font-black text-slate-800">اشتراك متابع</h3>
             </div>
-            <p className="text-sm font-black text-slate-600 mb-4">
-              {mainPackageDisplay}
+
+            <div className="inline-flex items-center gap-2 self-start px-4 py-2 bg-[#f3f0ff] rounded-xl border border-[#e5e1fe] mb-6">
+              <span className="text-sm font-black text-[#655ac1]">{mainPackageDisplay}</span>
               {subscription.isTrial && (
-                <span className="text-[10px] font-black px-2.5 py-1 rounded-full mr-2 border border-[#e5e1fe] text-[#655ac1] bg-[#f8f7ff]">
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#655ac1] text-white">
                   تجربة مجانية
                 </span>
               )}
-            </p>
-
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="text-slate-600 font-medium text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-[#8779fb]" />
-                  <span className="font-black text-slate-700">مدة الاشتراك</span>
-                </div>
-                <div className="mt-1.5 text-slate-500 font-bold">
-                  {formatHijriRange(mainStartDate, mainEndDate)}
-                </div>
-              </div>
-
-              <RemainingBadge value={isExpired ? 0 : daysRemaining} />
             </div>
 
-            <button
-              onClick={onUpgrade}
-              className="mt-auto w-full py-3 bg-white hover:bg-[#8779fb] text-slate-700 hover:text-white rounded-xl font-bold transition-colors shadow-sm border-2 border-slate-200 hover:border-[#8779fb] text-sm"
-            >
-              ترقية الباقة
-            </button>
+            <div className="bg-slate-50 rounded-xl p-3 mb-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar size={15} className="text-[#8779fb]" />
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wide">مدة الاشتراك</span>
+              </div>
+              <div className="text-sm text-slate-700 font-bold leading-relaxed">
+                {formatHijriRange(mainStartDate, mainEndDate)}
+              </div>
+            </div>
+
+            <div className="mt-auto flex justify-center">
+              <RemainingBadge value={isExpired ? 0 : daysRemaining} />
+            </div>
 
             {isExpired && (
               <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 font-bold">
@@ -184,41 +180,33 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
         {/* ── Message subscription card ── */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#f8f7ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
-          {isMessageTrial && (
-            <div className="absolute top-5 left-5 z-20 px-3 py-1 rounded-full border-2 border-[#8779fb] bg-white text-[#655ac1] text-[11px] font-black">
-              تجربة مجانية لمدة 10 أيام
-            </div>
-          )}
           <div className="relative z-10 flex flex-col flex-1">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-5">
               <MessageSquare size={22} className="text-[#8779fb]" />
               <h3 className="text-base font-black text-slate-800">باقة الرسائل</h3>
             </div>
-            <p className="text-sm font-black text-slate-600 mb-4">
-              {messagePackageDisplay}
-            </p>
 
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="text-slate-600 font-medium text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-[#8779fb]" />
-                  <span className="font-black text-slate-700">مدة الاشتراك</span>
-                </div>
-                <div className="mt-1.5 text-slate-500 font-bold">
-                  {formatHijriRange(messageStartDate, messageEndDate)}
-                </div>
-              </div>
-
-              <RemainingBadge value={isMessageExpired ? 0 : messageDaysRemaining} />
+            <div className="inline-flex items-center gap-2 self-start px-4 py-2 bg-[#f3f0ff] rounded-xl border border-[#e5e1fe] mb-6">
+              <span className="text-sm font-black text-[#655ac1]">{messagePackageDisplay}</span>
+              {isMessageTrial && (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#655ac1] text-white">
+                  10 أيام
+                </span>
+              )}
             </div>
 
-            <div className="mt-auto pt-5">
-              <button
-                onClick={onManageMessages}
-                className="w-full py-3 bg-white hover:bg-[#8779fb] text-slate-700 hover:text-white rounded-xl font-bold transition-colors shadow-sm border-2 border-slate-200 hover:border-[#8779fb] text-sm"
-              >
-                ترقية الباقة
-              </button>
+            <div className="bg-slate-50 rounded-xl p-3 mb-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar size={15} className="text-[#8779fb]" />
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wide">مدة الاشتراك</span>
+              </div>
+              <div className="text-sm text-slate-700 font-bold leading-relaxed">
+                {formatHijriRange(messageStartDate, messageEndDate)}
+              </div>
+            </div>
+
+            <div className="mt-auto flex justify-center">
+              <RemainingBadge value={isMessageExpired ? 0 : messageDaysRemaining} />
             </div>
           </div>
         </div>
@@ -234,12 +222,12 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
             </div>
           </div>
 
-          <div className="space-y-5 flex-1">
+          <div className="flex flex-col justify-between flex-1 gap-5">
             {/* WhatsApp */}
             <div>
               <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
                 <span className="flex items-center gap-1.5">{WA_ICON_SM} واتساب</span>
-                <span className="text-green-600">{waUsed} مستهلك من 50</span>
+                <span className="text-green-600">{waUsed} مُرسلة من أصل 50</span>
               </div>
               <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                 <div
@@ -249,13 +237,15 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
               </div>
             </div>
 
+            <hr className="border-slate-100" />
+
             {/* SMS */}
             <div>
               <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
                 <span className="flex items-center gap-1.5">
                   <MessageSquare size={14} className="text-[#007AFF]" /> نصية SMS
                 </span>
-                <span className="text-blue-600">{smsUsed} مستهلك من 10</span>
+                <span className="text-blue-600">{smsUsed} مُرسلة من أصل 10</span>
               </div>
               <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                 <div

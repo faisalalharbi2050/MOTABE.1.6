@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, History, LayoutDashboard, MessageSquare } from 'lucide-react';
+import { CreditCard, FileText, LayoutDashboard, MessageSquare } from 'lucide-react';
 import SubscriptionDashboard from './SubscriptionDashboard';
 import PricingPlans from './PricingPlans';
 import InvoiceList from './InvoiceList';
@@ -16,10 +16,10 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
   const [activeTab, setActiveTab] = useState<'dashboard' | 'pricing' | 'message_packages' | 'invoices'>(initialTab || 'dashboard');
 
   const tabs = [
-    { id: 'dashboard',         label: 'إدارة الاشتراك',  icon: LayoutDashboard },
-    { id: 'pricing',           label: 'باقات متابع',     icon: CreditCard      },
-    { id: 'message_packages',  label: 'باقات الرسائل',   icon: MessageSquare   },
-    { id: 'invoices',          label: 'الفواتير',         icon: History         },
+    { id: 'dashboard',         label: 'الاشتراك الحالي',  icon: LayoutDashboard },
+    { id: 'pricing',           label: 'باقات متابع',      icon: CreditCard      },
+    { id: 'message_packages',  label: 'باقات الرسائل',    icon: MessageSquare   },
+    { id: 'invoices',          label: 'الفواتير',          icon: FileText        },
   ] as const;
 
   return (
@@ -34,7 +34,7 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
             الاشتراك والفوترة
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12">
-            إدارة ومتابعة حالة الاشتراك، يمكنك التجديد أو الترقية، واستعرض فواتيرك بكل يسر.
+            إدارة ومتابعة حالة الاشتراك، يمكنك التجديد أو الترقية، واستعراض فواتيرك بكل يسر.
           </p>
         </div>
       </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PackageTier, PaymentPeriod, SubscriptionInfo } from '../../types';
 import { PACKAGE_FEATURES, PACKAGE_PRICING, PACKAGE_NAMES, calculateProRata } from './packages';
 import PaymentModal from './PaymentModal';
-import { Check, X, Shield, Star, Crown, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Check, Shield, Star, Crown, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 
 interface PricingPlansProps {
   subscription: SubscriptionInfo;
@@ -70,11 +70,9 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
     <div className="space-y-6 animate-fade-in">
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div className="text-center mb-6">
-          <h3 className="text-xl font-black text-slate-800 mb-2">باقات الاشتراك</h3>
-          <p className="text-sm font-bold text-slate-600 flex items-center justify-center gap-2">
-            <Sparkles size={20} className="text-yellow-500 fill-yellow-500/20" />
-            اختر الباقة التي تناسبك واستمتع بتجربة مجانية لمدة 10 أيام
-            <Sparkles size={20} className="text-yellow-500 fill-yellow-500/20" />
+          <h3 className="text-xl font-black text-slate-800 mb-2">باقات متابع</h3>
+          <p className="text-sm font-bold text-slate-600">
+            اختر الباقة والمدة التي تناسبك
           </p>
         </div>
 
@@ -108,31 +106,32 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
              const isCurrent = subscription.packageTier === tier && !subscription.isTrial;
              const isAdvanced = tier === 'advanced';
              const styles = packageStyles[tier as keyof typeof packageStyles];
-             const Icon = styles.icon;
              
              return (
-               <div 
-                 key={tier} 
-                 className="bg-white border-2 border-slate-100 hover:border-slate-300 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden"
+               <div
+                 key={tier}
+                 className={`bg-white border-2 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden ${
+                   isCurrent  ? 'border-green-300 shadow-green-100' :
+                   isAdvanced ? 'border-[#8779fb] shadow-indigo-100' :
+                   'border-slate-100 hover:border-slate-300'
+                 }`}
                >
                  <div className={`absolute top-0 right-0 w-24 h-24 ${styles.bgLight} rounded-bl-full -z-0 transition-transform group-hover:scale-110`} />
-                 
-                 {isAdvanced && (
-                   <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#8779fb] text-white px-4 py-1.5 rounded-b-xl text-xs font-bold shadow-md">
-                     الأكثر طلباً
-                   </div>
-                 )}
-                 {isCurrent && (
-                   <div className="absolute top-0 left-8 bg-green-500 text-white px-4 py-1.5 rounded-b-xl text-xs font-bold shadow-md">
-                     الباقة الحالية
-                   </div>
-                 )}
 
                  <div className="relative z-10 flex-1 flex flex-col">
-                    <div className="flex justify-center mb-3 mt-2">
-                      <div className={`w-14 h-14 rounded-2xl ${styles.bgLight} flex items-center justify-center text-[#8779fb]`}>
-                         <Icon size={28} />
-                      </div>
+
+                    {/* ── Badge slot: fixed height keeps cards aligned ── */}
+                    <div className="h-7 flex items-center justify-center mb-4">
+                      {isCurrent && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500 text-white text-xs font-black rounded-full shadow-sm shadow-green-200">
+                          <CheckCircle2 size={12} /> الباقة الحالية
+                        </span>
+                      )}
+                      {isAdvanced && !isCurrent && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#655ac1] text-white text-xs font-black rounded-full shadow-sm shadow-indigo-200">
+                          <Star size={11} className="fill-white text-white" /> الأكثر طلباً
+                        </span>
+                      )}
                     </div>
 
                     <h4 className="text-2xl font-black text-slate-800 mb-2">{PACKAGE_NAMES[tier]}</h4>
