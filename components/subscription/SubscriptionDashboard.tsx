@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ShieldCheck, Hourglass, ArrowUpCircle, MessageSquare, Award } from 'lucide-react';
+import { Calendar, Crown, Hourglass, MessageSquare } from 'lucide-react';
 import { SubscriptionInfo } from '../../types';
 import { PACKAGE_NAMES } from './packages';
 import { useMessageArchive } from '../messaging/MessageArchiveContext';
@@ -19,6 +19,30 @@ const WA_ICON_SM = (
 const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscription, onUpgrade, onManageMessages }) => {
   const { stats } = useMessageArchive();
 
+  const formatHijri = (isoDate: string | undefined | null) => {
+    if (!isoDate) return '';
+    const d = new Date(isoDate);
+    if (Number.isNaN(d.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }).format(d);
+    } catch {
+      return isoDate;
+    }
+  };
+
+  const formatHijriRange = (startIso: string | undefined | null, endIso: string | undefined | null) => {
+    const s = formatHijri(startIso);
+    const e = formatHijri(endIso);
+    if (!s && !e) return '';
+    if (s && !e) return `من ${s}`;
+    if (!s && e) return `إلى ${e}`;
+    return `من ${s} إلى ${e}`;
+  };
+
   const addDaysIso = (isoDate: string, days: number) => {
     const base = new Date(isoDate);
     const next = new Date(base);
@@ -30,6 +54,28 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
     if (!endDate) return null;
     const diffTime = new Date(endDate).getTime() - new Date().getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const getTotalDays = (startDate: string | undefined | null, endDate: string | undefined | null) => {
+    if (!startDate || !endDate) return null;
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    if (Number.isNaN(start) || Number.isNaN(end)) return null;
+    const diff = end - start;
+    if (diff <= 0) return null;
+    return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  };
+
+  const RemainingBadge: React.FC<{ value: number | null }> = ({ value }) => {
+    const safe = Math.max(0, value ?? 0);
+    return (
+      <div className="px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-center min-w-[130px]">
+        <div className="text-2xl font-black text-[#655ac1] leading-none">{safe}</div>
+        <div className="text-xs font-bold text-[#8779fb] mt-1">
+          {safe === 0 ? 'انتهت المدة' : 'يوم متبقٍ'}
+        </div>
+      </div>
+    );
   };
 
   const mainStartDate =
@@ -45,7 +91,9 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
   const daysRemaining = getDaysRemaining(mainEndDate);
   const isExpired = (daysRemaining ?? 0) < 0;
 
-  const isMessageTrial = subscription.isTrial;
+  // Preview: force messages subscription to display as free trial (10 days)
+  const forcePreviewMessageTrial = true;
+  const isMessageTrial = forcePreviewMessageTrial || subscription.isTrial;
   const messageStartDate: string | undefined = isMessageTrial
     ? (subscription.trialStartDate || subscription.startDate)
     : stats.messagePackageStartDate;
@@ -79,155 +127,102 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
   const mainDaysLabel = formatDaysLabel(daysRemaining);
   const messageDaysLabel = formatDaysLabel(messageDaysRemaining);
 
-  const isUpgradeNearExpiry =
-    (daysRemaining !== null && daysRemaining < 10) ||
-    (messageDaysRemaining !== null && messageDaysRemaining < 10) ||
-    isExpired ||
-    isMessageExpired;
+  const mainPackageDisplay = PACKAGE_NAMES[subscription.packageTier] || subscription.planName;
+  const messagePackageDisplay = stats.activePackageName ? `الباقة ${stats.activePackageName}` : 'الباقة الأساسية';
 
   return (
     <div className="space-y-6">
 
-      {/* ── Main cards: متابع + الرسائل (جنبًا إلى جنب) ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* ── Cards row: متابع + الرسائل + رصيد الرسائل ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* ── متابع subscription card ── */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex justify-between items-start gap-4">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl ${subscription.isTrial ? 'text-[#655ac1]' : 'bg-green-100 text-green-600'}`}>
-                <ShieldCheck size={28} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-800">
-                  {PACKAGE_NAMES[subscription.packageTier] || subscription.planName}
-                  {subscription.isTrial && (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full mr-2 border border-[#e5e1fe] text-[#655ac1] bg-[#f8f7ff]">
-                      تجربة مجانية
-                    </span>
-                  )}
-                </h3>
-                <div className="mt-2 text-slate-500 font-medium text-sm flex items-center gap-2">
-                  <Calendar size={16} className="text-[#655ac1]" />
-                  <span>الاشتراك: {mainStartDate} إلى {mainEndDate}</span>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3f0ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
+          <div className="relative z-10 flex flex-col flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <Crown size={22} className="text-[#8779fb]" />
+              <h3 className="text-base font-black text-slate-800">اشتراك متابع</h3>
+            </div>
+            <p className="text-sm font-black text-slate-600 mb-4">
+              {mainPackageDisplay}
+              {subscription.isTrial && (
+                <span className="text-[10px] font-black px-2.5 py-1 rounded-full mr-2 border border-[#e5e1fe] text-[#655ac1] bg-[#f8f7ff]">
+                  تجربة مجانية
+                </span>
+              )}
+            </p>
+
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="text-slate-600 font-medium text-sm">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-[#8779fb]" />
+                  <span className="font-black text-slate-700">مدة الاشتراك</span>
+                </div>
+                <div className="mt-1.5 text-slate-500 font-bold">
+                  {formatHijriRange(mainStartDate, mainEndDate)}
                 </div>
               </div>
+
+              <RemainingBadge value={isExpired ? 0 : daysRemaining} />
             </div>
 
-            <div className="text-center bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100 flex flex-col justify-center items-center min-w-[120px]">
-              <div className="text-2xl font-black text-[#655ac1] mb-1">
-                {isExpired || daysRemaining === null ? '0' : daysRemaining}
+            <button
+              onClick={onUpgrade}
+              className="mt-auto w-full py-3 bg-white hover:bg-[#8779fb] text-slate-700 hover:text-white rounded-xl font-bold transition-colors shadow-sm border-2 border-slate-200 hover:border-[#8779fb] text-sm"
+            >
+              ترقية الباقة
+            </button>
+
+            {isExpired && (
+              <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 font-bold">
+                تم انتهاء صلاحية باقتك. يرجى الترقية للاستمرار في استخدام المنصة والأدوات.
               </div>
-              <div className="text-[#8779fb] font-bold text-xs">
-                {mainDaysLabel}
-              </div>
-            </div>
+            )}
           </div>
-
-          {isExpired && (
-            <div className="mt-5 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 font-bold flex items-center gap-2">
-              تم انتهاء صلاحية باقتك. يرجى الترقية للاستمرار في استخدام المنصة والأدوات.
-            </div>
-          )}
         </div>
 
         {/* ── Message subscription card ── */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
-          <div className="absolute top-0 right-0 w-28 h-28 bg-[#f0fdf4] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
-          <div className="relative z-10 flex justify-between items-start gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-                <Award size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-800">باقة الرسائل</h3>
-                <div className="mt-2 text-slate-500 font-medium text-sm flex items-center gap-2">
-                  <Calendar size={16} className="text-[#655ac1]" />
-                  <span>الاشتراك: {messageStartDate} إلى {messageEndDate}</span>
-                </div>
-                <div className="mt-2 flex items-center gap-2 flex-wrap">
-                  {isMessageTrial ? (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#f8f7ff] text-[#655ac1] border border-[#e5e1fe]">
-                      تجربة مجانية (10 أيام)
-                    </span>
-                  ) : hasMessageSubscription ? (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> نشطة
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                      غير مشترك
-                    </span>
-                  )}
-
-                  {!isMessageTrial && stats.activePackageName && (
-                    <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-                      {stats.activePackageName}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className={`text-center p-3 rounded-2xl border min-w-[120px] flex flex-col justify-center items-center ${
-              isMessageExpired ? 'bg-red-50/50 border-red-100' : 'bg-emerald-50/50 border-emerald-100'
-            }`}>
-              <div className={`text-2xl font-black mb-1 ${isMessageExpired ? 'text-red-600' : 'text-emerald-700'}`}>
-                {messageDaysRemaining === null || isMessageExpired ? '0' : messageDaysRemaining}
-              </div>
-              <div className={`font-bold text-xs ${isMessageExpired ? 'text-red-600' : 'text-emerald-700'}`}>
-                {messageDaysLabel}
-              </div>
-            </div>
-          </div>
-
-          {/* Balances preview */}
-          <div className="relative z-10 mt-5 grid grid-cols-2 gap-3">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
-              <span className="text-sm font-bold text-slate-600 flex items-center gap-2">{WA_ICON_SM} واتساب</span>
-              <span className="text-base font-black text-slate-800">{stats.balanceWhatsApp.toLocaleString()}</span>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
-              <span className="text-sm font-bold text-slate-600 flex items-center gap-2">
-                <MessageSquare size={16} className="text-[#007AFF]" /> SMS
-              </span>
-              <span className="text-base font-black text-slate-800">{stats.balanceSMS.toLocaleString()}</span>
-            </div>
-          </div>
-
-          {isMessageTrial && !isMessageExpired && (
-            <div className="relative z-10 mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
-              <span className="font-bold text-slate-600 text-sm">المدة المتبقية للتجربة</span>
-              <div className="flex items-center gap-1.5">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const filled = i < Math.max(0, Math.min(10, messageDaysRemaining ?? 0));
-                  return (
-                    <div
-                      key={i}
-                      title={`اليوم ${i + 1}`}
-                      className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
-                        filled ? 'bg-green-500 border-green-500 shadow-sm shadow-green-200' : 'bg-slate-100 border-slate-200'
-                      }`}
-                    />
-                  );
-                })}
-                <span className="mr-2 text-xs font-black text-[#655ac1]">
-                  {Math.max(0, Math.min(10, messageDaysRemaining ?? 0))} / 10 أيام
-                </span>
-              </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#f8f7ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
+          {isMessageTrial && (
+            <div className="absolute top-5 left-5 z-20 px-3 py-1 rounded-full border-2 border-[#8779fb] bg-white text-[#655ac1] text-[11px] font-black">
+              تجربة مجانية لمدة 10 أيام
             </div>
           )}
+          <div className="relative z-10 flex flex-col flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare size={22} className="text-[#8779fb]" />
+              <h3 className="text-base font-black text-slate-800">باقة الرسائل</h3>
+            </div>
+            <p className="text-sm font-black text-slate-600 mb-4">
+              {messagePackageDisplay}
+            </p>
 
-          <button
-            onClick={onManageMessages}
-            className="relative z-10 mt-5 w-full py-3 bg-white hover:bg-[#25D366] text-slate-700 hover:text-white rounded-xl font-bold transition-colors shadow-sm border-2 border-slate-200 hover:border-[#25D366] text-sm"
-          >
-            {hasMessagePackage || hasMessageSubscription ? 'إدارة باقة الرسائل' : 'اشترك في باقة رسائل'}
-          </button>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="text-slate-600 font-medium text-sm">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-[#8779fb]" />
+                  <span className="font-black text-slate-700">مدة الاشتراك</span>
+                </div>
+                <div className="mt-1.5 text-slate-500 font-bold">
+                  {formatHijriRange(messageStartDate, messageEndDate)}
+                </div>
+              </div>
+
+              <RemainingBadge value={isMessageExpired ? 0 : messageDaysRemaining} />
+            </div>
+
+            <div className="mt-auto pt-5">
+              <button
+                onClick={onManageMessages}
+                className="w-full py-3 bg-white hover:bg-[#8779fb] text-slate-700 hover:text-white rounded-xl font-bold transition-colors shadow-sm border-2 border-slate-200 hover:border-[#8779fb] text-sm"
+              >
+                ترقية الباقة
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* ── Cards grid: الرسائل + الرصيد + الترقية ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* ── Balance & consumption ── */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
           <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
@@ -252,10 +247,6 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
                   style={{ width: `${waPercentage}%` }}
                 />
               </div>
-              <div className="flex justify-between mt-1.5 text-xs font-medium text-slate-400">
-                <span>مجاني متبقي: {subscription.freeWaRemaining}</span>
-                <span>الرصيد المتبقي: {stats.balanceWhatsApp.toLocaleString()}</span>
-              </div>
             </div>
 
             {/* SMS */}
@@ -272,45 +263,9 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
                   style={{ width: `${smsPercentage}%` }}
                 />
               </div>
-              <div className="flex justify-between mt-1.5 text-xs font-medium text-slate-400">
-                <span>مجاني متبقي: {subscription.freeSmsRemaining}</span>
-                <span>الرصيد المتبقي: {stats.balanceSMS.toLocaleString()}</span>
-              </div>
             </div>
           </div>
         </div>
-
-        {/* ── Upgrade / باقات متابع (تظهر عند قرب انتهاء الباقة) ── */}
-        {isUpgradeNearExpiry ? (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3f0ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
-            <div className="relative z-10 flex flex-col flex-1">
-              <div className="flex items-center gap-2 mb-3">
-                <ArrowUpCircle size={22} className="text-[#8779fb]" />
-                <h3 className="text-base font-black text-slate-800">الاشتراك والترقية</h3>
-              </div>
-              <div className="space-y-2 flex-1">
-                <div className="flex items-start gap-2 text-slate-600 font-medium text-sm">
-                  <span className="mt-0.5 shrink-0 text-[#8779fb]">✦</span>
-                  <span>اقترب موعد انتهاء إحدى باقاتك. قم بالترقية/التجديد لتفادي انقطاع الخدمات.</span>
-                </div>
-                <div className="flex items-start gap-2 text-slate-600 font-medium text-sm">
-                  <span className="mt-0.5 shrink-0 text-[#8779fb]">✦</span>
-                  <span>استعرض باقات متابع واختر ما يناسب احتياج مدرستك.</span>
-                </div>
-              </div>
-              <button
-                onClick={onUpgrade}
-                className="mt-4 w-full py-3 bg-[#8779fb] text-white rounded-xl font-bold hover:bg-[#6e5ee0] hover:scale-[1.02] transform transition-all shadow-md text-sm"
-              >
-                عرض باقات متابع
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="hidden md:block" />
-        )}
-
       </div>
     </div>
   );

@@ -34,7 +34,7 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
             الاشتراك والفوترة
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12">
-            اشترك، وتابع حالة اشتراكك، يمكنك التجديد أو الترقية، واستعرض فواتيرك بكل يسر.
+            إدارة ومتابعة حالة الاشتراك، يمكنك التجديد أو الترقية، واستعرض فواتيرك بكل يسر.
           </p>
         </div>
       </div>
