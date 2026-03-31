@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, LayoutTemplate, History, BarChart3 } from 'lucide-react';
+import { MessageSquare, LayoutTemplate, Archive, BarChart3 } from 'lucide-react';
 import MessageComposer from './messaging/MessageComposer';
 import MessageArchive from './messaging/MessageArchive';
 import MessageTemplates from './messaging/MessageTemplates';
@@ -10,9 +10,10 @@ interface MessagesProps {
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
   initialTab?: 'compose' | 'archive' | 'templates' | 'dashboard';
+  onNavigate?: (tab: string) => void;
 }
 
-const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, initialTab }) => {
+const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, initialTab, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard'>(initialTab || 'compose');
 
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
@@ -38,10 +39,10 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
   }, []);
 
   const tabs = [
-    { id: 'compose',   label: 'إرسال رسالة', icon: MessageSquare },
-    { id: 'templates', label: 'القوالب',      icon: LayoutTemplate },
-    { id: 'archive',   label: 'الأرشيف',      icon: History        },
-    { id: 'dashboard', label: 'الإحصائيات',   icon: BarChart3      },
+    { id: 'compose',   label: 'إرسال رسالة',    icon: MessageSquare },
+    { id: 'templates', label: 'قوالب الرسائل',  icon: LayoutTemplate },
+    { id: 'archive',   label: 'أرشيف الرسائل',  icon: Archive        },
+    { id: 'dashboard', label: 'إحصائية الرسائل', icon: BarChart3      },
   ] as const;
 
   return (
@@ -100,7 +101,10 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
           <MessageTemplates />
         )}
         {activeTab === 'dashboard' && (
-          <FintechDashboard />
+          <FintechDashboard
+            subscription={subscription}
+            onNavigate={onNavigate}
+          />
         )}
       </div>
 

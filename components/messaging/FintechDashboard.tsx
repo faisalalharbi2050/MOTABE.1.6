@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Activity, MessageSquare, AlertCircle, Wallet, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Activity, MessageSquare, AlertCircle, Hourglass, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
+import { SubscriptionInfo } from '../../types';
 
 interface FintechDashboardProps {
   onNavigate?: (tab: string) => void;
+  subscription?: SubscriptionInfo;
 }
 
 // TODO: Replace mock data with real API data
@@ -21,9 +23,18 @@ const WA_ICON = (
   </svg>
 );
 
-const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate }) => {
+const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscription }) => {
   const { stats } = useMessageArchive();
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week, -1 = previous, etc.
+
+  const freeWaTotal = 50;
+  const freeSmsTotal = 10;
+  const waRemaining = subscription?.freeWaRemaining ?? stats.balanceWhatsApp;
+  const smsRemaining = subscription?.freeSmsRemaining ?? stats.balanceSMS;
+  const waUsed = Math.max(0, freeWaTotal - waRemaining);
+  const smsUsed = Math.max(0, freeSmsTotal - smsRemaining);
+  const waPercentage = (waUsed / freeWaTotal) * 100;
+  const smsPercentage = (smsUsed / freeSmsTotal) * 100;
 
   const maxValue = Math.max(...mockWeeklyUsage.flatMap(d => [d.wa, d.sms]));
   const getPercentage = (value: number) =>
@@ -85,29 +96,52 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Balance Card */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
-          <h3 className="text-lg font-bold text-[#1e293b] mb-6 flex items-center gap-2">
-            <Wallet className="text-[#8779fb]" size={20} />
-            الرصيد
-          </h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-1">{WA_ICON}</div>
-                <span className="font-bold text-slate-700">رسائل واتساب</span>
-              </div>
-              <span className="text-2xl font-black text-slate-800">{stats.balanceWhatsApp.toLocaleString()}</span>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+          <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
+            <div className="p-2 bg-amber-50 text-amber-500 rounded-xl shrink-0">
+              <Hourglass size={20} />
             </div>
-            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-1"><MessageSquare size={20} className="text-[#007AFF]" /></div>
-                <span className="font-bold text-slate-700">رسائل نصية SMS</span>
-              </div>
-              <span className="text-2xl font-black text-slate-800">{stats.balanceSMS.toLocaleString()}</span>
+            <div>
+              <h3 className="text-base font-bold text-slate-800">رصيد الرسائل</h3>
             </div>
           </div>
+
+          <div className="flex flex-col justify-between flex-1 gap-5">
+            {/* WhatsApp */}
+            <div>
+              <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
+                <span className="flex items-center gap-1.5">{WA_ICON} واتساب</span>
+                <span className="text-green-600">{waUsed} مُرسلة من أصل {freeWaTotal}</span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${waPercentage > 80 ? 'bg-red-500' : 'bg-[#25D366]'}`}
+                  style={{ width: `${waPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* SMS */}
+            <div>
+              <div className="flex justify-between text-sm font-bold text-slate-600 mb-2">
+                <span className="flex items-center gap-1.5">
+                  <MessageSquare size={14} className="text-[#007AFF]" /> نصية SMS
+                </span>
+                <span className="text-blue-600">{smsUsed} مُرسلة من أصل {freeSmsTotal}</span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${smsPercentage > 80 ? 'bg-red-500' : 'bg-[#007AFF]'}`}
+                  style={{ width: `${smsPercentage}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
           <button
-            onClick={() => onNavigate && onNavigate('subscriptions')}
+            onClick={() => onNavigate && onNavigate('subscription_message_packages')}
             className="mt-6 w-full py-3 bg-white hover:bg-[#8779fb] text-slate-700 hover:text-white rounded-xl text-sm font-black transition-colors shadow-sm cursor-pointer border-2 border-slate-200 hover:border-[#8779fb]"
           >
             شحن / ترقية الباقة

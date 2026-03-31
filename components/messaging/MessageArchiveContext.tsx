@@ -21,6 +21,7 @@ interface MessageArchiveContextType {
   addTemplate: (template: Omit<MessageTemplate, 'id'>) => void;
   updateTemplate: (template: MessageTemplate) => void;
   deleteTemplate: (id: string) => void;
+  restoreSystemTemplate: (id: string) => void;
   clearArchive: () => void;
   rechargeBalance: (amount: number, type: 'whatsapp' | 'sms') => void;
   buyPackage: (pkg: { name: string; wa: number; sms: number }) => void;
@@ -270,7 +271,17 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   };
 
   const deleteTemplate = (id: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== id || t.isSystem));
+    setTemplates(prev => prev.filter(t => t.id !== id));
+  };
+
+  const restoreSystemTemplate = (id: string) => {
+    const original = INITIAL_TEMPLATES.find(t => t.id === id);
+    if (!original) return;
+    setTemplates(prev => {
+      const exists = prev.some(t => t.id === id);
+      if (exists) return prev;
+      return [...prev, original];
+    });
   };
 
   const clearArchive = () => {
@@ -312,7 +323,7 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
     <MessageArchiveContext.Provider value={{
       messages, templates, stats, scheduledBatches,
       sendMessage, scheduleMessage, resendMessage,
-      addTemplate, updateTemplate, deleteTemplate,
+      addTemplate, updateTemplate, deleteTemplate, restoreSystemTemplate,
       clearArchive, rechargeBalance, buyPackage,
     }}>
       {children}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, RefreshCw, Printer, AlertTriangle, CheckCircle2, FileText, Send, Calendar, Users, Eye, X, Download, Settings } from 'lucide-react';
+import { Search, Printer, AlertTriangle, CheckCircle2, Calendar, Users, Eye, X, Download, Settings, Archive, Info } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
 import { CentralMessage, MessageRole, MessageSource } from '../../types';
 import DatePicker, { DateObject } from "react-multi-date-picker";
@@ -74,6 +74,12 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   const [isResending, setIsResending] = useState<string | null>(null);
   const [viewingRecipients, setViewingRecipients] = useState<CentralMessage[] | null>(null);
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [toast, setToast] = useState<{ type: 'error' | 'success' | 'info'; message: string } | null>(null);
+
+  const showToast = (type: 'error' | 'success' | 'info', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   // Format Helpers
   const formatHijriDate = (date: Date) => {
@@ -343,13 +349,28 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   };
 
   const handleCustomPrint = () => {
-      if (selectedBatches.size === 0) return alert('الرجاء تحديد رسالة واحدة على الأقل للطباعة المخصصة');
+      if (selectedBatches.size === 0) { showToast('error', 'الرجاء تحديد رسالة واحدة على الأقل للطباعة المخصصة'); return; }
       const batchesToPrint = batchedMessages.filter(b => selectedBatches.has(b.id));
       printMessages(batchesToPrint);
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+
+      {/* ── Toast Notification ── */}
+      {toast && (
+        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-lg border text-sm font-bold transition-all animate-fade-in ${
+          toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-700'
+          : toast.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-700'
+          : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+        }`}>
+          {toast.type === 'error' ? <AlertTriangle size={18} /> : toast.type === 'info' ? <Info size={18} /> : <CheckCircle2 size={18} />}
+          {toast.message}
+          <button onClick={() => setToast(null)} className="mr-2 opacity-60 hover:opacity-100 transition-opacity">
+            <X size={16} />
+          </button>
+        </div>
+      )}
       
       {/* 1. Advanced Search Card */}
       <div className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-4 shrink-0">
@@ -481,29 +502,29 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                    <Search size={20} className="text-[#655ac1]" /> بحث
                  </button>
                  <div className="flex gap-2 shrink-0">
-                     <button 
+                     <button
                        onClick={() => {
-                          const b = selectedBatches.size > 0 
+                          const b = selectedBatches.size > 0
                                    ? batchedMessages.filter(b => selectedBatches.has(b.id))
                                    : filteredBatches.slice(0, 50);
                           if (b.length > 0) printMessages(b);
-                          else alert('الرجاء تحديد رسائل للطباعة');
-                       }} 
+                          else showToast('error', 'الرجاء تحديد رسائل للطباعة أو تطبيق بحث يُظهر نتائج');
+                       }}
                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:border-[#8779fb] transition-all text-sm font-bold min-w-[120px]"
                      >
                        <Printer size={20} className="text-[#655ac1]" /> طباعة
                      </button>
-                     <button 
+                     <button
                        onClick={() => {
-                          const b = selectedBatches.size > 0 
+                          const b = selectedBatches.size > 0
                                    ? batchedMessages.filter(b => selectedBatches.has(b.id))
                                    : filteredBatches.slice(0, 50);
                           if (b.length > 0) {
-                              alert("سيتم التصدير كملف PDF باستخدام متصفحك. الرجاء اختيار 'حفظ بتنسيق PDF' عند ظهور نافذة الطباعة.");
-                              printMessages(b);
+                              showToast('info', "سيتم التصدير كملف PDF — اختر 'حفظ بتنسيق PDF' عند ظهور نافذة الطباعة");
+                              setTimeout(() => printMessages(b), 800);
                           }
-                          else alert('الرجاء تحديد رسائل للتصدير');
-                       }} 
+                          else showToast('error', 'الرجاء تحديد رسائل للتصدير أو تطبيق بحث يُظهر نتائج');
+                       }}
                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:border-[#8779fb] transition-all text-sm font-bold min-w-[120px]"
                      >
                        <Download size={20} className="text-[#655ac1]" /> تصدير
@@ -546,9 +567,25 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
             {filteredBatches.length === 0 ? (
               <tr>
                 <td colSpan={11} className="p-0 border-none">
-                  <div className="flex flex-col items-center justify-center bg-white py-20 w-full">
-                    <Search size={48} className="text-slate-300 xl:mt-4 mb-4" />
-                    <p className="text-lg font-bold text-slate-500">لا توجد سجلات مطابقة</p>
+                  <div className="flex flex-col items-center justify-center bg-white py-20 w-full gap-4">
+                    <div className="flex flex-col items-center gap-3">
+                      <Archive size={48} className="text-[#655ac1]" strokeWidth={1.4} />
+                      <div className="text-center">
+                        <p className="text-base font-black text-slate-700 mb-1">لا توجد سجلات مطابقة</p>
+                        <p className="text-sm text-slate-400 font-medium">جرّب تعديل معايير البحث أو توسيع نطاق التاريخ</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setDateFrom(''); setDateTo('');
+                          setSelectedRoles(['all']); setChannelFilter('all');
+                          setStatusFilter('all'); setSearchQuery('');
+                          setAppliedFilters({ dateFrom: '', dateTo: '', selectedRoles: ['all'], channelFilter: 'all', statusFilter: 'all', searchQuery: '' });
+                        }}
+                        className="flex items-center gap-2 px-5 py-2.5 border border-[#655ac1] text-[#655ac1] rounded-xl text-sm font-bold hover:bg-[#f0eeff] transition-colors"
+                      >
+                        <Search size={16} /> إعادة ضبط البحث
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
