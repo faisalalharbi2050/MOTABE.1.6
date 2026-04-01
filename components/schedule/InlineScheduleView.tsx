@@ -1,6 +1,8 @@
 ﻿import React, { useState, useMemo } from 'react';
-import { ScheduleSettingsData, Teacher, ClassInfo, Subject } from '../../types';
-import { Maximize2, Minimize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight } from 'lucide-react';
+import { ScheduleSettingsData, Teacher, ClassInfo, Subject, AuditLogEntry } from '../../types';
+import { Maximize2, Minimize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight, CheckCircle2, Shuffle } from 'lucide-react';
+import { getKey, tryMoveOrSwap, findChainSwap, SwapResult } from '../../utils/scheduleInteractive';
+import SwapConfirmationModal from './SwapConfirmationModal';
 
 export type TeacherSortMode = 'alpha' | 'specialization' | 'custom';
 
@@ -36,6 +38,14 @@ const SPECIALIZATION_ABBR: Record<string, string> = {
     'علم البيئة': 'بيئة',
 };
 
+const TWO_LINE_CLAMP: React.CSSProperties = {
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+};
+
 interface InlineScheduleViewProps {
     type: 'general_teachers' | 'general_classes' | 'individual_teacher' | 'individual_class' | 'general_waiting';
     settings: ScheduleSettingsData;
@@ -49,6 +59,7 @@ interface InlineScheduleViewProps {
     specializationNames?: Record<string, string>;
     onEditRequest?: () => void;
     onUpdateSettings?: (s: ScheduleSettingsData) => void;
+    interactive?: boolean;
 }
 
 const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
@@ -59,12 +70,17 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     specializationNames: _specNames = {},
     onEditRequest,
     onUpdateSettings,
+    interactive = false,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
     const [draggingWaiting, setDraggingWaiting] = useState<'card'|'slot'|null>(null);
     const [draggingSlotKey, setDraggingSlotKey] = useState<string|null>(null);
     const [hoverTarget, setHoverTarget] = useState<string|null>(null);
+    const [dragSource, setDragSource] = useState<{teacherId: string; day: string; period: number} | null>(null);
+    const [swapError, setSwapError] = useState<string | null>(null);
+    const [swapNotice, setSwapNotice] = useState<{ type: 'simple' | 'chain'; text: string } | null>(null);
+    const [pendingSwap, setPendingSwap] = useState<SwapResult | null>(null);
     const settings          = _settings;
     const teachers          = _teachers;
     const classes           = _classes;
@@ -178,6 +194,177 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     };
     const getSortedClasses = () => [...classes].sort((a,b)=> a.grade!==b.grade?a.grade-b.grade:(a.section||0)-(b.section||0));
 
+    const isInteractiveGeneralTeachers = type === 'general_teachers' && interactive && !!onUpdateSettings;
+
+    const showSwapNotice = (type: 'simple' | 'chain', text: string) => {
+        setSwapNotice({ type, text });
+        window.setTimeout(() => {
+            setSwapNotice(current => (current?.text === text ? null : current));
+        }, 2600);
+    };
+
+    const commitSwapResult = (result: SwapResult) => {
+        if (!onUpdateSettings || !result.success || !result.newTimetable) return;
+        const relatedIds = result.relatedTeacherIds || [];
+        const primaryTeacher = teachers.find(t => t.id === relatedIds[0]);
+        const logEntry: AuditLogEntry = {
+            id: Math.random().toString(36).slice(2, 11),
+            timestamp: new Date().toISOString(),
+            user: 'المستخدم الحالي',
+            actionType: result.isChain ? 'chain_swap' : 'swap',
+            description: result.chainSteps?.join(' | ') || 'تبديل حصص',
+            relatedTeacherIds: relatedIds,
+            viewType: 'general',
+            teacherName: primaryTeacher?.name || '',
+        };
+        onUpdateSettings({
+            ...settings,
+            timetable: result.newTimetable,
+            auditLogs: [...(settings.auditLogs || []), logEntry],
+        });
+        setSwapError(null);
+        showSwapNotice(result.isChain ? 'chain' : 'simple', result.isChain ? 'تم تنفيذ تعديل مركب بنجاح' : 'تم تنفيذ تعديل بسيط بنجاح');
+    };
+
+    const renderFloatingSwapNotice = (zClass: string) => {
+        if (!swapNotice) return null;
+        const isChain = swapNotice.type === 'chain';
+        const Icon = isChain ? Shuffle : CheckCircle2;
+        return (
+            <div className={`fixed bottom-5 left-5 ${zClass} pointer-events-none print:hidden`}>
+                <div
+                    className="flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-sm"
+                    style={{
+                        background: isChain ? 'rgba(255,247,237,0.96)' : 'rgba(240,253,244,0.96)',
+                        borderColor: isChain ? '#f59e0b' : '#22c55e',
+                        color: isChain ? '#b45309' : '#15803d',
+                        boxShadow: isChain ? '0 10px 24px rgba(245,158,11,0.18)' : '0 10px 24px rgba(34,197,94,0.18)',
+                    }}>
+                    <span
+                        className="flex h-9 w-9 items-center justify-center rounded-full"
+                        style={{
+                            background: isChain ? '#fef3c7' : '#dcfce7',
+                            border: `1px solid ${isChain ? '#fcd34d' : '#86efac'}`,
+                        }}>
+                        <Icon size={18} />
+                    </span>
+                    <div className="text-right">
+                        <div className="text-xs font-extrabold">
+                            {isChain ? 'تعديل مركب' : 'تعديل بسيط'}
+                        </div>
+                        <div className="text-sm font-bold">
+                            {swapNotice.text}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const parseSourceFromKey = (key: string | null) => {
+        if (!key) return null;
+        const parts = key.split('-');
+        if (parts.length < 3) return null;
+        const period = Number(parts[parts.length - 1]);
+        const day = parts[parts.length - 2];
+        const teacherId = parts.slice(0, -2).join('-');
+        if (!teacherId || !day || Number.isNaN(period)) return null;
+        return { teacherId, day, period };
+    };
+
+    const handleGeneralSlotDragStart = (e: React.DragEvent, teacherId: string, day: string, period: number) => {
+        const key = getKey(teacherId, day, period);
+        const slot = timetable[key];
+        if (!slot || slot.type === 'waiting') { e.preventDefault(); return; }
+        setDragSource({ teacherId, day, period });
+        e.dataTransfer.setData('text/plain', key);
+        e.dataTransfer.setData('dragType', 'slot');
+        e.dataTransfer.setData('sourceKey', key);
+        e.dataTransfer.setData('teacherId', teacherId);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleGeneralDragOver = (e: React.DragEvent, targetTeacherId: string, targetKey: string, hasSlot: boolean) => {
+        const dragType = e.dataTransfer.getData('dragType');
+        const waitingTeacherId = e.dataTransfer.getData('teacherId') || (draggingWaiting ? draggingSlotKey?.split('-')[0] : '');
+        if (dragType === 'waitingCard' || dragType === 'waitingSlot') {
+            if (!isManualMode) return;
+            if (waitingTeacherId && waitingTeacherId !== targetTeacherId) return;
+            if (dragType === 'waitingCard' && hasSlot) return;
+            if (dragType === 'waitingSlot' && hasSlot && targetKey === draggingSlotKey) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setHoverTarget(targetKey);
+            return;
+        }
+        const source = parseSourceFromKey(e.dataTransfer.getData('sourceKey')) || dragSource;
+        if (!source) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setHoverTarget(targetKey);
+    };
+
+    const handleGeneralDrop = (e: React.DragEvent, targetTeacherId: string, targetDay: string, targetPeriod: number, hasSlot: boolean) => {
+        e.preventDefault();
+        setHoverTarget(null);
+        if (!onUpdateSettings) return;
+        const targetKey = getKey(targetTeacherId, targetDay, targetPeriod);
+        const dragType = e.dataTransfer.getData('dragType');
+
+        if (dragType === 'waitingCard') {
+            const teacherId = e.dataTransfer.getData('teacherId');
+            setDraggingWaiting(null);
+            if (!isManualMode || teacherId !== targetTeacherId || hasSlot) return;
+            onUpdateSettings({ ...settings, timetable: { ...timetable, [targetKey]: { teacherId: targetTeacherId, type: 'waiting' as const } } });
+            return;
+        }
+
+        if (dragType === 'waitingSlot') {
+            const fromKey = e.dataTransfer.getData('slotKey');
+            const teacherId = e.dataTransfer.getData('teacherId');
+            setDraggingWaiting(null);
+            setDraggingSlotKey(null);
+            if (!isManualMode || teacherId !== targetTeacherId || !fromKey || (hasSlot && fromKey !== targetKey)) return;
+            if (fromKey === targetKey) return;
+            const newTimetable = { ...timetable };
+            if (!hasSlot) {
+                newTimetable[targetKey] = newTimetable[fromKey];
+                delete newTimetable[fromKey];
+                onUpdateSettings({ ...settings, timetable: newTimetable });
+            }
+            return;
+        }
+
+        const source = parseSourceFromKey(e.dataTransfer.getData('sourceKey')) || dragSource;
+        if (!source) return;
+        const result = tryMoveOrSwap(
+            timetable,
+            source,
+            { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
+            settings,
+            teachers,
+            classes
+        );
+        if (result.success && result.newTimetable) {
+            setPendingSwap(result);
+        } else {
+            const chainResult = findChainSwap(
+                timetable,
+                source,
+                { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
+                teachers,
+                settings,
+                classes
+            );
+            if (chainResult && chainResult.success && chainResult.newTimetable) {
+                setPendingSwap(chainResult);
+            } else {
+                setSwapError(result.reason || 'تعذر تنفيذ التعديل');
+            }
+        }
+        setDragSource(null);
+    };
+
     const teachersWithWaiting = useMemo(()=>{
         const ids=new Set<string>();
         Object.values(timetable).forEach(s=>{ if(s.type==='waiting'||s.isSubstitution) ids.add(s.teacherId); });
@@ -210,17 +397,13 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const cls  = cName(slot.classId||'');
         const color = getPastelColor(subj);
         return (
-            <div className="group/cell relative w-full h-full flex flex-col items-center justify-center px-0.5 gap-0.5 transition-all duration-200 hover:scale-[1.04] hover:shadow-sm rounded-md"
-                 style={{background: color.bg, border: `1px solid ${color.text}30`, minHeight:'52px'}}>
-                <span className="text-[10px] font-bold leading-tight text-center w-full px-0.5"
-                      style={{color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{cls}</span>
-                <span className="text-[9px] font-medium leading-tight text-center w-full px-0.5 opacity-75"
-                      style={{color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-max max-w-[140px] bg-slate-800 text-white text-xs rounded-lg py-1.5 px-2.5 opacity-0 invisible group-hover/cell:opacity-100 group-hover/cell:visible transition-all duration-200 shadow-xl z-50 pointer-events-none print:hidden">
-                    <div className="font-bold text-center text-[11px]">{subj}</div>
-                    <div className="text-slate-300 text-center text-[10px]">{cls}</div>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+            <div className="flex items-center justify-center w-[84px] h-[84px] mx-auto">
+                <div className="group/cell relative z-10 hover:z-[80] flex flex-col items-center justify-center px-1 gap-0.5 transition-all duration-200 rounded-[10px]"
+                 style={{background: color.bg, border: `1px solid ${color.text}30`, width:'74px', height:'74px', boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
+                <span className="text-[11px] font-bold leading-[1.15] text-center w-full px-1"
+                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{cls}</span>
+                <span className="text-[10px] font-medium leading-[1.1] text-center w-full px-1 opacity-80"
+                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
                 </div>
             </div>
         );
@@ -233,17 +416,13 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const teacher = tName(slot.teacherId);
         const color   = getPastelColor(subj);
         return (
-            <div className="group/cell relative w-full h-full flex flex-col items-center justify-center px-0.5 gap-0.5 transition-all duration-200 hover:scale-[1.04] hover:shadow-sm rounded-md"
-                 style={{background: color.bg, border: `1px solid ${color.text}30`, minHeight:'52px'}}>
-                <span className="text-[10px] font-bold leading-tight text-center w-full px-0.5"
-                      style={{color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
-                <span className="text-[9px] font-medium leading-tight text-center w-full px-0.5 opacity-75"
-                      style={{color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{teacher}</span>
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-max max-w-[140px] bg-slate-800 text-white text-xs rounded-lg py-1.5 px-2.5 opacity-0 invisible group-hover/cell:opacity-100 group-hover/cell:visible transition-all duration-200 shadow-xl z-50 pointer-events-none print:hidden">
-                    <div className="font-bold text-center text-[11px]">{subj}</div>
-                    <div className="text-slate-300 text-center text-[10px]">{teacher}</div>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+            <div className="flex items-center justify-center w-[84px] h-[84px] mx-auto">
+                <div className="group/cell relative z-10 hover:z-[80] flex flex-col items-center justify-center px-1 gap-0.5 transition-all duration-200 rounded-[10px]"
+                 style={{background: color.bg, border: `1px solid ${color.text}30`, width:'74px', height:'74px', boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
+                <span className="text-[11px] font-bold leading-[1.15] text-center w-full px-1"
+                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
+                <span className="text-[10px] font-medium leading-[1.1] text-center w-full px-1 opacity-80"
+                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{teacher}</span>
                 </div>
             </div>
         );
@@ -281,45 +460,91 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         /* gap background — shown as td background, inner div is the card */
         const GAP_BG   = '#eef0f6';
-        const ROW_H    = 64;
+        const ROW_H    = 74;
         const CELL_PAD = '2px'; // td padding → creates the visual gap
+        const PERIOD_BOX = 84;
+        const PERIOD_CARD = 74;
 
         /* ── period cell content ── */
         const renderPeriodCell = (rowId: string, di: number, pi: number) => {
             if(isClasses) {
                 const slot = classSlotMap.get(rowId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1));
                 if(!slot) return (
-                    <div className="w-full h-full rounded-md flex items-center justify-center"
-                         style={{border:'1px dashed #dde1ea', background:'#f8f9fc', minHeight:'52px'}}>
-                        <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
+                    <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                        <div className="rounded-md flex items-center justify-center"
+                         style={{border:'1px dashed #dde1ea', background:'#f8f9fc', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`}}>
+                            <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
+                        </div>
                     </div>
                 );
                 return renderClassCell(rowId, di, pi);
             } else {
                 const slot = timetable[rowId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1)];
                 if(!slot) return (
-                    <div className="w-full h-full rounded-md flex items-center justify-center"
-                         style={{border:'1px dashed #dde1ea', background: isWaiting ? '#f8fafc' : '#f8f9fc', minHeight:'52px'}}>
-                        <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
+                    <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                        <div className="rounded-md flex items-center justify-center"
+                         style={{border:'1px dashed #dde1ea', background: isWaiting ? '#f8fafc' : '#f8f9fc', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`}}>
+                            <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
+                        </div>
                     </div>
                 );
-                if(isWaiting) {
-                    if(slot.type==='waiting'||slot.isSubstitution)
-                        return (
-                            <div className="w-full h-full rounded-md flex flex-col items-center justify-center gap-0.5 transition-all duration-200 hover:shadow-sm"
-                                 style={{background:'#fef3e8', border:'1px solid #fbd28a', minHeight:'52px'}}>
-                                <span className="rounded-full px-1.5 py-0.5 font-black"
-                                      style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d', fontSize:'8px'}}>انتظار</span>
-                            </div>
-                        );
+                if(isTeachers && (slot.type==='waiting'||slot.isSubstitution)) {
+                    const slotKey = `${rowId}-${ENGLISH_DAYS[di]}-${pi+1}`;
                     return (
-                        <div className="w-full h-full rounded-md flex items-center justify-center"
-                             style={{border:'1px dashed #dde1ea', background:'#f8fafc', minHeight:'52px'}}>
-                            <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
+                        <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                            <div
+                                draggable={isInteractiveGeneralTeachers && isManualMode}
+                                onDragStart={e => {
+                                    if (!isInteractiveGeneralTeachers || !isManualMode) return;
+                                    e.dataTransfer.setData('dragType', 'waitingSlot');
+                                    e.dataTransfer.setData('slotKey', slotKey);
+                                    e.dataTransfer.setData('teacherId', rowId);
+                                    setDraggingWaiting('slot');
+                                    setDraggingSlotKey(slotKey);
+                                }}
+                                onDragEnd={() => { setDraggingWaiting(null); setDraggingSlotKey(null); }}
+                                className="rounded-[10px] flex flex-col items-center justify-center gap-0.5 transition-all duration-200"
+                                style={{background:'#f7f5ff', border:'1px solid #d6ccff', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.05)', cursor: isInteractiveGeneralTeachers && isManualMode ? 'grab' : undefined}}>
+                                <span className="rounded-full px-1.5 py-0.5 font-black"
+                                      style={{background:'#ede9fe', color:'#6d28d9', border:'1px solid #c4b5fd', fontSize:'8px'}}>م انتظار</span>
+                            </div>
                         </div>
                     );
                 }
-                return renderTeacherCell(rowId, di, pi);
+                if(isWaiting) {
+                    if(slot.type==='waiting'||slot.isSubstitution)
+                        return (
+                            <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                                <div className="rounded-[10px] flex flex-col items-center justify-center gap-0.5 transition-all duration-200 hover:shadow-sm"
+                                 style={{background:'#fef3e8', border:'1px solid #fbd28a', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.05)'}}>
+                                    <span className="rounded-full px-1.5 py-0.5 font-black"
+                                      style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d', fontSize:'8px'}}>انتظار</span>
+                                </div>
+                            </div>
+                        );
+                    return (
+                        <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                            <div className="rounded-md flex items-center justify-center"
+                             style={{border:'1px dashed #dde1ea', background:'#f8fafc', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`}}>
+                                <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
+                            </div>
+                        </div>
+                    );
+                }
+                const content = renderTeacherCell(rowId, di, pi);
+                if (isInteractiveGeneralTeachers && slot.type === 'lesson') {
+                    return (
+                        <div
+                            draggable
+                            onDragStart={e => handleGeneralSlotDragStart(e, rowId, ENGLISH_DAYS[di], pi + 1)}
+                            onDragEnd={() => { setDragSource(null); setHoverTarget(null); }}
+                            style={{cursor:'grab'}}
+                        >
+                            {content}
+                        </div>
+                    );
+                }
+                return content;
             }
         };
 
@@ -373,18 +598,18 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         return (
             <div className="w-full relative">
                 {/* Table wrapper */}
-                <div style={{borderRadius:'16px', overflow:'hidden', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
+                <div style={{borderRadius:'16px', overflow:'visible', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
                 <div className="overflow-x-auto">
-                <table style={{borderCollapse:'collapse', borderSpacing:0, width:'100%', tableLayout:'fixed'}}>
+                <table style={{borderCollapse:'collapse', borderSpacing:0, width:'calc(100% + 360px)', minWidth:'100%', tableLayout:'fixed'}}>
                     <colgroup>
-                        <col style={{width:'3%'}}/>
-                        <col style={{width: isClasses ? '11%' : '10%'}}/>
-                        {!isClasses && <col style={{width:'7%'}}/>}
-                        <col style={{width:'4%'}}/>
-                        {isTeachers && <col style={{width:'4%'}}/>}
+                        <col style={{width:'60px'}}/>
+                        <col style={{width: isClasses ? '180px' : '190px'}}/>
+                        {!isClasses && <col style={{width:'110px'}}/>}
+                        <col style={{width:'78px'}}/>
+                        {isTeachers && <col style={{width:'96px'}}/>}
                         {ENGLISH_DAYS.flatMap((_,di)=>
                             Array.from({length:MAX_PERIODS}).map((_,pi)=>(
-                                <col key={`c-${di}-${pi}`} style={{width: isTeachers?'2.06%': isWaiting?'2.17%':'2.37%'}}/>
+                                <col key={`c-${di}-${pi}`} style={{width:'84px'}}/>
                             ))
                         )}
                     </colgroup>
@@ -493,9 +718,37 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     {/* quota2 teachers only */}
                                     {isTeachers && (
                                         <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle'}}>
-                                            <div className="group-hover/row:bg-amber-50 group-hover/row:border-amber-200 transition-all duration-200"
-                                                 style={{...infoCardBase, borderColor:'#fde68a', background:'#fffbeb'}}>
-                                                <span style={{color:'#b45309', fontSize:'14px', fontWeight:900}}>{row.quota2}</span>
+                                            <div
+                                                 className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200 relative"
+                                                 style={{...infoCardBase, overflow:'visible'}}>
+                                                <span style={{color: C_BG, fontSize:'14px', fontWeight:900}}>
+                                                    {row.quota2}
+                                                </span>
+                                                {isManualMode && (row.quota2 || 0) > 0 && Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0) > 0 && (
+                                                    <div
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        draggable={isInteractiveGeneralTeachers}
+                                                        onDragStart={e => {
+                                                            if (!isInteractiveGeneralTeachers) return;
+                                                            e.dataTransfer.setData('text/plain', `waiting-${row.id}`);
+                                                            e.dataTransfer.setData('dragType', 'waitingCard');
+                                                            e.dataTransfer.setData('teacherId', row.id);
+                                                            e.dataTransfer.setData('sourceKey', `waiting-${row.id}`);
+                                                            e.dataTransfer.effectAllowed = 'move';
+                                                            setDraggingWaiting('card');
+                                                        }}
+                                                        onDragEnd={() => setDraggingWaiting(null)}
+                                                        className="absolute left-1.5 top-1.5 flex items-center justify-center cursor-grab active:cursor-grabbing bg-transparent p-0"
+                                                        aria-label={`سحب بطاقة انتظار للمعلم ${row.name}`}>
+                                                        <span className="relative block w-7 h-9">
+                                                            <span className="absolute inset-x-0 top-1.5 h-8 rounded-[8px]" style={{background:'#f4f0ff', border:'1px solid #ddd6fe'}} />
+                                                            <span className="absolute inset-x-0.5 top-0 h-8 rounded-[8px] shadow-sm" style={{background:'#ffffff', border:'1px solid #c4b5fd'}}>
+                                                                <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{background:'#ede9fe', color:'#6d28d9', border:'1px solid #c4b5fd', fontSize:'8px', fontWeight:800}}>م</span>
+                                                            </span>
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                     )}
@@ -503,11 +756,22 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     {ENGLISH_DAYS.flatMap((_,di)=>
                                         Array.from({length:MAX_PERIODS}).map((_,pi)=>(
                                             <td key={`${di}-${pi}`}
+                                                onDragOver={e => {
+                                                    if (!isInteractiveGeneralTeachers) return;
+                                                    handleGeneralDragOver(e, row.id, `${row.id}-${ENGLISH_DAYS[di]}-${pi+1}`, !!timetable[`${row.id}-${ENGLISH_DAYS[di]}-${pi+1}`]);
+                                                }}
+                                                onDragLeave={() => { if (isInteractiveGeneralTeachers) setHoverTarget(null); }}
+                                                onDrop={e => {
+                                                    if (!isInteractiveGeneralTeachers) return;
+                                                    handleGeneralDrop(e, row.id, ENGLISH_DAYS[di], pi + 1, !!timetable[`${row.id}-${ENGLISH_DAYS[di]}-${pi+1}`]);
+                                                }}
+                                                onDragEnd={() => { setDragSource(null); setDraggingWaiting(null); setDraggingSlotKey(null); setHoverTarget(null); }}
                                                 style={{
                                                     padding: CELL_PAD,
-                                                    background: GAP_BG,
+                                                    background: hoverTarget === `${row.id}-${ENGLISH_DAYS[di]}-${pi+1}` ? '#f1f5f9' : GAP_BG,
                                                     verticalAlign:'middle',
                                                     height:`${ROW_H}px`,
+                                                    overflow:'visible',
                                                     borderLeft: (pi===MAX_PERIODS-1 && di<ENGLISH_DAYS.length-1) ? `3px solid ${DAY_DIVIDER}` : undefined,
                                                 }}>
                                                 {renderPeriodCell(row.id, di, pi)}
@@ -678,7 +942,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                      style={{
                                                          borderColor: (canDrop && isHovered) ? '#fb923c' : '#e2e8f0',
                                                          background: (canDrop && isHovered) ? '#fff7ed' : 'transparent',
-                                                         minHeight:'56px'
+                                                         aspectRatio:'1 / 1',
+                                                         maxWidth:'72px',
+                                                         minHeight:'72px',
+                                                         margin:'0 auto'
                                                      }}>
                                                     <span className="text-[10px] font-bold" style={{color: (canDrop && isHovered) ? '#fb923c' : '#cbd5e1'}}>
                                                         {(canDrop && isHovered) ? '+' : '—'}
@@ -691,7 +958,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                      style={{
                                                          background: (canDropOnWaiting && isHovered) ? '#fff7ed' : '#fff8ee',
                                                          borderColor: (canDropOnWaiting && isHovered) ? '#fb923c' : '#fbd28a',
-                                                         minHeight:'56px'
+                                                         aspectRatio:'1 / 1',
+                                                         maxWidth:'72px',
+                                                         minHeight:'72px',
+                                                         margin:'0 auto'
                                                      }}>
                                                     {/* Delete button */}
                                                     {isTeacher && isManualMode && onUpdateSettings && (
@@ -710,11 +980,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                           style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d'}}>
                                                         انتظار
                                                     </span>
-                                                    <span className="font-black text-sm leading-tight text-center" style={{color:'#92400e'}}>
+                                                    <span className="font-black text-[12px] leading-[1.15] text-center px-1" style={{...TWO_LINE_CLAMP, color:'#92400e'}}>
                                                         {cName(slot.classId||'')}
                                                     </span>
                                                     {slot.subjectId && (
-                                                        <span className="text-xs font-medium leading-tight text-center" style={{color:'#b45309'}}>
+                                                        <span className="text-[11px] font-medium leading-[1.1] text-center px-1" style={{...TWO_LINE_CLAMP, color:'#b45309'}}>
                                                             {subjName(slot.subjectId)}
                                                         </span>
                                                     )}
@@ -724,24 +994,24 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                             const subj = subjDisplay(slot.subjectId||'');
                                             const color = getPastelColor(subj);
                                             cellContent = (
-                                                <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-2 gap-1 transition-all duration-300 hover:scale-105 hover:shadow-md group"
-                                                     style={{background: color.bg, borderColor: color.text + '40', minHeight:'56px', cursor:'default'}}>
+                                                <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-1.5 gap-0.5 transition-all duration-300 group"
+                                                     style={{background: color.bg, borderColor: color.text + '40', aspectRatio:'1 / 1', maxWidth:'84px', minHeight:'84px', margin:'0 auto', cursor:'default'}}>
                                                     {isTeacher ? (<>
-                                                        <span className="font-black text-base leading-tight text-center w-full truncate"
-                                                              style={{color: color.text}} title={cName(slot.classId||'')}>
+                                                        <span className="font-black text-[12px] leading-[1.15] text-center w-full px-1"
+                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={cName(slot.classId||'')}>
                                                             {cName(slot.classId||'')}
                                                         </span>
-                                                        <span className="text-[13px] font-semibold leading-tight text-center w-full truncate opacity-80"
-                                                              style={{color: color.text}} title={subjName(slot.subjectId||'')}>
+                                                        <span className="text-[11px] font-semibold leading-[1.1] text-center w-full px-1 opacity-80"
+                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={subjName(slot.subjectId||'')}>
                                                             {subj}
                                                         </span>
                                                     </>) : (<>
-                                                        <span className="font-black text-base leading-tight text-center w-full truncate"
-                                                              style={{color: color.text}} title={subjName(slot.subjectId||'')}>
+                                                        <span className="font-black text-[12px] leading-[1.15] text-center w-full px-1"
+                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={subjName(slot.subjectId||'')}>
                                                             {subj}
                                                         </span>
-                                                        <span className="text-[13px] font-semibold leading-tight text-center w-full truncate opacity-80"
-                                                              style={{color: color.text}} title={tName(slot.teacherId)}>
+                                                        <span className="text-[11px] font-semibold leading-[1.1] text-center w-full px-1 opacity-80"
+                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={tName(slot.teacherId)}>
                                                             {tName(slot.teacherId)}
                                                         </span>
                                                     </>)}
@@ -865,6 +1135,17 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         {renderGeneralTable()}
                     </div>
                 </div>
+                {renderFloatingSwapNotice('z-[260]')}
+                <SwapConfirmationModal
+                    isOpen={!!pendingSwap}
+                    onClose={() => setPendingSwap(null)}
+                    onConfirm={() => {
+                        if (!pendingSwap) return;
+                        commitSwapResult(pendingSwap);
+                        setPendingSwap(null);
+                    }}
+                    swapResult={pendingSwap}
+                />
             </div>
         );
     }
@@ -873,26 +1154,39 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         <div className="bg-white font-sans w-full relative p-2" style={{direction:'rtl'}}>
             {/* Inline Header — general views only */}
             {isGeneral && (
-                <div className="flex items-center justify-between mb-5 px-1 print:hidden">
-                    <div className="flex items-center gap-3">
-                        {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
-                        {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
-                        {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
-                        <div>
-                            <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
-                            <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
+                <div className="mb-5 px-1 print:hidden">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
+                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
+                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
+                            <div>
+                                <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
+                                <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
+                            </div>
                         </div>
+                        <button onClick={()=>setIsFullScreen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:bg-[#f4f2ff] active:scale-95"
+                            style={{background: '#fff', color: C_BG, border: `1.5px solid ${C_BG}`}}>
+                            <Maximize2 size={15}/>
+                            <span>{type === 'general_teachers' ? 'تعديل ومعاينة' : 'معاينة'}</span>
+                        </button>
                     </div>
-                    <button onClick={()=>setIsFullScreen(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:bg-[#f4f2ff] active:scale-95"
-                        style={{background: '#fff', color: C_BG, border: `1.5px solid ${C_BG}`}}>
-                        <Maximize2 size={15}/>
-                        <span>{type === 'general_teachers' ? 'تعديل ومعاينة' : 'معاينة'}</span>
-                    </button>
                 </div>
             )}
             {/* Table */}
             {isGeneral ? renderGeneralTable() : renderIndividualTable()}
+            {renderFloatingSwapNotice('z-[120]')}
+            <SwapConfirmationModal
+                isOpen={!!pendingSwap}
+                onClose={() => setPendingSwap(null)}
+                onConfirm={() => {
+                    if (!pendingSwap) return;
+                    commitSwapResult(pendingSwap);
+                    setPendingSwap(null);
+                }}
+                swapResult={pendingSwap}
+            />
         </div>
     );
 };

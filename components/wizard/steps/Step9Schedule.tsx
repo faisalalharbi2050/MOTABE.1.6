@@ -1146,13 +1146,18 @@ const Step9Schedule: React.FC<Step9Props> = ({
 
           {/* Grid View (default when no display view selected) */}
           {hasSchedule && !activeDisplayView && activeView === 'grid' && (
-              <ScheduleGrid 
-                  teachers={teachers}
-                  subjects={subjects}
-                  classes={classes}
+              <InlineScheduleView
+                  type="general_teachers"
                   settings={scheduleSettings}
+                  teachers={teachers}
+                  classes={classes}
+                  subjects={subjects}
+                  teacherSortMode={teacherSortMode}
+                  teacherCustomOrder={teacherCustomOrder}
+                  specializationCustomOrder={specializationCustomOrder}
+                  specializationNames={Object.fromEntries(specializations.map(s => [s.id, s.name]))}
                   onUpdateSettings={setScheduleSettings}
-                  activeSchoolId={sharedSchoolMode === 'separated' ? activeSchoolId : 'main'} 
+                  interactive
               />
           )}
 
@@ -1395,6 +1400,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
           isOpen={showAuditLog}
           onClose={() => setShowAuditLog(false)}
           logs={scheduleSettings.auditLogs || []}
+          onChangeLogs={(auditLogs) => setScheduleSettings(prev => ({ ...prev, auditLogs }))}
           />
           
         {/* Placeholder Modals for New Features */}

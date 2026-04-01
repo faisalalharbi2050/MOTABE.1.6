@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Teacher, ScheduleSettingsData, TimetableData, Subject, ClassInfo, AuditLogEntry } from '../../types';
+import { Teacher, ScheduleSettingsData, Subject, ClassInfo, AuditLogEntry } from '../../types';
 import { getKey, tryMoveOrSwap, findChainSwap, SwapResult } from '../../utils/scheduleInteractive';
-import { GripHorizontal, Eye, Lock } from 'lucide-react';
+import { GripHorizontal, Lock } from 'lucide-react';
 import SwapConfirmationModal from './SwapConfirmationModal';
 
 interface ScheduleGridProps {
@@ -11,15 +11,27 @@ interface ScheduleGridProps {
     settings: ScheduleSettingsData;
     onUpdateSettings: (newSettings: ScheduleSettingsData) => void;
     activeSchoolId: string;
+    interactive?: boolean;
 }
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+const TEACHER_COLUMN_WIDTH = 168;
+const BASE_QUOTA_COLUMN_WIDTH = 48;
+const WAITING_COLUMN_WIDTH = 96;
+const SLOT_HEIGHT_CLASS = 'h-[108px]';
+const TWO_LINE_CLAMP: React.CSSProperties = {
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+};
 const DAY_NAMES: Record<string, string> = {
     'sunday': 'الأحد', 'monday': 'الإثنين', 'tuesday': 'الثلاثاء', 'wednesday': 'الأربعاء', 'thursday': 'الخميس'
 };
 
 const ScheduleGrid: React.FC<ScheduleGridProps> = ({
-    teachers, subjects, classes, settings, onUpdateSettings, activeSchoolId
+    teachers, subjects, classes, settings, onUpdateSettings, activeSchoolId, interactive = true
 }) => {
     const [dragSource, setDragSource] = useState<{teacherId: string, day: string, period: number} | null>(null);
     const [hoverTarget, setHoverTarget] = useState<string | null>(null);
@@ -30,7 +42,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
     const periodCount = 7;
     const timetable = settings.timetable || {};
-    const isManualMode = settings.substitution?.method === 'manual';
+    const isManualMode = interactive && settings.substitution?.method === 'manual';
 
     // Count placed waiting periods per teacher
     const placedWaitingPerTeacher = useMemo(() => {
@@ -48,6 +60,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         const key = getKey(teacherId, day, period);
         if (!timetable[key]) { e.preventDefault(); return; }
         setDragSource({ teacherId, day, period });
+        e.dataTransfer.setData('text/plain', key);
         e.dataTransfer.setData('dragType', 'slot');
         e.dataTransfer.setData('sourceKey', key);
         e.dataTransfer.effectAllowed = 'move';
@@ -55,6 +68,11 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
     // ── Drag: waiting card (from quota column) ──
     const handleWaitingCardDragStart = (e: React.DragEvent, teacherId: string) => {
+        if (!isManualMode) {
+            e.preventDefault();
+            return;
+        }
+        e.dataTransfer.setData('text/plain', teacherId);
         e.dataTransfer.setData('dragType', 'waitingCard');
         e.dataTransfer.setData('waitingTeacherId', teacherId);
         e.dataTransfer.effectAllowed = 'move';
@@ -63,7 +81,12 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
     // ── Drag: existing waiting slot (move it) ──
     const handleWaitingSlotDragStart = (e: React.DragEvent, teacherId: string, day: string, period: number) => {
+        if (!isManualMode) {
+            e.preventDefault();
+            return;
+        }
         const key = getKey(teacherId, day, period);
+        e.dataTransfer.setData('text/plain', key);
         e.dataTransfer.setData('dragType', 'waitingSlot');
         e.dataTransfer.setData('sourceKey', key);
         e.dataTransfer.setData('waitingTeacherId', teacherId);
@@ -72,11 +95,22 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     };
 
     const handleDragOver = (e: React.DragEvent, targetTeacherId: string, targetKey: string) => {
-        e.preventDefault();
-        if (draggingWaitingTeacherId && draggingWaitingTeacherId !== targetTeacherId) {
-            e.dataTransfer.dropEffect = 'none';
+        const dragType = e.dataTransfer.getData('dragType');
+        const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId') || draggingWaitingTeacherId;
+        const isWaitingDrag = dragType === 'waitingCard' || dragType === 'waitingSlot' || !!waitingTeacherId;
+        if (isWaitingDrag) {
+            if (!isManualMode) return;
+            if (waitingTeacherId && waitingTeacherId !== targetTeacherId) {
+                e.dataTransfer.dropEffect = 'none';
+                return;
+            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setHoverTarget(targetKey);
             return;
         }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
         setHoverTarget(targetKey);
     };
 
@@ -88,7 +122,8 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
         // ── Drop: waiting card → create new waiting slot ──
         if (dragType === 'waitingCard') {
-            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId');
+            if (!isManualMode) return;
+            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId') || draggingWaitingTeacherId;
             setDraggingWaitingTeacherId(null);
             if (waitingTeacherId !== targetTeacherId) return;
             if (timetable[targetKey]) return;
@@ -102,8 +137,9 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
         // ── Drop: waiting slot → move to empty cell ──
         if (dragType === 'waitingSlot') {
+            if (!isManualMode) return;
             const sourceKey = e.dataTransfer.getData('sourceKey');
-            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId');
+            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId') || draggingWaitingTeacherId;
             setDraggingWaitingTeacherId(null);
             if (waitingTeacherId !== targetTeacherId) return;
             if (timetable[targetKey]) return;
@@ -151,12 +187,13 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
     // ── Drop: waiting slot → return to quota column ──
     const handleWaitingColumnDrop = (teacherId: string) => (e: React.DragEvent) => {
+        if (!isManualMode) return;
         e.preventDefault();
         setHoverWaitingColumn(null);
         const dragType = e.dataTransfer.getData('dragType');
         if (dragType === 'waitingSlot') {
             const sourceKey = e.dataTransfer.getData('sourceKey');
-            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId');
+            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId') || draggingWaitingTeacherId;
             if (waitingTeacherId !== teacherId) return;
             setDraggingWaitingTeacherId(null);
             const newTimetable = { ...timetable };
@@ -191,6 +228,8 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         return c.schoolId === activeSchoolId;
     };
 
+    const isWaitingDragActive = isManualMode && draggingWaitingTeacherId !== null;
+
     const getCellContent = (teacherId: string, day: string, period: number) => {
         const key = getKey(teacherId, day, period);
         const slot = timetable[key];
@@ -200,7 +239,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
         if (cls && !isClassInActiveSchool(cls)) {
             return (
-                <div className="w-full h-full p-1 rounded-lg text-[10px] flex flex-col items-center justify-center gap-0.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed transition-all" title="محجوز في المدرسة المشتركة الأخرى">
+                <div className="w-full h-full p-2 rounded-xl text-[11px] flex flex-col items-center justify-center gap-1.5 bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed transition-all" title="محجوز في المدرسة المشتركة الأخرى">
                     <Lock size={14} className="opacity-50 mb-1" />
                     <span className="font-bold truncate w-full text-center">مشغول</span>
                 </div>
@@ -214,10 +253,10 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                     draggable={isManualMode}
                     onDragStart={(e) => { if (isManualMode) handleWaitingSlotDragStart(e, teacherId, day, period); }}
                     onDragEnd={handleDragEnd}
-                    className={`relative w-full h-full p-1 rounded-lg text-[10px] flex flex-col items-center justify-center gap-0.5 bg-orange-50 text-orange-600 border border-orange-100 transition-all ${isManualMode ? 'cursor-grab active:cursor-grabbing hover:bg-orange-100 group' : ''}`}
+                    className={`relative w-full h-full px-2.5 py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 bg-[linear-gradient(180deg,#faf7ff_0%,#ede9fe_100%)] text-[#5b46b2] border border-[#c4b5fd] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-all ${isManualMode ? 'cursor-grab active:cursor-grabbing hover:border-[#8b7cf6] hover:shadow-[0_6px_18px_rgba(101,90,193,0.18)] group' : ''}`}
                 >
-                    <Eye size={14} className="opacity-70" />
-                    <span className="font-bold truncate w-full text-center">انتظار</span>
+                    <span className="px-2 py-0.5 rounded-full text-[8px] font-black bg-white/90 border border-[#d8ccff] text-[#655ac1]">{"\u0627\u0646\u062a\u0638\u0627\u0631"}</span>
+                    <span className="font-black text-[13px] w-full text-center leading-[1.2]" style={TWO_LINE_CLAMP}>{"\u062d\u0635\u0629 \u0627\u0646\u062a\u0638\u0627\u0631"}</span>
                     {isManualMode && (
                         <button
                             onMouseDown={(e) => {
@@ -235,17 +274,32 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         }
 
         return (
-            <div className="w-full h-full p-1 rounded-lg text-[10px] flex flex-col items-center justify-center gap-0.5 bg-[#f4f2ff] text-[#7c6dd6] cursor-grab active:cursor-grabbing border border-transparent hover:border-[#a59bf0]/30 transition-all">
-                <span className="font-extrabold truncate w-full text-center" title={subj?.name}>
+            <div className="w-full h-full p-2 rounded-xl text-[11px] flex flex-col items-center justify-center gap-1.5 bg-[#f4f2ff] text-[#6f5fd1] border border-[#e4defd] hover:border-[#b7abf3]/70 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                <span className="font-extrabold text-[13px] w-full text-center leading-[1.2]" style={TWO_LINE_CLAMP} title={subj?.name}>
                     {settings.subjectAbbreviations?.[subj?.id || ''] || subj?.name || '---'}
                 </span>
-                <span className="font-bold opacity-80 truncate w-full text-center dir-ltr">{cls?.name || '---'}</span>
+                <span className="font-bold text-[12px] opacity-80 w-full text-center leading-[1.2]" style={TWO_LINE_CLAMP}>{cls?.name || '---'}</span>
             </div>
         );
     };
 
     return (
-        <div className="overflow-x-auto pb-4 custom-scrollbar relative">
+        <div className="w-full overflow-x-hidden pb-4 custom-scrollbar relative">
+            {isWaitingDragActive && (
+                <div
+                    className="absolute z-[220] pointer-events-none"
+                    style={{ top: 58, left: TEACHER_COLUMN_WIDTH + BASE_QUOTA_COLUMN_WIDTH + WAITING_COLUMN_WIDTH + 12, right: 12 }}
+                >
+                    <div className="flex justify-center">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-[#d8ccff] bg-white/95 px-4 py-2 shadow-[0_10px_30px_rgba(101,90,193,0.18)] backdrop-blur-sm">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#c4b5fd] bg-[linear-gradient(180deg,#ffffff_0%,#f5f3ff_100%)] text-[14px] font-black text-[#655ac1]">
+                            
+                        </span>
+                        <span className="text-[12px] font-black text-[#655ac1]">اسحب البطاقة إلى الحصة المناسبة</span>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* ── Error Toast ── */}
             {swapError && (
                 <div
@@ -260,17 +314,22 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                     <button onClick={() => setSwapError(null)} className="mr-auto text-rose-400 hover:text-rose-600 font-black text-lg leading-none shrink-0">✕</button>
                 </div>
             )}
-            <div className="min-w-[1220px]">
+            <div className="w-full min-w-0">
                 {/* Header Row */}
-                <div className="grid grid-cols-[280px_1fr] gap-0 border-b-2 border-slate-100 sticky top-0 bg-white z-20">
+                <div
+                    className="grid gap-0 border-b-2 border-slate-100 sticky top-0 bg-white z-20"
+                    style={{ gridTemplateColumns: `${TEACHER_COLUMN_WIDTH + BASE_QUOTA_COLUMN_WIDTH + WAITING_COLUMN_WIDTH}px minmax(0, 1fr)` }}
+                >
                     <div className="flex bg-slate-50 font-black text-slate-600 text-xs text-center border-l border-slate-100">
-                        <div className="w-[160px] p-4 flex items-center justify-center">المعلمين</div>
-                        <div className="w-[50px] p-4 flex items-center justify-center text-[10px] text-slate-500 bg-slate-100/50 border-r border-slate-100" title="النصاب الأساسي">الأساسي</div>
-                        <div className="w-[70px] p-2 flex flex-col items-center justify-center gap-0.5 bg-orange-50/70 border-r border-slate-100" title="اسحب بطاقة الانتظار وأفلتها في الحصة المناسبة">
-                            <span className="text-[10px] text-orange-600 font-black">الانتظار</span>
-                            <span className="text-[8px] text-orange-400 font-semibold flex items-center gap-0.5">
-                                <GripHorizontal size={8} />اسحب
-                            </span>
+                        <div className="p-4 flex items-center justify-center" style={{ width: TEACHER_COLUMN_WIDTH }}>{"المعلم"}</div>
+                        <div className="p-4 flex items-center justify-center text-[10px] text-slate-500 bg-slate-100/50 border-r border-slate-100" style={{ width: BASE_QUOTA_COLUMN_WIDTH }} title={"النصاب الأساسي"}>{"الأساسي"}</div>
+                        <div className="p-2.5 flex flex-col items-center justify-center gap-1 bg-white border-r border-slate-100" style={{ width: WAITING_COLUMN_WIDTH }} title={isManualMode ? "اسحب بطاقات الانتظار وأفلتها داخل الحصص الفارغة، ويمكنك أيضًا إرجاعها لهذا العمود" : "نصاب الانتظار"}>
+                            <span className="text-[11px] text-[#5b46b2] font-black">{"\u0646\u0635\u0627\u0628 \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631"}</span>
+                            {isManualMode && (
+                                <span className="text-[9px] text-[#7c6dd6] font-semibold flex items-center gap-1">
+                                    <GripHorizontal size={10} />{"اسحب وأفلت"}
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div className="grid grid-cols-5 divide-x divide-x-reverse divide-slate-100">
@@ -289,7 +348,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
                 {/* Teachers Rows */}
                 <div className="divide-y divide-slate-100">
-                    {teachers.map(teacher => {
+                    {teachers.map((teacher, teacherIndex) => {
                         const waitingQuota = teacher.waitingQuota || 0;
                         const placed = placedWaitingPerTeacher[teacher.id] || 0;
                         const remaining = waitingQuota - placed;
@@ -298,30 +357,40 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                         const isColumnHovered = hoverWaitingColumn === teacher.id;
 
                         return (
-                            <div key={teacher.id} className="grid grid-cols-[280px_1fr] group transition-colors hover:bg-slate-50/50">
+                            <div
+                                key={teacher.id}
+                                className={`grid group transition-colors hover:bg-slate-50/50 ${
+                                    isManualMode && draggingWaitingTeacherId && draggingWaitingTeacherId !== teacher.id
+                                        ? 'opacity-55'
+                                        : ''
+                                }`}
+                                style={{ gridTemplateColumns: `${TEACHER_COLUMN_WIDTH + BASE_QUOTA_COLUMN_WIDTH + WAITING_COLUMN_WIDTH}px minmax(0, 1fr)` }}
+                            >
                                 {/* Teacher Info */}
                                 <div className="flex border-l border-slate-100">
-                                    <div className="w-[160px] p-3 flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs shrink-0">
-                                            {teacher.name.charAt(0)}
+                                    <div className="p-3 flex items-center gap-3" style={{ width: TEACHER_COLUMN_WIDTH }}>
+                                        <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 font-black text-[11px] shrink-0">
+                                            {teacherIndex + 1}
                                         </div>
                                         <div className="min-w-0">
                                             <div className="font-bold text-slate-700 text-xs truncate" title={teacher.name}>{teacher.name}</div>
                                             <div className="text-[10px] text-slate-400 truncate">{teacher.phone || '-'}</div>
                                         </div>
                                     </div>
-                                    <div className="w-[50px] flex items-center justify-center text-xs font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100">
+                                    <div className="flex items-center justify-center text-xs font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100" style={{ width: BASE_QUOTA_COLUMN_WIDTH }}>
                                         {teacher.quotaLimit}
                                     </div>
                                     {/* Waiting Quota Cell — card stack */}
                                     <div
-                                        className={`w-[70px] flex items-center justify-center border-r border-slate-100 transition-all ${
+                                        className={`relative flex items-start justify-start border-r border-slate-100 transition-all ${
                                             isColumnHovered && isDraggingFromThis
-                                                ? 'bg-orange-100 ring-2 ring-inset ring-orange-400'
-                                                : 'bg-orange-50/30'
+                                                ? 'bg-[#f8f7ff] ring-2 ring-inset ring-[#8779fb]'
+                                                : 'bg-white'
                                         }`}
+                                        style={{ width: WAITING_COLUMN_WIDTH }}
                                         onDragOver={isManualMode && isDraggingFromThis ? (e) => {
                                             e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'move';
                                             setHoverWaitingColumn(teacher.id);
                                         } : undefined}
                                         onDragLeave={isManualMode ? () => setHoverWaitingColumn(null) : undefined}
@@ -329,47 +398,52 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                                     >
                                         {showCard && remaining > 0 ? (
                                             <div
-                                                className="relative flex items-center justify-center w-full h-full py-1"
-                                                title={`اسحب لإضافة حصة انتظار — ${remaining} من ${waitingQuota} متبقية`}
+                                                draggable={isManualMode}
+                                                onDragStart={(e) => handleWaitingCardDragStart(e, teacher.id)}
+                                                onDragEnd={handleDragEnd}
+                                                className={`relative w-full h-full px-2 py-2 ${isManualMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                                title={`اسحب لإضافة حصة انتظار: المتبقي ${remaining} من ${waitingQuota}`}
                                             >
                                                 {/* Layer 3 — bottom */}
                                                 {remaining >= 3 && (
                                                     <div
-                                                        className="absolute w-[36px] h-[42px] bg-orange-200 border border-orange-300 rounded-lg"
-                                                        style={{ transform: 'rotate(7deg) translateY(-4px) translateX(2px)', opacity: isDraggingFromThis ? 0.4 : 0.7 }}
+                                                        className="absolute top-1 left-2 w-[30px] h-[42px] rounded-[10px] border border-[#d9d2fb]"
+                                                        style={{ background: '#d9d0ff', transform: 'rotate(10deg)', opacity: isDraggingFromThis ? 0.28 : 0.62 }}
                                                     />
                                                 )}
                                                 {/* Layer 2 — middle */}
                                                 {remaining >= 2 && (
                                                     <div
-                                                        className="absolute w-[36px] h-[42px] bg-orange-100 border border-orange-300 rounded-lg"
-                                                        style={{ transform: 'rotate(3.5deg) translateY(-2px) translateX(1px)', opacity: isDraggingFromThis ? 0.4 : 0.85 }}
+                                                        className="absolute top-1 left-2 w-[30px] h-[42px] rounded-[10px] border border-[#e3dcff]"
+                                                        style={{ background: '#ebe5ff', transform: 'rotate(5deg)', opacity: isDraggingFromThis ? 0.34 : 0.82 }}
                                                     />
                                                 )}
                                                 {/* Top card — draggable */}
                                                 <div
-                                                    draggable
-                                                    onDragStart={(e) => handleWaitingCardDragStart(e, teacher.id)}
-                                                    onDragEnd={handleDragEnd}
-                                                    className={`relative z-10 w-[36px] h-[42px] bg-white border-2 rounded-lg flex flex-col items-center justify-center gap-0.5 select-none transition-all ${
+                                                    className={`absolute top-1 left-2 z-10 w-[30px] h-[42px] rounded-[10px] flex flex-col items-center justify-between overflow-hidden select-none border-2 transition-all pointer-events-none ${
                                                         isDraggingFromThis
-                                                            ? 'opacity-40 cursor-grabbing border-orange-300'
-                                                            : 'cursor-grab active:cursor-grabbing border-orange-400 hover:border-orange-500 hover:shadow-[0_4px_12px_rgba(234,88,12,0.25)] hover:-translate-y-0.5'
+                                                            ? 'opacity-35 cursor-grabbing border-[#d7cff7]'
+                                                            : 'cursor-grab active:cursor-grabbing border-[#c8bdf5] hover:border-[#9f90ea] hover:shadow-[0_10px_24px_rgba(101,90,193,0.22)] hover:-translate-y-1'
                                                     }`}
-                                                    style={{ boxShadow: isDraggingFromThis ? 'none' : '0 2px 6px rgba(234,88,12,0.18)' }}
+                                                    style={{
+                                                        background: 'linear-gradient(180deg,#ffffff 0%,#f5f3ff 100%)',
+                                                        boxShadow: isDraggingFromThis ? 'none' : '0 8px 20px rgba(101,90,193,0.18)'
+                                                    }}
                                                 >
-                                                    <Eye size={11} className="text-orange-500" />
-                                                    <span className="text-[13px] font-black text-orange-700 leading-none">{remaining}</span>
-                                                    <GripHorizontal size={9} className="text-orange-300" />
+                                                    <span className="mt-1 h-[2px] w-3 rounded-full bg-[#d7cff7]" />
+                                                    <span className="flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#ddd6fb] bg-[#f7f4ff] text-[10px] font-black leading-none text-[#655ac1]">م</span>
+                                                    <span className="mb-1 h-[2px] w-3 rounded-full bg-[#d7cff7]" />
                                                 </div>
                                                 {/* Total badge */}
-                                                <div className="absolute bottom-0.5 left-1 text-[8px] font-bold text-orange-400 z-20 leading-none">
-                                                    /{waitingQuota}
+                                                <div className="absolute top-1 right-1 z-20">
+                                                    <span className="inline-flex items-center rounded-full bg-white/90 border border-[#d8ccff] px-1.5 py-0.5 text-[10px] font-black text-[#655ac1] shadow-sm">
+                                                        {remaining}/{waitingQuota}
+                                                    </span>
                                                 </div>
                                                 {/* Return hint when dragging */}
                                                 {isDraggingFromThis && (
-                                                    <div className="absolute inset-0 flex items-center justify-center z-30">
-                                                        <span className="text-[8px] font-black text-orange-500 text-center leading-tight px-0.5">أفلت<br/>هنا</span>
+                                                    <div className="absolute inset-x-1 bottom-1 flex justify-center z-30">
+                                                        <span className="text-[7px] font-black text-[#655ac1] text-center leading-tight px-1.5 py-1 rounded-full bg-white/90 border border-[#d8ccff]">{"\u0623\u0641\u0644\u0650\u062a \u0644\u0644\u0625\u0631\u062c\u0627\u0639"}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -378,16 +452,18 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                                                 className={`flex flex-col items-center justify-center gap-0.5 w-full h-full py-1 transition-all ${
                                                     isColumnHovered && isDraggingFromThis ? 'opacity-100' : ''
                                                 }`}
-                                                title="اكتمل توزيع حصص الانتظار — اسحب حصة للإرجاع"
+                                                title={"\u0627\u0643\u062a\u0645\u0644 \u062a\u0648\u0632\u064a\u0639 \u062d\u0635\u0635 \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631\u060c \u0648\u064a\u0645\u0643\u0646\u0643 \u0625\u0639\u0627\u062f\u0629 \u0623\u064a \u0628\u0637\u0627\u0642\u0629 \u0625\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u0639\u0645\u0648\u062f"}
                                             >
-                                                <span className="text-emerald-500 font-black text-base">✓</span>
-                                                <span className="text-[8px] text-emerald-500 font-bold">{waitingQuota}/{waitingQuota}</span>
+                                                <span className="text-emerald-500 font-black text-base">{"\u2713"}</span>
+                                                <span className="text-[10px] text-emerald-500 font-bold">{remaining}/{waitingQuota}</span>
                                                 {isDraggingFromThis && (
-                                                    <span className="text-[7px] text-orange-400 font-bold mt-0.5">أفلت للإرجاع</span>
+                                                    <span className="text-[7px] text-[#7c6dd6] font-bold mt-0.5">{"\u0623\u0641\u0644\u0650\u062a \u0644\u0644\u0625\u0631\u062c\u0627\u0639"}</span>
                                                 )}
                                             </div>
                                         ) : (
-                                            <span className="text-xs font-bold text-orange-600">{waitingQuota || '-'}</span>
+                                            <div className="flex flex-col items-center justify-center gap-1 text-center px-2">
+                                                <span className="text-xs font-black text-[#655ac1]">{waitingQuota > 0 ? waitingQuota : '-'}</span>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -417,17 +493,24 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                                                         onDrop={(e) => { if (!isForeignSlot) handleDrop(e, teacher.id, day, p); }}
                                                         onDragEnd={handleDragEnd}
                                                         className={`
-                                                            h-12 border-b border-transparent p-0.5 relative transition-all
+                                                            ${SLOT_HEIGHT_CLASS} border-b border-transparent p-1 relative transition-all
                                                             ${isHovered && !isForeignSlot && !isValidWaitingDrop ? 'bg-primary/10 ring-2 ring-inset ring-primary z-10' : ''}
-                                                            ${isValidWaitingDrop && isHovered ? 'bg-orange-100 ring-2 ring-inset ring-orange-500 z-10 scale-105' : ''}
-                                                            ${isValidWaitingDrop && !isHovered && !slotInfo ? 'bg-orange-50/60 ring-1 ring-inset ring-orange-200' : ''}
+                                                            ${isValidWaitingDrop && isHovered ? 'bg-slate-100 ring-2 ring-inset ring-slate-400 z-10 scale-105' : ''}
+                                                            ${isValidWaitingDrop && !isHovered && !slotInfo ? 'bg-slate-50 ring-1 ring-inset ring-slate-300' : ''}
                                                             ${isForeignSlot ? 'bg-slate-50 opacity-80' : ''}
                                                         `}
                                                     >
                                                         {getCellContent(teacher.id, day, p)}
                                                         {isValidWaitingDrop && !slotInfo && !isHovered && (
+                                                            <div className="absolute inset-0 pointer-events-none">
+                                                                <div className="absolute inset-[4px] rounded-[10px] border border-dashed border-slate-400 bg-slate-100/70" />
+                                                            </div>
+                                                        )}
+                                                        {isValidWaitingDrop && isHovered && !slotInfo && (
                                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                                <div className="w-2 h-2 rounded-full bg-orange-300 opacity-50" />
+                                                                <div className="rounded-full bg-amber-400 px-3 py-1 text-[10px] font-black text-amber-950 shadow-lg border border-amber-300">
+                                                                    {"أفلت الآن"}
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
