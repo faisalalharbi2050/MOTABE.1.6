@@ -507,6 +507,8 @@ export interface AuditLogEntry {
   sourceKey?: string;     // المفتاح الأساسي "معلم-يوم-حصة"
   targetKey?: string;
   relatedTeacherIds: string[]; // المعنيون بالحركة
+  viewType?: 'general' | 'individual'; // نوع العرض: جدول عام أو جدول معلم
+  teacherName?: string;   // اسم المعلم الأساسي
 }
 
 // ===== Daily Supervision Types =====

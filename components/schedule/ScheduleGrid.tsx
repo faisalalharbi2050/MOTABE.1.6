@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Teacher, ScheduleSettingsData, TimetableData, Subject, ClassInfo, AuditLogEntry } from '../../types';
 import { getKey, tryMoveOrSwap, findChainSwap, SwapResult } from '../../utils/scheduleInteractive';
-import { AlertCircle, User, Users, GripHorizontal, Eye, Lock } from 'lucide-react';
+import { GripHorizontal, Eye, Lock } from 'lucide-react';
 import SwapConfirmationModal from './SwapConfirmationModal';
 
 interface ScheduleGridProps {
@@ -25,6 +25,8 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     const [hoverTarget, setHoverTarget] = useState<string | null>(null);
     const [pendingSwap, setPendingSwap] = useState<SwapResult | null>(null);
     const [draggingWaitingTeacherId, setDraggingWaitingTeacherId] = useState<string | null>(null);
+    const [hoverWaitingColumn, setHoverWaitingColumn] = useState<string | null>(null);
+    const [swapError, setSwapError] = useState<string | null>(null);
 
     const periodCount = 7;
     const timetable = settings.timetable || {};
@@ -118,20 +120,23 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         const result = tryMoveOrSwap(
             timetable, dragSource,
             { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
-            settings
+            settings, teachers, classes
         );
         if (result.success) {
+            setSwapError(null);
             setPendingSwap(result);
         } else {
             const chainResult = findChainSwap(
                 timetable, dragSource,
                 { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
-                teachers, settings
+                teachers, settings, classes
             );
             if (chainResult && chainResult.success) {
+                setSwapError(null);
                 setPendingSwap(chainResult);
             } else {
-                alert(result.reason || "لا يمكن النقل (تعارض في الجدول)");
+                setSwapError(result.reason || "لا يمكن تنفيذ هذا التعديل. جرّب خلية أخرى.");
+                setTimeout(() => setSwapError(null), 4000);
             }
         }
         setDragSource(null);
@@ -141,17 +146,38 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         setDraggingWaitingTeacherId(null);
         setDragSource(null);
         setHoverTarget(null);
+        setHoverWaitingColumn(null);
+    };
+
+    // ── Drop: waiting slot → return to quota column ──
+    const handleWaitingColumnDrop = (teacherId: string) => (e: React.DragEvent) => {
+        e.preventDefault();
+        setHoverWaitingColumn(null);
+        const dragType = e.dataTransfer.getData('dragType');
+        if (dragType === 'waitingSlot') {
+            const sourceKey = e.dataTransfer.getData('sourceKey');
+            const waitingTeacherId = e.dataTransfer.getData('waitingTeacherId');
+            if (waitingTeacherId !== teacherId) return;
+            setDraggingWaitingTeacherId(null);
+            const newTimetable = { ...timetable };
+            delete newTimetable[sourceKey];
+            onUpdateSettings({ ...settings, timetable: newTimetable });
+        }
     };
 
     const confirmSwap = () => {
         if (pendingSwap && pendingSwap.newTimetable) {
+            const relatedIds = pendingSwap.relatedTeacherIds || [];
+            const primaryTeacher = teachers.find(t => t.id === relatedIds[0]);
             const logEntry: AuditLogEntry = {
                 id: Math.random().toString(36).substr(2, 9),
                 timestamp: new Date().toISOString(),
                 user: "المستخدم الحالي",
                 actionType: pendingSwap.isChain ? 'chain_swap' : 'swap',
                 description: pendingSwap.chainSteps?.join(' | ') || 'تبديل حصص',
-                relatedTeacherIds: []
+                relatedTeacherIds: relatedIds,
+                viewType: 'general',
+                teacherName: primaryTeacher?.name || '',
             };
             const updatedLogs = [...(settings.auditLogs || []), logEntry];
             onUpdateSettings({ ...settings, timetable: pendingSwap.newTimetable, auditLogs: updatedLogs });
@@ -219,14 +245,33 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     };
 
     return (
-        <div className="overflow-x-auto pb-4 custom-scrollbar">
-            <div className="min-w-[1200px]">
+        <div className="overflow-x-auto pb-4 custom-scrollbar relative">
+            {/* ── Error Toast ── */}
+            {swapError && (
+                <div
+                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl w-auto max-w-md animate-in slide-in-from-top-4"
+                    style={{ background: '#fff1f2', border: '1.5px solid #fecdd3', fontFamily: '"Tajawal", sans-serif' }}
+                >
+                    <span className="text-rose-500 mt-0.5 shrink-0 text-lg font-black">✕</span>
+                    <div>
+                        <p className="font-black text-rose-700 text-sm mb-0.5">تعذّر تنفيذ التعديل</p>
+                        <p className="text-rose-600 text-xs font-semibold leading-relaxed">{swapError}</p>
+                    </div>
+                    <button onClick={() => setSwapError(null)} className="mr-auto text-rose-400 hover:text-rose-600 font-black text-lg leading-none shrink-0">✕</button>
+                </div>
+            )}
+            <div className="min-w-[1220px]">
                 {/* Header Row */}
-                <div className="grid grid-cols-[260px_1fr] gap-0 border-b-2 border-slate-100 sticky top-0 bg-white z-20">
+                <div className="grid grid-cols-[280px_1fr] gap-0 border-b-2 border-slate-100 sticky top-0 bg-white z-20">
                     <div className="flex bg-slate-50 font-black text-slate-600 text-xs text-center border-l border-slate-100">
                         <div className="w-[160px] p-4 flex items-center justify-center">المعلمين</div>
                         <div className="w-[50px] p-4 flex items-center justify-center text-[10px] text-slate-500 bg-slate-100/50 border-r border-slate-100" title="النصاب الأساسي">الأساسي</div>
-                        <div className="w-[50px] p-4 flex items-center justify-center text-[10px] text-slate-500 bg-orange-50/50 border-r border-slate-100" title="نصاب الانتظار">الانتظار</div>
+                        <div className="w-[70px] p-2 flex flex-col items-center justify-center gap-0.5 bg-orange-50/70 border-r border-slate-100" title="اسحب بطاقة الانتظار وأفلتها في الحصة المناسبة">
+                            <span className="text-[10px] text-orange-600 font-black">الانتظار</span>
+                            <span className="text-[8px] text-orange-400 font-semibold flex items-center gap-0.5">
+                                <GripHorizontal size={8} />اسحب
+                            </span>
+                        </div>
                     </div>
                     <div className="grid grid-cols-5 divide-x divide-x-reverse divide-slate-100">
                         {DAYS.map(day => (
@@ -249,9 +294,11 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                         const placed = placedWaitingPerTeacher[teacher.id] || 0;
                         const remaining = waitingQuota - placed;
                         const showCard = isManualMode && waitingQuota > 0;
+                        const isDraggingFromThis = draggingWaitingTeacherId === teacher.id;
+                        const isColumnHovered = hoverWaitingColumn === teacher.id;
 
                         return (
-                            <div key={teacher.id} className="grid grid-cols-[260px_1fr] group transition-colors hover:bg-slate-50/50">
+                            <div key={teacher.id} className="grid grid-cols-[280px_1fr] group transition-colors hover:bg-slate-50/50">
                                 {/* Teacher Info */}
                                 <div className="flex border-l border-slate-100">
                                     <div className="w-[160px] p-3 flex items-center gap-3">
@@ -266,25 +313,81 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                                     <div className="w-[50px] flex items-center justify-center text-xs font-bold text-slate-600 bg-slate-50/50 border-r border-slate-100">
                                         {teacher.quotaLimit}
                                     </div>
-                                    {/* Waiting Quota Cell */}
-                                    <div className="w-[50px] flex items-center justify-center bg-orange-50/30 border-r border-slate-100 p-0.5">
+                                    {/* Waiting Quota Cell — card stack */}
+                                    <div
+                                        className={`w-[70px] flex items-center justify-center border-r border-slate-100 transition-all ${
+                                            isColumnHovered && isDraggingFromThis
+                                                ? 'bg-orange-100 ring-2 ring-inset ring-orange-400'
+                                                : 'bg-orange-50/30'
+                                        }`}
+                                        onDragOver={isManualMode && isDraggingFromThis ? (e) => {
+                                            e.preventDefault();
+                                            setHoverWaitingColumn(teacher.id);
+                                        } : undefined}
+                                        onDragLeave={isManualMode ? () => setHoverWaitingColumn(null) : undefined}
+                                        onDrop={isManualMode ? handleWaitingColumnDrop(teacher.id) : undefined}
+                                    >
                                         {showCard && remaining > 0 ? (
                                             <div
-                                                draggable
-                                                onDragStart={(e) => handleWaitingCardDragStart(e, teacher.id)}
-                                                onDragEnd={handleDragEnd}
-                                                title={`اسحب لإضافة حصة انتظار — متبقٍ ${remaining} من ${waitingQuota}`}
-                                                className="w-full cursor-grab active:cursor-grabbing bg-white border-2 border-orange-300 rounded-lg p-1 flex flex-col items-center justify-center gap-0.5 hover:border-orange-400 hover:shadow-sm transition-all select-none"
+                                                className="relative flex items-center justify-center w-full h-full py-1"
+                                                title={`اسحب لإضافة حصة انتظار — ${remaining} من ${waitingQuota} متبقية`}
                                             >
-                                                <span className="text-[9px] font-black text-orange-600 leading-none">م</span>
-                                                <span className="text-[8px] font-bold text-orange-400 leading-none">{remaining}/{waitingQuota}</span>
+                                                {/* Layer 3 — bottom */}
+                                                {remaining >= 3 && (
+                                                    <div
+                                                        className="absolute w-[36px] h-[42px] bg-orange-200 border border-orange-300 rounded-lg"
+                                                        style={{ transform: 'rotate(7deg) translateY(-4px) translateX(2px)', opacity: isDraggingFromThis ? 0.4 : 0.7 }}
+                                                    />
+                                                )}
+                                                {/* Layer 2 — middle */}
+                                                {remaining >= 2 && (
+                                                    <div
+                                                        className="absolute w-[36px] h-[42px] bg-orange-100 border border-orange-300 rounded-lg"
+                                                        style={{ transform: 'rotate(3.5deg) translateY(-2px) translateX(1px)', opacity: isDraggingFromThis ? 0.4 : 0.85 }}
+                                                    />
+                                                )}
+                                                {/* Top card — draggable */}
+                                                <div
+                                                    draggable
+                                                    onDragStart={(e) => handleWaitingCardDragStart(e, teacher.id)}
+                                                    onDragEnd={handleDragEnd}
+                                                    className={`relative z-10 w-[36px] h-[42px] bg-white border-2 rounded-lg flex flex-col items-center justify-center gap-0.5 select-none transition-all ${
+                                                        isDraggingFromThis
+                                                            ? 'opacity-40 cursor-grabbing border-orange-300'
+                                                            : 'cursor-grab active:cursor-grabbing border-orange-400 hover:border-orange-500 hover:shadow-[0_4px_12px_rgba(234,88,12,0.25)] hover:-translate-y-0.5'
+                                                    }`}
+                                                    style={{ boxShadow: isDraggingFromThis ? 'none' : '0 2px 6px rgba(234,88,12,0.18)' }}
+                                                >
+                                                    <Eye size={11} className="text-orange-500" />
+                                                    <span className="text-[13px] font-black text-orange-700 leading-none">{remaining}</span>
+                                                    <GripHorizontal size={9} className="text-orange-300" />
+                                                </div>
+                                                {/* Total badge */}
+                                                <div className="absolute bottom-0.5 left-1 text-[8px] font-bold text-orange-400 z-20 leading-none">
+                                                    /{waitingQuota}
+                                                </div>
+                                                {/* Return hint when dragging */}
+                                                {isDraggingFromThis && (
+                                                    <div className="absolute inset-0 flex items-center justify-center z-30">
+                                                        <span className="text-[8px] font-black text-orange-500 text-center leading-tight px-0.5">أفلت<br/>هنا</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : showCard && remaining === 0 ? (
-                                            <div className="w-full flex items-center justify-center" title="اكتمل التوزيع">
-                                                <span className="text-emerald-500 font-black text-sm">✓</span>
+                                            <div
+                                                className={`flex flex-col items-center justify-center gap-0.5 w-full h-full py-1 transition-all ${
+                                                    isColumnHovered && isDraggingFromThis ? 'opacity-100' : ''
+                                                }`}
+                                                title="اكتمل توزيع حصص الانتظار — اسحب حصة للإرجاع"
+                                            >
+                                                <span className="text-emerald-500 font-black text-base">✓</span>
+                                                <span className="text-[8px] text-emerald-500 font-bold">{waitingQuota}/{waitingQuota}</span>
+                                                {isDraggingFromThis && (
+                                                    <span className="text-[7px] text-orange-400 font-bold mt-0.5">أفلت للإرجاع</span>
+                                                )}
                                             </div>
                                         ) : (
-                                            <span className="text-xs font-bold text-orange-600">{waitingQuota}</span>
+                                            <span className="text-xs font-bold text-orange-600">{waitingQuota || '-'}</span>
                                         )}
                                     </div>
                                 </div>
@@ -316,11 +419,17 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                                                         className={`
                                                             h-12 border-b border-transparent p-0.5 relative transition-all
                                                             ${isHovered && !isForeignSlot && !isValidWaitingDrop ? 'bg-primary/10 ring-2 ring-inset ring-primary z-10' : ''}
-                                                            ${isValidWaitingDrop && isHovered ? 'bg-orange-50 ring-2 ring-inset ring-orange-400 z-10' : ''}
+                                                            ${isValidWaitingDrop && isHovered ? 'bg-orange-100 ring-2 ring-inset ring-orange-500 z-10 scale-105' : ''}
+                                                            ${isValidWaitingDrop && !isHovered && !slotInfo ? 'bg-orange-50/60 ring-1 ring-inset ring-orange-200' : ''}
                                                             ${isForeignSlot ? 'bg-slate-50 opacity-80' : ''}
                                                         `}
                                                     >
                                                         {getCellContent(teacher.id, day, p)}
+                                                        {isValidWaitingDrop && !slotInfo && !isHovered && (
+                                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                <div className="w-2 h-2 rounded-full bg-orange-300 opacity-50" />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}

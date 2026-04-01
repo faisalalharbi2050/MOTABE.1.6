@@ -52,6 +52,7 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
     const [dragSource, setDragSource] = useState<{ teacherId: string; day: string; period: number } | null>(null);
     const [hoverTarget, setHoverTarget] = useState<string | null>(null);
     const [pendingSwap, setPendingSwap] = useState<SwapResult | null>(null);
+    const [swapError, setSwapError] = useState<string | null>(null);
 
     const timetable = settings.timetable || {};
     const selectedTeachers = teachers.filter(t => selectedTeacherIds.includes(t.id));
@@ -70,43 +71,67 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
         const key = getKey(teacherId, day, period);
         if (!timetable[key]) { e.preventDefault(); return; }
         setDragSource({ teacherId, day, period });
-        e.dataTransfer.setData('sourceKey', key);
+        // Store in dataTransfer for reliable cross-event access
+        e.dataTransfer.setData('ctv_teacherId', teacherId);
+        e.dataTransfer.setData('ctv_day', day);
+        e.dataTransfer.setData('ctv_period', String(period));
         e.dataTransfer.effectAllowed = 'move';
     };
 
     const handleDragOver = (e: React.DragEvent, targetKey: string) => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
         setHoverTarget(targetKey);
+    };
+
+    const handleDragEnd = () => {
+        setDragSource(null);
+        setHoverTarget(null);
     };
 
     const handleDrop = (e: React.DragEvent, targetTeacherId: string, targetDay: string, targetPeriod: number) => {
         e.preventDefault();
         setHoverTarget(null);
-        if (!dragSource) return;
 
-        const result = tryMoveOrSwap(timetable, dragSource, { teacherId: targetTeacherId, day: targetDay, period: targetPeriod }, settings);
+        // Prefer dataTransfer over state for reliability
+        const srcTeacherId = e.dataTransfer.getData('ctv_teacherId') || dragSource?.teacherId;
+        const srcDay       = e.dataTransfer.getData('ctv_day')       || dragSource?.day;
+        const srcPeriodRaw = e.dataTransfer.getData('ctv_period');
+        const srcPeriod    = srcPeriodRaw ? parseInt(srcPeriodRaw) : dragSource?.period;
+
+        setDragSource(null);
+        if (!srcTeacherId || !srcDay || srcPeriod === undefined || isNaN(srcPeriod)) return;
+
+        const source = { teacherId: srcTeacherId, day: srcDay, period: srcPeriod };
+        const result = tryMoveOrSwap(timetable, source, { teacherId: targetTeacherId, day: targetDay, period: targetPeriod }, settings, teachers, classes);
         if (result.success) {
+            setSwapError(null);
             setPendingSwap(result);
         } else {
-            const chain = findChainSwap(timetable, dragSource, { teacherId: targetTeacherId, day: targetDay, period: targetPeriod }, teachers, settings);
+            const chain = findChainSwap(timetable, source, { teacherId: targetTeacherId, day: targetDay, period: targetPeriod }, teachers, settings, classes);
             if (chain?.success) {
+                setSwapError(null);
                 setPendingSwap(chain);
             } else {
-                alert(result.reason || 'لا يمكن النقل (تعارض في الجدول)');
+                setSwapError(result.reason || 'لا يمكن تنفيذ هذا التعديل. جرّب خلية أخرى.');
+                setTimeout(() => setSwapError(null), 4000);
             }
         }
-        setDragSource(null);
     };
 
     const confirmSwap = () => {
         if (pendingSwap?.newTimetable) {
+            const relatedIds = pendingSwap.relatedTeacherIds || [];
+            const primaryTeacher = teachers.find(t => t.id === relatedIds[0]);
             const logEntry: AuditLogEntry = {
                 id: Math.random().toString(36).substr(2, 9),
                 timestamp: new Date().toISOString(),
                 user: 'المستخدم الحالي',
                 actionType: pendingSwap.isChain ? 'chain_swap' : 'swap',
                 description: pendingSwap.chainSteps?.join(' | ') || 'تبديل حصص من العرض المخصص',
-                relatedTeacherIds: pendingSwap.relatedTeacherIds || [],
+                relatedTeacherIds: relatedIds,
+                viewType: 'individual',
+                teacherName: primaryTeacher?.name || '',
             };
             const newIds = (pendingSwap.relatedTeacherIds || []).filter(id => !selectedTeacherIds.includes(id));
             if (newIds.length > 0) setSelectedTeacherIds(prev => [...prev, ...newIds]);
@@ -169,10 +194,11 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
 
         return (
             <td key={`${day}-${period}`}
-                draggable={!!slot && !isForeign}
-                onDragStart={e => { if (!isForeign) handleDragStart(e, teacher.id, day, period); }}
+                draggable={!!slot && !isForeign && slot.type !== 'waiting'}
+                onDragStart={e => { if (!isForeign && slot?.type !== 'waiting') handleDragStart(e, teacher.id, day, period); }}
                 onDragOver={e  => { if (!isForeign) handleDragOver(e, key); }}
                 onDragLeave={() => { if (hoverTarget === key) setHoverTarget(null); }}
+                onDragEnd={handleDragEnd}
                 onDrop={e      => { if (!isForeign) handleDrop(e, teacher.id, day, period); }}
                 style={{
                     height: '72px',
@@ -258,7 +284,21 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
 
     /* ══════════════════════════════════════════════════════ */
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 relative">
+            {/* ── Error Toast ── */}
+            {swapError && (
+                <div
+                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl w-auto max-w-md animate-in slide-in-from-top-4"
+                    style={{ background: '#fff1f2', border: '1.5px solid #fecdd3', fontFamily: '"Tajawal", sans-serif' }}
+                >
+                    <span className="text-rose-500 mt-0.5 shrink-0 text-lg font-black">✕</span>
+                    <div>
+                        <p className="font-black text-rose-700 text-sm mb-0.5">تعذّر تنفيذ التعديل</p>
+                        <p className="text-rose-600 text-xs font-semibold leading-relaxed">{swapError}</p>
+                    </div>
+                    <button onClick={() => setSwapError(null)} className="mr-auto text-rose-400 hover:text-rose-600 font-black text-lg leading-none shrink-0">✕</button>
+                </div>
+            )}
             {/* Selector header */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                 <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
