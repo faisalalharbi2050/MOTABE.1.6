@@ -9,6 +9,8 @@ export type TeacherSortMode = 'alpha' | 'specialization' | 'custom';
 const ENGLISH_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
 const ARABIC_DAYS  = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
 const MAX_PERIODS  = 7;
+const GENERAL_PERIOD_BOX = 50;
+const GENERAL_PERIOD_CARD = 44;
 
 // Design tokens
 const C_BG          = '#a59bf0'; // purple – day header bg & content text
@@ -76,6 +78,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
     const [draggingWaiting, setDraggingWaiting] = useState<'card'|'slot'|null>(null);
     const [draggingSlotKey, setDraggingSlotKey] = useState<string|null>(null);
+    const [draggingTeacherRowId, setDraggingTeacherRowId] = useState<string | null>(null);
     const [hoverTarget, setHoverTarget] = useState<string|null>(null);
     const [dragSource, setDragSource] = useState<{teacherId: string; day: string; period: number} | null>(null);
     const [swapError, setSwapError] = useState<string | null>(null);
@@ -88,6 +91,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const specializationNames = _specNames;
     const timetable = settings.timetable || {};
     const isManualMode = settings.substitution?.method === 'manual';
+    const [selectedGeneralDays, setSelectedGeneralDays] = useState<string[]>([]);
 
     /* ── look-up helpers ─────────────────────────────── */
     const subjName    = (id: string) => subjects.find(s => s.id === id)?.name || '';
@@ -96,6 +100,323 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const cName       = (id: string) => { const c = classes.find(c => c.id === id); return c ? (c.name || `${c.grade}/${c.section}`) : ''; };
     const tLQ  = (t: Teacher) => t.quotaLimit   || 0;
     const tWQ  = (t: Teacher) => t.waitingQuota || 0;
+    const getSlotHoverDetails = (slot: typeof timetable[string] | undefined, mode: 'teacher' | 'class' | 'waiting') => {
+        if (!slot) return '';
+        if (mode === 'waiting') return 'م انتظار';
+
+        const subject = subjDisplay(slot.subjectId || '');
+        const className = cName(slot.classId || '');
+        const teacherName = tName(slot.teacherId || '');
+
+        if (mode === 'teacher') {
+            return `الفصل: ${className}\nالمادة: ${subject}`;
+        }
+
+        return `المادة: ${subject}\nالمعلم: ${teacherName}`;
+    };
+    const renderHoverTooltip = (details: string) => {
+        if (!details) return null;
+
+        return (
+            <div
+                className="pointer-events-none absolute bottom-full left-1/2 z-[90] mb-1 hidden w-max max-w-[180px] -translate-x-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center shadow-lg group-hover/cell:block"
+                style={{ whiteSpace: 'pre-line' }}
+            >
+                <div className="text-[9px] font-bold leading-4 text-slate-700">{details}</div>
+                <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-slate-200 bg-white" />
+            </div>
+        );
+    };
+
+    const renderWaitingCard = ({
+        compact = false,
+        stacked = false,
+        highlighted = false,
+        onDelete,
+    }: {
+        compact?: boolean;
+        stacked?: boolean;
+        highlighted?: boolean;
+        onDelete?: () => void;
+    }) => {
+        const small = compact;
+        return (
+            <div className="relative flex items-center justify-center" style={{ width:'100%', height:'100%' }}>
+                {stacked && (
+                    <div
+                        aria-hidden="true"
+                        style={{
+                            position:'absolute',
+                            inset: small ? '5px 6px 0 6px' : '5px 6px 0 6px',
+                            borderRadius:'8px',
+                            background:'#f8fafc',
+                            border:'1px solid #d1d5db',
+                            boxShadow:'0 1px 2px rgba(15,23,42,0.05)',
+                        }}
+                    />
+                )}
+                <div
+                    className="relative flex flex-col items-center justify-center select-none"
+                    style={{
+                        width:'100%',
+                        height:'100%',
+                        borderRadius:'8px',
+                        background: highlighted ? '#f5f3ff' : '#ffffff',
+                        border:`1px solid ${highlighted ? '#a78bfa' : '#d1d5db'}`,
+                        boxShadow:'0 1px 2px rgba(15,23,42,0.06)',
+                        padding: small ? '4px 3px' : '5px 4px',
+                        transition:'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+                    }}
+                >
+                    {onDelete && (
+                        <button
+                            onMouseDown={e => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onDelete();
+                            }}
+                            className="absolute -top-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white text-[8px] font-black leading-none z-10"
+                        >
+                            ✕
+                        </button>
+                    )}
+                    <span style={{ fontSize: small ? '16px' : '17px', fontWeight:900, lineHeight:1, color:'#655ac1', marginBottom: small ? '2px' : '3px' }}>م</span>
+                    <span style={{ fontSize: small ? '8px' : '9px', fontWeight:900, lineHeight:1, color:'#655ac1' }}>انتظار</span>
+                </div>
+            </div>
+        );
+    };
+
+    const renderWaitingDeck = ({
+        count,
+        compact = false,
+        draggable = false,
+        onDragStart,
+        onDragEnd,
+    }: {
+        count: number;
+        compact?: boolean;
+        draggable?: boolean;
+        onDragStart?: (e: React.DragEvent) => void;
+        onDragEnd?: () => void;
+    }) => {
+        const visibleCount = Math.max(1, Math.min(count, 4));
+        const width = compact ? 32 : 42;
+        const height = compact ? 36 : 36;
+        const collapsedOffsets = visibleCount === 1
+            ? [{ x: 0, y: 0, r: 0 }]
+            : visibleCount === 2
+                ? [{ x: -1, y: 1, r: -2 }, { x: 1, y: 0, r: 2 }]
+                : visibleCount === 3
+                    ? [{ x: -2, y: 2, r: -3 }, { x: 0, y: 1, r: 0 }, { x: 2, y: 2, r: 3 }]
+                    : [{ x: -3, y: 3, r: -4 }, { x: -1, y: 1, r: -1 }, { x: 1, y: 1, r: 1 }, { x: 3, y: 3, r: 4 }];
+        const fanOffsets = visibleCount === 1
+            ? [{ x: 0, y: 0, r: 0 }]
+            : visibleCount === 2
+                ? [{ x: -4, y: 3, r: -10 }, { x: 4, y: 0, r: 10 }]
+                : visibleCount === 3
+                    ? [{ x: -7, y: 5, r: -14 }, { x: 0, y: 1, r: 0 }, { x: 7, y: 5, r: 14 }]
+                    : [{ x: -9, y: 7, r: -18 }, { x: -3, y: 2, r: -6 }, { x: 3, y: 2, r: 6 }, { x: 9, y: 7, r: 18 }];
+        const activeOffsets = draggingWaiting === 'card'
+            ? Array.from({ length: visibleCount }).map(() => ({ x: 0, y: 0, r: 0 }))
+            : fanOffsets;
+        return (
+            <div
+                className="relative select-none group/waiting-deck"
+                draggable={draggable}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                title={draggable ? 'اسحب م انتظار' : undefined}
+                style={{
+                    width:`${width}px`,
+                    height:`${height + 8}px`,
+                    cursor: draggable ? 'grab' : 'default',
+                    filter: draggable ? 'drop-shadow(0 10px 18px rgba(101,90,193,0.16))' : undefined,
+                    transition:'transform 0.18s ease, filter 0.18s ease',
+                }}
+            >
+                {Array.from({ length: visibleCount }).map((_, index) => {
+                    const fan = activeOffsets[index];
+                    return (
+                        <div
+                            key={index}
+                            className="group-hover/waiting-deck:z-10"
+                            style={{
+                                position:'absolute',
+                                top:'4px',
+                                left:'0',
+                                right:0,
+                                bottom:0,
+                                transform:`translate(${collapsedOffsets[index].x}px, ${collapsedOffsets[index].y}px) rotate(${collapsedOffsets[index].r}deg)`,
+                                transformOrigin:'bottom center',
+                                transition:'transform 0.22s ease',
+                                zIndex: index + 1,
+                            }}
+                        >
+                            <div
+                                className="transition-transform duration-200 group-hover/waiting-deck:[transform:translate(var(--tx),var(--ty))_rotate(var(--tr))]"
+                                style={{
+                                    ['--tx' as any]: `${fan.x}px`,
+                                    ['--ty' as any]: `${fan.y}px`,
+                                    ['--tr' as any]: `${fan.r}deg`,
+                                }}
+                            >
+                                {renderWaitingCard({ compact, stacked: false })}
+                            </div>
+                        </div>
+                    );
+                })}
+                {draggable && draggingWaiting !== 'card' && (
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1/2 hidden translate-y-[-50%] rounded-xl border border-[#c4b5fd] bg-white px-2.5 py-1.5 text-[10px] font-black text-[#5b50b8] shadow-lg group-hover/waiting-deck:block"
+                        style={{ right:'calc(100% + 8px)', whiteSpace:'nowrap', zIndex: 30 }}
+                    >
+                        اسحب حصة الانتظار
+                        <span
+                            aria-hidden="true"
+                            style={{
+                                position:'absolute',
+                                right:'-5px',
+                                top:'50%',
+                                width:'10px',
+                                height:'10px',
+                                background:'#ffffff',
+                                borderTop:'1px solid #c4b5fd',
+                                borderRight:'1px solid #c4b5fd',
+                                transform:'translateY(-50%) rotate(45deg)',
+                            }}
+                        />
+                    </div>
+                )}
+                {draggable && (
+                    <div
+                        aria-hidden="true"
+                        className="transition-all duration-200 group-hover/waiting-deck:shadow-[0_0_0_3px_rgba(124,58,237,0.16),0_14px_28px_rgba(101,90,193,0.20)]"
+                        style={{
+                            position:'absolute',
+                            inset:'0',
+                            borderRadius:'8px',
+                            boxShadow:'inset 0 0 0 1px rgba(124,58,237,0.16)',
+                            pointerEvents:'none',
+                        }}
+                    />
+                )}
+            </div>
+        );
+    };
+
+    const renderPlacedWaitingCard = ({
+        compact = false,
+        highlighted = false,
+        onDelete,
+    }: {
+        compact?: boolean;
+        highlighted?: boolean;
+        onDelete?: () => void;
+    }) => {
+        return (
+            <div className="relative flex items-center justify-center" style={{ width:'100%', height:'100%' }}>
+                <div
+                    className="relative flex flex-col items-center justify-center select-none"
+                    style={{
+                        width:'100%',
+                        height:'100%',
+                        borderRadius: compact ? '8px' : '10px',
+                        background: highlighted ? '#ede9fe' : '#f4f2ff',
+                        border:`1px solid ${highlighted ? '#a78bfa' : '#d8d0ff'}`,
+                        boxShadow:'0 1px 2px rgba(15,23,42,0.05)',
+                        padding: compact ? '4px 3px' : '6px 5px',
+                    }}
+                >
+                    {onDelete && (
+                        <button
+                            onMouseDown={e => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onDelete();
+                            }}
+                            className="absolute -top-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-white text-[8px] font-black leading-none z-10"
+                        >
+                            ✕
+                        </button>
+                    )}
+                    <div
+                        style={{
+                            width:'100%',
+                            height:'100%',
+                            borderRadius: compact ? '8px' : '10px',
+                            background:'linear-gradient(180deg, #f4f2ff 0%, #e9e5ff 100%)',
+                            border:'1px solid #b9b0f3',
+                            display:'flex',
+                            flexDirection:'column',
+                            alignItems:'center',
+                            justifyContent:'center',
+                            gap: compact ? '2px' : '4px',
+                            color:'#5b50b8',
+                        }}
+                    >
+                        <span style={{ fontSize: compact ? '16px' : '19px', fontWeight:900, lineHeight:1, marginBottom: compact ? '2px' : '3px' }}>م</span>
+                        <span style={{ fontSize: compact ? '8px' : '10px', fontWeight:900, lineHeight:1 }}>انتظار</span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const setWaitingDragImage = (e: React.DragEvent) => {
+        if (typeof document === 'undefined') return;
+        const dragEl = document.createElement('div');
+        dragEl.style.width = '46px';
+        dragEl.style.height = '52px';
+        dragEl.style.position = 'fixed';
+        dragEl.style.top = '-1000px';
+        dragEl.style.left = '-1000px';
+        dragEl.style.pointerEvents = 'none';
+        dragEl.style.zIndex = '9999';
+        dragEl.style.display = 'flex';
+        dragEl.style.alignItems = 'center';
+        dragEl.style.justifyContent = 'center';
+        dragEl.style.borderRadius = '8px';
+        dragEl.style.background = '#ffffff';
+        dragEl.style.border = '1px solid #d1d5db';
+        dragEl.style.boxShadow = '0 8px 18px rgba(101,90,193,0.14)';
+        dragEl.style.padding = '5px 4px';
+        dragEl.style.fontFamily = 'inherit';
+        dragEl.style.userSelect = 'none';
+
+        const inner = document.createElement('div');
+        inner.style.width = '100%';
+        inner.style.height = '100%';
+        inner.style.display = 'flex';
+        inner.style.flexDirection = 'column';
+        inner.style.alignItems = 'center';
+        inner.style.justifyContent = 'center';
+        inner.style.gap = '3px';
+
+        const top = document.createElement('div');
+        top.textContent = 'م';
+        top.style.color = '#655ac1';
+        top.style.fontWeight = '900';
+        top.style.fontSize = '17px';
+        top.style.lineHeight = '1';
+
+        const bottom = document.createElement('div');
+        bottom.textContent = 'انتظار';
+        bottom.style.color = '#655ac1';
+        bottom.style.fontWeight = '900';
+        bottom.style.fontSize = '9px';
+        bottom.style.lineHeight = '1';
+
+        inner.appendChild(top);
+        inner.appendChild(bottom);
+        dragEl.appendChild(inner);
+        document.body.appendChild(dragEl);
+        e.dataTransfer.setDragImage(dragEl, 23, 26);
+        window.setTimeout(() => {
+            dragEl.remove();
+        }, 0);
+    };
 
     /* ── abbreviation helper ────────────────────────── */
     const getAbbrSpec = (specId: string) => {
@@ -124,7 +445,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const m = new Map<string, number>();
         Object.entries(timetable).forEach(([key, slot]) => {
             if (slot.type === 'waiting') {
-                const tid = key.split('-')[0];
+                const parts = key.split('-');
+                const tid = parts.slice(0, -2).join('-');
                 m.set(tid, (m.get(tid) || 0) + 1);
             }
         });
@@ -195,6 +517,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const getSortedClasses = () => [...classes].sort((a,b)=> a.grade!==b.grade?a.grade-b.grade:(a.section||0)-(b.section||0));
 
     const isInteractiveGeneralTeachers = type === 'general_teachers' && interactive && !!onUpdateSettings;
+    const isManualWaitingInteractive = type === 'general_teachers' && isManualMode && !!onUpdateSettings;
 
     const showSwapNotice = (type: 'simple' | 'chain', text: string) => {
         setSwapNotice({ type, text });
@@ -250,7 +573,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     </span>
                     <div className="text-right">
                         <div className="text-xs font-extrabold">
-                            {isChain ? 'تعديل مركب' : 'تعديل بسيط'}
+                            {isChain ? 'تبديل متعدد' : 'تبديل بسيط'}
                         </div>
                         <div className="text-sm font-bold">
                             {swapNotice.text}
@@ -277,6 +600,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const slot = timetable[key];
         if (!slot || slot.type === 'waiting') { e.preventDefault(); return; }
         setDragSource({ teacherId, day, period });
+        setDraggingTeacherRowId(teacherId);
         e.dataTransfer.setData('text/plain', key);
         e.dataTransfer.setData('dragType', 'slot');
         e.dataTransfer.setData('sourceKey', key);
@@ -285,8 +609,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     };
 
     const handleGeneralDragOver = (e: React.DragEvent, targetTeacherId: string, targetKey: string, hasSlot: boolean) => {
-        const dragType = e.dataTransfer.getData('dragType');
-        const waitingTeacherId = e.dataTransfer.getData('teacherId') || (draggingWaiting ? draggingSlotKey?.split('-')[0] : '');
+        const dragType = e.dataTransfer.getData('dragType') || (draggingWaiting === 'card' ? 'waitingCard' : draggingWaiting === 'slot' ? 'waitingSlot' : '');
+        const waitingTeacherId =
+            e.dataTransfer.getData('teacherId') ||
+            (draggingWaiting === 'card' ? (draggingTeacherRowId || '') : '') ||
+            (draggingWaiting === 'slot' ? (draggingSlotKey?.split('-')[0] || '') : '');
         if (dragType === 'waitingCard' || dragType === 'waitingSlot') {
             if (!isManualMode) return;
             if (waitingTeacherId && waitingTeacherId !== targetTeacherId) return;
@@ -309,11 +636,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         setHoverTarget(null);
         if (!onUpdateSettings) return;
         const targetKey = getKey(targetTeacherId, targetDay, targetPeriod);
-        const dragType = e.dataTransfer.getData('dragType');
+        const dragType = e.dataTransfer.getData('dragType') || (draggingWaiting === 'card' ? 'waitingCard' : draggingWaiting === 'slot' ? 'waitingSlot' : '');
 
         if (dragType === 'waitingCard') {
-            const teacherId = e.dataTransfer.getData('teacherId');
+            const teacherId = e.dataTransfer.getData('teacherId') || draggingTeacherRowId || '';
             setDraggingWaiting(null);
+            setDraggingTeacherRowId(null);
             if (!isManualMode || teacherId !== targetTeacherId || hasSlot) return;
             onUpdateSettings({ ...settings, timetable: { ...timetable, [targetKey]: { teacherId: targetTeacherId, type: 'waiting' as const } } });
             return;
@@ -321,9 +649,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         if (dragType === 'waitingSlot') {
             const fromKey = e.dataTransfer.getData('slotKey');
-            const teacherId = e.dataTransfer.getData('teacherId');
+            const teacherId = e.dataTransfer.getData('teacherId') || draggingSlotKey?.split('-')[0] || '';
             setDraggingWaiting(null);
             setDraggingSlotKey(null);
+            setDraggingTeacherRowId(null);
             if (!isManualMode || teacherId !== targetTeacherId || !fromKey || (hasSlot && fromKey !== targetKey)) return;
             if (fromKey === targetKey) return;
             const newTimetable = { ...timetable };
@@ -363,6 +692,21 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             }
         }
         setDragSource(null);
+        setDraggingTeacherRowId(null);
+    };
+
+    const resetGeneralDragState = () => {
+        setDragSource(null);
+        setDraggingWaiting(null);
+        setDraggingSlotKey(null);
+        setDraggingTeacherRowId(null);
+        setHoverTarget(null);
+    };
+
+    const toggleGeneralDay = (day: string) => {
+        setSelectedGeneralDays(prev => (
+            prev.includes(day) ? prev.filter(item => item !== day) : [...prev, day]
+        ));
     };
 
     const teachersWithWaiting = useMemo(()=>{
@@ -385,8 +729,16 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     /* ════════════════════════════════════════════════════
        CELL renderers  (individual table – unchanged)
     ════════════════════════════════════════════════════ */
-    const renderTeacherCell = (teacherId: string, di: number, pi: number) => {
-        const slot = timetable[teacherId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1)];
+    const renderTeacherCell = (
+        teacherId: string,
+        dayKey: string,
+        pi: number,
+        periodBox: number,
+        periodCard: number,
+        primaryTextSize: string,
+        secondaryTextSize: string
+    ) => {
+        const slot = timetable[teacherId+'-'+dayKey+'-'+(pi+1)];
         if(type==='general_waiting'){
             if(!slot || (slot.type!=='waiting' && !slot.isSubstitution))
                 return null; // rendered by general table directly
@@ -395,34 +747,44 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         if(!slot) return null;
         const subj = subjDisplay(slot.subjectId||'');
         const cls  = cName(slot.classId||'');
-        const color = getPastelColor(subj);
+        const hoverDetails = getSlotHoverDetails(slot, 'teacher');
         return (
-            <div className="flex items-center justify-center w-[84px] h-[84px] mx-auto">
-                <div className="group/cell relative z-10 hover:z-[80] flex flex-col items-center justify-center px-1 gap-0.5 transition-all duration-200 rounded-[10px]"
-                 style={{background: color.bg, border: `1px solid ${color.text}30`, width:'74px', height:'74px', boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
-                <span className="text-[11px] font-bold leading-[1.15] text-center w-full px-1"
-                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{cls}</span>
-                <span className="text-[10px] font-medium leading-[1.1] text-center w-full px-1 opacity-80"
-                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
+            <div className="group/cell relative flex items-center justify-center mx-auto overflow-visible" style={{ width:`${periodBox}px`, height:`${periodBox}px`, maxWidth:'100%', maxHeight:'100%' }}>
+                {renderHoverTooltip(hoverDetails)}
+                <div className="relative z-10 hover:z-[80] flex flex-col items-center justify-center px-0.5 gap-0 transition-all duration-200 rounded-[8px] overflow-hidden"
+                 style={{background: '#ffffff', border: '1px solid #d1d5db', width:`${periodCard}px`, height:`${periodCard}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
+                <span className={`font-bold leading-[1.05] text-center w-full px-0.5 ${primaryTextSize}`}
+                      style={{...TWO_LINE_CLAMP, color: '#111827', wordBreak:'break-word', overflowWrap:'anywhere'}}>{cls}</span>
+                <span className={`font-semibold leading-[1.15] text-center w-full px-0.5 ${secondaryTextSize}`}
+                      style={{...TWO_LINE_CLAMP, color: '#334155', wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
                 </div>
             </div>
         );
     };
 
-    const renderClassCell = (classId: string, di: number, pi: number) => {
-        const slot = classSlotMap.get(classId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1));
+    const renderClassCell = (
+        classId: string,
+        dayKey: string,
+        pi: number,
+        periodBox: number,
+        periodCard: number,
+        primaryTextSize: string,
+        secondaryTextSize: string
+    ) => {
+        const slot = classSlotMap.get(classId+'-'+dayKey+'-'+(pi+1));
         if(!slot) return null;
         const subj    = subjDisplay(slot.subjectId||'');
         const teacher = tName(slot.teacherId);
-        const color   = getPastelColor(subj);
+        const hoverDetails = getSlotHoverDetails(slot, 'class');
         return (
-            <div className="flex items-center justify-center w-[84px] h-[84px] mx-auto">
-                <div className="group/cell relative z-10 hover:z-[80] flex flex-col items-center justify-center px-1 gap-0.5 transition-all duration-200 rounded-[10px]"
-                 style={{background: color.bg, border: `1px solid ${color.text}30`, width:'74px', height:'74px', boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
-                <span className="text-[11px] font-bold leading-[1.15] text-center w-full px-1"
-                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
-                <span className="text-[10px] font-medium leading-[1.1] text-center w-full px-1 opacity-80"
-                      style={{...TWO_LINE_CLAMP, color: color.text, wordBreak:'break-word', overflowWrap:'anywhere'}}>{teacher}</span>
+            <div className="group/cell relative flex items-center justify-center mx-auto overflow-visible" style={{ width:`${periodBox}px`, height:`${periodBox}px`, maxWidth:'100%', maxHeight:'100%' }}>
+                {renderHoverTooltip(hoverDetails)}
+                <div className="relative z-10 hover:z-[80] flex flex-col items-center justify-center px-0.5 gap-0 transition-all duration-200 rounded-[8px] overflow-hidden"
+                 style={{background: '#ffffff', border: '1px solid #d1d5db', width:`${periodCard}px`, height:`${periodCard}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
+                <span className={`font-bold leading-[1.05] text-center w-full px-0.5 ${primaryTextSize}`}
+                      style={{...TWO_LINE_CLAMP, color: '#111827', wordBreak:'break-word', overflowWrap:'anywhere'}}>{subj}</span>
+                <span className={`font-semibold leading-[1.15] text-center w-full px-0.5 ${secondaryTextSize}`}
+                      style={{...TWO_LINE_CLAMP, color: '#334155', wordBreak:'break-word', overflowWrap:'anywhere'}}>{teacher}</span>
                 </div>
             </div>
         );
@@ -444,12 +806,14 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             const list = isWaiting ? teachersWithWaiting : getSortedTeachers();
             list.forEach((t,i)=>rows.push({serial:i+1,id:t.id,name:t.name,spec:getAbbrSpec(t.specializationId),quota1:isWaiting?tWQ(t):tLQ(t),quota2:isTeachers?tWQ(t):undefined}));
         }
+        const displayedDays = ENGLISH_DAYS.map((key, index) => ({ key, label: ARABIC_DAYS[index] }))
+            .filter(day => selectedGeneralDays.length === 0 || selectedGeneralDays.includes(day.key));
 
         /* waiting badge counts per period */
-        const periodWaitingCounts: number[][] = Array.from({length:ENGLISH_DAYS.length}, ()=>Array(MAX_PERIODS).fill(0));
+        const periodWaitingCounts: number[][] = Array.from({length:displayedDays.length}, ()=>Array(MAX_PERIODS).fill(0));
         if((isTeachers || isWaiting) && showWaitingCounts){
             teachers.forEach(t=>{
-                ENGLISH_DAYS.forEach((d,di)=>{
+                displayedDays.forEach(({ key: d },di)=>{
                     for(let p=1;p<=MAX_PERIODS;p++){
                         const s=timetable[`${t.id}-${d}-${p}`];
                         if(s&&(s.type==='waiting'||(isWaiting&&s.isSubstitution))) periodWaitingCounts[di][p-1]++;
@@ -460,53 +824,86 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         /* gap background — shown as td background, inner div is the card */
         const GAP_BG   = '#eef0f6';
-        const ROW_H    = 74;
-        const CELL_PAD = '2px'; // td padding → creates the visual gap
-        const PERIOD_BOX = 84;
-        const PERIOD_CARD = 74;
-
+        const ROW_H    = 50;
+        const CELL_PAD = '1px'; // td padding → creates the visual gap
+        const serialColW = 36;
+        const nameColW = isClasses ? 122 : 132;
+        const specColW = isClasses ? 0 : 68;
+        const quota1ColW = 50;
+        const quota2ColW = isTeachers ? 60 : 0;
+        const dynamicPeriodColW = GENERAL_PERIOD_BOX;
+        const dynamicPeriodBox = GENERAL_PERIOD_BOX;
+        const dynamicPeriodCard = GENERAL_PERIOD_CARD;
+        const dynamicPrimaryTextSize = 'text-[9px]';
+        const dynamicSecondaryTextSize = 'text-[8px]';
+        const dynamicWaitingTextSize = '8px';
+        const stickyRightOffsets = {
+            serial: 0,
+            name: serialColW,
+            spec: serialColW + nameColW,
+            quota1: serialColW + nameColW + specColW,
+            quota2: serialColW + nameColW + specColW + quota1ColW,
+        };
+        const buildStickyColumnStyle = (right: number, zIndex: number, background: string): React.CSSProperties => ({
+            position: 'sticky',
+            right: `${right}px`,
+            zIndex,
+            background,
+            boxShadow: 'inset -1px 0 0 rgba(148,163,184,0.22)',
+        });
         /* ── period cell content ── */
-        const renderPeriodCell = (rowId: string, di: number, pi: number) => {
+        const renderPeriodCell = (rowId: string, dayKey: string, pi: number) => {
             if(isClasses) {
-                const slot = classSlotMap.get(rowId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1));
+                const slot = classSlotMap.get(rowId+'-'+dayKey+'-'+(pi+1));
                 if(!slot) return (
-                    <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                    <div className="flex items-center justify-center" style={{width:`${dynamicPeriodBox}px`, height:`${dynamicPeriodBox}px`, margin:'0 auto'}}>
                         <div className="rounded-md flex items-center justify-center"
-                         style={{border:'1px dashed #dde1ea', background:'#f8f9fc', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`}}>
+                         style={{border:'1px dashed #dde1ea', background:'#f8f9fc', width:`${dynamicPeriodCard}px`, height:`${dynamicPeriodCard}px`}}>
                             <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
                         </div>
                     </div>
                 );
-                return renderClassCell(rowId, di, pi);
+                return renderClassCell(rowId, dayKey, pi, dynamicPeriodBox, dynamicPeriodCard, dynamicPrimaryTextSize, dynamicSecondaryTextSize);
             } else {
-                const slot = timetable[rowId+'-'+ENGLISH_DAYS[di]+'-'+(pi+1)];
+                const slot = timetable[rowId+'-'+dayKey+'-'+(pi+1)];
                 if(!slot) return (
-                    <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                    <div className="flex items-center justify-center" style={{width:`${dynamicPeriodBox}px`, height:`${dynamicPeriodBox}px`, margin:'0 auto'}}>
                         <div className="rounded-md flex items-center justify-center"
-                         style={{border:'1px dashed #dde1ea', background: isWaiting ? '#f8fafc' : '#f8f9fc', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`}}>
+                         style={{border:'1px dashed #dde1ea', background: isWaiting ? '#f8fafc' : '#f8f9fc', width:`${dynamicPeriodCard}px`, height:`${dynamicPeriodCard}px`}}>
                             <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
                         </div>
                     </div>
                 );
                 if(isTeachers && (slot.type==='waiting'||slot.isSubstitution)) {
-                    const slotKey = `${rowId}-${ENGLISH_DAYS[di]}-${pi+1}`;
+                    const slotKey = `${rowId}-${dayKey}-${pi+1}`;
                     return (
-                        <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                        <div className="group/cell relative flex items-center justify-center overflow-visible" style={{width:`${dynamicPeriodBox}px`, height:`${dynamicPeriodBox}px`, margin:'0 auto'}}>
+                            {renderHoverTooltip(getSlotHoverDetails(slot, 'waiting'))}
                             <div
-                                draggable={isInteractiveGeneralTeachers && isManualMode}
+                                draggable={isManualWaitingInteractive}
                                 onDragStart={e => {
-                                    if (!isInteractiveGeneralTeachers || !isManualMode) return;
+                                    if (!isManualWaitingInteractive) return;
+                                    setWaitingDragImage(e);
+                                    e.dataTransfer.setData('text/plain', `waiting-slot-${slotKey}`);
                                     e.dataTransfer.setData('dragType', 'waitingSlot');
                                     e.dataTransfer.setData('slotKey', slotKey);
                                     e.dataTransfer.setData('teacherId', rowId);
+                                    e.dataTransfer.effectAllowed = 'move';
                                     setDraggingWaiting('slot');
                                     setDraggingSlotKey(slotKey);
                                 }}
                                 onDragEnd={() => { setDraggingWaiting(null); setDraggingSlotKey(null); }}
-                                className="rounded-[10px] flex flex-col items-center justify-center gap-0.5 transition-all duration-200"
-                                style={{background:'#f7f5ff', border:'1px solid #d6ccff', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.05)', cursor: isInteractiveGeneralTeachers && isManualMode ? 'grab' : undefined}}>
-                                <span className="rounded-full px-1.5 py-0.5 font-black"
-                                      style={{background:'#ede9fe', color:'#6d28d9', border:'1px solid #c4b5fd', fontSize:'8px'}}>م انتظار</span>
+                                style={{ width:`${dynamicPeriodCard}px`, height:`${dynamicPeriodCard}px`, cursor: isManualWaitingInteractive ? 'grab' : undefined }}
+                            >
+                                {renderPlacedWaitingCard({
+                                    compact: true,
+                                    highlighted: hoverTarget === slotKey,
+                                    onDelete: isManualWaitingInteractive ? () => {
+                                        const newTimetable = { ...timetable };
+                                        delete newTimetable[slotKey];
+                                        onUpdateSettings?.({ ...settings, timetable: newTimetable });
+                                    } : undefined,
+                                })}
                             </div>
                         </div>
                     );
@@ -514,30 +911,29 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 if(isWaiting) {
                     if(slot.type==='waiting'||slot.isSubstitution)
                         return (
-                            <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
-                                <div className="rounded-[10px] flex flex-col items-center justify-center gap-0.5 transition-all duration-200 hover:shadow-sm"
-                                 style={{background:'#fef3e8', border:'1px solid #fbd28a', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.05)'}}>
-                                    <span className="rounded-full px-1.5 py-0.5 font-black"
-                                      style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d', fontSize:'8px'}}>انتظار</span>
+                            <div className="group/cell relative flex items-center justify-center overflow-visible" style={{width:`${dynamicPeriodBox}px`, height:`${dynamicPeriodBox}px`, margin:'0 auto'}}>
+                                {renderHoverTooltip(getSlotHoverDetails(slot, 'waiting'))}
+                                <div style={{ width:`${dynamicPeriodCard}px`, height:`${dynamicPeriodCard}px` }}>
+                                    {renderWaitingCard({ compact: true })}
                                 </div>
                             </div>
                         );
                     return (
-                        <div className="flex items-center justify-center" style={{width:`${PERIOD_BOX}px`, height:`${PERIOD_BOX}px`, margin:'0 auto'}}>
+                        <div className="flex items-center justify-center" style={{width:`${dynamicPeriodBox}px`, height:`${dynamicPeriodBox}px`, margin:'0 auto'}}>
                             <div className="rounded-md flex items-center justify-center"
-                             style={{border:'1px dashed #dde1ea', background:'#f8fafc', width:`${PERIOD_CARD}px`, height:`${PERIOD_CARD}px`}}>
+                             style={{border:'1px dashed #dde1ea', background:'#f8fafc', width:`${dynamicPeriodCard}px`, height:`${dynamicPeriodCard}px`}}>
                                 <span style={{color:'#c8cdd8', fontSize:'9px', fontWeight:700}}>—</span>
                             </div>
                         </div>
                     );
                 }
-                const content = renderTeacherCell(rowId, di, pi);
+                const content = renderTeacherCell(rowId, dayKey, pi, dynamicPeriodBox, dynamicPeriodCard, dynamicPrimaryTextSize, dynamicSecondaryTextSize);
                 if (isInteractiveGeneralTeachers && slot.type === 'lesson') {
                     return (
                         <div
                             draggable
-                            onDragStart={e => handleGeneralSlotDragStart(e, rowId, ENGLISH_DAYS[di], pi + 1)}
-                            onDragEnd={() => { setDragSource(null); setHoverTarget(null); }}
+                            onDragStart={e => handleGeneralSlotDragStart(e, rowId, dayKey, pi + 1)}
+                            onDragEnd={resetGeneralDragState}
                             style={{cursor:'grab'}}
                         >
                             {content}
@@ -556,10 +952,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             background: C_BG,
             color: '#fff',
             fontWeight: 800,
-            fontSize: '13px',
+            fontSize: '12px',
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: '10px 6px',
+            padding: '6px 3px',
             position: 'sticky',
             top: 0,
             zIndex: 25,
@@ -570,10 +966,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             background: C_BG,
             color: '#fff',
             fontWeight: 900,
-            fontSize: '14px',
+            fontSize: '12px',
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: '10px 4px',
+            padding: '6px 2px',
             position: 'sticky',
             top: 0,
             zIndex: 20,
@@ -584,12 +980,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             background: C_BG_SOFT,
             color: '#64748b',
             fontWeight: 700,
-            fontSize: '12px',
+            fontSize: '10px',
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: '6px 2px',
+            padding: '4px 1px',
             position: 'sticky',
-            top: '41px',
+            top: '30px',
             zIndex: 20,
             borderBottom: `3px solid ${DAY_DIVIDER}`,
             borderLeft: `1px solid #dde1ea`,
@@ -597,19 +993,48 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         return (
             <div className="w-full relative">
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-white px-3 py-3 shadow-sm">
+                    <span className="text-xs font-black text-slate-500">عرض الأيام:</span>
+                    <span className="text-[11px] font-bold text-slate-400">اختر يومًا أو أكثر لعرض حصصه فقط.</span>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedGeneralDays([])}
+                        className={`rounded-xl border px-3 py-1.5 text-xs font-black transition active:scale-95 ${
+                            selectedGeneralDays.length === 0
+                                ? 'border-[#7c6cf4] bg-[#8779fb] text-white shadow-sm'
+                                : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
+                        }`}
+                    >
+                        الأسبوع كامل
+                    </button>
+                    {ENGLISH_DAYS.map((dayKey, index) => (
+                        <button
+                            key={dayKey}
+                            type="button"
+                            onClick={() => toggleGeneralDay(dayKey)}
+                            className={`rounded-xl border px-3 py-1.5 text-xs font-black transition active:scale-95 ${
+                                selectedGeneralDays.includes(dayKey)
+                                    ? 'border-[#7c6cf4] bg-[#8779fb] text-white shadow-sm'
+                                    : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
+                            }`}
+                        >
+                            {ARABIC_DAYS[index]}
+                        </button>
+                    ))}
+                </div>
                 {/* Table wrapper */}
                 <div style={{borderRadius:'16px', overflow:'visible', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
                 <div className="overflow-x-auto">
-                <table style={{borderCollapse:'collapse', borderSpacing:0, width:'calc(100% + 360px)', minWidth:'100%', tableLayout:'fixed'}}>
+                <table style={{borderCollapse:'collapse', borderSpacing:0, width:'max-content', minWidth:'100%', tableLayout:'fixed'}}>
                     <colgroup>
-                        <col style={{width:'60px'}}/>
-                        <col style={{width: isClasses ? '180px' : '190px'}}/>
-                        {!isClasses && <col style={{width:'110px'}}/>}
-                        <col style={{width:'78px'}}/>
-                        {isTeachers && <col style={{width:'96px'}}/>}
-                        {ENGLISH_DAYS.flatMap((_,di)=>
+                        <col style={{width:`${serialColW}px`}}/>
+                        <col style={{width: `${nameColW}px`}}/>
+                        {!isClasses && <col style={{width:`${specColW}px`}}/>}
+                        <col style={{width:`${quota1ColW}px`}}/>
+                        {isTeachers && <col style={{width:`${quota2ColW}px`}}/>}
+                        {displayedDays.flatMap((_,di)=>
                             Array.from({length:MAX_PERIODS}).map((_,pi)=>(
-                                <col key={`c-${di}-${pi}`} style={{width:'84px'}}/>
+                                <col key={`c-${di}-${pi}`} style={{width:`${dynamicPeriodColW}px`}}/>
                             ))
                         )}
                     </colgroup>
@@ -618,28 +1043,32 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     <thead>
                         {/* Row 1: info labels + day names */}
                         <tr>
-                            <th rowSpan={2} style={thInfo}>م</th>
-                            <th rowSpan={2} style={{...thInfo, textAlign:'right', paddingRight:'10px'}}>
+                            <th rowSpan={2} style={{...thInfo, ...buildStickyColumnStyle(stickyRightOffsets.serial, 45, C_BG)}}>م</th>
+                            <th rowSpan={2} style={{...thInfo, ...buildStickyColumnStyle(stickyRightOffsets.name, 44, C_BG), textAlign:'right', paddingRight:'10px'}}>
                                 {isClasses ? 'اسم الفصل' : 'اسم المعلم'}
                             </th>
-                            {!isClasses && <th rowSpan={2} style={thInfo}>التخصص</th>}
-                            <th rowSpan={2} style={{...thInfo, lineHeight:'1.4'}}>
+                            {!isClasses && <th rowSpan={2} style={{...thInfo, ...buildStickyColumnStyle(stickyRightOffsets.spec, 43, C_BG)}}>التخصص</th>}
+                            <th rowSpan={2} style={{...thInfo, ...buildStickyColumnStyle(stickyRightOffsets.quota1, 42, C_BG), lineHeight:'1.4'}}>
                                 <div>نصاب</div>
                                 <div style={{fontSize:'11px', opacity:0.85}}>{isClasses ? 'الحصص' : isWaiting ? 'الانتظار' : 'الحصص'}</div>
                             </th>
-                            {isTeachers && <th rowSpan={2} style={{...thInfo, borderLeft:`3px solid ${DAY_DIVIDER}`, lineHeight:'1.4'}}>
+                            {isTeachers && <th rowSpan={2} style={{...thInfo, ...buildStickyColumnStyle(stickyRightOffsets.quota2, 41, C_BG), borderLeft:`3px solid ${DAY_DIVIDER}`, lineHeight:'1.4'}}>
                                 <div>نصاب</div>
                                 <div style={{fontSize:'11px', opacity:0.85}}>الانتظار</div>
                             </th>}
-                            {ARABIC_DAYS.map((day,di)=>(
-                                <th key={day} colSpan={MAX_PERIODS} style={{...thDay, borderLeft: di===0 ? `1px solid rgba(0,0,0,0.12)` : `3px solid ${DAY_DIVIDER}`}}>
+                            {displayedDays.map(({ label: day },di)=>(
+                                <th
+                                    key={day}
+                                    colSpan={MAX_PERIODS}
+                                    style={{...thDay, borderLeft: di===0 ? `1px solid rgba(0,0,0,0.12)` : `3px solid ${DAY_DIVIDER}`}}
+                                >
                                     {day}
                                 </th>
                             ))}
                         </tr>
                         {/* Row 2: period numbers */}
                         <tr>
-                            {ENGLISH_DAYS.flatMap((_,di)=>
+                            {displayedDays.flatMap((_,di)=>
                                 Array.from({length:MAX_PERIODS}).map((_,pi)=>(
                                     <th key={`h-${di}-${pi}`} style={{
                                         ...thPeriod,
@@ -672,10 +1101,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         ) : rows.map((row)=>{
                             /* info card shared style */
                             const infoCardBase: React.CSSProperties = {
-                                borderRadius:'8px',
+                                borderRadius:'7px',
                                 background:'#fff',
                                 border:'1px solid #e8eaf2',
-                                padding:'4px 6px',
+                                padding:'3px 5px',
                                 height: `${ROW_H - 6}px`,
                                 display:'flex',
                                 alignItems:'center',
@@ -686,95 +1115,153 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             return (
                                 <tr key={row.id} className="group/row">
                                     {/* serial */}
-                                    <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle'}}>
+                                    <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.serial, 18, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
                                         <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                             style={{...infoCardBase, justifyContent:'center'}}>
-                                            <span style={{color:'#94a3b8', fontSize:'11px', fontWeight:700}}>{row.serial}</span>
+                                             style={{...infoCardBase, justifyContent:'center', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                             <span style={{color:'#94a3b8', fontSize:'9px', fontWeight:700}}>{row.serial}</span>
                                         </div>
                                     </td>
                                     {/* name */}
-                                    <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle'}}>
+                                    <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.name, 17, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
                                         <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                             style={{...infoCardBase, justifyContent:'flex-start', paddingRight:'8px', paddingLeft:'4px'}} title={row.name}>
-                                            <span style={{color:'#1e293b', fontSize:'12px', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', direction:'rtl', textAlign:'right', width:'100%'}}>{row.name}</span>
+                                             style={{...infoCardBase, justifyContent:'flex-start', paddingRight:'6px', paddingLeft:'3px', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                             <div className="flex items-center justify-between gap-2 w-full">
+                                                <span style={{color:'#1e293b', fontSize:'11px', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', direction:'rtl', textAlign:'right', flex:1}}>{row.name}</span>
+                                                {isTeachers && isManualMode && (row.quota2 || 0) > 0 && Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0) > 0 && (
+                                                    <div className="group/waiting-trigger relative flex items-center gap-2 shrink-0 rounded-xl px-1.5 py-1 transition-all duration-200">
+                                                        <div
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            draggable={isManualWaitingInteractive}
+                                                            onDragStart={e => {
+                                                                if (!isManualWaitingInteractive) return;
+                                                                setWaitingDragImage(e);
+                                                                e.dataTransfer.setData('text/plain', `waiting-${row.id}`);
+                                                                e.dataTransfer.setData('dragType', 'waitingCard');
+                                                                e.dataTransfer.setData('teacherId', row.id);
+                                                                e.dataTransfer.setData('sourceKey', `waiting-${row.id}`);
+                                                                e.dataTransfer.effectAllowed = 'move';
+                                                                setDraggingWaiting('card');
+                                                                setDraggingTeacherRowId(row.id);
+                                                            }}
+                                                            onDragEnd={resetGeneralDragState}
+                                                            aria-label={`سحب م انتظار للمعلم ${row.name}`}
+                                                            style={{
+                                                                width:'46px',
+                                                                height:'47px',
+                                                                flexShrink:0,
+                                                                cursor: isManualWaitingInteractive ? 'grab' : 'default',
+                                                                filter: draggingTeacherRowId === row.id
+                                                                    ? 'drop-shadow(0 10px 18px rgba(101,90,193,0.18))'
+                                                                    : 'drop-shadow(0 4px 10px rgba(101,90,193,0.10))',
+                                                                transform: draggingTeacherRowId === row.id ? 'translateY(-1px)' : undefined,
+                                                                transition:'transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease',
+                                                            }}
+                                                        >
+                                                            <div className="transition-transform duration-200">
+                                                                {renderWaitingDeck({
+                                                                    count: Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0),
+                                                                    compact: false,
+                                                                    draggable: false,
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                        <span
+                                                            className="pointer-events-none absolute right-full top-1/2 inline-flex -translate-y-1/2 whitespace-nowrap rounded-full border border-[#d8d0ff] bg-white px-2.5 py-1 text-[10px] font-black text-[#5b50b8] shadow-sm opacity-0 transition-all duration-200 group-hover/waiting-trigger:mr-2 group-hover/waiting-trigger:opacity-100"
+                                                            style={{ marginRight:'0px' }}
+                                                        >
+                                                            اسحب حصة الانتظار
+                                                        </span>
+                                                    </div>
+                                                )}
+                                             </div>
                                         </div>
                                     </td>
                                     {/* spec */}
                                     {!isClasses && (
-                                        <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle'}}>
+                                        <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.spec, 16, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
                                             <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                                 style={{...infoCardBase}} title={row.spec}>
-                                                <span style={{color:'#64748b', fontSize:'10px', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{row.spec}</span>
+                                                 style={{...infoCardBase, background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}} title={row.spec}>
+                                                <span style={{color:'#64748b', fontSize:'8px', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{row.spec}</span>
                                             </div>
                                         </td>
                                     )}
                                     {/* quota1 */}
-                                    <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle'}}>
+                                    <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.quota1, 15, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
                                         <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                             style={{...infoCardBase}}>
-                                            <span style={{color: C_BG, fontSize:'14px', fontWeight:900}}>{row.quota1}</span>
+                                             style={{...infoCardBase, background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                            <span style={{color: C_BG, fontSize:'11px', fontWeight:900}}>{row.quota1}</span>
                                         </div>
                                     </td>
                                     {/* quota2 teachers only */}
                                     {isTeachers && (
-                                        <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle'}}>
+                                        <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.quota2, 14, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
                                             <div
                                                  className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200 relative"
-                                                 style={{...infoCardBase, overflow:'visible'}}>
-                                                <span style={{color: C_BG, fontSize:'14px', fontWeight:900}}>
+                                                 style={{...infoCardBase, overflow:'visible', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                                <span style={{color: C_BG, fontSize:'11px', fontWeight:900}}>
                                                     {row.quota2}
                                                 </span>
-                                                {isManualMode && (row.quota2 || 0) > 0 && Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0) > 0 && (
-                                                    <div
-                                                        role="button"
-                                                        tabIndex={0}
-                                                        draggable={isInteractiveGeneralTeachers}
-                                                        onDragStart={e => {
-                                                            if (!isInteractiveGeneralTeachers) return;
-                                                            e.dataTransfer.setData('text/plain', `waiting-${row.id}`);
-                                                            e.dataTransfer.setData('dragType', 'waitingCard');
-                                                            e.dataTransfer.setData('teacherId', row.id);
-                                                            e.dataTransfer.setData('sourceKey', `waiting-${row.id}`);
-                                                            e.dataTransfer.effectAllowed = 'move';
-                                                            setDraggingWaiting('card');
-                                                        }}
-                                                        onDragEnd={() => setDraggingWaiting(null)}
-                                                        className="absolute left-1.5 top-1.5 flex items-center justify-center cursor-grab active:cursor-grabbing bg-transparent p-0"
-                                                        aria-label={`سحب بطاقة انتظار للمعلم ${row.name}`}>
-                                                        <span className="relative block w-7 h-9">
-                                                            <span className="absolute inset-x-0 top-1.5 h-8 rounded-[8px]" style={{background:'#f4f0ff', border:'1px solid #ddd6fe'}} />
-                                                            <span className="absolute inset-x-0.5 top-0 h-8 rounded-[8px] shadow-sm" style={{background:'#ffffff', border:'1px solid #c4b5fd'}}>
-                                                                <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{background:'#ede9fe', color:'#6d28d9', border:'1px solid #c4b5fd', fontSize:'8px', fontWeight:800}}>م</span>
-                                                            </span>
-                                                        </span>
-                                                    </div>
-                                                )}
                                             </div>
                                         </td>
                                     )}
                                     {/* period cells */}
-                                    {ENGLISH_DAYS.flatMap((_,di)=>
+                                    {displayedDays.flatMap(({ key: dayKey },di)=>
                                         Array.from({length:MAX_PERIODS}).map((_,pi)=>(
                                             <td key={`${di}-${pi}`}
                                                 onDragOver={e => {
-                                                    if (!isInteractiveGeneralTeachers) return;
-                                                    handleGeneralDragOver(e, row.id, `${row.id}-${ENGLISH_DAYS[di]}-${pi+1}`, !!timetable[`${row.id}-${ENGLISH_DAYS[di]}-${pi+1}`]);
+                                                    if (!isManualWaitingInteractive) return;
+                                                    handleGeneralDragOver(e, row.id, `${row.id}-${dayKey}-${pi+1}`, !!timetable[`${row.id}-${dayKey}-${pi+1}`]);
                                                 }}
-                                                onDragLeave={() => { if (isInteractiveGeneralTeachers) setHoverTarget(null); }}
+                                                onDragLeave={() => { if (isManualWaitingInteractive) setHoverTarget(null); }}
                                                 onDrop={e => {
-                                                    if (!isInteractiveGeneralTeachers) return;
-                                                    handleGeneralDrop(e, row.id, ENGLISH_DAYS[di], pi + 1, !!timetable[`${row.id}-${ENGLISH_DAYS[di]}-${pi+1}`]);
+                                                    if (!isManualWaitingInteractive) return;
+                                                    handleGeneralDrop(e, row.id, dayKey, pi + 1, !!timetable[`${row.id}-${dayKey}-${pi+1}`]);
                                                 }}
-                                                onDragEnd={() => { setDragSource(null); setDraggingWaiting(null); setDraggingSlotKey(null); setHoverTarget(null); }}
+                                                onDragEnd={resetGeneralDragState}
                                                 style={{
                                                     padding: CELL_PAD,
-                                                    background: hoverTarget === `${row.id}-${ENGLISH_DAYS[di]}-${pi+1}` ? '#f1f5f9' : GAP_BG,
+                                                    background: row.id === draggingTeacherRowId
+                                                        ? (hoverTarget === `${row.id}-${dayKey}-${pi+1}` ? '#ddd6fe' : '#ede9fe')
+                                                        : (hoverTarget === `${row.id}-${dayKey}-${pi+1}` ? '#f1f5f9' : GAP_BG),
                                                     verticalAlign:'middle',
                                                     height:`${ROW_H}px`,
                                                     overflow:'visible',
-                                                    borderLeft: (pi===MAX_PERIODS-1 && di<ENGLISH_DAYS.length-1) ? `3px solid ${DAY_DIVIDER}` : undefined,
+                                                    borderLeft: (pi===MAX_PERIODS-1 && di<displayedDays.length-1) ? `3px solid ${DAY_DIVIDER}` : undefined,
                                                 }}>
-                                                {renderPeriodCell(row.id, di, pi)}
+                                                {(() => {
+                                                    const cellKey = `${row.id}-${dayKey}-${pi+1}`;
+                                                    const isDropTarget = draggingTeacherRowId === row.id && hoverTarget === cellKey;
+                                                    const isAvailableForDrop =
+                                                        draggingTeacherRowId === row.id &&
+                                                        draggingWaiting === 'card' &&
+                                                        !timetable[cellKey];
+                                                    if (isAvailableForDrop && !timetable[cellKey]) {
+                                                        return (
+                                                            <div
+                                                                className="flex items-center justify-center rounded-[10px] border-2 border-dashed text-center transition-all"
+                                                                style={{
+                                                                    width:`${dynamicPeriodCard}px`,
+                                                                    height:`${dynamicPeriodCard}px`,
+                                                                    margin:'0 auto',
+                                                                    borderColor: isDropTarget ? '#7c3aed' : '#c4b5fd',
+                                                                    background: isDropTarget ? '#f3e8ff' : '#faf5ff',
+                                                                    boxShadow: isDropTarget ? '0 8px 20px rgba(124,58,237,0.18)' : 'inset 0 0 0 1px rgba(196,181,253,0.35)',
+                                                                }}
+                                                            >
+                                                                <div>
+                                                                    <div className="text-[14px] font-black" style={{color: isDropTarget ? '#7c3aed' : '#8b5cf6'}}>
+                                                                        {isDropTarget ? 'أفلت' : 'اسحب'}
+                                                                    </div>
+                                                                    <div className="text-[8px] font-black" style={{color: isDropTarget ? '#7c3aed' : '#8b5cf6'}}>
+                                                                        {isDropTarget ? 'هنا' : 'إلى هنا'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return renderPeriodCell(row.id, dayKey, pi);
+                                                })()}
                                             </td>
                                         ))
                                     )}
@@ -796,6 +1283,81 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const isTeacher = type==='individual_teacher';
         const teacher = isTeacher ? teachers.find(t=>t.id===targetId) : null;
         const cls     = !isTeacher ? classes.find(c=>c.id===targetId) : null;
+        const individualWaitingQuota = isTeacher && teacher ? tWQ(teacher) : 0;
+        const individualPlacedWaiting = isTeacher && teacher ? (placedWaitingPerTeacher.get(teacher.id) || 0) : 0;
+        const individualRemainingWaiting = Math.max(individualWaitingQuota - individualPlacedWaiting, 0);
+        const GAP_BG = '#eef0f6';
+        const ROW_H = 88;
+        const CELL_PAD = '1px';
+        const dayColW = 92;
+        const periodColW = 96;
+        const individualPeriodBox = periodColW;
+        const individualPeriodCardWidth = periodColW;
+        const individualPeriodCardHeight = 84;
+        const individualCardInset = 4;
+        const infoCardBase: React.CSSProperties = {
+            borderRadius:'7px',
+            background:'#fff',
+            border:'1px solid #e8eaf2',
+            height: `${ROW_H - 8}px`,
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+            boxShadow:'0 1px 3px rgba(15,23,42,0.05)',
+            transition:'background 0.2s, border-color 0.2s',
+        };
+        const headerCardBase: React.CSSProperties = {
+            background:'#ffffff',
+            border:'1px solid #d1d5db',
+            boxShadow:'0 1px 2px rgba(15,23,42,0.06)',
+            height:`${individualPeriodCardHeight}px`,
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+        };
+        const renderIndividualLessonCard = (slot: typeof timetable[string], mode: 'teacher' | 'class') => {
+            const primaryText = mode === 'teacher' ? cName(slot.classId || '') : subjDisplay(slot.subjectId || '');
+            const secondaryText = mode === 'teacher' ? subjDisplay(slot.subjectId || '') : tName(slot.teacherId);
+            const primarySize = mode === 'teacher' ? 'text-[18px]' : 'text-[17px]';
+            const secondarySize = mode === 'teacher' ? 'text-[16px]' : 'text-[12px]';
+            const primaryColor = mode === 'teacher' ? '#334155' : '#0f172a';
+            const secondaryColor = mode === 'teacher' ? '#0f172a' : '#475569';
+
+            return (
+                <div
+                    className="group/cell relative flex items-center justify-center mx-auto overflow-visible"
+                    style={{ width:'100%', height:'86px', maxWidth:'100%', maxHeight:'100%', padding:`0 ${individualCardInset}px` }}
+                >
+                    <div
+                        className="relative z-10 hover:z-[80] flex flex-col items-center justify-center rounded-[8px] overflow-hidden"
+                        style={{
+                            background:'#ffffff',
+                            border:'1px solid #d1d5db',
+                            width:'100%',
+                            height:`${individualPeriodCardHeight}px`,
+                            boxShadow:'0 1px 2px rgba(15,23,42,0.06)',
+                            padding:'5px 4px 4px',
+                            gap: mode === 'class' ? '6px' : '2px',
+                        }}
+                    >
+                        <span
+                            className={`w-full text-center font-black ${primarySize} leading-[1.12]`}
+                            style={{...TWO_LINE_CLAMP, color:primaryColor, wordBreak:'break-word', overflowWrap:'anywhere'}}
+                            title={primaryText}
+                        >
+                            {primaryText}
+                        </span>
+                        <span
+                            className={`w-full text-center font-bold ${secondarySize} leading-[1.15]`}
+                            style={{...TWO_LINE_CLAMP, color:secondaryColor, wordBreak:'break-word', overflowWrap:'anywhere'}}
+                            title={secondaryText}
+                        >
+                            {secondaryText}
+                        </span>
+                    </div>
+                </div>
+            );
+        };
 
         return (
             <div className="w-full" style={{direction:'rtl'}}>
@@ -809,120 +1371,169 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     <div className="relative flex items-center gap-5 flex-wrap">
                         {/* Name + sub info */}
                         <div className="flex-1 min-w-0 text-right">
-                            <div className="text-white/70 text-xs font-semibold mb-0.5">
+                            <div
+                                className="font-black mb-1"
+                                style={{color:'rgba(255,255,255,0.92)', fontSize:'15px', textShadow:'0 1px 2px rgba(45,27,107,0.2)'}}
+                            >
                                 {isTeacher ? 'المعلم' : 'الفصل'}
                             </div>
                             <div className="text-white font-black text-2xl leading-tight truncate" dir="ltr" style={{textAlign:'right'}}>
                                 {isTeacher ? (teacher?.name||'—') : (cls?.name || (cls ? `${cls.grade}/${cls.section}` : '—'))}
                             </div>
                             {isTeacher && teacher && (
-                                <div className="text-white/60 text-xs font-medium mt-0.5">
+                                <div
+                                    className="font-semibold mt-1"
+                                    style={{color:'rgba(255,255,255,0.86)', fontSize:'13px', textShadow:'0 1px 2px rgba(45,27,107,0.16)'}}
+                                >
                                     {specializationNames[teacher.specializationId]||'—'}
                                 </div>
                             )}
                         </div>
 
-                        {/* Stats pills — نصاب الحصص + نصاب الانتظار فقط */}
+                        {/* Stats pills */}
                         <div className="flex flex-wrap gap-2 shrink-0 items-center">
-                            <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[68px]">
-                                <span className="text-white/60 text-[10px] font-semibold leading-none mb-1">
+                            <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[78px]">
+                                <span className="text-[12px] font-bold leading-none mb-1.5" style={{color:'rgba(255,255,255,0.9)', textShadow:'0 1px 1px rgba(59,39,126,0.18)'}}>
                                     {isTeacher ? 'نصاب الحصص' : 'عدد الحصص'}
                                 </span>
-                                <span className="text-white font-black text-2xl leading-none">
+                                <span className="font-black text-[30px] leading-none" style={{color:'#ffffff', textShadow:'0 2px 6px rgba(45,27,107,0.22)'}}>
                                     {isTeacher ? (teacher ? tLQ(teacher) : 0) : (classLessonCount.get(targetId||'')||0)}
                                 </span>
                             </div>
                             {isTeacher && (
-                                <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[68px]">
-                                    <span className="text-white/60 text-[10px] font-semibold leading-none mb-1">نصاب الانتظار</span>
-                                    <span className="text-white font-black text-2xl leading-none">{teacher ? tWQ(teacher) : 0}</span>
+                                <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[78px]">
+                                    <span className="text-[12px] font-bold leading-none mb-1.5" style={{color:'rgba(255,255,255,0.9)', textShadow:'0 1px 1px rgba(59,39,126,0.18)'}}>نصاب الانتظار</span>
+                                    <span className="font-black text-[30px] leading-none" style={{color:'#ffffff', textShadow:'0 2px 6px rgba(45,27,107,0.22)'}}>{individualWaitingQuota}</span>
                                 </div>
                             )}
-                            {/* Manual waiting distribution card */}
-                            {isTeacher && teacher && isManualMode && onUpdateSettings && (() => {
-                                const waitingQuota = tWQ(teacher);
-                                const placed = placedWaitingPerTeacher.get(teacher.id) || 0;
-                                const remaining = waitingQuota - placed;
-                                if (waitingQuota === 0) return null;
-                                if (remaining === 0) return (
-                                    <div className="flex flex-col items-center px-3 py-2 rounded-xl border-2 backdrop-blur-sm min-w-[60px]"
-                                         style={{background:'rgba(16,185,129,0.15)', borderColor:'rgba(16,185,129,0.5)'}}>
-                                        <span className="text-[9px] font-bold leading-none mb-1" style={{color:'#6ee7b7'}}>اكتمل</span>
-                                        <span className="font-black text-lg leading-none" style={{color:'#6ee7b7'}}>✓</span>
-                                    </div>
-                                );
-                                return (
+                            {isTeacher && teacher && isManualMode && onUpdateSettings && individualRemainingWaiting > 0 && (
+                                <div className="group/waiting-trigger relative flex items-center gap-3 px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[128px]">
                                     <div
+                                        role="button"
+                                        tabIndex={0}
                                         draggable
                                         onDragStart={e => {
+                                            setWaitingDragImage(e);
+                                            e.dataTransfer.setData('text/plain', `waiting-${teacher.id}`);
                                             e.dataTransfer.setData('dragType', 'waitingCard');
                                             e.dataTransfer.setData('teacherId', teacher.id);
+                                            e.dataTransfer.setData('sourceKey', `waiting-${teacher.id}`);
+                                            e.dataTransfer.effectAllowed = 'move';
                                             setDraggingWaiting('card');
                                         }}
                                         onDragEnd={() => setDraggingWaiting(null)}
-                                        className="flex flex-col items-center px-3 py-2 rounded-xl border-2 backdrop-blur-sm min-w-[60px] cursor-grab active:cursor-grabbing select-none"
-                                        style={{background:'rgba(251,146,60,0.15)', borderColor:'rgba(251,146,60,0.5)'}}>
-                                        <span className="text-[9px] font-bold leading-none mb-1" style={{color:'#fed7aa'}}>م انتظار</span>
-                                        <span className="font-black text-lg leading-none" style={{color:'#fb923c'}}>{remaining}/{waitingQuota}</span>
+                                        aria-label={`سحب م انتظار للمعلم ${teacher.name}`}
+                                        style={{
+                                            width:'62px',
+                                            height:'64px',
+                                            flexShrink:0,
+                                            cursor:'grab',
+                                            filter: draggingWaiting === 'card'
+                                                ? 'drop-shadow(0 10px 18px rgba(101,90,193,0.24))'
+                                                : 'drop-shadow(0 5px 12px rgba(101,90,193,0.14))',
+                                            transform: draggingWaiting === 'card' ? 'translateY(-1px)' : undefined,
+                                            transition:'transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease',
+                                        }}
+                                    >
+                                        <div className="transition-transform duration-200">
+                                            {renderWaitingDeck({
+                                                count: individualRemainingWaiting,
+                                                compact: false,
+                                                draggable: false,
+                                            })}
+                                        </div>
                                     </div>
-                                );
-                            })()}
+                                    <div className="text-right leading-tight">
+                                        <div className="text-[10px] font-semibold mb-1" style={{color:'rgba(255,255,255,0.88)', textShadow:'0 1px 1px rgba(59,39,126,0.16)'}}>حصة الانتظار</div>
+                                        <div className="text-xs font-black" style={{color:'rgba(255,255,255,0.96)', textShadow:'0 1px 3px rgba(45,27,107,0.18)'}}>مرر ثم اسحبها</div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* ── Table ── */}
-                <div className="rounded-2xl overflow-hidden border-2 shadow-sm"
-                    style={{borderColor:'#e0dcfb', boxShadow:'0 4px 20px rgba(101,90,193,0.10)'}}>
+                <div className="relative" style={{borderRadius:'16px', overflow:'visible', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
                     <div className="overflow-x-auto">
-                    <table className="w-full border-collapse" style={{minWidth:'600px'}}>
+                    <table className="w-full border-collapse" style={{minWidth:'600px', background:GAP_BG}}>
+                        <colgroup>
+                            <col style={{width:`${dayColW}px`}} />
+                            {Array.from({length:MAX_PERIODS}).map((_, i) => (
+                                <col key={`individual-period-${i}`} style={{width:`${periodColW}px`}} />
+                            ))}
+                        </colgroup>
                         <thead>
                             <tr>
                                 {/* Day column header */}
-                                <th className="py-3 px-4 font-black text-base text-center"
+                                <th className="py-1 px-1 font-black text-base text-center"
                                     style={{
-                                        minWidth:'90px',
-                                        background:C_BG,
+                                        minWidth:`${dayColW}px`,
+                                        background:GAP_BG,
                                         color:'#fff',
-                                        borderBottom:'2px solid '+C_DAY_SEP,
-                                        borderLeft:'2px solid '+C_DAY_SEP
+                                        borderBottom:'0',
+                                        borderLeft:'0',
+                                        fontSize:'18px'
                                     }}>
-                                    اليوم
+                                    <div
+                                        style={{
+                                            ...headerCardBase,
+                                            borderRadius:'14px',
+                                            background:'linear-gradient(135deg, #655ac1 0%, #7c6dd6 100%)',
+                                            border:'1px solid #5b50b8',
+                                            color:'#fff',
+                                            fontSize:'18px',
+                                            fontWeight:900,
+                                        }}
+                                    >
+                                        اليوم
+                                    </div>
                                 </th>
                                 {/* Period number headers */}
                                 {Array.from({length:MAX_PERIODS}).map((_,i)=>(
-                                    <th key={i} className="py-3 px-2 font-bold text-base text-center"
-                                        style={{
-                                            minWidth:'110px',
-                                            background:C_BG_SOFT,
-                                            color:'#64748b',
-                                            borderBottom:'2px solid '+C_DAY_SEP,
-                                            borderLeft:'1px solid '+C_BORDER
-                                        }}>
-                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white border-2 font-black text-base shadow-sm"
-                                              style={{borderColor:C_DAY_SEP, color:'#64748b'}}>
-                                            {i+1}
-                                        </span>
+                                    <th key={i} className="py-1 px-1 font-bold text-base text-center"
+                                    style={{
+                                        minWidth:`${periodColW}px`,
+                                        background:GAP_BG,
+                                        color:'#64748b',
+                                        borderBottom:'0',
+                                        borderLeft:'0'
+                                    }}>
+                                        <div className="flex items-center justify-center">
+                                            <div
+                                                className="flex items-center justify-center rounded-[14px]"
+                                                style={{
+                                                    ...headerCardBase,
+                                                    width:`calc(100% - ${individualCardInset * 2}px)`,
+                                                    color:'#5b50b8',
+                                                    fontSize:'22px',
+                                                    fontWeight:900,
+                                                    padding:'6px 5px 5px',
+                                                }}
+                                            >
+                                                {i+1}
+                                            </div>
+                                        </div>
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody style={{background:GAP_BG}}>
                             {ARABIC_DAYS.map((day, di)=>{
-                                const isEvenRow = di % 2 === 0;
                                 return (
                                 <tr key={day}>
                                     {/* Day label cell */}
-                                    <td className="py-3 px-3 font-black text-base text-center sticky right-0 z-10 shadow-[inset_1px_0_0_rgba(148,163,184,1)]"
+                                    <td className="sticky right-0 z-10"
                                         style={{
-                                            minWidth:'90px',
-                                            height:'76px',
-                                            background: isEvenRow ? '#f8fafc' : '#f1f5f9',
-                                            color:'#475569',
-                                            borderLeft:'2px solid '+C_DAY_SEP,
-                                            borderBottom:'1px solid '+C_BORDER
+                                            minWidth:`${dayColW}px`,
+                                            height:`${ROW_H}px`,
+                                            background:GAP_BG,
+                                            padding:CELL_PAD,
+                                            verticalAlign:'middle',
                                         }}>
-                                        {day}
+                                        <div style={{...infoCardBase, background:'#ffffff', borderColor:'#e8eaf2', borderRadius:'14px'}}>
+                                            <span className="px-3 text-[20px] font-black text-center leading-none" style={{color:'#5b50b8'}}>{day}</span>
+                                        </div>
                                     </td>
                                     {/* Period cells */}
                                     {Array.from({length:MAX_PERIODS}).map((_,pi)=>{
@@ -938,94 +1549,60 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         let cellContent = null;
                                         if (!slot) {
                                             cellContent = (
-                                                <div className="w-full h-full rounded-xl border-2 border-dashed flex items-center justify-center transition-colors"
+                                                <div className="w-full h-full rounded-[8px] border flex items-center justify-center transition-colors"
                                                      style={{
-                                                         borderColor: (canDrop && isHovered) ? '#fb923c' : '#e2e8f0',
-                                                         background: (canDrop && isHovered) ? '#fff7ed' : 'transparent',
-                                                         aspectRatio:'1 / 1',
-                                                         maxWidth:'72px',
-                                                         minHeight:'72px',
-                                                         margin:'0 auto'
-                                                     }}>
-                                                    <span className="text-[10px] font-bold" style={{color: (canDrop && isHovered) ? '#fb923c' : '#cbd5e1'}}>
-                                                        {(canDrop && isHovered) ? '+' : '—'}
-                                                    </span>
+                                                         borderStyle:'dashed',
+                                                         borderColor: canDrop ? ((isHovered) ? '#8b5cf6' : '#c4b5fd') : '#dde1ea',
+                                                         background: canDrop ? ((isHovered) ? '#f3e8ff' : '#faf5ff') : '#f8f9fc',
+                                                         width:`calc(100% - ${individualCardInset * 2}px)`,
+                                                         height:`${individualPeriodCardHeight}px`,
+                                                         margin:'0 auto',
+                                                         boxShadow: canDrop ? ((isHovered)
+                                                            ? '0 0 0 2px rgba(139,92,246,0.18), 0 10px 24px rgba(139,92,246,0.12)'
+                                                            : 'inset 0 0 0 1px rgba(196,181,253,0.55)')
+                                                            : 'none'
+                                                      }}>
+                                                    {canDrop ? (
+                                                        <div className="text-center">
+                                                            <div className="text-[14px] font-black" style={{color: isHovered ? '#7c3aed' : '#8b5cf6'}}>+</div>
+                                                            <div className="text-[9px] font-black" style={{color: isHovered ? '#7c3aed' : '#8b5cf6'}}>أفلت هنا</div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] font-bold" style={{color:'#cbd5e1'}}>—</span>
+                                                    )}
                                                 </div>
                                             );
                                         } else if (isWaiting) {
                                             cellContent = (
-                                                <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-2 gap-1 relative group"
+                                                <div className="w-full h-full relative group"
                                                      style={{
-                                                         background: (canDropOnWaiting && isHovered) ? '#fff7ed' : '#fff8ee',
-                                                         borderColor: (canDropOnWaiting && isHovered) ? '#fb923c' : '#fbd28a',
-                                                         aspectRatio:'1 / 1',
-                                                         maxWidth:'72px',
-                                                         minHeight:'72px',
+                                                         width:`calc(100% - ${individualCardInset * 2}px)`,
+                                                         height:`${individualPeriodCardHeight}px`,
                                                          margin:'0 auto'
-                                                     }}>
-                                                    {/* Delete button */}
-                                                    {isTeacher && isManualMode && onUpdateSettings && (
-                                                        <button
-                                                            onMouseDown={e => {
-                                                                e.stopPropagation();
-                                                                e.preventDefault();
-                                                                const newTimetable = { ...settings.timetable };
-                                                                delete newTimetable[slotKey];
-                                                                onUpdateSettings({ ...settings, timetable: newTimetable });
-                                                            }}
-                                                            className="absolute -top-1 -left-1 w-4 h-4 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-10 text-[8px] font-black leading-none"
-                                                        >✕</button>
-                                                    )}
-                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black"
-                                                          style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d'}}>
-                                                        انتظار
-                                                    </span>
-                                                    <span className="font-black text-[12px] leading-[1.15] text-center px-1" style={{...TWO_LINE_CLAMP, color:'#92400e'}}>
-                                                        {cName(slot.classId||'')}
-                                                    </span>
-                                                    {slot.subjectId && (
-                                                        <span className="text-[11px] font-medium leading-[1.1] text-center px-1" style={{...TWO_LINE_CLAMP, color:'#b45309'}}>
-                                                            {subjName(slot.subjectId)}
-                                                        </span>
-                                                    )}
+                                                      }}>
+                                                    {renderPlacedWaitingCard({
+                                                        highlighted: canDropOnWaiting && isHovered,
+                                                        onDelete: isTeacher && isManualMode && onUpdateSettings ? () => {
+                                                            const newTimetable = { ...settings.timetable };
+                                                            delete newTimetable[slotKey];
+                                                            onUpdateSettings({ ...settings, timetable: newTimetable });
+                                                        } : undefined,
+                                                    })}
                                                 </div>
                                             );
                                         } else {
-                                            const subj = subjDisplay(slot.subjectId||'');
-                                            const color = getPastelColor(subj);
-                                            cellContent = (
-                                                <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-1.5 gap-0.5 transition-all duration-300 group"
-                                                     style={{background: color.bg, borderColor: color.text + '40', aspectRatio:'1 / 1', maxWidth:'84px', minHeight:'84px', margin:'0 auto', cursor:'default'}}>
-                                                    {isTeacher ? (<>
-                                                        <span className="font-black text-[12px] leading-[1.15] text-center w-full px-1"
-                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={cName(slot.classId||'')}>
-                                                            {cName(slot.classId||'')}
-                                                        </span>
-                                                        <span className="text-[11px] font-semibold leading-[1.1] text-center w-full px-1 opacity-80"
-                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={subjName(slot.subjectId||'')}>
-                                                            {subj}
-                                                        </span>
-                                                    </>) : (<>
-                                                        <span className="font-black text-[12px] leading-[1.15] text-center w-full px-1"
-                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={subjName(slot.subjectId||'')}>
-                                                            {subj}
-                                                        </span>
-                                                        <span className="text-[11px] font-semibold leading-[1.1] text-center w-full px-1 opacity-80"
-                                                              style={{...TWO_LINE_CLAMP, color: color.text}} title={tName(slot.teacherId)}>
-                                                            {tName(slot.teacherId)}
-                                                        </span>
-                                                    </>)}
-                                                </div>
-                                            );
+                                            cellContent = renderIndividualLessonCard(slot, isTeacher ? 'teacher' : 'class');
                                         }
 
                                         // Make waiting slots draggable in manual mode
                                         const waitingDragProps = (isTeacher && isManualMode && onUpdateSettings && isWaiting) ? {
                                             draggable: true,
                                             onDragStart: (e: React.DragEvent) => {
+                                                setWaitingDragImage(e);
                                                 e.dataTransfer.setData('dragType', 'waitingSlot');
                                                 e.dataTransfer.setData('slotKey', slotKey);
                                                 e.dataTransfer.setData('teacherId', targetId || '');
+                                                e.dataTransfer.effectAllowed = 'move';
                                                 setDraggingWaiting('slot');
                                                 setDraggingSlotKey(slotKey);
                                             },
@@ -1037,9 +1614,24 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                 {...waitingDragProps}
                                                 onDragOver={e => {
                                                     if (!isTeacher || !isManualMode || !onUpdateSettings) return;
-                                                    if (draggingWaiting === null) return;
-                                                    if (!slot || (draggingWaiting === 'slot' && isWaiting && slotKey !== draggingSlotKey)) {
+                                                    const dragType = e.dataTransfer.getData('dragType');
+                                                    const tid = e.dataTransfer.getData('teacherId');
+                                                    if (!dragType || !tid || tid !== targetId) return;
+
+                                                    const isWaitingCardDrag = dragType === 'waitingCard';
+                                                    const isWaitingSlotDrag = dragType === 'waitingSlot';
+                                                    if (!isWaitingCardDrag && !isWaitingSlotDrag) return;
+
+                                                    if (isWaitingCardDrag && !slot) {
                                                         e.preventDefault();
+                                                        e.dataTransfer.dropEffect = 'move';
+                                                        setHoverTarget(slotKey);
+                                                        return;
+                                                    }
+
+                                                    if (isWaitingSlotDrag && (!slot || (isWaiting && slotKey !== draggingSlotKey))) {
+                                                        e.preventDefault();
+                                                        e.dataTransfer.dropEffect = 'move';
                                                         setHoverTarget(slotKey);
                                                     }
                                                 }}
@@ -1047,7 +1639,6 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                 onDrop={e => {
                                                     e.preventDefault();
                                                     setHoverTarget(null);
-                                                    setDraggingWaiting(null);
                                                     if (!isTeacher || !isManualMode || !onUpdateSettings) return;
                                                     const dragType = e.dataTransfer.getData('dragType');
                                                     const tid = e.dataTransfer.getData('teacherId');
@@ -1055,6 +1646,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                     if (dragType === 'waitingCard' && !slot) {
                                                         const newTimetable = { ...settings.timetable, [slotKey]: { type: 'waiting' as const, teacherId: tid } };
                                                         onUpdateSettings({ ...settings, timetable: newTimetable });
+                                                        setDraggingWaiting(null);
+                                                        setDraggingSlotKey(null);
                                                     } else if (dragType === 'waitingSlot') {
                                                         const fromKey = e.dataTransfer.getData('slotKey');
                                                         if (fromKey === slotKey) return;
@@ -1064,15 +1657,15 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                             delete newTimetable[fromKey];
                                                             onUpdateSettings({ ...settings, timetable: newTimetable });
                                                         }
+                                                        setDraggingWaiting(null);
+                                                        setDraggingSlotKey(null);
                                                     }
                                                 }}
                                                 style={{
-                                                    height:'76px',
-                                                    minWidth:'110px',
-                                                    background: isEvenRow ? '#ffffff' : '#f8fafc',
-                                                    borderLeft:'1px solid '+C_BORDER,
-                                                    borderBottom:'1px solid '+C_BORDER,
-                                                    padding:'6px 5px',
+                                                    height:`${ROW_H}px`,
+                                                    minWidth:`${periodColW}px`,
+                                                    background:GAP_BG,
+                                                    padding:CELL_PAD,
                                                     verticalAlign:'middle',
                                                     position:'relative',
                                                     cursor: (isTeacher && isManualMode && isWaiting) ? 'grab' : undefined,

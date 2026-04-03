@@ -9,7 +9,7 @@ interface SwapConfirmationModalProps {
     swapResult: SwapResult | null;
 }
 
-const formatStep = (step: string) => step.replace(/↔/g, ' مقابل ').replace(/→/g, ' إلى ');
+const formatStep = (step: string) => step.replace(/â†”/g, ' مقابل ').replace(/â†’/g, ' إلى ');
 
 const extractTeachers = (steps: string[]) => {
     const names = new Set<string>();
@@ -47,10 +47,10 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                             </div>
                             <div>
                                 <h3 className="font-black text-xl text-slate-800">
-                                    {isChain ? 'تعديل مركب' : 'تعديل بسيط'}
+                                    {isChain ? 'تبديل متعدد' : 'تبديل بسيط'}
                                 </h3>
                                 <p className="text-sm font-bold text-slate-500 mt-0.5">
-                                    {isChain ? 'راجع خطوات التعديل قبل اعتماده على الجدول.' : 'راجع تفاصيل التعديل قبل اعتماده.'}
+                                    {isChain ? 'راجع خطوات التبديل قبل اعتماده على الجدول.' : 'راجع تفاصيل التبديل قبل اعتماده.'}
                                 </p>
                             </div>
                         </div>
@@ -66,7 +66,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                 <div className="px-5 py-4 space-y-4">
                     <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-white px-3 py-3" style={{ borderColor: accent.border }}>
                         <span className="text-xs font-black" style={{ color: accent.strong }}>
-                            {isChain ? 'سيتم تنفيذ تعديل مركب' : 'سيتم تنفيذ تعديل بسيط'}
+                            {isChain ? 'سيتم تنفيذ تبديل متعدد' : 'سيتم تنفيذ تبديل بسيط'}
                         </span>
                         <span className="h-1 w-1 rounded-full bg-slate-300" />
                         <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: accent.strong }}>
@@ -83,7 +83,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                         <div className="flex items-start gap-2 rounded-2xl border bg-white px-3 py-3" style={{ borderColor: accent.border }}>
                             <Info size={16} className="mt-0.5 shrink-0" style={{ color: accent.strong }} />
                             <p className="text-xs font-bold leading-6" style={{ color: accent.strong }}>
-                                التعديل المباشر لا يكفي هنا دون تعارض، لذلك اقترح النظام هذا التسلسل البديل.
+                                التبديل المباشر لا يكفي هنا دون تعارض، لذلك اقترح النظام هذا التسلسل البديل.
                             </p>
                         </div>
                     )}
@@ -119,7 +119,7 @@ const SwapConfirmationModal: React.FC<SwapConfirmationModalProps> = ({
                         style={{ background: '#655ac1' }}
                     >
                         <CheckCircle2 size={18} />
-                        اعتماد التعديل
+                        اعتماد التبديل
                     </button>
                 </div>
             </div>

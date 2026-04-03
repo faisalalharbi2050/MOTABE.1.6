@@ -392,6 +392,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                 timetable: finalTimetable,
                 savedSchedules: updatedSaved,
                 activeScheduleId: newId,
+                scheduleGenerationCount: (scheduleSettings.scheduleGenerationCount || 0) + 1,
             });
             setGenerationStatus('success');
             setGenerationProgress(100);
@@ -442,7 +443,11 @@ const Step9Schedule: React.FC<Step9Props> = ({
             }
         );
 
-        setScheduleSettings({ ...newSettings, timetable: newTimetable });
+        setScheduleSettings({
+            ...newSettings,
+            timetable: newTimetable,
+            waitingGenerationCount: (newSettings.waitingGenerationCount || 0) + 1,
+        });
         showToast("تم إنشاء وتوزيع حصص الانتظار بنجاح", "success");
     } catch (error) {
         console.error("Error distributing waiting:", error);
@@ -852,22 +857,6 @@ const Step9Schedule: React.FC<Step9Props> = ({
         </div>
       </div>
 
-      {/* ══════ تنبيه حصص الانتظار غير الموزّعة ══════ */}
-      {isManualMode && incompleteWaitingCount > 0 && !hideWaitingAlert && (
-        <div
-          onClick={() => setHideWaitingAlert(true)}
-          className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-amber-100 transition-all"
-          title="انقر لإخفاء هذا التنبيه"
-        >
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-amber-500 shrink-0" />
-            <span className="text-sm font-bold text-amber-700">
-              يوجد {incompleteWaitingCount} {incompleteWaitingCount === 1 ? 'معلم' : 'معلمين'} لم تكتمل حصص انتظارهم — اسحب البطاقات من عمود الانتظار لإكمال التوزيع
-            </span>
-          </div>
-          <span className="text-xs text-amber-400 font-medium shrink-0">انقر للإخفاء</span>
-        </div>
-      )}
 
       {/* ══════ خيارات العرض الفرعية (تظهر بعد اختيار نوع الجدول) ══════ */}
       {activeDisplayView && (
@@ -1122,6 +1111,21 @@ const Step9Schedule: React.FC<Step9Props> = ({
               }
               return (
                 <div className="p-4 h-full">
+                  {activeDisplayView === 'general_teachers' && isManualMode && incompleteWaitingCount > 0 && !hideWaitingAlert && (
+                    <div
+                      onClick={() => setHideWaitingAlert(true)}
+                      className="mb-4 flex items-center justify-between gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-amber-100 transition-all"
+                      title="انقر لإخفاء هذا التنبيه"
+                    >
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+                        <span className="text-sm font-bold text-amber-700">
+                          يوجد {incompleteWaitingCount} {incompleteWaitingCount === 1 ? 'معلم' : 'معلمين'} لم تكتمل حصص انتظارهم — اسحب البطاقات وأفلتها لإكمال التوزيع
+                        </span>
+                      </div>
+                      <span className="text-xs text-amber-400 font-medium shrink-0">انقر للإخفاء</span>
+                    </div>
+                  )}
                   <InlineScheduleView
                     type={activeDisplayView}
                     settings={scheduleSettings}

@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
-    X, Save, Trash2, CheckCircle2, Clock, History,
-    Pencil, Check, Star, CalendarDays, User2, BookOpenCheck, Plus, Shield
+    X, Trash2, CheckCircle2, History,
+    Pencil, Check, Star, CalendarDays, Clock,
+    BookOpenCheck, LayoutList, AlertTriangle, Shield, User2
 } from 'lucide-react';
 import { ScheduleSettingsData, SavedSchedule, TimetableData } from '../../types';
 
@@ -18,18 +19,22 @@ const ScheduleManagerModal: React.FC<ScheduleManagerModalProps> = ({
     onClose,
     settings,
     onUpdateSettings,
-    currentTimetable,
 }) => {
-    const [editingScheduleId, setEditingScheduleId]     = useState<string | null>(null);
-    const [editingScheduleName, setEditingScheduleName] = useState('');
-    const [confirmDeleteId, setConfirmDeleteId]         = useState<string | null>(null);
-    const [showManualSave, setShowManualSave]           = useState(false);
-    const [manualSaveName, setManualSaveName]           = useState('');
-
-    const savedSchedules   = settings.savedSchedules  || [];
-    const activeScheduleId = settings.activeScheduleId;
+    const [editingId, setEditingId]     = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [confirmAdoptId, setConfirmAdoptId]   = useState<string | null>(null);
 
     if (!isOpen) return null;
+
+    const savedSchedules   = settings.savedSchedules   || [];
+    const activeScheduleId = settings.activeScheduleId;
+    const activeSchedule   = savedSchedules.find(s => s.id === activeScheduleId);
+    const isFull           = savedSchedules.length >= 10;
+    const isNearFull       = savedSchedules.length === 9;
+
+    const scheduleGenerationCount = settings.scheduleGenerationCount || 0;
+    const waitingGenerationCount  = settings.waitingGenerationCount  || 0;
 
     const dayNames: Record<number, string> = {
         0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء',
@@ -37,27 +42,29 @@ const ScheduleManagerModal: React.FC<ScheduleManagerModalProps> = ({
     };
 
     const formatDateTime = (iso: string) => {
-        const d    = new Date(iso);
-        const day  = dayNames[d.getDay()];
-        const date = new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
-            year: 'numeric', month: 'long', day: 'numeric',
-        }).format(d);
-        const time = new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
-            hour: '2-digit', minute: '2-digit', hour12: true,
-        }).format(d);
-        return { day, date, time };
+        const d = new Date(iso);
+        return {
+            day:  dayNames[d.getDay()],
+            date: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+            }).format(d),
+            time: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
+                hour: '2-digit', minute: '2-digit', hour12: true,
+            }).format(d),
+        };
     };
 
-    const handleAdopt = (schedule: SavedSchedule) => {
+    // ── Actions ───────────────────────────────────────────────────────
+    const handleAdoptConfirm = (schedule: SavedSchedule) => {
         onUpdateSettings({
             ...settings,
             timetable:        JSON.parse(JSON.stringify(schedule.timetable)),
             activeScheduleId: schedule.id,
         });
-        onClose();
+        setConfirmAdoptId(null);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDeleteConfirm = (id: string) => {
         const updated     = savedSchedules.filter(s => s.id !== id);
         const newActiveId = id === activeScheduleId
             ? (updated[0]?.id ?? undefined)
@@ -73,368 +80,370 @@ const ScheduleManagerModal: React.FC<ScheduleManagerModalProps> = ({
         setConfirmDeleteId(null);
     };
 
-    const handleRenameSave = () => {
-        if (!editingScheduleId || !editingScheduleName.trim()) return;
+    const handleRenameSave = (id: string, name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
         const updated = savedSchedules.map(s =>
-            s.id === editingScheduleId ? { ...s, name: editingScheduleName.trim() } : s
+            s.id === id ? { ...s, name: trimmed } : s
         );
         onUpdateSettings({ ...settings, savedSchedules: updated });
-        setEditingScheduleId(null);
-        setEditingScheduleName('');
+        setEditingId(null);
+        setEditingName('');
     };
 
-    const handleManualSave = () => {
-        if (!currentTimetable || Object.keys(currentTimetable).length === 0) return;
-        if (savedSchedules.length >= 10) return;
-        const newId = `schedule-${Date.now()}`;
-        const newEntry: SavedSchedule = {
-            id:        newId,
-            name:      manualSaveName.trim() || `لقطة يدوية ${savedSchedules.length + 1}`,
-            createdAt: new Date().toISOString(),
-            createdBy: 'المستخدم',
-            timetable: JSON.parse(JSON.stringify(currentTimetable)),
-        };
-        onUpdateSettings({
-            ...settings,
-            savedSchedules:   [newEntry, ...savedSchedules].slice(0, 10),
-            activeScheduleId: newId,
-        });
-        setManualSaveName('');
-        setShowManualSave(false);
-    };
-
-    const activeSchedule = savedSchedules.find(s => s.id === activeScheduleId);
+    // ── stat cards data ───────────────────────────────────────────────
+    const stats = [
+        {
+            label: 'إجمالي جداول الحصص',
+            value: scheduleGenerationCount,
+            icon:  <LayoutList size={20} />,
+            color: '#655ac1',
+        },
+        {
+            label: 'إجمالي جداول الانتظار',
+            value: waitingGenerationCount,
+            icon:  <Clock size={20} />,
+            color: '#0ea5e9',
+        },
+        {
+            label: 'الجداول المحفوظة',
+            value: `${savedSchedules.length} / 10`,
+            icon:  <BookOpenCheck size={20} />,
+            color: isFull ? '#ef4444' : '#10b981',
+        },
+        {
+            label: 'الجدول المعتمد',
+            value: activeSchedule?.name ?? '—',
+            icon:  <Star size={20} />,
+            color: '#f59e0b',
+            isText: true,
+        },
+    ];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-            <div
-                className="bg-white w-full flex flex-col overflow-hidden"
-                style={{
-                    maxWidth: '840px',
-                    maxHeight: '90vh',
-                    borderRadius: '28px',
-                    boxShadow: '0 40px 100px rgba(101,90,193,0.25),0 12px 32px rgba(0,0,0,0.14)',
-                    fontFamily: '"Tajawal", sans-serif',
-                }}
-                dir="rtl"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-5 bg-slate-50 border-b border-slate-100">
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+            dir="rtl"
+        >
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+
+                {/* ── Header ── */}
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
                     <div className="flex items-center gap-4">
-                        <div
-                            className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                            style={{
-                                background: 'linear-gradient(135deg,#655ac1,#7c6dd6)',
-                                boxShadow: '0 6px 16px rgba(101,90,193,0.38)',
-                            }}
-                        >
-                            <History size={22} className="text-white" />
+                        <div className="w-12 h-12 rounded-xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shadow-sm">
+                            <History size={24} />
                         </div>
                         <div>
-                            <h3 className="font-black text-xl text-slate-800">إدارة الجداول</h3>
-                            <p className="text-sm font-bold text-slate-500 mt-0.5">
-                                كل جدول يُحفظ تلقائياً عند الإنشاء — اعتمد أو احذف أو عدّل الاسم
-                            </p>
+                            <h2 className="text-xl font-black text-slate-800">إدارة الجداول</h2>
+                            <p className="text-sm font-medium text-slate-500 mt-1">عرض وإدارة جميع الجداول المُنشأة</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
                     >
-                        <X size={18} />
+                        <X size={22} />
                     </button>
                 </div>
 
-                {/* Active banner */}
-                {activeSchedule && (
-                    <div
-                        className="mx-6 mt-5 px-4 py-3 rounded-2xl flex items-center gap-3 bg-slate-50 border border-slate-200"
-                    >
-                        <div
-                            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ background: 'linear-gradient(135deg,#655ac1,#7c6dd6)' }}
-                        >
-                            <Star size={14} className="text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-xs text-[#655ac1] font-semibold">الجدول المعتمد حالياً</p>
-                            <p className="text-sm font-bold text-slate-800 truncate">{activeSchedule.name}</p>
-                        </div>
-                        <span
-                            className="text-[10px] font-medium px-2.5 py-1 rounded-full text-[#655ac1]"
-                            style={{ background: 'rgba(101,90,193,0.1)' }}
-                        >
-                            {Object.keys(activeSchedule.timetable).length} حصة
-                        </span>
-                    </div>
-                )}
+                {/* ── Scrollable body ── */}
+                <div className="overflow-y-auto flex-1 p-6 space-y-5 bg-slate-50/50">
 
-                {/* Manual Save */}
-                {currentTimetable && Object.keys(currentTimetable).length > 0 && savedSchedules.length < 10 && (
-                    <div className="mx-6 mt-3">
-                        {!showManualSave ? (
-                            <button
-                                onClick={() => setShowManualSave(true)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-[#655ac1] transition-all hover:scale-[1.02] bg-slate-50 border border-slate-200 hover:bg-slate-100"
-                            >
-                                <Plus size={14} /> حفظ لقطة يدوية من الجدول الحالي
-                            </button>
+                    {/* ── Stat Cards ── */}
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                        <h3 className="text-sm font-black text-slate-700 mb-4">ملخص إحصائي</h3>
+                        <div className="grid grid-cols-4 gap-4">
+                            {stats.map((s, i) => (
+                                <div
+                                    key={i}
+                                    className="bg-slate-100 border-2 border-slate-200 rounded-2xl p-4 text-center flex flex-col items-center gap-2"
+                                >
+                                    <span style={{ color: s.color }}>{s.icon}</span>
+                                    {s.isText ? (
+                                        <p
+                                            className="text-sm font-black leading-tight truncate w-full px-1"
+                                            style={{ color: s.color }}
+                                            title={String(s.value)}
+                                        >
+                                            {s.value}
+                                        </p>
+                                    ) : (
+                                        <p className="text-3xl font-black" style={{ color: s.color }}>
+                                            {s.value}
+                                        </p>
+                                    )}
+                                    <p className="text-xs font-bold text-slate-600">{s.label}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ── Alerts ── */}
+                    {isNearFull && !isFull && (
+                        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                            <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+                            <span className="text-sm font-semibold text-amber-700">
+                                تبقّى مكان واحد فقط — احذف جدولاً قبل الإنشاء التالي
+                            </span>
+                        </div>
+                    )}
+                    {isFull && (
+                        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200">
+                            <AlertTriangle size={16} className="text-rose-500 shrink-0" />
+                            <span className="text-sm font-semibold text-rose-700">
+                                وصلت للحد الأقصى (10 جداول) — يجب حذف جدول قبل إنشاء جديد
+                            </span>
+                        </div>
+                    )}
+
+                    {/* ── Table ── */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/60">
+                            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                                <BookOpenCheck size={15} className="text-[#655ac1]" />
+                                الجداول المحفوظة
+                                <span className="text-xs font-medium text-slate-400 mr-1">
+                                    ({savedSchedules.length} / 10)
+                                </span>
+                            </p>
+                        </div>
+
+                        {savedSchedules.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+                                <History size={40} className="opacity-30" style={{ color: '#655ac1' }} />
+                                <div className="text-center">
+                                    <p className="font-bold text-slate-600 text-sm mb-1">لا توجد جداول محفوظة بعد</p>
+                                    <p className="text-xs">سيُحفظ الجدول تلقائياً عند إنشائه من زر «بناء الجدول»</p>
+                                </div>
+                            </div>
                         ) : (
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="اسم اللقطة (اختياري)"
-                                    value={manualSaveName}
-                                    onChange={e => setManualSaveName(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter') handleManualSave();
-                                        if (e.key === 'Escape') setShowManualSave(false);
-                                    }}
-                                    autoFocus
-                                    className="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-200 outline-none focus:border-[#655ac1] bg-white"
-                                />
-                                <button
-                                    onClick={handleManualSave}
-                                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white rounded-xl transition-all"
-                                    style={{ background: 'linear-gradient(135deg,#655ac1,#7c6dd6)' }}
-                                >
-                                    <Save size={13} /> حفظ
-                                </button>
-                                <button
-                                    onClick={() => setShowManualSave(false)}
-                                    className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-                                >
-                                    <X size={14} />
-                                </button>
+                            <div className="overflow-x-auto">
+                                <table className="w-full border-collapse text-sm" dir="rtl">
+                                    <thead>
+                                        <tr>
+                                            <th className="bg-[#655ac1] text-white font-black px-4 py-3 text-center w-12" style={{ borderLeft: '1px solid #7c6fcf' }}>م</th>
+                                            <th className="bg-[#655ac1] text-white font-black px-4 py-3 text-right" style={{ borderLeft: '1px solid #7c6fcf' }}>اسم الجدول</th>
+                                            <th className="bg-[#655ac1] text-white font-black px-4 py-3 text-center w-20" style={{ borderLeft: '1px solid #7c6fcf' }}>اليوم</th>
+                                            <th className="bg-[#655ac1] text-white font-black px-4 py-3 text-center w-28" style={{ borderLeft: '1px solid #7c6fcf' }}>التاريخ</th>
+                                            <th className="bg-[#655ac1] text-white font-black px-4 py-3 text-center w-24" style={{ borderLeft: '1px solid #7c6fcf' }}>الوقت</th>
+                                            <th className="bg-[#655ac1] text-white font-black px-4 py-3 text-center w-24" style={{ borderLeft: '1px solid #7c6fcf' }}>الحالة</th>
+                                            <th className="bg-[#5046a0] text-white font-black px-4 py-3 text-center w-48">الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {savedSchedules.map((schedule, index) => {
+                                            const isActive   = schedule.id === activeScheduleId;
+                                            const isEditing  = editingId === schedule.id;
+                                            const isDeleting = confirmDeleteId === schedule.id;
+                                            const isAdopting = confirmAdoptId === schedule.id;
+                                            const { day, date, time } = formatDateTime(schedule.createdAt);
+                                            const isSystem = schedule.createdBy === 'النظام';
+
+                                            return (
+                                                <tr
+                                                    key={schedule.id}
+                                                    className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
+                                                    style={isActive ? { borderRight: '3px solid #655ac1' } : {}}
+                                                >
+                                                    {/* م */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span
+                                                            className="inline-flex w-7 h-7 rounded-lg items-center justify-center text-xs font-black"
+                                                            style={{
+                                                                background: isActive ? 'linear-gradient(135deg,#655ac1,#7c6dd6)' : '#f1f0f8',
+                                                                color:      isActive ? 'white' : '#94a0b8',
+                                                            }}
+                                                        >
+                                                            {savedSchedules.length - index}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* اسم الجدول */}
+                                                    <td className="px-4 py-3">
+                                                        {isEditing ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editingName}
+                                                                onChange={e => setEditingName(e.target.value)}
+                                                                autoFocus
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter')  handleRenameSave(schedule.id, editingName);
+                                                                    if (e.key === 'Escape') { setEditingId(null); setEditingName(''); }
+                                                                }}
+                                                                className="w-full px-3 py-1.5 bg-white border-2 border-[#655ac1] rounded-lg text-sm font-bold outline-none text-slate-800"
+                                                                placeholder="اسم الجدول..."
+                                                            />
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-slate-800 truncate max-w-[180px]" title={schedule.name}>
+                                                                    {schedule.name}
+                                                                </span>
+                                                                {isActive && (
+                                                                    <span
+                                                                        className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-[#655ac1]"
+                                                                        style={{ background: 'rgba(101,90,193,0.12)' }}
+                                                                    >
+                                                                        <Star size={8} /> معتمد
+                                                                    </span>
+                                                                )}
+                                                                <span
+                                                                    className="shrink-0 opacity-40"
+                                                                    title={isSystem ? 'أنشأه النظام' : 'أنشأه المستخدم'}
+                                                                >
+                                                                    {isSystem
+                                                                        ? <Shield size={11} className="text-slate-400" />
+                                                                        : <User2  size={11} className="text-slate-400" />
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+
+                                                    {/* اليوم */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="text-xs font-semibold text-slate-600">{day}</span>
+                                                    </td>
+
+                                                    {/* التاريخ */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <CalendarDays size={11} className="text-[#655ac1] shrink-0" />
+                                                            <span className="text-xs text-slate-600">{date}</span>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* الوقت */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <Clock size={11} className="text-[#655ac1] shrink-0" />
+                                                            <span className="text-xs text-slate-600">{time}</span>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* الحالة */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        {isActive ? (
+                                                            <span
+                                                                className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full text-[#655ac1]"
+                                                                style={{ background: 'rgba(101,90,193,0.12)' }}
+                                                            >
+                                                                <CheckCircle2 size={10} /> معتمد
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full text-slate-500 bg-slate-100">
+                                                                غير معتمد
+                                                            </span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* الإجراءات */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        {/* حالة تأكيد الحذف */}
+                                                        {isDeleting ? (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <span className="text-xs font-semibold text-rose-500">تأكيد الحذف؟</span>
+                                                                <button
+                                                                    onClick={() => handleDeleteConfirm(schedule.id)}
+                                                                    className="px-3 py-1 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors"
+                                                                >
+                                                                    نعم
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setConfirmDeleteId(null)}
+                                                                    className="px-3 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                                                >
+                                                                    إلغاء
+                                                                </button>
+                                                            </div>
+                                                        /* حالة تأكيد الاعتماد */
+                                                        ) : isAdopting ? (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <span className="text-xs font-semibold text-[#655ac1]">تأكيد الاعتماد؟</span>
+                                                                <button
+                                                                    onClick={() => handleAdoptConfirm(schedule)}
+                                                                    className="px-3 py-1 text-xs font-bold text-white rounded-lg transition-colors"
+                                                                    style={{ background: '#655ac1' }}
+                                                                >
+                                                                    نعم
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setConfirmAdoptId(null)}
+                                                                    className="px-3 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                                                >
+                                                                    إلغاء
+                                                                </button>
+                                                            </div>
+                                                        /* حالة تعديل الاسم */
+                                                        ) : isEditing ? (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <button
+                                                                    onClick={() => handleRenameSave(schedule.id, editingName)}
+                                                                    className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-white rounded-lg transition-colors"
+                                                                    style={{ background: '#655ac1' }}
+                                                                >
+                                                                    <Check size={12} /> حفظ
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setEditingId(null); setEditingName(''); }}
+                                                                    className="px-3 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                                                >
+                                                                    إلغاء
+                                                                </button>
+                                                            </div>
+                                                        /* الأزرار العادية */
+                                                        ) : (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                {!isActive && (
+                                                                    <button
+                                                                        onClick={() => setConfirmAdoptId(schedule.id)}
+                                                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white rounded-lg transition-all hover:scale-[1.03] active:scale-95"
+                                                                        style={{
+                                                                            background: 'linear-gradient(135deg,#655ac1,#7c6dd6)',
+                                                                            boxShadow:  '0 2px 6px rgba(101,90,193,0.3)',
+                                                                        }}
+                                                                        title="اعتماد هذا الجدول"
+                                                                    >
+                                                                        <CheckCircle2 size={11} /> اعتماد
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingId(schedule.id);
+                                                                        setEditingName(schedule.name);
+                                                                    }}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 hover:text-[#655ac1] rounded-lg transition-all"
+                                                                    title="تعديل اسم الجدول"
+                                                                >
+                                                                    <Pencil size={11} /> تعديل
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setConfirmDeleteId(schedule.id)}
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                                                                    title="حذف الجدول"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                         )}
                     </div>
-                )}
-
-                {/* List */}
-                <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6 space-y-3">
-                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 mb-1">
-                        <div className="flex items-center gap-1.5">
-                            <BookOpenCheck size={13} className="text-[#655ac1]" />
-                            الجداول المحفوظة ({savedSchedules.length} / 10)
-                        </div>
-                        <div className="w-28 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                                className="h-full rounded-full transition-all"
-                                style={{
-                                    width: `${(savedSchedules.length / 10) * 100}%`,
-                                    background: savedSchedules.length >= 10 ? '#ef4444' : 'linear-gradient(90deg,#655ac1,#8779fb)',
-                                }}
-                            />
-                        </div>
-                    </div>
-
-                    {savedSchedules.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 gap-4 text-slate-400">
-                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-slate-100">
-                                <History size={28} style={{ color: '#a59bf0' }} />
-                            </div>
-                            <div className="text-center">
-                                <p className="font-semibold text-slate-600 mb-1">لا توجد جداول محفوظة بعد</p>
-                                <p className="text-xs font-normal">
-                                    سيُحفظ الجدول تلقائياً عند إنشائه من زر «بناء الجدول»
-                                </p>
-                            </div>
-                        </div>
-                    ) : (
-                        savedSchedules.map((schedule, index) => {
-                            const isActive   = schedule.id === activeScheduleId;
-                            const isLatest   = index === 0;
-                            const { day, date, time } = formatDateTime(schedule.createdAt);
-                            const isSystem   = schedule.createdBy === 'النظام';
-                            const isEditing  = editingScheduleId === schedule.id;
-                            const isDeleting = confirmDeleteId === schedule.id;
-
-                            return (
-                                <div
-                                    key={schedule.id}
-                                    className="rounded-2xl overflow-hidden transition-all duration-200"
-                                    style={{
-                                        border: isActive ? '2px solid #8779fb' : '1.5px solid #e8e6f0',
-                                        background: isActive ? 'linear-gradient(135deg,#faf9ff,#f3f0ff)' : 'white',
-                                        boxShadow: isActive ? '0 4px 16px rgba(101,90,193,0.14)' : '0 1px 4px rgba(0,0,0,0.05)',
-                                    }}
-                                >
-                                    {isActive && (
-                                        <div
-                                            className="h-1 w-full"
-                                            style={{ background: 'linear-gradient(90deg,#655ac1,#8779fb)' }}
-                                        />
-                                    )}
-
-                                    <div className="p-4">
-                                        {/* Row 1 */}
-                                        <div className="flex items-start gap-3 mb-3">
-                                            <div
-                                                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-bold mt-0.5"
-                                                style={{
-                                                    background: isActive ? 'linear-gradient(135deg,#655ac1,#7c6dd6)' : '#f1f0f8',
-                                                    color: isActive ? 'white' : '#94a0b8',
-                                                }}
-                                            >
-                                                {savedSchedules.length - index}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                {isEditing ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            type="text"
-                                                            value={editingScheduleName}
-                                                            onChange={e => setEditingScheduleName(e.target.value)}
-                                                            autoFocus
-                                                            onKeyDown={e => {
-                                                                if (e.key === 'Enter') handleRenameSave();
-                                                                if (e.key === 'Escape') setEditingScheduleId(null);
-                                                            }}
-                                                            className="flex-1 px-3 py-1.5 bg-white border border-[#655ac1] rounded-lg text-sm outline-none"
-                                                        />
-                                                        <button
-                                                            onClick={handleRenameSave}
-                                                            className="p-1.5 rounded-lg text-white transition-colors"
-                                                            style={{ background: '#655ac1' }}
-                                                        >
-                                                            <Check size={13} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setEditingScheduleId(null)}
-                                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-                                                        >
-                                                            <X size={13} />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="font-semibold text-slate-800 text-sm leading-tight">
-                                                            {schedule.name}
-                                                        </span>
-                                                        {isActive && (
-                                                            <span
-                                                                className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-[#655ac1]"
-                                                                style={{ background: 'rgba(101,90,193,0.12)' }}
-                                                            >
-                                                                <Star size={9} /> معتمد
-                                                            </span>
-                                                        )}
-                                                        {isLatest && !isActive && (
-                                                            <span
-                                                                className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-amber-600"
-                                                                style={{ background: '#fef9ec', border: '1px solid #fde68a' }}
-                                                            >
-                                                                الأحدث
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Row 2 */}
-                                        <div className="grid grid-cols-3 gap-2 mb-3">
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-100">
-                                                <CalendarDays size={11} style={{ color: '#655ac1', flexShrink: 0 }} />
-                                                <div className="min-w-0">
-                                                    <p className="text-[9px] font-normal text-slate-400">{day}</p>
-                                                    <p className="text-[10px] font-semibold text-slate-700 leading-tight truncate">{date}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-100">
-                                                <Clock size={11} style={{ color: '#655ac1', flexShrink: 0 }} />
-                                                <div className="min-w-0">
-                                                    <p className="text-[9px] font-normal text-slate-400">الوقت</p>
-                                                    <p className="text-[10px] font-semibold text-slate-700 leading-tight">{time}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-100">
-                                                {isSystem
-                                                    ? <Shield size={11} style={{ color: '#655ac1', flexShrink: 0 }} />
-                                                    : <User2  size={11} style={{ color: '#655ac1', flexShrink: 0 }} />
-                                                }
-                                                <div className="min-w-0">
-                                                    <p className="text-[9px] font-normal text-slate-400">أنشئ بواسطة</p>
-                                                    <p className="text-[10px] font-semibold text-slate-700 leading-tight">{schedule.createdBy}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Row 3 */}
-                                        <div className="flex items-center justify-between gap-2">
-                                            <span
-                                                className="text-[10px] font-normal text-slate-400 px-2 py-1 rounded-lg"
-                                                style={{ background: '#f1f5f9' }}
-                                            >
-                                                {Object.keys(schedule.timetable).length} حصة مُسندة
-                                            </span>
-                                            {isDeleting ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-medium text-rose-500">تأكيد الحذف؟</span>
-                                                    <button
-                                                        onClick={() => handleDelete(schedule.id)}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors"
-                                                    >
-                                                        نعم
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setConfirmDeleteId(null)}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 rounded-xl transition-colors"
-                                                        style={{ background: '#f1f5f9' }}
-                                                    >
-                                                        إلغاء
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    {!isActive && (
-                                                        <button
-                                                            onClick={() => handleAdopt(schedule)}
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-xl transition-all hover:scale-[1.02]"
-                                                            style={{
-                                                                background: 'linear-gradient(135deg,#655ac1,#7c6dd6)',
-                                                                boxShadow: '0 3px 10px rgba(101,90,193,0.3)',
-                                                            }}
-                                                        >
-                                                            <CheckCircle2 size={12} /> اعتماد
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingScheduleId(schedule.id);
-                                                            setEditingScheduleName(schedule.name);
-                                                        }}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 rounded-xl transition-all hover:text-[#655ac1]"
-                                                        style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}
-                                                    >
-                                                        <Pencil size={12} /> تعديل الاسم
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setConfirmDeleteId(schedule.id)}
-                                                        className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-                                                    >
-                                                        <Trash2 size={15} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-100">
-                    <span className="text-xs text-slate-400 font-normal">
-                        يُحفظ الجدول تلقائياً عند كل إنشاء جديد
+                {/* ── Footer ── */}
+                <div className="p-6 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
+                    <span className="text-xs font-medium text-slate-400">
+                        يُحفظ الجدول تلقائياً عند كل إنشاء · الحد الأقصى 10 جداول
                     </span>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 rounded-2xl font-medium text-sm text-slate-600 transition-all hover:scale-[1.02]"
-                        style={{ background: '#f1f5f9', border: '1.5px solid #e2e8f0' }}
+                        className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors"
                     >
                         إغلاق
                     </button>

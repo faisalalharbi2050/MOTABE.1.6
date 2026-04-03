@@ -494,6 +494,8 @@ export interface ScheduleSettingsData {
   savedSchedules?: SavedSchedule[];
   activeScheduleId?: string; // ID of the currently adopted saved schedule
   generationMode?: 'unified' | 'separate'; // نوع الجدول للمدارس المشتركة
+  scheduleGenerationCount?: number; // عداد مرات إنشاء جدول الحصص
+  waitingGenerationCount?: number;  // عداد مرات إنشاء جدول الانتظار
 }
 
 // ===== Audit Log Types =====

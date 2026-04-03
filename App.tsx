@@ -36,7 +36,83 @@ import RolePermissions from './components/permissions/RolePermissions';
 import SubscriptionContainer from './components/subscription/SubscriptionContainer';
 import Support from './components/Support';
 
+const APP_STORAGE_KEY = 'school_assignment_v4';
+const APP_STORAGE_BACKUP_KEY = 'school_assignment_v4_backup';
+
+const createDefaultSchoolInfo = (): SchoolInfo => ({
+  entityType: EntityType.SCHOOL,
+  schoolName: '',
+  region: '',
+  departments: [],
+  phases: [Phase.ELEMENTARY],
+  gender: 'ط¨ظ†ظٹظ†',
+  educationalAgent: '',
+  principal: '',
+  sharedSchools: []
+});
+
+const createDefaultSubscription = (): SubscriptionInfo => {
+  const today = new Date();
+  const semesterEnd = new Date(today);
+  semesterEnd.setDate(today.getDate() + 90);
+
+  return {
+    packageTier: 'advanced',
+    isTrial: false,
+    trialStartDate: today.toISOString().split('T')[0],
+    trialEndDate: today.toISOString().split('T')[0],
+    totalMessages: 0,
+    remainingMessages: 0,
+    startDate: today.toISOString().split('T')[0],
+    endDate: semesterEnd.toISOString().split('T')[0],
+    planName: 'ط§ظ„ط¨ط§ظ‚ط© ط§ظ„ظ…طھظ‚ط¯ظ…ط©',
+    transactions: [],
+    freeSmsRemaining: 10,
+    freeWaRemaining: 50
+  };
+};
+
+const hasMeaningfulAppData = (data: any): boolean => {
+  if (!data || typeof data !== 'object') return false;
+
+  return Boolean(
+    data.schoolInfo?.schoolName ||
+    data.teachers?.length ||
+    data.classes?.length ||
+    data.subjects?.length ||
+    data.students?.length ||
+    data.admins?.length ||
+    data.assignments?.length ||
+    Object.keys(data.gradeSubjectMap || {}).length ||
+    Object.keys(data.phaseDepartmentMap || {}).length ||
+    Object.keys(data.scheduleSettings?.timetable || {}).length
+  );
+};
+
+const parseStoredAppData = (raw: string | null) => {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredAppData = () => {
+  if (typeof window === 'undefined') return null;
+
+  const primary = parseStoredAppData(localStorage.getItem(APP_STORAGE_KEY));
+  const backup = parseStoredAppData(localStorage.getItem(APP_STORAGE_BACKUP_KEY));
+
+  if (hasMeaningfulAppData(primary)) return primary;
+  if (hasMeaningfulAppData(backup)) return backup;
+  return primary || backup;
+};
+
 const App: React.FC = () => {
+  const initialAppData = React.useMemo(() => loadStoredAppData(), []);
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
     entityType: EntityType.SCHOOL,
     schoolName: '',
@@ -77,6 +153,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [subscriptionInitialTab, setSubscriptionInitialTab] = useState<'dashboard' | 'pricing' | 'invoices'>('dashboard');
   const [messagesInitialTab, setMessagesInitialTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>('compose');
+  const [hasHydratedAppState, setHasHydratedAppState] = useState(false);
 
   // Mock Data for Dashboard
   const [messages] = useState<Message[]>([
@@ -117,10 +194,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     migrateTeacherStructure(); // تحديث هيكل بيانات المعلمين قبل تحميل الحالة
-    const saved = localStorage.getItem('school_assignment_v4');
-    if (saved) {
+    const data = loadStoredAppData();
+    if (data) {
       try {
-        const data = JSON.parse(saved);
         if (data.schoolInfo) setSchoolInfo(data.schoolInfo);
         setTeachers(data.teachers || []);
         setClasses(data.classes || []);
@@ -141,8 +217,13 @@ const App: React.FC = () => {
         if (data.subjects) setSubjects(data.subjects);
         if (data.scheduleSettings) setScheduleSettings(data.scheduleSettings);
         if (data.subscription) setSubscription(data.subscription);
+        if (hasMeaningfulAppData(data)) {
+          localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(data));
+          localStorage.setItem(APP_STORAGE_BACKUP_KEY, JSON.stringify(data));
+        }
       } catch (e) { console.error(e); }
     }
+    setHasHydratedAppState(true);
   }, []);
 
   // Migration for Legacy Shared School Data and Sync
@@ -177,9 +258,20 @@ const App: React.FC = () => {
   }, [schoolInfo.hasSecondSchool, schoolInfo.secondSchoolName, schoolInfo.secondSchoolPhases]);
 
   useEffect(() => {
+    if (!hasHydratedAppState) return;
+
     const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription, timestamp: Date.now() };
-    localStorage.setItem('school_assignment_v4', JSON.stringify(data));
-  }, [schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, scheduleSettings, subscription]);
+    const existingData = loadStoredAppData();
+
+    if (!hasMeaningfulAppData(data) && hasMeaningfulAppData(existingData)) {
+      return;
+    }
+
+    localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(data));
+    if (hasMeaningfulAppData(data)) {
+      localStorage.setItem(APP_STORAGE_BACKUP_KEY, JSON.stringify(data));
+    }
+  }, [hasHydratedAppState, schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription]);
 
   const handleLogout = () => {
     if(confirm('هل أنت متأكد من تسجيل الخروج؟')) {
@@ -192,7 +284,7 @@ const App: React.FC = () => {
     if (confirm('تحذير: سيتم حذف كافة البيانات والبدء من جديد. هل أنت متأكد؟')) {
       setSchoolInfo({ entityType: EntityType.SCHOOL, schoolName: '', region: '', departments: ['عام'], phases: [Phase.ELEMENTARY], gender: 'بنين', educationalAgent: '', principal: '', hasSecondSchool: false, sharedSchools: [] });
       setTeachers([]); setClasses([]); setAssignments([]); setGradeSubjectMap({}); setSpecializations(INITIAL_SPECIALIZATIONS); setSubjects([]);
-      localStorage.removeItem('school_assignment_v4'); setActiveTab('settings_basic');
+      localStorage.removeItem(APP_STORAGE_KEY); localStorage.removeItem(APP_STORAGE_BACKUP_KEY); setActiveTab('settings_basic');
     }
   };
 
@@ -333,4 +425,3 @@ const App: React.FC = () => {
 
 
 export default App;
-
