@@ -196,6 +196,8 @@ const Step9Schedule: React.FC<Step9Props> = ({
 
   // Mock data for display until real logic is implemented
   const hasSchedule = scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
+  const isGeneralTeachersEditing = hasSchedule && activeView === 'grid' && !activeDisplayView;
+  const showTeacherSortControls = activeDisplayView === 'general_teachers' || activeDisplayView === 'general_waiting' || isGeneralTeachersEditing;
 
   const getTimingConfig = () => {
     return schoolInfo.timing || {
@@ -838,7 +840,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     title="إدارة الجداول"
                     className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
                  >
-                   <Save size={18} className="text-[#655ac1]" />
+                   <Table size={18} className="text-[#655ac1]" />
                    <span>إدارة الجداول</span>
                  </button>
 
@@ -858,8 +860,8 @@ const Step9Schedule: React.FC<Step9Props> = ({
       </div>
 
 
-      {/* ══════ خيارات العرض الفرعية (تظهر بعد اختيار نوع الجدول) ══════ */}
-      {activeDisplayView && (
+      {/* ══════ خيارات العرض الفرعية (تظهر بعد اختيار نوع الجدول أو في وضع تعديل الجدول العام) ══════ */}
+      {(activeDisplayView || showTeacherSortControls) && (
         <div className="mb-6 space-y-3">
             {/* Individual Multi-Select */}
             {(activeDisplayView === 'individual_teacher' || activeDisplayView === 'individual_class') && (() => {
@@ -952,7 +954,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
             })()}
 
             {/* Teacher Sort Controls — shown for teacher views */}
-            {(activeDisplayView === 'general_teachers' || activeDisplayView === 'general_waiting') && (
+            {showTeacherSortControls && (
               <div className="mt-3 flex flex-wrap items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
                 <div className="shrink-0">
                   <Users size={20} className="text-[#655ac1]" />
@@ -1168,15 +1170,16 @@ const Step9Schedule: React.FC<Step9Props> = ({
           {/* Custom Teacher View */}
           {hasSchedule && !activeDisplayView && activeView === 'individual' && (
                <div className="p-6">
-                   <CustomTeacherView 
-                       teachers={teachers}
-                       subjects={subjects}
-                       classes={classes}
-                       settings={scheduleSettings}
-                       onUpdateSettings={setScheduleSettings}
-                       activeSchoolId={sharedSchoolMode === 'separated' ? activeSchoolId : 'main'} 
-                   />
-               </div>
+                    <CustomTeacherView 
+                        teachers={teachers}
+                        subjects={subjects}
+                        classes={classes}
+                        settings={scheduleSettings}
+                        onUpdateSettings={setScheduleSettings}
+                        activeSchoolId={sharedSchoolMode === 'separated' ? activeSchoolId : 'main'}
+                        specializationNames={Object.fromEntries(specializations.map(s => [s.id, s.name]))}
+                    />
+                </div>
           )}
       </div>
 

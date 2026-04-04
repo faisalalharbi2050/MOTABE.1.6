@@ -27,13 +27,37 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const buildAutoSavedScheduleName = (count: number) => `جدول رقم ${count}`;
+
   const handleAutoAssign = () => {
     try {
       const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
         teachers, admins, dutyData.exclusions, dutyData.settings,
         scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, dutyData.settings.suggestedCountPerDay || suggestedCount
       );
-      setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts, isApproved: false }));
+      setDutyData(prev => {
+        const prevSaved = prev.savedSchedules || [];
+        const newId = `duty-schedule-${Date.now()}`;
+        const autoScheduleNumber = prevSaved.length + 1;
+        const newSavedEntry = {
+          id: newId,
+          name: buildAutoSavedScheduleName(autoScheduleNumber),
+          createdAt: new Date().toISOString(),
+          dayAssignments: assignments,
+          isApproved: false,
+        };
+
+        return {
+          ...prev,
+          dayAssignments: assignments,
+          weekAssignments,
+          dutyAssignmentCounts: newCounts,
+          isApproved: false,
+          approvedAt: undefined,
+          savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
+          activeScheduleId: newId,
+        };
+      });
       showToast('تم التوزيع التلقائي للمناوبين بنجاح', 'success');
       if (alerts.length > 0) {
         showToast(alerts[0], 'warning');

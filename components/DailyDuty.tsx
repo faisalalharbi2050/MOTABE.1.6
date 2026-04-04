@@ -3,7 +3,7 @@ import {
   Eye, Settings, Send, Printer,
   CheckCircle, AlertTriangle, ShieldCheck,
   RefreshCw, BarChart3,
-  X, Save, AlertCircle,
+  X, Table, AlertCircle,
   Info, Zap
 } from 'lucide-react';
 import {
@@ -65,6 +65,7 @@ interface DailyDutyProps {
 const DailyDuty: React.FC<DailyDutyProps> = ({
   schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings
 }) => {
+  const DUTY_ONE_TIME_RESET_MARKER = 'duty_data_reset_2026_04_04_done';
   // ===== State =====
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showAcademicPopup, setShowAcademicPopup] = useState(false);
@@ -112,6 +113,17 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     }
     return getDefaultDutyData();
   });
+
+  useEffect(() => {
+    if (localStorage.getItem(DUTY_ONE_TIME_RESET_MARKER)) return;
+
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('duty_data_v1'))
+      .forEach(key => localStorage.removeItem(key));
+
+    localStorage.setItem(DUTY_ONE_TIME_RESET_MARKER, 'true');
+    setDutyData(getDefaultDutyData());
+  }, []);
 
   // Re-load data when activeSchoolTab changes
   useEffect(() => {
@@ -428,7 +440,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
               onClick={() => setIsManageSchedulesOpen(true)}
               className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
             >
-              <Save size={18} className="text-[#655ac1]" />
+              <Table size={18} className="text-[#655ac1]" />
               <span>إدارة الجداول</span>
             </button>
           </div>
@@ -581,7 +593,15 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         isOpen={showPreCheckModal}
         onClose={() => setShowPreCheckModal(false)}
         onProceed={() => { setShowPreCheckModal(false); setIsCreateScheduleOpen(true); }}
-        onGoToSettings={() => { setShowPreCheckModal(false); setShowSettingsPage(true); }}
+        onGoToSettings={() => {
+          setShowPreCheckModal(false);
+          if (!hasSemesterDates) {
+            setShowAcademicPopup(true);
+            return;
+          }
+          setShowSettingsPage(true);
+        }}
+        secondaryActionLabel={hasSemesterDates ? 'تعديل الإعدادات' : 'تحديد الفصل الدراسي'}
         checks={preChecks}
       />
 

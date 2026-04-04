@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Teacher, ScheduleSettingsData, Subject, ClassInfo, AuditLogEntry } from '../../types';
 import { getKey, tryMoveOrSwap, findChainSwap, SwapResult } from '../../utils/scheduleInteractive';
 import { Search, UserPlus, Check, X, Users, Lock } from 'lucide-react';
@@ -11,6 +12,7 @@ interface CustomTeacherViewProps {
     settings: ScheduleSettingsData;
     onUpdateSettings: (newSettings: ScheduleSettingsData) => void;
     activeSchoolId: string;
+    specializationNames?: Record<string, string>;
 }
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
@@ -24,41 +26,62 @@ const C_BG       = '#a59bf0';
 const C_BG_SOFT  = '#f4f2ff';
 const C_DAY_SEP  = '#64748b';
 const C_BORDER   = '#94a3b8';
-
-const getPastelColor = (name: string) => {
-    const colors = [
-        { bg: '#f0fdf4', text: '#166534' },
-        { bg: '#eff6ff', text: '#1d4ed8' },
-        { bg: '#fef2f2', text: '#b91c1c' },
-        { bg: '#fdf4ff', text: '#be185d' },
-        { bg: '#fefce8', text: '#a16207' },
-        { bg: '#faf5ff', text: '#86198f' },
-        { bg: '#f5f3ff', text: '#6b21a8' },
-        { bg: '#f0fdfa', text: '#4338ca' },
-        { bg: '#ecfdf5', text: '#0f766e' },
-        { bg: '#fff7ed', text: '#c2410c' },
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-};
+const GAP_BG     = '#eef2f7';
+const DAY_COL_W  = 60;
+const PERIOD_COL_W = 60;
+const ROW_H = 60;
 
 const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
-    teachers, subjects, classes, settings, onUpdateSettings, activeSchoolId
+    teachers, subjects, classes, settings, onUpdateSettings, activeSchoolId, specializationNames = {}
 }) => {
     const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSelecting, setIsSelecting] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number; width: number }>({ top: 0, right: 0, width: 320 });
     const [dragSource, setDragSource] = useState<{ teacherId: string; day: string; period: number } | null>(null);
     const [hoverTarget, setHoverTarget] = useState<string | null>(null);
     const [pendingSwap, setPendingSwap] = useState<SwapResult | null>(null);
     const [swapError, setSwapError] = useState<string | null>(null);
+    const addButtonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     const timetable = settings.timetable || {};
     const selectedTeachers = teachers.filter(t => selectedTeacherIds.includes(t.id));
     const filteredTeachers = teachers.filter(t =>
-        t.name.toLowerCase().includes(searchQuery.toLowerCase()) && !selectedTeacherIds.includes(t.id)
+        t.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    useEffect(() => {
+        if (!isSelecting) return;
+
+        const updateDropdownPosition = () => {
+            if (!addButtonRef.current) return;
+            const rect = addButtonRef.current.getBoundingClientRect();
+            const width = Math.min(380, Math.max(320, rect.width + 70));
+            const margin = 16;
+            const right = Math.max(margin, window.innerWidth - rect.right);
+            setDropdownPos({
+                top: rect.bottom + 12,
+                right,
+                width: Math.min(width, window.innerWidth - margin * 2),
+            });
+        };
+
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node;
+            const inButton = addButtonRef.current?.contains(target);
+            const inDropdown = dropdownRef.current?.contains(target);
+            if (!inButton && !inDropdown) setIsSelecting(false);
+        };
+
+        updateDropdownPosition();
+        window.addEventListener('resize', updateDropdownPosition);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            window.removeEventListener('resize', updateDropdownPosition);
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isSelecting]);
 
     const isClassInActiveSchool = (c?: ClassInfo) => {
         if (!c) return true;
@@ -153,24 +176,24 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
 
         if (isForeign) {
             inner = (
-                <div className="w-full h-full rounded-lg flex flex-col items-center justify-center gap-0.5"
+                <div className="w-full h-full rounded-[10px] flex flex-col items-center justify-center gap-0.5"
                      style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
                     <Lock size={12} className="text-slate-400" />
-                    <span style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 700 }}>مشغول</span>
+                    <span style={{ color: '#94a3b8', fontSize: '8px', fontWeight: 700 }}>مشغول</span>
                 </div>
             );
         } else if (!slot) {
             inner = (
-                <div className="w-full h-full rounded-lg flex items-center justify-center"
+                <div className="w-full h-full rounded-[10px] flex items-center justify-center"
                      style={{ border: `1px dashed ${isHov ? C_BG : '#dde1ea'}`, background: isHov ? '#ede9fe' : '#f8f9fc' }}>
-                    <span style={{ color: '#c8cdd8', fontSize: '9px', fontWeight: 700 }}>—</span>
+                    <span style={{ color: '#c8cdd8', fontSize: '8px', fontWeight: 700 }}>—</span>
                 </div>
             );
         } else if (slot.type === 'waiting') {
             inner = (
-                <div className="w-full h-full rounded-lg flex flex-col items-center justify-center gap-0.5"
+                <div className="w-full h-full rounded-[10px] flex flex-col items-center justify-center gap-0.5"
                      style={{ background: '#fef3e8', border: '1px solid #fbd28a' }}>
-                    <span style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fcd34d', fontSize: '8px', fontWeight: 900, borderRadius: '9999px', padding: '2px 6px' }}>انتظار</span>
+                    <span style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fcd34d', fontSize: '7px', fontWeight: 900, borderRadius: '9999px', padding: '2px 5px' }}>انتظار</span>
                 </div>
             );
         } else {
@@ -178,14 +201,13 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
             const clsInfo  = classes.find(c => c.id === slot.classId);
             const subjDisp = settings.subjectAbbreviations?.[slot.subjectId || ''] || subj?.name || '---';
             const clsDisp  = clsInfo?.name || '---';
-            const color    = getPastelColor(subj?.name || '');
             inner = (
-                <div className="w-full h-full rounded-lg flex flex-col items-center justify-center px-0.5 gap-0.5 transition-all hover:scale-[1.03]"
-                     style={{ background: color.bg, border: `1px solid ${color.text}30` }}>
-                    <span style={{ color: color.text, fontSize: '10px', fontWeight: 700, lineHeight: 1.2, textAlign: 'center', width: '100%', padding: '0 2px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                <div className="w-full h-full rounded-[10px] flex flex-col items-center justify-center px-1 gap-0.5 transition-all"
+                     style={{ background: '#ffffff', border: '1px solid #d1d5db', boxShadow:'0 1px 2px rgba(15,23,42,0.06)' }}>
+                    <span style={{ color: '#334155', fontSize: '10px', fontWeight: 800, lineHeight: 1.1, textAlign: 'center', width: '100%', padding: '0 1px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                         {clsDisp}
                     </span>
-                    <span style={{ color: color.text, fontSize: '9px', fontWeight: 500, lineHeight: 1.2, textAlign: 'center', width: '100%', padding: '0 2px', opacity: 0.75, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    <span style={{ color: '#0f172a', fontSize: '8px', fontWeight: 700, lineHeight: 1.1, textAlign: 'center', width: '100%', padding: '0 1px', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                         {subjDisp}
                     </span>
                 </div>
@@ -201,46 +223,60 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
                 onDragEnd={handleDragEnd}
                 onDrop={e      => { if (!isForeign) handleDrop(e, teacher.id, day, period); }}
                 style={{
-                    height: '72px',
+                    height: `${ROW_H}px`,
                     padding: '3px',
-                    background: isHov ? '#ede9fe' : rowBg,
-                    borderLeft: `1px solid ${C_BORDER}`,
-                    borderBottom: `1px solid ${C_BORDER}`,
+                    background: GAP_BG,
+                    borderLeft: '0',
+                    borderBottom: '0',
                     cursor: slot && !isForeign ? 'grab' : 'default',
                     transition: 'background 0.15s',
                     outline: isHov ? `2px solid ${C_BG}` : 'none',
                     outlineOffset: '-2px',
                 }}
             >
-                {inner}
+                <div
+                    className="w-full h-full"
+                    style={{
+                        background: isHov ? '#ede9fe' : rowBg,
+                        borderRadius: '14px',
+                        border: '1px solid #e2e8f0',
+                        padding: '2px',
+                    }}
+                >
+                    {inner}
+                </div>
             </td>
         );
     };
 
     /* ── Single teacher table (InlineScheduleView style) ── */
     const renderTeacherTable = (teacher: Teacher) => (
-        <div key={teacher.id} className="min-w-0" style={{ zoom: 0.63 }}>
+        <div key={teacher.id} className="min-w-0 w-full max-w-full">
             {/* Info header */}
-            <div className="rounded-t-2xl p-4 overflow-hidden"
-                 style={{ background: C_BG, boxShadow: '0 8px 25px rgba(101,90,193,0.30)' }}>
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-xl shrink-0"
-                         style={{ background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', color: '#fff' }}>
-                        {teacher.name.charAt(0)}
-                    </div>
+            <div
+                className="rounded-t-[24px] p-3.5 overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #655ac1 0%, #7c6dd6 100%)', boxShadow: '0 12px 32px rgba(101,90,193,0.25)' }}
+            >
+                <div className="flex items-center gap-2.5">
                     <div className="flex-1 min-w-0">
-                        <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '11px', fontWeight: 600 }}>المعلم</div>
-                        <div className="truncate" style={{ color: '#fff', fontWeight: 900, fontSize: '20px', lineHeight: 1.2 }}>{teacher.name}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.72)', fontSize: '10px', fontWeight: 700 }}>المعلم</div>
+                        <div className="truncate" style={{ color: '#fff', fontWeight: 900, fontSize: '16px', lineHeight: 1.2 }}>{teacher.name}</div>
+                        <div
+                            className="truncate mt-1"
+                            style={{ color: 'rgba(255,255,255,0.86)', fontSize: '11px', fontWeight: 600 }}
+                        >
+                            {specializationNames[teacher.specializationId] || '—'}
+                        </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
                         {[
                             { label: 'نصاب', value: teacher.quotaLimit || 0 },
                             { label: 'انتظار', value: teacher.waitingQuota || 0 },
                         ].map(stat => (
-                            <div key={stat.label} className="flex flex-col items-center px-3 py-1.5 rounded-xl min-w-[60px]"
+                            <div key={stat.label} className="flex flex-col items-center px-2.5 py-1.5 rounded-xl min-w-[52px]"
                                  style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.20)' }}>
-                                <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: '10px', fontWeight: 600, lineHeight: 1, marginBottom: '2px' }}>{stat.label}</span>
-                                <span style={{ color: '#fff', fontWeight: 900, fontSize: '22px', lineHeight: 1 }}>{stat.value}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.88)', fontSize: '9px', fontWeight: 700, lineHeight: 1, marginBottom: '2px' }}>{stat.label}</span>
+                                <span style={{ color: '#fff', fontWeight: 900, fontSize: '18px', lineHeight: 1 }}>{stat.value}</span>
                             </div>
                         ))}
                     </div>
@@ -248,18 +284,28 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
             </div>
 
             {/* Table */}
-            <div className="rounded-b-2xl overflow-hidden" style={{ border: `2px solid #e0dcfb`, borderTop: 'none' }}>
-                <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
+            <div className="rounded-b-[24px] overflow-hidden" style={{ border: `1px solid #dde3ee`, borderTop: 'none', background: GAP_BG }}>
+                <table className="w-full border-collapse table-fixed" style={{ background: GAP_BG }}>
                     <thead>
                         <tr>
-                            <th style={{ minWidth: '80px', background: C_BG, color: '#fff', fontWeight: 900, fontSize: '13px', textAlign: 'center', padding: '10px 6px', borderBottom: `2px solid ${C_DAY_SEP}`, borderLeft: `2px solid ${C_DAY_SEP}` }}>
-                                اليوم
+                            <th style={{ width: `${DAY_COL_W}px`, background: GAP_BG, padding: '3px', borderBottom: '0', borderLeft: '0' }}>
+                                <div
+                                    className="flex items-center justify-center rounded-[14px]"
+                                    style={{ background: 'linear-gradient(135deg, #655ac1 0%, #7c6dd6 100%)', border: '1px solid #5b50b8', color: '#fff', fontWeight: 900, fontSize: '14px', minHeight: '42px' }}
+                                >
+                                    اليوم
+                                </div>
                             </th>
                             {Array.from({ length: MAX_PERIODS }).map((_, i) => (
-                                <th key={i} style={{ minWidth: '90px', background: C_BG_SOFT, color: '#64748b', fontWeight: 700, fontSize: '12px', textAlign: 'center', padding: '8px 2px', borderBottom: `2px solid ${C_DAY_SEP}`, borderLeft: `1px solid ${C_BORDER}` }}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', background: '#fff', border: `2px solid ${C_DAY_SEP}`, color: '#64748b', fontWeight: 900, fontSize: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-                                        {i + 1}
-                                    </span>
+                                <th key={i} style={{ width: `${PERIOD_COL_W}px`, background: GAP_BG, padding: '3px', borderBottom: '0', borderLeft: '0' }}>
+                                    <div className="flex items-center justify-center">
+                                        <div
+                                            className="flex items-center justify-center rounded-[14px]"
+                                            style={{ width: '100%', minHeight: '42px', background: '#ffffff', border: '1px solid #d1d5db', boxShadow:'0 1px 2px rgba(15,23,42,0.06)', color: '#5b50b8', fontWeight: 900, fontSize: '16px' }}
+                                        >
+                                            {i + 1}
+                                        </div>
+                                    </div>
                                 </th>
                             ))}
                         </tr>
@@ -267,9 +313,15 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
                     <tbody>
                         {DAYS.map((day, di) => (
                             <tr key={day}>
-                                <td className="font-black text-center"
-                                    style={{ minWidth: '80px', height: '76px', padding: '10px 8px', background: di % 2 === 0 ? '#f8fafc' : '#f1f5f9', color: '#475569', fontSize: '13px', borderLeft: `2px solid ${C_DAY_SEP}`, borderBottom: `1px solid ${C_BORDER}`, position: 'sticky', right: 0, zIndex: 5 }}>
-                                    {DAY_NAMES[day]}
+                                <td
+                                    style={{ width: `${DAY_COL_W}px`, height: `${ROW_H}px`, background: GAP_BG, padding: '3px' }}
+                                >
+                                    <div
+                                        className="w-full h-full flex items-center justify-center rounded-[14px]"
+                                        style={{ background: '#ffffff', border: '1px solid #e2e8f0' }}
+                                    >
+                                        <span style={{ color: '#5b50b8', fontSize: '14px', fontWeight: 900, lineHeight: 1 }}>{DAY_NAMES[day]}</span>
+                                    </div>
                                 </td>
                                 {Array.from({ length: MAX_PERIODS }).map((_, pi) =>
                                     renderCell(teacher, day, di, pi + 1)
@@ -314,15 +366,20 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
 
                     <div className="relative">
                         <button
+                            ref={addButtonRef}
                             onClick={() => setIsSelecting(!isSelecting)}
                             className="px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center gap-2"
                         >
-                            <UserPlus size={18} />
+                            <UserPlus size={18} className="text-[#655ac1]" />
                             إضافة معلمين للواجهة
                         </button>
 
-                        {isSelecting && (
-                            <div className="absolute top-full right-0 mt-3 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in slide-in-from-top-2">
+                        {isSelecting && createPortal(
+                            <div
+                                ref={dropdownRef}
+                                className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[120] animate-in slide-in-from-top-2"
+                                style={{ top: dropdownPos.top, right: dropdownPos.right, width: dropdownPos.width }}
+                            >
                                 <div className="relative mb-2">
                                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
@@ -335,20 +392,40 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
                                 </div>
                                 <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
                                     {filteredTeachers.map(t => (
+                                        (() => {
+                                            const isSelected = selectedTeacherIds.includes(t.id);
+                                            return (
                                         <button
                                             key={t.id}
-                                            onClick={() => { setSelectedTeacherIds(prev => [...prev, t.id]); setIsSelecting(false); setSearchQuery(''); }}
-                                            className="w-full text-right px-3 py-2 text-sm font-bold text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1] rounded-lg transition-colors flex items-center justify-between group"
+                                            onClick={() => {
+                                                setSelectedTeacherIds(prev =>
+                                                    isSelected ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                                                );
+                                            }}
+                                            className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between border ${
+                                                isSelected
+                                                    ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm'
+                                                    : 'text-slate-700 border-transparent hover:bg-[#f0edff] hover:text-[#655ac1] hover:border-[#d9d3ff]'
+                                            }`}
                                         >
                                             {t.name}
-                                            <Check size={14} className="opacity-0 group-hover:opacity-100" />
+                                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
+                                                isSelected
+                                                    ? 'bg-[#655ac1] border-[#655ac1] text-white'
+                                                    : 'border-slate-300 text-transparent'
+                                            }`}>
+                                                <Check size={12} strokeWidth={3} />
+                                            </span>
                                         </button>
+                                            );
+                                        })()
                                     ))}
                                     {filteredTeachers.length === 0 && (
                                         <p className="text-center text-xs text-slate-400 font-medium py-3">لا يوجد معلمين مطابقين</p>
                                     )}
                                 </div>
-                            </div>
+                            </div>,
+                            document.body
                         )}
                     </div>
                 </div>
@@ -356,11 +433,11 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
                 {selectedTeachers.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
                         {selectedTeachers.map(t => (
-                            <div key={t.id} className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-[#f0edff] text-[#655ac1] rounded-lg border border-[#e5e1fe]">
+                            <div key={t.id} className="flex items-center gap-2 pl-2.5 pr-3.5 py-2 bg-white text-[#655ac1] rounded-xl border border-slate-300 shadow-sm">
                                 <span className="text-sm font-bold">{t.name}</span>
                                 <button
                                     onClick={() => setSelectedTeacherIds(prev => prev.filter(id => id !== t.id))}
-                                    className="p-1 hover:bg-white rounded-md transition-colors"
+                                    className="p-1 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-slate-600"
                                 >
                                     <X size={14} />
                                 </button>
@@ -372,12 +449,12 @@ const CustomTeacherView: React.FC<CustomTeacherViewProps> = ({
 
             {/* Schedule comparison */}
             {selectedTeachers.length > 0 ? (
-                <div className={`grid gap-4 ${selectedTeachers.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <div className={`grid gap-5 items-start ${selectedTeachers.length >= 2 ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`} dir="rtl">
                     {selectedTeachers.map(teacher => renderTeacherTable(teacher))}
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl p-12 shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                    <div className="flex items-center justify-center text-[#655ac1] mb-4">
                         <Users size={32} />
                     </div>
                     <h5 className="text-lg font-black text-slate-700 mb-2">استعرض وقارن</h5>

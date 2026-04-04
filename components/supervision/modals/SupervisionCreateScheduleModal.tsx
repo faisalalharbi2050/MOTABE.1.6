@@ -27,12 +27,34 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const buildAutoSavedScheduleName = (count: number) => `جدول رقم ${count}`;
+
   const handleAutoAssign = () => {
     const assignments = generateSmartAssignment(
       teachers, admins, supervisionData.exclusions, supervisionData.settings,
       scheduleSettings, schoolInfo, supervisionData.periods, suggestedCount
     );
-    setSupervisionData(prev => ({ ...prev, dayAssignments: assignments, isApproved: false }));
+    setSupervisionData(prev => {
+      const prevSaved = prev.savedSchedules || [];
+      const newId = `supervision-schedule-${Date.now()}`;
+      const autoScheduleNumber = prevSaved.length + 1;
+      const newSavedEntry = {
+        id: newId,
+        name: buildAutoSavedScheduleName(autoScheduleNumber),
+        createdAt: new Date().toISOString(),
+        dayAssignments: assignments,
+        isApproved: false,
+      };
+
+      return {
+        ...prev,
+        dayAssignments: assignments,
+        isApproved: false,
+        approvedAt: undefined,
+        savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
+        activeScheduleId: newId,
+      };
+    });
     showToast('تم التوزيع التلقائي للمشرفين بنجاح', 'success');
     onClose();
   };

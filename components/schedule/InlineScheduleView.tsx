@@ -75,6 +75,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     interactive = false,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isFullScreenEditMode, setIsFullScreenEditMode] = useState(false);
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
     const [draggingWaiting, setDraggingWaiting] = useState<'card'|'slot'|null>(null);
     const [draggingSlotKey, setDraggingSlotKey] = useState<string|null>(null);
@@ -516,7 +517,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     };
     const getSortedClasses = () => [...classes].sort((a,b)=> a.grade!==b.grade?a.grade-b.grade:(a.section||0)-(b.section||0));
 
-    const isInteractiveGeneralTeachers = type === 'general_teachers' && interactive && !!onUpdateSettings;
+    const isInteractiveGeneralTeachers = type === 'general_teachers' && !!onUpdateSettings && (interactive || isFullScreenEditMode);
     const isManualWaitingInteractive = type === 'general_teachers' && isManualMode && !!onUpdateSettings;
 
     const showSwapNotice = (type: 'simple' | 'chain', text: string) => {
@@ -993,13 +994,13 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         return (
             <div className="w-full relative">
-                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-300 bg-white px-3 py-3 shadow-sm">
-                    <span className="text-xs font-black text-slate-500">عرض الأيام:</span>
-                    <span className="text-[11px] font-bold text-slate-400">اختر يومًا أو أكثر لعرض حصصه فقط.</span>
+                <div className="mb-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-300 bg-white px-3.5 py-3.5 shadow-sm">
+                    <span className="text-sm font-black text-slate-500">عرض الأيام:</span>
+                    <span className="text-xs font-bold text-slate-400">اختر يومًا أو أكثر لعرض حصصه فقط.</span>
                     <button
                         type="button"
                         onClick={() => setSelectedGeneralDays([])}
-                        className={`rounded-xl border px-3 py-1.5 text-xs font-black transition active:scale-95 ${
+                        className={`rounded-xl border px-3.5 py-2 text-sm font-black transition active:scale-95 ${
                             selectedGeneralDays.length === 0
                                 ? 'border-[#7c6cf4] bg-[#8779fb] text-white shadow-sm'
                                 : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
@@ -1012,7 +1013,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             key={dayKey}
                             type="button"
                             onClick={() => toggleGeneralDay(dayKey)}
-                            className={`rounded-xl border px-3 py-1.5 text-xs font-black transition active:scale-95 ${
+                            className={`rounded-xl border px-3.5 py-2 text-sm font-black transition active:scale-95 ${
                                 selectedGeneralDays.includes(dayKey)
                                     ? 'border-[#7c6cf4] bg-[#8779fb] text-white shadow-sm'
                                     : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
@@ -1688,7 +1689,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     /* ════════════════════════════════════════════════════
        WRAPPER
     ════════════════════════════════════════════════════ */
-    const handleCloseFullScreen = () => setIsFullScreen(false);
+    const handleCloseFullScreen = () => {
+        setIsFullScreen(false);
+        setIsFullScreenEditMode(false);
+    };
 
     if (isFullScreen && isGeneral) {
         return (
@@ -1705,13 +1709,13 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        {type === 'general_teachers' && onEditRequest && (
+                        {type === 'general_teachers' && onUpdateSettings && (
                             <button
-                                onClick={() => { handleCloseFullScreen(); onEditRequest(); }}
+                                onClick={() => setIsFullScreenEditMode(true)}
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.03] active:scale-95"
                                 style={{background:'#655ac1', color:'#fff', boxShadow:'0 4px 14px rgba(101,90,193,0.25)'}}>
                                 <Pencil size={15}/>
-                                <span>تعديل</span>
+                                <span>{isFullScreenEditMode ? 'التعديل مفعل' : 'تعديل'}</span>
                             </button>
                         )}
                         <button

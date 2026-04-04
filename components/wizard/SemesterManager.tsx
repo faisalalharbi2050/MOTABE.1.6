@@ -547,6 +547,9 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                               inputClass="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white"
                               placeholder="حدد التاريخ"
                               portal
+                              portalTarget={document.body}
+                              editable={false}
+                              zIndex={99999}
                               style={{
                                 width: "100%",
                                 boxSizing: "border-box",
@@ -572,6 +575,9 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                               inputClass="w-full p-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 outline-none bg-white"
                               placeholder="حدد التاريخ"
                               portal
+                              portalTarget={document.body}
+                              editable={false}
+                              zIndex={99999}
                               style={{
                                 width: "100%",
                                 boxSizing: "border-box",

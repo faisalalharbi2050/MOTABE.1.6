@@ -3,7 +3,7 @@ import {
   Eye, Settings, Send, Printer,
   CheckCircle, AlertTriangle,
   RefreshCw, BarChart3,
-  X, Save, AlertCircle,
+  X, Table, AlertCircle,
   Info, Zap
 } from 'lucide-react';
 import {
@@ -427,7 +427,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
                onClick={() => setIsManageSchedulesOpen(true)}
                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
              >
-               <Save size={18} className="text-[#655ac1]" />
+               <Table size={18} className="text-[#655ac1]" />
                <span>إدارة الجداول</span>
              </button>
            </div>

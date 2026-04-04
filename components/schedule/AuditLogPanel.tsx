@@ -83,7 +83,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
                     >
                         <X size={18} />
                     </button>
@@ -98,9 +98,6 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                             <p className="text-xs font-bold text-slate-500 mb-1">التعديل على الجدول العام للمعلمين</p>
                             <p className="text-2xl font-black leading-none" style={{ color: '#655ac1' }}>{generalCount}</p>
                         </div>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ background: 'rgba(101,90,193,0.08)', color: '#655ac1' }}>
-                            عملية تعديل
-                        </span>
                     </div>
 
                     <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4">
@@ -111,9 +108,6 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                             <p className="text-xs font-bold text-slate-500 mb-1">التعديل على جدول معلم</p>
                             <p className="text-2xl font-black leading-none" style={{ color: '#655ac1' }}>{individualCount}</p>
                         </div>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ background: 'rgba(101,90,193,0.08)', color: '#655ac1' }}>
-                            عملية تعديل
-                        </span>
                     </div>
 
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[190px]">
@@ -121,7 +115,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                             <History size={22} style={{ color: '#655ac1' }} />
                         </div>
                         <div>
-                            <p className="text-xs font-bold text-slate-500 mb-1">الإجمالي</p>
+                            <p className="text-xs font-bold text-slate-500 mb-1">إجمالي التعديلات</p>
                             <p className="text-2xl font-black leading-none" style={{ color: '#655ac1' }}>{logs.length}</p>
                         </div>
                     </div>
@@ -139,14 +133,14 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                 onClick={() => setFilter(tab.key)}
                                 className="px-4 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5"
                                 style={filter === tab.key
-                                    ? { background: 'white', color: '#655ac1', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
+                                    ? { background: '#655ac1', color: '#ffffff', boxShadow: '0 4px 12px rgba(101,90,193,0.28)' }
                                     : { color: '#64748b' }}
                             >
                                 {tab.label}
                                 <span
                                     className="text-xs px-1.5 py-0.5 rounded-md font-black"
                                     style={filter === tab.key
-                                        ? { background: 'rgba(101,90,193,0.1)', color: '#655ac1' }
+                                        ? { background: 'rgba(255,255,255,0.18)', color: '#ffffff' }
                                         : { background: '#e2e8f0', color: '#64748b' }}
                                 >
                                     {tab.count}
@@ -176,7 +170,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                         style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
                     >
                         <Trash2 size={15} />
-                        حذف السجل
+                        حذف كل السجلات
                     </button>
                 </div>
 
@@ -189,20 +183,20 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                             </p>
                         </div>
                     ) : (
-                        <table className="w-full text-sm" dir="rtl">
-                            <thead className="sticky top-0 z-10 border-b border-slate-200" style={{ background: '#f8f7ff' }}>
-                                <tr>
-                                    <th className="px-4 py-3 text-center font-black text-slate-600 w-12">م</th>
-                                    <th className="px-4 py-3 text-right font-black text-slate-600 w-24">اليوم</th>
-                                    <th className="px-4 py-3 text-right font-black text-slate-600 w-28">التاريخ</th>
-                                    <th className="px-4 py-3 text-right font-black text-slate-600 w-28">الوقت</th>
-                                    <th className="px-4 py-3 text-right font-black text-slate-600 w-40">المعلم</th>
-                                    <th className="px-4 py-3 text-center font-black text-slate-600 w-36">نوع التعديل</th>
-                                    <th className="px-4 py-3 text-right font-black text-slate-600">تفاصيل التعديل</th>
-                                    <th className="px-4 py-3 text-center font-black text-slate-600 w-20">حذف</th>
+                        <table className="w-full text-right text-sm min-w-[980px]" dir="rtl">
+                            <thead className="sticky top-0 z-10">
+                                <tr className="bg-slate-50/50 border-b border-slate-100">
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-14">م</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-24">اليوم</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-28">التاريخ</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-28">الوقت</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-40">المعلم</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-36">نوع التعديل</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">تفاصيل التعديل</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-24">إجراء</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-slate-50">
                                 {filtered.map((log, idx) => {
                                     const isChain = log.actionType === 'chain_swap';
                                     const isGeneral = (log.viewType ?? 'general') === 'general';
@@ -211,43 +205,28 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                     return (
                                         <tr
                                             key={log.id}
-                                            className="border-b border-slate-100 transition-colors"
-                                            style={{ background: idx % 2 === 0 ? '#ffffff' : '#faf9ff' }}
-                                            onMouseEnter={e => (e.currentTarget.style.background = '#f5f3ff')}
-                                            onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? '#ffffff' : '#faf9ff')}
+                                            className="hover:bg-accent/5 transition-all group"
                                         >
-                                            <td className="px-4 py-3 text-center">
-                                                <span className="text-xs font-black w-7 h-7 rounded-lg flex items-center justify-center mx-auto" style={{ background: 'rgba(101,90,193,0.08)', color: '#655ac1' }}>
+                                            <td className="px-6 py-3.5 text-center">
+                                                <span className="inline-flex w-7 h-7 rounded-lg items-center justify-center text-[11px] font-black border border-slate-300 bg-white text-[#655ac1]">
                                                     {filtered.length - idx}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3"><span className="font-bold text-slate-700 text-xs">{formatDay(log.timestamp)}</span></td>
-                                            <td className="px-4 py-3"><span className="font-bold text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">{formatDate(log.timestamp)}</span></td>
-                                            <td className="px-4 py-3"><span className="font-bold text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-lg">{formatTime(log.timestamp)}</span></td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-6 py-3.5"><span className="text-[12px] font-bold text-slate-700">{formatDay(log.timestamp)}</span></td>
+                                            <td className="px-6 py-3.5"><span className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700">{formatDate(log.timestamp)}</span></td>
+                                            <td className="px-6 py-3.5 whitespace-nowrap"><span className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700 whitespace-nowrap">{formatTime(log.timestamp)}</span></td>
+                                            <td className="px-6 py-3.5 whitespace-nowrap">
                                                 {log.teacherName ? (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(101,90,193,0.1)' }}>
-                                                            <User size={12} style={{ color: '#655ac1' }} />
-                                                        </div>
-                                                        <span className="font-bold text-slate-700 text-xs leading-tight">{log.teacherName}</span>
-                                                        {log.relatedTeacherIds.length > 1 && (
-                                                            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(101,90,193,0.08)', color: '#655ac1' }}>
-                                                                +{log.relatedTeacherIds.length - 1}
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    <span className="font-bold text-[13px] text-slate-800 leading-tight whitespace-nowrap">{log.teacherName}</span>
                                                 ) : (
                                                     <span className="text-xs text-slate-400 font-semibold">—</span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-6 py-3.5 text-center">
                                                 <div className="flex flex-col items-center gap-1.5">
                                                     <span
                                                         className="text-xs font-black px-2.5 py-1 rounded-lg flex items-center gap-1 w-max"
-                                                        style={isChain
-                                                            ? { background: 'rgba(101,90,193,0.15)', color: '#4a3fa8' }
-                                                            : { background: 'rgba(101,90,193,0.08)', color: '#655ac1' }}
+                                                        style={{ background: '#ffffff', color: '#655ac1', border: '1px solid #cbd5e1' }}
                                                     >
                                                         {isChain ? <><RotateCcw size={11} /> متعدد</> : <><ArrowRightLeft size={11} /> بسيط</>}
                                                     </span>
@@ -256,12 +235,12 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-6 py-3.5">
                                                 <div className="space-y-1">
                                                     {steps.map((step, si) => (
                                                         <div key={si} className="flex items-start gap-2 text-xs text-slate-600">
                                                             {steps.length > 1 && (
-                                                                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 mt-0.5" style={{ background: 'rgba(101,90,193,0.08)', color: '#655ac1' }}>
+                                                                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 mt-0.5" style={{ background: '#f1f5f9', color: '#655ac1' }}>
                                                                     {si + 1}
                                                                 </span>
                                                             )}
@@ -270,7 +249,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-6 py-3.5 text-center">
                                                 <button
                                                     onClick={() => setConfirmDelete({ mode: 'one', id: log.id })}
                                                     className="inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-colors hover:bg-rose-50"
@@ -292,7 +271,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                     <span className="text-xs font-bold text-slate-400">عرض {filtered.length} من أصل {logs.length} سجل</span>
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 text-slate-600 font-bold hover:bg-slate-200/50 rounded-xl transition-colors text-sm"
+                        className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors"
                     >
                         إغلاق
                     </button>
@@ -316,7 +295,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                             </div>
                             <button
                                 onClick={() => setConfirmDelete(null)}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
                             >
                                 <X size={18} />
                             </button>
