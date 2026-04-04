@@ -13,12 +13,12 @@ export enum Phase {
 
 // ===== Roles & Permissions (RBAC) Types =====
 
-export type PermissionLevel = 'full' | 'custom_edit';
+export type PermissionLevel = 'full' | 'custom';
 
 export interface ModulePermission {
   moduleId: string; // e.g., 'settings', 'schedule', 'daily_waiting', 'messages', 'subscriptions', 'support', 'permissions'
   level: PermissionLevel; 
-  allowedActions?: ('add' | 'edit' | 'delete' | 'print' | 'export')[];
+  allowedActions?: ('view' | 'add' | 'edit' | 'delete' | 'print' | 'export')[];
 }
 
 export type RoleType = 'owner' | 'delegate_full' | 'delegate_custom';
@@ -39,13 +39,23 @@ export interface Delegate {
   linkedStaffType: 'teacher' | 'admin';
 }
 
+export type LogActionType =
+  | 'create'
+  | 'edit_permissions'
+  | 'activate'
+  | 'deactivate'
+  | 'delete'
+  | 'regenerate_otp'
+  | 'reset_account';
+
 export interface ActionLog {
   id: string;
-  delegateId: string;
-  delegateName: string;
-  action: string;
+  actorName: string;            // 'المالك' أو اسم المفوض
+  targetDelegateName?: string;  // المفوض المتأثر بالعملية
+  actionType: LogActionType;
+  action: string;               // وصف قابل للقراءة
   module: string;
-  timestamp: string; // ISO string
+  timestamp: string;            // ISO string
   details?: string;
 }
 

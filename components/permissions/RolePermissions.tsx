@@ -1,35 +1,28 @@
 import React, { useState } from 'react';
-import ReactDOM from 'react-dom';
-import { UserPlus, Users, Activity, Lock, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { UserPlus, Users, ClipboardList, Lock } from 'lucide-react';
 import AddDelegate from './AddDelegate';
 import ManageDelegates from './ManageDelegates';
 import ActionLogs from './ActionLogs';
 import DelegateLoginPortal from './DelegateLoginPortal';
+import Toast, { useToast } from './Toast';
 
 const RolePermissions: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'logs'>('add');
   const [showLoginPortal, setShowLoginPortal] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
-
-  const showToast = (message: string, type: 'success' | 'error' | 'warning') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { toast, showToast } = useToast();
 
   const tabs = [
     { id: 'add', label: 'إضافة مفوض', icon: UserPlus },
     { id: 'manage', label: 'إدارة المفوضين', icon: Users },
-    { id: 'logs', label: 'سجل الإجراءات', icon: Activity },
+    { id: 'logs', label: 'سجل الإجراءات', icon: ClipboardList },
   ] as const;
 
   return (
     <div className="space-y-6 dir-rtl animate-fade-in max-w-[1400px] mx-auto pb-20">
-      
+
       {/* ══════ Header Card ══════ */}
       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
-        {/* Decorative corner accent */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-
         <div className="relative z-10 flex justify-between items-start">
           <div>
             <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
@@ -69,7 +62,7 @@ const RolePermissions: React.FC = () => {
       </div>
 
       {showLoginPortal && (
-        <DelegateLoginPortal 
+        <DelegateLoginPortal
           onSuccess={(delegate) => {
             showToast(`تم إعداد حساب المفوض ${delegate.name} بنجاح!`, 'success');
             setShowLoginPortal(false);
@@ -78,28 +71,7 @@ const RolePermissions: React.FC = () => {
         />
       )}
 
-      {/* Toast Notification */}
-      {toast && typeof document !== 'undefined' && ReactDOM.createPortal(
-        <div className="fixed z-[9999] pointer-events-none w-full" style={{ top: '82px', left: '50%', transform: 'translateX(-50%)', animation: 'toastIn 0.3s ease-out' }}>
-           <style>{`@keyframes toastIn { from { opacity:0; top:64px; } to { opacity:1; top:82px; } }`}</style>
-           <div className={`mx-auto max-w-md w-full shadow-lg rounded-2xl p-4 flex items-center gap-3 border pointer-events-auto
-             ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
-             toast.type === 'error'   ? 'bg-rose-50 border-rose-200 text-rose-800' :
-             'bg-amber-50 border-amber-200 text-amber-800'}`}
-           >
-             <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center
-               ${toast.type === 'success' ? 'bg-emerald-100' :
-               toast.type === 'error'   ? 'bg-rose-100' : 'bg-amber-100'}`}
-             >
-               {toast.type === 'success' && <CheckCircle2 size={20} className="text-emerald-600" />}
-               {toast.type === 'error'   && <AlertCircle  size={20} className="text-rose-600" />}
-               {toast.type === 'warning' && <AlertTriangle size={20} className="text-amber-600" />}
-             </div>
-            <p className="font-bold text-sm flex-1 leading-relaxed">{toast.message}</p>
-           </div>
-        </div>,
-        document.body
-      )}
+      <Toast toast={toast} />
     </div>
   );
 };
