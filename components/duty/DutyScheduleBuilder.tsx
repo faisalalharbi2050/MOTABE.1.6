@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Calendar, Plus, X, Trash2,
   AlertTriangle, Search, Shield, Info, CheckCircle2, Check, BarChart2,
@@ -15,6 +15,7 @@ import {
 } from '../../utils/dutyUtils';
 import DutyReportEntry from './DutyReportEntry';
 import DutyReportViewModal from './DutyReportViewModal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface Props {
   dutyData: DutyScheduleData;
@@ -33,10 +34,18 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   const [showAddPanel, setShowAddPanel] = useState<string | null>(null);
   const [addSearch, setAddSearch] = useState('');
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [addPanelPosition, setAddPanelPosition] = useState<{ top: number; right: number } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showDistributionReport, setShowDistributionReport] = useState(false);
   const [isAutoAssign, setIsAutoAssign] = useState(false);
   const [assignmentBannerDismissed, setAssignmentBannerDismissed] = useState(false);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    tone?: 'warning' | 'danger';
+    onConfirm: () => void;
+  } | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // State for opening the report entry form (per staff per day)
@@ -116,66 +125,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     });
   };
 
-  const handleAutoAssign = () => {
-    if (availableStaff.length === 0) {
-      showToast('لا يوجد موظفين متاحين للتوزيع', 'warning');
-      return;
-    }
-
-    setIsGenerating(true);
-    setTimeout(() => {
-      try {
-        const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
-          teachers, admins, dutyData.exclusions, dutyData.settings,
-          scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, dutyData.settings.suggestedCountPerDay
-        );
-
-        setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
-        showToast('تم التوزيع الذكي بنجاح بناءً على جدول الحصص الفعلي', 'success');
-        setIsAutoAssign(true);
-        setShowDistributionReport(true);
-
-        if (alerts.length > 0) {
-          showToast(alerts[0], 'warning');
-        }
-      } catch (err) {
-        showToast('حدث خطأ أثناء التوزيع', 'error');
-        console.error(err);
-      } finally {
-        setIsGenerating(false);
-      }
-    }, 600);
-  };
-
-  const resetSchedule = () => {
-    if (confirm('هل أنت متأكد من مسح مسودة الجدول الحالي والبدء من جديد؟')) {
-      const { assignments, weekAssignments } = generateSmartDutyAssignment(
-        teachers, admins, dutyData.exclusions, dutyData.settings,
-        scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, 0
-      );
-      setDutyData(prev => ({
-        ...prev,
-        dayAssignments: assignments,
-        weekAssignments: weekAssignments
-      }));
-      showToast('تم تصفير الجدول', 'success');
-    }
-  };
-
-  const saveManualStaffAssignments = (dayId: string) => {
-    if (selectedStaffIds.length === 0) {
-      setShowAddPanel(null);
-      return;
-    }
-    
-    // Check if any of the selected staff are already assigned to another day
-    const alreadyAssigned = selectedStaffIds.filter(id => assignedStaffIds.has(id));
-    if (alreadyAssigned.length > 0) {
-      if (!confirm(`تحذير: لقد قمت باختيار مناوبين تم توزيعهم مسبقاً في أيام أخرى. هل أنت متأكد من رغبتك في إضافتهم أيضاً لهذا اليوم؟`)) {
-        return;
-      }
-    }
-    
+  const applyManualStaffAssignments = (dayId: string) => {
     const daInfo = getDayAssignment(dayId);
     const genericDay = daInfo.day;
 
@@ -205,6 +155,95 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     showToast('تم إضافة المناوبين بنجاح', 'success');
   };
 
+  const openAddPanel = (dayId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setAddPanelPosition({
+      top: Math.min(rect.bottom + 8, window.innerHeight - 320),
+      right: Math.max(window.innerWidth - rect.right, 16),
+    });
+    setShowAddPanel(dayId);
+    setSelectedStaffIds([]);
+    setAddSearch('');
+  };
+
+  const handleAutoAssign = () => {
+    if (availableStaff.length === 0) {
+      showToast('ظ„ط§ ظٹظˆط¬ط¯ ظ…ظˆط¸ظپظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ„طھظˆط²ظٹط¹', 'warning');
+      return;
+    }
+
+    setIsGenerating(true);
+    setTimeout(() => {
+      try {
+        const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
+          teachers, admins, dutyData.exclusions, dutyData.settings,
+          scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, dutyData.settings.suggestedCountPerDay
+        );
+
+        setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
+        showToast('طھظ… ط§ظ„طھظˆط²ظٹط¹ ط§ظ„ط°ظƒظٹ ط¨ظ†ط¬ط§ط­ ط¨ظ†ط§ط،ظ‹ ط¹ظ„ظ‰ ط¬ط¯ظˆظ„ ط§ظ„ط­طµطµ ط§ظ„ظپط¹ظ„ظٹ', 'success');
+        setIsAutoAssign(true);
+        setShowDistributionReport(true);
+
+        if (alerts.length > 0) {
+          showToast(alerts[0], 'warning');
+        }
+      } catch (err) {
+        showToast('ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„طھظˆط²ظٹط¹', 'error');
+        console.error(err);
+      } finally {
+        setIsGenerating(false);
+      }
+    }, 600);
+  };
+
+  const resetSchedule = () => {
+    setConfirmState({
+      title: 'إعادة إنشاء الجدول',
+      message: 'سيتم مسح مسودة جدول المناوبة الحالي والبدء من جديد. هل تريد المتابعة؟',
+      confirmLabel: 'نعم، إعادة الإنشاء',
+      tone: 'danger',
+      onConfirm: () => {
+        const { assignments, weekAssignments } = generateSmartDutyAssignment(
+          teachers, admins, dutyData.exclusions, dutyData.settings,
+          scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, 0
+        );
+        setDutyData(prev => ({
+          ...prev,
+          dayAssignments: assignments,
+          weekAssignments: weekAssignments
+        }));
+        showToast('تم تصفير الجدول', 'success');
+        setConfirmState(null);
+      }
+    });
+  };
+
+  const saveManualStaffAssignments = (dayId: string) => {
+    if (selectedStaffIds.length === 0) {
+      setShowAddPanel(null);
+      return;
+    }
+    
+    const alreadyAssigned = selectedStaffIds.filter(id => assignedStaffIds.has(id));
+    if (alreadyAssigned.length > 0) {
+      setConfirmState({
+        title: 'تنبيه قبل الإضافة',
+        message: 'لقد اخترت مناوِبين تم توزيعهم مسبقًا في أيام أخرى. هل تريد إضافتهم أيضًا لهذا اليوم؟',
+        confirmLabel: 'نعم، أضفهم',
+        tone: 'warning',
+        onConfirm: () => {
+          applyManualStaffAssignments(dayId);
+          setConfirmState(null);
+        }
+      });
+      return;
+    }
+    
+    applyManualStaffAssignments(dayId);
+  };
+
+
   const toggleStaffSelection = (staffId: string) => {
     if (!showAddPanel) return;
     const dayId = showAddPanel;
@@ -214,7 +253,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     setSelectedStaffIds(prev => {
       if (prev.includes(staffId)) return prev.filter(id => id !== staffId);
       if (assignedCount + prev.length >= maxCount) {
-        showToast(`تم بلوغ الحد الأقصى للمناوبين (${maxCount})`, 'error');
+        showToast(`طھظ… ط¨ظ„ظˆط؛ ط§ظ„ط­ط¯ ط§ظ„ط£ظ‚طµظ‰ ظ„ظ„ظ…ظ†ط§ظˆط¨ظٹظ† (${maxCount})`, 'error');
         return prev;
       }
       return [...prev, staffId];
@@ -241,16 +280,23 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   };
 
   const removeStaffFromDay = (dayId: string, staffId: string) => {
-    if (!confirm('هل تريد حذف هذا المناوب من اليوم؟')) return;
-    updateDayAssignment(dayId, da => ({
-      ...da,
-      staffAssignments: da.staffAssignments.filter(sa => sa.staffId !== staffId),
-    }));
+    setConfirmState({
+      title: 'حذف المناوب',
+      message: 'هل تريد حذف هذا المناوب من اليوم المحدد؟',
+      confirmLabel: 'نعم، احذف',
+      tone: 'danger',
+      onConfirm: () => {
+        updateDayAssignment(dayId, da => ({
+          ...da,
+          staffAssignments: da.staffAssignments.filter(sa => sa.staffId !== staffId),
+        }));
+        setConfirmState(null);
+      }
+    });
   };
 
-  // ── Report helpers ──────────────────────────────────────────────────────────
+  // Report helpers
 
-  /** Check if a specific staff member submitted a report for a given day */
   const getStaffReport = (day: string, staffId: string): DutyReportRecord | undefined => {
     return dutyData.reports?.find(r => r.day === day && r.staffId === staffId && r.isSubmitted);
   };
@@ -260,7 +306,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     const dayId = da.date || da.day;
     const existing = getStaffReport(da.day, sa.staffId);
     if (existing) {
-      showToast('تم التسليم مسبقاً', 'warning');
+      showToast('طھظ… ط§ظ„طھط³ظ„ظٹظ… ظ…ط³ط¨ظ‚ط§ظ‹', 'warning');
       return;
     }
     const newReport: DutyReportRecord = {
@@ -278,16 +324,16 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       isEmpty: true,
     };
     setDutyData(prev => ({ ...prev, reports: [...(prev.reports || []), newReport] }));
-    showToast('تم تسجيل التسليم الورقي بنجاح', 'success');
+    showToast('طھظ… طھط³ط¬ظٹظ„ ط§ظ„طھط³ظ„ظٹظ… ط§ظ„ظˆط±ظ‚ظٹ ط¨ظ†ط¬ط§ط­', 'success');
   };
 
-  /** Remove a manual (paper) submission — undo */
+  /** Remove a manual (paper) submission â€” undo */
   const unmarkManualSubmission = (day: string, staffId: string) => {
     setDutyData(prev => ({
       ...prev,
       reports: (prev.reports || []).filter(r => !(r.day === day && r.staffId === staffId && r.manuallySubmitted))
     }));
-    showToast('تم التراجع عن التسليم الورقي', 'warning');
+    showToast('طھظ… ط§ظ„طھط±ط§ط¬ط¹ ط¹ظ† ط§ظ„طھط³ظ„ظٹظ… ط§ظ„ظˆط±ظ‚ظٹ', 'warning');
   };
 
   const handleReportSubmit = (report: DutyReportRecord) => {
@@ -320,7 +366,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     dayAssignments.forEach(da => {
       da.staffAssignments.forEach(sa => {
         if (!map[sa.staffId]) {
-          map[sa.staffId] = { name: sa.staffName, type: sa.staffType === 'admin' ? 'إداري' : 'معلم', count: 0 };
+          map[sa.staffId] = { name: sa.staffName, type: sa.staffType === 'admin' ? 'ط¥ط¯ط§ط±ظٹ' : 'ظ…ط¹ظ„ظ…', count: 0 };
         }
         map[sa.staffId].count++;
       });
@@ -338,8 +384,17 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        title={confirmState?.title || ''}
+        message={confirmState?.message || ''}
+        confirmLabel={confirmState?.confirmLabel}
+        tone={confirmState?.tone}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
 
-      {/* Report Entry Form – full screen overlay (used when filling via in-app link) */}
+      {/* Report Entry Form â€“ full screen overlay (used when filling via in-app link) */}
       {reportEntryOpen && (
         <DutyReportEntry
           staffId={reportEntryOpen.staffId}
@@ -356,7 +411,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         />
       )}
 
-      {/* Report View Modal – read-only preview of submitted report */}
+      {/* Report View Modal â€“ read-only preview of submitted report */}
       {reportViewOpen && (
         <DutyReportViewModal
           isOpen={true}
@@ -369,7 +424,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         />
       )}
 
-      {/* ═══ Assignment Notification Banner ═══ */}
+      {/* â•گâ•گâ•گ Assignment Notification Banner â•گâ•گâ•گ */}
       {dayAssignments.some(da => da.staffAssignments.length > 0) && !assignmentBannerDismissed && (
         <div className="bg-gradient-to-l from-[#25D366]/10 via-[#e5e1fe]/20 to-[#007AFF]/10 border border-[#655ac1]/20 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-in slide-in-from-top-2 duration-300">
           <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
@@ -397,7 +452,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
           <button
             onClick={() => setAssignmentBannerDismissed(true)}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            title="إغلاق"
+            title="ط¥ط؛ظ„ط§ظ‚"
           >
             <X size={16} />
           </button>
@@ -416,8 +471,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                   <BarChart2 size={20} />
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 text-base">تقرير توزيع المناوبة</h4>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">نصيب كل موظف من أيام المناوبة</p>
+                  <h4 className="font-black text-slate-800 text-base">طھظ‚ط±ظٹط± طھظˆط²ظٹط¹ ط§ظ„ظ…ظ†ط§ظˆط¨ط©</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">ظ†طµظٹط¨ ظƒظ„ ظ…ظˆط¸ظپ ظ…ظ† ط£ظٹط§ظ… ط§ظ„ظ…ظ†ط§ظˆط¨ط©</p>
                 </div>
               </div>
               <button onClick={() => setShowDistributionReport(false)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
@@ -430,7 +485,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
               {staffCountMap.length === 0 ? (
                 <div className="text-center py-10 text-slate-400">
                   <Shield size={32} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-bold text-sm">لا توجد بيانات توزيع حتى الآن</p>
+                  <p className="font-bold text-sm">ظ„ط§ طھظˆط¬ط¯ ط¨ظٹط§ظ†ط§طھ طھظˆط²ظٹط¹ ط­طھظ‰ ط§ظ„ط¢ظ†</p>
                 </div>
               ) : (
                 <>
@@ -438,10 +493,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                     <table className="w-full text-right text-sm">
                       <thead>
                         <tr className="bg-[#f3f0ff]">
-                          <th className="p-3 font-black text-[#655ac1] rounded-tr-xl">التسلسل</th>
-                          <th className="p-3 font-black text-[#655ac1]">الموظف</th>
-                          <th className="p-3 font-black text-[#655ac1]">الوظيفة</th>
-                          <th className="p-3 font-black text-[#655ac1] text-center rounded-tl-xl">عدد المناوبات</th>
+                          <th className="p-3 font-black text-[#655ac1] rounded-tr-xl">ط§ظ„طھط³ظ„ط³ظ„</th>
+                          <th className="p-3 font-black text-[#655ac1]">ط§ظ„ظ…ظˆط¸ظپ</th>
+                          <th className="p-3 font-black text-[#655ac1]">ط§ظ„ظˆط¸ظٹظپط©</th>
+                          <th className="p-3 font-black text-[#655ac1] text-center rounded-tl-xl">ط¹ط¯ط¯ ط§ظ„ظ…ظ†ط§ظˆط¨ط§طھ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -456,7 +511,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                               </td>
                               <td className="p-3">
                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                                  info.type === 'إداري' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'
+                                  info.type === 'ط¥ط¯ط§ط±ظٹ' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'
                                 }`}>{info.type}</span>
                               </td>
                               <td className="p-3 text-center">
@@ -476,7 +531,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                     <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
                       <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
                       <p className="text-xs font-medium text-emerald-700">
-                        توزيع متساوٍ تام: جميع الموظفين لديهم {maxCount} يوم مناوبة.
+                        طھظˆط²ظٹط¹ ظ…طھط³ط§ظˆظچ طھط§ظ…: ط¬ظ…ظٹط¹ ط§ظ„ظ…ظˆط¸ظپظٹظ† ظ„ط¯ظٹظ‡ظ… {maxCount} ظٹظˆظ… ظ…ظ†ط§ظˆط¨ط©.
                       </p>
                     </div>
                   )}
@@ -494,9 +549,9 @@ const DutyScheduleBuilder: React.FC<Props> = ({
             <Info size={20} />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-bold text-blue-800">يوجد مناوبين متاحين لم يتم تكليفهم</h4>
+            <h4 className="text-sm font-bold text-blue-800">ظٹظˆط¬ط¯ ظ…ظ†ط§ظˆط¨ظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ… ظٹطھظ… طھظƒظ„ظٹظپظ‡ظ…</h4>
             <p className="text-xs text-blue-700 font-medium mt-0.5 leading-relaxed">
-              يوجد ({unassignedStaff.length}) موظفين متاحين للمناوبة لم يتم إضافتهم للجدول في أي يوم.
+              ظٹظˆط¬ط¯ ({unassignedStaff.length}) ظ…ظˆط¸ظپظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ„ظ…ظ†ط§ظˆط¨ط© ظ„ظ… ظٹطھظ… ط¥ط¶ط§ظپطھظ‡ظ… ظ„ظ„ط¬ط¯ظˆظ„ ظپظٹ ط£ظٹ ظٹظˆظ….
             </p>
           </div>
           {dayAssignments.length > 0 && (
@@ -505,7 +560,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
               className="flex items-center gap-2 border border-blue-300 bg-white hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl font-bold text-xs transition-all shrink-0"
             >
               <BarChart2 size={14} />
-              تقرير التوزيع
+              طھظ‚ط±ظٹط± ط§ظ„طھظˆط²ظٹط¹
             </button>
           )}
         </div>
@@ -534,13 +589,13 @@ const DutyScheduleBuilder: React.FC<Props> = ({
             : [{ weekId: 'legacy-week', weekName: '', startDate: '', endDate: '', dayAssignments: activeDays.map(day => getDayAssignment(day)) }];
 
           return weeksToRender.map((week) => (
-            <div key={week.weekId} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+            <div key={week.weekId} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-visible">
               {week.weekName && (
                 <div className="bg-slate-50/80 border-b border-slate-200 p-5 flex items-center justify-between">
                   <h4 className="font-black text-[#5C50A4] text-xl">{week.weekName}</h4>
                   {week.startDate && (
                     <span className="text-sm font-bold text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm">
-                      {formatDisplayDate(week.startDate)} إلى {formatDisplayDate(week.endDate)}
+                      {formatDisplayDate(week.startDate)} ط¥ظ„ظ‰ {formatDisplayDate(week.endDate)}
                     </span>
                   )}
                 </div>
@@ -597,7 +652,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                 {formatDisplayDate(da.date)}
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">—</span>
+                              <span className="text-xs text-slate-400">-</span>
                             )}
                           </td>
 
@@ -605,11 +660,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           <td className="p-3 border-l border-slate-200/60 align-top">
                             {da.isOfficialLeave ? (
                               <div className="flex items-center justify-center p-3 bg-amber-50/50 border border-amber-100 rounded-xl">
-                                <span className="font-black text-amber-600 text-sm">{da.officialLeaveText || 'إجازة رسمية'}</span>
+                                <span className="font-black text-amber-600 text-sm">{da.officialLeaveText || 'ط¥ط¬ط§ط²ط© ط±ط³ظ…ظٹط©'}</span>
                               </div>
                             ) : da.isRemoteWork ? (
                               <div className="flex items-center justify-center p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                                <span className="font-black text-emerald-600 text-sm">العمل عن بعد – مدرستي</span>
+                                <span className="font-black text-emerald-600 text-sm">ط§ظ„ط¹ظ…ظ„ ط¹ظ† ط¨ط¹ط¯ â€“ ظ…ط¯ط±ط³طھظٹ</span>
                               </div>
                             ) : (
                               <div className="flex flex-col gap-2">
@@ -622,7 +677,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                     <button
                                       onClick={() => removeStaffFromDay(dayId, sa.staffId)}
                                       className="w-6 h-6 rounded-lg flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                      title="حذف المناوب"
+                                      title="ط­ط°ظپ ط§ظ„ظ…ظ†ط§ظˆط¨"
                                     >
                                       <Trash2 size={12} />
                                     </button>
@@ -633,7 +688,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                 {canAddMore && (
                                   <div className="relative">
                                     <button
-                                      onClick={() => { setShowAddPanel(dayId); setSelectedStaffIds([]); setAddSearch(''); }}
+                                      onClick={(e) => openAddPanel(dayId, e)}
                                       className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/50 hover:bg-[#e5e1fe]/30 font-bold text-xs flex items-center justify-center gap-1 transition-all"
                                     >
                                       <Plus size={13} /> إضافة مناوب
@@ -642,26 +697,29 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                     {/* Dropdown */}
                                     {showAdd && (
                                       <>
-                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); }} />
-                                        <div className="absolute top-[calc(100%+0.5rem)] right-0 w-72 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden" onClick={e => e.stopPropagation()}>
-                                          <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); setAddPanelPosition(null); }} />
+                                        <div
+                                          className="fixed top-[8vh] right-1/2 translate-x-1/2 w-[min(92vw,34rem)] max-h-[78vh] bg-white rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.22)] border border-slate-200 z-[9999] overflow-hidden flex flex-col"
+                                          onClick={e => e.stopPropagation()}
+                                        >
+                                          <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
                                             <span className="text-xs font-black text-slate-700">تحديد المناوبين</span>
                                             <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">{unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch)).length} متاح</span>
                                           </div>
-                                          <div className="p-2 border-b border-slate-100">
+                                          <div className="p-3 border-b border-slate-100 shrink-0">
                                             <div className="relative">
                                               <Search size={14} className="absolute right-2.5 top-2.5 text-slate-400" />
                                               <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث عن مناوب متاح..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]" />
                                             </div>
                                           </div>
-                                          <div className="max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                                          <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar bg-white">
                                             {(() => {
                                               const filtered = unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch));
                                               if (filtered.length === 0) {
                                                 return (
                                                   <div className="text-center py-6 text-slate-400 text-xs font-bold">
                                                     <Shield size={24} className="mx-auto mb-2 opacity-30" />
-                                                    {addSearch.trim() ? 'لا نتائج تطابق البحث' : 'جميع الموظفين مخصصون'}
+                                                    {addSearch.trim() ? 'لا توجد نتائج مطابقة للبحث' : 'جميع الموظفين مخصصون'}
                                                   </div>
                                                 );
                                               }
@@ -677,7 +735,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                                       <div className="flex items-center gap-1">
                                                         <span className="text-[10px] text-slate-500">{staff.type === 'teacher' ? '(معلم)' : '(إداري)'}</span>
                                                         {assignedStaffIds.has(staff.id) && (
-                                                          <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">مسند مسبقاً</span>
+                                                          <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">مسند مسبقًا</span>
                                                         )}
                                                       </div>
                                                     </div>
@@ -686,8 +744,9 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                               });
                                             })()}
                                           </div>
-                                          <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
-                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2 rounded-xl text-xs font-bold shadow-md shadow-[#655ac1]/20 transition-all">
+                                          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
+                                            <span className="text-[11px] font-medium text-slate-500">اختر من القائمة ثم احفظ التحديد</span>
+                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-[#655ac1]/20 transition-all">
                                               حفظ المحدد ({selectedStaffIds.length})
                                             </button>
                                           </div>
@@ -698,16 +757,16 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                 )}
 
                                 {staffAssignments.length === 0 && !canAddMore && (
-                                  <span className="text-xs text-slate-300 text-center py-2">—</span>
+                                  <span className="text-xs text-slate-300 text-center py-2">-</span>
                                 )}
                               </div>
                             )}
                           </td>
 
-                          {/* ── عامود التوقيع الرقمي ── */}
+                          {/* â”€â”€ ط¹ط§ظ…ظˆط¯ ط§ظ„طھظˆظ‚ظٹط¹ ط§ظ„ط±ظ‚ظ…ظٹ â”€â”€ */}
                           <td className="p-2 border-l border-slate-200/60 align-middle text-center">
                             {da.isOfficialLeave || da.isRemoteWork ? (
-                              <span className="text-xs text-slate-300">—</span>
+                              <span className="text-xs text-slate-300">-</span>
                             ) : (
                               <div className="flex flex-col gap-1.5 items-center">
                                 {staffAssignments.map(sa => {
@@ -716,10 +775,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                       <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
                                         <img
                                           src={sa.signatureData}
-                                          alt="توقيع"
+                                          alt="طھظˆظ‚ظٹط¹"
                                           className="h-8 max-w-[90px] object-contain border border-emerald-200 rounded bg-white shadow-sm"
                                         />
-                                        <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
+                                        <span className="text-[9px] text-emerald-600 font-bold">âœ… ظ…ظˆظ‚ظ‘ط¹</span>
                                       </div>
                                     );
                                   } else if (sa.signatureStatus === 'pending') {
@@ -728,28 +787,28 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                         <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center animate-pulse border border-amber-200">
                                           <Hourglass size={14} className="text-amber-500" />
                                         </div>
-                                        <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
+                                        <span className="text-[9px] text-amber-600 font-bold">ط¨ط§ظ†طھط¸ط§ط± ط§ظ„طھظˆظ‚ظٹط¹</span>
                                       </div>
                                     );
                                   } else {
                                     return (
                                       <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
-                                        <span className="text-[9px] text-slate-300 font-bold">لم يُرسل</span>
+                                        <span className="text-[9px] text-slate-300 font-bold">ظ„ظ… ظٹظڈط±ط³ظ„</span>
                                       </div>
                                     );
                                   }
                                 })}
                                 {staffAssignments.length === 0 && (
-                                  <span className="text-xs text-slate-300">—</span>
+                                  <span className="text-xs text-slate-300">-</span>
                                 )}
                               </div>
                             )}
                           </td>
 
-                          {/* ── معاينة نموذج التقرير اليومي (قراءة فقط) ── */}
+                          {/* â”€â”€ ظ…ط¹ط§ظٹظ†ط© ظ†ظ…ظˆط°ط¬ ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظٹظˆظ…ظٹ (ظ‚ط±ط§ط،ط© ظپظ‚ط·) â”€â”€ */}
                           <td className="p-2 border-l border-slate-200/60 align-middle print:hidden text-center">
                             {da.isOfficialLeave || da.isRemoteWork ? (
-                              <span className="text-xs text-slate-300">—</span>
+                              <span className="text-xs text-slate-300">-</span>
                             ) : (
                               <div className="flex flex-wrap gap-1.5 justify-center">
                                 {staffAssignments.map(sa => {
@@ -759,7 +818,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                     <button
                                       key={sa.staffId}
                                       onClick={() => setReportViewOpen({ staffId: sa.staffId, staffName: sa.staffName, day: da.day, date: da.date || da.day })}
-                                      title="نموذج التقرير اليومي للمناوبة"
+                                      title="ظ†ظ…ظˆط°ط¬ ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظٹظˆظ…ظٹ ظ„ظ„ظ…ظ†ط§ظˆط¨ط©"
                                       className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all hover:shadow-sm active:scale-95 ${
                                         isSubmitted
                                           ? submittedReport?.manuallySubmitted
@@ -773,16 +832,16 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   );
                                 })}
                                 {staffAssignments.length === 0 && (
-                                  <span className="text-xs text-slate-300">—</span>
+                                  <span className="text-xs text-slate-300">-</span>
                                 )}
                               </div>
                             )}
                           </td>
 
-                          {/* ── NEW: Report Submission Status Column (hidden in print) ── */}
+                          {/* â”€â”€ NEW: Report Submission Status Column (hidden in print) â”€â”€ */}
                           <td className="p-2 border-l border-slate-200/60 align-middle print:hidden">
                             {da.isOfficialLeave || da.isRemoteWork ? (
-                              <span className="text-xs text-slate-300 block text-center">—</span>
+                              <span className="text-xs text-slate-300 block text-center">-</span>
                             ) : (
                               <div className="flex flex-col gap-1">
                                 {staffAssignments.map(sa => {
@@ -791,23 +850,23 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   const isPaper = report && report.manuallySubmitted;
                                   return (
                                     <div key={sa.staffId} className="flex gap-1">
-                                      {/* Electronic badge – always visible, green when active */}
+                                      {/* Electronic badge â€“ always visible, green when active */}
                                       <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${
                                         isElectronic
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                           : 'bg-slate-50 text-slate-300 border-slate-200'
                                       }`}>
                                         <ClipboardCheck size={10} />
-                                        إلكتروني
+                                        ط¥ظ„ظƒطھط±ظˆظ†ظٹ
                                       </span>
-                                      {/* Paper badge – always visible, amber when active with undo */}
+                                      {/* Paper badge â€“ always visible, amber when active with undo */}
                                       {isPaper ? (
                                         <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
                                           <ClipboardCheck size={10} />
-                                          ورقي
+                                          ظˆط±ظ‚ظٹ
                                           <button
                                             onClick={() => unmarkManualSubmission(da.day, sa.staffId)}
-                                            title="التراجع"
+                                            title="ط§ظ„طھط±ط§ط¬ط¹"
                                             className="hover:text-amber-900 transition-colors"
                                           >
                                             <X size={9} />
@@ -816,25 +875,25 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                       ) : (
                                         <button
                                           onClick={() => markManualSubmission(da, sa)}
-                                          title="تسجيل تسليم ورقي"
+                                          title="طھط³ط¬ظٹظ„ طھط³ظ„ظٹظ… ظˆط±ظ‚ظٹ"
                                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border bg-slate-50 text-slate-300 border-slate-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all"
                                         >
                                           <ClipboardX size={10} />
-                                          ورقي
+                                          ظˆط±ظ‚ظٹ
                                         </button>
                                       )}
                                     </div>
                                   );
                                 })}
                                 {staffAssignments.length === 0 && (
-                                  <span className="text-xs text-slate-300 text-center">—</span>
+                                  <span className="text-xs text-slate-300 text-center">-</span>
                                 )}
                               </div>
                             )}
                           </td>
 
 
-                          {/* ── Actions Column (hidden in print) ── */}
+                          {/* â”€â”€ Actions Column (hidden in print) â”€â”€ */}
                           <td className="p-3 align-middle print:hidden">
                             <div className="flex flex-row gap-2 items-center justify-center">
 
@@ -851,7 +910,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   <CalendarOff size={15} />
                                 </button>
                                 <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                  {da.isOfficialLeave ? 'إلغاء الإجازة الرسمية' : 'تعيين إجازة رسمية'}
+                                  {da.isOfficialLeave ? 'ط¥ظ„ط؛ط§ط، ط§ظ„ط¥ط¬ط§ط²ط© ط§ظ„ط±ط³ظ…ظٹط©' : 'طھط¹ظٹظٹظ† ط¥ط¬ط§ط²ط© ط±ط³ظ…ظٹط©'}
                                 </span>
                               </div>
 
@@ -868,7 +927,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   <Laptop size={15} />
                                 </button>
                                 <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                  {da.isRemoteWork ? 'إلغاء العمل عن بعد' : 'تعيين عمل عن بعد'}
+                                  {da.isRemoteWork ? 'ط¥ظ„ط؛ط§ط، ط§ظ„ط¹ظ…ظ„ ط¹ظ† ط¨ط¹ط¯' : 'طھط¹ظٹظٹظ† ط¹ظ…ظ„ ط¹ظ† ط¨ط¹ط¯'}
                                 </span>
                               </div>
 
@@ -891,3 +950,5 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 };
 
 export default DutyScheduleBuilder;
+
+

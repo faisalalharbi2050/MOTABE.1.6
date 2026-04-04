@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Calendar, Users, MapPin, Plus, X, Copy, Trash2, RotateCcw,
   ChevronDown, ChevronUp, Zap, RefreshCw, Minus, Check,
@@ -34,9 +34,13 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [addSearch, setAddSearch] = useState('');
   const [showFollowUpPicker, setShowFollowUpPicker] = useState<string | null>(null);
   const [followUpSearch, setFollowUpSearch] = useState('');
-  const [bulkLocationId, setBulkLocationId] = useState('');
+  const [bulkLocationIds, setBulkLocationIds] = useState<string[]>([]);
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   const [assignmentBannerDismissed, setAssignmentBannerDismissed] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState<string | null>(null);
+  const [showBulkLocationPicker, setShowBulkLocationPicker] = useState(false);
+  const [addPanelPosition, setAddPanelPosition] = useState<{ top: number; right: number } | null>(null);
+  const [followUpPickerPosition, setFollowUpPickerPosition] = useState<{ top: number; right: number } | null>(null);
   
   // For manual multi-select within a day
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
@@ -92,7 +96,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     // Check if any of the selected staff are already assigned to another day
     const alreadyAssigned = selectedStaffIds.filter(id => assignedStaffIds.has(id));
     if (alreadyAssigned.length > 0) {
-      showToast(`تنبيه: تم إضافة ${alreadyAssigned.length} مشرف مسند مسبقاً لأيام أخرى`, 'warning');
+      showToast(`طھظ†ط¨ظٹظ‡: طھظ… ط¥ط¶ط§ظپط© ${alreadyAssigned.length} ظ…ط´ط±ظپ ظ…ط³ظ†ط¯ ظ…ط³ط¨ظ‚ط§ظ‹ ظ„ط£ظٹط§ظ… ط£ط®ط±ظ‰`, 'warning');
     }
     
     updateDayAssignment(day, da => {
@@ -117,13 +121,33 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     setSelectedStaffIds([]);
     setShowAddPanel(null);
     setAddSearch('');
-    showToast(`تم إضافة المشرفين بنجاح ليوم ${DAY_NAMES[day]}`, 'success');
+    showToast(`طھظ… ط¥ط¶ط§ظپط© ط§ظ„ظ…ط´ط±ظپظٹظ† ط¨ظ†ط¬ط§ط­ ظ„ظٹظˆظ… ${DAY_NAMES[day]}`, 'success');
   };
 
   const toggleStaffSelection = (staffId: string) => {
      setSelectedStaffIds(prev => 
        prev.includes(staffId) ? prev.filter(id => id !== staffId) : [...prev, staffId]
      );
+  };
+
+  const openAddPanel = (day: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setAddPanelPosition({
+      top: Math.min(rect.bottom + 8, window.innerHeight - 320),
+      right: Math.max(window.innerWidth - rect.right, 16),
+    });
+    setShowAddPanel(day);
+    setSelectedStaffIds([]);
+    setAddSearch('');
+  };
+
+  const openFollowUpPicker = (day: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setFollowUpPickerPosition({
+      top: Math.min(rect.bottom + 8, window.innerHeight - 320),
+      right: Math.max(window.innerWidth - rect.right, 16),
+    });
+    setShowFollowUpPicker(prev => prev === day ? null : day);
   };
 
   const removeStaffFromDay = (day: string, staffId: string) => {
@@ -133,42 +157,72 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     }));
   };
 
-  const setLocation = (day: string, staffId: string, locationId: string) => {
+  const toggleLocation = (day: string, staffId: string, locationId: string) => {
     updateDayAssignment(day, da => ({
       ...da,
       staffAssignments: da.staffAssignments.map(sa => {
         if (sa.staffId !== staffId) return sa;
-        return { ...sa, locationIds: [locationId] }; // Single location assumed for the table select
+        const hasLocation = sa.locationIds.includes(locationId);
+        return {
+          ...sa,
+          locationIds: hasLocation
+            ? sa.locationIds.filter(id => id !== locationId)
+            : [...sa.locationIds, locationId],
+        };
       }),
     }));
   };
 
+  const getLocationSummary = (locationIds: string[]) => {
+    const names = locationIds
+      .map(locationId => activeLocations.find(loc => loc.id === locationId)?.name || '')
+      .filter(Boolean);
+
+    if (names.length === 0) return 'ط§ط®طھط± ظ…ظˆظ‚ط¹...';
+    if (names.length === 1) return names[0];
+    return `${names[0]} +${names.length - 1}`;
+  };
+
+  const toggleBulkLocation = (locationId: string) => {
+    setBulkLocationIds(prev =>
+      prev.includes(locationId)
+        ? prev.filter(id => id !== locationId)
+        : [...prev, locationId]
+    );
+  };
+
   const copyLocationToAllInDay = (day: string) => {
-    if (!bulkLocationId) {
-      showToast('الرجاء اختيار الموقع أولاً من شريط تعيين المواقع', 'warning');
+    if (bulkLocationIds.length === 0) {
+      showToast('ط§ظ„ط±ط¬ط§ط، ط§ط®طھظٹط§ط± ظ…ظˆظ‚ط¹ ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ ظ…ظ† ط´ط±ظٹط· طھط¹ظٹظٹظ† ط§ظ„ظ…ظˆط§ظ‚ط¹', 'warning');
       return;
     }
     updateDayAssignment(day, da => ({
       ...da,
-      staffAssignments: da.staffAssignments.map(sa => ({ ...sa, locationIds: [bulkLocationId] }))
+      staffAssignments: da.staffAssignments.map(sa => ({
+        ...sa,
+        locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])),
+      }))
     }));
-    showToast(`تم توحيد موقع الإشراف لجميع المشرفين في يوم ${DAY_NAMES[day]}`, 'success');
+    showToast(`طھظ…طھ ط¥ط¶ط§ظپط© ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ ط§ظ„ظ…ط­ط¯ط¯ط© ظ„ط¬ظ…ظٹط¹ ط§ظ„ظ…ط´ط±ظپظٹظ† ظپظٹ ظٹظˆظ… ${DAY_NAMES[day]}`, 'success');
   };
 
   const copyLocationToAllDays = () => {
-     if (!bulkLocationId) {
-       showToast('الرجاء اختيار الموقع أولاً من شريط تعيين المواقع', 'warning');
+     if (bulkLocationIds.length === 0) {
+       showToast('ط§ظ„ط±ط¬ط§ط، ط§ط®طھظٹط§ط± ظ…ظˆظ‚ط¹ ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ ظ…ظ† ط´ط±ظٹط· طھط¹ظٹظٹظ† ط§ظ„ظ…ظˆط§ظ‚ط¹', 'warning');
        return;
      }
      setSupervisionData(prev => ({
         ...prev,
         dayAssignments: prev.dayAssignments.map(da => ({
            ...da,
-           staffAssignments: da.staffAssignments.map(sa => ({ ...sa, locationIds: [bulkLocationId] }))
+           staffAssignments: da.staffAssignments.map(sa => ({
+             ...sa,
+             locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])),
+           }))
         }))
      }));
-     showToast(`تم تطبيق موقع الإشراف المختار على جميع المشرفين في جميع الأيام`, 'success');
-  };
+     showToast(`طھظ…طھ ط¥ط¶ط§ظپط© ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ ط§ظ„ظ…ط­ط¯ط¯ط© ظ„ط¬ظ…ظٹط¹ ط§ظ„ظ…ط´ط±ظپظٹظ† ظپظٹ ط¬ظ…ظٹط¹ ط§ظ„ط£ظٹط§ظ…`, 'success');
+   };
 
   const clearLocations = (day?: string) => {
     setSupervisionData(prev => ({
@@ -181,10 +235,15 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         };
       })
     }));
+    if (!day) {
+      setBulkLocationIds([]);
+      setShowBulkLocationPicker(false);
+      setShowDayDropdown(false);
+    }
     if (day) {
-      showToast(`تم استعادة ضبط مواقع الإشراف ليوم ${DAY_NAMES[day]}`, 'success');
+      showToast(`طھظ… ط§ط³طھط¹ط§ط¯ط© ط¶ط¨ط· ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ ظ„ظٹظˆظ… ${DAY_NAMES[day]}`, 'success');
     } else {
-      showToast('تم استعادة ضبط مواقع الإشراف لجميع الأيام', 'success');
+      showToast('طھظ… ط§ط³طھط¹ط§ط¯ط© ط¶ط¨ط· ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ ظ„ط¬ظ…ظٹط¹ ط§ظ„ط£ظٹط§ظ…', 'success');
     }
   };
 
@@ -196,7 +255,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     }));
     setShowFollowUpPicker(null);
     setFollowUpSearch('');
-    // showToast(`تم تعيين ${staffName} مشرفاً متابعاً ليوم ${DAY_NAMES[day]}`, 'success');
+    // showToast(`طھظ… طھط¹ظٹظٹظ† ${staffName} ظ…ط´ط±ظپط§ظ‹ ظ…طھط§ط¨ط¹ط§ظ‹ ظ„ظٹظˆظ… ${DAY_NAMES[day]}`, 'success');
   };
 
   const removeFollowUpSupervisor = (day: string) => {
@@ -223,13 +282,13 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       });
       return { ...prev, dayAssignments: newAssignments };
     });
-    showToast('تم تعيين المشرف المتابع لجميع الأيام', 'success');
+    showToast('طھظ… طھط¹ظٹظٹظ† ط§ظ„ظ…ط´ط±ظپ ط§ظ„ظ…طھط§ط¨ط¹ ظ„ط¬ظ…ظٹط¹ ط§ظ„ط£ظٹط§ظ…', 'success');
   };
 
   const followUpCandidates = useMemo(() => {
     const candidates: { id: string; name: string; role?: string }[] = [];
     admins.forEach(a => candidates.push({ id: a.id, name: a.name, role: a.role }));
-    teachers.forEach(t => candidates.push({ id: t.id, name: t.name, role: 'معلم' }));
+    teachers.forEach(t => candidates.push({ id: t.id, name: t.name, role: 'ظ…ط¹ظ„ظ…' }));
     return candidates;
   }, [admins, teachers]);
 
@@ -239,16 +298,16 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   return (
     <div className="space-y-6">
 
-      {/* ═══ Assignment Notification Banner ═══ */}
+      {/* â•گâ•گâ•گ Assignment Notification Banner â•گâ•گâ•گ */}
       {hasAnyAssignments && !assignmentBannerDismissed && (
         <div className="bg-gradient-to-l from-[#25D366]/10 via-[#e5e1fe]/20 to-[#007AFF]/10 border border-[#655ac1]/20 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-in slide-in-from-top-2 duration-300">
           <Bell size={20} className="text-[#655ac1] shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2 flex-wrap">
-              تم إنشاء جدول الإشراف
-              <span className="text-slate-500 font-medium">يمكنك إشعار المشرفين بتكليفهم عبر زر</span>
+              طھظ… ط¥ظ†ط´ط§ط، ط¬ط¯ظˆظ„ ط§ظ„ط¥ط´ط±ط§ظپ
+              <span className="text-slate-500 font-medium">ظٹظ…ظƒظ†ظƒ ط¥ط´ط¹ط§ط± ط§ظ„ظ…ط´ط±ظپظٹظ† ط¨طھظƒظ„ظٹظپظ‡ظ… ط¹ط¨ط± ط²ط±</span>
               <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
-                إرسال
+                ط¥ط±ط³ط§ظ„
                 <span className="inline-flex items-center gap-1">
                   {/* WhatsApp real logo */}
                   <span className="inline-flex items-center justify-center w-5 h-5 bg-[#25D366]/15 rounded-md">
@@ -267,7 +326,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <button
             onClick={() => setAssignmentBannerDismissed(true)}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            title="إغلاق"
+            title="ط¥ط؛ظ„ط§ظ‚"
           >
             <X size={16} />
           </button>
@@ -279,9 +338,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start sm:items-center gap-3 animate-in slide-in-from-top-2 mb-6 shadow-sm">
           <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-1 sm:mt-0" />
           <div className="flex-1">
-             <h4 className="text-sm font-bold text-amber-800">تنبيه: يوجد مشرفين غير مسندين</h4>
+             <h4 className="text-sm font-bold text-amber-800">طھظ†ط¨ظٹظ‡: ظٹظˆط¬ط¯ ظ…ط´ط±ظپظٹظ† ط؛ظٹط± ظ…ط³ظ†ط¯ظٹظ†</h4>
              <p className="text-xs text-amber-700 font-medium mt-0.5 leading-relaxed">
-               يوجد ({unassignedStaff.length}) مشرفين متاحين لم يتم إضافتهم للجدول في أي يوم، ولم يتم استثناؤهم في الإعدادات.
+               ظٹظˆط¬ط¯ ({unassignedStaff.length}) ظ…ط´ط±ظپظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ… ظٹطھظ… ط¥ط¶ط§ظپطھظ‡ظ… ظ„ظ„ط¬ط¯ظˆظ„ ظپظٹ ط£ظٹ ظٹظˆظ…طŒ ظˆظ„ظ… ظٹطھظ… ط§ط³طھط«ظ†ط§ط¤ظ‡ظ… ظپظٹ ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ.
              </p>
           </div>
         </div>
@@ -293,45 +352,79 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="flex items-center gap-3">
             <MapPin size={20} className="text-[#655ac1]" />
             <div>
-              <h3 className="text-sm font-bold text-slate-800">تعيين مواقع الإشراف بشكل سريع</h3>
-              <p className="text-xs text-slate-500 font-medium">اختر موقعاً لتطبيقه بنقرة واحدة على كل الأيام أو لكل يوم</p>
+              <h3 className="text-sm font-bold text-slate-800">طھط¹ظٹظٹظ† ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ ط¨ط´ظƒظ„ ط³ط±ظٹط¹</h3>
+              <p className="text-xs text-slate-500 font-medium">ط§ط®طھط± ظ…ظˆظ‚ط¹ط§ظ‹ ظ„طھط·ط¨ظٹظ‚ظ‡ ط¨ظ†ظ‚ط±ط© ظˆط§ط­ط¯ط© ط¹ظ„ظ‰ ظƒظ„ ط§ظ„ط£ظٹط§ظ… ط£ظˆ ظ„ظƒظ„ ظٹظˆظ…</p>
             </div>
           </div>
           
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-            <select
-              value={bulkLocationId}
-              onChange={(e) => setBulkLocationId(e.target.value)}
-              className="w-full sm:w-64 bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
-            >
-              <option value="" disabled>1. اختر موقعاً...</option>
-              {activeLocations.map(loc => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </select>
+            <div className="relative w-full sm:w-64">
+              <button
+                onClick={() => setShowBulkLocationPicker(prev => !prev)}
+                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
+              >
+                <span className={`${bulkLocationIds.length > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
+                  {bulkLocationIds.length > 0 ? getLocationSummary(bulkLocationIds) : '1. ط§ط®طھط± ظ…ظˆظ‚ط¹ط§ظ‹...'}
+                </span>
+                <ChevronDown size={14} className="text-slate-400 shrink-0" />
+              </button>
+
+              {showBulkLocationPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowBulkLocationPicker(false)} />
+                  <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-full bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden">
+                    <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-700">طھط­ط¯ظٹط¯ ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ</span>
+                      <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
+                        {bulkLocationIds.length} ظ…ط­ط¯ط¯
+                      </span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                      {activeLocations.map(loc => {
+                        const isSelected = bulkLocationIds.includes(loc.id);
+                        return (
+                          <button
+                            key={loc.id}
+                            onClick={() => toggleBulkLocation(loc.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all outline-none ${isSelected ? 'bg-white border-transparent' : 'bg-white border-transparent hover:bg-slate-50'}`}
+                          >
+                            <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                              {isSelected && <Check size={12} />}
+                            </div>
+                            <div className="flex-1 flex flex-col">
+                              <span className={`text-sm font-bold ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="hidden sm:block h-8 w-px bg-slate-200 mx-1"></div>
               <button
                 onClick={copyLocationToAllDays}
-                disabled={!bulkLocationId}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${bulkLocationId ? 'bg-[#e5e1fe] text-[#655ac1] hover:bg-[#c9c2fd] active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-                title="تطبيق الموقع على جميع المشرفين في كافة الأيام"
+                disabled={bulkLocationIds.length === 0}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${bulkLocationIds.length > 0 ? 'bg-gradient-to-b from-white to-[#f5f3ff] border-[#d7d0ff] text-[#655ac1] shadow-[0_8px_20px_rgba(101,90,193,0.14)] hover:border-[#b9afff] hover:shadow-[0_12px_26px_rgba(101,90,193,0.2)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`}
+                title="طھط·ط¨ظٹظ‚ ط§ظ„ظ…ظˆط§ظ‚ط¹ ط§ظ„ظ…ط­ط¯ط¯ط© ط¹ظ„ظ‰ ط¬ظ…ظٹط¹ ط§ظ„ظ…ط´ط±ظپظٹظ† ظپظٹ ظƒط§ظپط© ط§ظ„ط£ظٹط§ظ…"
               >
-                <Calendar size={16} /> للكل
+                <Calendar size={16} /> ظ„ظ„ظƒظ„
               </button>
 
               {/* Apply to a specific day dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowDayDropdown(prev => !prev)}
-                  disabled={!bulkLocationId}
-                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${bulkLocationId ? 'bg-[#e5e1fe] text-[#655ac1] hover:bg-[#c9c2fd] active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-                  title="تطبيق الموقع على يوم محدد"
+                  disabled={bulkLocationIds.length === 0}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${bulkLocationIds.length > 0 ? 'bg-gradient-to-b from-white to-[#f5f3ff] border-[#d7d0ff] text-[#655ac1] shadow-[0_8px_20px_rgba(101,90,193,0.14)] hover:border-[#b9afff] hover:shadow-[0_12px_26px_rgba(101,90,193,0.2)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] cursor-pointer' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`}
+                  title="طھط·ط¨ظٹظ‚ ط§ظ„ظ…ظˆط§ظ‚ط¹ ط§ظ„ظ…ط­ط¯ط¯ط© ط¹ظ„ظ‰ ظٹظˆظ… ظ…ط­ط¯ط¯"
                 >
-                  <Users size={16} /> تطبيق لليوم <ChevronDown size={14} />
+                  <Users size={16} /> طھط·ط¨ظٹظ‚ ظ„ظ„ظٹظˆظ… <ChevronDown size={14} />
                 </button>
-                {showDayDropdown && bulkLocationId && (
+                {showDayDropdown && bulkLocationIds.length > 0 && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowDayDropdown(false)} />
                     <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden min-w-[140px]">
@@ -352,10 +445,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               {dayAssignments.some(da => da.staffAssignments.some(sa => sa.locationIds.length > 0)) && (
                 <button
                   onClick={() => clearLocations()}
-                  className="flex-none flex items-center justify-center p-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition-all active:scale-95 border border-rose-100/50 hover:border-rose-200"
-                  title="استعادة ضبط جميع المواقع"
+                  className="flex-none flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white text-rose-600 hover:text-rose-700 rounded-xl transition-all active:scale-[0.98] border border-rose-200/80 shadow-[0_8px_18px_rgba(244,63,94,0.08)] hover:bg-rose-50 hover:border-rose-300 hover:shadow-[0_12px_24px_rgba(244,63,94,0.14)] hover:-translate-y-0.5"
+                  title="ط§ط³طھط¹ط§ط¯ط© ط¶ط¨ط· ط¬ظ…ظٹط¹ ط§ظ„ظ…ظˆط§ظ‚ط¹"
                 >
-                  <RotateCcw size={20} />
+                  <RotateCcw size={18} />
+                  <span className="hidden sm:inline text-sm font-bold">ط¥ط¹ط§ط¯ط© ط§ظ„طھط¹ظٹظٹظ†</span>
                 </button>
               )}
             </div>
@@ -414,7 +508,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                            {/* Day Cell (Rowspan if first row) */}
                            {isFirstRow && (
                              <td className="p-3 border-l border-slate-200/60 align-top bg-gradient-to-br from-indigo-50/20 to-transparent relative" rowSpan={rowsPerDay}>
-                                {/* Count badge — top-right */}
+                                {/* Count badge â€” top-right */}
                                 <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-md border ${staffCount > 0 ? 'bg-[#e5e1fe]/60 border-[#655ac1]/20' : 'bg-slate-100 border-slate-200'}`}>
                                   <span className={`text-xs font-black leading-none ${staffCount > 0 ? 'text-[#655ac1]' : 'text-slate-400'}`}>{staffCount}</span>
                                   <span className={`text-[9px] font-bold ${staffCount > 0 ? 'text-[#655ac1]/70' : 'text-slate-400'}`}>مشرف</span>
@@ -423,7 +517,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                    <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[day]}</h4>
                                    {staffCount > 0 && da.staffAssignments.some(sa => sa.locationIds.length > 0) && (
                                      <div className="mt-4 w-full flex flex-col gap-2">
-                                        <button onClick={() => clearLocations(day)} className="w-full flex items-center justify-center py-2 text-rose-500 hover:text-rose-600 rounded-xl transition-all hover:bg-slate-50" title="استعادة ضبط المواقع لهذا اليوم">
+                                        <button onClick={() => clearLocations(day)} className="w-full flex items-center justify-center py-2 text-rose-500 hover:text-rose-600 rounded-xl transition-all hover:bg-slate-50" title="ط§ط³طھط¹ط§ط¯ط© ط¶ط¨ط· ط§ظ„ظ…ظˆط§ظ‚ط¹ ظ„ظ‡ط°ط§ ط§ظ„ظٹظˆظ…">
                                           <RotateCcw size={18} />
                                         </button>
                                      </div>
@@ -439,39 +533,39 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                    <div className="flex flex-col">
                                      <span className="font-bold text-slate-800 text-sm truncate max-w-[130px]">{staff1.staffName}</span>
                                    </div>
-                                   <button onClick={() => removeStaffFromDay(day, staff1.staffId)} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all shadow-sm border border-transparent hover:border-rose-100" title="حذف المشرف">
+                                   <button onClick={() => removeStaffFromDay(day, staff1.staffId)} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all shadow-sm border border-transparent hover:border-rose-100" title="ط­ط°ظپ ط§ظ„ظ…ط´ط±ظپ">
                                      <Trash2 size={14} />
                                    </button>
                                 </div>
                               ) : isFirstRow ? (
                                 <div className="relative">
-                                  <button onClick={() => { setShowAddPanel(day); setSelectedStaffIds([]); setAddSearch(''); }} className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/50 hover:bg-[#e5e1fe]/30 font-bold text-xs flex items-center justify-center gap-1 transition-all">
+                                  <button onClick={(e) => openAddPanel(day, e)} className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/50 hover:bg-[#e5e1fe]/30 font-bold text-xs flex items-center justify-center gap-1 transition-all">
                                     <Plus size={14} /> إضافة مشرفين
                                   </button>
                                   
                                   {/* Add Staff Dropdown (Multiselect) */}
                                   {showAdd && (
                                     <>
-                                      <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); }} />
-                                      <div className="absolute top-[calc(100%+0.5rem)] right-0 w-72 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden">
-                                       <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                      <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); setAddPanelPosition(null); }} />
+                                      <div className="fixed top-[8vh] right-1/2 translate-x-1/2 w-[min(92vw,34rem)] max-h-[78vh] bg-white rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.22)] border border-slate-200 z-[9999] overflow-hidden flex flex-col">
+                                       <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
                                          <span className="text-xs font-black text-slate-700">تحديد المشرفين</span>
                                          <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">{unassignedStaff.length} متاح</span>
                                        </div>
-                                       <div className="p-2 border-b border-slate-100">
+                                       <div className="p-3 border-b border-slate-100 shrink-0">
                                          <div className="relative">
                                            <Search size={14} className="absolute right-2.5 top-2.5 text-slate-400" />
-                                           <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث عن مشرف متاح..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]" />
+                                            <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث عن مشرف متاح..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]" />
                                          </div>
                                        </div>
-                                       <div className="max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                                       <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar bg-white">
                                          {(() => {
                                            const filtered = unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch));
                                            if (filtered.length === 0) {
                                              return (
                                                <div className="text-center py-6 text-slate-400 text-xs font-bold">
                                                  <Shield size={24} className="mx-auto mb-2 opacity-30" />
-                                                 {addSearch.trim() ? 'لا نتائج تطابق البحث' : 'جميع الموظفين مخصصون'}
+                                                  {addSearch.trim() ? 'لا توجد نتائج مطابقة للبحث' : 'جميع الموظفين مخصصون'}
                                                </div>
                                              );
                                            }
@@ -491,8 +585,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                            });
                                          })()}
                                        </div>
-                                       <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
-                                          <button onClick={() => saveManualStaffAssignments(day)} className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md transition-all">
+                                       <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
+                                          <span className="text-[11px] font-medium text-slate-500">اختر من القائمة ثم احفظ التحديد</span>
+                                          <button onClick={() => saveManualStaffAssignments(day)} className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all">
                                              حفظ المحدد ({selectedStaffIds.length})
                                           </button>
                                        </div>
@@ -506,18 +601,52 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                            {/* Location 1 Cell */}
                            <td className="p-3 border-l border-slate-200/60 align-middle">
                               {staff1 ? (
-                                <div className="flex items-center gap-2 group relative">
-                                  <select 
-                                    value={staff1.locationIds[0] || ''}
-                                    onChange={(e) => setLocation(day, staff1.staffId, e.target.value)}
-                                    className="w-full bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#655ac1]/50 text-slate-700 text-xs font-bold rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1] outline-none transition-all appearance-none cursor-pointer"
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setShowLocationPicker(prev => prev === `${day}-${staff1.staffId}` ? null : `${day}-${staff1.staffId}`)}
+                                    className="w-full min-h-[42px] bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#655ac1]/50 text-slate-700 text-xs font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2"
                                   >
-                                    <option value="" disabled>اختر موقع...</option>
-                                    {activeLocations.map(loc => (
-                                      <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                    ))}
-                                  </select>
-                                  <ChevronDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <span className={`flex-1 ${staff1.locationIds.length > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
+                                      {getLocationSummary(staff1.locationIds)}
+                                    </span>
+                                    <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                                  </button>
+
+                                  {showLocationPicker === `${day}-${staff1.staffId}` && (
+                                    <>
+                                      <div
+                                        className="fixed inset-0 z-[9998]"
+                                        onClick={() => setShowLocationPicker(null)}
+                                      />
+                                      <div className="absolute top-[calc(100%+0.5rem)] right-0 w-64 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden">
+                                        <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                          <span className="text-xs font-black text-slate-700">طھط­ط¯ظٹط¯ ظ…ظˆط§ظ‚ط¹ ط§ظ„ط¥ط´ط±ط§ظپ</span>
+                                          <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
+                                            {staff1.locationIds.length} ظ…ط­ط¯ط¯
+                                          </span>
+                                        </div>
+                                        <div className="max-h-64 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                                          {activeLocations.map(loc => {
+                                            const isSelected = staff1.locationIds.includes(loc.id);
+                                            return (
+                                              <button
+                                                key={loc.id}
+                                                onClick={() => toggleLocation(day, staff1.staffId, loc.id)}
+                                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all outline-none ${isSelected ? 'bg-white border-transparent' : 'bg-white border-transparent hover:bg-slate-50'}`}
+                                              >
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                                                  {isSelected && <Check size={12} />}
+                                                </div>
+                                                <div className="flex-1 flex flex-col">
+                                                  <span className={`text-sm font-bold ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               ) : null}
                            </td>
@@ -530,20 +659,20 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                     <>
                                       <img
                                         src={staff1.signatureData}
-                                        alt="توقيع"
+                                        alt="طھظˆظ‚ظٹط¹"
                                         className="h-9 max-w-[80px] object-contain border border-emerald-200 rounded-lg bg-white shadow-sm"
                                       />
-                                      <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
+                                      <span className="text-[9px] text-emerald-600 font-bold">âœ… ظ…ظˆظ‚ظ‘ط¹</span>
                                     </>
                                   ) : staff1.signatureStatus === 'pending' ? (
                                     <>
                                       <div className="w-8 h-8 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-center animate-pulse">
                                         <Hourglass size={14} className="text-amber-500" />
                                       </div>
-                                      <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
+                                      <span className="text-[9px] text-amber-600 font-bold">ط¨ط§ظ†طھط¸ط§ط± ط§ظ„طھظˆظ‚ظٹط¹</span>
                                     </>
                                   ) : (
-                                    <span className="text-[9px] text-slate-300 font-bold">لم يُرسل بعد</span>
+                                    <span className="text-[9px] text-slate-300 font-bold">ظ„ظ… ظٹظڈط±ط³ظ„ ط¨ط¹ط¯</span>
                                   )}
                                 </div>
                               ) : null}
@@ -554,7 +683,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                    {da.followUpSupervisorId ? (
                                      <div className="bg-[#e5e1fe]/40 border border-[#655ac1]/20 rounded-xl p-3 group relative text-center">
                                        <p className="text-[10px] font-bold text-[#655ac1] mb-1 flex items-center justify-center gap-1">
-                                          <Shield size={10} /> المشرف المتابع
+                                          <Shield size={10} /> ط§ظ„ظ…ط´ط±ظپ ط§ظ„ظ…طھط§ط¨ط¹
                                        </p>
                                        <p className="text-sm font-black text-slate-800 truncate">
                                          {da.followUpSupervisorName}
@@ -562,21 +691,21 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                        <button onClick={(e) => { e.stopPropagation(); removeFollowUpSupervisor(day); }} className="absolute top-1/2 -translate-y-1/2 left-2 p-1 bg-white rounded-md text-slate-400 hover:text-rose-500 transition-all shadow-sm">
                                          <X size={12} />
                                        </button>
-                                       <button onClick={(e) => { e.stopPropagation(); copyFollowUpToAllDays(day); }} className="absolute top-1 right-2 p-1 text-[#655ac1]/70 hover:text-[#655ac1] opacity-0 group-hover:opacity-100 transition-all" title="نسخ لجميع الأيام">
+                                       <button onClick={(e) => { e.stopPropagation(); copyFollowUpToAllDays(day); }} className="absolute top-1 right-2 p-1 text-[#655ac1]/70 hover:text-[#655ac1] opacity-0 group-hover:opacity-100 transition-all" title="ظ†ط³ط® ظ„ط¬ظ…ظٹط¹ ط§ظ„ط£ظٹط§ظ…">
                                          <Copy size={12} />
                                        </button>
                                      </div>
                                    ) : (
-                                     <button onClick={() => setShowFollowUpPicker(isFollowUpOpen ? null : day)} className="w-full flex items-center justify-center gap-1 border border-dashed border-[#655ac1]/30 bg-[#e5e1fe]/20 hover:bg-[#e5e1fe]/40 text-[#655ac1] py-3 rounded-xl text-xs font-bold transition-all">
-                                       <Plus size={14} /> تعيين مشرف متابع
-                                     </button>
+                                      <button onClick={(e) => openFollowUpPicker(day, e)} className="w-full flex items-center justify-center gap-1 border border-dashed border-[#655ac1]/30 bg-[#e5e1fe]/20 hover:bg-[#e5e1fe]/40 text-[#655ac1] py-3 rounded-xl text-xs font-bold transition-all">
+                                        <Plus size={14} /> تعيين مشرف متابع
+                                      </button>
                                    )}
 
                                    {/* Follow up dropdown */}
                                    {isFollowUpOpen && (
                                      <>
-                                       <div className="fixed inset-0 z-[9998]" onClick={() => { setShowFollowUpPicker(null); setFollowUpSearch(''); }} />
-                                       <div className="absolute top-[calc(100%+0.5rem)] right-0 w-64 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden">
+                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setShowFollowUpPicker(null); setFollowUpSearch(''); setFollowUpPickerPosition(null); }} />
+                                        <div className="fixed w-64 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden" style={followUpPickerPosition ? { top: followUpPickerPosition.top, right: followUpPickerPosition.right } : undefined}>
                                           <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                             <span className="text-xs font-black text-slate-700">اختيار المشرف المتابع</span>
                                             <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">{followUpCandidates.length}</span>
@@ -594,7 +723,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                                 return (
                                                   <div className="text-center py-6 text-slate-400 text-xs font-bold">
                                                     <Shield size={24} className="mx-auto mb-2 opacity-30" />
-                                                    {followUpSearch.trim() ? 'لا نتائج تطابق البحث' : 'لا يوجد مشرفين متاحين'}
+                                                    {followUpSearch.trim() ? 'لا توجد نتائج مطابقة للبحث' : 'لا يوجد مشرفون متاحون'}
                                                   </div>
                                                 );
                                               }
@@ -621,22 +750,22 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                    <>
                                      <img
                                        src={da.followUpSignatureData}
-                                       alt="توقيع المتابع"
+                                       alt="طھظˆظ‚ظٹط¹ ط§ظ„ظ…طھط§ط¨ط¹"
                                        className="h-9 max-w-[80px] object-contain border border-[#655ac1]/20 rounded-lg bg-white shadow-sm"
                                      />
-                                     <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
+                                     <span className="text-[9px] text-emerald-600 font-bold">âœ… ظ…ظˆظ‚ظ‘ط¹</span>
                                    </>
                                  ) : da.followUpSupervisorId && da.followUpSignatureStatus === 'pending' ? (
                                    <>
                                      <div className="w-8 h-8 bg-[#e5e1fe]/40 border border-[#655ac1]/20 rounded-lg flex items-center justify-center animate-pulse">
                                        <Hourglass size={14} className="text-[#655ac1]" />
                                      </div>
-                                     <span className="text-[9px] text-[#655ac1] font-bold">بانتظار التوقيع</span>
+                                     <span className="text-[9px] text-[#655ac1] font-bold">ط¨ط§ظ†طھط¸ط§ط± ط§ظ„طھظˆظ‚ظٹط¹</span>
                                    </>
                                  ) : da.followUpSupervisorId ? (
-                                   <span className="text-[9px] text-slate-300 font-bold">لم يُرسل بعد</span>
+                                   <span className="text-[9px] text-slate-300 font-bold">ظ„ظ… ظٹظڈط±ط³ظ„ ط¨ط¹ط¯</span>
                                  ) : (
-                                   <span className="text-[9px] text-slate-200 font-bold">—</span>
+                                   <span className="text-[9px] text-slate-200 font-bold">-</span>
                                  )}
                                </div>
                              </td>
@@ -650,32 +779,32 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     {staffCount > 0 && (
                        <tr className="border-b-2 border-slate-200">
                          <td colSpan={3} className="p-2 border-l border-slate-200/60 bg-slate-50/30 text-center relative">
-                            <button onClick={() => { setShowAddPanel(day); setSelectedStaffIds([]); setAddSearch(''); }} className="inline-flex items-center gap-1 text-xs font-bold text-[#655ac1] hover:text-[#8779fb] bg-[#e5e1fe]/50 hover:bg-[#e5e1fe] px-3 py-1.5 rounded-lg transition-colors">
+                            <button onClick={(e) => openAddPanel(day, e)} className="inline-flex items-center gap-1 text-xs font-bold text-[#655ac1] hover:text-[#8779fb] bg-[#e5e1fe]/50 hover:bg-[#e5e1fe] px-3 py-1.5 rounded-lg transition-colors">
                                <Plus size={12} /> إضافة المزيد من المشرفين ليوم {DAY_NAMES[day]}
                             </button>
                             {/* Re-use dropdown logic for bottom Add button */}
                              {showAdd && (
                                <>
-                                 <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); }} />
-                                 <div className="absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 w-72 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 z-[9999] overflow-hidden text-right">
-                                   <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                 <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); setAddPanelPosition(null); }} />
+                                 <div className="fixed top-[8vh] right-1/2 translate-x-1/2 w-[min(92vw,34rem)] max-h-[78vh] bg-white rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.22)] border border-slate-200 z-[9999] overflow-hidden text-right flex flex-col">
+                                   <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
                                      <span className="text-xs font-black text-slate-700">تحديد المشرفين</span>
                                      <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">{unassignedStaff.length} متاح</span>
                                    </div>
-                                   <div className="p-2 border-b border-slate-100">
+                                   <div className="p-3 border-b border-slate-100 shrink-0">
                                      <div className="relative">
                                        <Search size={14} className="absolute right-2.5 top-2.5 text-slate-400" />
                                        <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث عن مشرف متاح..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]" />
                                      </div>
                                    </div>
-                                   <div className="max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                                   <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar bg-white">
                                      {(() => {
                                        const filtered = unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch));
                                        if (filtered.length === 0) {
                                          return (
                                            <div className="text-center py-6 text-slate-400 text-xs font-bold">
                                              <Shield size={24} className="mx-auto mb-2 opacity-30" />
-                                             {addSearch.trim() ? 'لا نتائج تطابق البحث' : 'جميع الموظفين مخصصون'}
+                                             {addSearch.trim() ? 'لا توجد نتائج مطابقة للبحث' : 'جميع الموظفين مخصصون'}
                                            </div>
                                          );
                                        }
@@ -695,8 +824,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                        });
                                      })()}
                                    </div>
-                                   <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
-                                      <button onClick={() => saveManualStaffAssignments(day)} className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2 rounded-xl text-xs font-bold shadow-md transition-all">
+                                   <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
+                                      <span className="text-[11px] font-medium text-slate-500">اختر من القائمة ثم احفظ التحديد</span>
+                                      <button onClick={() => saveManualStaffAssignments(day)} className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all">
                                          حفظ المحدد ({selectedStaffIds.length})
                                       </button>
                                    </div>
@@ -719,3 +849,4 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 };
 
 export default SupervisionScheduleBuilder;
+
