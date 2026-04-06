@@ -1,19 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
+  AlertTriangle,
   CalendarDays,
   ChevronDown,
   ClipboardList,
   Clock,
   Search,
-  X,
+  Trash2,
 } from 'lucide-react';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import arabic from 'react-date-object/calendars/arabic';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+import gregorian from 'react-date-object/calendars/gregorian';
+import gregorian_en from 'react-date-object/locales/gregorian_en';
 import { ActionLog, LogActionType } from '../../types';
-import { getLogs } from './auditLog';
+import { clearLogs, clearLogsByDelegate, clearLogsOlderThan, getLogs } from './auditLog';
 
 const ACTION_TYPE_LABELS: Record<LogActionType, string> = {
   create: 'إنشاء',
-  edit_permissions: 'تعديل صلاحيات',
+  edit_permissions: 'تعديل الصلاحيات',
   activate: 'تفعيل',
   deactivate: 'إيقاف',
   delete: 'حذف',
@@ -58,11 +64,14 @@ function TypeBadge({ type }: { type: LogActionType }) {
 export default function ActionLogs() {
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [search, setSearch] = useState('');
-  const [delegateFilter, setDelegate] = useState('all');
+  const [delegateFilter, setDelegateFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showDelegateDropdown, setShowDelegateDropdown] = useState(false);
+  const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<'all' | 'delegate' | 'older' | null>(null);
   const delegateDropdownRef = useRef<HTMLDivElement>(null);
+  const deleteMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLogs(getLogs());
@@ -76,6 +85,13 @@ export default function ActionLogs() {
       ) {
         setShowDelegateDropdown(false);
       }
+
+      if (
+        deleteMenuRef.current &&
+        !deleteMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowDeleteMenu(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -87,30 +103,66 @@ export default function ActionLogs() {
   ) as string[];
 
   const filtered = logs.filter((log) => {
-    const q = search.toLowerCase();
+    const query = search.trim().toLowerCase();
 
-    if (q && !(log.targetDelegateName ?? '').toLowerCase().includes(q)) {
+    if (query && !(log.targetDelegateName ?? '').toLowerCase().includes(query)) {
       return false;
     }
 
-    if (delegateFilter !== 'all' && log.targetDelegateName !== delegateFilter) return false;
-    if (dateFrom && toYMD(log.timestamp) < dateFrom) return false;
-    if (dateTo && toYMD(log.timestamp) > dateTo) return false;
+    if (delegateFilter !== 'all' && log.targetDelegateName !== delegateFilter) {
+      return false;
+    }
+
+    if (dateFrom && toYMD(log.timestamp) < dateFrom) {
+      return false;
+    }
+
+    if (dateTo && toYMD(log.timestamp) > dateTo) {
+      return false;
+    }
 
     return true;
   });
 
-  const hasFilters = search || delegateFilter !== 'all' || dateFrom || dateTo;
+  const selectedDelegateLabel =
+    delegateFilter === 'all' ? 'جميع المفوضين' : delegateFilter;
 
-  const clearFilters = () => {
+  const resetFilters = () => {
     setSearch('');
-    setDelegate('all');
+    setDelegateFilter('all');
     setDateFrom('');
     setDateTo('');
   };
 
-  const selectedDelegateLabel =
-    delegateFilter === 'all' ? 'جميع المفوضين' : delegateFilter;
+  const handleDeleteLogs = () => {
+    if (deleteMode === 'older' && dateTo) {
+      clearLogsOlderThan(dateTo);
+      setLogs(getLogs());
+      resetFilters();
+    }
+
+    if (deleteMode === 'delegate' && delegateFilter !== 'all') {
+      clearLogsByDelegate(delegateFilter);
+      setLogs(getLogs());
+      resetFilters();
+    }
+
+    if (deleteMode === 'all') {
+      clearLogs();
+      setLogs([]);
+      resetFilters();
+    }
+
+    setDeleteMode(null);
+    setShowDeleteMenu(false);
+  };
+
+  const deleteMessage =
+    deleteMode === 'older' && dateTo
+      ? `سيتم حذف جميع السجلات الأقدم من تاريخ ${fmtDate(dateTo)} نهائيًا. هل تريد المتابعة؟`
+      : deleteMode === 'delegate' && delegateFilter !== 'all'
+        ? `سيتم حذف جميع سجلات المفوض ${delegateFilter}. هل تريد المتابعة؟`
+        : 'سيتم حذف جميع السجلات المسجلة نهائيًا. هل تريد المتابعة؟';
 
   return (
     <div className="space-y-4">
@@ -132,15 +184,82 @@ export default function ActionLogs() {
               </p>
             </div>
 
-            {hasFilters && (
+            <div className="relative" ref={deleteMenuRef}>
               <button
-                onClick={clearFilters}
-                className="flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-100"
+                type="button"
+                onClick={() => setShowDeleteMenu((prev) => !prev)}
+                className={`flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-xs font-bold transition-all ${
+                  showDeleteMenu
+                    ? 'border-rose-300 text-rose-600 shadow-sm'
+                    : 'border-slate-200 text-slate-700 hover:border-rose-200 hover:text-rose-600'
+                }`}
               >
-                <X size={12} />
-                مسح الفلاتر
+                <Trash2 size={13} className="text-rose-500" />
+                حذف السجلات
+                <ChevronDown
+                  size={14}
+                  className={`text-slate-400 transition-transform ${showDeleteMenu ? 'rotate-180' : ''}`}
+                />
               </button>
-            )}
+
+              {showDeleteMenu && (
+                <div className="absolute left-0 z-30 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteMode('older');
+                      setShowDeleteMenu(false);
+                    }}
+                    disabled={!dateTo}
+                    className={`w-full px-4 py-3 text-right transition-colors ${
+                      dateTo
+                        ? 'text-slate-700 hover:bg-slate-50'
+                        : 'cursor-not-allowed text-slate-300'
+                    }`}
+                  >
+                    <p className="text-sm font-bold">حذف السجلات الأقدم</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {dateTo
+                        ? `حذف كل السجلات الأقدم من ${fmtDate(dateTo)}`
+                        : 'حدد إلى تاريخ أولًا لتفعيل هذا الخيار'}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteMode('delegate');
+                      setShowDeleteMenu(false);
+                    }}
+                    disabled={delegateFilter === 'all'}
+                    className={`w-full border-t border-slate-100 px-4 py-3 text-right transition-colors ${
+                      delegateFilter !== 'all'
+                        ? 'text-slate-700 hover:bg-slate-50'
+                        : 'cursor-not-allowed text-slate-300'
+                    }`}
+                  >
+                    <p className="text-sm font-bold">حذف سجل مفوض محدد</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {delegateFilter !== 'all'
+                        ? `حذف جميع سجلات ${delegateFilter}`
+                        : 'اختر مفوضًا من القائمة لتفعيل هذا الخيار'}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteMode('all');
+                      setShowDeleteMenu(false);
+                    }}
+                    className="w-full border-t border-slate-100 px-4 py-3 text-right text-rose-600 transition-colors hover:bg-rose-50"
+                  >
+                    <p className="text-sm font-bold">حذف جميع السجلات</p>
+                    <p className="mt-1 text-xs text-rose-400">إفراغ سجل الإجراءات بالكامل</p>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -178,7 +297,7 @@ export default function ActionLogs() {
                     <button
                       type="button"
                       onClick={() => {
-                        setDelegate('all');
+                        setDelegateFilter('all');
                         setShowDelegateDropdown(false);
                       }}
                       className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition-colors ${
@@ -187,7 +306,7 @@ export default function ActionLogs() {
                           : 'text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      <span className="font-bold text-sm">جميع المفوضين</span>
+                      <span className="text-sm font-bold">جميع المفوضين</span>
                       {delegateFilter === 'all' && <span className="text-xs font-bold">محدد</span>}
                     </button>
 
@@ -197,7 +316,7 @@ export default function ActionLogs() {
                           key={name}
                           type="button"
                           onClick={() => {
-                            setDelegate(name);
+                            setDelegateFilter(name);
                             setShowDelegateDropdown(false);
                           }}
                           className={`w-full rounded-xl px-3 py-3 text-right transition-colors ${
@@ -208,7 +327,7 @@ export default function ActionLogs() {
                         >
                           <p className="truncate text-sm font-bold">{name}</p>
                           <p className="mt-0.5 text-xs text-slate-400">
-                            عرض عمليات هذا المفوض فقط
+                            عرض جميع العمليات الإجرائية لهذا المفوض
                           </p>
                         </button>
                       ))}
@@ -228,11 +347,30 @@ export default function ActionLogs() {
             <div className="flex flex-wrap gap-4">
               <div className="min-w-[180px] flex-1">
                 <label className="mb-1.5 block text-xs font-bold text-slate-600">من تاريخ</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={dateFrom}
-                  onChange={(event) => setDateFrom(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#655ac1] focus:ring-1"
+                  onChange={(date: DateObject | DateObject[] | null) => {
+                    if (!date) {
+                      setDateFrom('');
+                      return;
+                    }
+
+                    const selectedDate = Array.isArray(date) ? date[0] : date;
+                    if (selectedDate) {
+                      setDateFrom(selectedDate.convert(gregorian, gregorian_en).format('YYYY-MM-DD'));
+                    } else {
+                      setDateFrom('');
+                    }
+                  }}
+                  calendar={arabic}
+                  locale={arabic_ar}
+                  containerClassName="w-full"
+                  inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all text-right"
+                  placeholder="حدد التاريخ"
+                  portal
+                  portalTarget={document.body}
+                  editable={false}
+                  zIndex={99999}
                 />
                 {dateFrom && (
                   <p className="mt-1 text-xs font-bold text-[#655ac1]" dir="ltr">
@@ -243,11 +381,30 @@ export default function ActionLogs() {
 
               <div className="min-w-[180px] flex-1">
                 <label className="mb-1.5 block text-xs font-bold text-slate-600">إلى تاريخ</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={dateTo}
-                  onChange={(event) => setDateTo(event.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-[#655ac1] focus:ring-1"
+                  onChange={(date: DateObject | DateObject[] | null) => {
+                    if (!date) {
+                      setDateTo('');
+                      return;
+                    }
+
+                    const selectedDate = Array.isArray(date) ? date[0] : date;
+                    if (selectedDate) {
+                      setDateTo(selectedDate.convert(gregorian, gregorian_en).format('YYYY-MM-DD'));
+                    } else {
+                      setDateTo('');
+                    }
+                  }}
+                  calendar={arabic}
+                  locale={arabic_ar}
+                  containerClassName="w-full"
+                  inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all text-right"
+                  placeholder="حدد التاريخ"
+                  portal
+                  portalTarget={document.body}
+                  editable={false}
+                  zIndex={99999}
                 />
                 {dateTo && (
                   <p className="mt-1 text-xs font-bold text-[#655ac1]" dir="ltr">
@@ -259,24 +416,91 @@ export default function ActionLogs() {
           </div>
         </div>
 
-        <div>
+        <div className="md:hidden space-y-3 p-3">
+          {filtered.map((log, index) => (
+            <div key={log.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-2 text-xs font-black text-[#655ac1]">
+                      {index + 1}
+                    </span>
+                    <TypeBadge type={log.actionType} />
+                  </div>
+                  <p className="mt-3 text-sm font-bold text-slate-800">{log.action}</p>
+                  {log.details && <p className="mt-1 text-xs leading-6 text-slate-500">{log.details}</p>}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 col-span-2">
+                  <p className="text-[11px] font-bold text-slate-400">المفوض</p>
+                  <p className="mt-1 font-medium text-slate-700">
+                    {log.targetDelegateName || '—'}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[11px] font-bold text-slate-400">اليوم</p>
+                  <p className="mt-1 text-xs font-bold text-slate-700">{fmtDay(log.timestamp)}</p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[11px] font-bold text-slate-400">الوقت</p>
+                  <p dir="ltr" className="mt-1 text-xs font-bold text-slate-700">{fmtTime(log.timestamp)}</p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 col-span-2">
+                  <p className="text-[11px] font-bold text-slate-400">التاريخ</p>
+                  <div className="mt-1 flex items-center gap-1 text-xs text-slate-600">
+                    <CalendarDays size={11} className="text-[#655ac1]" />
+                    <span dir="ltr">{fmtDate(log.timestamp)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {filtered.length === 0 && (
+            <div className="px-6 py-16 text-center">
+              <AlertCircle size={32} className="mx-auto mb-3 text-[#655ac1] opacity-40" />
+              {logs.length === 0 ? (
+                <>
+                  <p className="font-bold text-slate-600">لا توجد عمليات مسجلة بعد</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    سيظهر هنا سجل العمليات المرتبطة بالمفوضين تلقائيًا
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-slate-600">لا توجد نتائج مطابقة</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    جرّب تغيير اسم المفوض أو الفترة الزمنية
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block">
           <table className="w-full table-fixed text-right">
             <thead className="border-b border-slate-100 bg-slate-50 text-sm text-[#655ac1]">
               <tr>
-                <th className="px-4 py-4 font-medium w-14 text-center whitespace-nowrap">م</th>
-                <th className="px-4 py-4 font-medium whitespace-nowrap">نوع العملية</th>
-                <th className="px-4 py-4 font-medium w-[30%]">وصف العملية</th>
-                <th className="px-4 py-4 font-medium whitespace-nowrap">المفوض</th>
-                <th className="px-4 py-4 font-medium whitespace-nowrap">اليوم</th>
-                <th className="px-4 py-4 font-medium whitespace-nowrap">التاريخ</th>
-                <th className="px-4 py-4 font-medium whitespace-nowrap">الوقت</th>
+                <th className="w-14 whitespace-nowrap px-4 py-4 text-center font-medium">م</th>
+                <th className="whitespace-nowrap px-4 py-4 font-medium">نوع العملية</th>
+                <th className="w-[30%] px-4 py-4 font-medium">وصف العملية</th>
+                <th className="whitespace-nowrap px-4 py-4 font-medium">المفوض</th>
+                <th className="whitespace-nowrap px-4 py-4 font-medium">اليوم</th>
+                <th className="whitespace-nowrap px-4 py-4 font-medium">التاريخ</th>
+                <th className="whitespace-nowrap px-4 py-4 font-medium">الوقت</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100 text-gray-700">
               {filtered.map((log, index) => (
                 <tr key={log.id} className="transition-colors hover:bg-gray-50">
-                  <td className="px-4 py-4 align-top text-center text-sm text-gray-400 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-4 text-center text-sm text-gray-400">
                     {index + 1}
                   </td>
                   <td className="px-4 py-4 align-top">
@@ -284,25 +508,27 @@ export default function ActionLogs() {
                   </td>
                   <td className="px-4 py-4 align-top">
                     <p className="text-sm font-bold text-slate-800">{log.action}</p>
-                    {log.details && <p className="mt-0.5 text-xs text-slate-500 line-clamp-2">{log.details}</p>}
+                    {log.details && (
+                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{log.details}</p>
+                    )}
                   </td>
-                  <td className="px-4 py-4 align-top whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-4 align-top">
                     {log.targetDelegateName ? (
                       <span className="text-sm font-medium text-slate-700">{log.targetDelegateName}</span>
                     ) : (
                       <span className="text-xs text-slate-400">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-4 align-top whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-4 align-top">
                     <span className="text-xs font-bold text-slate-700">{fmtDay(log.timestamp)}</span>
                   </td>
-                  <td className="px-4 py-4 align-top whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-4 align-top">
                     <div className="flex items-center gap-1 text-xs text-slate-500">
                       <CalendarDays size={11} className="text-[#655ac1]" />
                       <span dir="ltr">{fmtDate(log.timestamp)}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-4 align-top whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-4 align-top">
                     <div className="flex items-center gap-1.5">
                       <Clock size={13} className="text-rose-400" />
                       <span dir="ltr" className="text-xs font-bold text-slate-600">
@@ -327,7 +553,9 @@ export default function ActionLogs() {
                     ) : (
                       <>
                         <p className="font-bold text-slate-600">لا توجد نتائج مطابقة</p>
-                        <p className="mt-1 text-sm text-slate-400">جرّب تغيير الفلاتر أو مسحها</p>
+                        <p className="mt-1 text-sm text-slate-400">
+                          جرّب تغيير اسم المفوض أو الفترة الزمنية
+                        </p>
                       </>
                     )}
                   </td>
@@ -343,6 +571,32 @@ export default function ActionLogs() {
           </div>
         )}
       </div>
+
+      {deleteMode && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="animate-in zoom-in-95 w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl duration-200">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-rose-100 bg-rose-50 text-rose-500">
+              <AlertTriangle size={28} />
+            </div>
+            <h3 className="mb-2 text-center text-xl font-black text-slate-800">حذف السجلات</h3>
+            <p className="mb-6 text-center font-medium text-slate-500">{deleteMessage}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteMode(null)}
+                className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={handleDeleteLogs}
+                className="flex-1 rounded-xl bg-rose-500 py-3 font-bold text-white transition-colors hover:bg-rose-600"
+              >
+                نعم، احذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

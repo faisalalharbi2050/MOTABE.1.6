@@ -1,7 +1,7 @@
 import { ActionLog, LogActionType } from '../../types';
 
 const STORAGE_KEY = 'motabe_audit_logs';
-const MAX_LOGS    = 500;
+const MAX_LOGS = 500;
 
 export function logAction(params: {
   actionType: LogActionType;
@@ -29,4 +29,20 @@ export function logAction(params: {
 
 export function getLogs(): ActionLog[] {
   return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+}
+
+export function clearLogs(): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+}
+
+export function clearLogsByDelegate(delegateName: string): void {
+  const logs: ActionLog[] = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+  const filtered = logs.filter((log) => log.targetDelegateName !== delegateName);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+}
+
+export function clearLogsOlderThan(dateYmd: string): void {
+  const logs: ActionLog[] = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+  const filtered = logs.filter((log) => log.timestamp.slice(0, 10) >= dateYmd);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 }

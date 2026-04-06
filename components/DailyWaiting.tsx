@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import arabic from 'react-date-object/calendars/arabic';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+import gregorian from 'react-date-object/calendars/gregorian';
+import gregorian_en from 'react-date-object/locales/gregorian_en';
 import {
   UserX, UserPlus, Clock, X, Search,
   AlertCircle, CheckCircle2, Info, Zap, ArrowLeftRight, Users, ClipboardList,
@@ -3451,11 +3456,29 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <div className="flex flex-wrap gap-4">
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={rptFromDate}
-                      onChange={e => setRptFromDate(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50"
+                      onChange={(date: DateObject | DateObject[] | null) => {
+                        if (!date) {
+                          setRptFromDate('');
+                          return;
+                        }
+                        const selectedDate = Array.isArray(date) ? date[0] : date;
+                        if (selectedDate) {
+                          setRptFromDate(selectedDate.convert(gregorian, gregorian_en).format('YYYY-MM-DD'));
+                        } else {
+                          setRptFromDate('');
+                        }
+                      }}
+                      calendar={arabic}
+                      locale={arabic_ar}
+                      containerClassName="w-full"
+                      inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all text-right"
+                      placeholder="حدد التاريخ"
+                      portal
+                      portalTarget={document.body}
+                      editable={false}
+                      zIndex={99999}
                     />
                     {rptFromDate && (
                       <p className="text-xs text-[#655ac1] font-bold mt-1">
@@ -3467,11 +3490,29 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   </div>
                   <div className="flex-1 min-w-[150px]">
                     <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
-                    <input
-                      type="date"
+                    <DatePicker
                       value={rptToDate}
-                      onChange={e => setRptToDate(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-1 focus:border-[#655ac1] bg-slate-50"
+                      onChange={(date: DateObject | DateObject[] | null) => {
+                        if (!date) {
+                          setRptToDate('');
+                          return;
+                        }
+                        const selectedDate = Array.isArray(date) ? date[0] : date;
+                        if (selectedDate) {
+                          setRptToDate(selectedDate.convert(gregorian, gregorian_en).format('YYYY-MM-DD'));
+                        } else {
+                          setRptToDate('');
+                        }
+                      }}
+                      calendar={arabic}
+                      locale={arabic_ar}
+                      containerClassName="w-full"
+                      inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all text-right"
+                      placeholder="حدد التاريخ"
+                      portal
+                      portalTarget={document.body}
+                      editable={false}
+                      zIndex={99999}
                     />
                     {rptToDate && (
                       <p className="text-xs text-[#655ac1] font-bold mt-1">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserPlus, Shield, ShieldCheck, Smartphone, KeyRound, AlertCircle, CheckCircle2, Check, MessageSquare, ListChecks, ChevronDown, Search as SearchIcon } from 'lucide-react';
+import { UserPlus, Shield, ShieldCheck, Smartphone, KeyRound, AlertCircle, CheckCircle2, Check, MessageSquare, ListChecks, ChevronDown, ChevronLeft, Search as SearchIcon } from 'lucide-react';
 import { Teacher, Admin, Delegate, ModulePermission, PermissionLevel } from '../../types';
 import Toast, { useToast } from './Toast';
 import { MODULES as MOCK_MODULES, ACTIONS as AVAILABLE_ACTIONS, ALL_ACTION_IDS, createFullPermissions, isFullPermissions } from './permissionsConfig';
@@ -105,6 +105,16 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
 
   const handleEnableAll = () => setCustomPermissions(createFullPermissions());
   const handleResetAll = () => setCustomPermissions([]);
+  const resetDelegateForm = () => {
+    setSelectedStaffType('teacher');
+    setSelectedStaffId('');
+    setCustomPermissions([]);
+    setGeneratedOtp(null);
+    setShowReview(false);
+    setShowTypeDropdown(false);
+    setShowStaffDropdown(false);
+    setStaffSearch('');
+  };
 
   const currentStaffArray = selectedStaffType === 'teacher' ? teachers : admins;
   const selectedStaffInfo = currentStaffArray.find(staff => staff.id === selectedStaffId);
@@ -112,6 +122,36 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
   const enabledMainModules = customPermissions.filter(permission => !permission.moduleId.includes('_')).length;
   const isFullAccess = isFullPermissions(customPermissions);
   const permissionSummaryLabel = isFullAccess ? 'صلاحية كاملة' : 'صلاحية مخصصة';
+
+  const normalizePhone = (phone?: string) => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('00')) return digits.slice(2);
+    if (digits.startsWith('0')) return `966${digits.slice(1)}`;
+    if (digits.startsWith('966')) return digits;
+    if (digits.startsWith('5') && digits.length === 9) return `966${digits}`;
+    return digits;
+  };
+
+  const handleShareViaWhatsApp = () => {
+    if (!generatedOtp || !selectedStaffInfo?.phone) {
+      showToast('لا يوجد رقم جوال صالح لإرسال رمز التفعيل', 'warning');
+      return;
+    }
+
+    const phone = normalizePhone(selectedStaffInfo.phone);
+    if (!phone) {
+      showToast('رقم الجوال غير صالح لفتح واتساب', 'warning');
+      return;
+    }
+
+    const message = encodeURIComponent(
+      `مرحبًا ${selectedStaffInfo.name}\nرمز الدخول المؤقت لتفعيل حساب المفوض هو:\n${generatedOtp}`
+    );
+
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
+  };
 
   const handleGenerateOtp = () => {
     if (!selectedStaffInfo) return;
@@ -162,6 +202,8 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
     const permission = customPermissions.find(item => item.moduleId === moduleId);
     const isAllFull = permission?.level === 'full';
     const activeIds = isAllFull ? ALL_ACTION_IDS : (permission?.allowedActions || []);
+    const toggleSize = indent ? 'w-5 h-5' : 'w-6 h-6';
+    const checkSize = indent ? 10 : 12;
 
     return (
       <tr className="border-b border-slate-100">
@@ -173,11 +215,13 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
             <label className="flex items-center gap-1.5 cursor-pointer group">
               <div
                 onClick={() => handleToggleAll(moduleId)}
-                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all cursor-pointer ${
-                  isAllFull ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 bg-white group-hover:border-[#655ac1]'
+                className={`${toggleSize} rounded-full flex items-center justify-center border-2 transition-all cursor-pointer ${
+                  isAllFull
+                    ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-indigo-200'
+                    : 'border-slate-300 bg-white group-hover:border-[#655ac1] group-hover:scale-105'
                 }`}
               >
-                {isAllFull && <Check size={11} strokeWidth={3} />}
+                {isAllFull && <Check size={checkSize} strokeWidth={3} />}
               </div>
               <span className="text-xs font-black text-[#655ac1]">الكل</span>
             </label>
@@ -186,15 +230,20 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
 
             {AVAILABLE_ACTIONS.map(action => {
               const isSelected = activeIds.includes(action.id);
+              const isMutedByAll = isAllFull && isSelected;
               return (
                 <label key={action.id} className="flex items-center gap-1.5 cursor-pointer group">
                   <div
                     onClick={() => handleActionToggle(moduleId, action.id)}
-                    className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all cursor-pointer ${
-                      isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 bg-white group-hover:border-[#655ac1]'
+                    className={`${toggleSize} rounded-full flex items-center justify-center border-2 transition-all cursor-pointer ${
+                      isMutedByAll
+                        ? 'border-[#b7aff3] bg-[#f3f1ff] text-[#655ac1]'
+                        : isSelected
+                        ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-indigo-200'
+                        : 'border-slate-300 bg-white group-hover:border-[#655ac1] group-hover:scale-105'
                     }`}
                   >
-                    {isSelected && <Check size={11} strokeWidth={3} />}
+                    {isSelected && <Check size={checkSize} strokeWidth={3} />}
                   </div>
                   <span className="text-xs font-bold text-slate-700">{action.label}</span>
                 </label>
@@ -448,7 +497,8 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-800">{module.name}</span>
                             {module.submodules && (
-                              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-400">
+                                <ChevronLeft size={12} className="text-slate-400" />
                                 {module.submodules.length} فرعية
                               </span>
                             )}
@@ -531,7 +581,7 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
             <div className="space-y-3">
               <div className="flex justify-center gap-3 flex-wrap">
                 <button
-                  onClick={() => showToast('تم تجهيز واتساب للإرسال (محاكاة)', 'success')}
+                  onClick={handleShareViaWhatsApp}
                   className="bg-white border-2 border-slate-200 text-slate-700 hover:border-[#25D366] hover:bg-[#25D366]/5 px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2"
                 >
                   <WhatsAppIcon size={18} />
@@ -545,13 +595,15 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
                   مشاركة عبر الرسائل النصية
                 </button>
               </div>
-              <div className="flex justify-end">
+              <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => {
-                    setSelectedStaffId('');
-                    setGeneratedOtp(null);
-                    setCustomPermissions([]);
-                  }}
+                  onClick={resetDelegateForm}
+                  className="bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 px-4 py-2.5 rounded-xl font-bold transition-colors"
+                >
+                  إنهاء
+                </button>
+                <button
+                  onClick={resetDelegateForm}
                   className="bg-[#655ac1] border border-[#655ac1] text-white hover:bg-[#655ac1] px-5 py-2.5 rounded-xl font-bold transition-colors"
                 >
                   إضافة مفوض آخر
@@ -678,7 +730,7 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
             <button
               onClick={() => setShowReview(true)}
               disabled={!selectedStaffId || !selectedStaffInfo?.phone}
-              className="px-8 py-3 bg-[#655ac1] hover:bg-indigo-600 text-white rounded-xl font-bold shadow-md shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-8 py-3 bg-[#655ac1] hover:bg-[#655ac1] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-200 text-white rounded-xl font-bold shadow-md shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <CheckCircle2 size={20} />
               مراجعة وتأكيد

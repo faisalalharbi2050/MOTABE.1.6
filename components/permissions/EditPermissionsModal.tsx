@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ListChecks, Check, AlertCircle, Save, Sparkles } from 'lucide-react';
+import { X, ListChecks, Check, AlertCircle, Save, Sparkles, ChevronLeft } from 'lucide-react';
 import { Delegate, ModulePermission, PermissionLevel } from '../../types';
 import { MODULES, ACTIONS, ALL_ACTION_IDS, createFullPermissions, isFullPermissions } from './permissionsConfig';
 
@@ -72,6 +72,8 @@ export default function EditPermissionsModal({ delegate, onSave, onClose }: Prop
     const permission = permissions.find(item => item.moduleId === moduleId);
     const isAllFull = permission?.level === 'full';
     const activeIds = isAllFull ? ALL_ACTION_IDS : (permission?.allowedActions ?? []);
+    const toggleSize = indent ? 'w-5 h-5' : 'w-6 h-6';
+    const checkSize = indent ? 10 : 12;
 
     return (
       <tr className="border-b border-slate-100">
@@ -80,26 +82,33 @@ export default function EditPermissionsModal({ delegate, onSave, onClose }: Prop
             <label className="flex items-center gap-1.5 cursor-pointer group">
               <div
                 onClick={() => handleToggleAll(moduleId)}
-                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all cursor-pointer ${
-                  isAllFull ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 bg-white group-hover:border-[#655ac1]'
+                className={`${toggleSize} rounded-full flex items-center justify-center border-2 transition-all cursor-pointer ${
+                  isAllFull
+                    ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-indigo-200'
+                    : 'border-slate-300 bg-white group-hover:border-[#655ac1] group-hover:scale-105'
                 }`}
               >
-                {isAllFull && <Check size={11} strokeWidth={3} />}
+                {isAllFull && <Check size={checkSize} strokeWidth={3} />}
               </div>
               <span className="text-xs font-black text-[#655ac1]">الكل</span>
             </label>
             <div className="w-px h-4 bg-slate-300 mx-1" />
             {ACTIONS.map(action => {
               const isSelected = activeIds.includes(action.id);
+              const isMutedByAll = isAllFull && isSelected;
               return (
                 <label key={action.id} className="flex items-center gap-1.5 cursor-pointer group">
                   <div
                     onClick={() => handleActionToggle(moduleId, action.id)}
-                    className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all cursor-pointer ${
-                      isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 bg-white group-hover:border-[#655ac1]'
+                    className={`${toggleSize} rounded-full flex items-center justify-center border-2 transition-all cursor-pointer ${
+                      isMutedByAll
+                        ? 'border-[#b7aff3] bg-[#f3f1ff] text-[#655ac1]'
+                        : isSelected
+                        ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-indigo-200'
+                        : 'border-slate-300 bg-white group-hover:border-[#655ac1] group-hover:scale-105'
                     }`}
                   >
-                    {isSelected && <Check size={11} strokeWidth={3} />}
+                    {isSelected && <Check size={checkSize} strokeWidth={3} />}
                   </div>
                   <span className="text-xs font-bold text-slate-700">{action.label}</span>
                 </label>
@@ -188,7 +197,10 @@ export default function EditPermissionsModal({ delegate, onSave, onClose }: Prop
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-800 text-sm">{module.name}</span>
                               {module.submodules && (
-                                <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{module.submodules.length} فرعي</span>
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs text-slate-400">
+                                  <ChevronLeft size={11} className="text-slate-400" />
+                                  {module.submodules.length} فرعية
+                                </span>
                               )}
                             </div>
                           </td>

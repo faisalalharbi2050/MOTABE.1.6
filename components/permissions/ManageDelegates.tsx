@@ -181,6 +181,35 @@ export default function ManageDelegates() {
     };
   };
 
+  const normalizePhone = (phone?: string) => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('00')) return digits.slice(2);
+    if (digits.startsWith('0')) return `966${digits.slice(1)}`;
+    if (digits.startsWith('966')) return digits;
+    if (digits.startsWith('5') && digits.length === 9) return `966${digits}`;
+    return digits;
+  };
+
+  const handleShareRegeneratedOtpViaWhatsApp = () => {
+    if (!regenerateModal) return;
+
+    const delegate = delegates.find((item) => item.id === regenerateModal.delegateId);
+    const phone = normalizePhone(delegate?.phone);
+
+    if (!delegate?.phone || !phone) {
+      showToast('لا يوجد رقم جوال صالح لفتح واتساب', 'warning');
+      return;
+    }
+
+    const message = encodeURIComponent(
+      `مرحبًا ${delegate.name}\nرمز الدخول المؤقت لتفعيل حساب المفوض هو:\n${regenerateModal.newOtp}`
+    );
+
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="space-y-5">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
@@ -221,9 +250,126 @@ export default function ManageDelegates() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div>
-            <table className="w-full table-fixed text-right">
+        <>
+          <div className="md:hidden space-y-3">
+            {filtered.map((delegate, index) => {
+              const isFullAccess = getDerivedRole(delegate) === 'delegate_full';
+              const status = getStatusView(delegate);
+
+              return (
+                <div key={delegate.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-2 text-xs font-black text-[#655ac1]">
+                          {index + 1}
+                        </span>
+                        <p className="font-bold text-slate-800">{delegate.name}</p>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {delegate.isPendingSetup
+                          ? 'بانتظار إكمال التفعيل'
+                          : delegate.isActive
+                          ? 'جاهز للاستخدام'
+                          : 'الحساب موقوف حاليًا'}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
+                        isFullAccess ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {isFullAccess ? 'كاملة' : 'مخصصة'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200">
+                      <p className="text-[11px] font-bold text-slate-400">صفة المفوض</p>
+                      <p className="mt-1 font-bold text-slate-700">
+                        {delegate.linkedStaffType === 'teacher' ? 'معلم' : 'إداري'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200">
+                      <p className="text-[11px] font-bold text-slate-400">الحالة</p>
+                      <p className={`mt-1 text-xs font-bold ${status.className}`}>{status.label}</p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200 col-span-2">
+                      <p className="text-[11px] font-bold text-slate-400">الجوال</p>
+                      <div className="mt-1 flex items-center gap-1.5 text-slate-700">
+                        <Smartphone size={13} className="text-slate-400 shrink-0" />
+                        <span dir="ltr" className="font-medium">{delegate.phone}</span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200 col-span-2">
+                      <p className="text-[11px] font-bold text-slate-400">اسم المستخدم</p>
+                      <p dir="ltr" className="mt-1 font-medium text-slate-700">
+                        {delegate.username ? `@${delegate.username}` : 'لم يُنشأ بعد'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1.5 border-t border-slate-100 pt-3">
+                    {!delegate.isPendingSetup && (
+                      <button
+                        onClick={() => setEditDelegate(delegate)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#d4cbf9] hover:bg-[#f6f3ff] transition-all"
+                        title="تعديل الصلاحيات"
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                    )}
+
+                    {delegate.isPendingSetup ? (
+                      <button
+                        onClick={() => setRegenerateConfirmId(delegate.id)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] hover:border-[#d9d0ff] hover:bg-[#f6f3ff] transition-all"
+                        title="إعادة إصدار رمز التفعيل"
+                      >
+                        <RefreshCw size={15} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setResetConfirmId(delegate.id)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
+                        title="إعادة تهيئة الحساب"
+                      >
+                        <RotateCcw size={15} />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setToggleConfirm({ id: delegate.id, current: delegate.isActive })}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all border ${
+                        delegate.isActive
+                          ? 'border-slate-200 bg-white text-rose-600 hover:border-rose-200 hover:bg-rose-50'
+                          : 'border-slate-200 bg-white text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                      title={delegate.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}
+                    >
+                      <Power size={15} />
+                    </button>
+
+                    <button
+                      onClick={() => setDeleteConfirmId(delegate.id)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all"
+                      title="حذف المفوض"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div>
+              <table className="w-full table-fixed text-right">
               <thead className="bg-white border-b text-sm text-[#655ac1]">
                 <tr>
                   <th className="px-4 py-4 font-medium w-14 text-center whitespace-nowrap">م</th>
@@ -340,9 +486,10 @@ export default function ManageDelegates() {
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {editDelegate && (
@@ -355,12 +502,12 @@ export default function ManageDelegates() {
 
       {regenerateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 bg-[#e5e1fe] text-[#655ac1] rounded-full flex items-center justify-center mx-auto mb-4">
-              <RefreshCw size={26} />
+          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="mb-2 flex items-center justify-start gap-2 text-[#655ac1]">
+              <RefreshCw size={24} className="shrink-0" />
+              <h3 className="text-xl font-black text-slate-800">رمز التفعيل الجديد</h3>
             </div>
-            <h3 className="text-xl font-black text-slate-800 mb-1">رمز التفعيل الجديد</h3>
-            <p className="text-sm text-slate-500 mb-5">أرسل هذا الرمز للموظف لإتمام التفعيل</p>
+            <p className="text-sm text-slate-500 mb-5 text-right">أرسل هذا الرمز للموظف لإتمام التفعيل</p>
             <div className="bg-slate-50 border-2 border-[#655ac1]/20 rounded-2xl px-8 py-5 mb-5 w-full">
               <p className="text-4xl font-black text-[#655ac1] tracking-widest">{regenerateModal.newOtp}</p>
             </div>
@@ -370,12 +517,12 @@ export default function ManageDelegates() {
                   navigator.clipboard?.writeText(regenerateModal.newOtp);
                   showToast('تم نسخ الرمز', 'success');
                 }}
-                className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-bold text-sm transition-colors"
+                className="flex items-center gap-2 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-xl font-bold text-sm transition-colors"
               >
                 <Copy size={14} /> نسخ
               </button>
               <button
-                onClick={() => showToast('تم تجهيز واتساب (محاكاة)', 'success')}
+                onClick={handleShareRegeneratedOtpViaWhatsApp}
                 className="flex items-center gap-2 bg-white border-2 border-slate-200 hover:border-[#25D366] hover:bg-[#25D366]/5 text-slate-700 px-3 py-2 rounded-xl font-bold text-sm transition-colors"
               >
                 <WhatsAppIcon size={14} /> واتساب
@@ -389,7 +536,7 @@ export default function ManageDelegates() {
             </div>
             <button
               onClick={() => setRegenerateModal(null)}
-              className="w-full px-4 py-3 bg-[#655ac1] hover:bg-indigo-600 text-white rounded-xl font-bold transition-colors"
+              className="w-full px-4 py-3 bg-[#655ac1] hover:bg-[#655ac1] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-200 text-white rounded-xl font-bold transition-all"
             >
               تم
             </button>
@@ -443,7 +590,7 @@ export default function ManageDelegates() {
                   handleRegenerateOtp(regenerateConfirmId);
                   setRegenerateConfirmId(null);
                 }}
-                className="flex-1 py-3 bg-[#655ac1] hover:bg-indigo-600 text-white rounded-xl font-bold transition-colors"
+                className="flex-1 py-3 bg-[#655ac1] hover:bg-[#655ac1] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-200 text-white rounded-xl font-bold transition-all"
               >
                 نعم، أعد الإصدار
               </button>
