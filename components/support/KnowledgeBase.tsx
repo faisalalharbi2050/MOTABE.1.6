@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, BookOpen, HelpCircle, Play, PlayCircle, Clock, X, Video, FileQuestion, ChevronLeft, LayoutGrid, Maximize2, Minimize2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, ChevronDown, ChevronUp, BookOpen, HelpCircle, Play, PlayCircle, Clock, X, Video, FileQuestion, Tag, Maximize2, Minimize2 } from 'lucide-react';
 
 interface FAQItem {
   q: string;
@@ -609,233 +609,238 @@ const VideoModal: React.FC<{ video: VideoTutorial | null; onClose: () => void }>
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-const KnowledgeBase: React.FC = () => {
-  // FAQ state
-  const [activeCategory, setActiveCategory] = useState<string>('dashboard');
-  const [openItem, setOpenItem] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+interface KnowledgeBaseProps {
+  initialCategory?: string;
+  initialSearch?: string;
+}
 
-  // Videos state
-  const [videoCategory, setVideoCategory] = useState<string>('dashboard');
-  const [videoSearch, setVideoSearch] = useState('');
+const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
+  initialCategory = 'dashboard',
+  initialSearch = '',
+}) => {
+  const [section,        setSection]        = useState<'faq' | 'videos'>('faq');
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const [videoCategory,  setVideoCategory]  = useState(initialCategory);
+  const [openItem,       setOpenItem]       = useState<string | null>(null);
+  const [searchQuery,    setSearchQuery]    = useState(initialSearch);
+
   const [playingVideo, setPlayingVideo] = useState<VideoTutorial | null>(null);
 
-  // Section switcher: 'faq' | 'videos'
-  const [section, setSection] = useState<'faq' | 'videos'>('faq');
+  const isSearching = searchQuery.trim().length > 0;
 
-  // ── FAQ filtered ──────────────────────────────────────────────────────────
-  const currentCat = FAQ_DATA.find(c => c.id === activeCategory);
-  const filteredItems = searchQuery.trim()
-    ? FAQ_DATA.flatMap(cat =>
+  // ── Counts ────────────────────────────────────────────────────────────────
+  const faqCounts = useMemo(
+    () => Object.fromEntries(FAQ_DATA.map(c => [c.id, c.items.length])),
+    [],
+  );
+  const videoCounts = useMemo(
+    () => Object.fromEntries(
+      VIDEO_CATEGORIES.map(c => [c.id, VIDEO_DATA.filter(v => v.category === c.id).length]),
+    ),
+    [],
+  );
+
+  // ── FAQ items ─────────────────────────────────────────────────────────────
+  const faqItems = useMemo(() => {
+    if (isSearching) {
+      return FAQ_DATA.flatMap(cat =>
         cat.items
           .filter(item => item.q.includes(searchQuery) || item.a.includes(searchQuery))
-          .map(item => ({ ...item, categoryLabel: cat.label }))
-      )
-    : (currentCat?.items.map(item => ({ ...item, categoryLabel: currentCat.label })) ?? []);
+          .map(item => ({ ...item, categoryLabel: cat.label, catId: cat.id })),
+      );
+    }
+    const cat = FAQ_DATA.find(c => c.id === activeCategory);
+    return cat ? cat.items.map(item => ({ ...item, categoryLabel: cat.label, catId: cat.id })) : [];
+  }, [searchQuery, activeCategory, isSearching]);
 
-  // ── Videos filtered ───────────────────────────────────────────────────────
-  const filteredVideos = VIDEO_DATA.filter(v => {
-    const matchCat = v.category === videoCategory;
-    const matchSearch = !videoSearch.trim() || v.title.includes(videoSearch) || v.description.includes(videoSearch);
-    return matchCat && matchSearch;
-  });
+  // ── Video items ───────────────────────────────────────────────────────────
+  const videoItems = useMemo(() => {
+    if (isSearching) {
+      return VIDEO_DATA.filter(
+        v => v.title.includes(searchQuery) || v.description.includes(searchQuery),
+      );
+    }
+    return VIDEO_DATA.filter(v => v.category === videoCategory);
+  }, [searchQuery, videoCategory, isSearching]);
+
+  // ── Sidebar ───────────────────────────────────────────────────────────────
+  const sidebarItems = section === 'faq'
+    ? FAQ_DATA.map(c => ({ id: c.id, label: c.label, count: faqCounts[c.id] }))
+    : VIDEO_CATEGORIES.map(c => ({ id: c.id, label: c.label, count: videoCounts[c.id] }));
+
+  const activeSidebarId = section === 'faq' ? activeCategory : videoCategory;
+
+  const handleSidebarClick = (id: string) => {
+    setSearchQuery('');
+    setOpenItem(null);
+    if (section === 'faq') setActiveCategory(id);
+    else setVideoCategory(id);
+  };
+
+  const handleSectionSwitch = (s: 'faq' | 'videos') => {
+    setSection(s);
+    setSearchQuery('');
+    setOpenItem(null);
+  };
+
+  const currentCategoryLabel = section === 'faq'
+    ? FAQ_DATA.find(c => c.id === activeCategory)?.label
+    : VIDEO_CATEGORIES.find(c => c.id === videoCategory)?.label;
+
+  const resultCount = section === 'faq' ? faqItems.length : videoItems.length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Section Switcher ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => setSection('faq')}
-          className={`group relative flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all duration-200 bg-white ${
-            section === 'faq'
-              ? 'border-[#8779fb]/60'
-              : 'border-slate-200 hover:border-[#c4bdf8]'
-          }`}
-        >
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-            section === 'faq' ? 'bg-[#8779fb]' : 'bg-slate-100 group-hover:bg-[#e5e1fe]'
-          }`}>
-            <FileQuestion size={22} className={section === 'faq' ? 'text-white' : 'text-slate-500 group-hover:text-[#8779fb]'} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={`font-black text-sm ${section === 'faq' ? 'text-[#655ac1]' : 'text-slate-700'}`}>الأسئلة الشائعة</p>
-            <p className="text-slate-400 text-xs font-medium mt-0.5 truncate">إجابات على أكثر الأسئلة شيوعاً</p>
-          </div>
-          {section === 'faq' && (
-            <div className="absolute bottom-0 right-1/2 translate-x-1/2 w-8 h-1 bg-[#8779fb] rounded-full" />
-          )}
-        </button>
-
-        <button
-          onClick={() => setSection('videos')}
-          className={`group relative flex items-center gap-4 p-4 rounded-2xl border-2 text-right transition-all duration-200 bg-white ${
-            section === 'videos'
-              ? 'border-[#8779fb]/60'
-              : 'border-slate-200 hover:border-[#c4bdf8]'
-          }`}
-        >
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-            section === 'videos' ? 'bg-[#8779fb]' : 'bg-slate-100 group-hover:bg-[#e5e1fe]'
-          }`}>
-            <Video size={22} className={section === 'videos' ? 'text-white' : 'text-slate-500 group-hover:text-[#8779fb]'} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className={`font-black text-sm ${section === 'videos' ? 'text-[#655ac1]' : 'text-slate-700'}`}>شروحات الفيديو</p>
-            <p className="text-slate-400 text-xs font-medium mt-0.5 truncate">شرح كل قسم بمقاطع مرئية</p>
-          </div>
-          {section === 'videos' && (
-            <div className="absolute bottom-0 right-1/2 translate-x-1/2 w-8 h-1 bg-[#8779fb] rounded-full" />
-          )}
-        </button>
+      {/* ── Unified Search ────────────────────────────────────────────────── */}
+      <div className="relative">
+        <Search size={17} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          placeholder={section === 'faq' ? 'ابحث في الأسئلة الشائعة...' : 'ابحث في شروحات الفيديو...'}
+          value={searchQuery}
+          onChange={e => { setSearchQuery(e.target.value); setOpenItem(null); }}
+          className="w-full pr-11 pl-10 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 text-slate-700 font-medium text-sm bg-white shadow-sm transition-all"
+        />
+        {isSearching && (
+          <button
+            onClick={() => { setSearchQuery(''); setOpenItem(null); }}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-all"
+          >
+            <X size={13} />
+          </button>
+        )}
       </div>
 
-      {/* ══════════════════ VIDEO TUTORIALS SECTION ══════════════════════════ */}
-      {section === 'videos' && (
-        <div className="space-y-5">
+      {/* ── Section Tabs ─────────────────────────────────────────────────── */}
+      <div className="flex gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl">
+        {([
+          { id: 'faq'    as const, icon: FileQuestion, label: 'الأسئلة الشائعة', count: FAQ_DATA.reduce((s, c) => s + c.items.length, 0) },
+          { id: 'videos' as const, icon: Video,        label: 'شروحات الفيديو',  count: VIDEO_DATA.length },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => handleSectionSwitch(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-sm transition-all ${
+              section === tab.id
+                ? 'bg-white text-[#655ac1] shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <tab.icon size={15} />
+            {tab.label}
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-black ${
+              section === tab.id ? 'bg-[#ede9ff] text-[#655ac1]' : 'bg-white/80 text-slate-400'
+            }`}>
+              {tab.count}
+            </span>
+          </button>
+        ))}
+      </div>
 
-          {/* Search + Filter Row */}
-          <div className="flex gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="ابحث في شروحات الفيديو..."
-                value={videoSearch}
-                onChange={e => setVideoSearch(e.target.value)}
-                className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/30 text-slate-700 font-medium text-sm bg-white shadow-sm"
-              />
+      {/* ── Body ─────────────────────────────────────────────────────────── */}
+      <div className="flex gap-5">
+
+        {/* ── Sidebar — دائماً ظاهر ─────────────────────────────────────── */}
+        <aside className="w-56 shrink-0">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+              <BookOpen size={14} className="text-[#8779fb]" />
+              <span className="font-black text-slate-700 text-sm">الأقسام</span>
+            </div>
+            <div className="p-2 space-y-0.5">
+              {sidebarItems.map(cat => {
+                const isActive = cat.id === activeSidebarId && !isSearching;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleSidebarClick(cat.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      isActive
+                        ? 'bg-[#ede9ff] text-[#655ac1]'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-[#655ac1]'
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-black shrink-0 ${
+                      isActive ? 'bg-[#c4bdf8]/40 text-[#655ac1]' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {cat.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
+        </aside>
 
-          <div className="flex gap-5">
-            {/* Category Sidebar */}
-            <aside className="w-80 shrink-0">
-              <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg shadow-slate-200/80 overflow-hidden sticky top-4">
-                <div className="px-4 py-3 bg-[#8779fb] border-b border-[#8779fb] flex items-center justify-between">
-                  <p className="font-black text-base text-white flex items-center gap-2">
-                    <Video size={18} />
-                    الأقسام
-                  </p>
-                  <span className="text-white/90 text-xs font-black bg-white/20 px-2.5 py-1 rounded-lg">
-                    {VIDEO_DATA.length} مقطع
-                  </span>
-                </div>
-                <div className="p-3 space-y-1">
-                  {VIDEO_CATEGORIES.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setVideoCategory(cat.id)}
-                      className={`w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                        videoCategory === cat.id
-                          ? 'bg-[#e5e1fe] text-[#655ac1] shadow-sm'
-                          : 'text-slate-600 hover:bg-[#f5f3ff] hover:text-[#655ac1]'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
+        {/* ── Content ──────────────────────────────────────────────────── */}
+        <div className="flex-1 min-w-0">
+
+          {/* Content Header */}
+          <div className="flex items-center justify-between mb-4">
+            {isSearching ? (
+              <div className="flex items-center gap-2">
+                <Search size={14} className="text-slate-400" />
+                <span className="text-sm text-slate-500 font-bold">
+                  {resultCount} نتيجة لـ «{searchQuery}»
+                </span>
               </div>
-            </aside>
-
-            {/* Video Grid */}
-            <div className="flex-1">
-              {filteredVideos.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
-                  <PlayCircle size={40} className="mx-auto mb-3 text-slate-300" />
-                  <p className="font-bold">لا توجد نتائج مطابقة</p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {filteredVideos.map(video => (
-                      <VideoCard key={video.id} video={video} onPlay={setPlayingVideo} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════ FAQ SECTION ══════════════════════════════════════ */}
-      {section === 'faq' && (
-        <div className="space-y-5">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="ابحث في الأسئلة الشائعة..."
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setOpenItem(null); }}
-              className="w-full pr-12 pl-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1]/30 text-slate-700 font-medium text-sm transition-all bg-white shadow-sm"
-            />
-          </div>
-
-          <div className="flex gap-6">
-            {/* Categories Sidebar */}
-            {!searchQuery && (
-              <aside className="w-80 shrink-0">
-                <div className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg shadow-slate-200/80 overflow-hidden">
-                  <div className="px-4 py-3 bg-[#8779fb] border-b border-[#8779fb]">
-                    <p className="font-black text-base text-white flex items-center gap-2">
-                      <BookOpen size={18} />
-                      التصنيفات
-                    </p>
-                  </div>
-                  <div className="p-3 space-y-1">
-                    {FAQ_DATA.map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => { setActiveCategory(cat.id); setOpenItem(null); }}
-                        className={`w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200
-                          ${activeCategory === cat.id
-                            ? 'bg-[#e5e1fe] text-[#655ac1] shadow-sm'
-                            : 'text-slate-600 hover:bg-[#f5f3ff] hover:text-[#655ac1]'
-                          }`}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </aside>
+            ) : (
+              <h3 className="font-black text-slate-800 text-base">{currentCategoryLabel}</h3>
             )}
+            <span className="text-xs text-slate-400 font-bold">
+              {section === 'faq' ? `${resultCount} سؤال` : `${resultCount} مقطع`}
+            </span>
+          </div>
 
-            {/* FAQ Items */}
-            <div className="flex-1 space-y-3">
-              {filteredItems.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-400">
-                  <HelpCircle size={40} className="mx-auto mb-3 text-slate-300" />
-                  <p className="font-bold">لا توجد نتائج مطابقة</p>
+          {/* ── FAQ Content ────────────────────────────────────────────── */}
+          {section === 'faq' && (
+            <div className="space-y-2.5">
+              {faqItems.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+                  <HelpCircle size={38} className="mx-auto mb-3 text-slate-200" />
+                  <p className="font-bold text-slate-400">لا توجد نتائج</p>
+                  <p className="text-xs text-slate-300 mt-1 font-medium">جرّب كلمات بحث مختلفة</p>
                 </div>
               ) : (
-                filteredItems.map((item, idx) => {
-                  const key = `${item.q}-${idx}`;
+                faqItems.map((item, idx) => {
+                  const key = `${item.catId}-${idx}`;
                   const isOpen = openItem === key;
                   return (
                     <div
                       key={key}
-                      className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden ${isOpen ? 'border-[#655ac1]/30' : 'border-slate-200 hover:border-slate-300'}`}
+                      className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden ${
+                        isOpen ? 'border-[#8779fb]/40' : 'border-slate-200 hover:border-slate-300'
+                      }`}
                     >
                       <button
                         onClick={() => setOpenItem(isOpen ? null : key)}
-                        className="w-full flex items-center justify-between px-5 py-4 text-right"
+                        className="w-full flex items-start justify-between px-5 py-4 text-right gap-3"
                       >
-                        <span className={`font-bold text-sm leading-relaxed ${isOpen ? 'text-[#655ac1]' : 'text-slate-700'}`}>
-                          {item.q}
-                        </span>
-                        <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isOpen ? 'bg-[#8779fb]/20 text-[#8779fb]' : 'bg-slate-100 text-slate-500'}`}>
-                          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        <div className="flex-1 min-w-0">
+                          {isSearching && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#8779fb] bg-[#f0eeff] px-2.5 py-1 rounded-full mb-2">
+                              <Tag size={9} />
+                              {item.categoryLabel}
+                            </span>
+                          )}
+                          <p className={`font-bold text-sm leading-relaxed ${isOpen ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                            {item.q}
+                          </p>
+                        </div>
+                        <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all mt-0.5 ${
+                          isOpen ? 'bg-[#8779fb] text-white' : 'bg-slate-100 text-slate-400'
+                        }`}>
+                          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                         </div>
                       </button>
                       {isOpen && (
-                        <div className="px-5 pb-4">
+                        <div className="px-5 pb-5">
                           <div className="h-px bg-slate-100 mb-3" />
-                          <p className="text-sm text-slate-600 font-medium leading-relaxed">{item.a}</p>
+                          <p className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-line">
+                            {item.a}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -843,11 +848,31 @@ const KnowledgeBase: React.FC = () => {
                 })
               )}
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* ── Video Player Modal ──────────────────────────────────────────────── */}
+          {/* ── Videos Content ─────────────────────────────────────────── */}
+          {section === 'videos' && (
+            <>
+              {videoItems.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                  <PlayCircle size={38} className="mx-auto mb-3 text-slate-200" />
+                  <p className="font-bold text-slate-400">لا توجد نتائج</p>
+                  <p className="text-xs text-slate-300 mt-1 font-medium">جرّب كلمات بحث مختلفة</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {videoItems.map(video => (
+                    <VideoCard key={video.id} video={video} onPlay={setPlayingVideo} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+        </div>
+      </div>
+
+      {/* ── Video Player Modal ──────────────────────────────────────────── */}
       <VideoModal video={playingVideo} onClose={() => setPlayingVideo(null)} />
     </div>
   );

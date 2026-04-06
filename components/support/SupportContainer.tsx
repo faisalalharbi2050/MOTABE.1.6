@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Headphones, TicketIcon, BookOpen, PhoneCall } from 'lucide-react';
+import { CircleHelp, TicketIcon, BookOpen, PhoneCall } from 'lucide-react';
 import TicketSection from './TicketSection';
 import KnowledgeBase from './KnowledgeBase';
 import ContactChannels from './ContactChannels';
@@ -33,8 +33,8 @@ const SupportContainer: React.FC = () => {
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
         <div className="relative z-10">
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
-            <Headphones size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-            الدعم الفني
+            <CircleHelp size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+            الدعم والمساعدة
           </h2>
           <p className="text-slate-500 font-medium mt-2 mr-12">
             تصفح مركز المساعدة، ارفع تذكرتك، أو تواصل مع فريق الدعم مباشرة، ويمكنك أيضاً استخدام المساعد الذكي للإجابة الفورية.

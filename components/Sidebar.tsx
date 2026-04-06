@@ -15,7 +15,6 @@ import {
   Bell,
   MessageSquare,
   CreditCard,
-  HelpCircle,
   LogOut,
   Menu,
   X,
@@ -30,7 +29,7 @@ import {
   ClipboardList,
   Eye,
   ShieldCheck,
-  Headphones,
+  CircleHelp,
   GraduationCap,
   ChevronLeft,
   ChevronRight,
@@ -468,8 +467,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           <NavItem
             active={activeTab === "support"}
             onClick={() => handleTabClick("support")}
-            icon={<Headphones size={22} />}
-            label="الدعم الفني"
+            icon={<CircleHelp size={22} />}
+            label="الدعم والمساعدة"
             collapsed={isCollapsed}
           />
         </div>
