@@ -88,20 +88,22 @@ const SupportContainer: React.FC = () => {
         // ── HOME VIEW ──────────────────────────────────────────────────────────
         <>
           {/* Header */}
-          <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative z-[130] group hover:shadow-md transition-all duration-300 overflow-visible">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-            <div className="relative z-10 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                  <CircleHelp size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-                  الدعم والمساعدة
-                </h2>
-                <p className="text-slate-500 font-medium mt-2 mr-12">
-                ابدأ بمركز المساعدة ستجد إجابة لاستفسارك ، أو ارفع تذكرة دعم، أو تواصل معنا.
-                </p>
-              </div>
-              <div className="shrink-0">
-                <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} variant="header" />
+          <div className="relative z-[130] overflow-visible">
+            <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
+              <div className="relative z-10 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                    <CircleHelp size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+                    الدعم والمساعدة
+                  </h2>
+                  <p className="text-slate-500 font-medium mt-2 mr-12">
+                  ابدأ بمركز المساعدة ستجد إجابة لاستفسارك ، أو ارفع تذكرة دعم، أو تواصل معنا.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} variant="header" />
+                </div>
               </div>
             </div>
           </div>
