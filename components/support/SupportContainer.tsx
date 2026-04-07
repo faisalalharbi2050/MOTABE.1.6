@@ -111,14 +111,14 @@ const SupportContainer: React.FC = () => {
           {/* ── بطاقة مركز المساعدة ────────────────────────────────────────── */}
           <button
             onClick={() => setView('knowledge')}
-            className="w-full bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-8"
+            className="w-full bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-5"
           >
-            <div className="relative z-10 flex items-start justify-between gap-6">
+            <div className="relative z-10 flex items-center justify-between gap-4">
               <div className="flex-1">
                 {/* Title */}
-                <div className="flex items-start gap-4 mb-6">
+                <div className="flex items-start gap-4 mb-3">
                   <div className="flex items-center justify-center">
-                    <BookOpen size={30} className="text-[#655ac1]" />
+                    <BookOpen size={28} className="text-[#655ac1]" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="font-black text-slate-800 text-xl leading-tight">مركز المساعدة</h3>
@@ -129,30 +129,30 @@ const SupportContainer: React.FC = () => {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 justify-start">
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 flex items-center gap-3">
+                <div className="grid grid-cols-1 gap-0 justify-start max-w-xs">
+                  <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3">
                     <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
                       <MessageSquare size={18} className="text-[#655ac1]" />
                     </div>
                     <div className="min-w-0 flex items-center gap-2">
-                      <div className="text-xl font-black text-slate-800 leading-none">+40</div>
-                      <div className="text-sm font-bold text-slate-500">سؤال</div>
+                      <div className="text-xl font-black text-[#655ac1] leading-none">+40</div>
+                      <div className="text-sm font-bold text-[#655ac1]">سؤال</div>
                     </div>
                   </div>
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 flex items-center gap-3">
+                  <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-3">
                     <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
                       <Play size={18} className="text-[#655ac1]" />
                     </div>
                     <div className="min-w-0 flex items-center gap-2">
-                      <div className="text-xl font-black text-slate-800 leading-none">22</div>
-                      <div className="text-sm font-bold text-slate-500">مقطع فيديو</div>
+                      <div className="text-xl font-black text-[#655ac1] leading-none">22</div>
+                      <div className="text-sm font-bold text-[#655ac1]">مقطع فيديو</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Arrow */}
-              <div className="shrink-0 w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300 mt-1">
+              <div className="shrink-0 self-center w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
                 <ChevronLeft size={18} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
               </div>
             </div>
@@ -167,14 +167,14 @@ const SupportContainer: React.FC = () => {
               className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6"
             >
               <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <TicketIcon size={26} className="text-[#655ac1]" />
                     <div>
                       <h3 className="font-black text-slate-800 text-base">تذاكر الدعم</h3>
                     </div>
                   </div>
-                  <div className="shrink-0 w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
+                  <div className="shrink-0 self-center w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
                     <ChevronLeft size={16} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
                   </div>
                 </div>
@@ -190,14 +190,14 @@ const SupportContainer: React.FC = () => {
               className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6"
             >
               <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <Headset size={26} className="text-[#655ac1]" />
                     <div>
                       <h3 className="font-black text-slate-800 text-base">تواصل معنا</h3>
                     </div>
                   </div>
-                  <div className="shrink-0 w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
+                  <div className="shrink-0 self-center w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
                     <ChevronLeft size={16} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
                   </div>
                 </div>
