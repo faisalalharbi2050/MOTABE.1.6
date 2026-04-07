@@ -88,58 +88,70 @@ const SupportContainer: React.FC = () => {
         // ── HOME VIEW ──────────────────────────────────────────────────────────
         <>
           {/* Header */}
-          <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative z-[130] group hover:shadow-md transition-all duration-300 overflow-visible">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-            <div className="relative z-10">
-              <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                <CircleHelp size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-                الدعم والمساعدة
-              </h2>
-              <p className="text-slate-500 font-medium mt-2 mr-12">
+            <div className="relative z-10 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                  <CircleHelp size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+                  الدعم والمساعدة
+                </h2>
+                <p className="text-slate-500 font-medium mt-2 mr-12">
                 ابدأ بمركز المساعدة ستجد إجابة لاستفسارك ، أو ارفع تذكرة دعم، أو تواصل معنا.
-              </p>
+                </p>
+              </div>
+              <div className="shrink-0">
+                <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} variant="header" />
+              </div>
             </div>
           </div>
 
           {/* ── بطاقة مركز المساعدة ────────────────────────────────────────── */}
           <button
             onClick={() => setView('knowledge')}
-            className="w-full bg-white rounded-[2rem] border border-[#c4bef9] shadow-lg transition-all duration-300 overflow-hidden group text-right relative p-8"
+            className="w-full bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-8"
           >
-            <div className="absolute top-0 left-0 w-56 h-56 bg-gradient-to-br from-[#ede9ff] to-transparent rounded-br-[6rem] -z-0 scale-110 duration-500" />
-            <div className="absolute bottom-0 right-0 w-20 h-20 bg-[#f5f3ff] rounded-tl-[3rem] -z-0" />
-
             <div className="relative z-10 flex items-start justify-between gap-6">
               <div className="flex-1">
                 {/* Title */}
-                <div className="flex items-center gap-4 mb-5">
-                  <div className="w-14 h-14 bg-[#655ac1] rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                    <BookOpen size={26} className="text-white" />
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="flex items-center justify-center">
+                    <BookOpen size={30} className="text-[#655ac1]" />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <h3 className="font-black text-slate-800 text-xl leading-tight">مركز المساعدة</h3>
-                    <p className="text-[#8779fb] font-bold text-sm mt-0.5">ستجد إجابة لكل الاستفسارات مع شروحات فيديو توضيحية</p>
+                    <p className="text-slate-500 font-medium text-sm leading-7 max-w-2xl">
+                      ستجد إجابة لكل الاستفسارات مع شروحات فيديو توضيحية
+                    </p>
                   </div>
                 </div>
 
                 {/* Stats */}
-                <div className="flex gap-2 justify-start">
-                  <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2">
-                    <MessageSquare size={15} className="text-[#655ac1] shrink-0" />
-                    <span className="text-base font-black text-[#655ac1]">+40</span>
-                    <span className="text-sm font-bold text-slate-400">سؤال وجواب</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 justify-start">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                      <MessageSquare size={18} className="text-[#655ac1]" />
+                    </div>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <div className="text-xl font-black text-slate-800 leading-none">+40</div>
+                      <div className="text-sm font-bold text-slate-500">سؤال</div>
+                    </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2">
-                    <Play size={15} className="text-[#655ac1] shrink-0" />
-                    <span className="text-base font-black text-[#655ac1]">22</span>
-                    <span className="text-sm font-bold text-slate-400">شرح فيديو</span>
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                      <Play size={18} className="text-[#655ac1]" />
+                    </div>
+                    <div className="min-w-0 flex items-center gap-2">
+                      <div className="text-xl font-black text-slate-800 leading-none">22</div>
+                      <div className="text-sm font-bold text-slate-500">مقطع فيديو</div>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Arrow */}
-              <div className="shrink-0 w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-[#655ac1] group-hover:border-[#655ac1] transition-all duration-300 mt-1">
-                <ChevronLeft size={18} className="text-slate-400 group-hover:text-white transition-colors" />
+              <div className="shrink-0 w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300 mt-1">
+                <ChevronLeft size={18} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
               </div>
             </div>
           </button>
@@ -150,20 +162,18 @@ const SupportContainer: React.FC = () => {
             {/* تذاكر الدعم */}
             <button
               onClick={() => { setView('tickets'); setShowDeflect(true); }}
-              className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-lg hover:border-[#c4bef9] transition-all duration-300 overflow-hidden group text-right relative p-6"
+              className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6"
             >
-              <div className="absolute top-0 left-0 w-36 h-36 bg-gradient-to-br from-[#ede9ff] to-transparent rounded-br-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
               <div className="relative z-10">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <TicketIcon size={26} className="text-[#655ac1]" />
                     <div>
                       <h3 className="font-black text-slate-800 text-base">تذاكر الدعم</h3>
-                      <p className="text-[#8779fb] font-bold text-xs mt-0.5">ارفع تذكرتك لفريق الدعم</p>
                     </div>
                   </div>
-                  <div className="shrink-0 w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-[#655ac1] group-hover:border-[#655ac1] transition-all duration-300">
-                    <ChevronLeft size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                  <div className="shrink-0 w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
+                    <ChevronLeft size={16} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
                   </div>
                 </div>
                 <p className="text-slate-500 font-medium text-sm leading-relaxed">
@@ -175,20 +185,18 @@ const SupportContainer: React.FC = () => {
             {/* تواصل معنا */}
             <button
               onClick={() => setView('contact')}
-              className="bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-lg hover:border-[#c4bef9] transition-all duration-300 overflow-hidden group text-right relative p-6"
+              className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6"
             >
-              <div className="absolute top-0 left-0 w-36 h-36 bg-gradient-to-br from-[#ede9ff] to-transparent rounded-br-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
               <div className="relative z-10">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <Headset size={26} className="text-[#655ac1]" />
                     <div>
                       <h3 className="font-black text-slate-800 text-base">تواصل معنا</h3>
-                      <p className="text-[#8779fb] font-bold text-xs mt-0.5">تحدث مع فريق الدعم</p>
                     </div>
                   </div>
-                  <div className="shrink-0 w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-[#655ac1] group-hover:border-[#655ac1] transition-all duration-300">
-                    <ChevronLeft size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                  <div className="shrink-0 w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center group-hover:bg-slate-100 group-hover:border-slate-300 transition-all duration-300">
+                    <ChevronLeft size={16} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
                   </div>
                 </div>
                 <p className="text-slate-500 font-medium text-sm leading-relaxed">
@@ -202,23 +210,28 @@ const SupportContainer: React.FC = () => {
         // ── SECTION VIEW ───────────────────────────────────────────────────────
         <>
           {/* Breadcrumb + Back */}
-          <div className="bg-white rounded-[2rem] px-6 py-4 shadow-sm border border-slate-100 flex items-center gap-4">
-            <button
-              onClick={handleBack}
-              className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-[#655ac1] hover:border-[#655ac1] transition-all group"
-            >
-              <ArrowRight size={18} className="text-slate-400 group-hover:text-white transition-colors" />
-            </button>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <span
+          <div className="bg-white rounded-[2rem] px-6 py-4 shadow-sm border border-slate-100 relative z-[130] flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <button
                 onClick={handleBack}
-                className="text-slate-400 hover:text-[#655ac1] cursor-pointer transition-colors"
+                className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-all group"
               >
-                الدعم والمساعدة
-              </span>
-              <span className="text-slate-300">/</span>
-              <span className="font-black text-slate-700">{sectionTitles[view]}</span>
+                <ArrowRight size={18} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+              </button>
+              <div className="w-px h-5 bg-slate-200" />
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <span
+                  onClick={handleBack}
+                  className="text-slate-400 hover:text-[#655ac1] cursor-pointer transition-colors"
+                >
+                  الدعم والمساعدة
+                </span>
+                <span className="text-slate-300">/</span>
+                <span className="font-black text-slate-700">{sectionTitles[view]}</span>
+              </div>
+            </div>
+            <div className="shrink-0">
+              <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} variant="header" />
             </div>
           </div>
 
@@ -240,9 +253,6 @@ const SupportContainer: React.FC = () => {
           )}
         </>
       )}
-
-      {/* Floating AI Chatbot */}
-      <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} />
     </div>
   );
 };

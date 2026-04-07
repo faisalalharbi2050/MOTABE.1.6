@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   LogOut, 
   Menu, 
   X, 
@@ -555,7 +555,6 @@ const Header: React.FC<HeaderProps> = ({
 
           {/* SECTION 3: Actions (End/Left) */}
           <div className="flex items-center gap-2 md:gap-3">
-               
                {/* Notification */}
                <div className="relative" ref={notifRef}>
                  <button 
