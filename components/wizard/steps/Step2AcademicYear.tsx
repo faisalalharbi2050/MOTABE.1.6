@@ -1,6 +1,6 @@
 import React from 'react';
 import { SchoolInfo } from '../../../types';
-import { Calendar } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import SemesterManager from '../SemesterManager';
 
 interface Step2Props {
@@ -30,7 +30,7 @@ const Step2AcademicYear: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) 
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#8779fb]/10 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
           
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
-            <Calendar size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+            <CalendarDays size={20} strokeWidth={1.8} className="text-[#8779fb]" />
              العام الدراسي والفصول الدراسية
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إعداد وتنظيم العام والفصول الدراسية</p>
@@ -42,7 +42,7 @@ const Step2AcademicYear: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) 
           {!showForm ? (
             <div className="text-center py-12 relative z-10">
                 <div className="w-20 h-20 bg-[#8779fb]/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-                    <Calendar size={40} className="text-[#8779fb]" />
+                    <CalendarDays size={32} className="text-[#8779fb]" />
                 </div>
                 <p className="text-slate-500 mb-8 max-w-md mx-auto">
                     <span className="text-slate-800 font-black text-lg block mb-2">لنبدأ في التنظيم</span>

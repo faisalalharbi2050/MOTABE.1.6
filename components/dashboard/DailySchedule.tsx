@@ -57,8 +57,8 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title 
               <div className={`
                 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors
                 ${item.type === 'absence' ? 'text-rose-500' : ''}
-                ${item.type === 'supervision' ? 'text-blue-500' : ''}
-                ${item.type === 'duty' ? 'text-amber-500' : ''}
+                ${item.type === 'supervision' ? 'text-[#8779fb]' : ''}
+                ${item.type === 'duty' ? 'text-[#655ac1]' : ''}
                 ${!item.type ? 'text-slate-500' : ''}
               `}>
                 {item.type === 'absence' && <UserX size={20} />}

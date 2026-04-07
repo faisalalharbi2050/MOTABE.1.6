@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar as CalendarIcon, X, Pencil, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, X, Pencil, Trash2 } from 'lucide-react';
 import { CalendarEvent, SchoolInfo } from '../../types';
-import AcademicCalendarModal from './AcademicCalendarModal';
 
 // ── Task types & helpers ──────────────────────────────────────────────────────
 
@@ -112,8 +111,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, schoolInfo, set
   const [showReminder,  setShowReminder]  = useState(false);
   const [reminderTasks, setReminderTasks] = useState<Task[]>([]);
 
-  // Academic calendar modal
-  const [showAcademicCalendar, setShowAcademicCalendar] = useState(false);
 
   useEffect(() => {
     const today = getTodayStr();
@@ -352,14 +349,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, schoolInfo, set
           إضافة مهمة
         </button>
 
-        {/* Academic calendar button */}
-        <button
-          onClick={() => setShowAcademicCalendar(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#655ac1] to-[#8779fb] text-white rounded-xl shadow-sm hover:from-[#5448b0] hover:to-[#7566ea] transition-all text-sm font-bold shadow-[#655ac1]/20"
-        >
-          <BookOpen size={15} strokeWidth={2.5} />
-          التقويم الدراسي
-        </button>
       </div>
 
       {/* ── Calendar grid ─────────────────────────────────────────────────── */}
@@ -660,14 +649,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, schoolInfo, set
           </div>
         </div>
       )}
-
-      {/* ── Academic Calendar Modal ─────────────────────────────────────────── */}
-      <AcademicCalendarModal
-        isOpen={showAcademicCalendar}
-        onClose={() => setShowAcademicCalendar(false)}
-        schoolInfo={schoolInfo}
-        setSchoolInfo={setSchoolInfo}
-      />
 
     </div>
   );

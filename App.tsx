@@ -163,14 +163,44 @@ const App: React.FC = () => {
   ]);
   const [events] = useState<CalendarEvent[]>([]);
   const [todaySchedule] = useState<DailyScheduleItem[]>([
-    { id: '1', type: 'absence', name: 'محمد حسن', time: 'طوال اليوم', role: 'معلم رياضيات' },
-    { id: '2', type: 'supervision', name: 'سعد القحطاني', time: '06:45 صباحاً', location: 'الساحة الأمامية' },
-    { id: '3', type: 'duty', name: 'عبدالله الشهري', time: 'الفسحة الأولى', location: 'المقصف' },
+    // غياب (5)
+    { id: 't-a1', type: 'absence', name: 'محمد حسن العمري' },
+    { id: 't-a2', type: 'absence', name: 'سعد بن فهد القحطاني' },
+    { id: 't-a3', type: 'absence', name: 'عبدالعزيز الشهري' },
+    { id: 't-a4', type: 'absence', name: 'خالد محمد الدوسري' },
+    { id: 't-a5', type: 'absence', name: 'فيصل عبدالله الزهراني' },
+    // إشراف (8)
+    { id: 't-s1', type: 'supervision', name: 'سعد القحطاني' },
+    { id: 't-s2', type: 'supervision', name: 'عمر الغامدي' },
+    { id: 't-s3', type: 'supervision', name: 'تركي العتيبي' },
+    { id: 't-s4', type: 'supervision', name: 'وليد السبيعي' },
+    { id: 't-s5', type: 'supervision', name: 'ناصر الرشيدي' },
+    { id: 't-s6', type: 'supervision', name: 'حسن البقمي' },
+    { id: 't-s7', type: 'supervision', name: 'أحمد الحربي' },
+    { id: 't-s8', type: 'supervision', name: 'يوسف المطيري' },
+    // مناوبة (2)
+    { id: 't-d1', type: 'duty', name: 'عبدالله الشهري' },
+    { id: 't-d2', type: 'duty', name: 'سلطان العمري' },
   ]);
   const [tomorrowSchedule] = useState<DailyScheduleItem[]>([
-     { id: '1', type: 'supervision', name: 'علي الشهراني', time: '06:45 صباحاً', location: 'الساحة الخلفية' },
-     { id: '2', type: 'supervision', name: 'فهد العتيبي', time: 'الفسحة الأولى', location: 'الممرات' },
-     { id: '3', type: 'duty', name: 'سلطان العمري', time: 'نهاية الدوام', location: 'البوابة الرئيسية' },
+    // غياب (5)
+    { id: 'tm-a1', type: 'absence', name: 'إبراهيم السلمي' },
+    { id: 'tm-a2', type: 'absence', name: 'عبدالرحمن الفهد' },
+    { id: 'tm-a3', type: 'absence', name: 'ماجد المالكي' },
+    { id: 'tm-a4', type: 'absence', name: 'بندر الشمري' },
+    { id: 'tm-a5', type: 'absence', name: 'منصور العنزي' },
+    // إشراف (8)
+    { id: 'tm-s1', type: 'supervision', name: 'علي الشهراني' },
+    { id: 'tm-s2', type: 'supervision', name: 'فهد العتيبي' },
+    { id: 'tm-s3', type: 'supervision', name: 'راشد الجهني' },
+    { id: 'tm-s4', type: 'supervision', name: 'محمد القرني' },
+    { id: 'tm-s5', type: 'supervision', name: 'سامي الأسمري' },
+    { id: 'tm-s6', type: 'supervision', name: 'زياد الغامدي' },
+    { id: 'tm-s7', type: 'supervision', name: 'طارق الحازمي' },
+    { id: 'tm-s8', type: 'supervision', name: 'نواف البلوي' },
+    // مناوبة (2)
+    { id: 'tm-d1', type: 'duty', name: 'خالد السهيمي' },
+    { id: 'tm-d2', type: 'duty', name: 'وائل الشريف' },
   ]);
   const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
     const today = new Date();

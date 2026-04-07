@@ -1,19 +1,21 @@
-import React from 'react';
-import { 
-  Users, 
-  GraduationCap, 
-  School, 
+import React, { useState } from 'react';
+import {
+  Users,
+  GraduationCap,
+  School,
   UserCheck,
   MessageSquare,
   CreditCard,
   Calendar,
-  Layers, 
+  Layers,
   MoreVertical,
   Minus,
   Plus,
   UserCog,
   LayoutGrid,
-  BarChart3
+  BarChart3,
+  CalendarDays,
+  Settings2
 } from 'lucide-react';
 import { 
   SchoolInfo, 
@@ -29,6 +31,7 @@ import QuickActions from './dashboard/QuickActions';
 import CalendarWidget from './dashboard/CalendarWidget';
 import DailySchedule from './dashboard/DailySchedule';
 import RecentMessages from './dashboard/RecentMessages';
+import AcademicCalendarModal from './dashboard/AcademicCalendarModal';
 import { useMessageArchive } from './messaging/MessageArchiveContext';
 import { PACKAGE_NAMES } from './subscription/packages';
 
@@ -78,6 +81,21 @@ const Dashboard: React.FC<DashboardProps> = ({
   subscription,
   onNavigate
 }) => {
+  // Academic calendar modal
+  const [showAcademicCalendar, setShowAcademicCalendar] = useState(false);
+
+  // Current semester info
+  const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
+    ?? schoolInfo.semesters?.[0];
+  const getCurrentWeek = () => {
+    if (!currentSemester) return null;
+    const start = new Date(currentSemester.startDate + 'T00:00:00');
+    const today = new Date();
+    const diffDays = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.min(Math.ceil(diffDays / 7), currentSemester.weeksCount));
+  };
+  const currentWeek = getCurrentWeek();
+
   // Calculated stats
   const teacherCount = teachers.length;
   const classCount = classes.length;
@@ -178,26 +196,92 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* 3. Today's Schedule & Recent Messages (Row 3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-8 min-h-[400px]">
-           <DailySchedule schedule={todaySchedule} title={`جدول يوم ${todayName}`} />
-        </div>
-        <div className="lg:col-span-4 min-h-[400px]">
-           <RecentMessages messages={messages} />
-        </div>
-      </div>
-
-      {/* 4. Left: Messages & Package | Right: Tomorrow Schedule (Row 4) */}
+      {/* 3 & 4. Unified two-column section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-         
-         {/* Tomorrow's Schedule (Right) */}
-         <div className="lg:col-span-8 min-h-[400px]">
-           <DailySchedule schedule={tomorrowSchedule} title={`جدول يوم ${tomorrowName}`} />
-         </div>
 
-         {/* Widgets (Left - Stacked) */}
-         <div className="lg:col-span-4 space-y-4">
+        {/* Left: Today + Tomorrow schedules stacked */}
+        <div className="lg:col-span-8 space-y-6">
+          <DailySchedule schedule={todaySchedule} title={`جدول يوم ${todayName}`} />
+          <DailySchedule schedule={tomorrowSchedule} title={`جدول يوم ${tomorrowName}`} />
+        </div>
+
+        {/* Right: sidebar stacked */}
+        <div className="lg:col-span-4 space-y-4">
+
+          {/* ─── Academic Calendar Card ─── */}
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <CalendarDays size={20} className="text-[#8779fb]" strokeWidth={1.8} />
+                التقويم الدراسي
+              </h4>
+              {currentSemester && (
+                <button
+                  onClick={() => setShowAcademicCalendar(true)}
+                  className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1 flex items-center gap-1 transition-colors"
+                >
+                  <Settings2 size={13} />
+                  إعداد
+                </button>
+              )}
+            </div>
+
+            {currentSemester ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black text-[#655ac1]">{currentSemester.name}</span>
+                  <span className="text-xs font-bold text-[#655ac1] bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                    {schoolInfo.academicYear}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
+                  <Calendar size={12} />
+                  <span>يبدأ من: {new Intl.DateTimeFormat(
+                    currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
+                    { day: 'numeric', month: 'long', year: 'numeric' }
+                  ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
+                </div>
+                {currentWeek !== null && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-slate-500">
+                        أسبوع {currentWeek} من {currentSemester.weeksCount}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#655ac1] to-[#8779fb] rounded-full transition-all duration-700"
+                        style={{ width: `${Math.round((currentWeek / currentSemester.weeksCount) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
+                  <Calendar size={12} />
+                  <span>ينتهي في: {new Intl.DateTimeFormat(
+                    currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
+                    { day: 'numeric', month: 'long', year: 'numeric' }
+                  ).format(new Date(currentSemester.endDate + 'T00:00:00'))}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-4 gap-3">
+                <p className="text-xs text-slate-400 font-bold text-center">لم يتم إعداد التقويم الدراسي بعد</p>
+                <button
+                  onClick={() => setShowAcademicCalendar(true)}
+                  className="px-4 py-2 bg-white text-[#8779fb] border border-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 hover:border-slate-400 transition-colors"
+                >
+                  البدء بالإعداد
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ─── Recent Messages ─── */}
+          <RecentMessages messages={messages} />
+
+          {/* Widgets (stacked below) */}
+          <div className="space-y-4">
 
            {/* ─── Message Balance Card ─── */}
            <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden">
@@ -337,7 +421,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
          </div>
 
+        </div>
       </div>
+
+      <AcademicCalendarModal
+        isOpen={showAcademicCalendar}
+        onClose={() => setShowAcademicCalendar(false)}
+        schoolInfo={schoolInfo}
+        setSchoolInfo={setSchoolInfo}
+      />
     </div>
   );
 };

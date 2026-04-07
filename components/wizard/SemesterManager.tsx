@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Trash2, Check, Plus, AlertCircle, X, CheckCircle2, FileText, MousePointerClick } from 'lucide-react';
+import { Calendar, CalendarDays, Trash2, Check, Plus, AlertCircle, X, CheckCircle2, FileText, MousePointerClick, Pen, Eye, ArrowRight } from 'lucide-react';
 import { SemesterInfo } from '../../types';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
@@ -37,6 +37,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [previewingSemester, setPreviewingSemester] = useState<SemesterInfo | null>(null);
   const formRef = React.useRef<HTMLDivElement>(null);
   const [syncAlert, setSyncAlert] = useState<{message: string; key: number} | null>(null);
 
@@ -82,6 +83,11 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     return isNaN(d.getTime()) ? undefined : d;
   };
 
+  const formatSemesterNameForCard = (name: string) => {
+    const normalized = name.trim();
+    return normalized.replace(/^الفصل\s+الدراسي\s+/u, '') || normalized;
+  };
+
   const DAYS_OF_WEEK = [
     { value: 0, label: 'الأحد' },
     { value: 1, label: 'الإثنين' },
@@ -91,6 +97,52 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     { value: 5, label: 'الجمعة' },
     { value: 6, label: 'السبت' },
   ];
+
+  const buildWeeksForSemester = React.useCallback((semester: Partial<SemesterInfo>) => {
+    if (!semester.startDate || !semester.endDate) return [];
+    const start = new Date(semester.startDate.includes('T') ? semester.startDate : semester.startDate + 'T00:00:00');
+    const end = new Date(semester.endDate.includes('T') ? semester.endDate : semester.endDate + 'T00:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+
+    let current = new Date(start);
+    const result: { weekNumber: number; days: { date: string; dateObj: DateObject; isWorkingDay: boolean; isHoliday: boolean; dayOfWeek: number; label: string }[] }[] = [];
+    let weekNumber = 1;
+    let currentWeekDays: { date: string; dateObj: DateObject; isWorkingDay: boolean; isHoliday: boolean; dayOfWeek: number; label: string }[] = [];
+
+    const workStart = semester.workDaysStart ?? 0;
+    const workEnd = semester.workDaysEnd ?? 4;
+    const holidays = semester.holidays || [];
+    const calendarType = semester.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
+
+    while (current <= end) {
+      const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
+      const dateObj = new DateObject({
+        date: current,
+        calendar: calendarType === 'hijri' ? arabic : gregorian,
+        locale: calendarType === 'hijri' ? arabic_ar : gregorian_ar
+      });
+      const dayOfWeek = current.getDay();
+      const isWorkingDay = workStart <= workEnd
+        ? dayOfWeek >= workStart && dayOfWeek <= workEnd
+        : dayOfWeek >= workStart || dayOfWeek <= workEnd;
+      const isHoliday = holidays.includes(dateStr);
+      const label = DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label || '';
+
+      if (currentWeekDays.length > 0 && dayOfWeek === workStart) {
+        result.push({ weekNumber: weekNumber++, days: currentWeekDays });
+        currentWeekDays = [];
+      }
+
+      currentWeekDays.push({ date: dateStr, dateObj, isWorkingDay, isHoliday, dayOfWeek, label });
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (currentWeekDays.length > 0) {
+      result.push({ weekNumber, days: currentWeekDays });
+    }
+
+    return result;
+  }, [DAYS_OF_WEEK]);
 
   const getActiveWeeksCount = React.useCallback((holidaysArr: string[], startStr: string, endStr: string, workStart: number, workEnd: number) => {
         if (!startStr || !endStr) return 0;
@@ -187,44 +239,11 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
       applyHolidaysUpdate(newHolidays);
   };
 
-  const generatedWeeks = React.useMemo(() => {
-    if (!newSemester.startDate || !newSemester.endDate) return [];
-    const start = new Date(newSemester.startDate.includes('T') ? newSemester.startDate : newSemester.startDate + 'T00:00:00');
-    const end = new Date(newSemester.endDate.includes('T') ? newSemester.endDate : newSemester.endDate + 'T00:00:00');
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
-
-    let current = new Date(start);
-    const result: { weekNumber: number; days: { date: string; dateObj: DateObject; isWorkingDay: boolean; isHoliday: boolean, dayOfWeek: number, label: string }[] }[] = [];
-    let weekNumber = 1;
-    let currentWeekDays: any[] = [];
-    
-    const workStart = newSemester.workDaysStart ?? 0;
-    const workEnd = newSemester.workDaysEnd ?? 4;
-    const holidays = newSemester.holidays || [];
-
-    while (current <= end) {
-       const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
-       const dateObj = new DateObject({ date: current, calendar: newSemester.calendarType === 'hijri' ? arabic : gregorian, locale: newSemester.calendarType === 'hijri' ? arabic_ar : gregorian_ar });
-       const dayOfWeek = current.getDay();
-       const isWorkingDay = workStart <= workEnd 
-            ? (dayOfWeek >= workStart && dayOfWeek <= workEnd)
-            : (dayOfWeek >= workStart || dayOfWeek <= workEnd);
-       const isHoliday = holidays.includes(dateStr);
-       const label = DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label || '';
-
-       if (currentWeekDays.length > 0 && dayOfWeek === workStart) {
-           result.push({ weekNumber: weekNumber++, days: currentWeekDays });
-           currentWeekDays = [];
-       }
-       
-       currentWeekDays.push({ date: dateStr, dateObj, isWorkingDay, isHoliday, dayOfWeek, label });
-       current.setDate(current.getDate() + 1);
-    }
-    if (currentWeekDays.length > 0) {
-        result.push({ weekNumber: weekNumber, days: currentWeekDays });
-    }
-    return result;
-  }, [newSemester.startDate, newSemester.endDate, newSemester.calendarType, newSemester.workDaysStart, newSemester.workDaysEnd, newSemester.holidays]);
+  const generatedWeeks = React.useMemo(() => buildWeeksForSemester(newSemester), [buildWeeksForSemester, newSemester]);
+  const previewGeneratedWeeks = React.useMemo(
+    () => (previewingSemester ? buildWeeksForSemester(previewingSemester) : []),
+    [buildWeeksForSemester, previewingSemester]
+  );
 
   const activeCalendarWeeks = getActiveWeeksCount(
       newSemester.holidays || [], 
@@ -328,109 +347,94 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-bold text-slate-600 block">العام الدراسي وفصوله الدراسية</label>
-        
-        {!showForm && (
-            <button 
-              onClick={() => {
-                setEditingId(null);
-                setNewSemester({
-                    name: 'الفصل الدراسي الأول',
-                    calendarType: 'hijri',
-                    weeksCount: 18,
-                    workDaysStart: 0,
-                    workDaysEnd: 4,
-                    holidays: []
-                });
-                setShowForm(true);
-                setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-              }}
-              className="text-xs font-bold text-primary flex items-center gap-1 hover:bg-primary/5 px-2 py-1 rounded-lg transition-colors"
-            >
-              <Plus size={14} /> إضافة
-            </button>
+        {!showForm && semesters.length > 0 && (
+          <button
+            onClick={() => {
+              setEditingId(null);
+              setNewSemester({
+                name: 'الفصل الدراسي الأول',
+                calendarType: 'hijri',
+                weeksCount: 18,
+                workDaysStart: 0,
+                workDaysEnd: 4,
+                holidays: []
+              });
+              setShowForm(true);
+              setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-[#655ac1] transition-all hover:-translate-y-0.5 hover:border-[#655ac1]/40 hover:bg-[#655ac1]/5 hover:shadow-sm"
+          >
+            <Plus size={16} />
+            إضافة فصل دراسي آخر
+          </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="space-y-3">
         {!showForm && semesters.length === 0 ? (
-          <div className="col-span-full text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
-            <Calendar className="mx-auto text-slate-400 mb-2" size={32} />
-            <p className="text-sm text-slate-500">لم يتم إضافة العام والفصول الدراسية</p>
-            <button 
-                onClick={() => {
-                  setShowForm(true);
-                  setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-                }}
-                className="text-xs font-bold text-primary hover:underline mt-2"
+          <div className="col-span-full rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-10 text-center">
+            <p className="text-sm text-slate-500">لم يتم إضافة العام والفصول الدراسية بعد</p>
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+              }}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#655ac1] px-4 py-2 text-sm font-bold text-white transition-all hover:bg-[#5748b4] hover:shadow-sm"
             >
-                إضافة
+              <Plus size={16} />
+              إضافة عام وفصل دراسي
             </button>
           </div>
         ) : (
           semesters.map(semester => (
-            <div 
+            <div
               key={semester.id}
-              className={`p-4 rounded-xl border transition-all relative group ${
-                currentSemesterId === semester.id 
-                  ? 'bg-white border-emerald-200 shadow-sm ring-1 ring-emerald-100' 
-                  : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
-              }`}
+              className="rounded-[1.25rem] border border-slate-300 bg-white p-4 transition-all hover:border-slate-400 hover:shadow-sm"
             >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                   <h4 className="font-bold text-sm text-slate-800">{semester.name}</h4>
-                   <div className="flex items-center gap-2 mt-1">
-                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                           semester.calendarType === 'hijri' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
-                       }`}>
-                         {semester.calendarType === 'hijri' ? 'هجري' : 'ميلادي'}
-                       </span>
-                       {currentSemesterId === semester.id && (
-                            <span className="text-[10px] font-bold bg-purple-50 text-purple-600 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                <CheckCircle2 size={10} /> الحالي
-                            </span>
-                       )}
-                   </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-end gap-2 border-b border-slate-200 bg-white px-4 py-3">
+                  <button
+                    onClick={() => setPreviewingSemester(semester)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white text-[#655ac1] transition-all hover:border-[#655ac1]/40 hover:bg-[#655ac1]/5"
+                    title="عرض التقويم"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleEditSemester(semester)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white text-[#655ac1] transition-all hover:border-[#655ac1]/40 hover:bg-[#655ac1]/5"
+                    title="تعديل"
+                  >
+                      <Pen size={14} />
+                  </button>
+                  <button
+                    onClick={() => setDeletingId(semester.id)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white text-rose-600 transition-all hover:border-rose-300 hover:bg-rose-50"
+                    title="حذف"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                
-                <div className="flex gap-1 opacity-100 transition-opacity relative z-0">
-                   {currentSemesterId !== semester.id && (
-                     <button 
-                       onClick={() => setCurrentSemesterId(semester.id)}
-                       className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100"
-                       title="تعيين كفصل حالي"
-                     >
-                       <Check size={14} />
-                     </button>
-                   )}
-                   <button 
-                       onClick={() => handleEditSemester(semester)}
-                       className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                       title="تعديل"
-                     >
-                       <FileText size={14} /> 
-                     </button>
-                   <button 
-                     onClick={() => setDeletingId(semester.id)}
-                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
-                     title="حذف"
-                   >
-                     <Trash2 size={14} />
-                   </button>
+                <div className="grid grid-cols-[170px_1fr] border-b border-slate-200 text-right last:border-b-0">
+                  <div className="whitespace-nowrap bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">العام الدراسي</div>
+                  <div className="bg-white px-4 py-3 text-sm font-bold text-[#655ac1]">{academicYear || 'غير محدد'}</div>
                 </div>
-              </div>
-              
-               <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                 <div>
-                    <span className="text-slate-400">البداية: </span> <span dir="ltr" className="font-medium text-slate-700 inline-block">{formatDateForDisplay(semester.startDate, semester.calendarType)}</span>
-                 </div>
-                 <div>
-                    <span className="text-slate-400">النهاية: </span> <span dir="ltr" className="font-medium text-slate-700 inline-block">{formatDateForDisplay(semester.endDate, semester.calendarType)}</span>
-                 </div>
-                 <div className="col-span-2 pt-1 border-t border-slate-200/50 mt-1">
-                    <span className="text-slate-400">المدة: </span> <span className="font-medium text-slate-700">{semester.weeksCount} أسبوع</span>
-                 </div>
+                <div className="grid grid-cols-[170px_1fr] border-b border-slate-200 text-right last:border-b-0">
+                  <div className="whitespace-nowrap bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">الفصل الدراسي</div>
+                  <div className="bg-white px-4 py-3 text-sm font-bold text-[#655ac1]">{formatSemesterNameForCard(semester.name)}</div>
+                </div>
+                <div className="grid grid-cols-[170px_1fr] border-b border-slate-200 text-right last:border-b-0">
+                  <div className="whitespace-nowrap bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">بداية الفصل الدراسي</div>
+                  <div dir="ltr" className="bg-white px-4 py-3 text-sm font-bold text-[#655ac1] text-right">{formatDateForDisplay(semester.startDate, semester.calendarType)}</div>
+                </div>
+                <div className="grid grid-cols-[170px_1fr] border-b border-slate-200 text-right last:border-b-0">
+                  <div className="whitespace-nowrap bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">نهاية الفصل الدراسي</div>
+                  <div dir="ltr" className="bg-white px-4 py-3 text-sm font-bold text-[#655ac1] text-right">{formatDateForDisplay(semester.endDate, semester.calendarType)}</div>
+                </div>
+                <div className="grid grid-cols-[170px_1fr] text-right">
+                  <div className="whitespace-nowrap bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">عدد الأسابيع الدراسية</div>
+                  <div className="bg-white px-4 py-3 text-sm font-bold text-[#655ac1]">{semester.weeksCount} أسبوع</div>
+                </div>
               </div>
             </div>
           ))
@@ -439,27 +443,26 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
 
       {/* Inline Add/Edit Form */}
       {showForm && (
-          <div ref={formRef} className="bg-slate-50 rounded-2xl p-6 border border-slate-200 mt-6 animate-in slide-in-from-top-2 duration-300">
-              <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4">
+          <div ref={formRef} className="bg-white rounded-2xl p-6 border border-slate-200 mt-6 animate-in slide-in-from-top-2 duration-300">
+              <div className="flex justify-between items-center mb-6">
                   <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     {editingId ? (
                         <>
-                            <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg"><FileText size={16} /></div>
+                            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-[#655ac1]">
+                              <Pen size={16} />
+                            </span>
                             تعديل فصل دراسي
                         </>
                     ) : (
                         <>
-                            <div className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg"><Plus size={16} /></div>
-                            إضافة عام وفصل دراسي
+                            <CalendarDays size={20} className="text-[#8779fb]" />
+                            {semesters.length > 0 ? 'إضافة فصل دراسي' : 'إضافة عام وفصل دراسي'}
                         </>
                     )}
                   </h3>
-                  <button onClick={handleCancel} className="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 p-1.5 rounded-lg transition-colors">
-                    <X size={16} />
-                  </button>
               </div>
-              
-              <div className="space-y-4">
+
+              <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      
                      {/* Calendar Type - Moved to Dropdown */}
@@ -628,12 +631,9 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                         {/* Header */}
                         <div className="bg-gradient-to-r from-[#655ac1]/8 to-[#8779fb]/6 border-b border-[#8779fb]/15 px-5 py-4 flex flex-wrap justify-between items-center gap-3">
                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 bg-[#655ac1]/10 rounded-xl flex items-center justify-center">
-                                 <Calendar size={18} className="text-[#655ac1]" />
-                              </div>
+                              <CalendarDays size={24} className="text-[#655ac1] shrink-0" />
                               <div>
                                  <h4 className="font-bold text-slate-800 text-sm">الأسابيع الدراسية</h4>
-                                 <p className="text-[11px] text-slate-400">انقر على يوم أو رأس أسبوع لتحديده كإجازة</p>
                               </div>
                            </div>
                            <div className="flex items-center gap-2">
@@ -689,7 +689,6 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
 
                                const weekActiveCount = weekActiveDays.filter((d: any) => !d.isHoliday).length;
                                const isFullHoliday = weekActiveCount === 0;
-                               const isPartialHoliday = weekActiveCount > 0 && weekActiveCount < weekActiveDays.length;
 
                                const firstDay = weekActiveDays[0];
                                const lastDay = weekActiveDays[weekActiveDays.length - 1];
@@ -698,45 +697,32 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                <div
                                   key={idx}
                                   className={`rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-md flex flex-col ${
-                                     isFullHoliday
-                                        ? 'bg-rose-50 border border-rose-200 shadow-sm'
-                                        : isPartialHoliday
-                                           ? 'bg-white border border-amber-200 shadow-sm'
-                                           : 'bg-white border border-[#8779fb]/20 shadow-sm hover:border-[#8779fb]/40'
+                                      isFullHoliday
+                                         ? 'bg-rose-50 border border-rose-200 shadow-sm'
+                                         : 'bg-white border border-[#8779fb]/20 shadow-sm hover:border-[#8779fb]/40'
                                   }`}
                                >
                                   {/* Week Header */}
                                   <div
                                      className={`px-3 pt-2.5 pb-2 cursor-pointer select-none transition-all ${
-                                        isFullHoliday
-                                           ? 'bg-rose-100 hover:bg-rose-200'
-                                           : isPartialHoliday
-                                              ? 'bg-amber-50 hover:bg-amber-100'
-                                              : 'bg-gradient-to-l from-[#655ac1]/6 to-[#8779fb]/10 hover:from-[#655ac1]/12 hover:to-[#8779fb]/18'
+                                         isFullHoliday
+                                            ? 'bg-rose-100 hover:bg-rose-200'
+                                            : 'bg-gradient-to-l from-[#655ac1]/6 to-[#8779fb]/10 hover:from-[#655ac1]/12 hover:to-[#8779fb]/18'
                                      }`}
                                      onClick={() => handleToggleWeekHolidays(week.days)}
                                      title="انقر لتحويل الأسبوع كاملاً إلى إجازة / عمل"
                                   >
                                      <div className="flex items-center justify-between mb-1.5">
-                                        <span className={`text-lg font-black leading-none ${
-                                           isFullHoliday ? 'text-rose-700' : isPartialHoliday ? 'text-amber-700' : 'text-[#655ac1]'
-                                        }`}>
-                                           {week.weekNumber}
-                                        </span>
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                                           isFullHoliday
-                                              ? 'bg-rose-200 text-rose-700'
-                                              : isPartialHoliday
-                                                 ? 'bg-amber-100 text-amber-700'
-                                                 : 'bg-[#655ac1]/10 text-[#655ac1]'
-                                        }`}>
-                                           {weekActiveCount}/{weekActiveDays.length}
-                                        </span>
-                                     </div>
-                                     {/* Week date range */}
-                                     <div className={`text-xs font-bold text-right ${
-                                        isFullHoliday ? 'text-rose-500' : isPartialHoliday ? 'text-amber-500' : 'text-[#8779fb]'
-                                     }`}>
+                                         <span className={`text-lg font-black leading-none ${
+                                            isFullHoliday ? 'text-rose-700' : 'text-[#655ac1]'
+                                         }`}>
+                                            {week.weekNumber}
+                                         </span>
+                                      </div>
+                                      {/* Week date range */}
+                                      <div className={`text-xs font-bold text-right ${
+                                         isFullHoliday ? 'text-rose-500' : 'text-[#8779fb]'
+                                      }`}>
                                         <bdi dir="ltr">{firstDay.dateObj.format('M/D')}</bdi>
                                         <span className="opacity-50 mx-1">—</span>
                                         <bdi dir="ltr">{lastDay.dateObj.format('M/D')}</bdi>
@@ -752,12 +738,12 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                            className={`text-xs px-2.5 py-1.5 rounded-xl flex justify-between items-center cursor-pointer select-none transition-all ${
                                               day.isHoliday
                                                  ? 'bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200'
-                                                 : 'bg-white text-[#655ac1] hover:bg-[#8779fb]/6 border border-[#8779fb]/15 hover:border-[#8779fb]/35'
+                                                 : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
                                            }`}
                                            title="انقر للتبديل بين إجازة وعمل"
                                         >
                                            <span className="font-bold">{day.label}</span>
-                                           <span dir="ltr" className="opacity-50 font-medium text-[10px]">{day.dateObj.format('MM/DD')}</span>
+                                           <span dir="ltr" className="opacity-60 font-medium text-xs">{day.dateObj.format('MM/DD')}</span>
                                         </div>
                                      ))}
                                   </div>
@@ -766,13 +752,11 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                   <div className="px-2 pb-2 pt-1">
                                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                         <div
-                                           className={`h-full rounded-full transition-all duration-500 ${
-                                              isFullHoliday
-                                                 ? 'bg-rose-300'
-                                                 : isPartialHoliday
-                                                    ? 'bg-amber-300'
-                                                    : 'bg-gradient-to-l from-[#655ac1] to-[#8779fb]'
-                                           }`}
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                               isFullHoliday
+                                                  ? 'bg-rose-300'
+                                                  : 'bg-gradient-to-l from-[#655ac1] to-[#8779fb]'
+                                            }`}
                                            style={{ width: `${progressPercent}%` }}
                                         />
                                      </div>
@@ -787,16 +771,17 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   )}
 
                   <div className="flex gap-3 pt-6 border-t border-slate-200/50 mt-6">
-                      <button 
+                      <button
                         onClick={handleCancel}
-                        className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-200/50 rounded-xl transition-colors"
+                        type="button"
+                        className="flex items-center gap-2 px-5 py-2 text-sm bg-white text-slate-600 rounded-xl font-bold border border-slate-300 hover:bg-slate-50 transition-all"
                       >
                         إلغاء
                       </button>
-                      <button 
+                      <button
                         onClick={handleSaveSemester}
                         disabled={!newSemester.name || !newSemester.startDate || !newSemester.endDate}
-                        className="px-10 py-2.5 text-sm font-bold text-white bg-primary hover:bg-secondary rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-primary/20 min-w-[150px]"
+                        className="flex items-center gap-2 px-5 py-2 text-sm bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] transition-all shadow-sm shadow-indigo-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                       >
                         {editingId ? 'حفظ التعديلات' : 'إضافة'}
                       </button>
@@ -804,6 +789,159 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
               </div>
           </div>
       )}
+
+      {previewingSemester && createPortal(
+          <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+              <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                      <div>
+                          <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                              <CalendarDays size={20} className="text-[#8779fb]" strokeWidth={1.8} />
+                              <span>استعراض التقويم الدراسي</span>
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500">{previewingSemester.name}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <button
+                              onClick={() => setPreviewingSemester(null)}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+                              title="رجوع"
+                          >
+                              <ArrowRight size={18} />
+                          </button>
+                          <button
+                              onClick={() => setPreviewingSemester(null)}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+                              title="إغلاق"
+                          >
+                              <X size={18} />
+                          </button>
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-x-4 gap-y-3 border-b border-slate-200 bg-slate-50/70 px-6 py-4 text-center md:grid-cols-5">
+                      <div className="min-w-0 space-y-1 text-center">
+                          <div className="text-[11px] font-bold text-slate-500">العام الدراسي</div>
+                          <div className="block w-full text-sm font-bold leading-6 text-[#655ac1]">{academicYear || 'غير محدد'}</div>
+                      </div>
+                      <div className="min-w-0 space-y-1 text-center">
+                          <div className="text-[11px] font-bold text-slate-500">الفصل الدراسي</div>
+                          <div className="block w-full text-sm font-bold leading-6 text-[#655ac1]">{formatSemesterNameForCard(previewingSemester.name)}</div>
+                      </div>
+                      <div className="min-w-0 space-y-1 text-center">
+                          <div className="text-[11px] font-bold text-slate-500">بداية الفصل الدراسي</div>
+                          <div dir="ltr" className="block w-full text-sm font-bold leading-6 text-[#655ac1] text-center">{formatDateForDisplay(previewingSemester.startDate, previewingSemester.calendarType)}</div>
+                      </div>
+                      <div className="min-w-0 space-y-1 text-center">
+                          <div className="text-[11px] font-bold text-slate-500">نهاية الفصل الدراسي</div>
+                          <div dir="ltr" className="block w-full text-sm font-bold leading-6 text-[#655ac1] text-center">{formatDateForDisplay(previewingSemester.endDate, previewingSemester.calendarType)}</div>
+                      </div>
+                      <div className="min-w-0 space-y-1 text-center">
+                          <div className="text-[11px] font-bold text-slate-500">عدد الأسابيع الدراسية</div>
+                          <div className="block w-full text-sm font-bold leading-6 text-[#655ac1]">{previewingSemester.weeksCount} أسبوع</div>
+                      </div>
+                  </div>
+
+                  <div className="max-h-[55vh] overflow-y-auto">
+                      {previewGeneratedWeeks.length > 0 && (
+                        <div className="overflow-hidden">
+                          <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 bg-slate-50/30">
+                            {(() => {
+                              let visibleWeekIndex = 0;
+                              const totalVisibleWeeks = previewGeneratedWeeks.filter((w: any) => w.days.filter((d: any) => d.isWorkingDay).length > 0).length;
+                              return previewGeneratedWeeks.map((week, idx) => {
+                                const weekActiveDays = week.days.filter((d: any) => d.isWorkingDay);
+                                if (weekActiveDays.length === 0) return null;
+
+                                const currentVisibleIndex = visibleWeekIndex++;
+                                const progressPercent = Math.round(((currentVisibleIndex + 1) / totalVisibleWeeks) * 100);
+                                const weekActiveCount = weekActiveDays.filter((d: any) => !d.isHoliday).length;
+                                const isFullHoliday = weekActiveCount === 0;
+                                const firstDay = weekActiveDays[0];
+                                const lastDay = weekActiveDays[weekActiveDays.length - 1];
+
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`rounded-2xl overflow-hidden transition-all duration-200 flex flex-col ${
+                                      isFullHoliday
+                                        ? 'bg-rose-50 border border-rose-200 shadow-sm'
+                                        : 'bg-white border border-[#8779fb]/20 shadow-sm'
+                                    }`}
+                                  >
+                                    <div
+                                      className={`px-3 pt-2.5 pb-2 transition-all ${
+                                        isFullHoliday
+                                          ? 'bg-rose-100'
+                                          : 'bg-gradient-to-l from-[#655ac1]/6 to-[#8779fb]/10'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <span className={`text-lg font-black leading-none ${
+                                          isFullHoliday ? 'text-rose-700' : 'text-[#655ac1]'
+                                        }`}>
+                                          {week.weekNumber}
+                                        </span>
+                                      </div>
+                                      <div className={`text-xs font-bold text-right ${
+                                        isFullHoliday ? 'text-rose-500' : 'text-[#8779fb]'
+                                      }`}>
+                                        <bdi dir="ltr">{firstDay.dateObj.format('M/D')}</bdi>
+                                        <span className="opacity-50 mx-1">—</span>
+                                        <bdi dir="ltr">{lastDay.dateObj.format('M/D')}</bdi>
+                                      </div>
+                                    </div>
+
+                                    <div className="p-2 space-y-1.5 flex-1">
+                                      {weekActiveDays.map((day: any) => (
+                                        <div
+                                          key={day.date}
+                                          className={`text-xs px-2.5 py-1.5 rounded-xl flex justify-between items-center select-none border ${
+                                            day.isHoliday
+                                              ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                              : 'bg-white text-slate-700 border-slate-200'
+                                          }`}
+                                        >
+                                          <span className="font-bold">{day.label}</span>
+                                          <span dir="ltr" className="opacity-60 font-medium text-xs">{day.dateObj.format('MM/DD')}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    <div className="px-2 pb-2 pt-1">
+                                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-500 ${
+                                            isFullHoliday
+                                              ? 'bg-rose-300'
+                                              : 'bg-gradient-to-l from-[#655ac1] to-[#8779fb]'
+                                          }`}
+                                          style={{ width: `${progressPercent}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="border-t border-slate-200 px-6 py-4">
+                      <div className="flex justify-end">
+                          <button
+                              onClick={() => setPreviewingSemester(null)}
+                              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
+                          >
+                              إغلاق
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      , document.body)}
 
       {/* Delete Confirmation Modal */}
       {deletingId && createPortal(

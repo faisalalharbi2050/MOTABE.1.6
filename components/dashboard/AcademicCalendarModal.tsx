@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, AlertCircle } from 'lucide-react';
+import { X, Calendar, CalendarDays, CheckCircle2 } from 'lucide-react';
 import { SchoolInfo } from '../../types';
 import SemesterManager from '../wizard/SemesterManager';
 
@@ -26,27 +26,33 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      dir="rtl"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-fade-in"
+        className="bg-white w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300"
+        style={{
+          maxWidth: '896px',
+          borderRadius: '28px',
+          boxShadow: '0 40px 100px rgba(101,90,193,0.25), 0 12px 32px rgba(0,0,0,0.14)',
+        }}
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-[#655ac1]/5 to-[#8779fb]/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#655ac1]/10 rounded-xl flex items-center justify-center">
-              <Calendar size={20} className="text-[#655ac1]" />
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 flex items-center justify-center shrink-0">
+              <CalendarDays size={36} strokeWidth={1.8} className="text-[#8779fb]" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800">التقويم الدراسي</h3>
-              <p className="text-sm text-slate-500">إعداد وتنظيم العام والفصول الدراسية</p>
+              <h3 className="text-xl font-black text-slate-800">التقويم الدراسي</h3>
+              <p className="text-sm font-bold text-slate-500 mt-0.5">إعداد وتنظيم العام والفصول الدراسية</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
           >
             <X size={18} />
           </button>
@@ -73,38 +79,41 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
             <div className="space-y-6">
               {/* Clarification Notes - shown at top, hidden after adding year and semesters */}
               {!hideNotes && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle size={18} className="text-amber-600 mt-0.5 shrink-0" />
-                    <div>
-                      <h5 className="font-bold text-amber-800 text-sm mb-2">توضيح :</h5>
-                      <ul className="text-xs text-amber-700 space-y-1.5">
-                        <li>• يمكنك اختيار نوع التقويم هجري / ميلادي</li>
-                        <li>• يمكنك اختيار العام الدراسي وإضافة الفصول الدراسية</li>
-                        <li>• حدد تاريخ البدء والانتهاء لكل فصل دراسي</li>
-                        <li>• يمكنك تحديد أيام العطل الرسمية والإجازات بنقرة زر</li>
-                        <li>• النظام سيحسب تلقائياً عدد الأسابيع الدراسية</li>
-                      </ul>
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  {[
+                    { step: 1, text: 'اختر نوع التقويم الهجري أو الميلادي' },
+                    { step: 2, text: 'حدد العام الدراسي وأضف فصوله الدراسية' },
+                    { step: 3, text: 'أدخل تاريخ بداية ونهاية كل فصل' },
+                    { step: 4, text: 'حدد أيام العطل والإجازات الرسمية' },
+                  ].map(({ step, text }, i, arr) => (
+                    <div key={step} className={`flex items-center gap-3 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-slate-100' : ''}`}>
+                      <div className="flex flex-col items-center shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center">
+                          <span className="text-[10px] font-black text-[#655ac1]">{step}</span>
+                        </div>
+                        {i < arr.length - 1 && <div className="w-px h-3 bg-slate-200 mt-0.5" />}
+                      </div>
+                      <p className="text-xs font-bold text-slate-600">{text}</p>
                     </div>
+                  ))}
+
+                  {/* النتيجة */}
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-[#f3f0ff] border-t border-[#e5e1fe]">
+                    <CheckCircle2 size={14} className="text-[#655ac1] shrink-0" />
+                    <p className="text-xs font-black text-[#655ac1]">سيحسب النظام عدد الأسابيع الدراسية تلقائياً</p>
                   </div>
                 </div>
               )}
 
               {/* Semesters Management */}
-              <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <Calendar size={20} className="text-[#655ac1]" />
-                  <h4 className="font-bold text-slate-800">إدارة الفصول الدراسية</h4>
-                </div>
-                <SemesterManager
-                  semesters={schoolInfo.semesters || []}
-                  setSemesters={(semesters) => setSchoolInfo(prev => ({ ...prev, semesters }))}
-                  currentSemesterId={schoolInfo.currentSemesterId}
-                  setCurrentSemesterId={(id) => setSchoolInfo(prev => ({ ...prev, currentSemesterId: id }))}
-                  academicYear={schoolInfo.academicYear || ''}
-                  onAcademicYearChange={(year) => setSchoolInfo(prev => ({ ...prev, academicYear: year }))}
-                />
-              </div>
+              <SemesterManager
+                semesters={schoolInfo.semesters || []}
+                setSemesters={(semesters) => setSchoolInfo(prev => ({ ...prev, semesters }))}
+                currentSemesterId={schoolInfo.currentSemesterId}
+                setCurrentSemesterId={(id) => setSchoolInfo(prev => ({ ...prev, currentSemesterId: id }))}
+                academicYear={schoolInfo.academicYear || ''}
+                onAcademicYearChange={(year) => setSchoolInfo(prev => ({ ...prev, academicYear: year }))}
+              />
             </div>
           )}
         </div>
@@ -124,16 +133,16 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors"
+              className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all"
             >
               إغلاق
             </button>
             {hasData && (
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors shadow-sm"
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] transition-all shadow-sm shadow-indigo-200 hover:-translate-y-0.5"
               >
-                حفظ وإغلاق
+                حفظ
               </button>
             )}
           </div>

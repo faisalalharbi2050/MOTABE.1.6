@@ -99,6 +99,27 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
           </div>
         </div>
 
+        {/* Duration Notice */}
+        {(() => {
+          const durationMap: Record<PaymentPeriod, { label: string; days: string }> = {
+            monthly:  { label: 'الشهري',        days: '30'  },
+            semester: { label: 'الفصل الدراسي', days: '90'  },
+            yearly:   { label: 'السنة الدراسية', days: '365' },
+          };
+          const { label, days } = durationMap[period];
+          return (
+            <div className="flex justify-center mb-8">
+              <div className="inline-flex items-center gap-3 bg-white border border-slate-300 rounded-2xl px-6 py-3 text-sm font-bold text-slate-600">
+                <span className="w-2 h-2 rounded-full bg-[#8779fb]" />
+                <span className="text-slate-400">مدة الاشتراك {label}</span>
+                <span className="font-black text-[#655ac1]">{days} يومًا</span>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs text-slate-400">تبدأ من تاريخ الاشتراك</span>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {TIERS.map((tier) => {
@@ -208,6 +229,7 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
              );
           })}
         </div>
+
       </div>
 
       {selectedPlan && (
