@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  CircleHelp, TicketIcon, BookOpen, PhoneCall,
+  CircleHelp, TicketIcon, BookOpen, PhoneCall, Headset,
   ArrowRight, ArrowLeft, ChevronLeft, MessageSquare, Play, Lightbulb,
 } from 'lucide-react';
 import TicketSection from './TicketSection';
@@ -181,7 +181,7 @@ const SupportContainer: React.FC = () => {
               <div className="relative z-10">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <PhoneCall size={26} className="text-[#655ac1]" />
+                    <Headset size={26} className="text-[#655ac1]" />
                     <div>
                       <h3 className="font-black text-slate-800 text-base">تواصل معنا</h3>
                       <p className="text-[#8779fb] font-bold text-xs mt-0.5">تحدث مع فريق الدعم</p>

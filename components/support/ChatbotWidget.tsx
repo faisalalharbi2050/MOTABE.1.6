@@ -399,7 +399,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ onOpenTicket }) => {
       <button
         onClick={() => setIsOpen(o => !o)}
         aria-label="مساعد متابع"
-        className={`fixed bottom-8 left-8 z-[9998] w-[72px] py-2.5 px-2 rounded-2xl shadow-2xl flex flex-col items-center gap-1.5 transition-all duration-300
+        className={`fixed bottom-20 left-8 z-[9998] w-[72px] py-2.5 px-2 rounded-2xl shadow-2xl flex flex-col items-center gap-1.5 transition-all duration-300
           ${isOpen
             ? 'bg-slate-700'
             : 'bg-[#655ac1] hover:bg-[#52499d] hover:shadow-lg hover:shadow-[#655ac1]/40 hover:-translate-y-0.5'
@@ -424,7 +424,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ onOpenTicket }) => {
       {/* ── Chat Window ──────────────────────────────────────────────────── */}
       {isOpen && (
         <div
-          className="fixed bottom-24 left-8 z-[9997] w-[26rem] sm:w-[32rem] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+          className="fixed bottom-36 left-8 z-[9997] w-[26rem] sm:w-[32rem] bg-white rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
           style={{
             height: '560px',
             direction: 'rtl',

@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   TicketIcon, Clock, CheckCircle2, XCircle,
   ChevronDown, Upload, X, FileText, Image as ImageIcon,
-  Send, PlusCircle, Info, Paperclip, Check, Eye,
-  MessageCircle, User, Headphones,
+  Send, PlusCircle, Paperclip, Check, Eye,
+  User, Headphones, Headset,
 } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 
@@ -207,25 +207,11 @@ const StatusBar: React.FC<{ status: TicketStatus }> = ({ status }) => {
 interface TicketDetailModalProps {
   ticket: Ticket;
   onClose: () => void;
-  onSendReply: (ticketId: string, text: string) => void;
 }
 
-const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose, onSendReply }) => {
-  const [replyText, setReplyText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }) => {
   const sc         = STATUS_CONFIG[ticket.status];
   const StatusIcon = sc.icon;
-  const isClosed   = ticket.status === 'closed';
-
-  useEffect(() => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
-  }, [ticket.replies]);
-
-  const handleSend = () => {
-    if (!replyText.trim() || isClosed) return;
-    onSendReply(ticket.id, replyText.trim());
-    setReplyText('');
-  };
 
   return (
     <div
@@ -241,7 +227,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose, 
         <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 flex-wrap">
             <TicketIcon size={18} className="text-[#655ac1]" />
-            <span className="font-black text-slate-800 text-base">{ticket.title}</span>
+            <span className="font-black text-[#655ac1] text-base">{ticket.title}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${sc.color}`}>
@@ -258,32 +244,40 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose, 
         </div>
 
         {/* ── Meta bar ── */}
-        <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-400 shrink-0">
-          <span className="flex items-center gap-1">
-            <TicketIcon size={11} />
+        <div className="px-6 py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-0 text-xs font-medium text-slate-500 shrink-0">
+          <span className="flex items-center gap-1 px-3 first:pr-0">
+            <TicketIcon size={11} className="text-slate-400" />
             {ticket.id}
           </span>
-          <span>·</span>
-          <span>{ticket.categoryLabel}</span>
-          <span>·</span>
-          <span>{new Date(ticket.date).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-          <span>·</span>
-          <span>{ticket.time}</span>
+          <span className="w-px h-3 bg-slate-200 mx-1" />
+          <span className="px-3">{ticket.categoryLabel}</span>
+          <span className="w-px h-3 bg-slate-200 mx-1" />
+          <span className="px-3">
+            {new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </span>
+          <span className="w-px h-3 bg-slate-200 mx-1" />
+          <span className="px-3 text-slate-400">
+            {new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </span>
+          <span className="w-px h-3 bg-slate-200 mx-1" />
+          <span className="px-3">{ticket.time}</span>
         </div>
 
         {/* ── Chat body ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-slate-50/30" dir="rtl">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-white" dir="rtl">
 
           {/* Original complaint bubble (user) */}
-          <div className="flex items-end gap-2.5 justify-start">
-            <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-              <User size={15} className="text-slate-500" />
-            </div>
+          <div className="flex items-center gap-2.5 justify-start">
             <div className="max-w-[75%] flex flex-col gap-1 items-start">
-              <span className="text-[10px] font-bold text-slate-400 px-1">أنت</span>
-              <div className="bg-[#655ac1] text-white px-4 py-3 rounded-2xl rounded-tr-none text-sm font-medium leading-relaxed">
+              <div className="flex items-center gap-1.5 px-1">
+                <div className="w-5 h-5 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                  <User size={11} className="text-[#655ac1]" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-400">أنت</span>
+              </div>
+              <div className="bg-white border border-[#655ac1] text-slate-700 px-4 py-3 rounded-2xl rounded-tr-none text-sm font-medium leading-relaxed">
                 <p className="font-black mb-1">{ticket.title}</p>
-                {ticket.description && <p className="opacity-90">{ticket.description}</p>}
+                {ticket.description && <p>{ticket.description}</p>}
               </div>
               {ticket.attachments.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-1 px-1">
@@ -303,78 +297,31 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose, 
             </div>
           </div>
 
-          {/* Support replies */}
-          {ticket.replies.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">
-              <Headphones size={32} className="mx-auto mb-2 text-slate-200" />
-              <p className="text-sm font-bold text-slate-400">في انتظار رد فريق الدعم</p>
-              <p className="text-xs mt-1 font-medium text-slate-400">سيتواصل معك خلال أوقات العمل الرسمية</p>
-            </div>
-          ) : (
-            ticket.replies.map((reply, i) => (
-              <div
-                key={i}
-                className={`flex items-end gap-2.5 ${reply.from === 'user' ? 'justify-start' : 'justify-end'}`}
-              >
-                {reply.from === 'support' && (
-                  <div className="w-8 h-8 rounded-xl bg-[#f0eeff] flex items-center justify-center shrink-0">
-                    <Headphones size={15} className="text-[#655ac1]" />
+          {/* آخر رد من فريق الدعم */}
+          {(() => {
+            const lastSupportReply = [...ticket.replies].reverse().find(r => r.from === 'support');
+            return lastSupportReply ? (
+              <div className="flex items-center gap-2.5 justify-end">
+                <div className="max-w-[75%] flex flex-col gap-1 items-end">
+                  <div className="flex items-center gap-1.5 px-1 flex-row-reverse">
+                    <Headset size={13} className="text-[#655ac1] shrink-0" />
+                    <span className="text-[10px] font-bold text-slate-400">فريق الدعم</span>
                   </div>
-                )}
-                <div className={`max-w-[75%] flex flex-col gap-1 ${reply.from === 'user' ? 'items-start' : 'items-end'}`}>
-                  <span className="text-[10px] font-bold text-slate-400 px-1">
-                    {reply.from === 'support' ? 'فريق الدعم' : 'أنت'}
-                  </span>
-                  <div className={`px-4 py-3 rounded-2xl text-sm font-medium leading-relaxed
-                    ${reply.from === 'support'
-                      ? 'bg-white border border-slate-200 text-slate-700 shadow-sm rounded-tl-none'
-                      : 'bg-[#655ac1] text-white rounded-tr-none'}`}
-                  >
-                    {reply.text}
+                  <div className="bg-[#8779fb] text-white px-4 py-3 rounded-2xl rounded-tl-none text-sm font-medium leading-relaxed shadow-sm">
+                    {lastSupportReply.text}
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium px-1">{reply.time}</span>
+                  <span className="text-[10px] text-slate-400 font-medium px-1">{lastSupportReply.time}</span>
                 </div>
-                {reply.from === 'user' && (
-                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                    <User size={15} className="text-slate-500" />
-                  </div>
-                )}
               </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
+            ) : (
+              <div className="text-center py-8">
+                <Headphones size={32} className="mx-auto mb-2 text-slate-200" />
+                <p className="text-sm font-bold text-slate-400">في انتظار رد فريق الدعم</p>
+                <p className="text-xs mt-1 font-medium text-slate-400">سيتواصل معك خلال أوقات العمل الرسمية</p>
+              </div>
+            );
+          })()}
         </div>
-
-        {/* ── Reply footer ── */}
-        {!isClosed ? (
-          <div className="shrink-0 border-t border-slate-100 p-4 bg-white">
-            <div className="flex gap-3 items-end">
-              <textarea
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="اكتب ردك هنا..."
-                rows={2}
-                className="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 transition-all"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!replyText.trim()}
-                className="w-11 h-11 bg-[#655ac1] text-white rounded-xl flex items-center justify-center hover:bg-[#52499d] disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 hover:-translate-y-0.5"
-                aria-label="إرسال الرد"
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="shrink-0 border-t border-slate-100 p-3 bg-slate-50/80 text-center">
-            <p className="text-xs font-bold text-slate-400 flex items-center justify-center gap-1.5">
-              <XCircle size={13} />
-              هذه التذكرة مغلقة — لا يمكن إضافة ردود جديدة
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -468,26 +415,6 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
 
     const msg = `تم رفع التذكرة ${newTicket.id} بنجاح. سيتم التواصل معك خلال أوقات العمل.`;
     showToast(msg, 'success');
-  };
-
-  // ── Reply ──────────────────────────────────────────────────────────────────
-  const handleSendReply = (ticketId: string, text: string) => {
-    const now = getRiyadhTime();
-    const newReply: TicketReply = {
-      from: 'user',
-      text,
-      date: now.toISOString().split('T')[0],
-      time: now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    const updateTicket = (t: Ticket): Ticket =>
-      t.id === ticketId
-        ? { ...t, replies: [...t.replies, newReply], status: 'processing' }
-        : t;
-
-    setTickets(prev => prev.map(updateTicket));
-    setSelectedTicket(prev => (prev && prev.id === ticketId ? updateTicket(prev) : prev));
-    showToast('تم إرسال ردك بنجاح. سيتواصل معك فريق الدعم قريباً.', 'success');
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -728,8 +655,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                   return (
                     <tr
                       key={ticket.id}
-                      onClick={() => setSelectedTicket(ticket)}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                      className="hover:bg-gray-50 transition-colors group"
                     >
                       {/* ID + new-reply dot */}
                       <td className="px-6 py-4">
@@ -791,9 +717,12 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                       </td>
                       {/* Action hint */}
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-[#655ac1] group-hover:text-white text-gray-400 transition-all">
+                        <button
+                          onClick={() => setSelectedTicket(ticket)}
+                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-white border border-slate-200 text-[#655ac1] hover:bg-[#f5f3ff] transition-all"
+                        >
                           <Eye size={13} />
-                        </div>
+                        </button>
                       </td>
                     </tr>
                   );
@@ -809,7 +738,6 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
         <TicketDetailModal
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
-          onSendReply={handleSendReply}
         />
       )}
     </div>
