@@ -210,8 +210,9 @@ interface TicketDetailModalProps {
 }
 
 const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }) => {
-  const sc         = STATUS_CONFIG[ticket.status];
-  const StatusIcon = sc.icon;
+  const sc             = STATUS_CONFIG[ticket.status];
+  const StatusIcon     = sc.icon;
+  const supportReplies = ticket.replies.filter(r => r.from === 'support');
 
   return (
     <div
@@ -223,12 +224,12 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
         style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Header ── */}
+        {/* ── Header — نفس هوية نافذة رفع التذكرة تماماً ── */}
         <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <TicketIcon size={18} className="text-[#655ac1]" />
-            <span className="font-black text-[#655ac1] text-base">{ticket.title}</span>
-          </div>
+          <h3 className="font-black text-slate-800 flex items-center gap-2 text-base">
+            <TicketIcon size={22} className="text-[#655ac1]" />
+            {ticket.title}
+          </h3>
           <div className="flex items-center gap-2 shrink-0">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${sc.color}`}>
               <StatusIcon size={12} />
@@ -243,84 +244,102 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
           </div>
         </div>
 
-        {/* ── Meta bar ── */}
-        <div className="px-6 py-3 border-b border-slate-100 bg-white flex flex-wrap items-center gap-0 text-xs font-medium text-slate-500 shrink-0">
-          <span className="flex items-center gap-1 px-3 first:pr-0">
+        {/* ── شريط البيانات الوصفية ── */}
+        <div className="px-6 py-2.5 border-b border-slate-100 bg-white flex flex-wrap items-center gap-0 text-xs font-medium text-slate-500 shrink-0" dir="rtl">
+          <span className="flex items-center gap-1 px-3 first:pr-0 font-mono font-bold text-[#655ac1]">
             <TicketIcon size={11} className="text-slate-400" />
             {ticket.id}
           </span>
           <span className="w-px h-3 bg-slate-200 mx-1" />
           <span className="px-3">{ticket.categoryLabel}</span>
           <span className="w-px h-3 bg-slate-200 mx-1" />
-          <span className="px-3">
-            {new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' })}
-          </span>
+          <span className="px-3">{new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
           <span className="w-px h-3 bg-slate-200 mx-1" />
-          <span className="px-3 text-slate-400">
-            {new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'short', day: 'numeric' })}
-          </span>
+          <span className="px-3 text-slate-400">{new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
           <span className="w-px h-3 bg-slate-200 mx-1" />
           <span className="px-3">{ticket.time}</span>
         </div>
 
-        {/* ── Chat body ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-white" dir="rtl">
+        {/* ── Body ── */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 px-5 py-4 space-y-3" dir="rtl">
 
-          {/* Original complaint bubble (user) */}
-          <div className="flex items-center gap-2.5 justify-start">
-            <div className="max-w-[75%] flex flex-col gap-1 items-start">
-              <div className="flex items-center gap-1.5 px-1">
-                <div className="w-5 h-5 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
-                  <User size={11} className="text-[#655ac1]" />
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">أنت</span>
+          {/* شريط التقدم */}
+          <div className="bg-white rounded-xl px-5 py-3 border border-slate-200">
+            <StatusBar status={ticket.status} />
+          </div>
+
+          {/* ── تفاصيل الطلب ── */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User size={13} className="text-slate-400" />
+                <span className="text-xs font-black text-slate-600">تفاصيل الطلب</span>
               </div>
-              <div className="bg-white border border-[#655ac1] text-slate-700 px-4 py-3 rounded-2xl rounded-tr-none text-sm font-medium leading-relaxed">
-                <p className="font-black mb-1">{ticket.title}</p>
-                {ticket.description && <p>{ticket.description}</p>}
-              </div>
-              {ticket.attachments.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1 px-1">
+              <span className="text-[10px] font-medium text-slate-400">
+                {ticket.time} — {new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-slate-700 leading-relaxed">{ticket.description}</p>
+            </div>
+            {ticket.attachments.length > 0 && (
+              <div className="px-5 py-3 border-t border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-wider">المرفقات</p>
+                <div className="space-y-1.5">
                   {ticket.attachments.map((att, i) => (
-                    <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold
-                      ${att.type === 'image' ? 'bg-blue-50 border-blue-200 text-blue-600'
-                        : att.type === 'pdf' ? 'bg-red-50 border-red-200 text-red-600'
-                        : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}
-                    >
-                      {att.type === 'image' ? <ImageIcon size={11} /> : <FileText size={11} />}
-                      {att.name}
+                    <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        att.type === 'image' ? 'bg-blue-100 text-blue-600'
+                        : att.type === 'pdf'  ? 'bg-red-100 text-red-600'
+                        : 'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        {att.type === 'image' ? <ImageIcon size={13} /> : <FileText size={13} />}
+                      </div>
+                      <span className="text-xs font-bold text-slate-700 flex-1 truncate">{att.name}</span>
+                      <span className="text-[10px] font-medium text-slate-400 shrink-0">{att.size}</span>
                     </div>
                   ))}
                 </div>
-              )}
-              <span className="text-[10px] text-slate-400 font-medium px-1">{ticket.time}</span>
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* آخر رد من فريق الدعم */}
-          {(() => {
-            const lastSupportReply = [...ticket.replies].reverse().find(r => r.from === 'support');
-            return lastSupportReply ? (
-              <div className="flex items-center gap-2.5 justify-end">
-                <div className="max-w-[75%] flex flex-col gap-1 items-end">
-                  <div className="flex items-center gap-1.5 px-1 flex-row-reverse">
-                    <Headset size={13} className="text-[#655ac1] shrink-0" />
-                    <span className="text-[10px] font-bold text-slate-400">فريق الدعم</span>
-                  </div>
-                  <div className="bg-[#8779fb] text-white px-4 py-3 rounded-2xl rounded-tl-none text-sm font-medium leading-relaxed shadow-sm">
-                    {lastSupportReply.text}
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-medium px-1">{lastSupportReply.time}</span>
-                </div>
+          {/* ── رد فريق الدعم ── */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Headset size={13} className="text-[#655ac1]" />
+                <span className="text-xs font-black text-slate-600">رد فريق الدعم</span>
+              </div>
+              {supportReplies.length > 0 && (
+                <span className="text-[10px] font-medium text-slate-400">
+                  {supportReplies[supportReplies.length - 1].time} — {new Date(supportReplies[supportReplies.length - 1].date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+              )}
+            </div>
+
+            {supportReplies.length === 0 ? (
+              <div className="px-6 py-10 text-center">
+                <Headset size={36} className="text-[#655ac1] mx-auto mb-3" />
+                <p className="text-sm font-bold text-slate-600">في انتظار رد فريق الدعم</p>
+                <p className="text-xs font-medium text-slate-400 mt-1">سيتم الرد عليك في أقرب وقت ممكن</p>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Headphones size={32} className="mx-auto mb-2 text-slate-200" />
-                <p className="text-sm font-bold text-slate-400">في انتظار رد فريق الدعم</p>
-                <p className="text-xs mt-1 font-medium text-slate-400">سيتواصل معك خلال أوقات العمل الرسمية</p>
+              <div className="divide-y divide-slate-100">
+                {supportReplies.map((reply, idx) => (
+                  <div key={idx} className="px-5 py-4">
+                    {supportReplies.length > 1 && (
+                      <p className="text-[10px] font-bold text-slate-400 mb-1.5">
+                        {reply.time} — {new Date(reply.date).toLocaleDateString('ar-SA-u-ca-gregory', { month: 'short', day: 'numeric' })}
+                      </p>
+                    )}
+                    <p className="text-sm text-slate-700 leading-relaxed">{reply.text}</p>
+                  </div>
+                ))}
               </div>
-            );
-          })()}
+            )}
+          </div>
+
         </div>
       </div>
     </div>
@@ -328,17 +347,13 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
 };
 
 // ─── Main: TicketSection ──────────────────────────────────────────────────────
-interface TicketSectionProps {
-  openFormOnMount?: boolean;
-}
-
-const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }) => {
+const TicketSection: React.FC = () => {
   const { showToast } = useToast();
   const fileInputRef        = useRef<HTMLInputElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Form state
-  const [showForm,             setShowForm]             = useState(openFormOnMount);
+  const [showForm,             setShowForm]             = useState(false);
   const [formTitle,            setFormTitle]            = useState('');
   const [formDesc,             setFormDesc]             = useState('');
   const [formCategory,         setFormCategory]         = useState<TicketCategory | ''>('');
@@ -421,16 +436,13 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
   return (
     <div className="space-y-6">
 
-      {/* Working Hours */}
-      <WorkingHoursCard />
-
       {/* New Ticket Button */}
       <div className="flex justify-start">
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] hover:-translate-y-0.5 transition-all shadow-md shadow-indigo-200"
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] text-white rounded-xl font-black text-sm hover:bg-[#5548b0] hover:-translate-y-0.5 transition-all shadow-md shadow-indigo-200"
         >
-          <PlusCircle size={18} />
+          <PlusCircle size={16} />
           رفع تذكرة جديدة
         </button>
       </div>
@@ -442,11 +454,11 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
           onClick={() => setShowForm(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[96vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
+            <div className="px-5 py-3 bg-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
               <h3 className="font-black text-slate-800 flex items-center gap-2 text-base">
                 <TicketIcon size={22} className="text-[#655ac1]" />
                 رفع تذكرة دعم جديدة
@@ -459,7 +471,19 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5">
+                <div className="flex items-start gap-2.5">
+                  <Clock size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-black text-[#655ac1]">أوقات الرد الرسمية</p>
+                    <p className="text-xs font-medium text-[#655ac1] mt-0.5 leading-relaxed">
+                      يتم الرد على التذاكر خلال أوقات العمل: الأحد إلى الخميس، 8:00 ص - 2:30 م.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Title */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
@@ -470,7 +494,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="أدخل عنواناً موجزاً يصف مشكلتك..."
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 transition-all"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 transition-all"
                 />
               </div>
 
@@ -483,7 +507,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                   <button
                     type="button"
                     onClick={() => setShowCategoryDropdown(p => !p)}
-                    className={`w-full px-4 py-3 border rounded-xl text-sm font-medium text-right flex items-center justify-between bg-white transition-all ${
+                    className={`w-full px-4 py-2.5 border rounded-xl text-sm font-medium text-right flex items-center justify-between bg-white transition-all ${
                       showCategoryDropdown ? 'border-[#655ac1] ring-1 ring-[#655ac1]/20' : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -500,7 +524,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                           key={c.value}
                           type="button"
                           onClick={() => { setFormCategory(c.value as TicketCategory); setShowCategoryDropdown(false); }}
-                          className={`w-full px-4 py-3 text-right text-sm flex items-center justify-between gap-3 transition-colors ${
+                          className={`w-full px-4 py-2.5 text-right text-sm flex items-center justify-between gap-3 transition-colors ${
                             formCategory === c.value ? 'bg-[#655ac1]/6 text-[#655ac1]' : 'hover:bg-slate-50 text-slate-700'
                           }`}
                         >
@@ -525,9 +549,9 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                 <textarea
                   value={formDesc}
                   onChange={e => setFormDesc(e.target.value)}
-                  rows={4}
+                  rows={3}
                   placeholder="اشرح مشكلتك بالتفصيل: متى بدأت؟ ما الخطوات التي أدت إليها؟ ما الرسالة التي ظهرت؟"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 resize-none transition-all"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 resize-none transition-all"
                 />
               </div>
 
@@ -541,13 +565,13 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all
                     ${isDragging
                       ? 'border-[#8779fb] bg-[#f0eeff]'
                       : 'border-slate-200 hover:border-[#8779fb]/50 hover:bg-slate-50'
                     }`}
                 >
-                  <Upload size={24} className={`mx-auto mb-2 ${isDragging ? 'text-[#8779fb]' : 'text-slate-400'}`} />
+                  <Upload size={22} className={`mx-auto mb-1.5 ${isDragging ? 'text-[#8779fb]' : 'text-slate-400'}`} />
                   <p className="font-bold text-sm text-slate-700">اسحب الملف هنا أو انقر للتصفح</p>
                   <p className="text-xs text-slate-400 font-medium mt-1">
                     الصور: PNG, JPG, GIF &nbsp;|&nbsp; الملفات: PDF, DOCX &nbsp;|&nbsp; الحجم الأقصى: 10 MB
@@ -565,7 +589,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                 {attachedFiles.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {attachedFiles.map((f, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200">
+                      <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-2 border border-slate-200">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0
                           ${f.type === 'image' ? 'bg-blue-100 text-blue-600' : f.type === 'pdf' ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
                           {f.type === 'image' ? <ImageIcon size={16} /> : <FileText size={16} />}
@@ -588,17 +612,17 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2 justify-end">
+              <div className="flex gap-3 pt-1 justify-end">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-5 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all"
+                  className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-6 py-3 bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] transition-all shadow-sm shadow-indigo-200 hover:-translate-y-0.5"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] transition-all shadow-sm shadow-indigo-200 hover:-translate-y-0.5"
                 >
                   <Send size={16} />
                   إرسال التذكرة

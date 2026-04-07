@@ -19,7 +19,6 @@ const ContactChannels: React.FC = () => {
           <Clock size={22} className="text-[#655ac1] shrink-0" />
           <div>
             <h3 className="font-black text-slate-800 text-base">أوقات العمل لفريق الدعم الفني</h3>
-            <p className="text-xs text-[#8779fb] font-medium mt-0.5">للاستفسارات خارج أوقات العمل، يُرجى رفع تذكرة دعم وسيتم الرد عليك في أقرب وقت.</p>
           </div>
         </div>
 

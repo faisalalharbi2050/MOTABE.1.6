@@ -6,7 +6,6 @@ import {
 import TicketSection from './TicketSection';
 import KnowledgeBase from './KnowledgeBase';
 import ContactChannels from './ContactChannels';
-import ChatbotWidget from './ChatbotWidget';
 
 type SupportView = 'home' | 'knowledge' | 'tickets' | 'contact';
 
@@ -59,15 +58,7 @@ const DeflectionStep: React.FC<{
 // ─── Main Container ───────────────────────────────────────────────────────────
 const SupportContainer: React.FC = () => {
   const [view,           setView]           = useState<SupportView>('home');
-  const [openTicketForm, setOpenTicketForm] = useState(false);
   const [showDeflect,    setShowDeflect]    = useState(false);
-
-  const handleOpenTicketFromBot = () => {
-    setView('tickets');
-    setShowDeflect(false);
-    setOpenTicketForm(true);
-    setTimeout(() => setOpenTicketForm(false), 200);
-  };
 
   const handleBack = () => {
     setView('home');
@@ -88,10 +79,10 @@ const SupportContainer: React.FC = () => {
         // ── HOME VIEW ──────────────────────────────────────────────────────────
         <>
           {/* Header */}
-          <div className="relative z-[130] overflow-visible">
+          <div className="relative overflow-visible">
             <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-              <div className="relative z-10 pr-0 md:pr-0 md:pl-52">
+              <div className="relative z-10">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
                     <CircleHelp size={36} strokeWidth={1.8} className="text-[#655ac1]" />
@@ -103,15 +94,12 @@ const SupportContainer: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="absolute top-8 left-8 z-[140]">
-              <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} variant="header" />
-            </div>
           </div>
 
           {/* ── بطاقة مركز المساعدة ────────────────────────────────────────── */}
           <button
             onClick={() => setView('knowledge')}
-            className="w-full bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-5"
+            className="w-full bg-white rounded-[2rem] border border-[#655ac1]/25 shadow-[0_8px_28px_-6px_rgba(101,90,193,0.14),0_2px_8px_-2px_rgba(101,90,193,0.08)] transition-all duration-300 overflow-hidden group text-right relative p-5 hover:-translate-y-0.5"
           >
             <div className="relative z-10 flex items-center justify-between gap-4">
               <div className="flex-1">
@@ -144,7 +132,7 @@ const SupportContainer: React.FC = () => {
                       <Play size={18} className="text-[#655ac1]" />
                     </div>
                     <div className="min-w-0 flex items-center gap-2">
-                      <div className="text-xl font-black text-[#655ac1] leading-none">22</div>
+                      <div className="text-xl font-black text-[#655ac1] leading-none">+22</div>
                       <div className="text-sm font-bold text-[#655ac1]">مقطع فيديو</div>
                     </div>
                   </div>
@@ -164,7 +152,7 @@ const SupportContainer: React.FC = () => {
             {/* تذاكر الدعم */}
             <button
               onClick={() => { setView('tickets'); setShowDeflect(true); }}
-              className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6"
+              className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6 hover:shadow-[0_8px_28px_-6px_rgba(101,90,193,0.14),0_2px_8px_-2px_rgba(101,90,193,0.08)] hover:border-[#655ac1]/25 hover:-translate-y-0.5"
             >
               <div className="relative z-10">
                 <div className="flex items-center justify-between gap-3 mb-3">
@@ -187,7 +175,7 @@ const SupportContainer: React.FC = () => {
             {/* تواصل معنا */}
             <button
               onClick={() => setView('contact')}
-              className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6"
+              className="bg-white rounded-[2rem] border border-slate-200 transition-all duration-300 overflow-hidden group text-right relative p-6 hover:shadow-[0_8px_28px_-6px_rgba(101,90,193,0.14),0_2px_8px_-2px_rgba(101,90,193,0.08)] hover:border-[#655ac1]/25 hover:-translate-y-0.5"
             >
               <div className="relative z-10">
                 <div className="flex items-center justify-between gap-3 mb-3">
@@ -212,8 +200,8 @@ const SupportContainer: React.FC = () => {
         // ── SECTION VIEW ───────────────────────────────────────────────────────
         <>
           {/* Breadcrumb + Back */}
-          <div className="bg-white rounded-[2rem] px-6 py-4 shadow-sm border border-slate-100 relative z-[130] flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+          <div className="bg-white rounded-[2rem] px-6 py-4 shadow-sm border border-slate-100 relative flex items-center gap-4">
+            <div className="flex items-center gap-4 min-w-0">
               <button
                 onClick={handleBack}
                 className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-100 hover:border-slate-300 transition-all group"
@@ -221,7 +209,7 @@ const SupportContainer: React.FC = () => {
                 <ArrowRight size={18} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
               </button>
               <div className="w-px h-5 bg-slate-200" />
-              <div className="flex items-center gap-2 text-sm font-medium">
+              <div className="flex items-center gap-2 text-sm font-medium min-w-0 flex-wrap">
                 <span
                   onClick={handleBack}
                   className="text-slate-400 hover:text-[#655ac1] cursor-pointer transition-colors"
@@ -231,9 +219,6 @@ const SupportContainer: React.FC = () => {
                 <span className="text-slate-300">/</span>
                 <span className="font-black text-slate-700">{sectionTitles[view]}</span>
               </div>
-            </div>
-            <div className="shrink-0">
-              <ChatbotWidget onOpenTicket={handleOpenTicketFromBot} variant="header" />
             </div>
           </div>
 
@@ -249,7 +234,7 @@ const SupportContainer: React.FC = () => {
           {!(view === 'tickets' && showDeflect) && (
             <>
               {view === 'knowledge' && <KnowledgeBase />}
-              {view === 'tickets'   && <TicketSection openFormOnMount={openTicketForm} />}
+              {view === 'tickets'   && <TicketSection />}
               {view === 'contact'   && <ContactChannels />}
             </>
           )}

@@ -636,10 +636,10 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
   const resultCount = section === 'faq' ? faqItems.length : videoItems.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
 
       {/* ── Section Tabs ─────────────────────────────────────────────────── */}
-      <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm flex gap-1.5">
+      <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex gap-1">
         {([
           { id: 'faq'    as const, icon: FileQuestion, label: 'الأسئلة الشائعة' },
           { id: 'videos' as const, icon: Video,        label: 'شروحات الفيديو'  },
@@ -647,7 +647,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
           <button
             key={tab.id}
             onClick={() => handleSectionSwitch(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 px-5 py-2 rounded-xl font-black text-sm transition-all ${
               section === tab.id
                 ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
                 : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
@@ -660,13 +660,13 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}
-      <div className="flex gap-8 mt-2">
+      <div className="flex gap-5">
 
         {/* ── Sidebar — دائماً ظاهر ─────────────────────────────────────── */}
         <aside className="w-64 shrink-0">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-md sticky top-4 overflow-hidden">
             {/* Header */}
-            <div className="px-4 pt-4 pb-3 flex items-center gap-2.5 border-b border-slate-100">
+            <div className="px-4 pt-3 pb-2.5 flex items-center gap-2.5 border-b border-slate-100">
               <LayoutList size={17} className="text-[#655ac1]" />
               <span className="text-sm font-black text-slate-700">الأقسام</span>
             </div>
@@ -678,7 +678,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
                   <button
                     key={cat.id}
                     onClick={() => handleSidebarClick(cat.id)}
-                    className={`relative w-full flex items-center justify-between px-3 py-2.5 mx-1 rounded-xl text-sm font-bold transition-all ${
+                    className={`relative w-full flex items-center justify-between px-3 py-2 mx-1 rounded-xl text-sm font-bold transition-all ${
                       isActive
                         ? 'bg-white border border-slate-200 text-[#655ac1] shadow-sm'
                         : 'text-slate-500 hover:bg-slate-50 hover:text-[#655ac1]'
@@ -702,10 +702,10 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
         </aside>
 
         {/* ── Content ──────────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 mt-8">
+        <div className="flex-1 min-w-0">
 
           {/* Content Header */}
-          <div className="flex items-center gap-3 mb-4 pr-1">
+          <div className="flex items-center gap-3 mb-3 pr-1">
             {isSearching ? (
               <div className="flex items-center gap-2">
                 <Search size={14} className="text-slate-400" />
