@@ -391,7 +391,7 @@ const App: React.FC = () => {
   return (
     <ToastProvider>
     <MessageArchiveProvider>
-    <div className="flex h-screen bg-[#fcfbff] overflow-hidden dir-rtl">
+    <div className="flex h-screen bg-white overflow-hidden dir-rtl">
        {/* Sidebar - Fixed/Full Height */}
        <Sidebar 
           activeTab={activeTab} 

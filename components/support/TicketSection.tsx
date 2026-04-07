@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   TicketIcon, Clock, CheckCircle2, XCircle,
   ChevronDown, Upload, X, FileText, Image as ImageIcon,
-  Send, PlusCircle, Info, Paperclip,
+  Send, PlusCircle, Info, Paperclip, Check, Eye,
   MessageCircle, User, Headphones,
 } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type TicketCategory = 'technical' | 'payment' | 'billing' | 'suggestion' | 'other' | 'delete_account';
+type TicketCategory = 'technical' | 'payment' | 'billing' | 'suggestion' | 'other';
 type TicketStatus   = 'processing' | 'replied' | 'closed';
 
 interface Attachment {
@@ -44,7 +44,6 @@ const CATEGORIES: { value: TicketCategory; label: string }[] = [
   { value: 'billing',        label: 'مشكلة في الفوترة' },
   { value: 'suggestion',     label: 'اقتراح'            },
   { value: 'other',          label: 'أخرى'              },
-  { value: 'delete_account', label: 'حذف الحساب'        },
 ];
 
 const ACCEPTED_IMAGES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -155,24 +154,24 @@ const WorkingHoursCard: React.FC = () => {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0">
-        <Clock size={32} className={isAvailable ? 'text-green-500' : 'text-yellow-500'} />
+      <div className="w-14 h-14 flex items-center justify-center shrink-0">
+        <Clock size={32} className="text-[#655ac1]" />
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="font-black text-slate-800 text-base mb-1">أوقات العمل الرسمية</h4>
         <p className="text-sm font-bold text-slate-700">
           الأحد – الخميس &nbsp;|&nbsp; 8:00 ص — 2:30 م
         </p>
-        <p className="text-xs text-slate-500 font-medium mt-1.5 leading-relaxed">
-          حيّاك في متابع، يُرجى رفع تذكرتك وسنتواصل معك خلال أوقات العمل. يمكن استخدام المساعد في أي وقت.
+        <p className="text-xs text-[#8779fb] font-medium mt-1.5 leading-relaxed">
+          يهمنا مساعدتك، يُرجى رفع تذكرتك وسنرد عليك في أقرب وقت.
         </p>
       </div>
       <div className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border font-bold text-xs whitespace-nowrap
         ${isAvailable
-          ? 'bg-green-50 border-green-200 text-green-700'
+          ? 'bg-white border-slate-200 text-slate-600'
           : 'bg-yellow-50 border-yellow-200 text-yellow-700'
         }`}>
-        <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+        <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-[#655ac1] animate-pulse' : 'bg-yellow-500'}`} />
         {isAvailable ? 'متاح الآن' : 'خارج الدوام'}
       </div>
     </div>
@@ -239,140 +238,111 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose, 
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="px-6 py-4 bg-gradient-to-l from-[#f0eeff] to-white border-b border-slate-100 flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-black text-[#655ac1] font-mono text-base">{ticket.id}</span>
+            <TicketIcon size={18} className="text-[#655ac1]" />
+            <span className="font-black text-slate-800 text-base">{ticket.title}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${sc.color}`}>
               <StatusIcon size={12} />
               {sc.label}
             </span>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center justify-center"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg shrink-0"
-          >
-            <X size={20} />
-          </button>
         </div>
 
-        {/* ── Status Progress ── */}
-        <div className="px-6 pt-4 pb-2 shrink-0">
-          <StatusBar status={ticket.status} />
+        {/* ── Meta bar ── */}
+        <div className="px-6 py-2 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-400 shrink-0">
+          <span className="flex items-center gap-1">
+            <TicketIcon size={11} />
+            {ticket.id}
+          </span>
+          <span>·</span>
+          <span>{ticket.categoryLabel}</span>
+          <span>·</span>
+          <span>{new Date(ticket.date).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+          <span>·</span>
+          <span>{ticket.time}</span>
         </div>
 
-        {/* ── Scrollable body ── */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ── Chat body ── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-slate-50/30" dir="rtl">
 
-          {/* Meta */}
-          <div className="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50/50 text-xs font-bold text-slate-500">
-            <span className="flex items-center gap-1">
-              <TicketIcon size={12} className="text-slate-400" />
-              {ticket.categoryLabel}
-            </span>
-            <span className="text-slate-300">|</span>
-            <span>
-              {new Date(ticket.date).toLocaleDateString('ar-SA', {
-                weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
-              })}
-            </span>
-            <span className="text-slate-300">|</span>
-            <span>{ticket.time}</span>
-          </div>
-
-          {/* Description */}
-          <div className="px-6 py-5 border-b border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">وصف المشكلة</p>
-            <h3 className="font-black text-slate-800 text-base mb-2">{ticket.title}</h3>
-            <p className="text-sm text-slate-600 font-medium leading-relaxed">
-              {ticket.description || 'لم يُضف وصف تفصيلي.'}
-            </p>
-          </div>
-
-          {/* Attachments */}
-          {ticket.attachments.length > 0 && (
-            <div className="px-6 py-4 border-b border-slate-100">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">المرفقات</p>
-              <div className="flex flex-wrap gap-2">
-                {ticket.attachments.map((att, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold
-                      ${att.type === 'image'
-                        ? 'bg-blue-50 border-blue-200 text-blue-600'
-                        : att.type === 'pdf'
-                          ? 'bg-red-50 border-red-200 text-red-600'
-                          : 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                      }`}
-                  >
-                    {att.type === 'image' ? <ImageIcon size={13} /> : <FileText size={13} />}
-                    {att.name}
-                    <span className="text-slate-400 font-medium">({att.size})</span>
-                  </div>
-                ))}
-              </div>
+          {/* Original complaint bubble (user) */}
+          <div className="flex items-end gap-2.5 justify-start">
+            <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+              <User size={15} className="text-slate-500" />
             </div>
-          )}
-
-          {/* Conversation */}
-          <div className="px-6 py-5">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <MessageCircle size={12} />
-              المحادثة
-              {ticket.replies.length > 0 && (
-                <span className="bg-[#655ac1] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                  {ticket.replies.length}
-                </span>
-              )}
-            </p>
-
-            {ticket.replies.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">
-                <MessageCircle size={36} className="mx-auto mb-3 text-slate-200" />
-                <p className="text-sm font-bold text-slate-500">لا توجد ردود بعد</p>
-                <p className="text-xs mt-1 font-medium">سيتواصل معك فريق الدعم خلال أوقات العمل الرسمية</p>
+            <div className="max-w-[75%] flex flex-col gap-1 items-start">
+              <span className="text-[10px] font-bold text-slate-400 px-1">أنت</span>
+              <div className="bg-[#655ac1] text-white px-4 py-3 rounded-2xl rounded-tr-none text-sm font-medium leading-relaxed">
+                <p className="font-black mb-1">{ticket.title}</p>
+                {ticket.description && <p className="opacity-90">{ticket.description}</p>}
               </div>
-            ) : (
-              <div className="space-y-4" dir="rtl">
-                {ticket.replies.map((reply, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-end gap-2.5 ${reply.from === 'user' ? 'justify-start' : 'justify-end'}`}
-                  >
-                    {/* Support avatar — shown on the outer left */}
-                    {reply.from === 'support' && (
-                      <div className="w-8 h-8 rounded-xl bg-[#f0eeff] flex items-center justify-center shrink-0">
-                        <Headphones size={15} className="text-[#655ac1]" />
-                      </div>
-                    )}
-
-                    <div className={`max-w-[72%] flex flex-col gap-1 ${reply.from === 'user' ? 'items-start' : 'items-end'}`}>
-                      <span className="text-[10px] font-bold text-slate-400 px-1">
-                        {reply.from === 'support' ? 'فريق الدعم' : 'أنت'}
-                      </span>
-                      <div
-                        className={`px-4 py-3 rounded-2xl text-sm font-medium leading-relaxed
-                          ${reply.from === 'support'
-                            ? 'bg-white border border-slate-200 text-slate-700 shadow-sm rounded-tl-none'
-                            : 'bg-[#655ac1] text-white rounded-tr-none'
-                          }`}
-                      >
-                        {reply.text}
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium px-1">{reply.time}</span>
+              {ticket.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1 px-1">
+                  {ticket.attachments.map((att, i) => (
+                    <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold
+                      ${att.type === 'image' ? 'bg-blue-50 border-blue-200 text-blue-600'
+                        : att.type === 'pdf' ? 'bg-red-50 border-red-200 text-red-600'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-600'}`}
+                    >
+                      {att.type === 'image' ? <ImageIcon size={11} /> : <FileText size={11} />}
+                      {att.name}
                     </div>
-
-                    {/* User avatar */}
-                    {reply.from === 'user' && (
-                      <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                        <User size={15} className="text-slate-500" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+              <span className="text-[10px] text-slate-400 font-medium px-1">{ticket.time}</span>
+            </div>
           </div>
+
+          {/* Support replies */}
+          {ticket.replies.length === 0 ? (
+            <div className="text-center py-8 text-slate-400">
+              <Headphones size={32} className="mx-auto mb-2 text-slate-200" />
+              <p className="text-sm font-bold text-slate-400">في انتظار رد فريق الدعم</p>
+              <p className="text-xs mt-1 font-medium text-slate-400">سيتواصل معك خلال أوقات العمل الرسمية</p>
+            </div>
+          ) : (
+            ticket.replies.map((reply, i) => (
+              <div
+                key={i}
+                className={`flex items-end gap-2.5 ${reply.from === 'user' ? 'justify-start' : 'justify-end'}`}
+              >
+                {reply.from === 'support' && (
+                  <div className="w-8 h-8 rounded-xl bg-[#f0eeff] flex items-center justify-center shrink-0">
+                    <Headphones size={15} className="text-[#655ac1]" />
+                  </div>
+                )}
+                <div className={`max-w-[75%] flex flex-col gap-1 ${reply.from === 'user' ? 'items-start' : 'items-end'}`}>
+                  <span className="text-[10px] font-bold text-slate-400 px-1">
+                    {reply.from === 'support' ? 'فريق الدعم' : 'أنت'}
+                  </span>
+                  <div className={`px-4 py-3 rounded-2xl text-sm font-medium leading-relaxed
+                    ${reply.from === 'support'
+                      ? 'bg-white border border-slate-200 text-slate-700 shadow-sm rounded-tl-none'
+                      : 'bg-[#655ac1] text-white rounded-tr-none'}`}
+                  >
+                    {reply.text}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium px-1">{reply.time}</span>
+                </div>
+                {reply.from === 'user' && (
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                    <User size={15} className="text-slate-500" />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* ── Reply footer ── */}
@@ -417,15 +387,27 @@ interface TicketSectionProps {
 
 const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }) => {
   const { showToast } = useToast();
-  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const fileInputRef        = useRef<HTMLInputElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Form state
-  const [showForm,      setShowForm]      = useState(openFormOnMount);
-  const [formTitle,     setFormTitle]     = useState('');
-  const [formDesc,      setFormDesc]      = useState('');
-  const [formCategory,  setFormCategory]  = useState<TicketCategory | ''>('');
-  const [attachedFiles, setAttachedFiles] = useState<Attachment[]>([]);
-  const [isDragging,    setIsDragging]    = useState(false);
+  const [showForm,             setShowForm]             = useState(openFormOnMount);
+  const [formTitle,            setFormTitle]            = useState('');
+  const [formDesc,             setFormDesc]             = useState('');
+  const [formCategory,         setFormCategory]         = useState<TicketCategory | ''>('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [attachedFiles,        setAttachedFiles]        = useState<Attachment[]>([]);
+  const [isDragging,           setIsDragging]           = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Ticket list
   const [tickets,        setTickets]        = useState<Ticket[]>(MOCK_TICKETS);
@@ -519,7 +501,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
       <div className="flex justify-start">
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-5 py-3 bg-[#8779fb] text-white rounded-xl font-black hover:bg-[#655ac1] hover:-translate-y-0.5 transition-all shadow-md shadow-indigo-200"
+          className="flex items-center gap-2 px-5 py-3 bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] hover:-translate-y-0.5 transition-all shadow-md shadow-indigo-200"
         >
           <PlusCircle size={18} />
           رفع تذكرة جديدة
@@ -537,16 +519,16 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-gradient-to-l from-[#f0eeff] to-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
+            <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
               <h3 className="font-black text-slate-800 flex items-center gap-2 text-base">
-                <TicketIcon size={18} className="text-[#8779fb]" />
+                <TicketIcon size={22} className="text-[#655ac1]" />
                 رفع تذكرة دعم جديدة
               </h3>
               <button
                 onClick={() => setShowForm(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg"
+                className="w-8 h-8 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center justify-center"
               >
-                <X size={20} />
+                <X size={16} />
               </button>
             </div>
 
@@ -570,20 +552,42 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   تصنيف المشكلة <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
-                    value={formCategory}
-                    onChange={e => setFormCategory(e.target.value as TicketCategory)}
-                    className="w-full appearance-none px-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 bg-white transition-all pr-10"
+                <div className="relative" ref={categoryDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryDropdown(p => !p)}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm font-medium text-right flex items-center justify-between bg-white transition-all ${
+                      showCategoryDropdown ? 'border-[#655ac1] ring-1 ring-[#655ac1]/20' : 'border-slate-200 hover:border-slate-300'
+                    }`}
                   >
-                    <option value="">-- اختر التصنيف --</option>
-                    {CATEGORIES.map(c => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
+                    <span className={formCategory ? 'text-slate-700' : 'text-slate-400'}>
+                      {formCategory ? CATEGORIES.find(c => c.value === formCategory)?.label : '-- اختر التصنيف --'}
+                    </span>
+                    <ChevronDown size={16} className={`text-slate-400 transition-transform shrink-0 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+                  </button>
 
+                  {showCategoryDropdown && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-slate-100 rounded-xl shadow-lg overflow-hidden">
+                      {CATEGORIES.map(c => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          onClick={() => { setFormCategory(c.value as TicketCategory); setShowCategoryDropdown(false); }}
+                          className={`w-full px-4 py-3 text-right text-sm flex items-center justify-between gap-3 transition-colors ${
+                            formCategory === c.value ? 'bg-[#655ac1]/6 text-[#655ac1]' : 'hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <span className="font-bold">{c.label}</span>
+                          {formCategory === c.value && (
+                            <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white flex items-center justify-center shrink-0">
+                              <Check size={11} strokeWidth={3} />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Description */}
@@ -657,20 +661,20 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 py-3 bg-[#8779fb] text-white rounded-xl font-black hover:bg-[#655ac1] transition-all shadow-sm shadow-indigo-200 flex items-center justify-center gap-2 hover:-translate-y-0.5"
-                >
-                  <Send size={16} />
-                  إرسال التذكرة
-                </button>
+              <div className="flex gap-3 pt-2 justify-end">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
                   className="px-5 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all"
                 >
                   إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-6 py-3 bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] transition-all shadow-sm shadow-indigo-200 hover:-translate-y-0.5"
+                >
+                  <Send size={16} />
+                  إرسال التذكرة
                 </button>
               </div>
             </form>
@@ -685,12 +689,10 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
             <TicketIcon size={18} className="text-[#655ac1]" />
             سجل التذاكر
           </h3>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400">إجمالي التذاكر</span>
-            <div className="flex items-center gap-1.5 bg-[#655ac1] text-white px-3 py-1.5 rounded-xl shadow-sm shadow-indigo-200">
-              <TicketIcon size={13} />
-              <span className="font-black text-sm">{tickets.length}</span>
-            </div>
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+            <span className="text-xs font-bold text-[#8779fb]">إجمالي التذاكر</span>
+            <span className="w-px h-3.5 bg-slate-200" />
+            <span className="font-black text-sm text-[#655ac1]">{tickets.length}</span>
           </div>
         </div>
 
@@ -701,20 +703,20 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">رقم التذكرة</th>
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">الموضوع</th>
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">التصنيف</th>
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">الحالة</th>
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">التاريخ</th>
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">الوقت</th>
-                  <th className="text-right px-5 py-3 font-black text-slate-500 text-xs uppercase tracking-wide">المرفقات</th>
-                  <th className="px-5 py-3" />
+            <table className="w-full text-right">
+              <thead className="bg-white border-b text-sm text-[#655ac1]">
+                <tr>
+                  <th className="px-6 py-4 font-medium">رقم التذكرة</th>
+                  <th className="px-6 py-4 font-medium">الموضوع</th>
+                  <th className="px-6 py-4 font-medium">التصنيف</th>
+                  <th className="px-6 py-4 font-medium">الحالة</th>
+                  <th className="px-6 py-4 font-medium">التاريخ</th>
+                  <th className="px-6 py-4 font-medium">الوقت</th>
+                  <th className="px-6 py-4 font-medium">المرفقات</th>
+                  <th className="px-6 py-4 font-medium">عرض</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y">
                 {tickets.map(ticket => {
                   const sc         = STATUS_CONFIG[ticket.status];
                   const StatusIcon = sc.icon;
@@ -727,10 +729,10 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                     <tr
                       key={ticket.id}
                       onClick={() => setSelectedTicket(ticket)}
-                      className="hover:bg-indigo-50/40 transition-colors cursor-pointer group"
+                      className="hover:bg-gray-50 transition-colors cursor-pointer group"
                     >
                       {/* ID + new-reply dot */}
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className="font-black text-[#655ac1] text-sm font-mono">{ticket.id}</span>
                           {hasReplies && ticket.status === 'replied' && (
@@ -739,35 +741,36 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                         </div>
                       </td>
                       {/* Title */}
-                      <td className="px-5 py-4">
-                        <p className="font-bold text-slate-800 text-sm max-w-[200px] truncate" title={ticket.title}>
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-gray-800 text-sm max-w-[200px] truncate" title={ticket.title}>
                           {ticket.title}
                         </p>
                       </td>
                       {/* Category */}
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-semibold text-slate-600">{ticket.categoryLabel}</span>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-medium text-gray-600">{ticket.categoryLabel}</span>
                       </td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-1.5 text-sm font-black
+                      {/* Status */}
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 text-sm font-bold
                           ${ticket.status === 'processing' ? 'text-yellow-600' :
                             ticket.status === 'replied'    ? 'text-green-600'  :
-                                                             'text-slate-400'}`}>
+                                                             'text-gray-400'}`}>
                           <StatusIcon size={14} />
                           {sc.label}
                         </span>
                       </td>
                       {/* Date */}
-                      <td className="px-5 py-4">
-                        <p className="text-xs font-black text-slate-700">{dayName}</p>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">{dateFmt}</p>
+                      <td className="px-6 py-4">
+                        <p className="text-xs font-bold text-gray-700">{dayName}</p>
+                        <p className="text-xs text-gray-500 font-medium mt-0.5">{dateFmt}</p>
                       </td>
                       {/* Time */}
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-bold text-slate-700">{ticket.time}</span>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-medium text-gray-700">{ticket.time}</span>
                       </td>
                       {/* Attachments */}
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         {ticket.attachments.length > 0 ? (
                           <div className="flex items-center gap-1.5">
                             {ticket.attachments.map((att, ai) => (
@@ -780,16 +783,16 @@ const TicketSection: React.FC<TicketSectionProps> = ({ openFormOnMount = false }
                                 <Paperclip size={14} />
                               </div>
                             ))}
-                            <span className="text-xs font-bold text-slate-500 mr-1">({ticket.attachments.length})</span>
+                            <span className="text-xs font-medium text-gray-500 mr-1">({ticket.attachments.length})</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-slate-400">—</span>
+                          <span className="text-sm text-gray-400">—</span>
                         )}
                       </td>
-                      {/* Arrow hint */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-[#655ac1] group-hover:text-white text-slate-400 transition-all">
-                          <MessageCircle size={13} />
+                      {/* Action hint */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-[#655ac1] group-hover:text-white text-gray-400 transition-all">
+                          <Eye size={13} />
                         </div>
                       </td>
                     </tr>
