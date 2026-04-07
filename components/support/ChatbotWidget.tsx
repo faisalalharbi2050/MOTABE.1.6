@@ -1370,9 +1370,6 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ onOpenTicket, variant = '
             </div>
             <div className="hidden md:block">
               <p className="text-sm font-black leading-none text-slate-800 transition-colors [button:hover_&]:text-white">مساعد متابع</p>
-              <p className="text-[11px] mt-1 font-medium leading-none text-slate-400 transition-colors [button:hover_&]:text-white/80">
-                إجابات سريعة داخل المنصة
-              </p>
             </div>
             {!isOpen && (
               <span className="absolute top-2 left-2 flex items-center gap-1">

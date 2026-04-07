@@ -101,14 +101,13 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* ── متابع subscription card ── */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#f3f0ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
           <div className="relative z-10 flex flex-col flex-1">
             <div className="flex items-center gap-2 mb-5">
               <Crown size={22} className="text-[#8779fb]" />
               <h3 className="text-base font-black text-slate-800">اشتراك متابع</h3>
             </div>
 
-            <div className="inline-flex items-center gap-2 self-start px-4 py-2 bg-[#f3f0ff] rounded-xl border border-[#e5e1fe] mb-6">
+            <div className="inline-flex items-center gap-2 self-start px-4 py-2 bg-white rounded-xl border border-slate-300 mb-6">
               <span className="text-sm font-black text-[#655ac1]">{mainPackageDisplay}</span>
               {subscription.isTrial && (
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#655ac1] text-white">
@@ -141,14 +140,13 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({ subscript
 
         {/* ── Message subscription card ── */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group flex flex-col">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#f8f7ff] rounded-bl-full -z-0 transition-transform group-hover:scale-110" />
           <div className="relative z-10 flex flex-col flex-1">
             <div className="flex items-center gap-2 mb-5">
               <MessageSquare size={22} className="text-[#8779fb]" />
               <h3 className="text-base font-black text-slate-800">باقة الرسائل</h3>
             </div>
 
-            <div className="inline-flex items-center gap-2 self-start px-4 py-2 bg-[#f3f0ff] rounded-xl border border-[#e5e1fe] mb-6">
+            <div className="inline-flex items-center gap-2 self-start px-4 py-2 bg-white rounded-xl border border-slate-300 mb-6">
               <span className="text-sm font-black text-[#655ac1]">{messagePackageDisplay}</span>
               {isMessageTrial && (
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#655ac1] text-white">
