@@ -7,6 +7,8 @@ import {
   MessageSquare,
   CreditCard,
   Calendar,
+  CalendarCheck,
+  CalendarX2,
   Layers,
   MoreVertical,
   Minus,
@@ -144,6 +146,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     } catch { return dateStr; }
   };
 
+  // مؤشر عدد الفصول الدراسية بالعربية
+  const semesterCountLabel = (count: number) => {
+    if (count === 1) return 'فصل دراسي';
+    if (count === 2) return 'فصلان دراسيان';
+    if (count === 3) return 'ثلاثة فصول دراسية';
+    if (count === 4) return 'أربعة فصول دراسية';
+    return `${count} فصول دراسية`;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       
@@ -215,37 +226,50 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <CalendarDays size={20} className="text-[#8779fb]" strokeWidth={1.8} />
                 التقويم الدراسي
               </h4>
-              {currentSemester && (
-                <button
-                  onClick={() => setShowAcademicCalendar(true)}
-                  className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1 flex items-center gap-1 transition-colors"
-                >
-                  <Settings2 size={13} />
-                  إعداد
-                </button>
-              )}
+              <button
+                onClick={() => setShowAcademicCalendar(true)}
+                className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1 flex items-center gap-1 transition-colors"
+              >
+                <Settings2 size={13} />
+                إعداد
+              </button>
             </div>
 
             {currentSemester ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-black text-[#655ac1]">{currentSemester.name}</span>
-                  <span className="text-xs font-bold text-[#655ac1] bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                    {schoolInfo.academicYear}
-                  </span>
+                {/* اسم الفصل + العام + عدد الفصول */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-[#655ac1]">{currentSemester.name}</span>
+                    <span className="text-xs font-bold text-[#655ac1] bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                      {schoolInfo.academicYear}
+                    </span>
+                  </div>
+                  {(schoolInfo.semesters?.length ?? 0) > 0 && (
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {semesterCountLabel(schoolInfo.semesters?.length ?? 0)}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
-                  <Calendar size={12} />
+
+                {/* تاريخ البداية */}
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                  <CalendarCheck size={12} className="text-[#8779fb] shrink-0" />
                   <span>يبدأ من: {new Intl.DateTimeFormat(
                     currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
                     { day: 'numeric', month: 'long', year: 'numeric' }
                   ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
                 </div>
+
+                {/* شريط التقدم */}
                 {currentWeek !== null && (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-bold text-slate-500">
                         أسبوع {currentWeek} من {currentSemester.weeksCount}
+                      </span>
+                      <span className="text-xs font-black text-[#655ac1]">
+                        {Math.round((currentWeek / currentSemester.weeksCount) * 100)}%
                       </span>
                     </div>
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -256,8 +280,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
-                  <Calendar size={12} />
+
+                {/* تاريخ النهاية */}
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                  <CalendarX2 size={12} className="text-[#8779fb] shrink-0" />
                   <span>ينتهي في: {new Intl.DateTimeFormat(
                     currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
                     { day: 'numeric', month: 'long', year: 'numeric' }
@@ -424,12 +450,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      <AcademicCalendarModal
-        isOpen={showAcademicCalendar}
-        onClose={() => setShowAcademicCalendar(false)}
-        schoolInfo={schoolInfo}
-        setSchoolInfo={setSchoolInfo}
-      />
+      {showAcademicCalendar && (
+        <AcademicCalendarModal
+          isOpen={showAcademicCalendar}
+          onClose={() => setShowAcademicCalendar(false)}
+          schoolInfo={schoolInfo}
+          setSchoolInfo={setSchoolInfo}
+        />
+      )}
     </div>
   );
 };
