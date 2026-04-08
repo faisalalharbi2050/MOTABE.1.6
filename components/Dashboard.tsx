@@ -269,7 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-xs text-slate-400 font-bold text-center">لم يتم إعداد التقويم الدراسي بعد</p>
                 <button
                   onClick={() => setShowAcademicCalendar(true)}
-                  className="px-4 py-2 bg-white text-[#8779fb] border border-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 hover:border-slate-400 transition-colors"
+                  className="px-4 py-2 bg-white text-[#655ac1] border border-slate-200 rounded-xl text-xs font-bold hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
                 >
                   البدء بالإعداد
                 </button>

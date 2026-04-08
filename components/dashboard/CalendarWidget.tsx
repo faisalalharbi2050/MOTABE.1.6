@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar as CalendarIcon, X, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, X, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { CalendarEvent, SchoolInfo } from '../../types';
 
 // ── Task types & helpers ──────────────────────────────────────────────────────
@@ -257,13 +257,13 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, schoolInfo, set
           onClick={() => setSelectedDay(isSel ? null : ds)}
           className={`h-9 md:h-11 flex flex-col items-center justify-start pt-1 relative rounded-xl transition-all duration-200 cursor-pointer ${
             isSel
-              ? 'ring-2 ring-[#8779fb] bg-[#8779fb]/10'
+              ? 'ring-1 ring-[#8779fb] bg-white'
               : isToday
                 ? 'ring-2 ring-[#655ac1] bg-[#655ac1]/5'
                 : 'hover:bg-slate-50 text-slate-700'
           }`}
         >
-          <span className={`text-xs md:text-sm font-bold ${isToday ? 'text-[#655ac1]' : ''} ${isSel ? 'text-[#8779fb]' : ''}`}>
+          <span className={`text-sm md:text-base font-bold ${isToday ? 'text-[#655ac1]' : ''} ${isSel ? 'text-[#8779fb]' : ''}`}>
             {calendarType === 'gregorian' ? d : toHijri(date)}
           </span>
           <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center">
@@ -288,6 +288,38 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, schoolInfo, set
   const selEvents     = selectedDay ? events.filter(e => e.date === selectedDay) : [];
   const hasSelContent = selTasks.length > 0 || selEvents.length > 0;
 
+  const ToolbarSelect = ({
+    value,
+    onChange,
+    options,
+    label,
+    minWidthClass = 'min-w-[118px]',
+  }: {
+    value: number;
+    onChange: (value: number) => void;
+    options: Array<{ value: number; label: string }>;
+    label: string;
+    minWidthClass?: string;
+  }) => (
+    <label className={`relative ${minWidthClass} group`}>
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={e => onChange(+e.target.value)}
+        className="w-full appearance-none rounded-xl border border-slate-200 bg-white pr-4 pl-10 py-2.5 text-sm font-black text-slate-700 shadow-sm shadow-slate-200/50 outline-none transition-all cursor-pointer hover:border-slate-300 hover:bg-slate-50 focus:border-[#8779fb] focus:bg-white focus:ring-4 focus:ring-[#8779fb]/10"
+      >
+        {options.map(option => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+        <div className="flex h-7 w-7 items-center justify-center text-slate-400 transition-all group-hover:text-slate-500">
+          <ChevronDown size={15} />
+        </div>
+      </div>
+    </label>
+  );
+
   // ── JSX ───────────────────────────────────────────────────────────────────
 
   return (
@@ -305,45 +337,47 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ events, schoolInfo, set
       <div className="px-4 pt-3 pb-2.5 flex items-center gap-2 flex-wrap border-b border-slate-100">
 
         {/* Calendar-type toggle */}
-        <div className="flex bg-slate-50 rounded-lg p-0.5 text-sm font-bold">
+        <div className="flex bg-slate-50 rounded-xl p-0.5 text-sm font-bold border border-slate-200">
           <button
             onClick={() => setCalendarType('hijri')}
-            className={`px-3 py-1.5 rounded-md transition-all ${calendarType === 'hijri' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-3 py-1.5 rounded-lg border transition-all ${calendarType === 'hijri' ? 'bg-white text-[#655ac1] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
           >هجري</button>
           <button
             onClick={() => setCalendarType('gregorian')}
-            className={`px-3 py-1.5 rounded-md transition-all ${calendarType === 'gregorian' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`px-3 py-1.5 rounded-lg border transition-all ${calendarType === 'gregorian' ? 'bg-white text-[#655ac1] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
           >ميلادي</button>
         </div>
 
         {/* Month select */}
-        <select
+        <ToolbarSelect
           value={displayMonth}
-          onChange={e => handleMonthChange(+e.target.value)}
-          className="bg-slate-50 border-none outline-none text-sm font-bold text-slate-600 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors"
-        >
-          {(calendarType === 'gregorian' ? monthNames : hijriMonths).map((m, i) => (
-            <option key={i} value={i}>{m}</option>
-          ))}
-        </select>
+          onChange={handleMonthChange}
+          label="اختيار الشهر"
+          minWidthClass="min-w-[132px]"
+          options={(calendarType === 'gregorian' ? monthNames : hijriMonths).map((m, i) => ({
+            value: i,
+            label: m,
+          }))}
+        />
 
         {/* Year select */}
-        <select
+        <ToolbarSelect
           value={displayYear}
-          onChange={e => handleYearChange(+e.target.value)}
-          className="bg-slate-50 border-none outline-none text-sm font-bold text-slate-600 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-slate-100 transition-colors"
-        >
-          {(calendarType === 'gregorian' ? gregYears : hijriYears).map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+          onChange={handleYearChange}
+          label="اختيار السنة"
+          minWidthClass="min-w-[104px]"
+          options={(calendarType === 'gregorian' ? gregYears : hijriYears).map(y => ({
+            value: y,
+            label: String(y),
+          }))}
+        />
 
         <div className="flex-1" />
 
         {/* Add-task button */}
         <button
           onClick={openAdd}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#8779fb] text-white rounded-xl shadow-sm hover:bg-[#7566ea] transition-colors text-sm font-bold shadow-[#8779fb]/20"
+          className="flex items-center gap-1.5 px-4 py-2 bg-white text-[#655ac1] border border-slate-200 rounded-xl shadow-sm hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors text-sm font-bold"
         >
           <Plus size={15} strokeWidth={2.5} />
           إضافة مهمة

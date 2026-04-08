@@ -70,7 +70,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
               </p>
               <button 
                 onClick={() => setIsStarted(true)}
-                className="px-8 py-3 bg-[#8779fb] text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-[#7668e5] hover:shadow-xl hover:shadow-indigo-300 transition-all transform hover:-translate-y-1"
+                className="px-8 py-3 bg-white text-[#655ac1] border border-slate-200 rounded-xl font-bold shadow-sm hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
               >
                 البدء بالإعداد
               </button>

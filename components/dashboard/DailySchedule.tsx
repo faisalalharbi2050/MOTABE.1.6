@@ -31,19 +31,19 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title 
         <div className="flex gap-1 bg-slate-50 p-1 rounded-xl w-full">
             <button 
                 onClick={() => setActiveTab('absence')}
-                className={`flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'absence' ? 'bg-white text-[#8779fb] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold transition-all border ${activeTab === 'absence' ? 'bg-white text-[#8779fb] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
             >
                 الغياب
             </button>
             <button 
                 onClick={() => setActiveTab('supervision')}
-                className={`flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'supervision' ? 'bg-white text-[#8779fb] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold transition-all border ${activeTab === 'supervision' ? 'bg-white text-[#8779fb] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
             >
                 الإشراف
             </button>
             <button 
                 onClick={() => setActiveTab('duty')}
-                className={`flex-1 px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'duty' ? 'bg-white text-[#8779fb] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-bold transition-all border ${activeTab === 'duty' ? 'bg-white text-[#8779fb] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
             >
                 المناوبة
             </button>
@@ -53,7 +53,7 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title 
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
         {displayItems.length > 0 ? (
           displayItems.map((item, index) => (
-            <div key={item.id || index} className="flex items-center gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-[#8779fb]/30 transition-colors group">
+            <div key={item.id || index} className="flex items-center gap-4 p-3 bg-white rounded-2xl border border-slate-100 hover:border-[#8779fb]/30 transition-colors group">
               <div className={`
                 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors
                 ${item.type === 'absence' ? 'text-rose-500' : ''}
