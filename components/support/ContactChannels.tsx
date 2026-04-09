@@ -1,15 +1,7 @@
 import React from 'react';
-import { Mail, Clock, Smartphone, Calendar, Sun, Phone, PhoneCall } from 'lucide-react';
+import { Clock, Calendar, Sun } from 'lucide-react';
 
 const ContactChannels: React.FC = () => {
-  const handlePhone = () => {
-    window.location.href = 'tel:+966500000000';
-  };
-
-  const handleEmail = () => {
-    window.location.href = 'mailto:support@motabe.sa?subject=طلب دعم فني - منصة متابع';
-  };
-
   return (
     <div className="space-y-6">
 
@@ -53,60 +45,6 @@ const ContactChannels: React.FC = () => {
         </div>
       </div>
 
-      {/* ── قنوات التواصل ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-        {/* الهاتف */}
-        <div className="bg-white rounded-2xl border border-slate-200 hover:shadow-md hover:border-[#c4bef9] transition-all group overflow-hidden">
-          <div className="flex items-center gap-4 p-5">
-            <div className="w-14 h-14 flex items-center justify-center shrink-0">
-              <PhoneCall size={30} className="text-[#655ac1]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-black text-slate-800 text-base mb-0.5">الهاتف</h3>
-              <div className="flex items-center gap-1.5 text-slate-500 font-bold text-sm">
-                <Smartphone size={13} className="text-[#655ac1] shrink-0" />
-                <span dir="ltr" className="text-[#655ac1] font-black">+966 50 000 0000</span>
-              </div>
-            </div>
-          </div>
-          <div className="px-5 pb-5">
-            <button
-              onClick={handlePhone}
-              className="w-full py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all flex items-center justify-center gap-2 group/btn"
-            >
-              <Phone size={16} className="text-[#655ac1] group-hover/btn:text-white transition-colors" />
-              اتصل بنا
-            </button>
-          </div>
-        </div>
-
-        {/* البريد الإلكتروني */}
-        <div className="bg-white rounded-2xl border border-slate-200 hover:shadow-md hover:border-[#c4bef9] transition-all group overflow-hidden">
-          <div className="flex items-center gap-4 p-5">
-            <div className="w-14 h-14 flex items-center justify-center shrink-0">
-              <Mail size={30} className="text-[#655ac1]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-black text-slate-800 text-base mb-0.5">البريد الإلكتروني</h3>
-              <div className="flex items-center gap-1.5 text-slate-500 font-bold text-sm">
-                <Mail size={13} className="text-[#655ac1] shrink-0" />
-                <span dir="ltr" className="text-[#655ac1] font-black">support@motabe.sa</span>
-              </div>
-            </div>
-          </div>
-          <div className="px-5 pb-5">
-            <button
-              onClick={handleEmail}
-              className="w-full py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all flex items-center justify-center gap-2 group/btn"
-            >
-              <Mail size={16} className="text-[#655ac1] group-hover/btn:text-white transition-colors" />
-              تواصل عبر البريد الإلكتروني
-            </button>
-          </div>
-        </div>
-
-      </div>
     </div>
   );
 };
