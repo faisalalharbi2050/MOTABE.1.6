@@ -132,6 +132,22 @@
         }
       }
 
+      /* ── Task list scrollbar — subtle purple ── */
+      .task-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .task-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .task-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(135, 121, 251, 0.25);
+        border-radius: 99px;
+        transition: background 0.2s;
+      }
+      .task-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(101, 90, 193, 0.55);
+      }
+
       /* ── Card hover effect — platform-wide ── */
       .bg-white.rounded-2xl.border.border-slate-200.shadow-sm {
         transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
