@@ -50,21 +50,21 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2.5">
         {displayItems.length > 0 ? (
           displayItems.map((item, index) => (
-            <div key={item.id || index} className="flex items-center gap-4 p-3 bg-white rounded-2xl border border-slate-100 hover:border-[#8779fb]/30 transition-colors group">
+            <div key={item.id || index} className="flex items-center gap-3 p-2.5 bg-white rounded-2xl border border-slate-100 hover:border-[#8779fb]/30 transition-colors group">
               <div className={`
-                w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors
+                w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors
                 ${item.type === 'absence' ? 'text-rose-500' : ''}
                 ${item.type === 'supervision' ? 'text-[#8779fb]' : ''}
                 ${item.type === 'duty' ? 'text-[#655ac1]' : ''}
                 ${!item.type ? 'text-slate-500' : ''}
               `}>
-                {item.type === 'absence' && <UserX size={20} />}
-                {item.type === 'supervision' && <Eye size={20} />}
-                {item.type === 'duty' && <ShieldCheck size={20} />}
-                {!item.type && <Clock size={20} />}
+                {item.type === 'absence' && <UserX size={18} />}
+                {item.type === 'supervision' && <Eye size={18} />}
+                {item.type === 'duty' && <ShieldCheck size={18} />}
+                {!item.type && <Clock size={18} />}
               </div>
               <div>
                 <p className="font-bold text-slate-700 text-sm">

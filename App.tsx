@@ -182,26 +182,6 @@ const App: React.FC = () => {
     { id: 't-d1', type: 'duty', name: 'عبدالله الشهري' },
     { id: 't-d2', type: 'duty', name: 'سلطان العمري' },
   ]);
-  const [tomorrowSchedule] = useState<DailyScheduleItem[]>([
-    // غياب (5)
-    { id: 'tm-a1', type: 'absence', name: 'إبراهيم السلمي' },
-    { id: 'tm-a2', type: 'absence', name: 'عبدالرحمن الفهد' },
-    { id: 'tm-a3', type: 'absence', name: 'ماجد المالكي' },
-    { id: 'tm-a4', type: 'absence', name: 'بندر الشمري' },
-    { id: 'tm-a5', type: 'absence', name: 'منصور العنزي' },
-    // إشراف (8)
-    { id: 'tm-s1', type: 'supervision', name: 'علي الشهراني' },
-    { id: 'tm-s2', type: 'supervision', name: 'فهد العتيبي' },
-    { id: 'tm-s3', type: 'supervision', name: 'راشد الجهني' },
-    { id: 'tm-s4', type: 'supervision', name: 'محمد القرني' },
-    { id: 'tm-s5', type: 'supervision', name: 'سامي الأسمري' },
-    { id: 'tm-s6', type: 'supervision', name: 'زياد الغامدي' },
-    { id: 'tm-s7', type: 'supervision', name: 'طارق الحازمي' },
-    { id: 'tm-s8', type: 'supervision', name: 'نواف البلوي' },
-    // مناوبة (2)
-    { id: 'tm-d1', type: 'duty', name: 'خالد السهيمي' },
-    { id: 'tm-d2', type: 'duty', name: 'وائل الشريف' },
-  ]);
   const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
     const today = new Date();
     const semesterEnd = new Date(today);
@@ -344,9 +324,10 @@ const App: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} tomorrowSchedule={tomorrowSchedule} subscription={subscription} onNavigate={(tab) => {
+      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} subscription={subscription} onNavigate={(tab) => {
         if (tab === 'subscription_pricing') { setSubscriptionInitialTab('pricing'); setActiveTab('subscription'); }
         else if (tab === 'messages_subscriptions') { setMessagesInitialTab('subscriptions'); setActiveTab('messages'); }
+        else if (tab === 'messages_archive') { setMessagesInitialTab('archive'); setActiveTab('messages'); }
         else { setSubscriptionInitialTab('dashboard'); setMessagesInitialTab('compose'); setActiveTab(tab as any); }
       }} />;
 

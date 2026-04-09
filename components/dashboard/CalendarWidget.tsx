@@ -26,6 +26,7 @@ const TASK_COLORS: Record<
 
 const LS_TASKS    = 'motabe_calendar_tasks';
 const LS_REMINDER = 'motabe_reminder_date';
+const EMPTY_REMINDER = '';
 
 const getTodayStr = (): string => {
   const d = new Date();
@@ -121,7 +122,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
   // Add / edit modal
   const [showModal,     setShowModal]     = useState(false);
   const [editingTask,   setEditingTask]   = useState<Task | null>(null);
-  const [taskTitle,     setTaskTitle]     = useState('');
+  const [taskTitles,    setTaskTitles]    = useState<string[]>([EMPTY_REMINDER]);
   const [taskDate,      setTaskDate]      = useState('');
   const [taskColor,     setTaskColor]     = useState<Task['color']>('green');
   const [modalDateType, setModalDateType] = useState<'hijri' | 'gregorian'>('hijri');
@@ -184,7 +185,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
   const openAdd = () => {
     setEditingTask(null);
-    setTaskTitle('');
+    setTaskTitles([EMPTY_REMINDER]);
     setTaskColor('green');
     const t = getTodayStr();
     setTaskDate(t);
@@ -194,14 +195,18 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
   const openEdit = (task: Task) => {
     setEditingTask(task);
-    setTaskTitle(task.title);
+    setTaskTitles([task.title]);
     setTaskDate(task.date);
     setTaskColor(task.color);
     syncPickersFromGreg(task.date);
     setShowModal(true);
   };
 
-  const closeModal = () => { setShowModal(false); setEditingTask(null); };
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingTask(null);
+    setTaskTitles([EMPTY_REMINDER]);
+  };
 
   const changeGregDate = (y: number, m: number, d: number) => {
     const maxD = new Date(y, m, 0).getDate();
@@ -215,13 +220,42 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
     setTaskDate(hijriPartsToGreg(y, m, d));
   };
 
+  const updateTaskTitle = (index: number, value: string) => {
+    setTaskTitles(prev => prev.map((title, i) => (i === index ? value : title)));
+  };
+
+  const addTaskTitleField = () => {
+    setTaskTitles(prev => [...prev, EMPTY_REMINDER]);
+  };
+
+  const removeTaskTitleField = (index: number) => {
+    setTaskTitles(prev => (
+      prev.length === 1
+        ? [EMPTY_REMINDER]
+        : prev.filter((_, i) => i !== index)
+    ));
+  };
+
+  const hasValidTaskTitle = taskTitles.some(title => title.trim());
+
   const saveTask = () => {
-    if (!taskTitle.trim()) return;
+    const trimmedTitles = taskTitles.map(title => title.trim()).filter(Boolean);
+    if (trimmedTitles.length === 0) return;
+
     const next: Task[] = editingTask
       ? tasks.map(t => t.id === editingTask.id
-          ? { ...t, title: taskTitle.trim(), date: taskDate, color: taskColor, dateType: modalDateType }
+          ? { ...t, title: trimmedTitles[0], date: taskDate, color: taskColor, dateType: modalDateType }
           : t)
-      : [...tasks, { id: Date.now().toString(), title: taskTitle.trim(), date: taskDate, color: taskColor, dateType: modalDateType }];
+      : [
+          ...tasks,
+          ...trimmedTitles.map((title, index) => ({
+            id: `${Date.now()}-${index}`,
+            title,
+            date: taskDate,
+            color: taskColor,
+            dateType: modalDateType
+          }))
+        ];
     setTasks(next);
     persistTasks(next);
     closeModal();
@@ -308,7 +342,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <ClipboardList size={22} className="text-[#655ac1]" strokeWidth={1.8} />
+          <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
           <div>
             <h3 className="font-extrabold text-slate-800 text-base leading-tight">المهام التذكيرية</h3>
             {hasAnyTask && (
@@ -322,10 +356,10 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
         <button
           onClick={openAdd}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-[#655ac1] text-white rounded-2xl shadow-md shadow-[#655ac1]/25 hover:bg-[#5448b0] active:scale-95 transition-all text-sm font-bold"
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-white text-[#655ac1] border border-slate-200 rounded-2xl hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] active:scale-95 transition-all text-sm font-bold"
         >
           <Plus size={15} strokeWidth={2.5} />
-          إضافة مهمة
+          إضافة تذكير
         </button>
       </div>
 
@@ -336,12 +370,12 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
           /* Empty state */
           <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
-            <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mb-4 shadow-inner">
-              <ClipboardList size={28} className="text-slate-300" />
+            <div className="flex items-center justify-center mb-4">
+              <ClipboardList size={28} className="text-[#655ac1]" />
             </div>
-            <p className="text-sm font-bold text-slate-400">لا توجد مهام مضافة بعد</p>
+            <p className="text-sm font-bold text-slate-400">لا توجد مهام تذكيرية بعد</p>
             <p className="text-xs text-slate-300 mt-1 font-medium">
-              اضغط "إضافة مهمة" لتسجيل أول تذكير
+              انقر على إضافة تذكير لتسجيل أول تذكير
             </p>
           </div>
 
@@ -412,7 +446,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
               <div className="flex items-center gap-2.5">
                 <ClipboardList size={22} className="text-[#655ac1]" strokeWidth={1.8} />
                 <h3 className="text-base font-extrabold text-slate-800">
-                  {editingTask ? 'تعديل المهمة' : 'مهمة جديدة'}
+                  {editingTask ? 'تعديل التذكير' : 'إضافة تذكير'}
                 </h3>
               </div>
               <button
@@ -425,25 +459,51 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
             <div className="space-y-4">
 
-              {/* Title */}
+              {/* Reminder text */}
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-1.5">
-                  عنوان المهمة <span className="text-rose-400">*</span>
+                  التذكير <span className="text-rose-400">*</span>
                 </label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={taskTitle}
-                  onChange={e => setTaskTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveTask()}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 outline-none focus:border-[#655ac1] focus:bg-white focus:shadow-sm transition-all placeholder:font-normal placeholder:text-slate-300"
-                  placeholder="مثال: اجتماع تخصصي، لجنة التميز، اختبار نافس..."
-                />
+                <div className="space-y-2.5">
+                  {taskTitles.map((title, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        autoFocus={index === 0}
+                        type="text"
+                        value={title}
+                        onChange={e => updateTaskTitle(index, e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && saveTask()}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 outline-none focus:border-[#655ac1] focus:bg-white focus:shadow-sm transition-all placeholder:font-normal placeholder:text-slate-300"
+                        placeholder="مثال: اجتماع تخصصي، لجنة التميز، اختبار نافس..."
+                      />
+                      {!editingTask && taskTitles.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeTaskTitleField(index)}
+                          className="shrink-0 p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-colors"
+                          title="حذف التذكير"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!editingTask && (
+                    <button
+                      type="button"
+                      onClick={addTaskTitleField}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] hover:text-[#5448b0] transition-colors"
+                    >
+                      <Plus size={14} strokeWidth={2.4} />
+                      إضافة تذكير آخر
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Date type toggle */}
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1.5">تاريخ المهمة</label>
+                <label className="text-xs font-bold text-slate-500 block mb-1.5">تاريخ التذكير</label>
                 <div className="flex bg-slate-50 rounded-2xl p-0.5 text-xs font-bold border border-slate-200 mb-2.5 w-fit">
                   <button
                     onClick={() => setModalDateType('hijri')}
@@ -537,7 +597,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
               {/* Color */}
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-2">
-                  لون المهمة <span className="text-slate-300 font-normal">(اختياري)</span>
+                  لون التذكير <span className="text-slate-300 font-normal">(اختياري)</span>
                 </label>
                 <div className="flex items-center gap-3">
                   {(Object.keys(TASK_COLORS) as Task['color'][]).map(c => (
@@ -567,10 +627,10 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
               >إلغاء</button>
               <button
                 onClick={saveTask}
-                disabled={!taskTitle.trim()}
+                disabled={!hasValidTaskTitle}
                 className="flex-1 py-2.5 bg-[#655ac1] text-white rounded-2xl font-bold text-sm shadow-md shadow-[#655ac1]/20 hover:bg-[#5448b0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {editingTask ? 'حفظ التعديلات' : 'إضافة المهمة'}
+                {editingTask ? 'حفظ التعديلات' : 'إضافة'}
               </button>
             </div>
           </div>

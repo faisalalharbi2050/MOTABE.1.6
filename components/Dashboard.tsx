@@ -16,7 +16,6 @@ import {
   UserCog,
   LayoutGrid,
   BarChart3,
-  CalendarDays,
   Settings2
 } from 'lucide-react';
 import { 
@@ -66,7 +65,6 @@ interface DashboardProps {
   messages: Message[];
   events: CalendarEvent[];
   todaySchedule: DailyScheduleItem[];
-  tomorrowSchedule: DailyScheduleItem[];
   subscription: SubscriptionInfo;
   onNavigate: (tab: string) => void;
 }
@@ -79,7 +77,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   messages,
   events,
   todaySchedule,
-  tomorrowSchedule,
   subscription,
   onNavigate
 }) => {
@@ -103,9 +100,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const classCount = classes.length;
   const staffCount = 0; // Placeholder
   const todayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date());
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(tomorrow);
 
   // Message stats from context
   const { stats: msgStats } = useMessageArchive();
@@ -210,20 +204,20 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* 3 & 4. Unified two-column section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-        {/* Left: Today + Tomorrow schedules stacked */}
+        {/* Left: Today schedule */}
         <div className="lg:col-span-8 space-y-6">
           <DailySchedule schedule={todaySchedule} title={`جدول يوم ${todayName}`} />
-          <DailySchedule schedule={tomorrowSchedule} title={`جدول يوم ${tomorrowName}`} />
+          <RecentMessages messages={messages} onOpenArchive={() => onNavigate('messages_archive')} />
         </div>
 
         {/* Right: sidebar stacked */}
         <div className="lg:col-span-4 space-y-4">
 
           {/* ─── Academic Calendar Card ─── */}
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px]">
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <CalendarDays size={20} className="text-[#8779fb]" strokeWidth={1.8} />
+                <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
                 التقويم الدراسي
               </h4>
               <button
@@ -237,7 +231,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             {currentSemester ? (
-              <div className="space-y-3">
+              <div className="space-y-5">
                 {/* اسم الفصل + العام + عدد الفصول */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -248,8 +242,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
+                <div className="h-px bg-slate-100 my-1"></div>
+
                 {/* تاريخ البداية */}
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <CalendarCheck size={12} className="text-[#8779fb] shrink-0" />
                   <span>يبدأ من: {new Intl.DateTimeFormat(
                     currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
@@ -257,8 +253,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                   ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
                 </div>
 
+                <div className="h-2"></div>
                 {/* تاريخ النهاية */}
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <CalendarX2 size={12} className="text-[#8779fb] shrink-0" />
                   <span>ينتهي في: {new Intl.DateTimeFormat(
                     currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
@@ -280,7 +277,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* ─── Recent Messages ─── */}
-          <RecentMessages messages={messages} />
 
           {/* Widgets (stacked below) */}
           <div className="space-y-4">
