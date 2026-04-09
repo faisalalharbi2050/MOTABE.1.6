@@ -215,7 +215,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="lg:col-span-4 space-y-4">
 
           {/* ─── Academic Calendar Card ─── */}
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px]">
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px] hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                 <CalendarDays size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
@@ -283,7 +283,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="space-y-4">
 
            {/* ─── Message Balance Card ─── */}
-           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden">
+           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow">
              <div className="flex items-center justify-between mb-4">
                <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
                  <MessageSquare size={15} className="text-slate-400" />
@@ -353,7 +353,7 @@ const Dashboard: React.FC<DashboardProps> = ({
            </div>
 
            {/* ─── Current Package Card ─── */}
-           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden">
+           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow">
              <div className="flex items-center justify-between mb-2">
                <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
                  <CreditCard size={15} className="text-slate-400" />

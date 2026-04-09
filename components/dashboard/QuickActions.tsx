@@ -36,7 +36,7 @@ const ROWS = [
 
 const QuickActions: React.FC<QuickActionsProps> = ({ onNavigate }) => {
   return (
-    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col h-full">
+    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col h-full hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2 mb-5">
         <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
         <h3 className="text-lg font-bold text-slate-800">إجراءات سريعة</h3>

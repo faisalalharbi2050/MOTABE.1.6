@@ -21,7 +21,7 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title 
   );
 
   return (
-    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col h-full text-right" dir="rtl">
+    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col h-full text-right hover:shadow-md transition-shadow" dir="rtl">
       {/* ... header ... */}
       <div className="flex flex-col items-start gap-4 mb-6">
         <div className="flex items-center gap-2">
