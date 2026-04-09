@@ -150,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-10 animate-fade-in pb-10">
       
       {/* 1. General Stats Title & Cards */}
       <div>
