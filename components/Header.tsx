@@ -82,10 +82,75 @@ const ConfirmModal: React.FC<ModalProps> = ({
 
 // ─── Success Toast ───────────────────────────────────────────────────
 const Toast: React.FC<{ message: string; visible: boolean }> = ({ message, visible }) => (
-  <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 bg-emerald-600 text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-xl transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+  <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 bg-emerald-600 text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-xl transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
     <CheckCircle size={16} /> {message}
   </div>
 );
+
+// ─── Delete Request Modal ─────────────────────────────────────────────
+interface DeleteRequestModalProps {
+  defaultName: string;
+  defaultPhone: string;
+  defaultEmail: string;
+  defaultSchool: string;
+  onConfirm: (data: { name: string; phone: string; email: string; school: string }) => void;
+  onCancel: () => void;
+}
+const DeleteRequestModal: React.FC<DeleteRequestModalProps> = ({
+  defaultName, defaultPhone, defaultEmail, defaultSchool, onConfirm, onCancel
+}) => {
+  const [name, setName]   = React.useState(defaultName);
+  const [phone, setPhone] = React.useState(defaultPhone);
+  const [email, setEmail] = React.useState(defaultEmail);
+  const [school, setSchool] = React.useState(defaultSchool);
+
+  const inputClass = "w-full text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-rose-400 transition-colors bg-white";
+  const labelClass = "text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1";
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center mb-3">
+          <Trash2 size={36} className="text-rose-500" />
+        </div>
+        <h3 className="text-base font-bold text-slate-800 mb-2 text-center">تأكيد طلب حذف الحساب</h3>
+        <p className="text-xs text-slate-500 leading-relaxed mb-4 text-center">
+          سيُرسل طلب حذف حسابك مباشرةً إلى فريق الدعم، يرجى التأكيد وتعبئة الطلب. علمًا بأنه سيتم معالجة الطلب خلال 3 أيام عمل.
+        </p>
+
+        <div className="space-y-3 mb-5">
+          <div>
+            <label className={labelClass}><User size={11} /> اسم المستخدم</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}><Phone size={11} /> رقم الجوال</label>
+            <input type="text" value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" className={inputClass + " text-right"} />
+          </div>
+          <div>
+            <label className={labelClass}><Mail size={11} /> البريد الإلكتروني</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} dir="ltr" className={inputClass + " text-right"} />
+          </div>
+          <div>
+            <label className={labelClass}><Shield size={11} /> اسم المدرسة</label>
+            <input type="text" value={school} onChange={e => setSchool(e.target.value)} className={inputClass} />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="flex-1 px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+            إلغاء
+          </button>
+          <button onClick={() => onConfirm({ name, phone, email, school })}
+            className="flex-1 px-4 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors">
+            تأكيد وإرسال
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface HeaderProps {
   schoolInfo: SchoolInfo;
@@ -268,6 +333,25 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  // Send delete request directly to platform owner via email
+  const handleDeleteConfirmAdmin = (data: { name: string; phone: string; email: string; school: string }) => {
+    const subject = encodeURIComponent('طلب حذف الحساب — منصة متابع');
+    const body = encodeURIComponent(
+      `السلام عليكم،\n\nأرغب في طلب حذف حسابي من منصة متابع.\n\n` +
+      `—— بيانات الحساب ——\n` +
+      `الاسم: ${data.name}\n` +
+      `رقم الجوال: ${data.phone}\n` +
+      `البريد الإلكتروني: ${data.email}\n` +
+      `المدرسة: ${data.school}\n` +
+      `تاريخ الطلب: ${new Date().toLocaleDateString('ar-SA')}\n\n` +
+      `يرجى اتخاذ الإجراء اللازم لحذف الحساب المذكور أعلاه.\n\nشكراً`
+    );
+    window.location.href = `mailto:support@motabe.sa?subject=${subject}&body=${body}`;
+    setModal(null);
+    setIsProfileOpen(false);
+    showToast();
+  };
+
   return (
     <>
     {/* ── Global Modals ─────────────────────────────────────────────── */}
@@ -322,25 +406,23 @@ const Header: React.FC<HeaderProps> = ({
 
     {/* Delete — primary admin */}
     {modal === 'deleteAdmin' && (
-      <ConfirmModal
-        title="حذف الحساب"
-        message="لا يمكن حذف حساب مدير النظام إلا من خلال فريق الدعم الفني لمنصة متابع. يرجى رفع تذكرة دعم من صفحة الدعم الفني مع توضيح الأسباب."
-        icon={<Info size={36} className="text-rose-500" />}
-        confirmLabel="انتقل إلى الدعم الفني"
-        cancelLabel="إلغاء"
-        confirmDanger
+      <DeleteRequestModal
+        defaultName={profile.name}
+        defaultPhone={profile.phone}
+        defaultEmail={profile.email}
+        defaultSchool={schoolInfo.schoolName || ''}
         onCancel={() => setModal(null)}
-        onConfirm={() => { setModal(null); setIsProfileOpen(false); onNavigate('support'); }}
+        onConfirm={handleDeleteConfirmAdmin}
       />
     )}
 
     {/* Delete — sub-user */}
     {modal === 'deleteSub' && (
       <ConfirmModal
-        title="طلب حذف الحساب"
-        message="سيُرسل طلب حذف حسابك إلى مسؤول النظام (المستخدم الأول) للموافقة عليه. هل أنت متأكϿ"
+        title="تأكيد طلب حذف الحساب"
+        message="سيُرسل طلب حذف حسابك إلى مسؤول النظام (المستخدم الأول) للمراجعة والموافقة. هل أنت متأكد من إرسال هذا الطلب؟"
         icon={<Trash2 size={36} className="text-rose-500" />}
-        confirmLabel="إرسال طلب الحذف"
+        confirmLabel="تأكيد وإرسال الطلب"
         cancelLabel="إلغاء"
         confirmDanger
         onCancel={() => setModal(null)}
