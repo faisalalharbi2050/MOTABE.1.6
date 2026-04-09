@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { X, CalendarDays, ChevronRight, Printer, CheckCircle2, AlertCircle } from 'lucide-react';
-import { DateObject } from 'react-multi-date-picker';
-import arabic from 'react-date-object/calendars/arabic';
-import arabic_ar from 'react-date-object/locales/arabic_ar';
+import { X, CalendarDays, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SchoolInfo } from '../../types';
 import SemesterManager from '../wizard/SemesterManager';
 import PrintCalendarModal from './PrintCalendarModal';
@@ -28,22 +25,25 @@ function formatDayName(isoDate: string): string {
   } catch { return ''; }
 }
 
-// التاريخ الهجري فقط: "19/2/1447هـ"
+// التاريخ الهجري: "١٩ صفر ١٤٤٧ هـ" — بأرقام عربية لا تُسبب مشكلة BiDi
 function formatHijriDate(isoDate: string): string {
   try {
     const d = new Date(isoDate + 'T00:00:00');
     if (isNaN(d.getTime())) return '';
-    const h = new DateObject({ date: d, calendar: arabic, locale: arabic_ar });
-    return `\u200F${h.day}/${h.month.number}/${h.year}هـ`;
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    }).format(d);
   } catch { return ''; }
 }
 
-// التاريخ الميلادي: "14/9/2025م"
+// التاريخ الميلادي: "١٤ سبتمبر ٢٠٢٥"
 function formatGreg(isoDate: string): string {
   try {
     const d = new Date(isoDate + 'T00:00:00');
     if (isNaN(d.getTime())) return '';
-    return `\u200F${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}م`;
+    return new Intl.DateTimeFormat('ar-EG', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    }).format(d);
   } catch { return ''; }
 }
 
@@ -57,16 +57,8 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
   const latestCalendar = getLatestCalendar();
   const hasData = !!(schoolInfo.semesters && schoolInfo.semesters.length > 0);
 
-  const initChecked = (): Record<string, Set<number>> => {
-    if (!latestCalendar) return {};
-    return Object.fromEntries(
-      latestCalendar.regions.map(r => [r.id, new Set(r.semesters.map((_, i) => i))])
-    );
-  };
-
-  const [screen, setScreen]   = useState<Screen>(hasData ? 'manager' : 'choose');
-  const [checked, setChecked] = useState<Record<string, Set<number>>>(initChecked);
-  const [saved, setSaved]     = useState(false);
+  const [screen, setScreen] = useState<Screen>(hasData ? 'manager' : 'choose');
+  const [saved, setSaved]   = useState(false);
   const [showPrint, setShowPrint]           = useState(false);
   const [printDefaultId, setPrintDefaultId] = useState<string | undefined>();
 
@@ -79,12 +71,10 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
 
   const handleAdopt = (regionId: string) => {
     if (!latestCalendar) return;
-    const region  = latestCalendar.regions.find(r => r.id === regionId);
+    const region = latestCalendar.regions.find(r => r.id === regionId);
     if (!region) return;
-    const indices = [...(checked[regionId] ?? new Set())].sort((a, b) => a - b);
-    if (indices.length === 0) return;
-    const newSemesters = indices.map((i, order) => ({
-      ...region.semesters[i],
+    const newSemesters = region.semesters.map((sem, order) => ({
+      ...sem,
       id: `preset-${Date.now()}-${order}`,
       isCurrent: order === 0,
     }));
@@ -96,16 +86,6 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
     }));
     setScreen('manager');
   };
-
-  const toggleCheck = (regionId: string, idx: number) => {
-    setChecked(prev => {
-      const s = new Set(prev[regionId] ?? []);
-      s.has(idx) ? s.delete(idx) : s.add(idx);
-      return { ...prev, [regionId]: s };
-    });
-  };
-
-  const anyChecked = (regionId: string) => (checked[regionId]?.size ?? 0) > 0;
 
   return (
     <>
@@ -155,28 +135,23 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
 
                   <button
                     onClick={() => setScreen('preset-region')}
-                    className="flex-1 flex flex-col gap-1.5 p-6 rounded-2xl border-2 border-slate-200 bg-white hover:border-[#8779fb] hover:shadow-md transition-all duration-200 text-right"
+                    className="flex-1 flex flex-col items-center gap-1.5 p-6 rounded-2xl border-2 border-slate-200 bg-white hover:border-[#8779fb] hover:shadow-md transition-all duration-200 text-center"
                   >
                     <p className="text-sm font-black text-slate-800">
-                      التقويم الدراسي للعام الحالي
+                      تقويم دراسي جاهز
                     </p>
-                    {latestCalendar && (
-                      <p className="text-xs font-black text-[#8779fb]">
-                        {latestCalendar.yearDisplay}
-                      </p>
-                    )}
-                    <p className="text-xs font-bold text-slate-400 mt-1 leading-relaxed">
-                      يُضبط تلقائياً وفق منطقتك كنقطة بداية قابلة للتعديل
+                    <p className="text-xs font-bold text-slate-400 leading-relaxed">
+                      تقويم جاهز وفق المناطق، ويمكنك اعتماده أو تعديله
                     </p>
                   </button>
 
                   <button
                     onClick={() => setScreen('manager')}
-                    className="flex-1 flex flex-col gap-1.5 p-6 rounded-2xl border-2 border-slate-200 bg-white hover:border-[#8779fb] hover:shadow-md transition-all duration-200 text-right"
+                    className="flex-1 flex flex-col items-center gap-1.5 p-6 rounded-2xl border-2 border-slate-200 bg-white hover:border-[#8779fb] hover:shadow-md transition-all duration-200 text-center"
                   >
                     <p className="text-sm font-black text-slate-800">تقويم دراسي مخصص</p>
                     <p className="text-xs font-bold text-slate-400 mt-1 leading-relaxed">
-                      أدخل التواريخ وأيام الدراسة يدوياً بحرية كاملة
+                      إدخال التواريخ والأيام الدراسية يدوياً
                     </p>
                   </button>
 
@@ -191,7 +166,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                 {/* زر العودة — إطار رمادي + سهم لليمين */}
                 <button
                   onClick={() => setScreen(hasData ? 'manager' : 'choose')}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 border border-slate-200 bg-white rounded-xl px-3 py-1.5 hover:border-slate-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 border border-slate-200 bg-white rounded-xl px-3 py-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   <ChevronRight size={14} />
                   {hasData ? 'العودة للتقويم الحالي' : 'تغيير طريقة الإعداد'}
@@ -199,7 +174,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
 
                 {/* ملاحظة مرجعية — بنفسجية */}
                 <p className="text-center text-xs font-bold text-[#8779fb]">
-                  تحقق من الأيام الدراسية والإجازات الرسمية ويمكنك التعديل بسهولة
+                  تقويم جاهز لمنطقتك — قابل للتعديل
                 </p>
 
                 {/* بطاقات المناطق */}
@@ -219,59 +194,52 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                         </p>
                       </div>
 
-                      {/* الفصول مع شيك بوكس */}
-                      <div className="px-5 py-4 space-y-4 flex-1">
+                      {/* الفصول — عرض فقط بدون شيك بوكس */}
+                      <div className="px-5 py-4 flex-1">
                         {region.semesters.map((sem, idx) => (
-                          <label
-                            key={idx}
-                            className="flex items-start gap-3 cursor-pointer group"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked[region.id]?.has(idx) ?? false}
-                              onChange={() => toggleCheck(region.id, idx)}
-                              className="mt-1 w-4 h-4 shrink-0 accent-[#655ac1] cursor-pointer"
-                            />
-                            <div className="text-right flex-1">
-                              <p className="text-sm font-black text-slate-800 group-hover:text-[#655ac1] transition-colors">
+                          <React.Fragment key={idx}>
+                            {idx > 0 && (
+                              <div className="my-4 flex items-center gap-3">
+                                <div className="flex-1 h-px bg-slate-100" />
+                                <span className="text-[10px] font-bold text-slate-300 shrink-0">✦</span>
+                                <div className="flex-1 h-px bg-slate-100" />
+                              </div>
+                            )}
+                            <div className="text-right">
+                              <p className="text-sm font-black text-slate-800">
                                 {sem.name}
                               </p>
-                              {/* بداية الفصل */}
-                              <p className="text-[11px] font-bold text-slate-500 mt-1.5">البداية</p>
-                              <p className="text-xs font-bold text-slate-700" dir="rtl">
-                                {formatDayName(sem.startDate)}
+                              <p className="text-[11px] font-bold text-slate-500 mt-1.5">
+                                البداية · {formatDayName(sem.startDate)}
                               </p>
-                              <p className="text-xs font-bold text-slate-600" dir="rtl">
+                              <p className="text-xs font-bold text-slate-600">
                                 {formatHijriDate(sem.startDate)}
                               </p>
-                              <p className="text-xs font-medium text-slate-400" dir="rtl">
+                              <p className="text-xs font-medium text-slate-400">
                                 {formatGreg(sem.startDate)}
                               </p>
                               <div className="my-1.5 border-t border-dashed border-slate-100" />
-                              {/* نهاية الفصل */}
-                              <p className="text-[11px] font-bold text-slate-500">النهاية</p>
-                              <p className="text-xs font-bold text-slate-700" dir="rtl">
-                                {formatDayName(sem.endDate)}
+                              <p className="text-[11px] font-bold text-slate-500">
+                                النهاية · {formatDayName(sem.endDate)}
                               </p>
-                              <p className="text-xs font-bold text-slate-600" dir="rtl">
+                              <p className="text-xs font-bold text-slate-600">
                                 {formatHijriDate(sem.endDate)}
                               </p>
-                              <p className="text-xs font-medium text-slate-400" dir="rtl">
+                              <p className="text-xs font-medium text-slate-400">
                                 {formatGreg(sem.endDate)}
                               </p>
                             </div>
-                          </label>
+                          </React.Fragment>
                         ))}
                       </div>
 
-                      {/* زر الاعتماد — إطار رمادي + خلفية بيضاء + نص بنفسجي */}
+                      {/* زر الاعتماد */}
                       <div className="px-5 py-4 border-t border-slate-100">
                         <button
                           onClick={() => handleAdopt(region.id)}
-                          disabled={!anyChecked(region.id)}
-                          className="w-full py-2.5 border border-slate-200 bg-white text-[#655ac1] text-sm font-black rounded-xl transition-all hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-white disabled:hover:text-[#655ac1] disabled:hover:border-slate-200"
+                          className="w-full py-2.5 border border-slate-200 bg-white text-[#655ac1] text-sm font-black rounded-xl transition-all hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] hover:-translate-y-0.5 active:translate-y-0"
                         >
-                          اعتماد المحدد
+                          اعتماد التقويم
                         </button>
                       </div>
                     </div>
@@ -341,15 +309,6 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
               )}
             </div>
             <div className="flex gap-2">
-              {hasData && (
-                <button
-                  onClick={() => setShowPrint(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 bg-white text-slate-600 rounded-xl text-sm font-bold hover:border-[#8779fb] hover:text-[#8779fb] transition-all"
-                >
-                  <Printer size={15} />
-                  طباعة
-                </button>
-              )}
               <button
                 onClick={onClose}
                 className="px-5 py-2.5 border border-slate-200 bg-white text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"

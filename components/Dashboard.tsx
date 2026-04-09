@@ -228,10 +228,11 @@ const Dashboard: React.FC<DashboardProps> = ({
               </h4>
               <button
                 onClick={() => setShowAcademicCalendar(true)}
-                className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-2.5 py-1 flex items-center gap-1 transition-colors"
+                className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-1 transition-colors"
+                style={{ padding: currentSemester ? '6px' : '4px 10px' }}
               >
-                <Settings2 size={13} />
-                إعداد
+                <Settings2 size={currentSemester ? 15 : 13} />
+                {!currentSemester && 'إعداد'}
               </button>
             </div>
 
@@ -245,11 +246,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                       {schoolInfo.academicYear}
                     </span>
                   </div>
-                  {(schoolInfo.semesters?.length ?? 0) > 0 && (
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {semesterCountLabel(schoolInfo.semesters?.length ?? 0)}
-                    </span>
-                  )}
                 </div>
 
                 {/* تاريخ البداية */}
@@ -260,26 +256,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                     { day: 'numeric', month: 'long', year: 'numeric' }
                   ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
                 </div>
-
-                {/* شريط التقدم */}
-                {currentWeek !== null && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-slate-500">
-                        أسبوع {currentWeek} من {currentSemester.weeksCount}
-                      </span>
-                      <span className="text-xs font-black text-[#655ac1]">
-                        {Math.round((currentWeek / currentSemester.weeksCount) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#655ac1] to-[#8779fb] rounded-full transition-all duration-700"
-                        style={{ width: `${Math.round((currentWeek / currentSemester.weeksCount) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {/* تاريخ النهاية */}
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
