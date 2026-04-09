@@ -9,6 +9,7 @@ import {
   Calendar,
   CalendarCheck,
   CalendarX2,
+  CalendarDays,
   Layers,
   MoreVertical,
   Minus,
@@ -217,7 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px]">
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
+                <CalendarDays size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
                 التقويم الدراسي
               </h4>
               <button

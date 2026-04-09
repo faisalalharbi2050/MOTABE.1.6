@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserX, Eye, Shield, ShieldCheck, Clock, ClipboardList } from 'lucide-react';
+import { UserX, Eye, Shield, ShieldCheck, Clock, ClipboardList, Calendar } from 'lucide-react';
 import { DailyScheduleItem } from '../../types';
 
 interface DailyScheduleProps {
@@ -25,7 +25,7 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title 
       {/* ... header ... */}
       <div className="flex flex-col items-start gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
+          <Calendar size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
           <h3 className="font-bold text-slate-700 text-lg">{title}</h3>
         </div>
         <div className="flex gap-1 bg-slate-50 p-1 rounded-xl w-full">
