@@ -22,7 +22,6 @@ import {
 // ===== Sub-component imports =====
 import DutyScheduleBuilder from './duty/DutyScheduleBuilder';
 import SchoolTabs from './wizard/SchoolTabs';
-import AcademicYearPopup from './duty/AcademicYearPopup';
 import AcademicCalendarModal from './dashboard/AcademicCalendarModal';
 import DutySettingsPage from './duty/DutySettingsPage';
 import DutyMonitoringModal from './duty/DutyMonitoring';
@@ -68,7 +67,6 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   const DUTY_ONE_TIME_RESET_MARKER = 'duty_data_reset_2026_04_04_done';
   // ===== State =====
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
-  const [showAcademicPopup, setShowAcademicPopup] = useState(false);
   const [showAcademicCalendarModal, setShowAcademicCalendarModal] = useState(false);
   const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
@@ -202,7 +200,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     const isReportLink = params.get('staffId') && params.get('day') && params.get('date');
     if (isReportLink) return;
     if (!schoolInfo.academicYear || !(schoolInfo.semesters && schoolInfo.semesters.length > 0)) {
-      setShowAcademicPopup(true);
+      setShowAcademicCalendarModal(true);
     }
   }, [schoolInfo]);
 
@@ -596,7 +594,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         onGoToSettings={() => {
           setShowPreCheckModal(false);
           if (!hasSemesterDates) {
-            setShowAcademicPopup(true);
+            setShowAcademicCalendarModal(true);
             return;
           }
           setShowSettingsPage(true);
@@ -604,20 +602,6 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         secondaryActionLabel={hasSemesterDates ? 'تعديل الإعدادات' : 'تحديد الفصل الدراسي'}
         checks={preChecks}
       />
-
-      {/* Academic Year Popup */}
-      {showAcademicPopup && (
-        <AcademicYearPopup
-          schoolInfo={schoolInfo}
-          setSchoolInfo={setSchoolInfo}
-          onClose={() => setShowAcademicPopup(false)}
-          showToast={showToast}
-          onOpenAcademicCalendar={() => {
-            setShowAcademicPopup(false);
-            setShowAcademicCalendarModal(true);
-          }}
-        />
-      )}
 
       <AcademicCalendarModal
         isOpen={showAcademicCalendarModal}
