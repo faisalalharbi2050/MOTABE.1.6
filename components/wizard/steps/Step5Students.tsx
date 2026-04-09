@@ -1503,7 +1503,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                       <AlertTriangle size={32} className="text-rose-500" />
                     </div>
                     <div>
-                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذف؟</p>
+                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذݿ</p>
                       <p className="text-sm text-slate-500 font-medium">
                         سيتم حذف <span className="font-black text-rose-500">{selectedStudents.size}</span> طالب محدد بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
                       </p>
@@ -1546,7 +1546,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                       <AlertTriangle size={32} className="text-rose-500" />
                     </div>
                     <div>
-                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من حذف جميع الطلاب؟</p>
+                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من حذف جميع الطلاȿ</p>
                       <p className="text-sm text-slate-500 font-medium">
                         سيتم حذف <span className="font-black text-rose-500">{schoolStudents.length}</span> طالب بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
                       </p>
@@ -2107,7 +2107,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     <AlertTriangle size={32} className="text-rose-500" />
                   </div>
                   <div>
-                    <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذف؟</p>
+                    <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذݿ</p>
                     <p className="text-sm text-slate-500 font-medium">
                       سيتم حذف جميع{' '}
                       <span className="font-black text-rose-500">{targetStudents.length}</span>{' '}

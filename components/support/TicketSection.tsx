@@ -73,7 +73,7 @@ const MOCK_TICKETS: Ticket[] = [
       },
       {
         from: 'user',
-        text: 'نعم وجدت المشكلة، كنت أستخدم بريداً مختلفاً. شكراً جزيلاً!',
+        text: 'نعم وجدت المشكلɡ كنت أستخدم بريداً مختلفاً. شكراً جزيلاً!',
         date: '2026-03-09',
         time: '11:05 ص',
       },
@@ -163,7 +163,7 @@ const WorkingHoursCard: React.FC = () => {
           الأحد – الخميس &nbsp;|&nbsp; 8:00 ص — 2:30 م
         </p>
         <p className="text-xs text-[#8779fb] font-medium mt-1.5 leading-relaxed">
-          يهمنا مساعدتك، يُرجى رفع تذكرتك وسنرد عليك في أقرب وقت.
+          يهمنا مساعدتߡ يُرجى رفع تذكرتك وسنرد عليك في أقرب وقت.
         </p>
       </div>
       <div className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border font-bold text-xs whitespace-nowrap
@@ -478,7 +478,7 @@ const TicketSection: React.FC = () => {
                   <div>
                     <p className="text-sm font-black text-[#655ac1]">أوقات الرد الرسمية</p>
                     <p className="text-xs font-medium text-[#655ac1] mt-0.5 leading-relaxed">
-                      يتم الرد على التذاكر خلال أوقات العمل: الأحد إلى الخميس، 8:00 ص - 2:30 م.
+                      يتم الرد على التذاكر خلال أوقات العمل: الأحد إلى الخميӡ 8:00 ص - 2:30 م.
                     </p>
                   </div>
                 </div>
@@ -550,7 +550,7 @@ const TicketSection: React.FC = () => {
                   value={formDesc}
                   onChange={e => setFormDesc(e.target.value)}
                   rows={3}
-                  placeholder="اشرح مشكلتك بالتفصيل: متى بدأت؟ ما الخطوات التي أدت إليها؟ ما الرسالة التي ظهرت؟"
+                  placeholder="اشرح مشكلتك بالتفصيل: متى بدأʿ ما الخطوات التي أدت إليهǿ ما الرسالة التي ظهرʿ"
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 resize-none transition-all"
                 />
               </div>

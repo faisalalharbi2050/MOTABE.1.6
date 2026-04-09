@@ -474,7 +474,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
                         onChange={e => updateTaskTitle(index, e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && saveTask()}
                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-sm font-bold text-slate-800 outline-none focus:border-[#655ac1] focus:bg-white focus:shadow-sm transition-all placeholder:font-normal placeholder:text-slate-300"
-                        placeholder="مثال: اجتماع تخصصي، لجنة التميز، اختبار نافس..."
+                        placeholder="مثال: اجتماع تخصصي، لجنة التميҡ اختبار نافس..."
                       />
                       {!editingTask && taskTitles.length > 1 && (
                         <button

@@ -1916,8 +1916,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
             <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
               {(currentSession?.assignments || []).length > 0
-                ? 'يوجد إسنادات سابقة — هل تريد الاستمرار وإعادة التوزيع؟ سيتم استبدال الإسنادات غير المكتملة.'
-                : `هل تريد بدء التوزيع التلقائي لـ ${currentSession?.absentTeachers.length || 0} معلم غائب؟`
+                ? 'يوجد إسنادات سابقة — هل تريد الاستمرار وإعادة التوزيڿ سيتم استبدال الإسنادات غير المكتملة.'
+                : `هل تريد بدء التوزيع التلقائي لـ ${currentSession?.absentTeachers.length || 0} معلم غائȿ`
               }
             </p>
             <div className="flex gap-2 px-6 pb-6">
@@ -2279,7 +2279,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
                         <AlertTriangle size={16} className="text-amber-500 shrink-0" />
                         <p className="text-sm font-bold text-amber-800 flex-1">
-                          سيتم تسجيل غياب {totalCount} معلم{totalCount > 1 ? 'ين' : ''} — هل أنت متأكد؟
+                          سيتم تسجيل غياب {totalCount} معلم{totalCount > 1 ? 'ين' : ''} — هل أنت متأكϿ
                         </p>
                       </div>
                       <div className="flex gap-3">
@@ -2832,7 +2832,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </div>
               <h2 className="text-xl font-black text-slate-800 mb-2">التبديل إلى الوضع اليدوي</h2>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                يوجد توزيع حالي لهذا اليوم. سيؤدي التبديل إلى الوضع اليدوي إلى <strong className="text-rose-500">حذف جميع التوزيعات المسندة</strong>. هل تريد المتابعة؟
+                يوجد توزيع حالي لهذا اليوم. سيؤدي التبديل إلى الوضع اليدوي إلى <strong className="text-rose-500">حذف جميع التوزيعات المسندة</strong>. هل تريد المتابعɿ
               </p>
             </div>
             <div className="px-6 pb-6 flex gap-3">
@@ -2871,7 +2871,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </div>
               <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد التوزيع التلقائي</h2>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                يوجد توزيع حالي لهذا اليوم. سيؤدي التوزيع التلقائي إلى <strong className="text-rose-500">حذف التوزيع الحالي</strong> وإعادة التوزيع من الصفر. هل تريد المتابعة؟
+                يوجد توزيع حالي لهذا اليوم. سيؤدي التوزيع التلقائي إلى <strong className="text-rose-500">حذف التوزيع الحالي</strong> وإعادة التوزيع من الصفر. هل تريد المتابعɿ
               </p>
             </div>
             <div className="px-6 pb-6 flex gap-3">
@@ -3800,7 +3800,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             </button>
                           ) : (
                             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex flex-col gap-2">
-                              <p className="text-xs font-black text-rose-700 whitespace-nowrap">تأكيد التصفير؟</p>
+                              <p className="text-xs font-black text-rose-700 whitespace-nowrap">تأكيد التصفيѿ</p>
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => setResetConfirmStep('idle')}

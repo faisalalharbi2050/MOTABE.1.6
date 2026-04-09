@@ -190,7 +190,7 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
               </div>
               <h2 className="text-xl font-black text-slate-800 mb-2">تنبيه: يوجد جدول حالي</h2>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                اختيارك للتوزيع اليدوي سيقوم بمسح الجدول الحالي بالكامل (بما في ذلك أي توزيع تلقائي أو يدوي سابق). هل أنت متأكد من رغبتك بالاستمرار؟
+                اختيارك للتوزيع اليدوي سيقوم بمسح الجدول الحالي بالكامل (بما في ذلك أي توزيع تلقائي أو يدوي سابق). هل أنت متأكد من رغبتك بالاستمراѿ
               </p>
             </div>
             <div className="p-6 pt-0 flex gap-3">

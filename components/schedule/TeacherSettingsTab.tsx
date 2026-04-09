@@ -499,7 +499,7 @@ export default function TeacherSettingsTab({
                         <div className="p-2 bg-white rounded-xl shadow-sm text-[#655ac1]"><Clock size={20} /></div>
                         <div>
                             <h4 className="font-black text-slate-800 text-sm">قيود متقدمة</h4>
-                            <p className="text-[10px] text-slate-500 font-bold mt-0.5">الحدود اليومية، الخروج المبكر، وتوزيع الحصص</p>
+                            <p className="text-[10px] text-slate-500 font-bold mt-0.5">الحدود اليوميɡ الخروج المبكѡ وتوزيع الحصص</p>
                         </div>
                     </div>
 

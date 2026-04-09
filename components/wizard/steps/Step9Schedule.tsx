@@ -233,7 +233,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
      if (teachers.length === 0 || classes.length === 0 || subjects.length === 0) {
          setMissingDataAlert({
              title: "بيانات أساسية مفقودة",
-             message: "لا يمكن بناء الجدول. تأكد من إضافة بيانات المعلمين، المواد، والفصول الدراسية في الخطوات السابقة."
+             message: "لا يمكن بناء الجدول. تأكد من إضافة بيانات المعلمين، المواϡ والفصول الدراسية في الخطوات السابقة."
          });
          return;
      }
@@ -1529,7 +1529,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                         </div>
                     </div>
                     <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
-                        لديك حصص انتظار موزّعة يدوياً. تغيير الطريقة سيحذفها نهائياً. هل تريد المتابعة؟
+                        لديك حصص انتظار موزّعة يدوياً. تغيير الطريقة سيحذفها نهائياً. هل تريد المتابعɿ
                     </p>
                     <div className="flex gap-3 justify-end">
                         <button

@@ -141,7 +141,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                       تقويم دراسي جاهز
                     </p>
                     <p className="text-xs font-bold text-slate-400 leading-relaxed">
-                      تقويم جاهز وفق المناطق، ويمكنك اعتماده أو تعديله
+                      تقويم جاهز وفق المناطޡ ويمكنك اعتماده أو تعديله
                     </p>
                   </button>
 

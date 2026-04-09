@@ -611,7 +611,7 @@ export default function TeacherConstraintsModal({
                         <div className="flex items-start gap-2.5">
                           <div className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0 mt-0.5 font-black text-[10px]">١</div>
                           <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                            <span className="font-black text-slate-700">التوزيع التلقائي:</span> يقوم النظام آلياً بحساب <span className="text-[#655ac1] font-black">عدد الفصول × عدد الأيام</span> = عدد الحصص الأولى والأخيرة المطلوبة، ثم يوزعها بالتساوي على جميع المعلمين.
+                            <span className="font-black text-slate-700">التوزيع التلقائي:</span> يقوم النظام آلياً بحساب <span className="text-[#655ac1] font-black">عدد الفصول × عدد الأيام</span> = عدد الحصص الأولى والأخيرة المطلوبɡ ثم يوزعها بالتساوي على جميع المعلمين.
                           </p>
                         </div>
                         <div className="flex items-start gap-2.5">
@@ -625,7 +625,7 @@ export default function TeacherConstraintsModal({
                               </li>
                               <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
                                 <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
-                                تتبّع شريط التغطية أدناه لمعرفة حالة التوزيع، وفي حال وجود نقص سيظهر لك تنبيه تلقائي.
+                                تتبّع شريط التغطية أدناه لمعرفة حالة التوزيڡ وفي حال وجود نقص سيظهر لك تنبيه تلقائي.
                               </li>
                               <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
                                 <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>

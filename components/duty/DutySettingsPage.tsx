@@ -289,7 +289,7 @@ const DutySettingsPage: React.FC<Props> = ({
               </div>
               <h2 className="text-xl font-black text-slate-800 mb-2">الإعدادات غير محفوظة</h2>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                لم تقم بحفظ الإعدادات بعد. هل تريد الخروج بدون حفظ؟
+                لم تقم بحفظ الإعدادات بعد. هل تريد الخروج بدون حفٿ
               </p>
             </div>
             <div className="p-6 pt-0 flex gap-3">

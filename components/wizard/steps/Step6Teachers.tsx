@@ -470,7 +470,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         const primaryName = primaryId === 'main'
           ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
           : schoolInfo.sharedSchools?.find(s => s.id === primaryId)?.name || primaryId;
-        // ابدأ من schools[] الموجودة، أو أنشئ مدخلاً للمدرسة الأساسية
+        // ابدأ من schools[] الموجودɡ أو أنشئ مدخلاً للمدرسة الأساسية
         let baseSchools = t.schools?.length ? [...t.schools] : [];
         // تأكد من وجود مدخل للمدرسة الأساسية بالنصاب الصحيح
         if (!baseSchools.some(s => s.schoolId === primaryId)) {
@@ -479,7 +479,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             ...baseSchools,
           ];
         } else {
-          // إذا كانت schools[0].lessons لا تعكس quotaLimit الفعلي للمعلم غير المشترك، صحّحها
+          // إذا كانت schools[0].lessons لا تعكس quotaLimit الفعلي للمعلم غير المشترߡ صحّحها
           if (!t.isShared) {
             baseSchools = baseSchools.map(s =>
               s.schoolId === primaryId ? { ...s, lessons: t.quotaLimit || s.lessons, waiting: t.waitingQuota ?? s.waiting } : s
@@ -1214,7 +1214,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                          <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3">
                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                            <p className="text-xs font-bold text-amber-700 leading-relaxed">
-                             إجمالي النصاب الحالي <span className="text-amber-900">{quotaTotal}</span> حصة، وهو يتجاوز النصاب الرسمي (24). يمكنك المتابعة لكن يُنصح بمراجعة النصاب.
+                             إجمالي النصاب الحالي <span className="text-amber-900">{quotaTotal}</span> حصɡ وهو يتجاوز النصاب الرسمي (24). يمكنك المتابعة لكن يُنصح بمراجعة النصاب.
                            </p>
                          </div>
                        ) : null;
@@ -1437,7 +1437,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                    وجدنا معلمين مشابهين — راجع قبل الإضافة
                  </h3>
                  <p className="text-xs text-slate-400 font-bold mt-0.5">
-                   وجدنا {importReviewItems.length} معلماً في الملف يشبه معلماً موجوداً — ماذا تريد أن تفعل بكل واحد؟
+                   وجدنا {importReviewItems.length} معلماً في الملف يشبه معلماً موجوداً — ماذا تريد أن تفعل بكل واحϿ
                  </p>
                </div>
                <button onClick={() => { setShowImportReviewModal(false); setShowSelectAllConfirm(false); }} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all shrink-0">
@@ -1454,7 +1454,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                </button>
              ) : (
                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-                 <p className="text-xs font-black text-amber-800 text-center">سيتم اعتبار الجميع أشخاصاً مختلفين وإضافتهم كمعلمين جدد — هل أنت متأكد؟</p>
+                 <p className="text-xs font-black text-amber-800 text-center">سيتم اعتبار الجميع أشخاصاً مختلفين وإضافتهم كمعلمين جدد — هل أنت متأكϿ</p>
                  <div className="flex gap-2">
                    <button
                      onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); setShowSelectAllConfirm(false); }}
@@ -1529,7 +1529,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                          }`}
                        >
-                         لا، شخص مختلف
+                         لǡ شخص مختلف
                        </button>
                      )}
                    </div>
@@ -1623,7 +1623,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                          <div>
                            <p className="text-sm font-black text-amber-800">وجدنا معلماً بنفس الاسم في مدرسة {selectedSchoolName}</p>
-                           <p className="text-xs text-amber-700 mt-1">الاسم: <span className="font-bold">{autoMatch.name}</span> — هل هو نفس الشخص؟</p>
+                           <p className="text-xs text-amber-700 mt-1">الاسم: <span className="font-bold">{autoMatch.name}</span> — هل هو نفس الشخտ</p>
                          </div>
                        </div>
                        <button
@@ -1642,7 +1642,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                        >
                          <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-lg flex-shrink-0">+</span>
                          <div>
-                           <p className="text-sm font-black text-slate-700">لا، شخص مختلف</p>
+                           <p className="text-sm font-black text-slate-700">لǡ شخص مختلف</p>
                            <p className="text-xs text-slate-400">سيُضاف كمعلم مشترك مستقل</p>
                          </div>
                        </button>
@@ -1666,7 +1666,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                    );
                  }
 
-                 // حالة: لا يوجد تطابق أو اختار "لا، شخص مختلف"
+                 // حالة: لا يوجد تطابق أو اختار "لǡ شخص مختلف"
                  const usedQuota = currentTeacher?.isShared && currentTeacher?.schools?.length
                    ? currentTeacher.schools.reduce((sum, s) => sum + (s.lessons || 0) + (s.waiting || 0), 0)
                    : (currentTeacher ? (currentTeacher.quotaLimit || 0) + (currentTeacher.waitingQuota || 0) : 0);
@@ -1761,7 +1761,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                <button onClick={() => setShowUnlinkSchoolModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all"><X size={20} /></button>
              </div>
              <div className="p-6 space-y-4">
-               <p className="text-sm font-black text-slate-700">فك الارتباط عن أي مدرسة؟</p>
+               <p className="text-sm font-black text-slate-700">فك الارتباط عن أي مدرسɿ</p>
                <div className="space-y-2">
                  {schools.map(s => (
                    <label key={s.schoolId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${unlinkSchoolSelectedId === s.schoolId ? 'border-rose-300 bg-rose-50' : 'border-slate-100 hover:border-rose-200 hover:bg-rose-50/40'}`}>

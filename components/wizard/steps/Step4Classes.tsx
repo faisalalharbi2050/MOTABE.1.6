@@ -988,7 +988,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             <div className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-200 rounded-2xl animate-in zoom-in-95 duration-200">
               <AlertTriangle size={20} className="text-orange-500" />
               <span className="text-sm font-bold text-orange-700 flex-1">
-                سيتم حذف جميع فصول مدرسة "{activeSchoolId === 'main' ? schoolInfo.schoolName : schoolInfo.sharedSchools?.find(s=>s.id === activeSchoolId)?.name}" في مرحلة "{activePhase}". هل أنت متأكد؟
+                سيتم حذف جميع فصول مدرسة "{activeSchoolId === 'main' ? schoolInfo.schoolName : schoolInfo.sharedSchools?.find(s=>s.id === activeSchoolId)?.name}" في مرحلة "{activePhase}". هل أنت متأكϿ
               </span>
               <button onClick={handleDeleteAll} className="px-4 py-2 bg-rose-500 text-white rounded-lg text-xs font-bold hover:bg-rose-600 transition-all">
                 نعم، احذف الكل
@@ -1381,7 +1381,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               </div>
               <div>
                   <h3 className="text-lg font-black text-slate-800">المرافق المدرسية</h3>
-                  <p className="text-sm text-slate-400">معامل، مختبرات، صالات رياضية، وغيرها</p>
+                  <p className="text-sm text-slate-400">معامل، مختبراʡ صالات رياضيɡ وغيرها</p>
               </div>
           </div>
 
@@ -1425,7 +1425,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                   type="text"
                                   value={facilityOtherType}
                                   onChange={e => setFacilityOtherType(e.target.value)}
-                                  placeholder="مثال: مكتبة، مسرح..."
+                                  placeholder="مثال: مكتبɡ مسرح..."
                                   className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
                               />
                           </div>
@@ -1447,7 +1447,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
                       {/* Capacity */}
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">كم فصلاً يمكنه استيعابهم في نفس الوقت؟</label>
+                          <label className="block text-xs font-bold text-slate-500 mb-2">كم فصلاً يمكنه استيعابهم في نفس الوقʿ</label>
                           <div className="flex gap-2">
                               {[1, 2, 3, 4].map(n => (
                                   <button
@@ -2151,7 +2151,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         <div className="border-t border-slate-100 my-1"/>
         {portalDeleteId === portalDropdown.classId ? (
           <div className="px-4 py-2.5">
-            <p className="text-xs text-rose-600 font-bold mb-2">تأكيد الحذف؟</p>
+            <p className="text-xs text-rose-600 font-bold mb-2">تأكيد الحذݿ</p>
             <div className="flex gap-2">
               <button onClick={() => { handleDeleteOne(portalDropdown.classId); setPortalDropdown(null); setPortalDeleteId(null); }} className="flex-1 py-1.5 bg-rose-500 text-white text-xs rounded-lg font-black">حذف</button>
               <button onClick={() => setPortalDeleteId(null)} className="flex-1 py-1.5 bg-slate-100 text-slate-600 text-xs rounded-lg font-black">إلغاء</button>

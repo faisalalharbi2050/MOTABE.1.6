@@ -643,7 +643,7 @@ const ClassSetup: React.FC<Props> = ({
           {/* حذف الفصل */}
           {deleteConfirm === dropdown.classId ? (
             <div className="px-4 py-2.5">
-              <p className="text-xs text-rose-600 font-bold mb-2">تأكيد الحذف؟</p>
+              <p className="text-xs text-rose-600 font-bold mb-2">تأكيد الحذݿ</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => deleteClass(dropdown.classId)}

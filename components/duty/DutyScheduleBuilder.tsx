@@ -168,7 +168,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   const handleAutoAssign = () => {
     if (availableStaff.length === 0) {
-      showToast('ظ„ط§ ظٹظˆط¬ط¯ ظ…ظˆط¸ظپظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ„طھظˆط²ظٹط¹', 'warning');
+      showToast('لا يوجد موظفين متاحين للتوزيع', 'warning');
       return;
     }
 
@@ -181,7 +181,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         );
 
         setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
-        showToast('طھظ… ط§ظ„طھظˆط²ظٹط¹ ط§ظ„ط°ظƒظٹ ط¨ظ†ط¬ط§ط­ ط¨ظ†ط§ط،ظ‹ ط¹ظ„ظ‰ ط¬ط¯ظˆظ„ ط§ظ„ط­طµطµ ط§ظ„ظپط¹ظ„ظٹ', 'success');
+        showToast('تم التوزيع الذكي بنجاح بناءً على جدول الحصص الفعلي', 'success');
         setIsAutoAssign(true);
         setShowDistributionReport(true);
 
@@ -189,7 +189,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
           showToast(alerts[0], 'warning');
         }
       } catch (err) {
-        showToast('ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„طھظˆط²ظٹط¹', 'error');
+        showToast('حدث خطأ أثناء التوزيع', 'error');
         console.error(err);
       } finally {
         setIsGenerating(false);
@@ -200,7 +200,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   const resetSchedule = () => {
     setConfirmState({
       title: 'إعادة إنشاء الجدول',
-      message: 'سيتم مسح مسودة جدول المناوبة الحالي والبدء من جديد. هل تريد المتابعة؟',
+      message: 'سيتم مسح مسودة جدول المناوبة الحالي والبدء من جديد. هل تريد المتابعɿ',
       confirmLabel: 'نعم، إعادة الإنشاء',
       tone: 'danger',
       onConfirm: () => {
@@ -253,7 +253,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     setSelectedStaffIds(prev => {
       if (prev.includes(staffId)) return prev.filter(id => id !== staffId);
       if (assignedCount + prev.length >= maxCount) {
-        showToast(`طھظ… ط¨ظ„ظˆط؛ ط§ظ„ط­ط¯ ط§ظ„ط£ظ‚طµظ‰ ظ„ظ„ظ…ظ†ط§ظˆط¨ظٹظ† (${maxCount})`, 'error');
+        showToast(`تم بلوغ الحد الأقصى للمناوبين (${maxCount})`, 'error');
         return prev;
       }
       return [...prev, staffId];
@@ -282,7 +282,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   const removeStaffFromDay = (dayId: string, staffId: string) => {
     setConfirmState({
       title: 'حذف المناوب',
-      message: 'هل تريد حذف هذا المناوب من اليوم المحدد؟',
+      message: 'هل تريد حذف هذا المناوب من اليوم المحدϿ',
       confirmLabel: 'نعم، احذف',
       tone: 'danger',
       onConfirm: () => {
@@ -306,7 +306,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     const dayId = da.date || da.day;
     const existing = getStaffReport(da.day, sa.staffId);
     if (existing) {
-      showToast('طھظ… ط§ظ„طھط³ظ„ظٹظ… ظ…ط³ط¨ظ‚ط§ظ‹', 'warning');
+      showToast('تم التسليم مسبقاً', 'warning');
       return;
     }
     const newReport: DutyReportRecord = {
@@ -324,16 +324,16 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       isEmpty: true,
     };
     setDutyData(prev => ({ ...prev, reports: [...(prev.reports || []), newReport] }));
-    showToast('طھظ… طھط³ط¬ظٹظ„ ط§ظ„طھط³ظ„ظٹظ… ط§ظ„ظˆط±ظ‚ظٹ ط¨ظ†ط¬ط§ط­', 'success');
+    showToast('تم تسجيل التسليم الورقي بنجاح', 'success');
   };
 
-  /** Remove a manual (paper) submission â€” undo */
+  /** Remove a manual (paper) submission — undo */
   const unmarkManualSubmission = (day: string, staffId: string) => {
     setDutyData(prev => ({
       ...prev,
       reports: (prev.reports || []).filter(r => !(r.day === day && r.staffId === staffId && r.manuallySubmitted))
     }));
-    showToast('طھظ… ط§ظ„طھط±ط§ط¬ط¹ ط¹ظ† ط§ظ„طھط³ظ„ظٹظ… ط§ظ„ظˆط±ظ‚ظٹ', 'warning');
+    showToast('تم التراجع عن التسليم الورقي', 'warning');
   };
 
   const handleReportSubmit = (report: DutyReportRecord) => {
@@ -366,7 +366,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     dayAssignments.forEach(da => {
       da.staffAssignments.forEach(sa => {
         if (!map[sa.staffId]) {
-          map[sa.staffId] = { name: sa.staffName, type: sa.staffType === 'admin' ? 'ط¥ط¯ط§ط±ظٹ' : 'ظ…ط¹ظ„ظ…', count: 0 };
+          map[sa.staffId] = { name: sa.staffName, type: sa.staffType === 'admin' ? 'إداري' : 'معلم', count: 0 };
         }
         map[sa.staffId].count++;
       });
@@ -394,7 +394,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         onCancel={() => setConfirmState(null)}
       />
 
-      {/* Report Entry Form â€“ full screen overlay (used when filling via in-app link) */}
+      {/* Report Entry Form – full screen overlay (used when filling via in-app link) */}
       {reportEntryOpen && (
         <DutyReportEntry
           staffId={reportEntryOpen.staffId}
@@ -411,7 +411,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         />
       )}
 
-      {/* Report View Modal â€“ read-only preview of submitted report */}
+      {/* Report View Modal – read-only preview of submitted report */}
       {reportViewOpen && (
         <DutyReportViewModal
           isOpen={true}
@@ -424,7 +424,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         />
       )}
 
-      {/* â•گâ•گâ•گ Assignment Notification Banner â•گâ•گâ•گ */}
+      {/* ═══ Assignment Notification Banner ═══ */}
       {dayAssignments.some(da => da.staffAssignments.length > 0) && !assignmentBannerDismissed && (
         <div className="bg-gradient-to-l from-[#25D366]/10 via-[#e5e1fe]/20 to-[#007AFF]/10 border border-[#655ac1]/20 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-in slide-in-from-top-2 duration-300">
           <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
@@ -452,7 +452,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
           <button
             onClick={() => setAssignmentBannerDismissed(true)}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            title="ط¥ط؛ظ„ط§ظ‚"
+            title="إغلاق"
           >
             <X size={16} />
           </button>
@@ -471,8 +471,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                   <BarChart2 size={20} />
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 text-base">طھظ‚ط±ظٹط± طھظˆط²ظٹط¹ ط§ظ„ظ…ظ†ط§ظˆط¨ط©</h4>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">ظ†طµظٹط¨ ظƒظ„ ظ…ظˆط¸ظپ ظ…ظ† ط£ظٹط§ظ… ط§ظ„ظ…ظ†ط§ظˆط¨ط©</p>
+                  <h4 className="font-black text-slate-800 text-base">تقرير توزيع المناوبة</h4>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">نصيب كل موظف من أيام المناوبة</p>
                 </div>
               </div>
               <button onClick={() => setShowDistributionReport(false)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
@@ -485,7 +485,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
               {staffCountMap.length === 0 ? (
                 <div className="text-center py-10 text-slate-400">
                   <Shield size={32} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-bold text-sm">ظ„ط§ طھظˆط¬ط¯ ط¨ظٹط§ظ†ط§طھ طھظˆط²ظٹط¹ ط­طھظ‰ ط§ظ„ط¢ظ†</p>
+                  <p className="font-bold text-sm">لا توجد بيانات توزيع حتى الآن</p>
                 </div>
               ) : (
                 <>
@@ -493,10 +493,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                     <table className="w-full text-right text-sm">
                       <thead>
                         <tr className="bg-[#f3f0ff]">
-                          <th className="p-3 font-black text-[#655ac1] rounded-tr-xl">ط§ظ„طھط³ظ„ط³ظ„</th>
-                          <th className="p-3 font-black text-[#655ac1]">ط§ظ„ظ…ظˆط¸ظپ</th>
-                          <th className="p-3 font-black text-[#655ac1]">ط§ظ„ظˆط¸ظٹظپط©</th>
-                          <th className="p-3 font-black text-[#655ac1] text-center rounded-tl-xl">ط¹ط¯ط¯ ط§ظ„ظ…ظ†ط§ظˆط¨ط§طھ</th>
+                          <th className="p-3 font-black text-[#655ac1] rounded-tr-xl">التسلسل</th>
+                          <th className="p-3 font-black text-[#655ac1]">الموظف</th>
+                          <th className="p-3 font-black text-[#655ac1]">الوظيفة</th>
+                          <th className="p-3 font-black text-[#655ac1] text-center rounded-tl-xl">عدد المناوبات</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -511,7 +511,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                               </td>
                               <td className="p-3">
                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                                  info.type === 'ط¥ط¯ط§ط±ظٹ' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'
+                                  info.type === 'إداري' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'
                                 }`}>{info.type}</span>
                               </td>
                               <td className="p-3 text-center">
@@ -531,7 +531,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                     <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
                       <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
                       <p className="text-xs font-medium text-emerald-700">
-                        طھظˆط²ظٹط¹ ظ…طھط³ط§ظˆظچ طھط§ظ…: ط¬ظ…ظٹط¹ ط§ظ„ظ…ظˆط¸ظپظٹظ† ظ„ط¯ظٹظ‡ظ… {maxCount} ظٹظˆظ… ظ…ظ†ط§ظˆط¨ط©.
+                        توزيع متساوٍ تام: جميع الموظفين لديهم {maxCount} يوم مناوبة.
                       </p>
                     </div>
                   )}
@@ -549,9 +549,9 @@ const DutyScheduleBuilder: React.FC<Props> = ({
             <Info size={20} />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-bold text-blue-800">ظٹظˆط¬ط¯ ظ…ظ†ط§ظˆط¨ظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ… ظٹطھظ… طھظƒظ„ظٹظپظ‡ظ…</h4>
+            <h4 className="text-sm font-bold text-blue-800">يوجد مناوبين متاحين لم يتم تكليفهم</h4>
             <p className="text-xs text-blue-700 font-medium mt-0.5 leading-relaxed">
-              ظٹظˆط¬ط¯ ({unassignedStaff.length}) ظ…ظˆط¸ظپظٹظ† ظ…طھط§ط­ظٹظ† ظ„ظ„ظ…ظ†ط§ظˆط¨ط© ظ„ظ… ظٹطھظ… ط¥ط¶ط§ظپطھظ‡ظ… ظ„ظ„ط¬ط¯ظˆظ„ ظپظٹ ط£ظٹ ظٹظˆظ….
+              يوجد ({unassignedStaff.length}) موظفين متاحين للمناوبة لم يتم إضافتهم للجدول في أي يوم.
             </p>
           </div>
           {dayAssignments.length > 0 && (
@@ -560,7 +560,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
               className="flex items-center gap-2 border border-blue-300 bg-white hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl font-bold text-xs transition-all shrink-0"
             >
               <BarChart2 size={14} />
-              طھظ‚ط±ظٹط± ط§ظ„طھظˆط²ظٹط¹
+              تقرير التوزيع
             </button>
           )}
         </div>
@@ -595,7 +595,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                   <h4 className="font-black text-[#5C50A4] text-xl">{week.weekName}</h4>
                   {week.startDate && (
                     <span className="text-sm font-bold text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm">
-                      {formatDisplayDate(week.startDate)} ط¥ظ„ظ‰ {formatDisplayDate(week.endDate)}
+                      {formatDisplayDate(week.startDate)} إلى {formatDisplayDate(week.endDate)}
                     </span>
                   )}
                 </div>
@@ -660,11 +660,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           <td className="p-3 border-l border-slate-200/60 align-top">
                             {da.isOfficialLeave ? (
                               <div className="flex items-center justify-center p-3 bg-amber-50/50 border border-amber-100 rounded-xl">
-                                <span className="font-black text-amber-600 text-sm">{da.officialLeaveText || 'ط¥ط¬ط§ط²ط© ط±ط³ظ…ظٹط©'}</span>
+                                <span className="font-black text-amber-600 text-sm">{da.officialLeaveText || 'إجازة رسمية'}</span>
                               </div>
                             ) : da.isRemoteWork ? (
                               <div className="flex items-center justify-center p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                                <span className="font-black text-emerald-600 text-sm">ط§ظ„ط¹ظ…ظ„ ط¹ظ† ط¨ط¹ط¯ â€“ ظ…ط¯ط±ط³طھظٹ</span>
+                                <span className="font-black text-emerald-600 text-sm">العمل عن بعد – مدرستي</span>
                               </div>
                             ) : (
                               <div className="flex flex-col gap-2">
@@ -677,7 +677,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                     <button
                                       onClick={() => removeStaffFromDay(dayId, sa.staffId)}
                                       className="w-6 h-6 rounded-lg flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                      title="ط­ط°ظپ ط§ظ„ظ…ظ†ط§ظˆط¨"
+                                      title="حذف المناوب"
                                     >
                                       <Trash2 size={12} />
                                     </button>
@@ -763,7 +763,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                             )}
                           </td>
 
-                          {/* â”€â”€ ط¹ط§ظ…ظˆط¯ ط§ظ„طھظˆظ‚ظٹط¹ ط§ظ„ط±ظ‚ظ…ظٹ â”€â”€ */}
+                          {/* ── عامود التوقيع الرقمي ── */}
                           <td className="p-2 border-l border-slate-200/60 align-middle text-center">
                             {da.isOfficialLeave || da.isRemoteWork ? (
                               <span className="text-xs text-slate-300">-</span>
@@ -775,10 +775,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                       <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
                                         <img
                                           src={sa.signatureData}
-                                          alt="طھظˆظ‚ظٹط¹"
+                                          alt="توقيع"
                                           className="h-8 max-w-[90px] object-contain border border-emerald-200 rounded bg-white shadow-sm"
                                         />
-                                        <span className="text-[9px] text-emerald-600 font-bold">âœ… ظ…ظˆظ‚ظ‘ط¹</span>
+                                        <span className="text-[9px] text-emerald-600 font-bold">✅ موقّع</span>
                                       </div>
                                     );
                                   } else if (sa.signatureStatus === 'pending') {
@@ -787,13 +787,13 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                         <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center animate-pulse border border-amber-200">
                                           <Hourglass size={14} className="text-amber-500" />
                                         </div>
-                                        <span className="text-[9px] text-amber-600 font-bold">ط¨ط§ظ†طھط¸ط§ط± ط§ظ„طھظˆظ‚ظٹط¹</span>
+                                        <span className="text-[9px] text-amber-600 font-bold">بانتظار التوقيع</span>
                                       </div>
                                     );
                                   } else {
                                     return (
                                       <div key={sa.staffId} className="flex flex-col items-center gap-0.5">
-                                        <span className="text-[9px] text-slate-300 font-bold">ظ„ظ… ظٹظڈط±ط³ظ„</span>
+                                        <span className="text-[9px] text-slate-300 font-bold">لم يُرسل</span>
                                       </div>
                                     );
                                   }
@@ -805,7 +805,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                             )}
                           </td>
 
-                          {/* â”€â”€ ظ…ط¹ط§ظٹظ†ط© ظ†ظ…ظˆط°ط¬ ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظٹظˆظ…ظٹ (ظ‚ط±ط§ط،ط© ظپظ‚ط·) â”€â”€ */}
+                          {/* ── معاينة نموذج التقرير اليومي (قراءة فقط) ── */}
                           <td className="p-2 border-l border-slate-200/60 align-middle print:hidden text-center">
                             {da.isOfficialLeave || da.isRemoteWork ? (
                               <span className="text-xs text-slate-300">-</span>
@@ -818,7 +818,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                     <button
                                       key={sa.staffId}
                                       onClick={() => setReportViewOpen({ staffId: sa.staffId, staffName: sa.staffName, day: da.day, date: da.date || da.day })}
-                                      title="ظ†ظ…ظˆط°ط¬ ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظٹظˆظ…ظٹ ظ„ظ„ظ…ظ†ط§ظˆط¨ط©"
+                                      title="نموذج التقرير اليومي للمناوبة"
                                       className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all hover:shadow-sm active:scale-95 ${
                                         isSubmitted
                                           ? submittedReport?.manuallySubmitted
@@ -838,7 +838,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                             )}
                           </td>
 
-                          {/* â”€â”€ NEW: Report Submission Status Column (hidden in print) â”€â”€ */}
+                          {/* ── NEW: Report Submission Status Column (hidden in print) ── */}
                           <td className="p-2 border-l border-slate-200/60 align-middle print:hidden">
                             {da.isOfficialLeave || da.isRemoteWork ? (
                               <span className="text-xs text-slate-300 block text-center">-</span>
@@ -850,23 +850,23 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   const isPaper = report && report.manuallySubmitted;
                                   return (
                                     <div key={sa.staffId} className="flex gap-1">
-                                      {/* Electronic badge â€“ always visible, green when active */}
+                                      {/* Electronic badge – always visible, green when active */}
                                       <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border ${
                                         isElectronic
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                           : 'bg-slate-50 text-slate-300 border-slate-200'
                                       }`}>
                                         <ClipboardCheck size={10} />
-                                        ط¥ظ„ظƒطھط±ظˆظ†ظٹ
+                                        إلكتروني
                                       </span>
-                                      {/* Paper badge â€“ always visible, amber when active with undo */}
+                                      {/* Paper badge – always visible, amber when active with undo */}
                                       {isPaper ? (
                                         <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
                                           <ClipboardCheck size={10} />
-                                          ظˆط±ظ‚ظٹ
+                                          ورقي
                                           <button
                                             onClick={() => unmarkManualSubmission(da.day, sa.staffId)}
-                                            title="ط§ظ„طھط±ط§ط¬ط¹"
+                                            title="التراجع"
                                             className="hover:text-amber-900 transition-colors"
                                           >
                                             <X size={9} />
@@ -875,11 +875,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                       ) : (
                                         <button
                                           onClick={() => markManualSubmission(da, sa)}
-                                          title="طھط³ط¬ظٹظ„ طھط³ظ„ظٹظ… ظˆط±ظ‚ظٹ"
+                                          title="تسجيل تسليم ورقي"
                                           className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border bg-slate-50 text-slate-300 border-slate-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all"
                                         >
                                           <ClipboardX size={10} />
-                                          ظˆط±ظ‚ظٹ
+                                          ورقي
                                         </button>
                                       )}
                                     </div>
@@ -893,7 +893,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           </td>
 
 
-                          {/* â”€â”€ Actions Column (hidden in print) â”€â”€ */}
+                          {/* ── Actions Column (hidden in print) ── */}
                           <td className="p-3 align-middle print:hidden">
                             <div className="flex flex-row gap-2 items-center justify-center">
 
@@ -910,7 +910,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   <CalendarOff size={15} />
                                 </button>
                                 <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                  {da.isOfficialLeave ? 'ط¥ظ„ط؛ط§ط، ط§ظ„ط¥ط¬ط§ط²ط© ط§ظ„ط±ط³ظ…ظٹط©' : 'طھط¹ظٹظٹظ† ط¥ط¬ط§ط²ط© ط±ط³ظ…ظٹط©'}
+                                  {da.isOfficialLeave ? 'إلغاء الإجازة الرسمية' : 'تعيين إجازة رسمية'}
                                 </span>
                               </div>
 
@@ -927,7 +927,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                   <Laptop size={15} />
                                 </button>
                                 <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                  {da.isRemoteWork ? 'ط¥ظ„ط؛ط§ط، ط§ظ„ط¹ظ…ظ„ ط¹ظ† ط¨ط¹ط¯' : 'طھط¹ظٹظٹظ† ط¹ظ…ظ„ ط¹ظ† ط¨ط¹ط¯'}
+                                  {da.isRemoteWork ? 'إلغاء العمل عن بعد' : 'تعيين عمل عن بعد'}
                                 </span>
                               </div>
 

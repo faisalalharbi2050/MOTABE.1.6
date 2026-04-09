@@ -311,7 +311,7 @@ const Header: React.FC<HeaderProps> = ({
     {modal === 'phoneSub' && (
       <ConfirmModal
         title="إرسال طلب تغيير الجوال"
-        message="سيُرسل طلب تغيير رقم الجوال إلى مسؤول النظام (المستخدم الأول) للموافقة عليه. هل تريد إرسال الطلب؟"
+        message="سيُرسل طلب تغيير رقم الجوال إلى مسؤول النظام (المستخدم الأول) للموافقة عليه. هل تريد إرسال الطلȿ"
         icon={<Send size={36} className="text-blue-500" />}
         confirmLabel="إرسال الطلب"
         cancelLabel="إلغاء"
@@ -338,7 +338,7 @@ const Header: React.FC<HeaderProps> = ({
     {modal === 'deleteSub' && (
       <ConfirmModal
         title="طلب حذف الحساب"
-        message="سيُرسل طلب حذف حسابك إلى مسؤول النظام (المستخدم الأول) للموافقة عليه. هل أنت متأكد؟"
+        message="سيُرسل طلب حذف حسابك إلى مسؤول النظام (المستخدم الأول) للموافقة عليه. هل أنت متأكϿ"
         icon={<Trash2 size={36} className="text-rose-500" />}
         confirmLabel="إرسال طلب الحذف"
         cancelLabel="إلغاء"

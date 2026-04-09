@@ -183,7 +183,7 @@ export function tryMoveOrSwap(
             };
         }
 
-        // تحقق: هل هناك معلم آخر يُدرّس نفس الفصل في الوقت الهدف؟
+        // تحقق: هل هناك معلم آخر يُدرّس نفس الفصل في الوقت الهدݿ
         const conflict = findClassAtTime(timetable, sourceSlot.classId, target.day, target.period, [sourceKey]);
         if (conflict) {
             const conflictTeacherId = conflict.slot.teacherId;
@@ -196,7 +196,7 @@ export function tryMoveOrSwap(
                 };
             }
 
-            // تبديل: (أ) ينتقل إلى الوقت الهدف، والمعلم الموجود ينتقل إلى وقت (أ)
+            // تبديل: (أ) ينتقل إلى الوقت الهدݡ والمعلم الموجود ينتقل إلى وقت (أ)
             const nt = { ...timetable };
             nt[aAtTargetKey] = { ...sourceSlot, teacherId: source.teacherId };
             delete nt[sourceKey];
@@ -263,7 +263,7 @@ export function tryMoveOrSwap(
     const nt = { ...timetable };
 
     if (source.day === target.day && source.period === target.period) {
-        // نفس الوقت، معلمان مختلفان → تبديل التكليف فقط
+        // نفس الوقʡ معلمان مختلفان → تبديل التكليف فقط
         nt[sourceKey] = { ...targetSlot, teacherId: source.teacherId };
         nt[targetKey] = { ...sourceSlot, teacherId: target.teacherId };
     } else {
@@ -292,7 +292,7 @@ export function tryMoveOrSwap(
  * - المعلم (ب) لا يمكنه الانتقال إلى وقت (أ) لأن لديه فصلاً آخر هناك
  * - نبحث عن معلم (ج) يُدرّس نفس الفصل ويمكنه ملء الفراغ
  *
- * النتيجة: أ → وقت ب، ب → وقت ج، ج → وقت أ
+ * النتيجة: أ → وقت ȡ ب → وقت ̡ ج → وقت أ
  */
 export function findChainSwap(
     timetable: TimetableData,
@@ -307,7 +307,7 @@ export function findChainSwap(
     const slotA = timetable[sourceKey];
     if (!slotA || !slotA.classId) return null;
 
-    // إذا كانت الخانة الهدف فارغة، نبحث عن المعلم الذي يُدرّس نفس الفصل في ذلك الوقت
+    // إذا كانت الخانة الهدف فارغɡ نبحث عن المعلم الذي يُدرّس نفس الفصل في ذلك الوقت
     let effectiveTarget = target;
     let targetKey = getKey(target.teacherId, target.day, target.period);
     let slotB = timetable[targetKey];
@@ -357,7 +357,7 @@ export function findChainSwap(
             const newCKey = getKey(t3.id, source.day, source.period);
             if (timetable[newCKey]) continue;
 
-            // ✓ تم إيجاد سلسلة صالحة: أ → وقت ب، ب → وقت ج، ج → وقت أ
+            // ✓ تم إيجاد سلسلة صالحة: أ → وقت ȡ ب → وقت ̡ ج → وقت أ
             const nt = { ...timetable };
 
             // أ ينتقل من sourceKey إلى وقت (ب)

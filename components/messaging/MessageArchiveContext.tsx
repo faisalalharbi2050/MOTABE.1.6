@@ -33,7 +33,7 @@ const MessageArchiveContext = createContext<MessageArchiveContextType | undefine
 const INITIAL_TEMPLATES: MessageTemplate[] = [
   { id: 't1', title: 'غياب طالب', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نود إشعاركم بغياب ابنكم اليوم {اليوم} الموافق {التاريخ}.', isSystem: true, category: 'غياب طالب' },
   { id: 't2', title: 'تأخر طالب', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نود إشعاركم بتأخر ابنكم عن الطابور الصباحي اليوم {اليوم}.', isSystem: true, category: 'تأخر طالب' },
-  { id: 't3', title: 'مخالفة سلوكية', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نشعركم بارتكاب ابنكم لمخالفة سلوكية،نأمل زيارتكم للمدرسة في يوم (اليوم) وتاريخ (التاريخ)', isSystem: true, category: 'مخالفة سلوكية' },
+  { id: 't3', title: 'مخالفة سلوكية', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نشعركم بارتكاب ابنكم لمخالفة سلوكيɡنأمل زيارتكم للمدرسة في يوم (اليوم) وتاريخ (التاريخ)', isSystem: true, category: 'مخالفة سلوكية' },
   { id: 't4', title: 'الانتظار اليومي', content: 'المكرم {اسم_المعلم} ، لديك حصة انتظار يوم{اليوم} ، الحصة{رقم_الحصة} في فصل{الفصل} بدلاً من المعلم الغائب {اسم_المعلم_الغائب}', isSystem: true, category: 'انتظار' },
   { id: 't5', title: 'رسالة التكليف بالإشراف اليومي', content: 'المكرم/ {اسم_المعلم}،{اسم_الإداري} ،نشعركم بإسناد مهمة الإشراف اليومي لكم في يوم{اليوم}.', isSystem: true, category: 'إشراف' },
   { id: 't6', title: 'التذكير بالإشراف اليومي', content: 'تذكير: المكرم/ {اسم_المعلم}،{اسم_الإداري} ، نذكركم بموعد الإشراف اليومي لهذا اليوم{اليوم} ، شاكرين تعاونكم', isSystem: true, category: 'إشراف' },
@@ -285,7 +285,7 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   };
 
   const clearArchive = () => {
-    if (confirm('هل أنت متأكد من مسح جميع السجلات؟')) setMessages([]);
+    if (confirm('هل أنت متأكد من مسح جميع السجلاʿ')) setMessages([]);
   };
 
   const rechargeBalance = (amount: number, type: 'whatsapp' | 'sms') => {
