@@ -1,37 +1,62 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { X, Book, GraduationCap, Building, School, Activity, Star, Check, Printer, Eye, ChevronDown, ChevronLeft, Info, CheckCircle2, Layers } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, GraduationCap, Building, School, Check, Printer, Eye, ChevronDown, ChevronRight, Info, Layers } from 'lucide-react';
 import { Phase, SchoolInfo } from '../../types';
 import { STUDY_PLANS_CONFIG, StudyPlanDepartment, StudyPlanEntry } from '../../study_plans_config';
 import { DETAILED_TEMPLATES } from '../../constants';
 
 // ── Print CSS ────────────────────────────────────────────────────────────────
 const PRINT_CSS = `
-  @page { size: A4 portrait; }
-  @media print {
-    body * { visibility: hidden !important; }
-    #sp-modal-print, #sp-modal-print * { visibility: visible !important; }
-    #sp-modal-print {
-      position: fixed; inset: 0; padding: 32px;
-      background: white; direction: rtl;
-      font-family: 'Tajawal', sans-serif;
-    }
-    .no-print { display: none !important; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
-    th, td { border: 1px solid #e2e8f0; padding: 9px 14px; text-align: right; }
-    th { background: #ede9fe !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 900; }
-    .print-plan-header { background: #655ac1 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 10px 16px; border-radius: 8px; margin-bottom: 8px; font-weight: 900; }
-    .print-block { margin-bottom: 32px; page-break-inside: avoid; }
+  @page { size: A4 portrait; margin: 14mm; }
+  body {
+    margin: 0;
+    background: white;
+    direction: rtl;
+    font-family: 'Tajawal', sans-serif;
+    color: #1e293b;
+  }
+  .print-root {
+    padding: 0;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  th, td {
+    border: 1px solid #e2e8f0;
+    padding: 9px 14px;
+    text-align: right;
+  }
+  th {
+    background: #ede9fe;
+    font-weight: 900;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-block {
+    margin-bottom: 28px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .print-section-title {
+    color: #655ac1;
+    margin: 18px 0 6px;
+    font-size: .95rem;
+    font-weight: 900;
+  }
+  .print-plan-header {
+    background: #655ac1;
+    color: white;
+    padding: 8px 13px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-weight: 900;
+    font-size: .85rem;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 `;
-
-function injectPrintCSS() {
-  if (!document.getElementById('sp-modal-print-css')) {
-    const s = document.createElement('style');
-    s.id = 'sp-modal-print-css';
-    s.textContent = PRINT_CSS;
-    document.head.appendChild(s);
-  }
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function collectAllKeys(dept: StudyPlanDepartment): string[] {
@@ -46,16 +71,6 @@ function stripSemester(label: string): string {
   return label.replace(/ - ف[١٢]/, '').replace(/ - فصل (أول|ثاني)/, '').trim();
 }
 
-const getPhaseIcon = (phase: Phase) => {
-  switch (phase) {
-    case Phase.ELEMENTARY: return School;
-    case Phase.MIDDLE: return Building;
-    case Phase.HIGH: return GraduationCap;
-    case Phase.KINDERGARTEN: return Activity;
-    default: return Star;
-  }
-};
-
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface StudyPlansModalProps {
   isOpen: boolean;
@@ -65,6 +80,14 @@ interface StudyPlansModalProps {
   activeSchoolId: string;
   onSchoolChange: (id: string) => void;
   schoolInfo: SchoolInfo;
+}
+
+interface PrintOption {
+  id: string;
+  label: string;
+  mode: 'plan';
+  subDepartmentId?: string;
+  planKey?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -77,7 +100,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
   const [selectedPlanKey, setSelectedPlanKey] = useState<string | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<'1' | '2' | null>(null);
   const [kgPeriods, setKgPeriods] = useState<Record<string, number>>({});
-  const printAreaRef = useRef<HTMLDivElement>(null);
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
 
   // Reset on open/close
   useEffect(() => {
@@ -88,6 +111,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
       setSelectedPlanKey(null);
       setSelectedSemester(null);
       setKgPeriods({});
+      setShowPrintMenu(false);
     }
   }, [isOpen]);
 
@@ -152,6 +176,27 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
   }, [selectedPlanKey, isKindergarten]);
 
   const kgTotal = isKindergarten ? previewSubjects.reduce((s, x) => s + (kgPeriods[x.id] ?? 0), 0) : totalPeriods;
+  const printOptions = useMemo<PrintOption[]>(() => {
+    if (!selectedDepartment) return [];
+
+    if (selectedDepartment.subDepartments?.length) {
+      return selectedDepartment.subDepartments.map(sd => ({
+        id: sd.id,
+        label: sd.name,
+        mode: 'plan',
+        subDepartmentId: sd.id,
+      }));
+    }
+
+    const plansSource = (isHSMasarat && selectedSemester ? displayedPlans : selectedDepartment.plans) ?? [];
+    return plansSource.map(plan => ({
+      id: plan.key,
+      label: plan.label,
+      mode: 'plan',
+      planKey: plan.key,
+    }));
+  }, [selectedDepartment, displayedPlans, isHSMasarat, selectedSemester]);
+  const shouldShowPrintChooser = printOptions.length > 1;
 
   const handleSave = () => {
     if (!selectedCategory || !selectedDepartment) return;
@@ -171,7 +216,84 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
     }
   };
 
-  const handlePrint = (mode: 'plan' | 'dept') => {
+  const handlePrint = (mode: 'plan' | 'dept', subDepartmentId?: string, planKey?: string) => {
+    setShowPrintMenu(false);
+    if (!selectedCategory || !selectedDepartment) return;
+
+    const TH_PRINT = 'border:1px solid #e2e8f0;padding:8px 12px;text-align:right;background:#ede9fe;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
+    const TD_PRINT = 'border:1px solid #e2e8f0;padding:7px 12px;text-align:right;';
+
+    const buildPrintTable = (label: string, subs: { name: string; periodsPerClass?: number }[]) => {
+      if (!subs.length) return '';
+      const total = subs.reduce((sum, item) => sum + (item.periodsPerClass ?? 0), 0);
+      const rows = subs.map((subject, index) =>
+        `<tr><td style="${TD_PRINT}text-align:center;">${index + 1}</td><td style="${TD_PRINT}">${subject.name}</td><td style="${TD_PRINT}text-align:center;font-weight:bold;">${subject.periodsPerClass || '–'}</td></tr>`
+      ).join('');
+
+      return `<div class="print-block"><div class="print-plan-header">${label}</div><table><thead><tr><th style="${TH_PRINT}width:32px;">#</th><th style="${TH_PRINT}">المادة الدراسية</th><th style="${TH_PRINT}width:90px;">الحصص</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="${TD_PRINT}font-weight:900;">المجموع</td><td style="${TD_PRINT}text-align:center;font-weight:900;color:#655ac1;">${total}</td></tr></tfoot></table></div>`;
+    };
+
+    let printableContent = `<div class="print-root" dir="rtl"><h2 style="color:#3b355a;margin-bottom:10px;font-size:1.1rem;font-weight:900;">${selectedCategory.name} — ${selectedDepartment.name}</h2>`;
+
+    if (mode === 'plan') {
+      const targetSubDept = subDepartmentId
+        ? selectedDepartment.subDepartments?.find(sd => sd.id === subDepartmentId)
+        : selectedSubDept;
+
+      const targetPlans = planKey
+        ? (selectedDepartment.plans ?? []).filter(plan => plan.key === planKey)
+        : targetSubDept?.plans ?? activePlans;
+
+      if (targetSubDept) {
+        printableContent += `<h3 class="print-section-title">${targetSubDept.name}</h3>`;
+      }
+
+      targetPlans.forEach(plan => {
+        printableContent += buildPrintTable(plan.label, DETAILED_TEMPLATES[plan.key] || []);
+      });
+    } else if (selectedDepartment.subDepartments?.length) {
+      selectedDepartment.subDepartments.forEach(sd => {
+        printableContent += `<h3 class="print-section-title">${sd.name}</h3>`;
+        sd.plans.forEach(plan => {
+          printableContent += buildPrintTable(plan.label, DETAILED_TEMPLATES[plan.key] || []);
+        });
+      });
+    } else {
+      selectedDepartment.plans.forEach(plan => {
+        printableContent += buildPrintTable(plan.label, DETAILED_TEMPLATES[plan.key] || []);
+      });
+    }
+
+    printableContent += '</div>';
+
+    const printWindow = window.open('', '_blank', 'width=960,height=1200');
+    if (!printWindow) {
+      alert('تعذر فتح نافذة الطباعة. يرجى السماح بالنوافذ المنبثقة ثم المحاولة مرة أخرى.');
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="ar" dir="rtl">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>طباعة الخطة الدراسية</title>
+          <style>${PRINT_CSS}</style>
+        </head>
+        <body>${printableContent}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.onafterprint = () => printWindow.close();
+      }, 150);
+    };
+    return;
     injectPrintCSS();
     const el = document.getElementById('sp-modal-print');
     if (!el || !selectedCategory || !selectedDepartment) return;
@@ -193,8 +315,21 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
     let content = `<div dir="rtl"><h2 style="${TITLE}">${selectedCategory.name} — ${selectedDepartment.name}</h2>`;
 
     if (mode === 'plan') {
-      if (selectedSubDept) content += `<p style="${SECTION}">${selectedSubDept.name}</p>`;
-      content += buildTable(activePlans.find(p => p.key === selectedPlanKey)?.label ?? '', previewSubjects);
+      const targetSubDept = subDepartmentId
+        ? selectedDepartment.subDepartments?.find(sd => sd.id === subDepartmentId)
+        : selectedSubDept;
+
+      const targetPlans = planKey
+        ? (selectedDepartment.plans ?? []).filter(plan => plan.key === planKey)
+        : targetSubDept?.plans ?? activePlans;
+
+      if (targetSubDept) {
+        content += `<p style="${SECTION}">${targetSubDept.name}</p>`;
+      }
+
+      targetPlans.forEach(plan => {
+        content += buildTable(plan.label, DETAILED_TEMPLATES[plan.key] || []);
+      });
     } else {
       if (selectedDepartment.subDepartments?.length) {
         selectedDepartment.subDepartments.forEach(sd => {
@@ -273,17 +408,19 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
           )}
 
           {/* ── Step 1: Phase Sidebar ── */}
-          <div className="w-56 border-l border-slate-100 bg-[#f8f7ff] p-4 overflow-y-auto shrink-0">
+          <div className="w-56 border-l border-slate-100 bg-white p-4 overflow-y-auto shrink-0">
             <h4 className="text-xs font-black text-slate-400 mb-4 px-2">1. المرحلة الدراسية</h4>
             <div className="space-y-2">
               {availableCategories.map(cat => {
-                const Icon = getPhaseIcon(cat.phase as Phase);
                 const isSelected = selectedPhaseId === cat.id;
                 return (
                   <button key={cat.id} onClick={() => { setSelectedPhaseId(cat.id); setSelectedDeptId(null); setSelectedSubId(null); setSelectedPlanKey(null); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${isSelected ? 'bg-[#655ac1] text-white shadow-lg shadow-[#655ac1]/20' : 'bg-white text-slate-600 hover:bg-white hover:shadow-md'}`}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold border transition-all ${
+                      isSelected
+                        ? 'bg-white text-[#655ac1] border-[#d9d6fb] shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                    }`}
                   >
-                    <Icon size={18} className={isSelected ? 'text-white' : 'text-slate-400'} />
                     <span>{cat.name}</span>
                   </button>
                 );
@@ -343,35 +480,35 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                       <h4 className="font-black text-slate-800 text-base leading-tight">{selectedDepartment.name}</h4>
                     </div>
                     <button
-                      onClick={() => { setSelectedDeptId(null); setSelectedSubId(null); setSelectedPlanKey(null); setSelectedSemester(null); setKgPeriods({}); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1]/40 font-bold text-sm transition-all shadow-sm"
+                      onClick={() => { setSelectedDeptId(null); setSelectedSubId(null); setSelectedPlanKey(null); setSelectedSemester(null); setKgPeriods({}); setShowPrintMenu(false); }}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all shadow-sm"
                     >
-                      <ChevronLeft size={15} />رجوع
+                      <ChevronRight size={16} />
+                      <span>رجوع</span>
                     </button>
                   </div>
 
                   {/* Action button bar */}
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handlePrint('plan')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all"
+                  <div className="flex items-center gap-2 relative">
+                    <button
+                      onClick={() => shouldShowPrintChooser ? setShowPrintMenu(true) : handlePrint('plan', printOptions[0]?.subDepartmentId, printOptions[0]?.planKey)}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all shadow-sm"
                     >
-                      <Printer size={13} /> طباعة
-                    </button>
-                    <button onClick={() => handlePrint('dept')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all"
-                    >
-                      <Printer size={13} /> طباعة الخطة كاملة
+                      <Printer size={16} />
+                      <span>طباعة</span>
+                      {shouldShowPrintChooser && <ChevronDown size={15} className="text-slate-400" />}
                     </button>
                     <button onClick={handleSave}
                       disabled={isHSMasarat && !selectedSemester}
-                      className={`flex items-center gap-1.5 text-white px-5 py-1.5 rounded-xl font-bold text-xs shadow-lg transition-all hover:scale-105 active:scale-95 ${
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
                         isHSMasarat && !selectedSemester
-                          ? 'bg-slate-300 shadow-none cursor-not-allowed'
-                          : 'bg-[#7168c8] hover:bg-[#5e56b5] shadow-[#7168c8]/20'
+                          ? 'bg-slate-300 text-white cursor-not-allowed'
+                          : 'bg-primary text-white hover:bg-secondary shadow-lg shadow-indigo-200'
                       }`}
                       title={isHSMasarat && !selectedSemester ? 'اختر الفصل الدراسي أولاً' : undefined}
                     >
-                      <Check size={13} /> حفظ واعتماد الخطة
+                      <Check size={16} />
+                      <span>اعتماد الخطة</span>
                     </button>
                   </div>
                 </div>
@@ -447,16 +584,35 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                   ) : previewSubjects.length > 0 ? (
                     <div className="space-y-2.5">
                       {/* Summary bar */}
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-[#7168c8] text-white rounded-2xl shadow-md">
-                        <span className="font-black text-xs">
+                      <div className="flex items-center justify-between px-4 py-4 bg-white border-2 border-slate-300 rounded-xl min-h-[72px]">
+                        <span className="text-sm font-black text-[#7168c8]">
+                          {selectedDepartment.subDepartments
+                            ? `${selectedSubDept?.name} آ· ${displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? ''}`
+                            : displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? ''}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg font-black text-[#7168c8]">{previewSubjects.length}</span>
+                          <span className="text-xs font-bold text-[#7168c8]">مواد</span>
+                          <span className="mx-1 h-4 w-px bg-slate-300" />
+                          <span className="text-lg font-black text-[#7168c8]">{kgTotal}</span>
+                          <span className="text-xs font-bold text-[#7168c8]">حصة / أسبوع</span>
+                        </div>
+                      </div>
+                      <div className="hidden rounded-2xl border border-slate-300 bg-slate-100 p-1.5 shadow-sm">
+                        <div className="flex min-h-[82px] items-center justify-between rounded-[15px] bg-white px-5 py-4">
+                          <div className="flex min-w-0 flex-col justify-center">
+                            <span className="text-[11px] font-bold text-[#7168c8]/70">الخطة الحالية</span>
+                            <span className="mt-1 font-black text-sm text-[#7168c8] leading-tight">
                           {selectedDepartment.subDepartments
                             ? `${selectedSubDept?.name} · ${displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? ''}`
                             : displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? ''}
-                        </span>
-                        <div className="flex items-center gap-3 text-[11px] font-bold text-white/80">
+                            </span>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-3 text-xs font-bold text-[#7168c8]">
                           <span>{previewSubjects.length} مادة</span>
-                          <span className="w-px h-3.5 bg-white/30" />
+                          <span className="h-5 w-px bg-slate-300" />
                           <span>{kgTotal} حصة/أسبوع</span>
+                        </div>
                         </div>
                       </div>
 
@@ -493,7 +649,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                       </div>
 
                       {isKindergarten && (
-                        <p className="text-[11px] text-slate-400 text-center">دخّل عدد الحصص لكل مادة ثم اضغط حفظ واعتماد الخطة</p>
+                        <p className="text-[11px] text-slate-400 text-center">دخّل عدد الحصص لكل مادة ثم اضغط اعتماد الخطة</p>
                       )}
                     </div>
                   ) : (
@@ -511,7 +667,57 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
       </div>
 
       {/* ── Hidden Print Area (content injected imperatively by handlePrint) ── */}
-      <div id="sp-modal-print" style={{ display: 'none' }} />
+      {typeof document !== 'undefined' && showPrintMenu && shouldShowPrintChooser && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 no-print">
+          <div className="absolute inset-0 bg-slate-900/20" onClick={() => setShowPrintMenu(false)} />
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h4 className="text-base font-black text-slate-800">خيارات الطباعة</h4>
+                <p className="text-xs text-slate-500 font-medium">اختر الخطة المطلوبة أو اطبع جميع الصفوف</p>
+              </div>
+              <button
+                onClick={() => setShowPrintMenu(false)}
+                className="w-9 h-9 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-2">
+              <button
+                onClick={() => handlePrint('dept')}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-primary text-white hover:bg-secondary transition-all shadow-lg shadow-indigo-200"
+              >
+                <span className="font-bold text-sm">طباعة الخطة كاملة لكل الصفوف</span>
+                <Printer size={15} />
+              </button>
+
+              {printOptions.map(option => (
+                <button
+                  key={option.id}
+                  onClick={() => handlePrint('plan', option.subDepartmentId, option.planKey)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                >
+                  <span className="font-bold text-sm">طباعة خطة {option.label}</span>
+                  <Printer size={15} className="text-slate-400" />
+                </button>
+              ))}
+
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {typeof document !== 'undefined' && createPortal(
+        <div
+          id="sp-modal-print"
+          className="fixed inset-0 pointer-events-none"
+          style={{ display: 'none' }}
+        />,
+        document.body
+      )}
     </div>
   );
 };

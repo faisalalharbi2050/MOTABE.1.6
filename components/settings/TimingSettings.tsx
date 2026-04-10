@@ -831,13 +831,12 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
               
               {/* Settings Group - Time, Breaks, Prayers */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                      <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                          <Settings size={20} className="text-[#655ac1]" />
-                          إعدادات التوقيت
-                      </h2>
-                      <span className="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-lg font-bold">اختياري</span>
-                  </div>
+                   <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                       <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                           <Settings size={20} className="text-[#655ac1]" />
+                           إعدادات التوقيت
+                       </h2>
+                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-slate-100">
                       
                       {/* Column 1: Time Settings */}
@@ -1142,18 +1141,21 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             </div>
 
              {/* Print Options Footer */}
-             <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center gap-4">
-                  <button onClick={handlePrint} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-[#e5e1fe] transition-all transform hover:-translate-y-1">
-                      <Printer size={20} />
-                      طباعة الجدول
-                  </button>
-                  <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-emerald-100 transition-all transform hover:-translate-y-1">
-                      <Save size={20} />
-                      حفظ التوقيت
-                  </button>
+             <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center">
+                   <button onClick={handlePrint} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-[#e5e1fe] transition-all transform hover:-translate-y-1">
+                       <Printer size={20} />
+                       طباعة الجدول
+                   </button>
              </div>
-             
+              
              </div> {/* End of Collapsible Content */}
+        </div>
+
+        <div className="mt-6 flex justify-center">
+            <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-[#e5e1fe] transition-all transform hover:-translate-y-1">
+                <Save size={20} />
+                حفظ التوقيت
+            </button>
         </div>
       </div>
     </div>
