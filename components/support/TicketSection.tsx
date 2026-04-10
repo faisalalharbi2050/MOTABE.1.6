@@ -27,6 +27,7 @@ interface TicketReply {
 interface Ticket {
   id: string;
   title: string;
+  phoneNumber: string;
   description: string;
   category: TicketCategory;
   categoryLabel: string;
@@ -57,6 +58,7 @@ const MOCK_TICKETS: Ticket[] = [
   {
     id: 'TKT-001',
     title: 'مشكلة في تسجيل الدخول',
+    phoneNumber: '0501234567',
     description: 'لا أستطيع تسجيل الدخول إلى حسابي منذ الأمس. تظهر رسالة خطأ "بيانات غير صحيحة" رغم أن كلمة المرور صحيحة. جربت إعادة تعيين كلمة المرور لكن الرابط لا يصل إلى البريد.',
     category: 'technical',
     categoryLabel: 'مشكلة تقنية',
@@ -88,6 +90,7 @@ const MOCK_TICKETS: Ticket[] = [
   {
     id: 'TKT-002',
     title: 'استفسار عن الفاتورة الأخيرة',
+    phoneNumber: '0559876543',
     description: 'لاحظت أن مبلغ الفاتورة الأخيرة يختلف عن الباقة المشترك بها. الباقة الأساسية 149 ريال لكن الفاتورة تظهر 189 ريال. أرجو المراجعة والتوضيح.',
     category: 'billing',
     categoryLabel: 'مشكلة في الفوترة',
@@ -100,6 +103,7 @@ const MOCK_TICKETS: Ticket[] = [
   {
     id: 'TKT-003',
     title: 'مقترح: إضافة تقرير أسبوعي للمناوبة',
+    phoneNumber: '0531122334',
     description: 'أقترح إضافة ميزة تقرير أسبوعي موحّد يجمع جدول المناوبة والإشراف في ملف PDF واحد جاهز للطباعة. هذا سيوفر وقتاً كبيراً كل أسبوع.',
     category: 'suggestion',
     categoryLabel: 'اقتراح',
@@ -138,6 +142,23 @@ const formatSize = (bytes: number): string => {
 };
 
 /** توقيت الرياض الحالي */
+const normalizePhoneDigits = (value: string): string =>
+  value
+    .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/\s+/g, '');
+
+const isValidSaudiMobile = (value: string): boolean => {
+  const normalized = normalizePhoneDigits(value);
+  return /^(05\d{8}|9665\d{8}|\+9665\d{8})$/.test(normalized);
+};
+
+const formatSaudiMobileForDisplay = (value: string): string => {
+  const normalized = normalizePhoneDigits(value);
+  if (normalized.startsWith('+966')) return `0${normalized.slice(4)}`;
+  if (normalized.startsWith('966')) return `0${normalized.slice(3)}`;
+  return normalized;
+};
+
 const getRiyadhTime = () => {
   const str = new Date().toLocaleString('en-US', { timeZone: 'Asia/Riyadh' });
   return new Date(str);
@@ -280,6 +301,10 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
               </span>
             </div>
             <div className="px-5 py-4">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600">
+                <span>رقم الجوال:</span>
+                <span dir="ltr" className="font-mono text-slate-700">{formatSaudiMobileForDisplay(ticket.phoneNumber)}</span>
+              </div>
               <p className="text-sm text-slate-700 leading-relaxed">{ticket.description}</p>
             </div>
             {ticket.attachments.length > 0 && (
@@ -355,11 +380,17 @@ const TicketSection: React.FC = () => {
   // Form state
   const [showForm,             setShowForm]             = useState(false);
   const [formTitle,            setFormTitle]            = useState('');
+  const [formPhoneNumber,      setFormPhoneNumber]      = useState('');
   const [formDesc,             setFormDesc]             = useState('');
   const [formCategory,         setFormCategory]         = useState<TicketCategory | ''>('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [attachedFiles,        setAttachedFiles]        = useState<Attachment[]>([]);
   const [isDragging,           setIsDragging]           = useState(false);
+
+  const handlePhoneNumberChange = (value: string) => {
+    const normalized = normalizePhoneDigits(value).replace(/[^\d+]/g, '');
+    setFormPhoneNumber(formatSaudiMobileForDisplay(normalized));
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -406,14 +437,18 @@ const TicketSection: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim())   { showToast('يرجى إدخال عنوان المشكلة', 'error');    return; }
+    if (!formPhoneNumber.trim()) { showToast('يرجى إدخال رقم الجوال', 'error'); return; }
+    if (!isValidSaudiMobile(formPhoneNumber)) { showToast('يرجى إدخال رقم جوال سعودي صحيح', 'error'); return; }
     if (!formCategory)       { showToast('يرجى تحديد تصنيف المشكلة', 'error');   return; }
     if (!formDesc.trim())    { showToast('يرجى كتابة وصف تفصيلي', 'error');      return; }
 
     const now = getRiyadhTime();
     const cat = CATEGORIES.find(c => c.value === formCategory)!;
+    const normalizedPhoneNumber = normalizePhoneDigits(formPhoneNumber);
     const newTicket: Ticket = {
       id:            `TKT-${String(tickets.length + 1).padStart(3, '0')}`,
       title:         formTitle.trim(),
+      phoneNumber:   normalizedPhoneNumber,
       description:   formDesc.trim(),
       category:      formCategory as TicketCategory,
       categoryLabel: cat.label,
@@ -425,7 +460,7 @@ const TicketSection: React.FC = () => {
     };
 
     setTickets(prev => [newTicket, ...prev]);
-    setFormTitle(''); setFormDesc(''); setFormCategory(''); setAttachedFiles([]);
+    setFormTitle(''); setFormPhoneNumber(''); setFormDesc(''); setFormCategory(''); setAttachedFiles([]);
     setShowForm(false);
 
     const msg = `تم رفع التذكرة ${newTicket.id} بنجاح. سيتم التواصل معك خلال أوقات العمل.`;
@@ -528,6 +563,21 @@ const TicketSection: React.FC = () => {
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   placeholder="أدخل عنواناً موجزاً يصف مشكلتك..."
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                  رقم الجوال <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  dir="ltr"
+                  value={formPhoneNumber}
+                  onChange={e => handlePhoneNumberChange(e.target.value)}
+                  placeholder="05XXXXXXXX"
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 transition-all"
                 />
               </div>

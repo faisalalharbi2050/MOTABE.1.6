@@ -87,6 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Current semester info
   const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
     ?? schoolInfo.semesters?.[0];
+  const hasAcademicCalendar = !!(schoolInfo.semesters && schoolInfo.semesters.length > 0);
   const getCurrentWeek = () => {
     if (!currentSemester) return null;
     const start = new Date(currentSemester.startDate + 'T00:00:00');
@@ -221,17 +222,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <CalendarDays size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
                 التقويم الدراسي
               </h4>
+              {hasAcademicCalendar && (
               <button
                 onClick={() => setShowAcademicCalendar(true)}
-                className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-1 transition-colors"
-                style={{ padding: currentSemester ? '6px' : '4px 10px' }}
-              >
-                <Settings2 size={currentSemester ? 15 : 13} />
-                {!currentSemester && 'إعداد'}
-              </button>
+                className="px-2.5 py-1.5 text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-1 transition-colors"
+                >
+                  تعديل/إضافة
+                </button>
+              )}
             </div>
 
-            {currentSemester ? (
+            {hasAcademicCalendar && currentSemester ? (
               <div className="space-y-5">
                 {/* اسم الفصل + العام + عدد الفصول */}
                 <div className="flex items-center justify-between">
@@ -254,7 +255,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
                 </div>
 
-                <div className="h-2"></div>
+                <div className="h-1"></div>
                 {/* تاريخ النهاية */}
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <CalendarX2 size={12} className="text-[#8779fb] shrink-0" />
