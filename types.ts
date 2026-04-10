@@ -398,6 +398,8 @@ export interface DailyScheduleItem {
   time?: string;
   location?: string;
   isTomorrow?: boolean;
+  isOfficialLeave?: boolean;
+  officialLeaveText?: string;
 }
 
 export type PackageTier = 'basic' | 'advanced' | 'premium';

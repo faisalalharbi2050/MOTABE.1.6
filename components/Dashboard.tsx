@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Users,
   GraduationCap,
@@ -90,12 +90,74 @@ const Dashboard: React.FC<DashboardProps> = ({
   const hasAcademicCalendar = !!(schoolInfo.semesters && schoolInfo.semesters.length > 0);
   const getCurrentWeek = () => {
     if (!currentSemester) return null;
+
     const start = new Date(currentSemester.startDate + 'T00:00:00');
+    const semesterEnd = new Date(currentSemester.endDate + 'T00:00:00');
     const today = new Date();
-    const diffDays = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.max(1, Math.min(Math.ceil(diffDays / 7), currentSemester.weeksCount));
+    today.setHours(0, 0, 0, 0);
+
+    if (today < start) return 1;
+
+    const effectiveEnd = today > semesterEnd ? semesterEnd : today;
+    const workDaysStart = currentSemester.workDaysStart ?? 0;
+    const workDaysEnd = currentSemester.workDaysEnd ?? 4;
+    const holidays = new Set(currentSemester.holidays ?? []);
+    const countedWeeks = new Set<string>();
+
+    const toLocalDateKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const isWorkingDay = (day: number) => {
+      if (workDaysStart <= workDaysEnd) {
+        return day >= workDaysStart && day <= workDaysEnd;
+      }
+      return day >= workDaysStart || day <= workDaysEnd;
+    };
+
+    const getWeekStartKey = (date: Date) => {
+      const weekStart = new Date(date);
+      const offset = (weekStart.getDay() - workDaysStart + 7) % 7;
+      weekStart.setDate(weekStart.getDate() - offset);
+      return toLocalDateKey(weekStart);
+    };
+
+    for (const cursor = new Date(start); cursor <= effectiveEnd; cursor.setDate(cursor.getDate() + 1)) {
+      const dateKey = toLocalDateKey(cursor);
+      if (!isWorkingDay(cursor.getDay()) || holidays.has(dateKey)) continue;
+      countedWeeks.add(getWeekStartKey(cursor));
+    }
+
+    return Math.max(1, Math.min(countedWeeks.size || 1, currentSemester.weeksCount));
   };
   const currentWeek = getCurrentWeek();
+  const getTodayOfficialLeaveText = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dayIds = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+    const todayDayId = dayIds[today.getDay()];
+    const activeDays = schoolInfo.timing?.activeDays?.length
+      ? schoolInfo.timing.activeDays
+      : ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+
+    if (!activeDays.includes(todayDayId)) {
+      return 'إجازة نهاية الأسبوع';
+    }
+
+    if (!currentSemester) return null;
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayKey = `${year}-${month}-${day}`;
+
+    return currentSemester.holidays?.includes(todayKey) ? 'إجازة رسمية' : null;
+  };
+  const todayOfficialLeaveText = getTodayOfficialLeaveText();
 
   // Calculated stats
   const teacherCount = teachers.length;
@@ -189,11 +251,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* 2. Quick Actions & Calendar (Row 2) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch h-[450px]">
-        <div className="lg:col-span-4 h-full">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch lg:h-[450px]">
+        <div className="lg:col-span-4 min-h-[260px] lg:h-full">
            <QuickActions onNavigate={onNavigate} />
         </div>
-        <div className="lg:col-span-8 h-full">
+        <div className="lg:col-span-8 min-h-[320px] lg:h-full">
            <CalendarWidget 
              events={events} 
              onAddEvent={() => console.log('Add event')} 
@@ -207,13 +269,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
         {/* Left: Today schedule */}
-        <div className="lg:col-span-8 space-y-6">
-          <DailySchedule schedule={todaySchedule} title={`جدول يوم ${todayName}`} />
+        <div className="order-2 lg:order-1 lg:col-span-8 space-y-6">
+          <DailySchedule
+            schedule={todaySchedule}
+            title={`جدول يوم ${todayName}`}
+            officialLeaveText={todayOfficialLeaveText}
+          />
           <RecentMessages messages={messages} onOpenArchive={() => onNavigate('messages_archive')} />
         </div>
 
         {/* Right: sidebar stacked */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="order-1 lg:order-2 lg:col-span-4 space-y-4">
 
           {/* ─── Academic Calendar Card ─── */}
           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px] hover:shadow-md transition-shadow">
@@ -245,6 +311,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
 
                 <div className="h-px bg-slate-100 my-1"></div>
+
+                {currentWeek && (
+                  <div className="flex justify-start">
+                    <span className="text-xs font-black text-white bg-[#655ac1] px-2.5 py-1 rounded-full shadow-sm">
+                      الأسبوع {currentWeek}
+                    </span>
+                  </div>
+                )}
 
                 {/* تاريخ البداية */}
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
