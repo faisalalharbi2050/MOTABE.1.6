@@ -384,7 +384,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
            <div className="relative">
                <button 
                  onClick={() => setShowPlanModal(true)}
-                 className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
+                 className="flex items-center gap-2 bg-[#655ac1] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
                >
                    <Layers size={20} />
                    الخطط الدراسية
@@ -393,7 +393,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
            <button 
              onClick={() => setShowManualModal(true)}
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
           >
               <Plus size={20} className="text-[#8779fb]" />
               إضافة خطة مخصصة
@@ -406,7 +406,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           <button
             onClick={() => setShowAbbreviationsModal(true)}
             title="اختصارات المواد"
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
           >
             <TypeIcon size={18} className="text-indigo-500" />
             <span>اختصارات المواد</span>
@@ -415,7 +415,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           {scheduleSettings && setScheduleSettings && (
             <button
               onClick={() => setShowConstraintsModal(true)}
-              className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] min-w-[145px]"
+              className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] min-w-[145px]"
             >
               <Ban size={18} className="text-rose-500" />
               <span>قيود المواد</span>

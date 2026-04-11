@@ -646,7 +646,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                       </div>
 
                       {/* Compact subject grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-1.5">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
                         {previewSubjects.map((s) => (
                           <div key={s.id} className="py-1.5 px-2.5 bg-white border border-slate-100 rounded-xl shadow-sm flex justify-between items-center gap-2 group hover:border-[#7168c8]/30 transition-all">
                             <span className="font-bold text-slate-800 text-xs leading-tight line-clamp-2 flex-1">{s.name}</span>

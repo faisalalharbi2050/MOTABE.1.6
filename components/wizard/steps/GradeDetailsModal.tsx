@@ -101,17 +101,12 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
       <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-l from-[#f8f7ff] to-white">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1]">
-              <BookOpen size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-800">{gradeName}</h2>
-              <p className="text-xs text-slate-400 font-bold mt-0.5">
-                القسم: <span className="text-[#655ac1]">{department}</span> · المرحلة: <span className="text-[#655ac1]">{phase}</span>
-              </p>
-            </div>
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+          <div>
+            <h2 className="text-xl font-black text-slate-800">{gradeName}</h2>
+            <p className="text-xs text-slate-400 font-bold mt-0.5">
+              القسم: <span className="text-[#655ac1]">{department}</span> · المرحلة: <span className="text-[#655ac1]">{phase}</span>
+            </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600">
             <X size={22} />
@@ -145,62 +140,64 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
               <p className="text-sm mt-1 text-slate-400">انقر على "إضافة مادة" للبدء</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {subjects.map((subject) => (
-                <div
-                  key={subject.id}
-                  className="flex items-center gap-4 p-4 bg-slate-50 hover:bg-[#f8f7ff] rounded-2xl transition-colors border border-transparent hover:border-[#e5e1fe] group"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-black text-slate-800 text-base">{subject.name}</h3>
-                  </div>
+            <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden">
+              <div className="divide-y divide-slate-100">
+                {subjects.map((subject) => (
+                  <div
+                    key={subject.id}
+                    className="flex items-center gap-4 px-4 py-3 bg-white hover:bg-[#f8f7ff] transition-colors group"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-black text-slate-800 text-sm">{subject.name}</h3>
+                    </div>
 
-                  <div className="flex items-center gap-3">
-                    {editingId === subject.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="w-20 px-3 py-2 border border-[#655ac1] bg-white rounded-xl text-center font-bold outline-none focus:ring-2 focus:ring-[#655ac1]/20"
-                          min="1"
-                          autoFocus
-                        />
-                        <button onClick={handleSaveEdit} className="p-2 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl transition-colors">
-                          <Check size={17} />
-                        </button>
-                        <button onClick={handleCancelEdit} className="p-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-xl transition-colors">
-                          <X size={17} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-center min-w-[72px] bg-white border border-slate-100 rounded-xl px-3 py-2 shadow-sm">
-                          <p className="text-xl font-black text-[#655ac1]">{subject.periodsPerClass}</p>
-                          <p className="text-[10px] font-bold text-slate-400">حصة</p>
-                        </div>
-                        <div className="w-px h-9 bg-slate-200 rounded-full mx-1"></div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleStartEdit(subject)}
-                            className="p-2.5 hover:bg-[#e5e1fe] rounded-xl transition-colors text-slate-400 hover:text-[#655ac1]"
-                            title="تعديل عدد الحصص"
-                          >
-                            <Edit2 size={17} />
+                    <div className="flex items-center gap-2">
+                      {editingId === subject.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-20 px-3 py-2 border border-[#655ac1] bg-white rounded-xl text-center font-bold outline-none focus:ring-2 focus:ring-[#655ac1]/20"
+                            min="1"
+                            autoFocus
+                          />
+                          <button onClick={handleSaveEdit} className="p-2 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl transition-colors">
+                            <Check size={16} />
                           </button>
-                          <button
-                            onClick={() => setDeleteConfirmSubject(subject)}
-                            className="p-2.5 hover:bg-rose-50 rounded-xl transition-colors text-slate-300 hover:text-rose-500"
-                            title="حذف المادة"
-                          >
-                            <Trash2 size={17} />
+                          <button onClick={handleCancelEdit} className="p-2 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-xl transition-colors">
+                            <X size={16} />
                           </button>
                         </div>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <div className="text-center min-w-[60px] bg-white border border-slate-100 rounded-xl px-2 py-1.5 shadow-sm">
+                            <p className="text-lg font-black text-[#655ac1]">{subject.periodsPerClass}</p>
+                            <p className="text-[9px] font-bold text-slate-400">حصة</p>
+                          </div>
+                          <div className="w-px h-8 bg-slate-200 rounded-full mx-0.5"></div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleStartEdit(subject)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb]"
+                              title="تعديل عدد الحصص"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmSubject(subject)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all border border-slate-200 hover:border-rose-200 text-rose-500"
+                              title="حذف المادة"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
@@ -235,7 +232,7 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
 
         {/* Footer */}
         <div className="px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-          <button onClick={onClose} className="px-7 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all shadow-md shadow-[#655ac1]/20">
+          <button onClick={onClose} className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800">
             إغلاق
           </button>
         </div>
@@ -245,13 +242,10 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
       {showAddForm && (
         <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-10">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#e5e1fe] rounded-xl flex items-center justify-center text-[#655ac1]"><Plus size={20} /></div>
-              إضافة مادة جديدة
-            </h3>
+            <h3 className="text-xl font-black text-slate-800 mb-6">إضافة مادة جديدة</h3>
             <form onSubmit={handleAddSubject} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2">اسم المادة *</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2">اسم المادة <span className="text-rose-500">*</span></label>
                 <input
                   type="text"
                   value={newSubject.name}
@@ -262,7 +256,7 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 mb-2">عدد الحصص *</label>
+                <label className="block text-xs font-bold text-slate-500 mb-2">عدد الحصص <span className="text-rose-500">*</span></label>
                 <input
                   type="number"
                   value={newSubject.periods}
@@ -274,7 +268,7 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all">إضافة</button>
-                <button type="button" onClick={() => { setShowAddForm(false); setNewSubject({ name: '', periods: '2' }); }} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-all">إلغاء</button>
+                <button type="button" onClick={() => { setShowAddForm(false); setNewSubject({ name: '', periods: '2' }); }} className="flex-1 px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-all">إلغاء</button>
               </div>
             </form>
           </div>
