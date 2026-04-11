@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, GraduationCap, Building, School, Check, Printer, Eye, ChevronDown, ChevronRight, Info, Layers } from 'lucide-react';
+import { X, Building, School, Check, Printer, Eye, ChevronDown, ChevronRight, Info, Layers, AlertCircle } from 'lucide-react';
 import { Phase, SchoolInfo } from '../../types';
 import { STUDY_PLANS_CONFIG, StudyPlanDepartment, StudyPlanEntry } from '../../study_plans_config';
 import { DETAILED_TEMPLATES } from '../../constants';
@@ -229,6 +229,11 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
       const keys = collectAllKeys(selectedDepartment).filter(k => k.includes(semPattern));
       onApprovePlan(selectedCategory.phase as Phase, selectedDepartment.id + '_ف' + selectedSemester, keys);
     } else if (isKindergarten) {
+      const unfilled = previewSubjects.filter(s => !kgPeriods[s.id] || kgPeriods[s.id] <= 0);
+      if (unfilled.length > 0) {
+        showToast(`يرجى إدخال عدد الحصص لجميع المواد قبل الاعتماد (${unfilled.length} مادة لم تُحدَّد)`, 'warning');
+        return;
+      }
       const allKeys = collectAllKeys(selectedDepartment);
       onApprovePlan(selectedCategory.phase as Phase, selectedDepartment.id, allKeys, kgPeriods);
     } else {
@@ -313,61 +318,6 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
         printWindow.onafterprint = () => printWindow.close();
       }, 150);
     };
-    return;
-    injectPrintCSS();
-    const el = document.getElementById('sp-modal-print');
-    if (!el || !selectedCategory || !selectedDepartment) return;
-
-    const TH = 'border:1px solid #e2e8f0;padding:8px 12px;text-align:right;background:#ede9fe;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
-    const TD = 'border:1px solid #e2e8f0;padding:7px 12px;text-align:right;';
-
-    const buildTable = (label: string, subs: { name: string; periodsPerClass?: number }[]) => {
-      if (!subs.length) return '';
-      const tot = subs.reduce((s, x) => s + (x.periodsPerClass ?? 0), 0);
-      const rows = subs.map((s, i) =>
-        `<tr><td style="${TD}text-align:center;">${i + 1}</td><td style="${TD}">${s.name}</td><td style="${TD}text-align:center;font-weight:bold;">${s.periodsPerClass || '–'}</td></tr>`
-      ).join('');
-      return `<div style="margin-bottom:20px;page-break-inside:avoid;"><div style="background:#655ac1;color:white;padding:7px 13px;border-radius:6px;margin-bottom:5px;font-weight:900;font-family:'Tajawal',sans-serif;font-size:.85rem;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${label}</div><table style="border-collapse:collapse;width:100%;"><thead><tr><th style="${TH}width:32px;">#</th><th style="${TH}">المادة الدراسية</th><th style="${TH}width:90px;">الحصص</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="${TD}font-weight:900;">المجموع</td><td style="${TD}text-align:center;font-weight:900;color:#655ac1;">${tot}</td></tr></tfoot></table></div>`;
-    };
-
-    const TITLE = 'color:#3b355a;margin-bottom:10px;font-family:\'Tajawal\',sans-serif;font-size:1.1rem;font-weight:900;';
-    const SECTION = 'color:#655ac1;margin:14px 0 4px;font-family:\'Tajawal\',sans-serif;font-size:.9rem;font-weight:900;';
-    let content = `<div dir="rtl"><h2 style="${TITLE}">${selectedCategory.name} — ${selectedDepartment.name}</h2>`;
-
-    if (mode === 'plan') {
-      const targetSubDept = subDepartmentId
-        ? selectedDepartment.subDepartments?.find(sd => sd.id === subDepartmentId)
-        : selectedSubDept;
-
-      const targetPlans = planKey
-        ? (selectedDepartment.plans ?? []).filter(plan => plan.key === planKey)
-        : targetSubDept?.plans ?? activePlans;
-
-      if (targetSubDept) {
-        content += `<p style="${SECTION}">${targetSubDept.name}</p>`;
-      }
-
-      targetPlans.forEach(plan => {
-        content += buildTable(plan.label, DETAILED_TEMPLATES[plan.key] || []);
-      });
-    } else {
-      if (selectedDepartment.subDepartments?.length) {
-        selectedDepartment.subDepartments.forEach(sd => {
-          content += `<h3 style="${SECTION}">${sd.name}</h3>`;
-          sd.plans.forEach(plan => { content += buildTable(plan.label, DETAILED_TEMPLATES[plan.key] || []); });
-        });
-      } else {
-        selectedDepartment.plans.forEach(plan => { content += buildTable(plan.label, DETAILED_TEMPLATES[plan.key] || []); });
-      }
-    }
-    content += '</div>';
-
-    el.innerHTML = content;
-    el.style.display = 'block';
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => { el.style.display = 'none'; }, 500);
-    }, 200);
   };
 
   if (!isOpen) return null;
@@ -392,8 +342,8 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
               <p className="text-sm text-slate-500 font-medium">معاينة واعتماد الخطط الدراسية</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-all no-print">
-            <X size={20} />
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors no-print">
+            <X size={22} />
           </button>
         </div>
 
@@ -655,7 +605,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                                 type="number" min={0} max={30}
                                 value={kgPeriods[s.id] ?? 0}
                                 onChange={e => setKgPeriods(prev => ({ ...prev, [s.id]: parseInt(e.target.value) || 0 }))}
-                                className="w-9 h-8 shrink-0 text-center text-sm font-black text-[#7168c8] border-2 border-[#c4b5fd] rounded-lg outline-none focus:border-[#7168c8] bg-[#f5f3ff]"
+                                className="w-8 h-8 shrink-0 text-center text-sm font-black text-[#7168c8] border border-slate-300 rounded-lg outline-none focus:border-[#7168c8] bg-white"
                               />
                             ) : (
                               <div className="w-8 h-8 shrink-0 bg-white rounded-lg flex flex-col items-center justify-center border border-slate-300">
@@ -677,14 +627,24 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                         </div>
                       </div>
 
-                      {isKindergarten && (
-                        <p className="text-[11px] text-slate-400 text-center">دخّل عدد الحصص لكل مادة ثم اضغط اعتماد الخطة</p>
-                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-40 py-16">
                       <Eye size={40} className="text-slate-300 mb-3" />
                       <p className="text-slate-400 font-bold text-sm">لا توجد بيانات لهذه الخطة</p>
+                    </div>
+                  )}
+
+                  {isKindergarten && (
+                    <div className="mt-6 flex flex-col gap-1.5">
+                      <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                        <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                        أدخل عدد الحصص لكل مادة أولاً ثم اضغط على زر اعتماد الخطة .
+                      </p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                        <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                        يمكنك التعديل أو الحذف أو الإضافة بعد الاعتماد .
+                      </p>
                     </div>
                   )}
                 </div>

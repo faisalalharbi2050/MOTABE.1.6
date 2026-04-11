@@ -29,13 +29,40 @@ const SubjectSetup: React.FC<Props> = ({ specializations, setSpecializations, su
     }
   }, [availablePhases]);
 
-  const filteredSubjects = subjects.filter(s => !s.isArchived && (activeTab === 'all' || s.phases.includes(activeTab as Phase)));
-  const archivedSubjects = subjects.filter(s => s.isArchived);
+  // Deduplicate by name — each unique subject name shown once per phase tab
+  const filteredSubjects = useMemo(() => {
+    const all = subjects.filter(s => !s.isArchived && (activeTab === 'all' || s.phases.includes(activeTab as Phase)));
+    const seen = new Set<string>();
+    return all.filter(s => {
+      const key = s.name?.trim();
+      if (!key) return true; // keep unnamed rows (custom plan empty rows)
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [subjects, activeTab]);
+
+  const archivedSubjects = useMemo(() => {
+    const all = subjects.filter(s => s.isArchived);
+    const seen = new Set<string>();
+    return all.filter(s => {
+      const key = s.name?.trim();
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [subjects]);
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSub) return;
-    setSubjects(prev => prev.map(s => s.id === editingSub.id ? editingSub : s));
+    // Apply period/grade changes to ALL subjects sharing the same name
+    setSubjects(prev => prev.map(s =>
+      s.name === editingSub.name
+        ? { ...s, periodsPerClass: editingSub.periodsPerClass, targetGrades: editingSub.targetGrades }
+        : s
+    ));
     setEditingSub(null);
   };
 

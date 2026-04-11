@@ -35,6 +35,7 @@ import {
   ChevronRight,
   School,
   BookOpen,
+  Layers,
   LayoutGrid,
   CalendarDays,
   UserCog,
@@ -257,7 +258,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                    active={activeTab === "settings_subjects"}
                    onClick={() => handleTabClick("settings_subjects")}
                    label="المواد"
-                   icon={<BookOpen size={18} />}
+                   icon={<Layers size={18} />}
                    inverted={true}
                 />
                 <SubNavItem

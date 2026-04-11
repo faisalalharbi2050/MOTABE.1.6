@@ -10,7 +10,7 @@ import SchoolTabs from '../SchoolTabs';
 import StudyPlansModal from '../StudyPlansModal';
 import { SubjectConstraint } from '../../../types';
 import { getMaxDailyPeriodsForSubject, describeDistribution, ValidationWarning, validateAllConstraints } from '../../../utils/scheduleConstraints';
-import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon } from 'lucide-react';
+import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon, Save } from 'lucide-react';
 import SubjectAbbreviationsModal from '../../schedule/SubjectAbbreviationsModal';
 
 interface Props {
@@ -32,6 +32,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [showConstraintsModal, setShowConstraintsModal] = useState(false);
   const [deletePlanPhase, setDeletePlanPhase] = useState<Phase | null>(null);
   const [showAbbreviationsModal, setShowAbbreviationsModal] = useState(false);
+  const [deleteCustomPlanName, setDeleteCustomPlanName] = useState<string | null>(null);
+  const [deleteCustomSubjectId, setDeleteCustomSubjectId] = useState<string | null>(null);
   
   // Grade Details Modal State
   const [viewingGradeDetails, setViewingGradeDetails] = useState<{
@@ -148,17 +150,21 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
   const handleApprovePlan = (phase: Phase, departmentId: string, planKeys: string[], periodsOverride?: Record<string, number>) => {
       const newSubjects: Subject[] = [];
+      const overrideUpdates: Record<string, number> = {};
       const newMapUpdates: Record<string, string[]> = {};
 
       planKeys.forEach(key => {
           const templates = DETAILED_TEMPLATES[key] || [];
           // Add subjects
           templates.forEach(t => {
-             const subject = periodsOverride?.[t.id] !== undefined
-               ? { ...t, periodsPerClass: periodsOverride[t.id] }
+             const overridePeriods = periodsOverride?.[t.id];
+             const subject = overridePeriods !== undefined
+               ? { ...t, periodsPerClass: overridePeriods }
                : t;
-             // Check if subject exists (by ID) to avoid duplicates
-             if (!subjects.find(s => s.id === t.id) && !newSubjects.find(s => s.id === t.id)) {
+             if (subjects.find(s => s.id === t.id) || newSubjects.find(s => s.id === t.id)) {
+                 // Subject already exists — apply override if provided
+                 if (overridePeriods !== undefined) overrideUpdates[t.id] = overridePeriods;
+             } else {
                  newSubjects.push(subject);
              }
           });
@@ -205,7 +211,10 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           }
       });
       
-      setSubjects(prev => [...prev, ...newSubjects]);
+      setSubjects(prev => [
+          ...prev.map(s => overrideUpdates[s.id] !== undefined ? { ...s, periodsPerClass: overrideUpdates[s.id] } : s),
+          ...newSubjects
+      ]);
       setGradeSubjectMap(prev => ({ ...prev, ...newMapUpdates }));
       
       // Update department map
@@ -247,11 +256,18 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
               return next;
           });
 
-          // Optional: Remove subjects from main list if they are no longer used?
-          // For now, we keep them in 'subjects' array to avoid losing manual entries if keys overlap, 
-          // or we can remove them if we are sure. 
-          // Safest is just clearing the map for this phase.
-          
+          // Remove subjects from the main list if they are only used by this phase
+          const remainingIds = new Set<string>();
+          Object.entries(gradeSubjectMap).forEach(([key, ids]) => {
+              const belongsToThisPhase = grades.some(g =>
+                  key === makeGradeKey(activeSchoolId, phase, g) ||
+                  key === `${phase}-${g}`
+              );
+              if (!belongsToThisPhase) ids.forEach(id => remainingIds.add(id));
+          });
+          const removeSet = new Set(subjectsToRemove.filter(id => !remainingIds.has(id)));
+          setSubjects(prev => prev.filter(s => !removeSet.has(s.id)));
+
           // Clear department map for this phase
           setPhaseDepartmentMap(prev => {
               const next = { ...prev };
@@ -259,6 +275,78 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
               return next;
           });
       }
+  };
+
+  const handlePrintCustomPlan = (planName: string, planSubjects: Subject[]) => {
+    const TH = 'border:1px solid #e2e8f0;padding:8px 12px;text-align:right;background:#ede9fe;font-weight:900;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
+    const TD = 'border:1px solid #e2e8f0;padding:7px 12px;text-align:right;';
+    const total = planSubjects.reduce((s, x) => s + (x.periodsPerClass ?? 0), 0);
+    const rows = planSubjects.map((s, i) =>
+      `<tr><td style="${TD}text-align:center;">${i + 1}</td><td style="${TD}">${s.name || '—'}</td><td style="${TD}text-align:center;font-weight:bold;">${s.periodsPerClass || '–'}</td></tr>`
+    ).join('');
+
+    const printWindow = window.open('', '_blank', 'width=900,height=1100');
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html><html lang="ar" dir="rtl">
+      <head>
+        <meta charset="utf-8" />
+        <title>${planName}</title>
+        <style>
+          @page { size: A4 portrait; margin: 14mm; }
+          body { margin:0; background:white; direction:rtl; font-family:'Tajawal',sans-serif; color:#1e293b; }
+          table { border-collapse:collapse; width:100%; margin-bottom:16px; }
+          th, td { border:1px solid #e2e8f0; padding:9px 14px; text-align:right; }
+          th { background:#ede9fe; font-weight:900; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        </style>
+      </head>
+      <body>
+        <h2 style="color:#3b355a;margin-bottom:6px;font-size:1.1rem;font-weight:900;">${planName}</h2>
+        <div style="background:#655ac1;color:white;padding:7px 13px;border-radius:6px;margin-bottom:10px;font-weight:900;font-size:.85rem;-webkit-print-color-adjust:exact;print-color-adjust:exact;">خطة مخصصة</div>
+        <table>
+          <thead><tr>
+            <th style="${TH}width:32px;">#</th>
+            <th style="${TH}">المادة الدراسية</th>
+            <th style="${TH}width:90px;">الحصص</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr>
+            <td colspan="2" style="${TD}font-weight:900;">المجموع</td>
+            <td style="${TD}text-align:center;font-weight:900;color:#655ac1;">${total}</td>
+          </tr></tfoot>
+        </table>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = () => { printWindow.print(); };
+  };
+
+  const confirmDeleteCustomPlan = () => {
+    if (!deleteCustomPlanName) return;
+    setSubjects(prev => prev.filter(s => s.customPlanName !== deleteCustomPlanName));
+    setDeleteCustomPlanName(null);
+  };
+
+  const confirmDeleteCustomSubject = () => {
+    if (!deleteCustomSubjectId) return;
+    setSubjects(prev => prev.filter(s => s.id !== deleteCustomSubjectId));
+    setDeleteCustomSubjectId(null);
+  };
+
+  const handleAddRowToCustomPlan = (planName: string) => {
+    const newSub: Subject = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: '',
+      periodsPerClass: 0,
+      phases: [Phase.OTHER],
+      department: 'custom',
+      targetGrades: [],
+      isArchived: false,
+      specializationIds: [],
+      customPlanName: planName
+    };
+    setSubjects(prev => [...prev, newSub]);
   };
 
   const handleCustomPlanAdd = (planName: string, subjectCount: number) => {
@@ -366,7 +454,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <Layers size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              المواد الدراسية
           </h3>
-          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إدارة الخطط الدراسية والمواد وتوزيع الحصص</p>
+          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إدارة الخطط الدراسية واعتمادها وطباعتها والتعديل عليها بسهولة</p>
       </div>
 
 
@@ -426,47 +514,46 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
       {/* Custom Plans Render Area */}
       {Object.entries(customPlans).map(([planName, planSubjects]: [string, Subject[]]) => (
-           <div key={planName} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-6">
-                <div className="p-6 border-b border-slate-100 bg-[#f8f7ff] flex justify-between items-center">
-                    <h4 className="font-black text-lg text-[#655ac1] flex items-center gap-2">
-                        <List size={20} />
-                        {planName}
-                        <span className="text-xs bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-500 font-bold">خطة مخصصة</span>
-                    </h4>
+           <div key={planName} className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm flex flex-col">
+                <div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-black text-base text-slate-800">{planName}</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="px-3 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black">خطة مخصصة</span>
+                    </div>
                     <div className="flex gap-2">
-                        <button onClick={() => window.print()} className="group flex items-center gap-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-800 px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 shadow-sm">
-                            <Printer size={16} className="transition-transform group-hover:scale-110" /> 
-                            طباعة
+                        <button
+                            onClick={() => handlePrintCustomPlan(planName, planSubjects)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all shadow-sm"
+                        >
+                            <Printer size={16} />
+                            <span>طباعة</span>
                         </button>
-                        <button 
-                            onClick={() => {
-                                if (confirm('هل أنت متأكد من حذف هذه الخطة بالكامل؟')) {
-                                    setSubjects(prev => prev.filter(s => s.customPlanName !== planName));
-                                }
-                            }}
-                            className="group flex items-center gap-1.5 bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-500 hover:text-white hover:border-rose-500 px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 shadow-sm"
+                        <button
+                            onClick={() => setDeleteCustomPlanName(planName)}
+                            className="group flex items-center gap-2 bg-white text-rose-500 border border-rose-200 hover:bg-rose-500 hover:text-white hover:border-rose-500 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-rose-200"
                             title="حذف الخطة"
                         >
-                            <Trash2 size={16} className="transition-transform group-hover:scale-110" /> 
+                            <Trash2 size={18} className="transition-transform group-hover:scale-110" />
                             حذف
                         </button>
                     </div>
                 </div>
-                
+
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="bg-white border-b border-slate-100">
-                                <th className="px-6 py-4 text-right text-sm font-black text-slate-600">اسم المادة</th>
-                                <th className="px-6 py-4 text-center text-sm font-black text-slate-600">عدد الحصص</th>
-                                <th className="px-6 py-4 text-center text-sm font-black text-slate-600">الإجراءات</th>
+                            <tr className="bg-slate-50/50 border-b border-slate-100">
+                                <th className="px-6 py-4 text-right text-sm font-black text-primary">اسم المادة</th>
+                                <th className="px-6 py-4 text-center text-sm font-black text-primary">عدد الحصص</th>
+                                <th className="px-6 py-4 text-center text-sm font-black text-primary">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {planSubjects.map((sub, idx) => (
-                                <tr key={sub.id} className="hover:bg-[#f8f7ff] transition-colors group">
+                                <tr key={sub.id} className="hover:bg-accent/5 transition-all group">
                                     <td className="px-6 py-4">
-                                        <input 
+                                        <input
                                             value={sub.name}
                                             onChange={e => {
                                                 setSubjects(prev => prev.map(s => s.id === sub.id ? { ...s, name: e.target.value } : s));
@@ -476,7 +563,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                                         />
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                         <input 
+                                         <input
                                             type="number"
                                             value={sub.periodsPerClass}
                                             onChange={e => {
@@ -485,18 +572,14 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                                             className="w-20 text-center bg-slate-50 border border-slate-200 rounded-lg py-1 focus:border-[#655ac1] outline-none font-bold text-slate-700"
                                         />
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <button 
-                                               onClick={() => {
-                                                   if (confirm('حذف المادة؟')) {
-                                                       setSubjects(prev => prev.filter(s => s.id !== sub.id));
-                                                   }
-                                               }}
-                                               className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-all"
+                                    <td className="px-6 py-3 text-center">
+                                        <div className="flex items-center justify-center">
+                                            <button
+                                               onClick={() => setDeleteCustomSubjectId(sub.id)}
+                                               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-50 transition-all border border-slate-200 hover:border-rose-200 text-rose-500"
                                                title="حذف"
                                             >
-                                                <Trash2 size={18} />
+                                                <Trash2 size={15} />
                                             </button>
                                         </div>
                                     </td>
@@ -504,6 +587,17 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Add row button */}
+                <div className="px-6 py-4 border-t border-slate-50">
+                    <button
+                        onClick={() => handleAddRowToCustomPlan(planName)}
+                        className="flex items-center gap-2 text-[#655ac1] hover:text-[#5046a0] font-bold text-sm transition-colors"
+                    >
+                        <Plus size={16} />
+                        إضافة مادة
+                    </button>
                 </div>
            </div>
       ))}
@@ -612,19 +706,9 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           </div>
       ) : (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2rem] border border-slate-100 border-dashed">
-              <div className="w-20 h-20 bg-[#e5e1fe] rounded-full flex items-center justify-center text-[#655ac1] mb-6 animate-pulse">
-                  <Layers size={40} />
-              </div>
-              <h3 className="text-xl font-black text-slate-800 mb-2">لم يتم اعتماد خطة دراسية بعد</h3>
-              <p className="text-slate-500 max-w-md text-center mb-8">
-                  البدء باختيار الخطة الدراسية المناسبة للمدرسة لعرض المواد وتوزيع الحصص.
-              </p>
-              <button 
-                  onClick={() => setShowPlanModal(true)}
-                  className="bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105"
-              >
-                  اختيار الخطة الدراسية
-              </button>
+              <Layers size={48} className="text-[#655ac1] mb-5" />
+              <h3 className="text-xl font-black text-slate-700 mb-1">لم يتم اعتماد خطة دراسية بعد</h3>
+              <p className="text-sm text-slate-400 font-medium">اختر خطة مدرستك أو أضف خطة مخصصة</p>
           </div>
       )}
 
@@ -701,6 +785,68 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
         }}
       />
 
+      {/* Delete Custom Plan Confirmation Modal */}
+      {deleteCustomPlanName && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} className="text-rose-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">حذف الخطة المخصصة</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                هل أنت متأكد من حذف خطة <span className="text-[#655ac1] font-black">"{deleteCustomPlanName}"</span>؟ سيتم حذف جميع المواد المرتبطة بها ولا يمكن التراجع عن هذا الإجراء.
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setDeleteCustomPlanName(null)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={confirmDeleteCustomPlan}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Custom Subject Confirmation Modal */}
+      {deleteCustomSubjectId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} className="text-rose-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">حذف المادة</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                هل أنت متأكد من حذف هذه المادة من الخطة؟ لا يمكن التراجع عن هذا الإجراء.
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setDeleteCustomSubjectId(null)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={confirmDeleteCustomSubject}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Plan Confirmation Modal */}
       {deletePlanPhase && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -750,52 +896,53 @@ const CustomPlanModal: React.FC<{
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-[#e5e1fe] rounded-xl flex items-center justify-center text-[#655ac1]">
-                            <BookOpen size={24} />
-                        </div>
-                        <div>
-                           <h3 className="text-xl font-black text-slate-800">إضافة خطة مخصصة</h3>
-                           <p className="text-sm text-slate-500 font-bold">إنشاء خطة جديدة وتحديد عدد المواد</p>
-                        </div>
+            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
+
+                {/* Header — matches GradeDetailsModal style */}
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800">إضافة خطة مخصصة</h3>
+                        <p className="text-xs text-slate-400 font-bold mt-0.5">إنشاء خطة مخصصة وتحديد عدد موادها ونصاب حصصها</p>
                     </div>
-                    <button onClick={onClose}><X className="text-slate-400 hover:text-slate-600" /></button>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600">
+                        <X size={22} />
+                    </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="p-6 space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-slate-600 mb-1.5">اسم الخطة</label>
-                        <input 
-                            value={planName} 
-                            onChange={e => setPlanName(e.target.value)} 
-                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-[#655ac1] outline-none font-bold" 
-                            placeholder="مثال: خطة النشاط" 
+                        <label className="block text-sm font-bold text-slate-600 mb-1.5">
+                            اسم الخطة <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                            value={planName}
+                            onChange={e => setPlanName(e.target.value)}
+                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-[#655ac1] outline-none font-bold"
+                            placeholder="مثال: خطة مدرسة ... العالمية"
                             autoFocus
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-slate-600 mb-1.5">عدد المواد</label>
-                        <input 
-                            type="number" 
-                            value={count} 
-                            onChange={e => setCount(e.target.value)} 
-                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-[#655ac1] outline-none font-bold" 
+                        <input
+                            type="number"
+                            value={count}
+                            onChange={e => setCount(e.target.value)}
+                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-[#655ac1] outline-none font-bold"
                             min="1"
                             max="50"
                         />
-                         <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-                             <Info size={12} />
-                             يمكنك تعديل أسماء المواد وعدد الحصص لاحقاً من الجدول
-                         </p>
+                        <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
+                            <Info size={12} />
+                            يمكنك تعديل مسميات المواد وعدد الحصص لاحقاً بعد إنشاء الخطة
+                        </p>
                     </div>
                 </div>
 
-                <div className="pt-6 border-t border-slate-100 mt-6 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">إلغاء</button>
-                    <button 
-                        onClick={handleSave} 
+                <div className="px-6 pb-6 pt-2 border-t border-slate-100 flex justify-end gap-3">
+                    <button onClick={onClose} className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800">إلغاء</button>
+                    <button
+                        onClick={handleSave}
                         disabled={!planName}
                         className="bg-[#655ac1] hover:bg-[#5046a0] text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:transform-none disabled:shadow-none"
                     >
@@ -940,21 +1087,16 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
         <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-slate-50 to-white px-8 py-6 border-b border-slate-100 flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center shadow-sm">
-                        <Ban size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-800">قيود المواد</h2>
-                        <p className="text-slate-500 font-medium text-sm">تخصيص الحصص المستثناة والمفضلة للمواد</p>
-                    </div>
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <div>
+                    <h2 className="text-xl font-black text-slate-800">قيود المواد</h2>
+                    <p className="text-xs text-slate-400 font-bold mt-0.5">تخصيص الحصص المستثناة والمفضلة للمواد</p>
                 </div>
-                <button 
+                <button
                   onClick={onClose}
-                  className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
-                    <X size={24} />
+                    <X size={22} />
                 </button>
             </div>
 
@@ -1028,9 +1170,9 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                     <div className="lg:col-span-8">
                         {!selectedIdentifier ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-3xl min-h-[300px]">
-                                <Ban size={48} className="mb-4 opacity-20" />
-                                <p className="font-bold text-lg text-slate-400">الرجاء اختيار مادة</p>
-                                <p className="text-sm">لعرض وتعديل إعدادات القيود الخاصة بها</p>
+                                <Ban size={48} className="mb-4 text-rose-400" />
+                                <p className="font-bold text-lg text-slate-400">اختر مادة أولاً</p>
+                                <p className="text-sm text-slate-400">لعرض وتعديل إعدادات القيود الخاصة بها</p>
                             </div>
                         ) : (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1124,18 +1266,18 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                 </div>
             </div>
             
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
-                <button 
+            <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
+                <button
                     onClick={onClose}
-                    className="px-6 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
                 >
                     إغلاق
                 </button>
-                <button 
+                <button
                     onClick={onClose}
-                    className="px-8 py-3 bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white font-bold rounded-xl hover:shadow-lg hover:shadow-[#655ac1]/30 transition-all hover:-translate-y-0.5 flex items-center gap-2"
+                    className="px-8 py-2.5 bg-[#655ac1] hover:bg-[#5a4eb3] text-white font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 flex items-center gap-2"
                 >
-                    <Check size={18} />
+                    <Save size={18} />
                     حفظ
                 </button>
             </div>
