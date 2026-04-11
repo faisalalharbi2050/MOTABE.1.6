@@ -542,77 +542,72 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       : schoolInfo.sharedSchools?.find(s => s.id === activeSchoolId)?.name;
 
                   return (
-                      <div key={phase} className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                          <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center">
-                              <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                                  <span className="text-slate-700">{activeSchoolName}</span>
+                      <div key={phase} className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm flex flex-col">
+                          <div className="p-4 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-black text-base text-slate-800">{activeSchoolName}</span>
                                   <span className="text-slate-300">|</span>
-                                  <span className="text-[#655ac1]">{getPhaseLabel(phase)}</span>
+                                  <span className="font-black text-base text-primary">{getPhaseLabel(phase)}</span>
                                   {departmentName && (
-                                      <span className="text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
+                                      <span className="px-3 py-1 bg-primary/5 text-primary rounded-lg text-[10px] font-black">
                                           {departmentName}
                                       </span>
                                   )}
-                              </h4>
-                             <div className="flex gap-3">
-                                  <button
-                                      onClick={() => setDeletePlanPhase(phase)}
-                                      className="group flex items-center gap-2 bg-white text-rose-500 border border-rose-200 hover:bg-rose-500 hover:text-white hover:border-rose-500 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-rose-200"
-                                      title="حذف الخطة"
-                                  >
-                                      <Trash2 size={18} className="transition-transform group-hover:scale-110" />
-                                      حذف
-                                  </button>
                               </div>
-                         </div>
-                         
-                         <div className="overflow-x-auto">
-                             <table className="w-full">
-                                 <thead>
-                                     <tr className="bg-white border-b border-slate-100">
-                                         <th className="px-6 py-4 text-right text-sm font-black text-slate-600">الصف</th>
-                                         <th className="px-6 py-4 text-center text-sm font-black text-slate-600">عدد المواد</th>
-                                         <th className="px-6 py-4 text-center text-sm font-black text-slate-600">عدد الحصص</th>
-                                         <th className="px-6 py-4 text-center text-sm font-black text-slate-600">الإجراءات</th>
-                                     </tr>
-                                 </thead>
-                                 <tbody className="divide-y divide-slate-50">
-                                     {phaseData.map((row) => (
-                                         <tr key={row.grade} className="hover:bg-[#f8f7ff] transition-colors group">
-                                             <td className="px-6 py-4 text-sm font-bold text-slate-800">
-                                                 <div className="flex items-center gap-3">
-                                                     <div className="w-2 h-8 bg-[#8779fb] rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                     {row.gradeName}
-                                                 </div>
-                                             </td>
-                                             <td className="px-6 py-4 text-center">
-                                                 <span className="inline-flex items-center justify-center bg-[#e5e1fe] text-[#655ac1] px-3 py-1 rounded-full text-xs font-black">
-                                                     {row.subjectCount}
-                                                 </span>
-                                             </td>
-                                              <td className="px-6 py-4 text-center">
-                                                 <span className="inline-flex items-center justify-center bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-black">
-                                                     {row.totalPeriods}
-                                                 </span>
-                                             </td>
-                                             <td className="px-6 py-4">
-                                                 <div className="flex items-center justify-center gap-2">
-                                                     <button
-                                                        onClick={() => handleOpenGradeDetails(row.gradeKey, row.gradeName, phase)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb]"
-                                                        title="معاينة وتعديل"
-                                                     >
-                                                         <Edit2 size={14} />
-                                                     </button>
-                                                 </div>
-                                             </td>
-                                         </tr>
-                                     ))}
-                                 </tbody>
-                             </table>
-                         </div>
-                     </div>
-                 );
+                              <button
+                                  onClick={() => setDeletePlanPhase(phase)}
+                                  className="group flex items-center gap-2 bg-white text-rose-500 border border-rose-200 hover:bg-rose-500 hover:text-white hover:border-rose-500 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-rose-200"
+                                  title="حذف الخطة"
+                              >
+                                  <Trash2 size={18} className="transition-transform group-hover:scale-110" />
+                                  حذف
+                              </button>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                                <table className="w-full text-right min-w-[600px]">
+                                    <thead>
+                                        <tr className="bg-slate-50/50 border-b border-slate-100">
+                                            <th className="px-6 py-4 font-black text-primary text-sm">الصف</th>
+                                            <th className="px-6 py-4 font-black text-primary text-sm text-center">عدد المواد</th>
+                                            <th className="px-6 py-4 font-black text-primary text-sm text-center">عدد الحصص</th>
+                                            <th className="px-6 py-4 font-black text-primary text-sm text-center">الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {phaseData.map((row) => (
+                                            <tr key={row.grade} className="hover:bg-accent/5 transition-all group">
+                                                <td className="px-6 py-3">
+                                                    <div className="font-bold text-slate-800 text-sm">{row.gradeName}</div>
+                                                </td>
+                                                <td className="px-6 py-3 text-center">
+                                                    <span className="px-3 py-1 bg-primary/5 text-primary rounded-lg text-sm font-black">
+                                                        {row.subjectCount}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3 text-center">
+                                                    <div className="inline-block px-3 py-1 bg-slate-50 rounded-lg text-sm font-black text-slate-700">
+                                                        {row.totalPeriods}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-3 text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button
+                                                            onClick={() => handleOpenGradeDetails(row.gradeKey, row.gradeName, phase)}
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb] mx-auto"
+                                                            title="معاينة وتعديل"
+                                                        >
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                  </div>
+                                              </td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  );
              })}
           </div>
       ) : (
@@ -638,6 +633,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           isOpen={showPlanModal}
           onClose={() => setShowPlanModal(false)}
           onApprovePlan={handleApprovePlan}
+          approvedDepartmentMap={phaseDepartmentMap}
           schoolPhases={currentPhases}
           activeSchoolId={activeSchoolId}
           onSchoolChange={setActiveSchoolId}

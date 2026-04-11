@@ -4,6 +4,7 @@ import { X, GraduationCap, Building, School, Check, Printer, Eye, ChevronDown, C
 import { Phase, SchoolInfo } from '../../types';
 import { STUDY_PLANS_CONFIG, StudyPlanDepartment, StudyPlanEntry } from '../../study_plans_config';
 import { DETAILED_TEMPLATES } from '../../constants';
+import { useToast } from '../ui/ToastProvider';
 
 // ── Print CSS ────────────────────────────────────────────────────────────────
 const PRINT_CSS = `
@@ -76,6 +77,7 @@ interface StudyPlansModalProps {
   isOpen: boolean;
   onClose: () => void;
   onApprovePlan: (phase: Phase, departmentId: string, planKeys: string[], periodsOverride?: Record<string, number>) => void;
+  approvedDepartmentMap: Record<string, string>;
   schoolPhases: Phase[];
   activeSchoolId: string;
   onSchoolChange: (id: string) => void;
@@ -92,8 +94,9 @@ interface PrintOption {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
-  isOpen, onClose, onApprovePlan, schoolPhases, activeSchoolId, onSchoolChange, schoolInfo
+  isOpen, onClose, onApprovePlan, approvedDepartmentMap, schoolPhases, activeSchoolId, onSchoolChange, schoolInfo
 }) => {
+  const { showToast } = useToast();
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [selectedDeptId, setSelectedDeptId]   = useState<string | null>(null);
   const [selectedSubId,  setSelectedSubId]    = useState<string | null>(null);
@@ -197,12 +200,29 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
     }));
   }, [selectedDepartment, displayedPlans, isHSMasarat, selectedSemester]);
   const shouldShowPrintChooser = printOptions.length > 1;
+  const currentPlanSummaryLabel = (displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? '')
+    .replace(' - فصل أول', ' - الأول')
+    .replace(' - فصل ثاني', ' - الثاني')
+    .replace(' - ف١', ' - الأول')
+    .replace(' - ف٢', ' - الثاني');
+  const currentApprovedDepartmentId = selectedCategory && selectedDepartment
+    ? (isHSMasarat
+        ? (selectedSemester ? `${selectedDepartment.id}_ف${selectedSemester}` : null)
+        : selectedDepartment.id)
+    : null;
+  const isCurrentPlanApproved = selectedCategory && currentApprovedDepartmentId
+    ? approvedDepartmentMap[selectedCategory.phase as Phase] === currentApprovedDepartmentId
+    : false;
 
   const handleSave = () => {
     if (!selectedCategory || !selectedDepartment) return;
+    if (isCurrentPlanApproved) {
+      showToast('تم اعتماد هذه الخطة مسبقًا', 'warning');
+      return;
+    }
     if (isHSMasarat) {
       if (!selectedSemester) {
-        alert('يرجى تحديد الفصل الدراسي (الفصل الأول أو الثاني) قبل الاعتماد');
+        showToast('يرجى تحديد الفصل الدراسي قبل الاعتماد', 'warning');
         return;
       }
       const semPattern = selectedSemester === '1' ? 'الفصل_الأول' : 'الفصل_الثاني';
@@ -268,7 +288,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
 
     const printWindow = window.open('', '_blank', 'width=960,height=1200');
     if (!printWindow) {
-      alert('تعذر فتح نافذة الطباعة. يرجى السماح بالنوافذ المنبثقة ثم المحاولة مرة أخرى.');
+      showToast('تعذر فتح نافذة الطباعة. يرجى السماح بالنوافذ المنبثقة ثم المحاولة مرة أخرى.', 'error');
       return;
     }
 
@@ -359,7 +379,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white w-full max-w-7xl h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border border-slate-100">
+      <div className="relative bg-white w-full max-w-7xl h-[96vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border border-slate-100">
 
         {/* ── Header ── */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10 shrink-0">
@@ -409,7 +429,10 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
 
           {/* ── Step 1: Phase Sidebar ── */}
           <div className="w-56 border-l border-slate-100 bg-white p-4 overflow-y-auto shrink-0">
-            <h4 className="text-xs font-black text-slate-400 mb-4 px-2">1. المرحلة الدراسية</h4>
+            <h4 className="text-xs font-black text-slate-400 mb-4 px-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-white border border-[#d9d6fb] text-[#655ac1] flex items-center justify-center text-xs font-black">1</span>
+              <span>المرحلة الدراسية</span>
+            </h4>
             <div className="space-y-2">
               {availableCategories.map(cat => {
                 const isSelected = selectedPhaseId === cat.id;
@@ -442,7 +465,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                   <div>
                     <h4 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center text-xs font-black">2</div>
+                      <div className="w-6 h-6 rounded-full bg-white border border-[#d9d6fb] text-[#655ac1] flex items-center justify-center text-xs font-black">2</div>
                       تحديد القسم/المسار
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -500,52 +523,53 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                     </button>
                     <button onClick={handleSave}
                       disabled={isHSMasarat && !selectedSemester}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-sm ${
                         isHSMasarat && !selectedSemester
                           ? 'bg-slate-300 text-white cursor-not-allowed'
-                          : 'bg-primary text-white hover:bg-secondary shadow-lg shadow-indigo-200'
+                          : isCurrentPlanApproved
+                            ? 'bg-primary text-white border border-primary shadow-lg shadow-indigo-200'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                       title={isHSMasarat && !selectedSemester ? 'اختر الفصل الدراسي أولاً' : undefined}
                     >
-                      <Check size={16} />
-                      <span>اعتماد الخطة</span>
+                      {isCurrentPlanApproved && <Check size={16} />}
+                      <span>{isCurrentPlanApproved ? 'خطة معتمدة' : 'اعتماد الخطة'}</span>
                     </button>
                   </div>
                 </div>
 
                 {/* HS Masarat: mandatory semester selector */}
                 {isHSMasarat && (
-                  <div className="px-5 py-3 bg-amber-50/80 border-b border-amber-100 shrink-0 flex items-center gap-3 flex-wrap">
-                    <span className="text-xs font-black text-amber-700 shrink-0">تحديد الفصل:</span>
+                  <div className="px-5 py-3 border-b border-slate-200 bg-white shrink-0">
+                    <div className="flex items-center gap-3 flex-wrap rounded-xl border border-slate-300 bg-white px-4 py-3">
+                    <span className="text-xs font-black text-slate-500 shrink-0">اختر الفصل الدراسي :</span>
                     <div className="flex gap-2">
                       {(['1', '2'] as const).map(sem => (
                         <button key={sem}
                           onClick={() => { setSelectedSemester(sem); }}
-                          className={`px-4 py-1.5 text-xs font-black rounded-xl border-2 transition-all ${
+                          className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-xl text-sm font-bold transition-all shadow-sm ${
                             selectedSemester === sem
-                              ? 'bg-[#7168c8] text-white border-[#7168c8] shadow-md'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-[#7168c8]/50'
+                              ? 'bg-primary text-white border-primary shadow-lg shadow-indigo-200'
+                              : 'text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                           }`}
                         >
                           {sem === '1' ? 'الفصل الأول' : 'الفصل الثاني'}
                         </button>
                       ))}
                     </div>
-                    {!selectedSemester && (
-                      <span className="text-[11px] text-amber-600 font-bold">⚠ يجب تحديد الفصل قبل الحفظ</span>
-                    )}
+                    </div>
                   </div>
                 )}
 
                 {/* Grade tabs (subDepartments): show only when semester chosen or non-masarat */}
                 {selectedDepartment.subDepartments && selectedDepartment.subDepartments.length > 0 && (!isHSMasarat || selectedSemester) && (
-                  <div className="flex gap-1 px-5 pt-3 pb-0 shrink-0 overflow-x-auto border-b border-slate-100 bg-white">
+                  <div className="flex gap-2 px-5 py-3 shrink-0 overflow-x-auto border-b border-slate-100 bg-white">
                     {selectedDepartment.subDepartments.map(sd => (
                       <button key={sd.id} onClick={() => setSelectedSubId(sd.id)}
-                        className={`px-4 py-2 text-sm font-bold rounded-t-xl border-b-2 whitespace-nowrap transition-all ${
+                        className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-xl text-sm font-bold whitespace-nowrap transition-all shadow-sm ${
                           selectedSubId === sd.id
-                            ? 'border-[#7168c8] text-[#7168c8] bg-[#f5f3ff]'
-                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'bg-primary text-white border-primary shadow-lg shadow-indigo-200'
+                            : 'text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                       >
                         {sd.name}
@@ -560,10 +584,10 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                     <div className="flex gap-1.5 overflow-x-auto flex-wrap">
                       {displayedPlans.map(plan => (
                         <button key={plan.key} onClick={() => setSelectedPlanKey(plan.key)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-xl border whitespace-nowrap transition-all ${
+                          className={`flex items-center gap-2 px-4 py-2.5 bg-white border rounded-xl text-sm font-bold whitespace-nowrap transition-all shadow-sm ${
                             selectedPlanKey === plan.key
-                              ? 'bg-[#7168c8] text-white border-[#7168c8] shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-[#7168c8]/40 hover:bg-[#f5f3ff]'
+                              ? 'bg-primary text-white border-primary shadow-lg shadow-indigo-200'
+                              : 'text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                           }`}
                         >
                           {isHSMasarat ? stripSemester(plan.label) : plan.label}
@@ -574,18 +598,23 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                 )}
 
                 {/* Subjects area */}
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto p-3">
                   {isHSMasarat && !selectedSemester ? (
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-16">
-                      <GraduationCap size={52} className="text-slate-300 mb-3" />
-                      <p className="text-slate-500 font-black">حدد الفصل الدراسي أولاً</p>
-                      <p className="text-slate-400 text-xs mt-1">يجب اختيار الفصل لعرض المواد واعتماد الخطة</p>
+                      <Layers size={52} className="text-[#7168c8] mb-3" />
+                      <p className="text-slate-700 font-black">حدد الفصل الدراسي أولاً</p>
+                      <p className="text-slate-400 text-xs mt-1">يجب اختيار الفصل الدراسي لعرض المواد ثم اعتماد الخطة</p>
                     </div>
                   ) : previewSubjects.length > 0 ? (
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       {/* Summary bar */}
-                      <div className="flex items-center justify-between px-4 py-4 bg-white border-2 border-slate-300 rounded-xl min-h-[72px]">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-2 border-slate-300 rounded-xl min-h-[58px]">
                         <span className="text-sm font-black text-[#7168c8]">
+                          {selectedDepartment.subDepartments
+                            ? `${selectedSubDept?.name} - ${currentPlanSummaryLabel}`
+                            : currentPlanSummaryLabel}
+                        </span>
+                        <span className="hidden text-sm font-black text-[#7168c8]">
                           {selectedDepartment.subDepartments
                             ? `${selectedSubDept?.name} آ· ${displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? ''}`
                             : displayedPlans.find(p => p.key === selectedPlanKey)?.label ?? ''}
@@ -617,9 +646,9 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                       </div>
 
                       {/* Compact subject grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-1.5">
                         {previewSubjects.map((s) => (
-                          <div key={s.id} className="py-2 px-3 bg-white border border-slate-100 rounded-xl shadow-sm flex justify-between items-center gap-2 group hover:border-[#7168c8]/30 transition-all">
+                          <div key={s.id} className="py-1.5 px-2.5 bg-white border border-slate-100 rounded-xl shadow-sm flex justify-between items-center gap-2 group hover:border-[#7168c8]/30 transition-all">
                             <span className="font-bold text-slate-800 text-xs leading-tight line-clamp-2 flex-1">{s.name}</span>
                             {isKindergarten ? (
                               <input
@@ -629,7 +658,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                                 className="w-9 h-8 shrink-0 text-center text-sm font-black text-[#7168c8] border-2 border-[#c4b5fd] rounded-lg outline-none focus:border-[#7168c8] bg-[#f5f3ff]"
                               />
                             ) : (
-                              <div className="w-8 h-8 shrink-0 bg-slate-50 rounded-lg flex flex-col items-center justify-center border border-slate-100 group-hover:bg-[#e5e1fe] group-hover:border-[#c4b5fd] transition-all">
+                              <div className="w-8 h-8 shrink-0 bg-white rounded-lg flex flex-col items-center justify-center border border-slate-300">
                                 <span className="text-sm font-black text-[#7168c8] leading-none">{s.periodsPerClass || '–'}</span>
                               </div>
                             )}
@@ -638,7 +667,7 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
                       </div>
 
                       {/* Total row */}
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-2 border-[#e5e1fe] rounded-xl">
+                      <div className="hidden items-center justify-between px-4 py-2.5 bg-white border-2 border-[#e5e1fe] rounded-xl">
                         <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
                           <Info size={13} /> إجمالي المواد: {previewSubjects.length}
                         </span>
@@ -663,6 +692,15 @@ const StudyPlansModal: React.FC<StudyPlansModalProps> = ({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="shrink-0 px-6 py-4 border-t border-slate-100 bg-white flex justify-end no-print">
+          <button
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
+          >
+            إغلاق
+          </button>
         </div>
       </div>
 
