@@ -1302,7 +1302,7 @@ const ManualAssignment: React.FC<Props> = ({
                                         const bProgress = schoolB_Quota > 0 ? Math.min(100, Math.round((schoolB_Actual / schoolB_Quota) * 100)) : 0;
                                         return (
                                             <div className="space-y-1.5">
-                                                <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                                <div className="space-y-1.5">
                                                     <div className="text-[9px] font-black text-slate-400 truncate">{schoolA_Name}</div>
                                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                                                         <span>نصاب الحصص: <span className="mr-1">{schoolA_Quota}</span></span>
@@ -1313,7 +1313,7 @@ const ManualAssignment: React.FC<Props> = ({
                                                     </div>
                                                 </div>
                                                 {schoolB_Entry && (
-                                                    <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                                    <div className="space-y-1.5">
                                                         <div className="text-[9px] font-black text-slate-400 truncate">{schoolB_Name}</div>
                                                         <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                                                             <span>نصاب الحصص: <span className="mr-1">{schoolB_Quota}</span></span>
@@ -1327,7 +1327,7 @@ const ManualAssignment: React.FC<Props> = ({
                                             </div>
                                         );
                                     })() : (
-                                        <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                        <div className="space-y-1.5">
                                             <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                                                 <span className="flex items-center gap-1">
                                                     نصاب الحصص:
