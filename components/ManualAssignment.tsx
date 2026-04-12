@@ -1546,8 +1546,11 @@ const ManualAssignment: React.FC<Props> = ({
                                             {/* Header */}
                                             <div className="px-6 py-4 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-[#fbfbfe] to-white group">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner transition-all duration-500 ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-[#e5e1fe] text-[#655ac1]'}`}>
-                                                        {isCompleted ? <Check size={20} /> : cls.section}
+                                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border-2 border-slate-300 bg-white transition-all duration-500">
+                                                        {isCompleted
+                                                            ? <CheckCircle2 size={24} className="text-emerald-500" strokeWidth={2}/>
+                                                            : <span className="text-[#655ac1]">{cls.section}</span>
+                                                        }
                                                     </div>
                                                     <div>
                                                         <h4 className="text-base font-black text-slate-800">الفصل {cls.grade} / {cls.section}</h4>
@@ -1601,7 +1604,7 @@ const ManualAssignment: React.FC<Props> = ({
                                                                             {sub.periodsPerClass} حصص
                                                                         </span>
                                                                     </div>
-                                                                    {isAssigned && <div className="p-0.5 bg-emerald-100 rounded-full"><CheckCircle2 size={10} className="text-emerald-600" /></div>}
+                                                                    {isAssigned && <CheckCircle2 size={15} className="text-emerald-500 shrink-0" strokeWidth={2}/>}
                                                                 </div>
                                                                 
                                                                 {isAssigned ? (
