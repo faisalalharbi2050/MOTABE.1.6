@@ -1301,8 +1301,8 @@ const ManualAssignment: React.FC<Props> = ({
                                         const bTextCls = bIsOver ? 'bg-rose-100 text-rose-600' : bIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
                                         const bProgress = schoolB_Quota > 0 ? Math.min(100, Math.round((schoolB_Actual / schoolB_Quota) * 100)) : 0;
                                         return (
-                                            <div className="space-y-1.5 pt-1">
-                                                <div className="space-y-1.5 pt-1">
+                                            <div className="space-y-1.5 pt-2">
+                                                <div className="space-y-1.5 pt-2">
                                                     <div className="text-[9px] font-black text-slate-400 truncate">{schoolA_Name}</div>
                                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                                                         <span>نصاب الحصص: <span className="mr-1">{schoolA_Quota}</span></span>
@@ -1313,7 +1313,7 @@ const ManualAssignment: React.FC<Props> = ({
                                                     </div>
                                                 </div>
                                                 {schoolB_Entry && (
-                                                    <div className="space-y-1.5 pt-1">
+                                                    <div className="space-y-1.5 pt-2">
                                                         <div className="text-[9px] font-black text-slate-400 truncate">{schoolB_Name}</div>
                                                         <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                                                             <span>نصاب الحصص: <span className="mr-1">{schoolB_Quota}</span></span>
@@ -1327,7 +1327,7 @@ const ManualAssignment: React.FC<Props> = ({
                                             </div>
                                         );
                                     })() : (
-                                        <div className="space-y-1.5 pt-1">
+                                        <div className="space-y-1.5 pt-2">
                                             <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                                                 <span className="flex items-center gap-1">
                                                     نصاب الحصص:
