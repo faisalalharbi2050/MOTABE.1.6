@@ -1600,7 +1600,7 @@ const ManualAssignment: React.FC<Props> = ({
                                                                 <div className="flex justify-between items-start mb-1.5">
                                                                     <div className="flex flex-col gap-0.5 max-w-[85%]">
                                                                         <span className={`text-[11px] font-black truncate ${isAssigned ? 'text-emerald-800' : 'text-slate-700'}`}>{sub.name}</span>
-                                                                        <span className="text-[9px] font-bold text-slate-500 flex items-center gap-1">
+                                                                        <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
                                                                             {sub.periodsPerClass} حصص
                                                                         </span>
                                                                     </div>
