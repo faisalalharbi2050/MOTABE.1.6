@@ -1213,7 +1213,7 @@ const ManualAssignment: React.FC<Props> = ({
                                     rounded-2xl cursor-pointer transition-all group relative overflow-hidden flex flex-row
                                     ${isSelected
                                         ? 'bg-white border-2 border-[#655ac1] shadow-sm'
-                                        : 'bg-white border border-slate-100 hover:border-[#8779fb]/50 hover:shadow-md hover:translate-x-[-2px]'}
+                                        : 'bg-white border border-slate-300 hover:border-[#8779fb] hover:shadow-md hover:translate-x-[-2px]'}
                                 `}
                             >
                                 {/* ── القسم الأيمن: المعلومات ── */}
