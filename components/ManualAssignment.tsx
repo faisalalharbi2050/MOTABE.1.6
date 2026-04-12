@@ -5,7 +5,7 @@ import {
   Search, X, Trash2, ChevronDown, Filter, Check, CheckCheck, Layers, Briefcase,
   Printer, Users, CheckCircle2, User, HelpCircle, AlertTriangle, LayoutTemplate,
   Eye, ArrowUp, ClipboardList, BookOpen, ChevronRight, Calculator, GraduationCap,
-  ListFilter, School, LayoutGrid, ShieldAlert
+  ListFilter, School, LayoutGrid, ShieldAlert, ArrowLeftRight
 } from 'lucide-react';
 import AssignmentReport from './AssignmentReport';
 import { useToast } from './ui/ToastProvider';
@@ -59,6 +59,12 @@ const ManualAssignment: React.FC<Props> = ({
 
   // -- Details Modal State --
   const [viewingTeacher, setViewingTeacher] = useState<Teacher | null>(null);
+
+  // -- Transfer Modal State --
+  const [transferTeacher, setTransferTeacher] = useState<Teacher | null>(null);
+  const [transferMap, setTransferMap] = useState<Record<string, string>>({});
+  const [openTransferDropKey, setOpenTransferDropKey] = useState<string | null>(null);
+  const [transferDropSearch, setTransferDropSearch] = useState('');
 
   // -- Dropdown Toggles --
   const [showSpecDropdown, setShowSpecDropdown] = useState(false);
@@ -429,10 +435,10 @@ const ManualAssignment: React.FC<Props> = ({
           const cls = classes.find(c => c.id === a.classId);
           const sub = subjects.find(s => s.id === a.subjectId);
           return (
-              <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-300">
                   <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white rounded-lg border border-slate-100 text-[#655ac1]">
-                          <Briefcase size={16}/>
+                      <div className="p-2 bg-white rounded-lg border border-slate-300 text-[#655ac1]">
+                          <BookOpen size={16}/>
                       </div>
                       <div>
                           <h4 className="text-sm font-black text-slate-700">{sub?.name}</h4>
@@ -480,15 +486,12 @@ const ManualAssignment: React.FC<Props> = ({
               <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl m-4">
                   <div className="flex justify-between items-center mb-6">
                       <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-2xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center font-black text-lg">
-                              {viewingTeacher.name.substring(0,2)}
-                          </div>
                           <div>
                               <h3 className="text-lg font-black text-slate-800">{viewingTeacher.name}</h3>
                               <p className="text-xs font-bold text-slate-500">تفاصيل الإسناد الحالي</p>
                           </div>
                       </div>
-                      <button onClick={() => setViewingTeacher(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
+                      <button onClick={() => setViewingTeacher(null)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
                           <X size={20}/>
                       </button>
                   </div>
@@ -556,7 +559,7 @@ const ManualAssignment: React.FC<Props> = ({
                   </div>
 
                   <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
-                      <button onClick={() => setViewingTeacher(null)} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">
+                      <button onClick={() => setViewingTeacher(null)} className="px-6 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-colors">
                           إغلاق
                       </button>
                   </div>
@@ -565,6 +568,369 @@ const ManualAssignment: React.FC<Props> = ({
       );
   };
 
+
+  // ── مودال نقل الإسناد ──
+  const TransferAssignmentModal = () => {
+    if (!transferTeacher) return null;
+
+    const teacherAssns = assignments.filter(a => {
+      if (a.teacherId !== transferTeacher.id) return false;
+      const cls = classes.find(c => c.id === a.classId);
+      return (cls?.schoolId || 'main') === activeSchoolTab;
+    });
+
+    if (teacherAssns.length === 0) return null;
+
+    // الحِمل الفعلي لمعلم بديل (نصابه الحالي + ما خُصص له في هذه العملية)
+    const getEffectiveLoad = (tId: string, excludeKey?: string) => {
+      const base = getTeacherLoad(tId);
+      const extra = Object.entries(transferMap).reduce((sum, [k, repId]) => {
+        if (repId !== tId || k === excludeKey) return sum;
+        const [, subjectId] = k.split('::');
+        return sum + (subjects.find(s => s.id === subjectId)?.periodsPerClass || 0);
+      }, 0);
+      return base + extra;
+    };
+
+    const availableTeachers = teachers.filter(
+      t => t.id !== transferTeacher.id && isTeacherInCurrentSchool(t)
+    );
+
+    const allSelected = teacherAssns.length > 0 &&
+      teacherAssns.every(a => !!transferMap[`${a.classId}::${a.subjectId}`]);
+
+    const overflowIds = new Set(
+      Object.entries(transferMap).filter(([key, repId]) => {
+        if (!repId) return false;
+        const [, subjectId] = key.split('::');
+        const sub = subjects.find(s => s.id === subjectId);
+        const rep = teachers.find(t => t.id === repId);
+        if (!sub || !rep) return false;
+        return getEffectiveLoad(repId) > (rep.quotaLimit || 0);
+      }).map(([, repId]) => repId)
+    );
+
+    // ── إحصائيات تفاعلية للمعلم المنقول ──
+    const mappedPeriods = teacherAssns
+      .filter(a => !!transferMap[`${a.classId}::${a.subjectId}`])
+      .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+    const remainingSubjectsCount = teacherAssns.filter(a => !transferMap[`${a.classId}::${a.subjectId}`]).length;
+    const originalLoad = getTeacherLoad(transferTeacher.id);
+    const remainingLoad = originalLoad - mappedPeriods;
+
+    const doTransfer = () => {
+      const kept = assignments.filter(a => {
+        if (a.teacherId !== transferTeacher.id) return true;
+        const cls = classes.find(c => c.id === a.classId);
+        return (cls?.schoolId || 'main') !== activeSchoolTab;
+      });
+      const added = teacherAssns
+        .filter(a => transferMap[`${a.classId}::${a.subjectId}`])
+        .map(a => ({
+          teacherId: transferMap[`${a.classId}::${a.subjectId}`],
+          classId: a.classId,
+          subjectId: a.subjectId,
+        }));
+      setAssignments([...kept, ...added]);
+      setTransferTeacher(null);
+      setTransferMap({});
+      setOpenTransferDropKey(null);
+      showToast(`✓ تم نقل إسنادات ${transferTeacher.name} بنجاح`, 'success');
+    };
+
+    const handleConfirmTransfer = () => {
+      if (!allSelected) return;
+      if (overflowIds.size > 0) {
+        const overflowNames = Array.from(overflowIds)
+          .map(id => teachers.find(t => t.id === id)?.name)
+          .filter(Boolean).join('، ');
+        setConfirmDialog({
+          title: 'تجاوز النصاب',
+          message: `المعلم/ون (${overflowNames}) سيتجاوزون نصابهم بعد النقل. هل تريد المتابعة رغم ذلك؟`,
+          confirmLabel: 'متابعة رغم ذلك',
+          type: 'warning',
+          onConfirm: doTransfer,
+        });
+        return;
+      }
+      doTransfer();
+    };
+
+    return (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in"
+        onClick={() => setOpenTransferDropKey(null)}
+      >
+        <div
+          className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl m-4 flex flex-col max-h-[90vh]"
+          onClick={e => e.stopPropagation()}
+        >
+
+          {/* ── رأس النافذة ── */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+            <div>
+              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <ArrowLeftRight size={18} className="text-[#655ac1]" />
+                نقل إسنادات المعلم
+              </h3>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                اختر المعلم البديل لكل مادة وفصل
+              </p>
+            </div>
+            <button
+              onClick={() => { setTransferTeacher(null); setTransferMap({}); setOpenTransferDropKey(null); }}
+              className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* ── بطاقة المعلم المنقول (تفاعلية) ── */}
+          <div className="px-6 pt-4 pb-2">
+            <div className="border border-slate-300 bg-white rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs text-slate-400 font-bold mb-0.5">المعلم</p>
+                <p className="font-black text-[#655ac1] text-base">{transferTeacher.name}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <p className="text-xl font-black text-[#655ac1] leading-none tabular-nums">{remainingSubjectsCount}</p>
+                  <p className="text-[10px] font-bold text-[#655ac1]/60 mt-0.5">مواد</p>
+                </div>
+                <div className="w-px h-8 bg-slate-200" />
+                <div className="text-center">
+                  <p className="text-xl font-black text-[#655ac1] leading-none tabular-nums">{remainingLoad}</p>
+                  <p className="text-[10px] font-bold text-[#655ac1]/60 mt-0.5">حصة</p>
+                </div>
+                <div className="w-px h-8 bg-slate-200" />
+                <div className="text-center">
+                  <p className="text-xl font-black text-[#655ac1] leading-none tabular-nums">{mappedPeriods}</p>
+                  <p className="text-[10px] font-bold text-[#655ac1]/60 mt-0.5">حصة منقولة</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── قائمة الإسنادات ── */}
+          <div className="overflow-y-auto flex-1 px-6 py-3 space-y-3 custom-scrollbar">
+            {teacherAssns.map(a => {
+              const cls    = classes.find(c => c.id === a.classId);
+              const sub    = subjects.find(s => s.id === a.subjectId);
+              const key    = `${a.classId}::${a.subjectId}`;
+              const repId  = transferMap[key] || '';
+              const rep    = teachers.find(t => t.id === repId);
+              const subLoad = sub?.periodsPerClass || 0;
+              const afterLoad = rep ? getEffectiveLoad(rep.id, key) + subLoad : 0;
+              const quota     = rep?.quotaLimit || 0;
+              const remaining = quota - (rep ? getEffectiveLoad(rep.id, key) : 0);
+              const isOver    = rep ? afterLoad > quota : false;
+              const isNear    = rep && !isOver && remaining <= 3;
+              const pct       = quota > 0 ? Math.min(100, Math.round((afterLoad / quota) * 100)) : 0;
+              const barColor  = isOver ? 'bg-rose-500' : isNear ? 'bg-amber-400' : 'bg-emerald-500';
+              const isDropOpen = openTransferDropKey === key;
+
+              return (
+                <div key={key} className={`rounded-2xl border-2 p-4 transition-all ${
+                  repId
+                    ? isOver  ? 'border-rose-200 bg-rose-50/20'
+                    : isNear  ? 'border-amber-200 bg-amber-50/20'
+                    : 'border-emerald-200 bg-emerald-50/10'
+                    : 'border-slate-200 bg-white'
+                }`}>
+
+                  {/* معلومات المادة والفصل */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-white rounded-lg border border-slate-200 text-[#655ac1] shrink-0">
+                      <BookOpen size={14} />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                      <span className="font-black text-slate-800 text-sm">{sub?.name}</span>
+                      <span className="text-slate-300 text-xs">·</span>
+                      <span className="text-xs font-bold text-[#655ac1] bg-white border border-slate-300 px-2 py-0.5 rounded-lg">
+                        {subLoad} حصص
+                      </span>
+                      <span className="text-slate-300 text-xs">·</span>
+                      <span className="text-xs font-bold text-slate-500">
+                        الصف {cls?.grade} / الفصل {cls?.section}
+                      </span>
+                    </div>
+                    {repId && (
+                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border shrink-0 ${
+                        isOver ? 'bg-rose-50 border-rose-200 text-rose-600'
+                        : isNear ? 'bg-amber-50 border-amber-200 text-amber-600'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                      }`}>
+                        {isOver ? '⚠ تجاوز' : isNear ? '⚡ قرب الاكتمال' : '✓ متاح'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* ── قائمة اختيار المعلم البديل (مخصصة) ── */}
+                  <div className="relative" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => { setOpenTransferDropKey(isDropOpen ? null : key); setTransferDropSearch(''); }}
+                      className={`w-full border rounded-xl px-4 py-2.5 flex items-center justify-between text-sm transition-all ${
+                        isDropOpen
+                          ? 'border-[#655ac1] ring-2 ring-[#655ac1]/20 bg-white'
+                          : 'border-slate-200 bg-white hover:border-[#655ac1]/40'
+                      }`}
+                    >
+                      {repId ? (
+                        <div className="flex items-center gap-2">
+                          <Check size={13} className="text-[#655ac1] shrink-0" />
+                          <span className="font-bold text-slate-800">{rep?.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 font-medium">— اختر المعلم البديل —</span>
+                      )}
+                      <ChevronDown size={16} className={`text-slate-400 transition-transform shrink-0 ${isDropOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isDropOpen && (
+                      <div className="absolute top-full right-0 left-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                        {/* شريط البحث */}
+                        <div className="px-3 py-2.5 border-b border-slate-100">
+                          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                            <Search size={13} className="text-slate-400 shrink-0" />
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="ابحث عن معلم..."
+                              value={transferDropSearch}
+                              onChange={e => setTransferDropSearch(e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              className="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none font-medium min-w-0"
+                            />
+                            {transferDropSearch && (
+                              <button onClick={() => setTransferDropSearch('')} className="text-slate-400 hover:text-slate-600">
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="max-h-44 overflow-y-auto custom-scrollbar">
+                          {availableTeachers.filter(t =>
+                            !transferDropSearch.trim() || t.name.includes(transferDropSearch.trim())
+                          ).map(t => {
+                            const effLoad  = getEffectiveLoad(t.id, key);
+                            const newLoad  = effLoad + subLoad;
+                            const tQuota   = t.quotaLimit || 0;
+                            const tRemain  = tQuota - effLoad;
+                            const willOver = newLoad > tQuota;
+                            const nearLim  = !willOver && tRemain <= 3;
+                            const isChosen = repId === t.id;
+
+                            return (
+                              <button
+                                key={t.id}
+                                onClick={() => {
+                                  setTransferMap(prev => ({ ...prev, [key]: t.id }));
+                                  setOpenTransferDropKey(null);
+                                }}
+                                className={`w-full px-4 py-2.5 flex items-center justify-between transition-colors border-b border-slate-100 last:border-0 text-right ${
+                                  isChosen ? 'bg-[#f0eeff]' : 'hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {isChosen
+                                    ? <Check size={13} className="text-[#655ac1] shrink-0" />
+                                    : <div className="w-[13px] shrink-0" />
+                                  }
+                                  <span className={`text-sm font-bold ${isChosen ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                                    {t.name}
+                                  </span>
+                                </div>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border shrink-0 ${
+                                  willOver
+                                    ? 'bg-rose-50 border-rose-300 text-rose-600'
+                                    : nearLim
+                                      ? 'bg-amber-50 border-amber-300 text-amber-600'
+                                      : 'bg-emerald-50 border-emerald-300 text-emerald-600'
+                                }`}>
+                                  {willOver
+                                    ? `⚠ تجاوز  ${newLoad}/${tQuota}`
+                                    : nearLim
+                                      ? `⚡ ${tRemain} حصة فقط`
+                                      : `✓ ${tRemain} متاح`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {availableTeachers.filter(t =>
+                            !transferDropSearch.trim() || t.name.includes(transferDropSearch.trim())
+                          ).length === 0 && (
+                            <div className="px-4 py-4 text-center text-slate-400 text-xs font-medium">
+                              لا توجد نتائج
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* شريط النصاب للمعلم المختار */}
+                  {rep && (
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`text-[11px] font-bold ${
+                          isOver ? 'text-rose-600' : isNear ? 'text-amber-600' : 'text-emerald-600'
+                        }`}>
+                          {isOver
+                            ? `تجاوز بـ ${afterLoad - quota} حصة — الإجمالي ${afterLoad}/${quota}`
+                            : `بعد الإسناد: ${afterLoad}/${quota} — متبقي ${quota - afterLoad}`}
+                        </span>
+                        <span className={`text-[11px] font-black ${
+                          isOver ? 'text-rose-600' : isNear ? 'text-amber-600' : 'text-emerald-600'
+                        }`}>{pct}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-1.5">
+                        <div className={`${barColor} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── تذييل النافذة ── */}
+          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div className="text-xs font-bold">
+              {allSelected && overflowIds.size > 0 && (
+                <span className="text-amber-600">⚠ بعض المعلمين سيتجاوزون نصابهم — يمكن المتابعة مع التأكيد</span>
+              )}
+              {allSelected && overflowIds.size === 0 && (
+                <span className="text-emerald-600">✓ جميع الإسنادات جاهزة للنقل دون تجاوز</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { setTransferTeacher(null); setTransferMap({}); setOpenTransferDropKey(null); }}
+                className="px-5 py-2 bg-white border border-slate-300 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleConfirmTransfer}
+                disabled={!allSelected}
+                className={`px-6 py-2 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${
+                  !allSelected
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : overflowIds.size > 0
+                      ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-md shadow-amber-500/20'
+                      : 'bg-[#655ac1] text-white hover:bg-[#5246a4] shadow-md shadow-[#655ac1]/20'
+                }`}
+              >
+                <ArrowLeftRight size={14} />
+                تأكيد النقل
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
 
   if (showReport) {
     return (
@@ -584,6 +950,7 @@ const ManualAssignment: React.FC<Props> = ({
     <div className="space-y-6 animate-in fade-in duration-500 pb-24" ref={mainScrollRef}>
         
       {viewingTeacher && <TeacherDetailsModal />}
+      {transferTeacher && <TransferAssignmentModal />}
 
       {/* ── مودال التأكيد الاحترافي ── */}
       {confirmDialog && (
@@ -643,10 +1010,10 @@ const ManualAssignment: React.FC<Props> = ({
       {/* 2. ROW 2: Action Bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             
-            {/* Stat 1: Unassigned Periods (Refined) */}
+            {/* Stat 1: Unassigned Periods */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center transition-all">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><BookOpen size={18} className="text-[#655ac1]" /></div>
+                    <BookOpen size={22} className="text-[#655ac1]" />
                     <span className="text-xs font-bold text-slate-500">حصص غير مسندة</span>
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -655,41 +1022,41 @@ const ManualAssignment: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* Stat 2: Unassigned Classes (Refined Icon + Color) */}
+            {/* Stat 2: Unassigned Classes */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center transition-all">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><LayoutGrid size={18} className="text-[#655ac1]" /></div>
+                    <LayoutGrid size={22} className="text-[#655ac1]" />
                     <span className="text-xs font-bold text-slate-500">فصول غير مسندة</span>
                 </div>
                 <span className="text-3xl font-black leading-none text-[#655ac1]">{unassignedClassesCount}</span>
             </div>
 
-            {/* Stat 3: Unassigned Subjects (Refined Color) */}
+            {/* Stat 3: Unassigned Subjects */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center transition-all">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <div className="p-1.5 bg-slate-100 rounded-lg shadow-sm"><Layers size={18} className="text-[#655ac1]" /></div>
+                    <Layers size={22} className="text-[#655ac1]" />
                     <span className="text-xs font-bold text-slate-500">مواد غير مسندة</span>
                 </div>
                 <span className="text-3xl font-black leading-none text-[#655ac1]">{unassignedSubjectsCount}</span>
             </div>
 
             {/* Action 4: Report Button */}
-            <button 
+            <button
                 onClick={() => setShowReport(true)}
-                className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center items-center gap-2 hover:border-[#655ac1] hover:text-[#655ac1] transition-all group"
+                className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center gap-2 hover:border-[#655ac1] hover:shadow-lg transition-all group"
             >
-                <Printer size={24} className="text-[#655ac1] transition-colors shadow-sm"/>
-                <span className="text-xs font-bold text-slate-600 group-hover:text-[#655ac1]">تقرير الإسناد</span>
+                <Printer size={22} className="text-[#655ac1]"/>
+                <span className="text-xs font-bold text-slate-500 group-hover:text-[#655ac1] transition-colors">تقرير الإسناد</span>
             </button>
 
-            {/* Action 5: Delete All Button (Refined Label) */}
-            <button 
+            {/* Action 5: Delete All Button */}
+            <button
                 onClick={handleDeleteAll}
                 disabled={assignments.length === 0}
-                className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center items-center gap-2 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500 transition-all group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-100 disabled:hover:text-inherit"
+                className="bg-white p-5 rounded-2xl border border-slate-100 shadow-md flex flex-col justify-center items-center gap-2 hover:border-rose-200 hover:bg-rose-50 hover:shadow-lg transition-all group disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-100 disabled:hover:shadow-md"
             >
-                <Trash2 size={24} className="text-slate-400 group-hover:text-rose-500 transition-colors"/>
-                <span className="text-xs font-bold text-slate-600 group-hover:text-rose-500">حذف إسناد الكل</span>
+                <Trash2 size={22} className="text-rose-500"/>
+                <span className="text-xs font-bold text-slate-500 group-hover:text-rose-500 transition-colors">حذف إسناد الكل</span>
             </button>
 
       </div>
@@ -841,207 +1208,204 @@ const ManualAssignment: React.FC<Props> = ({
                         return (
                             <div
                                 key={t.id}
-                                onClick={() => setSelectedTeacherId(t.id)}
+                                onClick={() => setSelectedTeacherId(isSelected ? null : t.id)}
                                 className={`
-                                    p-3.5 rounded-2xl cursor-pointer transition-all group relative overflow-hidden flex flex-col gap-2.5
+                                    rounded-2xl cursor-pointer transition-all group relative overflow-hidden flex flex-row
                                     ${isSelected
                                         ? 'bg-white border-2 border-[#655ac1] shadow-sm'
                                         : 'bg-white border border-slate-100 hover:border-[#8779fb]/50 hover:shadow-md hover:translate-x-[-2px]'}
                                 `}
                             >
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        {/* Avatar Removed */}
-                                        <div className="flex flex-col min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</h4>
-                                                {t.isShared && (() => {
-                                                    // بناء قائمة كاملة بمدارس المعلم (الأصلية + المشتركة)
-                                                    const originalId = t.schoolId || 'main';
-                                                    const originalName = originalId === 'main'
-                                                        ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
-                                                        : (sharedSchools.find(s => s.id === originalId)?.name || originalId);
-                                                    const allSchools = [
-                                                        { schoolId: originalId, schoolName: originalName },
-                                                        ...(t.schools || []).filter(s => s.schoolId !== originalId),
-                                                    ];
-                                                    const otherSchools = allSchools
-                                                        .filter(s => s.schoolId !== activeSchoolTab)
-                                                        .map(s => s.schoolName)
-                                                        .join('، ');
-                                                    return (
-                                                        <span title={`مشترك مع: ${otherSchools || 'مدارس أخرى'}`} className="shrink-0 text-[#655ac1]">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                                                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                                                            </svg>
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </div>
-                                            <span className="text-[10px] text-slate-400 font-bold truncate">
-                                                {specializations.find(s => s.id === t.specializationId)?.name || 'عام'}
-                                            </span>
-                                            {(() => {
-                                                const days = t.constraints?.presenceDays?.[activeSchoolTab];
-                                                if (!days || days.length === 0) return null;
-                                                const dayNames: Record<string, string> = {
-                                                    sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء',
-                                                    wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة', sat: 'السبت'
-                                                };
+                                {/* ── القسم الأيمن: المعلومات ── */}
+                                <div className="flex-1 p-3.5 flex flex-col gap-2.5 min-w-0">
+
+                                    {/* الاسم والتخصص وأيام الحضور */}
+                                    <div className="flex flex-col min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                            <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</h4>
+                                            {isSelected && (
+                                                <span className="w-4 h-4 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center shrink-0">
+                                                    <Check size={9} className="text-[#655ac1]" strokeWidth={3}/>
+                                                </span>
+                                            )}
+                                            {t.isShared && (() => {
+                                                const originalId = t.schoolId || 'main';
+                                                const originalName = originalId === 'main'
+                                                    ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+                                                    : (sharedSchools.find(s => s.id === originalId)?.name || originalId);
+                                                const allSchools = [
+                                                    { schoolId: originalId, schoolName: originalName },
+                                                    ...(t.schools || []).filter(s => s.schoolId !== originalId),
+                                                ];
+                                                const otherSchools = allSchools
+                                                    .filter(s => s.schoolId !== activeSchoolTab)
+                                                    .map(s => s.schoolName)
+                                                    .join('، ');
                                                 return (
-                                                    <span className="text-[9px] text-[#655ac1] font-bold truncate mt-0.5">
-                                                        {days.map(d => dayNames[d] || d).join('، ')}
+                                                    <span title={`مشترك مع: ${otherSchools || 'مدارس أخرى'}`} className="shrink-0 text-[#655ac1]">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                                        </svg>
                                                     </span>
                                                 );
                                             })()}
                                         </div>
+                                        <span className="text-[10px] text-slate-400 font-bold truncate">
+                                            {specializations.find(s => s.id === t.specializationId)?.name || 'عام'}
+                                        </span>
+                                        {(() => {
+                                            const days = t.constraints?.presenceDays?.[activeSchoolTab];
+                                            if (!days || days.length === 0) return null;
+                                            const dayNames: Record<string, string> = {
+                                                sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء',
+                                                wed: 'الأربعاء', thu: 'الخميس', fri: 'الجمعة', sat: 'السبت'
+                                            };
+                                            return (
+                                                <span className="text-[9px] text-[#655ac1] font-bold truncate mt-0.5">
+                                                    {days.map(d => dayNames[d] || d).join('، ')}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
-                                    
-                                    <div className="flex items-center gap-1">
-                                        {isSelected && (
-                                            <span className="w-5 h-5 rounded-full bg-[#655ac1] flex items-center justify-center shrink-0">
-                                                <Check size={11} className="text-white" strokeWidth={3}/>
-                                            </span>
-                                        )}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setViewingTeacher(t);
-                                            }}
-                                            className="text-[#655ac1] bg-[#e5e1fe] hover:bg-[#d0cbfb] p-1.5 rounded-lg shadow-sm transition-all hover:scale-105"
-                                            title="عرض الإسناد"
-                                        >
-                                            <ClipboardList size={14} />
-                                        </button>
 
-                                        {assignedLoad > 0 && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleUnassignTeacher(t.id, t.name);
-                                                }}
-                                                className="text-rose-400 hover:text-rose-600 bg-rose-50 hover:bg-rose-100 p-1.5 rounded-lg transition-all"
-                                                title="حذف جميع إسنادات المعلم"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Progress Bar & Quota */}
-                                {t.isShared ? (() => {
-                                    // ── شريطان للمعلم المشترك ──
-                                    const schoolA_Id = t.schoolId || 'main';
-                                    const schoolA_Name = schoolA_Id === 'main'
-                                        ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
-                                        : (sharedSchools.find(s => s.id === schoolA_Id)?.name || schoolA_Id);
-
-                                    // النصاب المخصص لكل مدرسة (المخزون في schools[].lessons من خطوة إضافة المعلمين)
-                                    const schoolA_Entry = (t.schools || []).find(s => s.schoolId === schoolA_Id);
-                                    const schoolA_Quota = schoolA_Entry?.lessons || t.quotaLimit || 24;
-
-                                    // الحصص الفعلية المسندة في المدرسة الأولى (من assignments)
-                                    const schoolA_Actual = assignments
-                                        .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === schoolA_Id)
-                                        .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
-
-                                    const aIsOver = schoolA_Actual >= schoolA_Quota;
-                                    const aIsHigh = schoolA_Actual >= 20;
-                                    const aColor = aIsOver ? 'bg-rose-500' : aIsHigh ? 'bg-amber-500' : 'bg-emerald-500';
-                                    const aTextCls = aIsOver ? 'bg-rose-100 text-rose-600' : aIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
-                                    const aProgress = schoolA_Quota > 0 ? Math.min(100, Math.round((schoolA_Actual / schoolA_Quota) * 100)) : 0;
-
-                                    const schoolB_Entry = (t.schools || []).find(s => s.schoolId !== schoolA_Id);
-                                    const schoolB_Id = schoolB_Entry?.schoolId;
-                                    const schoolB_Name = schoolB_Entry?.schoolName || '';
-
-                                    // النصاب المخصص للمدرسة الثانية (مستقل لا يعتمد على المدرسة الأولى)
-                                    const schoolB_Quota = schoolB_Entry?.lessons || 0;
-
-                                    // الحصص الفعلية المسندة في المدرسة الثانية (من assignments)
-                                    const schoolB_Actual = schoolB_Id
-                                        ? assignments
-                                            .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === schoolB_Id)
-                                            .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0)
-                                        : 0;
-
-                                    const threshold = schoolB_Quota - 4;
-                                    const bIsOver = schoolB_Actual >= schoolB_Quota;
-                                    const bIsHigh = schoolB_Actual >= threshold;
-                                    const bColor = bIsOver ? 'bg-rose-500' : bIsHigh ? 'bg-amber-500' : 'bg-emerald-500';
-                                    const bTextCls = bIsOver ? 'bg-rose-100 text-rose-600' : bIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
-                                    const bProgress = schoolB_Quota > 0 ? Math.min(100, Math.round((schoolB_Actual / schoolB_Quota) * 100)) : 0;
-
-                                    return (
-                                        <div className="space-y-1.5">
-                                            {/* الشريط الأول — المدرسة الأولى */}
-                                            <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
-                                                <div className="text-[9px] font-black text-slate-400 truncate">{schoolA_Name}</div>
-                                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                                                    <span>نصاب: <span className="mr-1">{schoolA_Quota}</span></span>
-                                                    <span className={`px-1.5 py-0.5 rounded-md ${aTextCls}`}>{schoolA_Actual} حصة</span>
-                                                </div>
-                                                <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
-                                                    <div className={`h-full ${aColor} transition-all duration-700 ease-out shadow-sm`} style={{width: `${aProgress}%`}} />
-                                                </div>
-                                            </div>
-                                            {/* الشريط الثاني — المدرسة الثانية */}
-                                            {schoolB_Entry && (
+                                    {/* Progress Bar & Quota */}
+                                    {t.isShared ? (() => {
+                                        const schoolA_Id = t.schoolId || 'main';
+                                        const schoolA_Name = schoolA_Id === 'main'
+                                            ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+                                            : (sharedSchools.find(s => s.id === schoolA_Id)?.name || schoolA_Id);
+                                        const schoolA_Entry = (t.schools || []).find(s => s.schoolId === schoolA_Id);
+                                        const schoolA_Quota = schoolA_Entry?.lessons || t.quotaLimit || 24;
+                                        const schoolA_Actual = assignments
+                                            .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === schoolA_Id)
+                                            .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+                                        const aIsOver = schoolA_Actual >= schoolA_Quota;
+                                        const aIsHigh = schoolA_Actual >= 20;
+                                        const aColor = aIsOver ? 'bg-rose-500' : aIsHigh ? 'bg-amber-500' : 'bg-emerald-500';
+                                        const aTextCls = aIsOver ? 'bg-rose-100 text-rose-600' : aIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
+                                        const aProgress = schoolA_Quota > 0 ? Math.min(100, Math.round((schoolA_Actual / schoolA_Quota) * 100)) : 0;
+                                        const schoolB_Entry = (t.schools || []).find(s => s.schoolId !== schoolA_Id);
+                                        const schoolB_Id = schoolB_Entry?.schoolId;
+                                        const schoolB_Name = schoolB_Entry?.schoolName || '';
+                                        const schoolB_Quota = schoolB_Entry?.lessons || 0;
+                                        const schoolB_Actual = schoolB_Id
+                                            ? assignments
+                                                .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === schoolB_Id)
+                                                .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0)
+                                            : 0;
+                                        const threshold = schoolB_Quota - 4;
+                                        const bIsOver = schoolB_Actual >= schoolB_Quota;
+                                        const bIsHigh = schoolB_Actual >= threshold;
+                                        const bColor = bIsOver ? 'bg-rose-500' : bIsHigh ? 'bg-amber-500' : 'bg-emerald-500';
+                                        const bTextCls = bIsOver ? 'bg-rose-100 text-rose-600' : bIsHigh ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600';
+                                        const bProgress = schoolB_Quota > 0 ? Math.min(100, Math.round((schoolB_Actual / schoolB_Quota) * 100)) : 0;
+                                        return (
+                                            <div className="space-y-1.5">
                                                 <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
-                                                    <div className="text-[9px] font-black text-slate-400 truncate">{schoolB_Name}</div>
+                                                    <div className="text-[9px] font-black text-slate-400 truncate">{schoolA_Name}</div>
                                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                                                        <span>نصاب: <span className="mr-1">{schoolB_Quota}</span></span>
-                                                        <span className={`px-1.5 py-0.5 rounded-md ${bTextCls}`}>{schoolB_Actual} حصة</span>
+                                                        <span>نصاب الحصص: <span className="mr-1">{schoolA_Quota}</span></span>
+                                                        <span className={`font-bold ${aIsOver ? 'text-rose-600' : aIsHigh ? 'text-amber-600' : 'text-emerald-600'}`}>{schoolA_Actual} حصة مسندة</span>
                                                     </div>
                                                     <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
-                                                        <div className={`h-full ${bColor} transition-all duration-700 ease-out shadow-sm`} style={{width: `${bProgress}%`}} />
+                                                        <div className={`h-full ${aColor} transition-all duration-700 ease-out shadow-sm`} style={{width: `${aProgress}%`}} />
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })() : (
-                                    // ── شريط واحد للمعلم غير المشترك (بدون تغيير) ──
-                                    <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
-                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-                                            <span className="flex items-center gap-1">
-                                                نصاب:
-                                                {editingQuotaTeacherId === t.id ? (
-                                                    <div className="inline-flex items-center gap-1 mr-1" onClick={e => e.stopPropagation()}>
-                                                        <input
-                                                            type="number"
-                                                            value={tempQuota}
-                                                            onChange={e => setTempQuota(Number(e.target.value))}
-                                                            className="w-10 text-center border border-[#655ac1] rounded px-0.5 py-0 focus:outline-none bg-white font-black text-[#655ac1]"
-                                                            autoFocus
-                                                        />
-                                                        <button onClick={(e) => saveQuota(e, t)} className="text-emerald-600 hover:bg-emerald-50 rounded p-0.5"><Check size={12}/></button>
+                                                {schoolB_Entry && (
+                                                    <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                                        <div className="text-[9px] font-black text-slate-400 truncate">{schoolB_Name}</div>
+                                                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                                            <span>نصاب الحصص: <span className="mr-1">{schoolB_Quota}</span></span>
+                                                            <span className={`font-bold ${bIsOver ? 'text-rose-600' : bIsHigh ? 'text-amber-600' : 'text-emerald-600'}`}>{schoolB_Actual} حصة مسندة</span>
+                                                        </div>
+                                                        <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                                            <div className={`h-full ${bColor} transition-all duration-700 ease-out shadow-sm`} style={{width: `${bProgress}%`}} />
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <span
-                                                        className="mr-1 cursor-pointer hover:text-[#655ac1] hover:bg-white px-1.5 py-0.5 rounded transition-all border border-transparent hover:border-slate-200 hover:shadow-sm"
-                                                        onClick={(e) => startEditingQuota(e, t)}
-                                                        title="اضغط لتعديل النصاب"
-                                                    >
-                                                        {t.quotaLimit}
-                                                    </span>
                                                 )}
-                                            </span>
+                                            </div>
+                                        );
+                                    })() : (
+                                        <div className="space-y-1.5 p-2 bg-slate-50/50 rounded-xl border border-slate-50">
+                                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                                <span className="flex items-center gap-1">
+                                                    نصاب الحصص:
+                                                    {editingQuotaTeacherId === t.id ? (
+                                                        <div className="inline-flex items-center gap-1 mr-1" onClick={e => e.stopPropagation()}>
+                                                            <input
+                                                                type="number"
+                                                                value={tempQuota}
+                                                                onChange={e => setTempQuota(Number(e.target.value))}
+                                                                className="w-10 text-center border border-[#655ac1] rounded px-0.5 py-0 focus:outline-none bg-white font-black text-[#655ac1]"
+                                                                autoFocus
+                                                            />
+                                                            <button onClick={(e) => saveQuota(e, t)} className="text-emerald-600 hover:bg-emerald-50 rounded p-0.5"><Check size={12}/></button>
+                                                        </div>
+                                                    ) : (
+                                                        <span
+                                                            className="mr-1 cursor-pointer hover:text-[#655ac1] hover:bg-white px-1.5 py-0.5 rounded transition-all border border-transparent hover:border-slate-200 hover:shadow-sm"
+                                                            onClick={(e) => startEditingQuota(e, t)}
+                                                            title="اضغط لتعديل النصاب"
+                                                        >
+                                                            {t.quotaLimit}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className={`font-bold ${isOverLimit ? 'text-rose-600' : isHighLoad ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                    {assignedLoad} حصة مسندة
+                                                </span>
+                                            </div>
+                                            <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full ${progressColor} transition-all duration-700 ease-out shadow-sm`}
+                                                    style={{width: `${progressValue}%`}}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
-                                            <span className={`px-1.5 py-0.5 rounded-md ${isOverLimit ? 'bg-rose-100 text-rose-600' : isHighLoad ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                                {assignedLoad} حصة
-                                            </span>
-                                        </div>
-                                        <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full ${progressColor} transition-all duration-700 ease-out shadow-sm`}
-                                                style={{width: `${progressValue}%`}}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                                {/* ── فاصل عمودي ── */}
+                                <div className="w-px bg-slate-100 self-stretch shrink-0 my-2" />
+
+                                {/* ── القسم الأيسر: شريط الأيقونات ── */}
+                                <div className="flex flex-col items-center gap-0.5 py-2 px-1.5 shrink-0">
+                                    {/* عرض الإسناد */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setViewingTeacher(t); }}
+                                        className="text-[#655ac1] hover:bg-slate-100 p-1.5 rounded-lg transition-all"
+                                        title="عرض الإسناد"
+                                    >
+                                        <ClipboardList size={16} />
+                                    </button>
+
+                                    {/* نقل الإسناد */}
+                                    {assignedLoad > 0 ? (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setTransferTeacher(t); setTransferMap({}); setOpenTransferDropKey(null); }}
+                                            className="text-amber-500 hover:text-amber-600 hover:bg-amber-50 p-1.5 rounded-lg transition-all"
+                                            title="نقل إسنادات المعلم"
+                                        >
+                                            <ArrowLeftRight size={16} />
+                                        </button>
+                                    ) : (
+                                        <div className="w-8 h-8" />
+                                    )}
+
+                                    {/* حذف الإسنادات */}
+                                    {assignedLoad > 0 ? (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleUnassignTeacher(t.id, t.name); }}
+                                            className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-all"
+                                            title="حذف جميع إسنادات المعلم"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    ) : (
+                                        <div className="w-8 h-8" />
+                                    )}
+                                </div>
                             </div>
                         );
                     })
@@ -1057,7 +1421,7 @@ const ManualAssignment: React.FC<Props> = ({
         </aside>
 
         {/* WORKSPACE (Classes) */}
-        <main className="flex-1 flex flex-col gap-6 w-full min-w-0">
+        <main className="flex-1 flex flex-col gap-6 w-full min-w-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
              
              {/* Integrated Filter Bar */}
              <div className="flex flex-col md:flex-row items-center gap-4 bg-white rounded-[2rem] p-4 shadow-sm border border-slate-100">
@@ -1143,6 +1507,9 @@ const ManualAssignment: React.FC<Props> = ({
                  </div>
              </div>
 
+             {/* Classes Scrollable Area */}
+             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6 pr-1">
+
              {/* Check if we have classes to show */}
              {displayedGrades.length > 0 ? (
                 /* Grades Loop */
@@ -1155,8 +1522,8 @@ const ManualAssignment: React.FC<Props> = ({
                             {/* Grade Header */}
                             <div className="flex items-center gap-4">
                                 <div className="h-px bg-slate-200 flex-1"></div>
-                                <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-4 py-1 bg-slate-50 rounded-full border border-slate-100">
-                                    <Layers size={14}/> الصف الدراسي {grade}
+                                <h3 className="text-sm font-black text-[#655ac1] flex items-center gap-2 px-4 py-1.5 bg-white rounded-full border border-slate-300">
+                                    <Layers size={14} className="text-[#655ac1]"/> الصف الدراسي {grade}
                                 </h3>
                                 <div className="h-px bg-slate-200 flex-1"></div>
                             </div>
@@ -1193,10 +1560,12 @@ const ManualAssignment: React.FC<Props> = ({
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="flex items-center gap-2 text-[9px] text-amber-600 font-bold bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full shadow-sm animate-pulse">
-                                                    <AlertTriangle size={10} />
-                                                    انقر للتعيين
-                                                </div>
+                                                {!isCompleted && (
+                                                    <div className="flex items-center gap-2 text-[9px] text-amber-600 font-bold bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full shadow-sm animate-pulse">
+                                                        <AlertTriangle size={10} />
+                                                        انقر للتعيين
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Subjects Grid */}
@@ -1220,9 +1589,9 @@ const ManualAssignment: React.FC<Props> = ({
                                                                 onDoubleClick={() => isAssigned && handleUnassign(cls.id, sub.id)}
                                                                 className={`
                                                                     relative p-3 rounded-2xl border text-right transition-all group cursor-pointer select-none flex flex-col justify-between min-h-[85px]
-                                                                    ${isAssigned 
-                                                                        ? 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 shadow-sm' 
-                                                                        : 'bg-white border-slate-100 hover:border-[#8779fb] hover:shadow-md hover:-translate-y-1'}
+                                                                    ${isAssigned
+                                                                        ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm'
+                                                                        : 'bg-white border-slate-300 hover:border-[#8779fb] hover:shadow-md hover:-translate-y-1'}
                                                                 `}
                                                             >
                                                                 <div className="flex justify-between items-start mb-1.5">
@@ -1237,9 +1606,6 @@ const ManualAssignment: React.FC<Props> = ({
                                                                 
                                                                 {isAssigned ? (
                                                                     <div className="flex items-center gap-1.5 mt-auto animate-in zoom-in duration-300">
-                                                                        <div className="w-5 h-5 rounded-full bg-emerald-200/50 flex items-center justify-center text-[9px] font-black text-emerald-800 shadow-sm border border-emerald-100">
-                                                                            {assignedTeacher?.name.substring(0,2)}
-                                                                        </div>
                                                                         <span className="text-[9px] font-bold text-emerald-700 truncate flex-1">
                                                                             {assignedTeacher?.name}
                                                                         </span>
@@ -1294,6 +1660,8 @@ const ManualAssignment: React.FC<Props> = ({
                      </p>
                  </div>
              )}
+
+             </div>{/* end classes scrollable area */}
         </main>
       </div>
 
