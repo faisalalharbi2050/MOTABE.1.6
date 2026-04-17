@@ -111,9 +111,49 @@ const loadStoredAppData = () => {
   return primary || backup;
 };
 
+/**
+ * حفظ آمن للبيانات: يحمي من
+ *   1. امتلاء الذاكرة (QuotaExceeded) — يخبر المستخدم بدل الفشل الصامت.
+ *   2. كتابة state فارغ فوق بيانات حقيقية (سبب فقدان البيانات عند التحديث).
+ */
+let quotaWarningShown = false;
+const safeWriteAppData = (data: any): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const existing = parseStoredAppData(localStorage.getItem(APP_STORAGE_KEY));
+    // لا تكتب state فارغ فوق بيانات حقيقية محفوظة
+    if (!hasMeaningfulAppData(data) && hasMeaningfulAppData(existing)) {
+      return false;
+    }
+    const serialized = JSON.stringify(data);
+    localStorage.setItem(APP_STORAGE_KEY, serialized);
+    // النسخة الاحتياطية تُكتب فقط للبيانات الحقيقية
+    if (hasMeaningfulAppData(data)) {
+      try {
+        localStorage.setItem(APP_STORAGE_BACKUP_KEY, serialized);
+      } catch { /* نسخة الاحتياط غير حرجة */ }
+    }
+    return true;
+  } catch (e: any) {
+    console.error('[safeWriteAppData] فشل الحفظ:', e);
+    if (!quotaWarningShown && (e?.name === 'QuotaExceededError' || String(e).includes('quota'))) {
+      quotaWarningShown = true;
+      alert('تحذير: مساحة التخزين في المتصفح ممتلئة، لم يتم حفظ آخر تعديلاتك. يُرجى تصدير البيانات كنسخة احتياطية.');
+    }
+    return false;
+  }
+};
+
 const App: React.FC = () => {
-  const initialAppData = React.useMemo(() => loadStoredAppData(), []);
-  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>({
+  // ── الإصلاح: هجرة البيانات أولاً، ثم تحميلها مباشرة في useState initializers ──
+  // بهذا يظهر المستخدم بياناته فوراً في أول render — بدون وميض فارغ وبدون خطر
+  // كتابة state فارغ فوق البيانات الحقيقية أثناء التهيئة.
+  const initialAppData = React.useMemo(() => {
+    try { migrateTeacherStructure(); } catch (e) { console.error('[migrate]', e); }
+    return loadStoredAppData();
+  }, []);
+
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(() => initialAppData?.schoolInfo ?? {
     entityType: EntityType.SCHOOL,
     schoolName: '',
     region: '',
@@ -122,21 +162,27 @@ const App: React.FC = () => {
     gender: 'بنين',
     educationalAgent: '',
     principal: '',
-    // hasSecondSchool: false, // Removed from type, but checking if it causes issues. Type definition removed it? No, I kept it in type? Let me check type history.
-    // sharedSchools: [] // kept
     sharedSchools: []
   });
-  
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [specializations, setSpecializations] = useState<Specialization[]>(INITIAL_SPECIALIZATIONS);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [classes, setClasses] = useState<ClassInfo[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [admins, setAdmins] = useState<Admin[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [gradeSubjectMap, setGradeSubjectMap] = useState<Record<string, string[]>>({});
-  const [phaseDepartmentMap, setPhaseDepartmentMap] = useState<Record<string, string>>({});
-  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData>({
+
+  const [teachers, setTeachers] = useState<Teacher[]>(() => initialAppData?.teachers ?? []);
+  const [specializations, setSpecializations] = useState<Specialization[]>(() => {
+    if (initialAppData?.specializations) {
+      return [
+        ...INITIAL_SPECIALIZATIONS,
+        ...initialAppData.specializations.filter((s: any) => !INITIAL_SPECIALIZATIONS.some(i => i.id === s.id)),
+      ];
+    }
+    return INITIAL_SPECIALIZATIONS;
+  });
+  const [subjects, setSubjects] = useState<Subject[]>(() => initialAppData?.subjects ?? []);
+  const [classes, setClasses] = useState<ClassInfo[]>(() => initialAppData?.classes ?? []);
+  const [students, setStudents] = useState<Student[]>(() => initialAppData?.students ?? []);
+  const [admins, setAdmins] = useState<Admin[]>(() => initialAppData?.admins ?? []);
+  const [assignments, setAssignments] = useState<Assignment[]>(() => initialAppData?.assignments ?? []);
+  const [gradeSubjectMap, setGradeSubjectMap] = useState<Record<string, string[]>>(() => initialAppData?.gradeSubjectMap ?? {});
+  const [phaseDepartmentMap, setPhaseDepartmentMap] = useState<Record<string, string>>(() => initialAppData?.phaseDepartmentMap ?? {});
+  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData>(() => initialAppData?.scheduleSettings ?? {
     subjectConstraints: [],
     teacherConstraints: [],
     meetings: [],
@@ -183,6 +229,7 @@ const App: React.FC = () => {
     { id: 't-d2', type: 'duty', name: 'سلطان العمري' },
   ]);
   const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
+    if (initialAppData?.subscription) return initialAppData.subscription;
     const today = new Date();
     const semesterEnd = new Date(today);
     semesterEnd.setDate(today.getDate() + 90);
@@ -202,37 +249,9 @@ const App: React.FC = () => {
     };
   });
 
+  // ── البيانات حُمّلت بالفعل في useState initializers أعلاه ──
+  // نؤخّر تفعيل الحفظ حتى render واحد على الأقل لمنع كتابة مزدوجة أو سباق.
   useEffect(() => {
-    migrateTeacherStructure(); // تحديث هيكل بيانات المعلمين قبل تحميل الحالة
-    const data = loadStoredAppData();
-    if (data) {
-      try {
-        if (data.schoolInfo) setSchoolInfo(data.schoolInfo);
-        setTeachers(data.teachers || []);
-        setClasses(data.classes || []);
-        setStudents(data.students || []);
-        setAdmins(data.admins || []);
-        setAssignments(data.assignments || []);
-        setGradeSubjectMap(data.gradeSubjectMap || {});
-        if (data.phaseDepartmentMap) setPhaseDepartmentMap(data.phaseDepartmentMap);
-        if (data.specializations) {
-          // Merge: always include all INITIAL_SPECIALIZATIONS (with updated names),
-          // then append any custom specializations from saved data that aren't in the defaults
-          const merged = [
-            ...INITIAL_SPECIALIZATIONS,
-            ...data.specializations.filter((s: any) => !INITIAL_SPECIALIZATIONS.some(i => i.id === s.id)),
-          ];
-          setSpecializations(merged);
-        }
-        if (data.subjects) setSubjects(data.subjects);
-        if (data.scheduleSettings) setScheduleSettings(data.scheduleSettings);
-        if (data.subscription) setSubscription(data.subscription);
-        if (hasMeaningfulAppData(data)) {
-          localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(data));
-          localStorage.setItem(APP_STORAGE_BACKUP_KEY, JSON.stringify(data));
-        }
-      } catch (e) { console.error(e); }
-    }
     setHasHydratedAppState(true);
   }, []);
 
@@ -269,18 +288,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!hasHydratedAppState) return;
-
     const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription, timestamp: Date.now() };
-    const existingData = loadStoredAppData();
-
-    if (!hasMeaningfulAppData(data) && hasMeaningfulAppData(existingData)) {
-      return;
-    }
-
-    localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(data));
-    if (hasMeaningfulAppData(data)) {
-      localStorage.setItem(APP_STORAGE_BACKUP_KEY, JSON.stringify(data));
-    }
+    safeWriteAppData(data);
   }, [hasHydratedAppState, schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription]);
 
   const handleLogout = () => {

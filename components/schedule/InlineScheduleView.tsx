@@ -12,6 +12,83 @@ const MAX_PERIODS  = 7;
 const GENERAL_PERIOD_BOX = 50;
 const GENERAL_PERIOD_CARD = 44;
 
+/* ──────────────────────────────────────────────────────────────
+   Density presets — المرحلة 1: استخراج المقاسات إلى إعداد موحّد
+   overview  : النظرة الشاملة (الوضع الافتراضي الحالي)
+   expanded  : تحرير موسّع (سيُستخدم في المرحلة 2)
+   ────────────────────────────────────────────────────────────── */
+export type DensityMode = 'overview' | 'expanded';
+
+interface DensityConfig {
+    rowH: number;
+    cellPad: string;
+    serialColW: number;
+    teacherNameColW: number;
+    classNameColW: number;
+    specColW: number;
+    quota1ColW: number;
+    quota2ColW: number;
+    periodBox: number;
+    periodCard: number;
+    primaryTextClass: string;
+    secondaryTextClass: string;
+    waitingTextSize: string;
+    thInfoFontSize: string;
+    thInfoPadding: string;
+    thDayFontSize: string;
+    thDayPadding: string;
+    thPeriodFontSize: string;
+    thPeriodPadding: string;
+    thPeriodTopOffset: string;
+}
+
+const DENSITY_PRESETS: Record<DensityMode, DensityConfig> = {
+    overview: {
+        rowH: 50,
+        cellPad: '1px',
+        serialColW: 36,
+        teacherNameColW: 132,
+        classNameColW: 122,
+        specColW: 68,
+        quota1ColW: 50,
+        quota2ColW: 60,
+        periodBox: GENERAL_PERIOD_BOX,
+        periodCard: GENERAL_PERIOD_CARD,
+        primaryTextClass: 'text-[9px]',
+        secondaryTextClass: 'text-[8px]',
+        waitingTextSize: '8px',
+        thInfoFontSize: '12px',
+        thInfoPadding: '6px 3px',
+        thDayFontSize: '12px',
+        thDayPadding: '6px 2px',
+        thPeriodFontSize: '10px',
+        thPeriodPadding: '4px 1px',
+        thPeriodTopOffset: '30px',
+    },
+    expanded: {
+        rowH: 68,
+        cellPad: '1px',
+        serialColW: 44,
+        teacherNameColW: 168,
+        classNameColW: 156,
+        specColW: 88,
+        quota1ColW: 60,
+        quota2ColW: 74,
+        periodBox: 68,
+        periodCard: 60,
+        primaryTextClass: 'text-[11px]',
+        secondaryTextClass: 'text-[10px]',
+        waitingTextSize: '10px',
+        thInfoFontSize: '13px',
+        thInfoPadding: '8px 4px',
+        thDayFontSize: '13px',
+        thDayPadding: '8px 3px',
+        thPeriodFontSize: '11px',
+        thPeriodPadding: '5px 2px',
+        thPeriodTopOffset: '36px',
+    },
+};
+
 // Design tokens
 const C_BG          = '#a59bf0'; // purple – day header bg & content text
 const C_BG_SOFT     = '#f4f2ff'; // very light purple – period-number row bg
@@ -76,6 +153,17 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isFullScreenEditMode, setIsFullScreenEditMode] = useState(false);
+    // ── المرحلة 2: وضع الكثافة (نظرة شاملة / تحرير موسّع) مع حفظ الاختيار ──
+    const DENSITY_STORAGE_KEY = 'schedule_edit_density';
+    const [density, setDensity] = useState<DensityMode>(() => {
+        if (typeof window === 'undefined') return 'overview';
+        const saved = localStorage.getItem(DENSITY_STORAGE_KEY);
+        return saved === 'expanded' || saved === 'overview' ? saved : 'overview';
+    });
+    const changeDensity = (mode: DensityMode) => {
+        setDensity(mode);
+        try { localStorage.setItem(DENSITY_STORAGE_KEY, mode); } catch { /* ignore */ }
+    };
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
     const [draggingWaiting, setDraggingWaiting] = useState<'card'|'slot'|null>(null);
     const [draggingSlotKey, setDraggingSlotKey] = useState<string|null>(null);
@@ -825,19 +913,21 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         /* gap background — shown as td background, inner div is the card */
         const GAP_BG   = '#eef0f6';
-        const ROW_H    = 50;
-        const CELL_PAD = '1px'; // td padding → creates the visual gap
-        const serialColW = 36;
-        const nameColW = isClasses ? 122 : 132;
-        const specColW = isClasses ? 0 : 68;
-        const quota1ColW = 50;
-        const quota2ColW = isTeachers ? 60 : 0;
-        const dynamicPeriodColW = GENERAL_PERIOD_BOX;
-        const dynamicPeriodBox = GENERAL_PERIOD_BOX;
-        const dynamicPeriodCard = GENERAL_PERIOD_CARD;
-        const dynamicPrimaryTextSize = 'text-[9px]';
-        const dynamicSecondaryTextSize = 'text-[8px]';
-        const dynamicWaitingTextSize = '8px';
+        /* المرحلة 2: المقاسات تُقرأ من الـ state الحالي (overview أو expanded) */
+        const D = DENSITY_PRESETS[density];
+        const ROW_H    = D.rowH;
+        const CELL_PAD = D.cellPad; // td padding → creates the visual gap
+        const serialColW = D.serialColW;
+        const nameColW = isClasses ? D.classNameColW : D.teacherNameColW;
+        const specColW = isClasses ? 0 : D.specColW;
+        const quota1ColW = D.quota1ColW;
+        const quota2ColW = isTeachers ? D.quota2ColW : 0;
+        const dynamicPeriodColW = D.periodBox;
+        const dynamicPeriodBox = D.periodBox;
+        const dynamicPeriodCard = D.periodCard;
+        const dynamicPrimaryTextSize = D.primaryTextClass;
+        const dynamicSecondaryTextSize = D.secondaryTextClass;
+        const dynamicWaitingTextSize = D.waitingTextSize;
         const stickyRightOffsets = {
             serial: 0,
             name: serialColW,
@@ -948,15 +1038,15 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         /* Design constants */
         const DAY_DIVIDER = '#94a3b8'; // slate-400 gray — between days
 
-        /* th base style for info headers */
+        /* th base style for info headers — مستخرجة من preset الكثافة */
         const thInfo: React.CSSProperties = {
             background: C_BG,
             color: '#fff',
             fontWeight: 800,
-            fontSize: '12px',
+            fontSize: D.thInfoFontSize,
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: '6px 3px',
+            padding: D.thInfoPadding,
             position: 'sticky',
             top: 0,
             zIndex: 25,
@@ -967,10 +1057,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             background: C_BG,
             color: '#fff',
             fontWeight: 900,
-            fontSize: '12px',
+            fontSize: D.thDayFontSize,
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: '6px 2px',
+            padding: D.thDayPadding,
             position: 'sticky',
             top: 0,
             zIndex: 20,
@@ -981,12 +1071,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             background: C_BG_SOFT,
             color: '#64748b',
             fontWeight: 700,
-            fontSize: '10px',
+            fontSize: D.thPeriodFontSize,
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: '4px 1px',
+            padding: D.thPeriodPadding,
             position: 'sticky',
-            top: '30px',
+            top: D.thPeriodTopOffset,
             zIndex: 20,
             borderBottom: `3px solid ${DAY_DIVIDER}`,
             borderLeft: `1px solid #dde1ea`,
@@ -1709,6 +1799,31 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        {/* ── المرحلة 2: Toggle وضع الكثافة ── */}
+                        <div className="inline-flex items-center rounded-xl border-2 p-1 bg-white" style={{borderColor:'#e2e8f0'}} role="group" aria-label="وضع العرض">
+                            <button
+                                type="button"
+                                onClick={() => changeDensity('overview')}
+                                aria-pressed={density === 'overview'}
+                                title="نظرة شاملة — كل الأيام والحصص في مشهد واحد"
+                                className="px-3.5 py-1.5 rounded-lg text-xs font-black transition-all active:scale-95"
+                                style={density === 'overview'
+                                    ? {background:'#655ac1', color:'#fff', boxShadow:'0 2px 8px rgba(101,90,193,0.25)'}
+                                    : {background:'transparent', color:'#64748b'}}>
+                                نظرة شاملة
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => changeDensity('expanded')}
+                                aria-pressed={density === 'expanded'}
+                                title="تحرير موسّع — خلايا أكبر للتعديل الدقيق"
+                                className="px-3.5 py-1.5 rounded-lg text-xs font-black transition-all active:scale-95"
+                                style={density === 'expanded'
+                                    ? {background:'#655ac1', color:'#fff', boxShadow:'0 2px 8px rgba(101,90,193,0.25)'}
+                                    : {background:'transparent', color:'#64748b'}}>
+                                تحرير موسّع
+                            </button>
+                        </div>
                         {type === 'general_teachers' && onUpdateSettings && (
                             <button
                                 onClick={() => setIsFullScreenEditMode(true)}
