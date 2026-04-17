@@ -44,26 +44,26 @@ interface DensityConfig {
 
 const DENSITY_PRESETS: Record<DensityMode, DensityConfig> = {
     overview: {
-        rowH: 50,
+        rowH: 44,
         cellPad: '1px',
-        serialColW: 36,
-        teacherNameColW: 132,
-        classNameColW: 122,
-        specColW: 68,
-        quota1ColW: 50,
-        quota2ColW: 60,
-        periodBox: GENERAL_PERIOD_BOX,
-        periodCard: GENERAL_PERIOD_CARD,
-        primaryTextClass: 'text-[9px]',
-        secondaryTextClass: 'text-[8px]',
-        waitingTextSize: '8px',
-        thInfoFontSize: '12px',
-        thInfoPadding: '6px 3px',
-        thDayFontSize: '12px',
-        thDayPadding: '6px 2px',
-        thPeriodFontSize: '10px',
-        thPeriodPadding: '4px 1px',
-        thPeriodTopOffset: '30px',
+        serialColW: 32,
+        teacherNameColW: 108,
+        classNameColW: 100,
+        specColW: 54,
+        quota1ColW: 42,
+        quota2ColW: 50,
+        periodBox: 32,
+        periodCard: 28,
+        primaryTextClass: 'text-[8px]',
+        secondaryTextClass: 'text-[7px]',
+        waitingTextSize: '7px',
+        thInfoFontSize: '11px',
+        thInfoPadding: '5px 2px',
+        thDayFontSize: '11px',
+        thDayPadding: '5px 1px',
+        thPeriodFontSize: '9px',
+        thPeriodPadding: '3px 1px',
+        thPeriodTopOffset: '26px',
     },
     expanded: {
         rowH: 68,
@@ -1083,7 +1083,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         };
 
         return (
-            <div className="w-full relative">
+            <div className="w-full relative flex flex-col flex-1 min-h-0">
                 <div className="mb-3 flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-300 bg-white px-3.5 py-3.5 shadow-sm">
                     <span className="text-sm font-black text-slate-500">عرض الأيام:</span>
                     <span className="text-xs font-bold text-slate-400">اختر يومًا أو أكثر لعرض حصصه فقط.</span>
@@ -1113,9 +1113,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         </button>
                     ))}
                 </div>
-                {/* Table wrapper */}
-                <div style={{borderRadius:'16px', overflow:'visible', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
-                <div className="overflow-x-auto">
+                {/* Table wrapper — flex-1+min-h-0 يجعل هذه الحاوية تأخذ الارتفاع المتبقي في الوضع الكامل */}
+                <div className="flex-1 min-h-0 flex flex-col" style={{borderRadius:'16px', overflow:'hidden', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
+                <div className="overflow-auto flex-1 min-h-0">
                 <table style={{borderCollapse:'collapse', borderSpacing:0, width:'max-content', minWidth:'100%', tableLayout:'fixed'}}>
                     <colgroup>
                         <col style={{width:`${serialColW}px`}}/>
@@ -1842,8 +1842,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 overflow-auto p-4">
-                    <div className="bg-white rounded-xl shadow-xl min-h-full p-4">
+                <div className="flex-1 overflow-hidden p-4 flex flex-col min-h-0">
+                    <div className="bg-white rounded-xl shadow-xl flex-1 p-4 flex flex-col min-h-0 overflow-hidden">
                         {renderGeneralTable()}
                     </div>
                 </div>
