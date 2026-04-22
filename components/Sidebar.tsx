@@ -41,6 +41,7 @@ import {
   UserCog,
   Lock,
   Printer,
+  CalendarCheck,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -63,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Auto-expand if a sub-item is active
   React.useEffect(() => {
-    const scheduleTabs = ['manual', 'schedule_reports'];
+    const scheduleTabs = ['manual', 'classes_waiting', 'schedule_reports', 'schedule_v2'];
     if (scheduleTabs.includes(activeTab)) {
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
@@ -329,6 +330,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                      onClick={() => handleTabClick("manual")}
                      label="إسناد المواد"
                      icon={<ClipboardList size={18} />}
+                     inverted={true}
+                  />
+                  <SubNavItem
+                     active={activeTab === "schedule_v2"}
+                     onClick={() => handleTabClick("schedule_v2")}
+                     label="إدارة الحصص والانتظار"
+                     icon={<CalendarCheck size={18} />}
                      inverted={true}
                   />
                   <SubNavItem

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ const toneStyles = {
   },
   danger: {
     iconWrap: 'bg-rose-50 text-rose-600',
-    icon: Trash2,
+    icon: AlertTriangle,
     confirm: 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20',
   },
 } as const;

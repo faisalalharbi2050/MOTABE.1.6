@@ -19,6 +19,7 @@ import Step7Admins from './components/wizard/steps/Step7Admins';
 import Step9Schedule from './components/wizard/steps/Step9Schedule';
 import TimingSettings from './components/settings/TimingSettings';
 import ScheduleReports from './components/schedule/ScheduleReports';
+import ScheduleV2Container from './components/schedule-v2/ScheduleV2Container';
 
 
 import ManualAssignment from './components/ManualAssignment';
@@ -29,6 +30,7 @@ import Header from './components/Header';
 import DailySupervision from './components/DailySupervision';
 import SupervisionSignaturePage from './components/supervision/SupervisionSignaturePage';
 import DutySignaturePage from './components/duty/DutySignaturePage';
+import ScheduleSignaturePage from './components/schedule/ScheduleSignaturePage';
 import DailyDuty from './components/DailyDuty';
 import DailyWaiting from './components/DailyWaiting';
 import Messages from './components/Messages';
@@ -38,6 +40,9 @@ import Support from './components/Support';
 
 const APP_STORAGE_KEY = 'school_assignment_v4';
 const APP_STORAGE_BACKUP_KEY = 'school_assignment_v4_backup';
+const APP_INDEXED_DB_NAME = 'motabe_persistence';
+const APP_INDEXED_DB_STORE = 'app_state';
+const APP_INDEXED_DB_RECORD_ID = 'latest';
 
 const createDefaultSchoolInfo = (): SchoolInfo => ({
   entityType: EntityType.SCHOOL,
@@ -109,6 +114,85 @@ const loadStoredAppData = () => {
   if (hasMeaningfulAppData(primary)) return primary;
   if (hasMeaningfulAppData(backup)) return backup;
   return primary || backup;
+};
+
+const openAppPersistenceDb = (): Promise<IDBDatabase | null> => {
+  if (typeof window === 'undefined' || !('indexedDB' in window)) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(APP_INDEXED_DB_NAME, 1);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(APP_INDEXED_DB_STORE)) {
+        db.createObjectStore(APP_INDEXED_DB_STORE, { keyPath: 'id' });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+};
+
+const readIndexedDbAppData = async () => {
+  const db = await openAppPersistenceDb();
+  if (!db) return null;
+
+  return await new Promise((resolve) => {
+    const transaction = db.transaction(APP_INDEXED_DB_STORE, 'readonly');
+    const store = transaction.objectStore(APP_INDEXED_DB_STORE);
+    const request = store.get(APP_INDEXED_DB_RECORD_ID);
+
+    request.onsuccess = () => {
+      const payload = request.result?.payload ?? null;
+      resolve(typeof payload === 'object' && payload ? payload : null);
+    };
+    request.onerror = () => resolve(null);
+    transaction.oncomplete = () => db.close();
+    transaction.onerror = () => db.close();
+  });
+};
+
+const writeIndexedDbAppData = async (data: any): Promise<boolean> => {
+  const db = await openAppPersistenceDb();
+  if (!db) return false;
+
+  return await new Promise((resolve) => {
+    const transaction = db.transaction(APP_INDEXED_DB_STORE, 'readwrite');
+    const store = transaction.objectStore(APP_INDEXED_DB_STORE);
+    store.put({ id: APP_INDEXED_DB_RECORD_ID, payload: data, updatedAt: Date.now() });
+
+    transaction.oncomplete = () => {
+      db.close();
+      resolve(true);
+    };
+    transaction.onerror = () => {
+      db.close();
+      resolve(false);
+    };
+  });
+};
+
+const clearIndexedDbAppData = async (): Promise<void> => {
+  const db = await openAppPersistenceDb();
+  if (!db) return;
+
+  await new Promise<void>((resolve) => {
+    const transaction = db.transaction(APP_INDEXED_DB_STORE, 'readwrite');
+    const store = transaction.objectStore(APP_INDEXED_DB_STORE);
+    store.delete(APP_INDEXED_DB_RECORD_ID);
+
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      db.close();
+      resolve();
+    };
+  });
 };
 
 /**
@@ -200,6 +284,7 @@ const App: React.FC = () => {
   const [subscriptionInitialTab, setSubscriptionInitialTab] = useState<'dashboard' | 'pricing' | 'invoices'>('dashboard');
   const [messagesInitialTab, setMessagesInitialTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>('compose');
   const [hasHydratedAppState, setHasHydratedAppState] = useState(false);
+  const [hasLoadedPersistentState, setHasLoadedPersistentState] = useState(false);
 
   // Mock Data for Dashboard
   const [messages] = useState<Message[]>([
@@ -249,10 +334,54 @@ const App: React.FC = () => {
     };
   });
 
-  // ── البيانات حُمّلت بالفعل في useState initializers أعلاه ──
-  // نؤخّر تفعيل الحفظ حتى render واحد على الأقل لمنع كتابة مزدوجة أو سباق.
   useEffect(() => {
-    setHasHydratedAppState(true);
+    let isMounted = true;
+
+    const applyStoredData = (storedData: any) => {
+      setSchoolInfo(storedData.schoolInfo ?? createDefaultSchoolInfo());
+      setTeachers(storedData.teachers ?? []);
+      setSpecializations(
+        storedData.specializations
+          ? [
+              ...INITIAL_SPECIALIZATIONS,
+              ...storedData.specializations.filter((s: any) => !INITIAL_SPECIALIZATIONS.some(i => i.id === s.id)),
+            ]
+          : INITIAL_SPECIALIZATIONS
+      );
+      setSubjects(storedData.subjects ?? []);
+      setClasses(storedData.classes ?? []);
+      setStudents(storedData.students ?? []);
+      setAdmins(storedData.admins ?? []);
+      setAssignments(storedData.assignments ?? []);
+      setGradeSubjectMap(storedData.gradeSubjectMap ?? {});
+      setPhaseDepartmentMap(storedData.phaseDepartmentMap ?? {});
+      setScheduleSettings(storedData.scheduleSettings ?? {
+        subjectConstraints: [],
+        teacherConstraints: [],
+        meetings: [],
+        substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
+      });
+      setSubscription(storedData.subscription ?? createDefaultSubscription());
+    };
+
+    const hydratePersistentState = async () => {
+      const localData = loadStoredAppData();
+      const indexedDbData = await readIndexedDbAppData();
+      if (!isMounted) return;
+
+      if (!hasMeaningfulAppData(localData) && hasMeaningfulAppData(indexedDbData)) {
+        applyStoredData(indexedDbData);
+      }
+
+      setHasLoadedPersistentState(true);
+      setHasHydratedAppState(true);
+    };
+
+    hydratePersistentState();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Migration for Legacy Shared School Data and Sync
@@ -287,10 +416,11 @@ const App: React.FC = () => {
   }, [schoolInfo.hasSecondSchool, schoolInfo.secondSchoolName, schoolInfo.secondSchoolPhases]);
 
   useEffect(() => {
-    if (!hasHydratedAppState) return;
+    if (!hasHydratedAppState || !hasLoadedPersistentState) return;
     const data = { schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription, timestamp: Date.now() };
     safeWriteAppData(data);
-  }, [hasHydratedAppState, schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription]);
+    void writeIndexedDbAppData(data);
+  }, [hasHydratedAppState, hasLoadedPersistentState, schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription]);
 
   const handleLogout = () => {
     if(confirm('هل أنت متأكد من تسجيل الخروج؟')) {
@@ -303,7 +433,9 @@ const App: React.FC = () => {
     if (confirm('تحذير: سيتم حذف كافة البيانات والبدء من جديد. هل أنت متأكد؟')) {
       setSchoolInfo({ entityType: EntityType.SCHOOL, schoolName: '', region: '', departments: ['عام'], phases: [Phase.ELEMENTARY], gender: 'بنين', educationalAgent: '', principal: '', hasSecondSchool: false, sharedSchools: [] });
       setTeachers([]); setClasses([]); setAssignments([]); setGradeSubjectMap({}); setSpecializations(INITIAL_SPECIALIZATIONS); setSubjects([]);
-      localStorage.removeItem(APP_STORAGE_KEY); localStorage.removeItem(APP_STORAGE_BACKUP_KEY); setActiveTab('settings_basic');
+        localStorage.removeItem(APP_STORAGE_KEY); localStorage.removeItem(APP_STORAGE_BACKUP_KEY);
+        void clearIndexedDbAppData();
+        setActiveTab('settings_basic');
     }
   };
 
@@ -364,6 +496,7 @@ const App: React.FC = () => {
       case 'manual': return <ManualAssignment teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
       case 'classes_waiting': return <Step9Schedule teachers={teachers} subjects={subjects} classes={classes} specializations={specializations} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} />;
       case 'schedule_reports': return <ScheduleReports schoolInfo={schoolInfo} teachers={teachers} subjects={subjects} classes={classes} assignments={assignments} specializations={specializations} timetable={scheduleSettings.timetable || {}} generationMode={scheduleSettings.generationMode} />;
+      case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} />;
 
       // Supervision and Duty
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} />;
@@ -406,6 +539,14 @@ const App: React.FC = () => {
     : null;
   if (dutySignToken) {
     return <DutySignaturePage token={dutySignToken} />;
+  }
+
+  // Full-screen schedule signature page (opened via unique link)
+  const scheduleSignToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('scheduleSign')
+    : null;
+  if (scheduleSignToken) {
+    return <ScheduleSignaturePage token={scheduleSignToken} />;
   }
 
   return (

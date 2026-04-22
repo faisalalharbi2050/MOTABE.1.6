@@ -197,7 +197,74 @@ const Step9Schedule: React.FC<Step9Props> = ({
   // Mock data for display until real logic is implemented
   const hasSchedule = scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const isGeneralTeachersEditing = hasSchedule && activeView === 'grid' && !activeDisplayView;
-  const showTeacherSortControls = activeDisplayView === 'general_teachers' || activeDisplayView === 'general_waiting' || isGeneralTeachersEditing;
+  const showTeacherSortControls = activeDisplayView === 'general_waiting';
+  const showEmbeddedTeacherSortControls = activeDisplayView === 'general_teachers' || isGeneralTeachersEditing;
+
+  const teacherSortControlsContent = (
+    <div className="mt-3 flex flex-wrap items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
+      <div className="shrink-0">
+        <Users size={20} className="text-[#655ac1]" />
+      </div>
+      <p className="text-xs font-black text-slate-500 shrink-0">ترتيب عرض المعلمين</p>
+      <div className="flex gap-2 flex-wrap flex-1">
+        {([
+          { id: 'alpha', label: 'أبجدي' },
+          { id: 'specialization', label: 'التخصص' },
+          { id: 'custom', label: 'مخصص' },
+        ] as { id: TeacherSortMode; label: string }[]).map(opt => (
+          <button
+            key={opt.id}
+            onClick={() => {
+              setTeacherSortMode(opt.id);
+              if (opt.id === 'custom') {
+                const currentOrder = teacherCustomOrder.length > 0
+                  ? teacherCustomOrder
+                  : teachers.map(t => t.id);
+                setPendingOrder(currentOrder);
+                setShowSortModal(true);
+              } else if (opt.id === 'specialization') {
+                const usedSpecIds = new Set(teachers.map(t => t.specializationId));
+                const relevantSpecs = specializations.filter(s => usedSpecIds.has(s.id));
+                const currentSpecOrder = specializationCustomOrder.length > 0
+                  ? specializationCustomOrder
+                  : relevantSpecs.map(s => s.id);
+                const validOrder = currentSpecOrder.filter(id => usedSpecIds.has(id));
+                relevantSpecs.forEach(s => {
+                  if (!validOrder.includes(s.id)) validOrder.push(s.id);
+                });
+
+                setPendingSpecOrder(validOrder);
+                setShowSpecSortModal(true);
+              }
+            }}
+            className={`px-4 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+              teacherSortMode === opt.id
+                ? 'bg-white border-[#8779fb] text-[#655ac1]'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-[#8779fb]/50'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {teacherSortMode === 'custom' && teacherCustomOrder.length > 0 && (
+          <button
+            onClick={() => { setPendingOrder([...teacherCustomOrder]); setShowSortModal(true); }}
+            className="px-4 py-1.5 rounded-xl text-xs font-black border-2 border-[#655ac1] text-[#655ac1] bg-white hover:bg-[#f4f2ff] transition-all"
+          >
+            تعديل الترتيب
+          </button>
+        )}
+        {teacherSortMode === 'specialization' && specializationCustomOrder.length > 0 && (
+          <button
+            onClick={() => { setPendingSpecOrder([...specializationCustomOrder]); setShowSpecSortModal(true); }}
+            className="px-4 py-1.5 rounded-xl text-xs font-black border-2 border-[#655ac1] text-[#655ac1] bg-white hover:bg-[#f4f2ff] transition-all"
+          >
+            تعديل ترتيب التخصصات
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   const getTimingConfig = () => {
     return schoolInfo.timing || {
@@ -647,17 +714,6 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
                         <button 
                             onClick={() => {
-                                setActiveView('grid');
-                                setActiveDisplayView(null);
-                                setShowEditMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg transition-colors ${activeView === 'grid' && !activeDisplayView ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-slate-50'}`}
-                        >
-                            <Grid size={16} className="-mt-0.5" />
-                            العام للمعلمين
-                        </button>
-                        <button 
-                            onClick={() => {
                                 setActiveView('individual');
                                 setActiveDisplayView('individual_teacher');
                                 setShowEditMenu(false);
@@ -695,11 +751,60 @@ const Step9Schedule: React.FC<Step9Props> = ({
           </div>
 
           <div className="flex-1"></div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowWaitingSettings(true)}
+              title="إعدادات الانتظار"
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+            >
+              <Settings size={18} className="text-[#8779fb]" />
+              <span>إعدادات الانتظار</span>
+            </button>
+
+            <div title={isManualMode ? "التوزيع اليدوي مفعّل، استخدم بطاقات الانتظار في الجدول لتوزيع الحصص يدويًا" : ""}>
+              <button
+                disabled={isManualMode}
+                onClick={() => {
+                  if (!hasSchedule) {
+                    setMissingDataAlert({
+                      title: "لم يتم إنشاء جدول الحصص",
+                      message: "يجب أولاً إنشاء جدول الحصص باستخدام زر \"إنشاء جدول الحصص\"، ثم قفله قبل البدء بإنشاء جدول الانتظار."
+                    });
+                    return;
+                  }
+                  if (!isScheduleLocked) {
+                    setMissingDataAlert({
+                      title: "الجدول غير مقفل",
+                      message: "يجب قفل جدول الحصص أولاً قبل إنشاء حصص الانتظار لتجنب أي تعارضات مستقبلية. اضغط على زر \"قفل الجدول\" ثم أعد المحاولة."
+                    });
+                    return;
+                  }
+                  if (!scheduleSettings.substitution?.method) {
+                    setMissingDataAlert({
+                      title: "إعدادات الانتظار غير مكتملة",
+                      message: "يرجى فتح \"إعدادات الانتظار\" وتحديد طريقة التوزيع (تلقائي / محدد / يدوي) قبل إنشاء جدول الانتظار."
+                    });
+                    return;
+                  }
+                  handleDistributeWaiting(scheduleSettings.substitution);
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all ${
+                  isManualMode
+                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                    : 'bg-[#655ac1] hover:bg-[#5046a0] text-white shadow-lg shadow-[#655ac1]/20 hover:scale-105 active:scale-95'
+                }`}
+              >
+                <CalendarClock size={18} />
+                <span>إنشاء جدول الانتظار</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Secondary Toolbar (Management and Logs) */}
         <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-3.5 px-3 shadow-sm border border-slate-200">
-            <div className="flex gap-2">
+            <div className="hidden">
                  <button 
                    onClick={() => setShowWaitingSettings(true)}
                    title="إعدادات الانتظار"
@@ -1093,10 +1198,10 @@ const Step9Schedule: React.FC<Step9Props> = ({
                             <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#a59bf0] to-transparent opacity-40"/>
                           </div>
                         )}
-                        <InlineScheduleView
-                          type={activeDisplayView}
-                          settings={scheduleSettings}
-                          teachers={teachers}
+                    <InlineScheduleView
+                      type={activeDisplayView}
+                      settings={scheduleSettings}
+                      teachers={teachers}
                           classes={classes}
                           subjects={subjects}
                           targetId={id}
@@ -1137,12 +1242,13 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     targetId={''}
                     teacherSortMode={teacherSortMode}
                     teacherCustomOrder={teacherCustomOrder}
-                    specializationCustomOrder={specializationCustomOrder}
-                    specializationNames={specNames}
-                    onUpdateSettings={setScheduleSettings}
-                    onEditRequest={activeDisplayView === 'general_teachers' ? () => {
-                      setActiveDisplayView(null);
-                      setActiveView('grid');
+                      specializationCustomOrder={specializationCustomOrder}
+                      specializationNames={specNames}
+                      onUpdateSettings={setScheduleSettings}
+                      generalTopControls={activeDisplayView === 'general_teachers' ? teacherSortControlsContent : undefined}
+                      onEditRequest={activeDisplayView === 'general_teachers' ? () => {
+                        setActiveDisplayView(null);
+                        setActiveView('grid');
                     } : undefined}
                   />
                 </div>
@@ -1164,6 +1270,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                   specializationNames={Object.fromEntries(specializations.map(s => [s.id, s.name]))}
                   onUpdateSettings={setScheduleSettings}
                   interactive
+                  generalTopControls={showEmbeddedTeacherSortControls ? teacherSortControlsContent : undefined}
               />
           )}
 
@@ -1219,7 +1326,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#e5e1fe] rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center">
                   <Users size={18} className="text-[#655ac1]" />
                 </div>
                 <div>
@@ -1261,7 +1368,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 hover:border-[#8779fb] hover:shadow-md transition-all cursor-move group"
                   >
                     <GripVertical size={20} className="text-slate-300 group-hover:text-[#655ac1]" />
-                    <span className="w-6 h-6 rounded-lg bg-[#e5e1fe] text-[#655ac1] text-xs font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                    <span className="w-6 h-6 rounded-lg border border-slate-300 text-[#655ac1] text-xs font-black flex items-center justify-center shrink-0">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{teacher.name}</p>
                       <p className="text-[10px] text-slate-400">{specName}</p>
@@ -1293,7 +1400,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#e5e1fe] rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center">
                   <Users size={18} className="text-[#655ac1]" />
                 </div>
                 <div>
@@ -1335,7 +1442,7 @@ const Step9Schedule: React.FC<Step9Props> = ({
                     className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 hover:border-[#8779fb] hover:shadow-md transition-all cursor-move group"
                   >
                     <GripVertical size={20} className="text-slate-300 group-hover:text-[#655ac1]" />
-                    <span className="w-6 h-6 rounded-lg bg-[#e5e1fe] text-[#655ac1] text-xs font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                    <span className="w-6 h-6 rounded-lg border border-slate-300 text-[#655ac1] text-xs font-black flex items-center justify-center shrink-0">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{spec.name}</p>
                     </div>
