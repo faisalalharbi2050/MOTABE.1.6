@@ -19,8 +19,6 @@ export const MODULES = [
     name: 'الجدول المدرسي',
     submodules: [
       { id: 'manual',           name: 'إسناد المواد'          },
-      { id: 'classes_waiting',  name: 'إنشاء وإدارة الجدول'   },
-      { id: 'schedule_reports', name: 'طباعة وتصدير الجدول'   },
     ],
   },
   {

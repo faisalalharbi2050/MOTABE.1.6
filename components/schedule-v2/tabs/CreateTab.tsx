@@ -200,7 +200,7 @@ const CreateTab: React.FC<Props> = ({
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {statsCards.map(card => (
-          <div key={card.label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+          <div key={card.label} className="bg-white rounded-2xl p-4 border border-slate-200 transition-all" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
             <div className="flex items-center gap-3">
               <card.icon size={22} className="text-[#655ac1]" />
               <div>
@@ -213,7 +213,7 @@ const CreateTab: React.FC<Props> = ({
       </div>
 
       {hasSharedSchools && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <div className="bg-white rounded-2xl p-5 border border-slate-200" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
           <div className="flex items-center gap-3 mb-4">
             <Calendar size={20} className="text-[#655ac1]" />
             <h4 className="font-black text-slate-800 text-sm">وضع الجدول</h4>
@@ -245,7 +245,7 @@ const CreateTab: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all w-full text-center">
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 transition-all w-full text-center" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
         <div className="flex items-center justify-center gap-3 mb-2">
           <Sparkles size={22} className="text-[#655ac1] shrink-0" />
           <h3 className="font-black text-slate-800">إنشاء جداول الحصص</h3>

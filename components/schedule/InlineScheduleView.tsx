@@ -1820,7 +1820,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         {isTeacher ? (teacher ? tLQ(teacher) : 0) : (classLessonCount.get(targetId||'')||0)}
                                     </span>
                                 </div>
-                                {showWaitingManagement && isTeacher && (
+                                {isTeacher && (
                                     <div className={`flex flex-col items-center rounded-xl border border-slate-200 bg-slate-50 ${compactIndividual ? 'px-2.5 py-1 min-w-[56px]' : 'px-4 py-2 min-w-[80px]'}`}>
                                         <span className={`font-bold leading-none mb-1 ${compactIndividual ? 'text-[9px]' : 'text-[13px]'}`} style={{color:'#94a3b8'}}>نصاب الانتظار</span>
                                         <span className={`font-black leading-none ${compactIndividual ? 'text-[16px]' : 'text-[24px]'}`} style={{color:'#655ac1'}}>{individualWaitingQuota}</span>

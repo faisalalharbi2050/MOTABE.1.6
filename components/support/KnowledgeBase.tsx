@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ChevronDown, ChevronUp, BookOpen, HelpCircle, Play, PlayCircle, Clock, X, Video, FileQuestion, Tag, Maximize2, Minimize2, LayoutList, LayoutDashboard, School, LayoutGrid, Users, GraduationCap, UserCog, ClipboardList, CalendarDays, Printer, Eye, ShieldCheck, Lock, MessageSquare, CreditCard } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, BookOpen, HelpCircle, Play, PlayCircle, Clock, X, Video, FileQuestion, Tag, Maximize2, Minimize2, LayoutList, LayoutDashboard, School, LayoutGrid, Users, GraduationCap, UserCog, ClipboardList, CalendarDays, Eye, ShieldCheck, Lock, MessageSquare, CreditCard } from 'lucide-react';
 
 // ─── Section Icons Map ────────────────────────────────────────────────────────
 const SECTION_ICONS: Record<string, React.ElementType> = {
@@ -13,7 +13,6 @@ const SECTION_ICONS: Record<string, React.ElementType> = {
   settings_admins:    UserCog,
   assignment:         ClipboardList,
   schedule:           CalendarDays,
-  schedule_reports:   Printer,
   supervision:        Eye,
   duty:               ShieldCheck,
   daily_waiting:      Clock,
@@ -126,27 +125,6 @@ const FAQ_DATA: FAQCategory[] = [
       { q: 'كيف أُلغي إسناد مادة لمعلم؟', a: 'انقر على خلية المادة المسندة وستتحول إلى لون أحمر للتأكيد. ويمكنك حذف جميع إسنادات معلم من زر "حذف إسنادات المعلم".' },
       { q: 'هل يمكن تصفية المعلمين بالتخصص أو بالفصل؟', a: 'نعم، تتوفر فلاتر للتصفية حسب التخصص والاسم من قائمة المعلمين، وحسب الصف والفصل من شبكة الفصول.' },
       { q: 'ما الفرق بين عرض الصف وعرض الفصل؟', a: 'عرض الصف يظهر جميع فصول الصف بجميع موادهǡ بينما عرض الفصل يركز على فصل واحد فقط. استخدم عرض الصف للنظرة الشاملة وعرض الفصل للإسناد الدقيق.' },
-    ],
-  },
-  {
-    id: 'schedule',
-    label: 'إنشاء وإدارة الجدول',
-    items: [
-      { q: 'كيف يعمل نظام إنشاء جدول الحصտ', a: 'يتم إنشاء الجدول تلقائياً بطريقة ذكية تراعي عدد الحصص المقررة لكل مادة وتخصص المعلم وعدم التعارض في التوقيت. بعد الإنشاء يمكنك التعديل اليدوي حصة بحصɡ أو استخدام ميزة "التعديل اليدوي المتعدد" لتبادل حصص أكثر من معلم في آن واحد.' },
-      { q: 'هل يمكنني تعديل الجدول بعد إنشائه؟', a: 'نعم، يمكنك تعديل التوزيع في أي وقت. عند إعادة التوزيع التلقائي ستظهر رسالة تحذيرية تُعلمك بأن الجدول السابق سيُحذف.' },
-      { q: 'هل يراعي التوزيع التلقائي نصاب المعلم؟', a: 'نعم، يحترم التوزيع الذكي عدد الحصص المقررة لكل مادة وتخصص المعلم، ويتجنب التعارض في التوقيت بين الفصول والمعلمين.' },
-      { q: 'هل يمكن تعيين معلم بديل لحصة معينɿ', a: 'نعم، من خلال الإسناد اليدوي يمكنك تعيين معلم بديل لحصة معينة عبر قسم "الإسناد اليدوي" ضمن إعدادات الجدول.' },
-    ],
-  },
-  {
-    id: 'schedule_reports',
-    label: 'طباعة وتصدير الجدول',
-    items: [
-      { q: 'كيف أطبع جدول فصل معين؟', a: 'من "طباعة وتصدير الجدول" اختر "جدول الفصل"، حدد الفصل المطلوب ثم انقر "طباعة".' },
-      { q: 'كيف أطبع جدول معلم بعينه؟', a: 'اختر "جدول المعلم"، حدد المعلم ثم انقر "طباعة" أو "تصدير PDF".' },
-      { q: 'هل يمكن تصدير الجدول بصيغة PDF؟', a: 'نعم، من صفحة الطباعة انقر "تصدير PDF" لحفظ الجدول بصيغة جاهزة للمشاركة.' },
-      { q: 'كيف أطبع جدول المدرسة كاملاً؟', a: 'اختر "جدول المدرسة الكامل" وحدد الصف أو الأسبوع ثم انقر طباعة.' },
-      { q: 'هل يمكن طباعة جداول متعددة دفعة واحدɿ', a: 'نعم، يمكنك اختيار "طباعة الكل" لطباعة جداول جميع الفصول أو المعلمين معاً.' },
     ],
   },
   // ── الإشراف والمناوبة ─────────────────────────────────────────────────────
@@ -425,8 +403,6 @@ const VIDEO_CATEGORIES = [
   { id: 'settings_students',label: 'الطلاب' },
   { id: 'settings_admins',  label: 'الإداريون' },
   { id: 'assignment',       label: 'إسناد المواد' },
-  { id: 'schedule',         label: 'إنشاء وإدارة الجدول' },
-  { id: 'schedule_reports', label: 'طباعة وتصدير الجدول' },
   { id: 'supervision',      label: 'الإشراف اليومي' },
   { id: 'duty',             label: 'المناوبة اليومية' },
   { id: 'daily_waiting',    label: 'الانتظار اليومي' },

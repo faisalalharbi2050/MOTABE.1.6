@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo, TimetableSlot } from '../../types';
+import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo, TimetableSlot, Specialization } from '../../types';
 
 interface PrintableScheduleProps {
     type: 'general_teachers' | 'general_classes' | 'individual_teacher' | 'individual_class' | 'general_waiting';
@@ -7,6 +7,7 @@ interface PrintableScheduleProps {
     teachers: Teacher[];
     classes: ClassInfo[];
     subjects: Subject[];
+    specializations?: Specialization[];
     targetId?: string;
     schoolInfo: SchoolInfo;
     onClose: () => void;
@@ -14,14 +15,18 @@ interface PrintableScheduleProps {
     fontSize?: number;
     /** Render in black & white mode (no coloured backgrounds) */
     blackAndWhite?: boolean;
+    /** Hide internal approval/signature footer for parent-facing shared copies */
+    hideSignature?: boolean;
+    /** Optional send timestamp used in shared links instead of local print time */
+    sentAt?: string;
 }
 
 const DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
 const MAX_PERIODS = 7;
 
 const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
-    type, settings, teachers, classes, subjects, targetId, schoolInfo,
-    fontSize = 11, blackAndWhite = false
+    type, settings, teachers, classes, subjects, specializations, targetId, schoolInfo,
+    fontSize = 11, blackAndWhite = false, hideSignature = false, sentAt
 }) => {
     const zoomFactor = fontSize / 11;
     const subjectName  = (id: string) => settings.subjectAbbreviations?.[id] || subjects.find(s => s.id === id)?.name || '';
@@ -36,9 +41,10 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
     const semesterName    = currentSemester?.name || '';
     const calendarType    = currentSemester?.calendarType || 'hijri';
 
+    const effectiveDate = sentAt ? new Date(sentAt) : new Date();
     const printDate = calendarType === 'hijri'
-        ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'long' }).format(new Date())
-        : new Intl.DateTimeFormat('ar-EG', { dateStyle: 'long' }).format(new Date());
+        ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'long' }).format(effectiveDate)
+        : new Intl.DateTimeFormat('ar-EG', { dateStyle: 'long' }).format(effectiveDate);
 
     // ── Lookup helpers using timetable key format: "teacherId-day-period" ──
     const { timetable } = settings;
@@ -57,6 +63,17 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             }
         });
     }
+
+    // ── Waiting quota calculation (mirrors InlineScheduleView) ───────────
+    const getWaitingQuota = (teacher: Teacher): number => {
+        if (teacher.waitingQuota !== undefined) return teacher.waitingQuota;
+        const isManualMode = settings.substitution?.method === 'manual';
+        if (isManualMode) {
+            const maxQ = settings.substitution?.maxTotalQuota ?? 24;
+            return Math.max(0, maxQ - (teacher.quotaLimit || 0));
+        }
+        return 0;
+    };
 
     // ── Cell renderer ────────────────────────────────────────
     const renderCell = (day: string, period: number, rowId: string) => {
@@ -88,7 +105,6 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             if (slot.isSubstitution) {
                 return (
                     <div className="text-center h-full w-full flex flex-col justify-center items-center" style={{background:'#f4f2ff'}}>
-                        <div className="font-black text-sm" style={{color:'#a59bf0'}}>م</div>
                         <div className="text-[9px] font-bold" style={{color:'#a59bf0'}}>انتظار</div>
                     </div>
                 );
@@ -98,13 +114,14 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
         if (type === 'individual_teacher' && rowId === targetId) {
             const slot = getTeacherSlot(rowId, day, period);
             if (!slot) return null;
+            const isWaitingSlot = slot.isSubstitution || slot.type === 'waiting';
+            const slotSubtitle = isWaitingSlot
+                ? (slot.subjectId ? `انتظار • ${subjectName(slot.subjectId || '')}` : 'انتظار')
+                : subjectName(slot.subjectId || '');
             return (
                 <div className="text-center h-full w-full flex flex-col justify-center items-center">
                     <div className="font-bold text-sm break-words mb-1" style={{color:'#a59bf0'}}>{className(slot.classId || '')}</div>
-                    <div className="text-[11px] font-bold text-slate-600">
-                        {subjectName(slot.subjectId || '')}
-                        {slot.isSubstitution && <span className="block text-[9px] font-black mt-0.5 px-1 rounded" style={{background:'#f4f2ff',color:'#a59bf0'}}>(م انتظار)</span>}
-                    </div>
+                    <div className="text-[11px] font-bold text-slate-600">{slotSubtitle}</div>
                 </div>
             );
         }
@@ -164,7 +181,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                 </div>
 
                 {/* ── Info Card (matches inline gradient design) ── */}
-                <div className="px-5 py-5 relative overflow-hidden"
+                <div className="px-5 py-5 relative"
                     style={{
                         background:'linear-gradient(135deg, #5b50b8 0%, #7c6dd6 60%, #655ac1 100%)',
                         boxShadow:'0 10px 30px rgba(101,90,193,0.35)'
@@ -180,25 +197,28 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                             </div>
                             {isT && t && (
                                 <div className="text-white/60 text-xs font-medium mt-0.5">
-                                    {t.specializationId ? (subjects.find(s=>s.id===t.specializationId)?.name||'—') : '—'}
+                                    {specializations?.find(s => s.id === t.specializationId)?.name
+                                        || subjects.find(s => s.id === t.assignedSubjectId)?.name
+                                        || t.specializationId
+                                        || '—'}
                                 </div>
                             )}
                         </div>
 
-                        {/* Stats — نصاب only */}
+                        {/* Stats */}
                         <div className="flex flex-wrap gap-2 shrink-0">
                             <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[68px]">
                                 <span className="text-white/60 text-[10px] font-semibold leading-none mb-1">
                                     {isT ? 'نصاب الحصص' : 'عدد الحصص'}
                                 </span>
                                 <span className="text-white font-black text-xl leading-none">
-                                    {isT ? (t?.quotaLimit||0) : (c ? Object.values(timetable as Record<string,any>).filter(s=>s.classId===c.id&&s.type==='lesson').length : 0)}
+                                    {isT ? (t?.quotaLimit || 0) : (c ? Object.values(timetable as Record<string, any>).filter(s => s.classId === c.id && s.type === 'lesson').length : 0)}
                                 </span>
                             </div>
                             {isT && t && (
                                 <div className="flex flex-col items-center px-4 py-2 rounded-xl bg-white/15 border border-white/20 backdrop-blur-sm min-w-[68px]">
                                     <span className="text-white/60 text-[10px] font-semibold leading-none mb-1">نصاب الانتظار</span>
-                                    <span className="text-white font-black text-xl leading-none">{t.waitingQuota||0}</span>
+                                    <span className="text-white font-black text-xl leading-none">{getWaitingQuota(t)}</span>
                                 </div>
                             )}
                         </div>
@@ -247,6 +267,9 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                                             ? getTeacherSlot(row.id, dayCode, pi+1)
                                             : classIndex[`${row.id}-${dayCode}-${pi+1}`];
                                         const isWaiting = isT && slot && (slot.isSubstitution || (slot as any).type==='waiting');
+                                        const slotSubtitle = isWaiting
+                                            ? (slot?.subjectId ? `انتظار • ${subjectName(slot.subjectId)}` : 'انتظار')
+                                            : subjectName(slot?.subjectId || '');
                                         return (
                                             <td key={pi}
                                                 style={{height:'76px', minWidth:'100px',
@@ -259,22 +282,6 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                                                          style={{borderColor:'#d1cdf4', background:'transparent', minHeight:'56px'}}>
                                                         <span className="text-[10px] font-bold" style={{color:'#c4bcf7'}}>—</span>
                                                     </div>
-                                                ) : isWaiting ? (
-                                                    <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-2 gap-1"
-                                                         style={{background:'#fff8ee', borderColor:'#fbd28a', minHeight:'56px'}}>
-                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black"
-                                                              style={{background:'#fef3c7', color:'#b45309', border:'1px solid #fcd34d'}}>
-                                                            انتظار
-                                                        </span>
-                                                        <span className="font-black text-xs leading-tight text-center" style={{color:'#92400e'}}>
-                                                            {className(slot.classId||'')}
-                                                        </span>
-                                                        {slot.subjectId && (
-                                                            <span className="text-[10px] font-medium leading-tight text-center" style={{color:'#b45309'}}>
-                                                                {subjectName(slot.subjectId)}
-                                                            </span>
-                                                        )}
-                                                    </div>
                                                 ) : (
                                                     <div className="w-full h-full rounded-xl border flex flex-col items-center justify-center px-2 gap-1"
                                                          style={{background:'#f0edff', borderColor:'#c4bcf7', minHeight:'56px'}}>
@@ -282,7 +289,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                                                             <span className="font-black text-sm leading-tight text-center w-full truncate"
                                                                   style={{color:'#4f46e5'}}>{className(slot.classId||'')}</span>
                                                             <span className="text-[11px] font-semibold leading-tight text-center w-full truncate"
-                                                                  style={{color:'#7c6dd6'}}>{subjectName(slot.subjectId||'')}</span>
+                                                                  style={{color:'#7c6dd6'}}>{slotSubtitle}</span>
                                                         </> : <>
                                                             <span className="font-black text-sm leading-tight text-center w-full truncate"
                                                                   style={{color:'#4f46e5'}}>{subjectName(slot.subjectId||'')}</span>
@@ -303,7 +310,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                 </div>
 
                 {/* ── Footer ── */}
-                <div className="flex justify-between items-end px-5 py-3 border-t" style={{borderColor:C_BORDER}}>
+                <div className="flex justify-between items-end px-5 py-3 border-t" style={{borderColor:C_BORDER, display: hideSignature ? 'none' : undefined}}>
                     <div className="text-center">
                         <div className="text-xs font-bold text-slate-600 mb-3">مدير المدرسة{principal ? `: ${principal}` : ''}</div>
                         <div className="border-t pt-1 w-32 text-[10px] text-slate-400 text-center" style={{borderColor:C_BORDER}}>التوقيع</div>
@@ -412,7 +419,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             {/* ── Page Footer ── */}
             <div className="flex justify-between items-end mt-10 text-sm text-gray-700 font-bold px-2">
                 {/* Left: principal signature */}
-                <div className="text-right">
+                <div className="text-right" style={{display: hideSignature ? 'none' : undefined}}>
                     <div className="mb-2">اعتماد مدير المدرسة{principal ? `: ${principal}` : ''}</div>
                     <div className="border-t border-gray-400 pt-2 w-40 text-xs text-gray-400 text-center">التوقيع</div>
                 </div>

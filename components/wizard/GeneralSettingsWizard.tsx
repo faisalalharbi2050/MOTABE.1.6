@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   RotateCcw
 } from 'lucide-react';
-import { SchoolInfo, Subject, ClassInfo, Teacher, Admin, Student, Specialization, ScheduleSettingsData, Assignment } from '../../types';
+import { SchoolInfo, Subject, ClassInfo, Teacher, Admin, Student, Specialization, ScheduleSettingsData } from '../../types';
 
 import Step1General from './steps/Step1General';
 import Step2AcademicYear from './steps/Step2AcademicYear';
@@ -24,7 +24,6 @@ import Step4Classes from './steps/Step4Classes';
 import Step5Students from './steps/Step5Students';
 import Step6Teachers from './steps/Step6Teachers';
 import Step7Admins from './steps/Step7Admins';
-import Step9Schedule from './steps/Step9Schedule';
 
 interface WizardProps {
   schoolInfo: SchoolInfo;
@@ -47,7 +46,6 @@ interface WizardProps {
   onComplete: () => void;
   scheduleSettings: ScheduleSettingsData;
   setScheduleSettings: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
-  assignments: Assignment[];
 }
 
 const GeneralSettingsWizard: React.FC<WizardProps> = ({ 
@@ -60,12 +58,11 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
     gradeSubjectMap, setGradeSubjectMap,
     phaseDepartmentMap, setPhaseDepartmentMap,
     onComplete,
-    scheduleSettings, setScheduleSettings,
-    assignments
+    scheduleSettings, setScheduleSettings
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isFinished, setIsFinished] = useState(false);
-  const totalSteps = 9;
+  const totalSteps = 8;
 
   const steps = [
     { id: 1, title: 'معلومات عامة', icon: Settings },
@@ -76,7 +73,6 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
     { id: 6, title: 'الطلاب', icon: Users },
     { id: 7, title: 'المعلمون', icon: GraduationCap },
     { id: 8, title: 'الإداريون', icon: ShieldCheck },
-    { id: 9, title: 'الجدول المدرسي', icon: Calendar },
   ];
 
   const handleNext = () => {
@@ -124,7 +120,6 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
       case 6: return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 7: return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} classes={classes} />;
       case 8: return <Step7Admins admins={admins} setAdmins={setAdmins} schoolInfo={schoolInfo} />;
-      case 9: return <Step9Schedule schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} teachers={teachers} subjects={subjects} classes={classes} admins={admins} assignments={assignments} specializations={specializations} />;
       default: return null;
     }
   };

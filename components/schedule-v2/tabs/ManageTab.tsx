@@ -154,7 +154,8 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                 {stats.map((s, i) => (
                     <div
                         key={i}
-                        className="bg-white border border-slate-100 rounded-2xl px-4 py-5 shadow-sm flex items-start gap-3"
+                        className="bg-white border border-slate-200 rounded-2xl px-4 py-5 shadow-md flex items-start gap-3"
+                        style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}
                     >
                         <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
                             <s.icon size={22} />
@@ -190,7 +191,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                 </div>
             )}
 
-            <div className="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+            <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
                 <div className="px-6 py-4 border-b border-slate-100 bg-white">
                     <p className="text-sm font-black text-slate-800 flex items-center gap-2">
                         <BookOpenCheck size={18} className="text-[#655ac1]" />
@@ -223,7 +224,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">الإجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50">
+                            <tbody className="divide-y divide-slate-100">
                                 {savedSchedules.map((schedule, index) => {
                                     const isActive = schedule.id === activeScheduleId;
                                     const isEditing = editingId === schedule.id;

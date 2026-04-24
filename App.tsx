@@ -16,9 +16,7 @@ import Step4Classes from './components/wizard/steps/Step4Classes';
 import Step5Students from './components/wizard/steps/Step5Students';
 import Step6Teachers from './components/wizard/steps/Step6Teachers';
 import Step7Admins from './components/wizard/steps/Step7Admins';
-import Step9Schedule from './components/wizard/steps/Step9Schedule';
 import TimingSettings from './components/settings/TimingSettings';
-import ScheduleReports from './components/schedule/ScheduleReports';
 import ScheduleV2Container from './components/schedule-v2/ScheduleV2Container';
 
 
@@ -31,6 +29,7 @@ import DailySupervision from './components/DailySupervision';
 import SupervisionSignaturePage from './components/supervision/SupervisionSignaturePage';
 import DutySignaturePage from './components/duty/DutySignaturePage';
 import ScheduleSignaturePage from './components/schedule/ScheduleSignaturePage';
+import ScheduleSharePage from './components/schedule/ScheduleSharePage';
 import DailyDuty from './components/DailyDuty';
 import DailyWaiting from './components/DailyWaiting';
 import Messages from './components/Messages';
@@ -272,7 +271,7 @@ const App: React.FC = () => {
     meetings: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual' | 'classes_waiting' | 'schedule_reports' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual' | 'schedule_v2' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
     // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -442,7 +441,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     // Subscription Lock Logic
     const isSubscriptionActive = new Date(subscription.endDate).getTime() >= new Date().getTime();
-    const lockedTabs = ['manual', 'classes_waiting', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
+    const lockedTabs = ['manual', 'schedule_v2', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
     
     if (!isSubscriptionActive && lockedTabs.includes(activeTab as string)) {
       return (
@@ -494,9 +493,7 @@ const App: React.FC = () => {
 
       // Schedule Section
       case 'manual': return <ManualAssignment teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
-      case 'classes_waiting': return <Step9Schedule teachers={teachers} subjects={subjects} classes={classes} specializations={specializations} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} />;
-      case 'schedule_reports': return <ScheduleReports schoolInfo={schoolInfo} teachers={teachers} subjects={subjects} classes={classes} assignments={assignments} specializations={specializations} timetable={scheduleSettings.timetable || {}} generationMode={scheduleSettings.generationMode} />;
-      case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} />;
+      case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} />;
 
       // Supervision and Duty
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} />;
@@ -547,6 +544,13 @@ const App: React.FC = () => {
     : null;
   if (scheduleSignToken) {
     return <ScheduleSignaturePage token={scheduleSignToken} />;
+  }
+
+  const scheduleShareToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('scheduleShare')
+    : null;
+  if (scheduleShareToken) {
+    return <ScheduleSharePage token={scheduleShareToken} />;
   }
 
   return (

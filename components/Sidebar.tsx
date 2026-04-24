@@ -37,10 +37,8 @@ import {
   BookOpen,
   Layers,
   LayoutGrid,
-  CalendarDays,
   UserCog,
   Lock,
-  Printer,
   CalendarCheck,
 } from "lucide-react";
 
@@ -64,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Auto-expand if a sub-item is active
   React.useEffect(() => {
-    const scheduleTabs = ['manual', 'classes_waiting', 'schedule_reports', 'schedule_v2'];
+    const scheduleTabs = ['manual', 'schedule_v2'];
     if (scheduleTabs.includes(activeTab)) {
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
@@ -337,20 +335,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                      onClick={() => handleTabClick("schedule_v2")}
                      label="إدارة الحصص والانتظار"
                      icon={<CalendarCheck size={18} />}
-                     inverted={true}
-                  />
-                  <SubNavItem
-                     active={activeTab === "classes_waiting"}
-                     onClick={() => handleTabClick("classes_waiting")}
-                     label="إنشاء وإدارة الجدول"
-                     icon={<CalendarDays size={18} />}
-                     inverted={true}
-                  />
-                  <SubNavItem
-                     active={activeTab === "schedule_reports"}
-                     onClick={() => handleTabClick("schedule_reports")}
-                     label="طباعة وتصدير الجدول"
-                     icon={<Printer size={18} />}
                      inverted={true}
                   />
                </div>

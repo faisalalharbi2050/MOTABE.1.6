@@ -1,247 +1,931 @@
-import React, { useState } from 'react';
-import { X, Share2, Copy, CheckCircle2, Users, UserCog, GraduationCap, Link as LinkIcon, MessageCircle } from 'lucide-react';
-import { Teacher, ClassInfo } from '../../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Archive,
+  CheckCircle2,
+  Copy,
+  Link2,
+  Loader2,
+  MessageCircle,
+  Send,
+  Share2,
+  Users,
+  UserCog,
+  GraduationCap,
+  X,
+} from 'lucide-react';
+import { Admin, ClassInfo, Student, Teacher, CentralMessage, SchoolInfo } from '../../types';
+import { useMessageArchive } from '../messaging/MessageArchiveContext';
+import { useToast } from '../ui/ToastProvider';
+import {
+  buildScheduleShareLink,
+  buildScheduleSignatureLink,
+  saveScheduleShare,
+  saveScheduleSignatureRequest,
+  ScheduleShareRequest,
+  ShareAudience,
+  ShareRecipientRecord,
+  ShareScheduleType,
+} from '../../utils/scheduleShare';
 
 interface SendScheduleModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    teachers: Teacher[];
-    classes: ClassInfo[];
-    schoolName?: string; // Optional: displays which school's schedule is being sent (separate mode)
+  isOpen: boolean;
+  onClose: () => void;
+  teachers: Teacher[];
+  admins: Admin[];
+  students: Student[];
+  classes: ClassInfo[];
+  schoolInfo: SchoolInfo;
+  schoolName?: string;
+  onNavigateToArchive?: () => void;
 }
 
-const WhatsAppIcon = () => (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </svg>
-);
+type ChannelType = 'whatsapp' | 'sms';
 
-const SendScheduleModal: React.FC<SendScheduleModalProps> = ({ isOpen, onClose, teachers, classes, schoolName }) => {
-    const [selectedTarget, setSelectedTarget] = useState('');
-    const [selectedType, setSelectedType]   = useState('');
-    const [selectedIds, setSelectedIds]     = useState<string[]>([]);
-    const [generatedLink, setGeneratedLink] = useState('');
-    const [isCopied, setIsCopied]           = useState(false);
+type LinkRecord = {
+  key: string;
+  label: string;
+  url: string;
+  targetId?: string;
+  targetLabel: string;
+  requestKind: 'share' | 'signature';
+};
 
-    if (!isOpen) return null;
+type DeliveryResult = {
+  id: string;
+  name: string;
+  phone: string;
+  roleLabel: string;
+  relatedLabel: string;
+  channel: ChannelType;
+  status: 'sent' | 'failed';
+  timestamp: string;
+  failureReason?: string;
+};
 
-    const targetGroups = [
-        { id: 'teachers', title: 'المعلمون',               icon: <Users size={20} /> },
-        { id: 'admin',    title: 'الإداريون',               icon: <UserCog size={20} /> },
-        { id: 'students', title: 'الطلاب / أولياء الأمور', icon: <GraduationCap size={20} /> },
-    ];
+type SelectableRecipient = ShareRecipientRecord & {
+  relatedLabel?: string;
+};
 
-    const scheduleTypes = [
-        { id: 'general_teachers',   title: 'الجدول العام للمعلمين' },
-        { id: 'general_waiting',    title: 'الجدول العام للانتظار' },
-        { id: 'individual_teacher', title: 'جدول معلم'              },
-        { id: 'general_classes',    title: 'الجدول العام للفصول'   },
-        { id: 'individual_class',   title: 'جدول فصل'               },
-    ];
+const SCHEDULE_OPTIONS: Array<{ id: ShareScheduleType; title: string; description: string }> = [
+  { id: 'general_teachers', title: 'الجدول العام للمعلمين', description: 'رابط موحد للجدول العام الخاص بالمعلمين' },
+  { id: 'general_classes', title: 'الجدول العام للفصول', description: 'رابط موحد يعرض الجدول العام للفصول' },
+  { id: 'general_waiting', title: 'الجدول العام للانتظار', description: 'رابط موحد للانتظار الداخلي دون تفاصيل تشغيلية' },
+  { id: 'individual_teacher', title: 'جدول معلم', description: 'رابط مستقل لكل معلم مع نسخة جاهزة للإرسال' },
+  { id: 'individual_class', title: 'جدول فصل', description: 'يمكن إرساله للمعلمين أو الإداريين أو أولياء الأمور' },
+];
 
-    const needsTeachers = selectedType === 'individual_teacher';
-    const needsClasses  = selectedType === 'individual_class';
-    const listItems     = needsTeachers ? teachers : needsClasses
-        ? [...classes].sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section||0)-(b.section||0))
-        : [];
+const AUDIENCE_OPTIONS: Array<{ id: ShareAudience; title: string; icon: React.ReactNode }> = [
+  { id: 'teachers', title: 'المعلمون', icon: <Users size={18} /> },
+  { id: 'admins', title: 'الإداريون', icon: <UserCog size={18} /> },
+  { id: 'guardians', title: 'أولياء الأمور', icon: <GraduationCap size={18} /> },
+];
 
-    const toggleId = (id: string) =>
-        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+const allowedAudiences: Record<ShareScheduleType, ShareAudience[]> = {
+  general_teachers: ['teachers', 'admins'],
+  general_classes: ['teachers', 'admins', 'guardians'],
+  general_waiting: ['teachers', 'admins'],
+  individual_teacher: ['teachers', 'admins'],
+  individual_class: ['teachers', 'admins', 'guardians'],
+};
 
-    const toggleAll = () =>
-        setSelectedIds(selectedIds.length === listItems.length ? [] : listItems.map(i => i.id));
+const targetTitleMap: Record<ShareScheduleType, string> = {
+  general_teachers: 'الجدول العام للمعلمين',
+  general_classes: 'الجدول العام للفصول',
+  general_waiting: 'الجدول العام للانتظار',
+  individual_teacher: 'جدول معلم',
+  individual_class: 'جدول فصل',
+};
 
-    const targetLabel = targetGroups.find(g => g.id === selectedTarget)?.title || '';
+const roleLabelMap: Record<ShareRecipientRecord['role'], string> = {
+  teacher: 'معلم',
+  admin: 'إداري',
+  guardian: 'ولي أمر',
+};
 
-    const isReady = selectedTarget && selectedType &&
-        ((!needsTeachers && !needsClasses) || selectedIds.length > 0);
+const sourceBySchedule: Record<ShareScheduleType, CentralMessage['source']> = {
+  general_teachers: 'general',
+  general_classes: 'general',
+  general_waiting: 'waiting',
+  individual_teacher: 'general',
+  individual_class: 'general',
+};
 
-    const generateLink = () => {
-        const uniqueId = Math.random().toString(36).substr(2, 9);
-        setGeneratedLink(`${window.location.origin || 'https://motabe.app'}/s/${selectedTarget}/${selectedType}/${uniqueId}`);
-        setIsCopied(false);
-    };
+const dayName = () => new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date());
+const nowSummary = () => {
+  const now = new Date();
+  return {
+    day: new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now),
+    date: new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now),
+    time: new Intl.DateTimeFormat('ar-SA', { timeStyle: 'short' }).format(now),
+  };
+};
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(generatedLink);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 3000);
-    };
+const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
+  isOpen,
+  onClose,
+  teachers,
+  admins,
+  students,
+  classes,
+  schoolInfo,
+  schoolName,
+  onNavigateToArchive,
+}) => {
+  const { sendMessage } = useMessageArchive();
+  const { showToast } = useToast();
 
-    const buildMessage = () => {
-        if (selectedTarget === 'teachers')
-            return `الزملاء المعلمين،\nتجدون عبر الرابط جدول الحصص الأسبوعي:\n${generatedLink}\n\nمع تحيات إدارة المدرسة`;
-        if (selectedTarget === 'students')
-            return `السادة أولياء الأمور،\nتجدون عبر الرابط جدول الحصص الأسبوعي:\n${generatedLink}\n\nمع تمنياتنا بعام دراسي موفق`;
-        return `مرفق رابط جدول الحصص المحدث:\n${generatedLink}`;
-    };
+  const [selectedSchedule, setSelectedSchedule] = useState<ShareScheduleType | ''>('');
+  const [selectedAudience, setSelectedAudience] = useState<ShareAudience | ''>('');
+  const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
+  const [channel, setChannel] = useState<ChannelType>('whatsapp');
+  const [generatedLinks, setGeneratedLinks] = useState<LinkRecord[]>([]);
+  const [results, setResults] = useState<DeliveryResult[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const currentMoment = useMemo(() => nowSummary(), []);
+  const currentSemester = useMemo(
+    () => schoolInfo?.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo?.semesters?.[0],
+    [schoolInfo]
+  );
 
-    const handleWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(buildMessage())}`, '_blank');
-    const handleSMS      = () => window.open(`sms:?&body=${encodeURIComponent(`مرفق رابط جدول الحصص:\n${generatedLink}`)}`, '_self');
+  useEffect(() => {
+    setGeneratedLinks([]);
+    setResults([]);
+  }, [selectedSchedule, selectedAudience, selectedTargetIds, selectedRecipientIds, channel]);
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col animate-in zoom-in-95 overflow-hidden">
+  const sortedClasses = useMemo(
+    () => [...classes].sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0)),
+    [classes]
+  );
+  const sortedTeachers = useMemo(
+    () => [...teachers].sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [teachers]
+  );
+  const sortedAdmins = useMemo(
+    () => [...admins].sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [admins]
+  );
 
-                {/* Header */}
-                <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center">
-                            <Share2 size={24} />
-                        </div>
-                        <div>
-                            <h3 className="font-black text-slate-800 text-xl">إرسال الجداول</h3>
-                            <p className="text-sm font-bold text-slate-500">
-                                {schoolName
-                                    ? `مشاركة جدول ${schoolName} عبر روابط ذكية`
-                                    : 'مشاركة الجداول مع المستفيدين عبر روابط ذكية'}
-                            </p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
+  const availableAudiences = selectedSchedule ? allowedAudiences[selectedSchedule] : [];
+  const needsTargetSelection = selectedSchedule === 'individual_teacher' || selectedSchedule === 'individual_class';
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+  const targetOptions = useMemo(() => {
+    if (selectedSchedule === 'individual_teacher') {
+      return sortedTeachers.map(teacher => ({
+        id: teacher.id,
+        title: teacher.name,
+        subtitle: teacher.phone || 'بدون رقم',
+      }));
+    }
 
-                    {/* Step 1: Target */}
-                    <div>
-                        <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                            <span className="w-6 h-6 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center text-xs font-black">1</span>
-                            الفئة المستهدفة
-                        </h4>
-                        <div className="grid grid-cols-3 gap-3">
-                            {targetGroups.map(g => (
-                                <button key={g.id} onClick={() => setSelectedTarget(g.id)}
-                                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 font-bold text-sm transition-all ${
-                                        selectedTarget === g.id
-                                            ? 'border-[#8779fb] bg-white text-[#655ac1]'
-                                            : 'border-slate-100 bg-slate-50 hover:border-slate-200 text-slate-600'
-                                    }`}
-                                >
-                                    {g.icon}
-                                    <span className="whitespace-nowrap text-xs">{g.title}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+    if (selectedSchedule === 'individual_class') {
+      return sortedClasses.map(classItem => ({
+        id: classItem.id,
+        title: classItem.name || `${classItem.grade}/${classItem.section}`,
+        subtitle: `الصف ${classItem.grade}`,
+      }));
+    }
 
-                    {/* Step 2: Schedule Type */}
-                    <div className={`transition-opacity ${selectedTarget ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                            <span className="w-6 h-6 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center text-xs font-black">2</span>
-                            نوع الجدول المرسل
-                        </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {scheduleTypes.map(t => (
-                                <button key={t.id}
-                                    onClick={() => { setSelectedType(t.id); setSelectedIds([]); }}
-                                    className={`px-4 py-2.5 rounded-xl border-2 text-right font-bold text-sm transition-all ${
-                                        selectedType === t.id
-                                            ? 'border-[#8779fb] bg-white text-[#655ac1]'
-                                            : 'border-slate-100 bg-slate-50 hover:border-slate-200 text-slate-600'
-                                    }`}
-                                >{t.title}</button>
-                            ))}
-                        </div>
-                    </div>
+    return [];
+  }, [selectedSchedule, sortedTeachers, sortedClasses]);
 
-                    {/* Step 3: Multi-select teachers/classes */}
-                    {(needsTeachers || needsClasses) && (
-                        <div className="animate-in fade-in slide-in-from-top-2">
-                            <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm">
-                                <span className="w-6 h-6 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center text-xs font-black">3</span>
-                                {needsTeachers ? 'اختر المعلمين' : 'اختر الفصول'}
-                            </h4>
-                            <div className="bg-slate-50 rounded-2xl border border-slate-200 p-3">
-                                {/* Select All */}
-                                <label className="flex items-center gap-3 px-2 py-2 mb-1 rounded-xl hover:bg-white cursor-pointer transition-colors border-b border-slate-200 pb-2">
-                                    <input type="checkbox"
-                                        checked={selectedIds.length === listItems.length && listItems.length > 0}
-                                        onChange={toggleAll}
-                                        className="w-4 h-4 accent-[#655ac1] rounded"
-                                    />
-                                    <span className="text-sm font-black text-[#655ac1]">
-                                        {selectedIds.length === listItems.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
-                                    </span>
-                                </label>
-                                <div className="max-h-40 overflow-y-auto space-y-0.5">
-                                    {listItems.map(item => (
-                                        <label key={item.id} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white cursor-pointer transition-colors">
-                                            <input type="checkbox"
-                                                checked={selectedIds.includes(item.id)}
-                                                onChange={() => toggleId(item.id)}
-                                                className="w-4 h-4 accent-[#655ac1] rounded"
-                                            />
-                                            <span className="text-sm font-bold text-slate-700">
-                                                {'name' in item ? (item as any).name : `${(item as any).grade}/${(item as any).section}`}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                                {selectedIds.length > 0 && (
-                                    <p className="text-xs text-[#655ac1] font-black mt-2 px-2">
-                                        ✓ تم اختيار {selectedIds.length} {needsTeachers ? 'معلم' : 'فصل'}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    )}
+  const recipients = useMemo<SelectableRecipient[]>(() => {
+    if (!selectedAudience) return [];
 
-                    {/* Generate button */}
-                    {isReady && (
-                        <div className="flex justify-center pt-1">
-                            <button onClick={generateLink}
-                                className="px-8 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-2xl font-bold transition-all shadow-lg shadow-[#655ac1]/20 flex items-center gap-2 active:scale-95"
-                            >
-                                <LinkIcon size={18} />
-                                إنشاء الرابط المخصص لـ {targetLabel}
-                            </button>
-                        </div>
-                    )}
+    if (selectedAudience === 'teachers') {
+      const base = sortedTeachers.map(teacher => ({
+        id: teacher.id,
+        name: teacher.name,
+        phone: teacher.phone || '',
+        role: 'teacher' as const,
+        relatedLabel: teacher.phone || 'بدون رقم',
+      }));
 
-                    {/* Result */}
-                    {generatedLink && (
-                        <div className="bg-[#f5f3ff] border border-[#c4b8f8] rounded-2xl p-5 space-y-4 animate-in slide-in-from-bottom-4">
-                            <div className="flex items-center justify-between">
-                                <h5 className="font-black text-[#655ac1] flex items-center gap-2">
-                                    <CheckCircle2 size={18} className="text-emerald-500" />
-                                    تم إنشاء الرابط
-                                </h5>
-                                {isCopied && <span className="text-emerald-600 font-bold text-xs">✓ تم النسخ</span>}
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="flex-1 bg-white border border-[#c4b8f8] rounded-xl px-4 py-3 text-left font-mono text-sm text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap" dir="ltr">
-                                    {generatedLink}
-                                </div>
-                                <button onClick={handleCopy}
-                                    className="px-4 py-3 bg-white border border-[#c4b8f8] hover:bg-[#e5e1fe] text-[#655ac1] rounded-xl transition-colors"
-                                    title="نسخ الرابط"
-                                >
-                                    <Copy size={18} />
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <button onClick={handleWhatsApp}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 bg-[#25D366] hover:bg-[#1ebe5d] text-white rounded-2xl font-black text-sm transition-all shadow-md shadow-[#25D366]/25 active:scale-95"
-                                >
-                                    <WhatsAppIcon />
-                                    مشاركة عبر واتساب
-                                </button>
-                                <button onClick={handleSMS}
-                                    className="flex items-center justify-center gap-2 py-3 px-4 bg-[#8779fb] hover:bg-[#655ac1] text-white rounded-2xl font-black text-sm transition-all shadow-md shadow-[#8779fb]/25 active:scale-95"
-                                >
-                                    <MessageCircle size={18} />
-                                    إرسال رسالة نصية
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+      if (selectedSchedule === 'individual_teacher' && selectedTargetIds.length > 0) {
+        return base.filter(item => selectedTargetIds.includes(item.id));
+      }
+
+      return base;
+    }
+
+    if (selectedAudience === 'admins') {
+      return sortedAdmins.map(admin => ({
+        id: admin.id,
+        name: admin.name,
+        phone: admin.phone || '',
+        role: 'admin' as const,
+        relatedLabel: admin.role || 'إداري',
+      }));
+    }
+
+    const guardianBase = students
+      .filter(student => student.parentPhone)
+      .map(student => {
+        const classItem = classes.find(item => item.id === student.classId);
+        return {
+          id: student.id,
+          name: student.name,
+          phone: student.parentPhone || '',
+          role: 'guardian' as const,
+          classId: student.classId,
+          classLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
+          studentName: student.name,
+          relatedLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
+        };
+      });
+
+    if (selectedTargetIds.length > 0 && selectedSchedule === 'individual_class') {
+      return guardianBase.filter(item => item.classId && selectedTargetIds.includes(item.classId));
+    }
+
+    return guardianBase;
+  }, [selectedAudience, selectedSchedule, selectedTargetIds, sortedTeachers, sortedAdmins, students, classes]);
+
+  useEffect(() => {
+    if (!selectedSchedule) {
+      setSelectedAudience('');
+      setSelectedTargetIds([]);
+      setSelectedRecipientIds([]);
+      return;
+    }
+
+    if (selectedAudience && !allowedAudiences[selectedSchedule].includes(selectedAudience)) {
+      setSelectedAudience('');
+      setSelectedRecipientIds([]);
+    }
+
+    if (selectedSchedule !== 'individual_teacher' && selectedSchedule !== 'individual_class') {
+      setSelectedTargetIds([]);
+    }
+  }, [selectedSchedule, selectedAudience]);
+
+  useEffect(() => {
+    if (!selectedAudience) {
+      setSelectedRecipientIds([]);
+      return;
+    }
+
+    if (selectedAudience === 'teachers' && selectedSchedule === 'individual_teacher') {
+      setSelectedRecipientIds(selectedTargetIds);
+      return;
+    }
+
+    if (selectedAudience === 'guardians') {
+      setSelectedRecipientIds(recipients.map(item => item.id));
+      return;
+    }
+
+    setSelectedRecipientIds([]);
+  }, [selectedAudience, selectedSchedule, selectedTargetIds, recipients]);
+
+  const selectedRecipients = useMemo(
+    () => recipients.filter(item => selectedRecipientIds.includes(item.id)),
+    [recipients, selectedRecipientIds]
+  );
+
+  const isReadyToGenerate = Boolean(
+    selectedSchedule &&
+    selectedAudience &&
+    (!needsTargetSelection || selectedTargetIds.length > 0)
+  );
+
+  const isReadyToSend = isReadyToGenerate && selectedRecipients.length > 0;
+
+  const toggleFromList = (value: string, items: string[], setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    setter(items.includes(value) ? items.filter(item => item !== value) : [...items, value]);
+  };
+
+  const toggleAllTargets = () => {
+    setSelectedTargetIds(selectedTargetIds.length === targetOptions.length ? [] : targetOptions.map(item => item.id));
+  };
+
+  const toggleAllRecipients = () => {
+    setSelectedRecipientIds(selectedRecipientIds.length === recipients.length ? [] : recipients.map(item => item.id));
+  };
+
+  const getTargetLabel = (targetId?: string) => {
+    if (!targetId) return targetTitleMap[selectedSchedule as ShareScheduleType] || 'الجدول';
+    const teacher = teachers.find(item => item.id === targetId);
+    if (teacher) return teacher.name;
+    const classItem = classes.find(item => item.id === targetId);
+    return classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}` || targetId;
+  };
+
+  const createLinks = () => {
+    if (!selectedSchedule || !selectedAudience || !isReadyToGenerate) return [];
+
+    const createdAt = new Date().toISOString();
+    const origin = `${window.location.origin}${window.location.pathname}`;
+    const shareSchoolName = schoolName || schoolInfo.schoolName;
+    const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
+
+    const targetIds = needsTargetSelection ? selectedTargetIds : ['__general__'];
+    const links = targetIds.map(targetId => {
+      const targetLabel = targetId === '__general__'
+        ? targetTitleMap[selectedSchedule]
+        : getTargetLabel(targetId);
+
+      if (selectedSchedule === 'individual_teacher' && selectedAudience === 'teachers' && targetId !== '__general__') {
+        const teacher = teachers.find(item => item.id === targetId);
+        const token = `schedule-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        saveScheduleSignatureRequest({
+          token,
+          teacherId: targetId,
+          teacherName: teacher?.name || targetLabel,
+          createdAt,
+          status: 'pending',
+        });
+        return {
+          key: token,
+          label: `رابط توقيع ${targetLabel}`,
+          url: buildScheduleSignatureLink(origin, token),
+          targetId,
+          targetLabel,
+          requestKind: 'signature' as const,
+        };
+      }
+
+      const filteredRecipients = selectedAudience === 'guardians' && targetId !== '__general__'
+        ? selectedRecipients.filter(item => item.classId === targetId)
+        : selectedRecipients;
+
+      const token = `schedule-share-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const request: ScheduleShareRequest = {
+        token,
+        type: selectedSchedule,
+        audience: selectedAudience,
+        targetId: targetId === '__general__' ? undefined : targetId,
+        targetLabel,
+        title: targetId === '__general__' ? targetTitleMap[selectedSchedule] : `${targetTitleMap[selectedSchedule]}: ${targetLabel}`,
+        createdAt,
+        schoolName: shareSchoolName,
+        academicYear: schoolInfo.academicYear,
+        semesterName: currentSemester?.name,
+        recipients: filteredRecipients,
+      };
+      saveScheduleShare(request);
+
+      return {
+        key: token,
+        label: request.title,
+        url: buildScheduleShareLink(origin, token),
+        targetId: request.targetId,
+        targetLabel,
+        requestKind: 'share' as const,
+      };
+    });
+
+    setGeneratedLinks(links);
+    showToast('تم إنشاء الروابط بنجاح.', 'success');
+    return links;
+  };
+
+  const createManualShareText = (links: LinkRecord[]) => {
+    const intro = [
+      `إرسال ${targetTitleMap[selectedSchedule as ShareScheduleType]}`,
+      `المدرسة: ${schoolName || schoolInfo.schoolName || 'المدرسة'}`,
+      `اليوم: ${currentMoment.day}`,
+      `التاريخ: ${currentMoment.date}`,
+      `الوقت: ${currentMoment.time}`,
+    ].join('\n');
+    const lines = links.map(link => `${link.targetLabel}: ${link.url}`);
+    return [intro, ...lines].join('\n');
+  };
+
+  const copyAllLinks = async () => {
+    const links = generatedLinks.length > 0 ? generatedLinks : createLinks();
+    if (!links.length) return;
+    await navigator.clipboard.writeText(createManualShareText(links));
+    showToast('تم نسخ الروابط.', 'success');
+  };
+
+  const openManualChannel = (mode: ChannelType) => {
+    const links = generatedLinks.length > 0 ? generatedLinks : createLinks();
+    if (!links.length) return;
+    const content = createManualShareText(links);
+    if (mode === 'whatsapp') {
+      window.open(`https://wa.me/?text=${encodeURIComponent(content)}`, '_blank');
+      return;
+    }
+    window.open(`sms:?&body=${encodeURIComponent(content)}`, '_self');
+  };
+
+  const buildMessagePayloads = (links: LinkRecord[], batchId: string) => {
+    if (!selectedSchedule || !selectedAudience) return [];
+
+    const generalLink = links[0];
+    const schoolLabel = schoolName || schoolInfo.schoolName || 'المدرسة';
+    const semesterLabel = currentSemester?.name || 'الفصل الدراسي الحالي';
+    const academicYearLabel = schoolInfo.academicYear || 'العام الدراسي الحالي';
+
+    return selectedRecipients.map(recipient => {
+      let relevantLinks = links;
+
+      if (selectedSchedule === 'individual_teacher' && selectedAudience === 'teachers') {
+        relevantLinks = links.filter(link => link.targetId === recipient.id);
+      } else if (selectedSchedule === 'individual_class' && selectedAudience === 'guardians') {
+        relevantLinks = links.filter(link => link.targetId === recipient.classId);
+      } else if (!needsTargetSelection && generalLink) {
+        relevantLinks = [generalLink];
+      }
+
+      const firstLink = relevantLinks[0];
+      const addressedTarget = firstLink?.targetLabel || targetTitleMap[selectedSchedule];
+      const introLine = selectedAudience === 'guardians'
+        ? `السادة أولياء الأمور، نرفق لكم ${addressedTarget} للاطلاع.`
+        : selectedAudience === 'teachers'
+          ? `عزيزي ${recipient.name}، نرفق لكم ${addressedTarget}.`
+          : `نرفق لكم ${addressedTarget}.`;
+
+      const contentLines = [
+        introLine,
+        `المدرسة: ${schoolLabel}`,
+        `العام الدراسي: ${academicYearLabel}`,
+        `الفصل الدراسي: ${semesterLabel}`,
+        `اليوم: ${currentMoment.day}`,
+        `التاريخ: ${currentMoment.date}`,
+        `الوقت: ${currentMoment.time}`,
+        ...relevantLinks.map(link => `${link.targetLabel}: ${link.url}`),
+      ];
+
+      return {
+        id: recipient.id,
+        name: recipient.name,
+        phone: recipient.phone,
+        roleLabel: roleLabelMap[recipient.role],
+        relatedLabel: recipient.role === 'guardian'
+          ? [recipient.studentName, recipient.classLabel].filter(Boolean).join(' - ')
+          : (recipient.classLabel || targetTitleMap[selectedSchedule]),
+        message: {
+          batchId,
+          senderRole: 'إرسال الجداول',
+          source: sourceBySchedule[selectedSchedule],
+          recipientId: recipient.id,
+          recipientName: recipient.name,
+          recipientPhone: recipient.phone,
+          recipientRole: recipient.role,
+          content: contentLines.join('\n'),
+          channel,
+          attachments: relevantLinks.map(link => ({
+            name: link.label,
+            url: link.url,
+            type: link.requestKind === 'signature' ? 'schedule-signature-link' : 'schedule-share-link',
+          })),
+        } satisfies Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>,
+      };
+    });
+  };
+
+  const handleSend = async () => {
+    if (!selectedSchedule || !selectedAudience || !isReadyToSend) return;
+
+    const links = generatedLinks.length > 0 ? generatedLinks : createLinks();
+    if (!links.length) return;
+
+    setIsSubmitting(true);
+    const batchId = `schedule-batch-${Date.now()}`;
+    const payloads = buildMessagePayloads(links, batchId);
+    const nextResults: DeliveryResult[] = [];
+
+    for (const payload of payloads) {
+      const response = await sendMessage(payload.message, channel === 'whatsapp');
+      nextResults.push({
+        id: payload.id,
+        name: payload.name,
+        phone: payload.phone,
+        roleLabel: payload.roleLabel,
+        relatedLabel: payload.relatedLabel,
+        channel: response.channel,
+        status: response.status === 'sent' ? 'sent' : 'failed',
+        timestamp: response.timestamp,
+        failureReason: response.failureReason,
+      });
+    }
+
+    setResults(nextResults);
+    setIsSubmitting(false);
+
+    const sentCount = nextResults.filter(item => item.status === 'sent').length;
+    const failedCount = nextResults.length - sentCount;
+    showToast(
+      failedCount > 0
+        ? `تم الإرسال إلى ${sentCount} وتعذر الإرسال إلى ${failedCount}.`
+        : `تم إرسال جميع الجداول بنجاح إلى ${sentCount} مستلمًا.`,
+      failedCount > 0 ? 'warning' : 'success'
     );
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in" dir="rtl">
+      <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col animate-in zoom-in-95 overflow-hidden">
+        <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center">
+              <Share2 size={24} />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-800 text-xl">إرسال الجداول</h3>
+              <p className="text-sm font-bold text-slate-500">
+                تحديد نوع الجدول والجهة المستهدفة وإنشاء الروابط ثم توثيق الإرسال في الأرشيف.
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          <section className="rounded-[1.75rem] border border-[#e6e0ff] bg-[linear-gradient(135deg,#f8f7ff_0%,#ffffff_65%,#eef2ff_100%)] p-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="rounded-2xl border border-white bg-white/80 backdrop-blur px-4 py-3">
+                <p className="text-xs font-black text-slate-400 mb-1">المدرسة</p>
+                <p className="text-sm font-black text-slate-800">{schoolName || schoolInfo.schoolName || 'غير محددة'}</p>
+              </div>
+              <div className="rounded-2xl border border-white bg-white/80 backdrop-blur px-4 py-3">
+                <p className="text-xs font-black text-slate-400 mb-1">اليوم</p>
+                <p className="text-sm font-black text-slate-800">{currentMoment.day}</p>
+              </div>
+              <div className="rounded-2xl border border-white bg-white/80 backdrop-blur px-4 py-3">
+                <p className="text-xs font-black text-slate-400 mb-1">التاريخ</p>
+                <p className="text-sm font-black text-slate-800">{currentMoment.date}</p>
+              </div>
+              <div className="rounded-2xl border border-white bg-white/80 backdrop-blur px-4 py-3">
+                <p className="text-xs font-black text-slate-400 mb-1">الوقت</p>
+                <p className="text-sm font-black text-slate-800">{currentMoment.time}</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <section className="rounded-[1.5rem] border border-slate-200 p-5 bg-white space-y-4">
+              <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">1</span>
+                الجدول المراد إرساله
+              </div>
+              <select
+                value={selectedSchedule}
+                onChange={(event) => setSelectedSchedule(event.target.value as ShareScheduleType)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#8779fb] focus:bg-white"
+              >
+                <option value="">اختر نوع الجدول</option>
+                {SCHEDULE_OPTIONS.map(option => (
+                  <option key={option.id} value={option.id}>{option.title}</option>
+                ))}
+              </select>
+              {selectedSchedule && (
+                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold leading-6 text-slate-500">
+                  {SCHEDULE_OPTIONS.find(option => option.id === selectedSchedule)?.description}
+                </p>
+              )}
+              <div className="hidden">
+                {SCHEDULE_OPTIONS.map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSelectedSchedule(option.id)}
+                    className={`text-right rounded-2xl border-2 p-4 transition-all ${
+                      selectedSchedule === option.id
+                        ? 'border-[#8779fb] bg-[#f8f7ff] shadow-sm'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <p className="font-black text-slate-800">{option.title}</p>
+                    <p className="text-xs text-slate-500 font-medium mt-1 leading-6">{option.description}</p>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-slate-200 p-5 bg-white space-y-4">
+              <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">2</span>
+                المرسل إليه
+              </div>
+              <select
+                value={selectedAudience}
+                onChange={(event) => setSelectedAudience(event.target.value as ShareAudience)}
+                disabled={!selectedSchedule}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none disabled:opacity-50 focus:border-[#8779fb] focus:bg-white"
+              >
+                <option value="">اختر الفئة المستهدفة</option>
+                {AUDIENCE_OPTIONS.filter(option => !selectedSchedule || availableAudiences.includes(option.id)).map(option => (
+                  <option key={option.id} value={option.id}>{option.title}</option>
+                ))}
+              </select>
+              <div className="hidden">
+                {AUDIENCE_OPTIONS.filter(option => !selectedSchedule || availableAudiences.includes(option.id)).map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSelectedAudience(option.id)}
+                    className={`rounded-2xl border-2 p-4 transition-all text-center ${
+                      selectedAudience === option.id
+                        ? 'border-[#8779fb] bg-[#f8f7ff] text-[#655ac1]'
+                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex justify-center mb-2">{option.icon}</div>
+                    <p className="font-black text-sm">{option.title}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-black text-slate-700 mb-3">قناة الإرسال</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(['whatsapp', 'sms'] as ChannelType[]).map(item => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setChannel(item)}
+                      className={`rounded-2xl border px-4 py-3 font-black text-sm transition-all ${
+                        channel === item
+                          ? 'border-[#8779fb] bg-white text-[#655ac1]'
+                          : 'border-slate-200 bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {item === 'whatsapp' ? 'واتساب' : 'رسائل نصية'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {needsTargetSelection && (
+              <section className="rounded-[1.5rem] border border-slate-200 p-5 bg-white space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                    <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">3</span>
+                    {selectedSchedule === 'individual_teacher' ? 'المعلمون المراد إرسال جداولهم' : 'الفصول المراد إرسالها'}
+                  </div>
+                  <button type="button" onClick={toggleAllTargets} className="text-xs font-black text-[#655ac1]">
+                    {selectedTargetIds.length === targetOptions.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100">
+                  {targetOptions.map(option => (
+                    <label key={option.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedTargetIds.includes(option.id)}
+                        onChange={() => toggleFromList(option.id, selectedTargetIds, setSelectedTargetIds)}
+                        className="w-4 h-4 accent-[#655ac1]"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-black text-slate-800 truncate">{option.title}</p>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">{option.subtitle}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section className="rounded-[1.5rem] border border-slate-200 p-5 bg-white space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                  <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">{needsTargetSelection ? '4' : '3'}</span>
+                  {selectedAudience === 'guardians' ? 'الطلاب وأولياء الأمور المرتبطون' : 'المستلمون'}
+                </div>
+                {recipients.length > 0 && (
+                  <button type="button" onClick={toggleAllRecipients} className="text-xs font-black text-[#655ac1]">
+                    {selectedRecipientIds.length === recipients.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
+                )}
+              </div>
+              <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100">
+                {recipients.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm font-medium text-slate-400">
+                    اختر نوع الجدول والجهة المستهدفة{needsTargetSelection ? ' والعناصر المطلوبة' : ''} لعرض المستلمين.
+                  </div>
+                ) : recipients.map(recipient => (
+                  <label key={recipient.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedRecipientIds.includes(recipient.id)}
+                      onChange={() => toggleFromList(recipient.id, selectedRecipientIds, setSelectedRecipientIds)}
+                      className="w-4 h-4 accent-[#655ac1]"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-black text-slate-800 truncate">{recipient.name}</p>
+                        <span className="text-xs font-black text-slate-400">{roleLabelMap[recipient.role]}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5" dir="ltr">{recipient.phone || 'بدون رقم'}</p>
+                      {recipient.relatedLabel && (
+                        <p className="text-xs text-slate-400 mt-1">{recipient.relatedLabel}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <section className="rounded-[1.5rem] border border-slate-200 p-5 bg-white space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">{needsTargetSelection ? '5' : '4'}</span>
+                الروابط
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={copyAllLinks} disabled={!isReadyToGenerate} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 font-black text-sm disabled:opacity-50">
+                  <Copy size={16} />
+                  نسخ
+                </button>
+                <button type="button" onClick={() => openManualChannel('whatsapp')} disabled={!isReadyToGenerate} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#25D366] text-white font-black text-sm disabled:opacity-50">
+                  <MessageCircle size={16} />
+                  واتساب
+                </button>
+                <button type="button" onClick={() => openManualChannel('sms')} disabled={!isReadyToGenerate} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#8779fb] text-white font-black text-sm disabled:opacity-50">
+                  <Send size={16} />
+                  رسائل نصية
+                </button>
+                <button type="button" onClick={createLinks} disabled={!isReadyToGenerate} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-[#c4b8f8] bg-[#f8f7ff] text-[#655ac1] font-black text-sm disabled:opacity-50">
+                  <Link2 size={16} />
+                  إنشاء الروابط
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-400 mb-1">نوع الجدول</p>
+                <p className="text-sm font-black text-slate-800">{selectedSchedule ? targetTitleMap[selectedSchedule] : 'غير محدد'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-400 mb-1">الجهة المستهدفة</p>
+                <p className="text-sm font-black text-slate-800">
+                  {selectedAudience === 'teachers' && 'المعلمون'}
+                  {selectedAudience === 'admins' && 'الإداريون'}
+                  {selectedAudience === 'guardians' && 'أولياء الأمور'}
+                  {!selectedAudience && 'غير محدد'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-400 mb-1">المستلمون المحددون</p>
+                <p className="text-sm font-black text-slate-800">{selectedRecipients.length}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[#e5e1fe] bg-[#f8f7ff] px-4 py-3 text-sm font-medium text-[#655ac1]">
+              أدوات الروابط مهيأة للنسخ والمشاركة السريعة، بينما توثيق النجاح والفشل يتم داخل نتيجة الإرسال وأرشيف الرسائل.
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 overflow-hidden">
+              {generatedLinks.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm font-medium text-slate-400">
+                  بعد إنشاء الروابط ستظهر هنا القائمة الجاهزة للنسخ والمراجعة.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {generatedLinks.map(link => (
+                    <div key={link.key} className="px-5 py-4 flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-black text-slate-800">{link.label}</p>
+                        <p className="text-xs text-slate-500 font-medium mt-1 break-all" dir="ltr">{link.url}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(link.url).then(() => showToast('تم نسخ الرابط.', 'success'))}
+                        className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-sm font-black"
+                      >
+                        نسخ الرابط
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[1.5rem] border border-slate-200 p-5 bg-white space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                <CheckCircle2 size={18} className="text-emerald-500" />
+                نتيجة الإرسال
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={!isReadyToSend || isSubmitting}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#655ac1] text-white font-black text-sm disabled:opacity-50"
+                >
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  {isSubmitting ? 'جارٍ الإرسال...' : `إرسال عبر ${channel === 'whatsapp' ? 'واتساب' : 'الرسائل النصية'}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={onNavigateToArchive}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 font-black text-sm"
+                >
+                  <Archive size={16} />
+                  أرشيف الرسائل
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs font-black text-emerald-600 mb-1">نجاح الإرسال</p>
+                <p className="text-2xl font-black text-emerald-800">{results.filter(item => item.status === 'sent').length}</p>
+              </div>
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
+                <p className="text-xs font-black text-rose-600 mb-1">فشل الإرسال</p>
+                <p className="text-2xl font-black text-rose-800">{results.filter(item => item.status === 'failed').length}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-500 mb-1">إجمالي النتائج</p>
+                <p className="text-2xl font-black text-slate-800">{results.length}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-500 mb-1">عدد الروابط</p>
+                <p className="text-2xl font-black text-slate-800">{generatedLinks.length}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-500 mb-1">نوع الجدول</p>
+                <p className="text-sm font-black text-slate-800">{selectedSchedule ? targetTitleMap[selectedSchedule] : 'غير محدد'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-500 mb-1">الجهة</p>
+                <p className="text-sm font-black text-slate-800">
+                  {selectedAudience === 'teachers' && 'المعلمون'}
+                  {selectedAudience === 'admins' && 'الإداريون'}
+                  {selectedAudience === 'guardians' && 'أولياء الأمور'}
+                  {!selectedAudience && 'غير محدد'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-black text-slate-500 mb-1">وقت الإرسال</p>
+                <p className="text-sm font-black text-slate-800">
+                  {results[0]?.timestamp
+                    ? new Intl.DateTimeFormat('ar-SA', { timeStyle: 'short' }).format(new Date(results[0].timestamp))
+                    : 'لم يرسل بعد'}
+                </p>
+              </div>
+            </div>
+            {results.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
+                تم حفظ هذه العملية في أرشيف الرسائل مع تفاصيل المستلمين والأرقام والقناة وحالة الإرسال.
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-slate-200 overflow-hidden">
+              {results.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm font-medium text-slate-400">
+                  بعد تنفيذ الإرسال ستظهر هنا تفاصيل النجاح والفشل بالأسماء وأرقام الجوال.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[780px] text-sm">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 text-right font-black">الاسم</th>
+                        <th className="px-4 py-3 text-right font-black">الصفة</th>
+                        <th className="px-4 py-3 text-right font-black">البيان المرتبط</th>
+                        <th className="px-4 py-3 text-right font-black">رقم الجوال</th>
+                        <th className="px-4 py-3 text-right font-black">القناة</th>
+                        <th className="px-4 py-3 text-right font-black">الحالة</th>
+                        <th className="px-4 py-3 text-right font-black">وقت الإرسال</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.map(result => (
+                        <tr key={result.id} className="border-t border-slate-100">
+                          <td className="px-4 py-3 font-black text-slate-800">{result.name}</td>
+                          <td className="px-4 py-3 text-slate-500">{result.roleLabel}</td>
+                          <td className="px-4 py-3 text-slate-500">{result.relatedLabel}</td>
+                          <td className="px-4 py-3 text-slate-500" dir="ltr">{result.phone || 'بدون رقم'}</td>
+                          <td className="px-4 py-3 text-slate-500">{result.channel === 'whatsapp' ? 'واتساب' : 'رسائل نصية'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-black ${
+                              result.status === 'sent'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-rose-50 text-rose-700'
+                            }`}>
+                              {result.status === 'sent' ? 'نجح' : 'فشل'}
+                            </span>
+                            {result.failureReason && (
+                              <p className="text-xs text-rose-500 mt-1">{result.failureReason}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">
+                            {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(result.timestamp))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default SendScheduleModal;

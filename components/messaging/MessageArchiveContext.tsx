@@ -15,7 +15,7 @@ interface MessageArchiveContextType {
   templates: MessageTemplate[];
   stats: MessageStats;
   scheduledBatches: ScheduledBatch[];
-  sendMessage: (msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>, fallbackToSms?: boolean) => Promise<void>;
+  sendMessage: (msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>, fallbackToSms?: boolean) => Promise<CentralMessage>;
   scheduleMessage: (batch: { scheduledFor: string; fallbackToSms: boolean; messages: Array<Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>> }) => void;
   resendMessage: (id: string) => Promise<void>;
   addTemplate: (template: Omit<MessageTemplate, 'id'>) => void;
@@ -134,7 +134,7 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   const sendMessageCore = async (
     msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>,
     fallbackToSms = false
-  ) => {
+  ): Promise<CentralMessage> => {
     const newMessage: CentralMessage = {
       ...msg,
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -184,6 +184,13 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
     );
 
     updateStats(finalChannel, finalStatus);
+
+    return {
+      ...newMessage,
+      status: finalStatus,
+      channel: finalChannel,
+      failureReason: success ? undefined : failureReason,
+    };
   };
 
   // Keep a ref so the scheduler interval always calls the latest version

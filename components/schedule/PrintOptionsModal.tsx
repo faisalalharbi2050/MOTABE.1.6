@@ -3,7 +3,7 @@ import {
     X, Printer, Users, User, LayoutGrid, BookOpen, CalendarClock,
     FileText, AlignJustify, SlidersHorizontal, Settings2, Maximize2
 } from 'lucide-react';
-import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo } from '../../types';
+import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo, Specialization } from '../../types';
 import PrintableSchedule from './PrintableSchedule';
 
 type PrintType = 'general_teachers' | 'general_classes' | 'individual_teacher' | 'individual_class' | 'general_waiting';
@@ -17,6 +17,7 @@ interface PrintOptionsModalProps {
     teachers: Teacher[];
     classes: ClassInfo[];
     subjects: Subject[];
+    specializations?: Specialization[];
     schoolInfo: SchoolInfo;
 }
 
@@ -64,10 +65,10 @@ const buildPrintCSS = (paperSize: PaperSize, fontSize: number, safeMargins: bool
 /* ── Mini Preview ─────────────────────────────────────────────────────── */
 const MiniPreview: React.FC<{
     type: PrintType | null; settings: ScheduleSettingsData;
-    teachers: Teacher[]; classes: ClassInfo[]; subjects: Subject[]; schoolInfo: SchoolInfo;
+    teachers: Teacher[]; classes: ClassInfo[]; subjects: Subject[]; specializations?: Specialization[]; schoolInfo: SchoolInfo;
     targetIds: string[]; fontSize: number; paperSize: PaperSize; blackAndWhite: boolean;
     layoutMode: LayoutMode; customCols: number; customRows: number;
-}> = ({ type, settings, teachers, classes, subjects, schoolInfo, targetIds, fontSize, paperSize,
+}> = ({ type, settings, teachers, classes, subjects, specializations, schoolInfo, targetIds, fontSize, paperSize,
         blackAndWhite, layoutMode, customCols, customRows }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(0.3);
@@ -139,7 +140,7 @@ const MiniPreview: React.FC<{
                                 </div>
                             ) : (
                                 <PrintableSchedule type={type} settings={settings} teachers={teachers} classes={classes}
-                                    subjects={subjects}
+                                    subjects={subjects} specializations={specializations}
                                     targetId={tid === '__all__' ? undefined : tid}
                                     schoolInfo={schoolInfo} onClose={() => {}}
                                     fontSize={fontSize} blackAndWhite={blackAndWhite} />
@@ -159,10 +160,10 @@ const MiniPreview: React.FC<{
 /* ── Print Page ───────────────────────────────────────────────────────── */
 const PrintPage: React.FC<{
     selectedType: PrintType; settings: ScheduleSettingsData; teachers: Teacher[]; classes: ClassInfo[];
-    subjects: Subject[]; schoolInfo: SchoolInfo; targetIds: string[]; layoutMode: LayoutMode;
+    subjects: Subject[]; specializations?: Specialization[]; schoolInfo: SchoolInfo; targetIds: string[]; layoutMode: LayoutMode;
     customCols: number; customRows: number; paperSize: PaperSize; fontSize: number;
     safeMargins: boolean; blackAndWhite: boolean; onBack: () => void; printTypeName: string;
-}> = ({ selectedType, settings, teachers, classes, subjects, schoolInfo, targetIds, layoutMode,
+}> = ({ selectedType, settings, teachers, classes, subjects, specializations, schoolInfo, targetIds, layoutMode,
         customCols, customRows, paperSize, fontSize, safeMargins, blackAndWhite, onBack, printTypeName }) => {
     const styleRef = useRef<HTMLStyleElement | null>(null);
     useEffect(() => {
@@ -207,7 +208,7 @@ const PrintPage: React.FC<{
                             <div key={tid} className="schedule-item-container border border-slate-200 rounded-xl print:rounded-none print:border-none overflow-hidden">
                                 <div className={blackAndWhite ? 'bw-mode' : ''} style={{ fontSize: `${fontSize}px` }}>
                                     <PrintableSchedule type={selectedType} settings={settings} teachers={teachers}
-                                        classes={classes} subjects={subjects} targetId={tid === '__all__' ? undefined : tid}
+                                        classes={classes} subjects={subjects} specializations={specializations} targetId={tid === '__all__' ? undefined : tid}
                                         schoolInfo={schoolInfo} onClose={onBack} fontSize={fontSize} blackAndWhite={blackAndWhite} />
                                 </div>
                             </div>
@@ -221,7 +222,7 @@ const PrintPage: React.FC<{
 
 /* ── Main Modal ───────────────────────────────────────────────────────── */
 const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
-    isOpen, onClose, settings, teachers, classes, subjects, schoolInfo
+    isOpen, onClose, settings, teachers, classes, subjects, specializations, schoolInfo
 }) => {
     const [selectedType,       setSelectedType]       = useState<PrintType | null>(null);
     const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
@@ -252,7 +253,7 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
         const targetIds = needsTeachers ? selectedTeacherIds : needsClasses ? selectedClassIds : ['__all__'];
         return (
             <PrintPage selectedType={selectedType} settings={settings} teachers={teachers} classes={classes}
-                subjects={subjects} schoolInfo={schoolInfo} targetIds={targetIds} layoutMode={layoutMode}
+                subjects={subjects} specializations={specializations} schoolInfo={schoolInfo} targetIds={targetIds} layoutMode={layoutMode}
                 customCols={customCols} customRows={customRows} paperSize={paperSize} fontSize={fontSize}
                 safeMargins={safeMargins} blackAndWhite={blackAndWhite}
                 onBack={() => setShowPrintPage(false)} printTypeName={printTypeName} />
@@ -303,7 +304,6 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                             : 'border-slate-200 bg-slate-50/70 text-slate-600 hover:border-[#8779fb]/40 hover:bg-white hover:text-[#655ac1] hover:shadow-sm'
                                     }`}
                                     style={selectedType === opt.id ? { boxShadow: '0 4px 12px rgba(101,90,193,0.15), inset 3px 0 0 #655ac1' } : {}}>
-                                    <span className="shrink-0" style={{ color: selectedType === opt.id ? '#655ac1' : '#94a3b8' }}>{opt.icon}</span>
                                     <span className="flex-1 min-w-0 font-medium text-sm text-right leading-tight">{opt.title}</span>
                                 </button>
                             ))}
@@ -510,7 +510,7 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                             <span className="text-[10px] text-slate-400 font-normal mr-1">— سيتغيّر الجدول فور تعديل الإعدادات</span>
                         </div>
                         <MiniPreview type={selectedType} settings={settings} teachers={teachers} classes={classes}
-                            subjects={subjects} schoolInfo={schoolInfo}
+                            subjects={subjects} specializations={specializations} schoolInfo={schoolInfo}
                             targetIds={needsTeachers ? selectedTeacherIds : needsClasses ? selectedClassIds : ['__all__']}
                             fontSize={fontSize} paperSize={paperSize} blackAndWhite={blackAndWhite}
                             layoutMode={layoutMode} customCols={customCols} customRows={customRows}/>

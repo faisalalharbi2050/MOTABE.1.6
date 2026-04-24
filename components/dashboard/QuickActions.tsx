@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   UserMinus,
   Send,
-  TableProperties,
   Eye,
   ShieldCheck,
   MessageSquare
@@ -25,7 +24,6 @@ const ROWS = [
     { label: 'إرسال الانتظار', icon: Send,          tab: 'daily_waiting',  action: 'send_waiting',     rotate: true  },
   ],
   [
-    { label: 'إرسال الجدول',  icon: TableProperties, tab: 'classes_waiting', action: 'send_schedule',  rotate: false },
     { label: 'إرسال رسالة',   icon: MessageSquare,   tab: 'messages',        action: undefined,        rotate: false },
   ],
   [

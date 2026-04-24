@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import {
   Users,
+  CalendarDays,
   CalendarClock,
   LayoutGrid,
   User,
@@ -12,16 +13,18 @@ import {
   Send,
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Sparkles,
   Copy,
   CheckCircle2,
   FileCode2,
   FileSpreadsheet,
-  UserCog,
-  GraduationCap,
   Search,
   ChevronDown,
   Check,
+  SlidersHorizontal,
+  Archive,
+  MessageSquare,
 } from 'lucide-react';
 import {
   SchoolInfo,
@@ -34,10 +37,20 @@ import {
   Specialization,
   TimetableData,
   TimetableSlot,
+  Student,
+  CentralMessage,
 } from '../../../types';
 import PrintableSchedule from '../../schedule/PrintableSchedule';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
+import ScheduleSignatureDocument from '../../schedule/ScheduleSignatureDocument';
 import { generateExtensionXML, downloadFile } from '../../../utils/scheduleExport';
+import { useMessageArchive } from '../../messaging/MessageArchiveContext';
+import {
+  buildScheduleShareLink,
+  saveScheduleShare,
+  ShareAudience,
+  ShareRecipientRecord,
+} from '../../../utils/scheduleShare';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -47,11 +60,13 @@ interface Props {
   teachers: Teacher[];
   subjects: Subject[];
   classes: ClassInfo[];
+  students: Student[];
   admins: Admin[];
   assignments: Assignment[];
   specializations: Specialization[];
   onNavigate: (tab: 'view' | 'edit' | 'create') => void;
   isScheduleLocked?: boolean;
+  onOpenMessagesArchive?: () => void;
 }
 
 type ScheduleType =
@@ -65,8 +80,9 @@ type TaskMode = 'print' | 'send' | 'export';
 type PaperSize = 'A4' | 'A3';
 type PrintColorMode = 'color' | 'bw';
 type ExportFormat = 'xlsx' | 'xml';
-type SendAudience = 'teachers' | 'admins' | 'parents';
+type SendAudience = ShareAudience;
 type SendTeacherLinkMode = 'single_bundle' | 'personalized';
+type SendChannel = 'whatsapp' | 'sms';
 
 type PrintJob = {
   type: ScheduleType;
@@ -78,6 +94,23 @@ type GeneratedLink = {
   label: string;
   url: string;
   teacherId?: string;
+  targetId?: string;
+  targetLabel: string;
+  recipients: ShareRecipientRecord[];
+};
+
+type SendResult = {
+  id: string;
+  recipientName: string;
+  roleLabel: string;
+  phone: string;
+  scheduleLabel: string;
+  channel: SendChannel;
+  status: 'sent' | 'failed';
+  timestamp: string;
+  failureReason?: string;
+  studentName?: string;
+  className?: string;
 };
 
 type ScheduleSignatureRequest = {
@@ -94,6 +127,7 @@ type DropdownOption = {
   value: string;
   label: string;
   icon?: React.ComponentType<any>;
+  disabled?: boolean;
 };
 
 const SCHEDULE_SIGNATURE_REQUESTS_KEY = 'schedule_signature_requests_v1';
@@ -135,14 +169,34 @@ const SCHEDULE_TYPES: Array<{
   icon: React.ComponentType<any>;
   isGeneral: boolean;
 }> = [
-  { id: 'general_teachers', label: 'الجدول العام للمعلمين', icon: Users, isGeneral: true },
-  { id: 'general_waiting', label: 'الجدول العام للانتظار', icon: CalendarClock, isGeneral: true },
-  { id: 'general_classes', label: 'الجدول العام للفصول', icon: LayoutGrid, isGeneral: true },
   { id: 'individual_teacher', label: 'جدول معلم', icon: User, isGeneral: false },
   { id: 'individual_class', label: 'جدول فصل', icon: BookOpen, isGeneral: false },
+  { id: 'general_teachers', label: 'الجدول العام للمعلمين', icon: Users, isGeneral: true },
+  { id: 'general_classes', label: 'الجدول العام للفصول', icon: LayoutGrid, isGeneral: true },
+  { id: 'general_waiting', label: 'الجدول العام للانتظار', icon: CalendarClock, isGeneral: true },
 ];
 
 const GENERAL_SCHEDULES = SCHEDULE_TYPES.filter(item => item.isGeneral);
+
+const AUDIENCE_LABELS: Record<SendAudience, string> = {
+  teachers: 'المعلمون',
+  admins: 'الإداريون',
+  guardians: 'أولياء الأمور',
+};
+
+const RECIPIENT_ROLE_LABELS: Record<ShareRecipientRecord['role'], string> = {
+  teacher: 'معلم',
+  admin: 'إداري',
+  guardian: 'ولي أمر',
+};
+
+const ALLOWED_SEND_AUDIENCES: Record<ScheduleType, SendAudience[]> = {
+  individual_teacher: ['teachers', 'admins'],
+  individual_class: ['teachers', 'admins', 'guardians'],
+  general_teachers: ['teachers', 'admins'],
+  general_classes: ['teachers', 'admins', 'guardians'],
+  general_waiting: ['teachers', 'admins'],
+};
 
 const DAY_LABELS: Record<string, string> = {
   sunday: 'الأحد',
@@ -238,7 +292,7 @@ const SingleSelectDropdown: React.FC<{
 
   return (
     <div className={`flex-1 ${minWidthClass}`}>
-      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      {label ? <label className="block text-xs font-black text-slate-500 mb-2">{label}</label> : null}
       <button
         ref={triggerRef}
         type="button"
@@ -261,11 +315,16 @@ const SingleSelectDropdown: React.FC<{
               <button
                 key={option.value}
                 type="button"
+                disabled={option.disabled}
                 onClick={() => {
+                  if (option.disabled) return;
                   onChange(option.value);
                   setOpen(false);
                 }}
                 className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between border ${
+                  option.disabled
+                    ? 'text-slate-300 border-transparent cursor-not-allowed bg-slate-50/70'
+                    :
                   value === option.value
                     ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm'
                     : 'text-slate-700 border-transparent hover:bg-[#f0edff] hover:text-[#655ac1] hover:border-[#d9d3ff]'
@@ -327,7 +386,7 @@ const MultiSelectDropdown: React.FC<{
 
   return (
     <div className={`flex-1 ${minWidthClass}`}>
-      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      {label ? <label className="block text-xs font-black text-slate-500 mb-2">{label}</label> : null}
       <button
         ref={triggerRef}
         type="button"
@@ -435,11 +494,31 @@ const NumberChoiceButtons: React.FC<{
   </div>
 );
 
+const TaskPanel: React.FC<{
+  icon: React.ComponentType<any>;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}> = ({ icon: Icon, title, description, children }) => (
+  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
+    <div className="relative text-center">
+      <div className="absolute top-[-24px] left-[-24px] w-28 h-28 rounded-br-[2.5rem] bg-[#e5e1fe] opacity-80" />
+      <div className="relative z-10 flex items-center justify-center gap-3 mb-2">
+        <Icon size={22} className="text-[#655ac1] shrink-0" />
+        <h3 className="font-black text-slate-800">{title}</h3>
+      </div>
+      <p className="relative z-10 text-sm text-slate-500 font-medium mb-7 max-w-2xl mx-auto">{description}</p>
+    </div>
+    <div className="space-y-5">{children}</div>
+  </div>
+);
+
 const PrintWorkspace: React.FC<{
   jobs: PrintJob[];
   teachers: Teacher[];
   classes: ClassInfo[];
   subjects: Subject[];
+  specializations?: Specialization[];
   settings: ScheduleSettingsData;
   schoolInfo: SchoolInfo;
   paperSize: PaperSize;
@@ -451,6 +530,7 @@ const PrintWorkspace: React.FC<{
   teachers,
   classes,
   subjects,
+  specializations,
   settings,
   schoolInfo,
   paperSize,
@@ -460,17 +540,21 @@ const PrintWorkspace: React.FC<{
 }) => {
   const blackAndWhite = colorMode === 'bw';
   const styleTag = useMemo(() => buildPrintCSS(paperSize, blackAndWhite), [paperSize, blackAndWhite]);
+  const specializationNames = useMemo(
+    () => Object.fromEntries((specializations || []).map(item => [item.id, item.name])),
+    [specializations]
+  );
 
   return (
     <div className="fixed inset-0 z-[120] bg-white overflow-auto" dir="rtl">
       <style>{styleTag}</style>
       <div className="print-toolbar sticky top-0 z-20 flex items-center justify-between gap-3 px-6 py-4 bg-white border-b border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 order-2">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 transition-all"
           >
-            <ArrowLeft size={16} />
+            <ArrowRight size={16} />
             رجوع
           </button>
           <button
@@ -481,7 +565,7 @@ const PrintWorkspace: React.FC<{
             طباعة الآن
           </button>
         </div>
-        <div className="text-sm font-bold text-slate-500">
+        <div className="text-sm font-bold text-slate-500 order-1">
           {paperSize} • {blackAndWhite ? 'أبيض وأسود' : 'ملون'}
         </div>
       </div>
@@ -513,17 +597,34 @@ const PrintWorkspace: React.FC<{
               <div className={`grid ${gridClass} gap-4`}>
                 {pageIds.map(targetId => (
                   <div key={`${job.type}-${targetId || 'all'}`} className="print-grid-item rounded-2xl border border-slate-100 overflow-hidden">
-                    <PrintableSchedule
-                      type={job.type}
-                      settings={settings}
-                      teachers={teachers}
-                      classes={classes}
-                      subjects={subjects}
-                      targetId={targetId || undefined}
-                      schoolInfo={schoolInfo}
-                      onClose={onBack}
-                      blackAndWhite={blackAndWhite}
-                    />
+                    {job.type === 'individual_teacher' || job.type === 'individual_class' ? (
+                      <div className="bg-white p-3">
+                        <InlineScheduleView
+                          type={job.type}
+                          settings={settings}
+                          teachers={teachers}
+                          classes={classes}
+                          subjects={subjects}
+                          specializationNames={specializationNames}
+                          targetId={targetId || undefined}
+                          compactIndividual={pageIds.length > 1}
+                          showWaitingManagement={false}
+                        />
+                      </div>
+                    ) : (
+                      <PrintableSchedule
+                        type={job.type}
+                        settings={settings}
+                        teachers={teachers}
+                        classes={classes}
+                        subjects={subjects}
+                        specializations={specializations}
+                        targetId={targetId || undefined}
+                        schoolInfo={schoolInfo}
+                        onClose={onBack}
+                        blackAndWhite={blackAndWhite}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -569,12 +670,12 @@ const SignaturePrintWorkspace: React.FC<{
     <div className="fixed inset-0 z-[125] bg-white overflow-auto" dir="rtl">
       <style>{styleTag}</style>
       <div className="signature-print-toolbar sticky top-0 z-20 flex items-center justify-between gap-3 px-6 py-4 bg-white border-b border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 order-2">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 transition-all"
           >
-            <ArrowLeft size={16} />
+            <ArrowRight size={16} />
             رجوع
           </button>
           <button
@@ -596,58 +697,17 @@ const SignaturePrintWorkspace: React.FC<{
           if (!teacher) return null;
 
           return (
-            <div key={teacherId} className="signature-print-page rounded-[2rem] border border-slate-200 bg-white p-5 space-y-5">
-              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-slate-400 font-bold mb-1">اسم المعلم</p>
-                    <p className="text-slate-800 font-black">{teacher.name}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-slate-400 font-bold mb-1">نوع النموذج</p>
-                    <p className="text-slate-800 font-black">العلم بالجدول واستلامه</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-slate-400 font-bold mb-1">المدرسة</p>
-                    <p className="text-slate-800 font-black">{schoolInfo.schoolName || 'المدرسة'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[1.5rem] border border-slate-200 bg-white overflow-hidden">
-                <InlineScheduleView
-                  type="individual_teacher"
-                  settings={settings}
-                  teachers={teachers}
-                  classes={classes}
-                  subjects={subjects}
-                  targetId={teacherId}
-                  specializationNames={specializationNames}
-                  compactIndividual
-                />
-              </div>
-
-              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 font-medium leading-7">
-                  تم العلم والاطلاع على الجدول المسند والتوقيع بالاستلام
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-xs font-bold text-slate-400 mb-6">اسم المعلم</p>
-                    <div className="border-b-2 border-slate-300 h-8" />
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-xs font-bold text-slate-400 mb-6">التاريخ</p>
-                    <div className="border-b-2 border-slate-300 h-8" />
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-xs font-bold text-slate-400 mb-6">التوقيع</p>
-                    <div className="border-b-2 border-slate-300 h-8" />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ScheduleSignatureDocument
+              key={teacherId}
+              teacher={teacher}
+              teachers={teachers}
+              classes={classes}
+              subjects={subjects}
+              specializationNames={specializationNames}
+              settings={settings}
+              schoolInfo={schoolInfo}
+              mode="manual"
+            />
           );
         })}
       </div>
@@ -661,10 +721,13 @@ const ViewTab: React.FC<Props> = ({
   teachers,
   subjects,
   classes,
+  students,
   admins,
   specializations,
   onNavigate,
+  onOpenMessagesArchive,
 }) => {
+  const { sendMessage } = useMessageArchive();
   const [taskMode, setTaskMode] = useState<TaskMode>('print');
 
   const [printScheduleType, setPrintScheduleType] = useState<ScheduleType>('general_teachers');
@@ -681,6 +744,9 @@ const ViewTab: React.FC<Props> = ({
   const [selectedSendClassIds, setSelectedSendClassIds] = useState<string[]>([]);
   const [includeSignatureAck, setIncludeSignatureAck] = useState(false);
   const [sendTeacherLinkMode, setSendTeacherLinkMode] = useState<SendTeacherLinkMode>('single_bundle');
+  const [sendChannel] = useState<SendChannel>('whatsapp');
+  const [sendResults, setSendResults] = useState<SendResult[]>([]);
+  const [isSending, setIsSending] = useState(false);
 
   const [exportScheduleType, setExportScheduleType] = useState<ScheduleType>('general_teachers');
 
@@ -707,24 +773,93 @@ const ViewTab: React.FC<Props> = ({
     window.setTimeout(() => setToast(null), 3200);
   };
 
-  const teacherOptions = useMemo(() => teachers.map(item => ({ value: item.id, label: item.name, icon: User })), [teachers]);
-  const adminOptions = useMemo(() => admins.map(item => ({ value: item.id, label: item.name, icon: UserCog })), [admins]);
-  const classOptions = useMemo(() => sortedClasses.map(item => ({ value: item.id, label: getClassLabel(item), icon: BookOpen })), [sortedClasses]);
+  const teacherOptions = useMemo(() => teachers.map(item => ({ value: item.id, label: item.name })), [teachers]);
+  const adminOptions = useMemo(() => admins.map(item => ({ value: item.id, label: item.name })), [admins]);
+  const classOptions = useMemo(() => sortedClasses.map(item => ({ value: item.id, label: getClassLabel(item) })), [sortedClasses]);
+  const allowedAudienceOptions = useMemo(
+    () => (['teachers', 'admins', 'guardians'] as SendAudience[]).map(audience => ({
+      value: audience,
+      label: AUDIENCE_LABELS[audience],
+      disabled: !ALLOWED_SEND_AUDIENCES[sendScheduleType].includes(audience),
+    })),
+    [sendScheduleType]
+  );
+  const selectedScheduleLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || '';
+  const needsSendTeacherTargets = sendScheduleType === 'individual_teacher';
+  const needsSendClassTargets = sendScheduleType === 'individual_class';
+  const selectedSendTargetCount = needsSendTeacherTargets
+    ? selectedSendTeacherIds.length
+    : needsSendClassTargets
+      ? selectedSendClassIds.length
+      : 0;
+  const selectedGuardianRecipients = useMemo(() => {
+    const classIds = sendScheduleType === 'individual_class' ? selectedSendClassIds : sortedClasses.map(item => item.id);
+    return students
+      .filter(student => classIds.includes(student.classId) && student.parentPhone)
+      .map(student => {
+        const classItem = classes.find(item => item.id === student.classId);
+        return {
+          id: student.id,
+          name: student.name,
+          phone: student.parentPhone || '',
+          role: 'guardian' as const,
+          classId: student.classId,
+          classLabel: classItem ? getClassLabel(classItem) : '',
+          studentName: student.name,
+        };
+      });
+  }, [students, classes, sortedClasses, selectedSendClassIds, sendScheduleType]);
+  const selectedRecipients = useMemo<ShareRecipientRecord[]>(() => {
+    if (sendAudience === 'teachers') {
+      const ids = sendScheduleType === 'individual_teacher' ? selectedSendTeacherIds : selectedSendTeacherIds;
+      return teachers
+        .filter(item => ids.includes(item.id))
+        .map(item => ({ id: item.id, name: item.name, phone: item.phone || '', role: 'teacher' as const }));
+    }
+    if (sendAudience === 'admins') {
+      return admins
+        .filter(item => selectedSendAdminIds.includes(item.id))
+        .map(item => ({ id: item.id, name: item.name, phone: item.phone || '', role: 'admin' as const }));
+    }
+    return selectedGuardianRecipients;
+  }, [sendAudience, sendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, teachers, admins, selectedGuardianRecipients]);
+  const printScheduleTypeOptions = useMemo(
+    () => SCHEDULE_TYPES.map(item => ({ value: item.id, label: item.label })),
+    []
+  );
   const scheduleTypeOptions = useMemo(
     () => SCHEDULE_TYPES.map(item => ({ value: item.id, label: item.label, icon: item.icon })),
     []
   );
+  const taskModeMeta: Record<TaskMode, { title: string; description: string; icon: React.ComponentType<any> }> = {
+    print: {
+      title: 'إعداد الطباعة',
+      description: 'اختر نوع الجدول ثم اضبط خيارات الإخراج قبل فتح صفحة الطباعة.',
+      icon: Printer,
+    },
+    send: {
+      title: 'إعداد الإرسال',
+      description: 'حدّد الجهة المستهدفة ونوع الجدول ثم ولّد الروابط بنفس الآلية الحالية.',
+      icon: Send,
+    },
+    export: {
+      title: 'إعداد التصدير',
+      description: 'اختر الجدول المطلوب ثم صدّره إلى Excel أو XML بدون أي تغيير في البيانات.',
+      icon: FileDown,
+    },
+  };
   const specializationNames = useMemo(
     () => Object.fromEntries(specializations.map(item => [item.id, item.name])),
     [specializations]
   );
 
   useEffect(() => {
-    if (sendAudience === 'parents' && sendScheduleType !== 'individual_class') {
-      setSendScheduleType('individual_class');
-      setSelectedSendTeacherIds([]);
-      setSelectedSendAdminIds([]);
+    const allowed = ALLOWED_SEND_AUDIENCES[sendScheduleType];
+    if (!allowed.includes(sendAudience)) {
+      setSendAudience(allowed[0]);
     }
+    setGeneratedLinks([]);
+    setSendResults([]);
   }, [sendAudience, sendScheduleType]);
 
   useEffect(() => {
@@ -877,13 +1012,29 @@ const ViewTab: React.FC<Props> = ({
     }
   };
 
-  const buildShareUrl = (type: ScheduleType, targetIds: string[]) => {
-    const url = new URL(`${window.location.origin}/shared-schedule`);
-    url.searchParams.set('type', type);
-    if (targetIds.length > 0) url.searchParams.set('targets', targetIds.join(','));
-    url.searchParams.set('audience', sendAudience);
-    if (includeSignatureAck) url.searchParams.set('ack', '1');
-    return url.toString();
+  const buildShareUrl = (
+    type: ScheduleType,
+    audience: SendAudience,
+    targetId: string | undefined,
+    targetLabel: string,
+    recipients: ShareRecipientRecord[]
+  ) => {
+    const token = `schedule-share-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
+    saveScheduleShare({
+      token,
+      type,
+      audience,
+      targetId,
+      targetLabel,
+      title: targetId ? `${SCHEDULE_TYPES.find(item => item.id === type)?.label || type}: ${targetLabel}` : (SCHEDULE_TYPES.find(item => item.id === type)?.label || type),
+      createdAt: new Date().toISOString(),
+      schoolName: schoolInfo.schoolName,
+      academicYear: schoolInfo.academicYear,
+      semesterName: currentSemester?.name,
+      recipients,
+    });
+    return buildScheduleShareLink(`${window.location.origin}${window.location.pathname}`, token);
   };
 
   const buildTeacherSignatureUrl = (teacherId: string) => {
@@ -906,64 +1057,147 @@ const ViewTab: React.FC<Props> = ({
     return url.toString();
   };
 
-  const handleSend = () => {
+  const validateSendSelection = () => {
+    if (!ALLOWED_SEND_AUDIENCES[sendScheduleType].includes(sendAudience)) {
+      showToast('هذه الجهة غير متاحة لهذا النوع من الجداول.');
+      return false;
+    }
+    if (sendScheduleType === 'individual_teacher' && selectedSendTeacherIds.length === 0) {
+      showToast('اختر المعلمين المطلوب إرسال جداولهم.');
+      return false;
+    }
+    if (sendScheduleType === 'individual_class' && selectedSendClassIds.length === 0) {
+      showToast('اختر الفصول المطلوب إرسال جداولها.');
+      return false;
+    }
+    if (sendAudience === 'teachers' && selectedSendTeacherIds.length === 0) {
+      showToast('اختر المعلمين المستلمين.');
+      return false;
+    }
+    if (sendAudience === 'admins' && selectedSendAdminIds.length === 0) {
+      showToast('اختر الإداريين المستلمين.');
+      return false;
+    }
+    if (sendAudience === 'guardians' && selectedGuardianRecipients.length === 0) {
+      showToast('لا توجد أرقام أولياء أمور مرتبطة بالفصول المحددة.');
+      return false;
+    }
+    return true;
+  };
+
+  const createGeneratedLinks = () => {
     const links: GeneratedLink[] = [];
 
-    if (sendAudience === 'teachers') {
-      if (selectedSendTeacherIds.length === 0) {
-        showToast('اختر المعلمين المراد الإرسال لهم.');
-        return;
-      }
-
-      if (sendScheduleType !== 'individual_teacher') {
+    if (sendScheduleType === 'individual_teacher') {
+      selectedSendTeacherIds.forEach(teacherId => {
+        const teacher = teachers.find(item => item.id === teacherId);
+        const targetLabel = teacher?.name || 'معلم';
+        const recipients = sendAudience === 'teachers'
+          ? selectedRecipients.filter(item => item.id === teacherId)
+          : selectedRecipients;
         links.push({
-          label: SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || sendScheduleType,
-          url: buildShareUrl(sendScheduleType, []),
-        });
-      } else if (includeSignatureAck || sendTeacherLinkMode === 'personalized' || selectedSendTeacherIds.length === 1) {
-        selectedSendTeacherIds.forEach(teacherId => {
-          const teacher = teachers.find(item => item.id === teacherId);
-          links.push({
-            label: includeSignatureAck
-              ? `جدول ${teacher?.name || 'معلم'} مع التوقيع`
-              : `جدول ${teacher?.name || 'معلم'}`,
-            url: includeSignatureAck
-              ? buildTeacherSignatureUrl(teacherId)
-              : buildShareUrl('individual_teacher', [teacherId]),
-            teacherId,
-          });
-        });
-      } else {
-        links.push({
-          label: selectedSendTeacherIds.length === 1 ? 'رابط جدول المعلم' : 'رابط جداول المعلمين',
-          url: buildShareUrl('individual_teacher', selectedSendTeacherIds),
-        });
-      }
-    } else if (sendAudience === 'admins') {
-      if (selectedSendAdminIds.length === 0) {
-        showToast('اختر الإداريين المراد الإرسال لهم.');
-        return;
-      }
-      links.push({
-        label: `${SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || sendScheduleType} للإداريين`,
-        url: buildShareUrl(sendScheduleType, []),
-      });
-    } else if (sendAudience === 'parents') {
-      if (selectedSendClassIds.length === 0) {
-        showToast('اختر الفصول المراد إرسال جداولها لأولياء الأمور.');
-        return;
-      }
-      selectedSendClassIds.forEach(classId => {
-        const classItem = classes.find(item => item.id === classId);
-        links.push({
-          label: `جدول ${classItem ? getClassLabel(classItem) : 'فصل'}`,
-          url: buildShareUrl('individual_class', [classId]),
+          label: includeSignatureAck && sendAudience === 'teachers' ? `جدول ${targetLabel} مع التوقيع` : `جدول ${targetLabel}`,
+          url: includeSignatureAck && sendAudience === 'teachers'
+            ? buildTeacherSignatureUrl(teacherId)
+            : buildShareUrl('individual_teacher', sendAudience, teacherId, targetLabel, recipients),
+          teacherId: includeSignatureAck && sendAudience === 'teachers' ? teacherId : undefined,
+          targetId: teacherId,
+          targetLabel,
+          recipients,
         });
       });
+      return links;
     }
 
+    if (sendScheduleType === 'individual_class') {
+      selectedSendClassIds.forEach(classId => {
+        const classItem = classes.find(item => item.id === classId);
+        const targetLabel = classItem ? getClassLabel(classItem) : 'فصل';
+        const recipients = sendAudience === 'guardians'
+          ? selectedGuardianRecipients.filter(item => item.classId === classId)
+          : selectedRecipients;
+        links.push({
+          label: `جدول فصل: ${targetLabel}`,
+          url: buildShareUrl('individual_class', sendAudience, classId, targetLabel, recipients),
+          targetId: classId,
+          targetLabel,
+          recipients,
+        });
+      });
+      return links;
+    }
+
+    const targetLabel = selectedScheduleLabel;
+    links.push({
+      label: targetLabel,
+      url: buildShareUrl(sendScheduleType, sendAudience, undefined, targetLabel, selectedRecipients),
+      targetLabel,
+      recipients: selectedRecipients,
+    });
+    return links;
+  };
+
+  const buildSendContent = (link: GeneratedLink, recipient: ShareRecipientRecord) => {
+    const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
+    const sentAt = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
+    const greeting = recipient.role === 'guardian'
+      ? `ولي أمر الطالب/ـة ${recipient.studentName || recipient.name}، نرفق لكم ${link.targetLabel}.`
+      : `${recipient.name}، نرفق لكم ${link.targetLabel}.`;
+    return [
+      greeting,
+      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'}`,
+      `العام الدراسي: ${schoolInfo.academicYear || '-'}`,
+      `الفصل الدراسي: ${currentSemester?.name || '-'}`,
+      `وقت الإرسال: ${sentAt}`,
+      link.url,
+    ].join('\n');
+  };
+
+  const handleSend = async () => {
+    if (!validateSendSelection()) return;
+
+    const links = createGeneratedLinks();
     setGeneratedLinks(links);
-    showToast(`تم توليد ${links.length} ${links.length === 1 ? 'رابط' : 'روابط'}.`);
+    setIsSending(true);
+    const batchId = `schedule-batch-${Date.now()}`;
+    const nextResults: SendResult[] = [];
+
+    for (const link of links) {
+      for (const recipient of link.recipients) {
+        const payload: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'> = {
+          batchId,
+          senderRole: 'إرسال الجداول',
+          source: sendScheduleType === 'general_waiting' ? 'waiting' : 'general',
+          recipientId: recipient.id,
+          recipientName: recipient.name,
+          recipientPhone: recipient.phone,
+          recipientRole: recipient.role,
+          content: buildSendContent(link, recipient),
+          channel: sendChannel,
+          attachments: [{ name: link.label, url: link.url, type: 'schedule-share-link' }],
+        };
+        const sent = await sendMessage(payload);
+        nextResults.push({
+          id: `${link.url}-${recipient.id}`,
+          recipientName: recipient.name,
+          roleLabel: RECIPIENT_ROLE_LABELS[recipient.role],
+          phone: recipient.phone,
+          scheduleLabel: link.targetLabel,
+          channel: sent.channel,
+          status: sent.status === 'sent' ? 'sent' : 'failed',
+          timestamp: sent.timestamp,
+          failureReason: sent.failureReason,
+          studentName: recipient.studentName,
+          className: recipient.classLabel,
+        });
+      }
+    }
+
+    setSendResults(nextResults);
+    setIsSending(false);
+    const successCount = nextResults.filter(item => item.status === 'sent').length;
+    const failedCount = nextResults.length - successCount;
+    showToast(`تم الإرسال: ${successCount} ناجح، ${failedCount} فاشل، و${links.length} رابط.`);
   };
 
   const copyToClipboard = async (value: string) => {
@@ -1042,6 +1276,7 @@ const ViewTab: React.FC<Props> = ({
         teachers={teachers}
         classes={classes}
         subjects={subjects}
+        specializations={specializations}
         settings={scheduleSettings}
         schoolInfo={schoolInfo}
         paperSize={isPrintGeneral ? paperSize : 'A4'}
@@ -1076,31 +1311,59 @@ const ViewTab: React.FC<Props> = ({
             { id: 'send' as TaskMode, label: 'إرسال', icon: Send },
             { id: 'export' as TaskMode, label: 'تصدير', icon: FileDown },
           ].map(option => (
-            <button
-              key={option.id}
-              onClick={() => {
-                setTaskMode(option.id);
-                setGeneratedLinks([]);
-              }}
-              className={actionButtonClass(taskMode === option.id)}
-            >
-              <option.icon size={17} />
-              {option.label}
-            </button>
+            <React.Fragment key={option.id}>
+              <button
+                onClick={() => {
+                  setTaskMode(option.id);
+                  setGeneratedLinks([]);
+                }}
+                className={actionButtonClass(taskMode === option.id)}
+              >
+                <option.icon size={17} />
+                {option.label}
+              </button>
+              {option.id === 'export' && (
+                <button
+                  type="button"
+                  onClick={onOpenMessagesArchive}
+                  disabled={!onOpenMessagesArchive}
+                  className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Archive size={17} />
+                  أرشيف الرسائل
+                </button>
+              )}
+            </React.Fragment>
           ))}
         </div>
       </div>
 
       {taskMode === 'print' && (
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-5">
-          <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-4">
+          <div className="px-1">
+            <h3 className="font-black text-slate-800 text-lg">الطباعة</h3>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[320px]">
+            <div className="flex items-center justify-start gap-3 mb-2">
+              <CalendarDays size={20} className="text-[#655ac1]" />
+              <h4 className="font-black text-slate-800">نوع الجدول</h4>
+            </div>
+            <p className="text-xs text-slate-500 font-medium text-right mb-5">
+              اختر نوع الجدول الذي تريد طباعته ثم حدّد عناصره إذا كان فردياً.
+            </p>
+            <div className="space-y-4">
+            <div className="p-0">
+            <div className="flex flex-wrap items-end gap-4">
+            <div className="[&_label]:hidden flex-1">
             <SingleSelectDropdown
               label="نوع الجداول"
               value={printScheduleType}
               onChange={value => setPrintScheduleType(value as ScheduleType)}
               placeholder="اختر نوع الجداول"
-              options={scheduleTypeOptions}
+              options={printScheduleTypeOptions}
             />
+            </div>
 
             {printScheduleType === 'individual_teacher' && (
               <MultiSelectDropdown
@@ -1137,10 +1400,21 @@ const ViewTab: React.FC<Props> = ({
                 searchable
               />
             )}
+            </div>
+            </div>
+          </div>
           </div>
 
           {isPrintGeneral && (
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[320px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <SlidersHorizontal size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                اضبط شكل الورقة وإخراج الألوان قبل فتح صفحة الطباعة.
+              </p>
+              <div className="p-0">
               <div className="flex flex-wrap items-end gap-4">
                 <SingleSelectDropdown
                   label="مقاس الورق"
@@ -1163,11 +1437,20 @@ const ViewTab: React.FC<Props> = ({
                   ]}
                 />
               </div>
+              </div>
             </div>
           )}
 
           {(printScheduleType === 'individual_teacher' || printScheduleType === 'individual_class') && (
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[320px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <SlidersHorizontal size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                اختر اللون وعدد الجداول المعروضة في الصفحة.
+              </p>
+              <div className="p-0">
               <div className="flex flex-wrap items-end gap-4">
                 <SingleSelectDropdown
                   label="اللون"
@@ -1185,154 +1468,226 @@ const ViewTab: React.FC<Props> = ({
                   onChange={setIndividualPrintPerPage}
                 />
               </div>
+              </div>
             </div>
           )}
 
-          <div className="bg-gradient-to-l from-[#655ac1]/5 via-white to-indigo-50/30 rounded-[2rem] p-5 border border-[#cfc8ff] shadow-sm flex items-center justify-between gap-4 flex-wrap">
+          <div className="bg-gradient-to-b from-white via-white to-[#f7f5ff] rounded-[1.75rem] p-5 border border-[#cfc8ff] shadow-sm min-h-[320px] flex flex-col">
+            <div className="flex items-center justify-start gap-3 mb-2">
+              <CheckCircle2 size={20} className="text-[#655ac1]" />
+              <h4 className="font-black text-slate-800">الجدول المراد طباعته</h4>
+            </div>
+            <p className="text-xs text-slate-500 font-medium text-right mb-5">
+              راجع الملخص الحالي ثم افتح صفحة الطباعة.
+            </p>
+            <div className="px-1 py-2 mb-2">
+              <p className="text-[11px] font-black text-slate-400 mb-1">النوع المختار</p>
+              <p className="text-sm font-black text-slate-800">{SCHEDULE_TYPES.find(item => item.id === printScheduleType)?.label || 'لم يتم التحديد'}</p>
+            </div>
+            <div className="px-1 py-2 mb-2">
+              <p className="text-[11px] font-black text-slate-400 mb-1">التخصيص الحالي</p>
+              <p className="text-sm font-bold text-slate-700">
+                {isPrintGeneral ? `${paperSize} • ${printColorMode === 'color' ? 'ملون' : 'أبيض وأسود'}` : `${printColorMode === 'color' ? 'ملون' : 'أبيض وأسود'} • ${individualPrintPerPage} في الصفحة`}
+              </p>
+            </div>
+            <div className="px-1 py-2 mb-4">
+            <p className="text-[11px] font-black text-slate-400 mb-1">الاختيار الحالي</p>
             <p className="text-sm font-medium text-slate-500">
               {isPrintGeneral && `طباعة ${SCHEDULE_TYPES.find(item => item.id === printScheduleType)?.label || ''}`}
               {printScheduleType === 'individual_teacher' && `طباعة ${selectedPrintTeacherIds.length || 0} جداول معلمين`}
               {printScheduleType === 'individual_class' && `طباعة ${selectedPrintClassIds.length || 0} جداول فصول`}
             </p>
+            </div>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
+              className="mt-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
             >
-              <Printer size={16} />
-              فتح صفحة الطباعة
+              <Printer size={16} className="text-white" />
+              <span className="text-white">{'طباعة'}</span>
             </button>
+          </div>
           </div>
         </div>
       )}
 
       {taskMode === 'send' && (
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-5">
-          <div className="flex flex-wrap items-end gap-4">
-            <SingleSelectDropdown
-              label="الجدول المراد إرساله"
-              value={sendScheduleType}
-              onChange={value => setSendScheduleType(value as ScheduleType)}
-              placeholder="اختر الجدول"
-              disabled={sendAudience === 'parents'}
-              options={SCHEDULE_TYPES
-                .filter(item => sendAudience !== 'parents' || item.id === 'individual_class')
-                .map(item => ({ value: item.id, label: item.label, icon: item.icon }))}
-            />
-
-            <SingleSelectDropdown
-              label="الجهة المرسل إليها"
-              value={sendAudience}
-              onChange={value => setSendAudience(value as SendAudience)}
-              placeholder="اختر الجهة"
-              options={[
-                { value: 'teachers', label: 'المعلمون', icon: Users },
-                { value: 'admins', label: 'الإداريون', icon: UserCog },
-                { value: 'parents', label: 'أولياء الأمور', icon: GraduationCap },
-              ]}
-            />
-
-            {sendAudience === 'teachers' && (
-              <MultiSelectDropdown
-                label="المعلمون"
-                buttonLabel="اختر المعلمين"
-                selectedSummary={selectedSendTeacherIds.length > 0 ? `${selectedSendTeacherIds.length} معلمين محددين` : undefined}
-                options={teacherOptions}
-                selectedValues={selectedSendTeacherIds}
-                onToggle={value => {
-                  setSelectedSendTeacherIds(current =>
-                    current.includes(value) ? current.filter(item => item !== value) : [...current, value]
-                  );
-                }}
-                onClear={() => setSelectedSendTeacherIds([])}
-                onSelectAll={() => setSelectedSendTeacherIds(teachers.map(item => item.id))}
-                searchable
-              />
-            )}
-
-            {sendAudience === 'admins' && (
-              <MultiSelectDropdown
-                label="الإداريون"
-                buttonLabel="اختر الإداريين"
-                selectedSummary={selectedSendAdminIds.length > 0 ? `${selectedSendAdminIds.length} إداريين محددين` : undefined}
-                options={adminOptions}
-                selectedValues={selectedSendAdminIds}
-                onToggle={value => {
-                  setSelectedSendAdminIds(current =>
-                    current.includes(value) ? current.filter(item => item !== value) : [...current, value]
-                  );
-                }}
-                onClear={() => setSelectedSendAdminIds([])}
-                onSelectAll={() => setSelectedSendAdminIds(admins.map(item => item.id))}
-                searchable
-              />
-            )}
-
-            {sendAudience === 'parents' && (
-              <MultiSelectDropdown
-                label="الفصول"
-                buttonLabel="اختر الفصول"
-                selectedSummary={selectedSendClassIds.length > 0 ? `${selectedSendClassIds.length} فصول محددة` : undefined}
-                options={classOptions}
-                selectedValues={selectedSendClassIds}
-                onToggle={value => {
-                  setSelectedSendClassIds(current =>
-                    current.includes(value) ? current.filter(item => item !== value) : [...current, value]
-                  );
-                }}
-                onClear={() => setSelectedSendClassIds([])}
-                onSelectAll={() => setSelectedSendClassIds(sortedClasses.map(item => item.id))}
-                searchable
-              />
-            )}
-
-            {sendAudience === 'teachers' && sendScheduleType === 'individual_teacher' && selectedSendTeacherIds.length > 1 && (
-              <SingleSelectDropdown
-                label="نوع الرابط"
-                value={sendTeacherLinkMode}
-                onChange={value => setSendTeacherLinkMode(value as SendTeacherLinkMode)}
-                placeholder="اختر نوع الرابط"
-                disabled={includeSignatureAck}
-                options={[
-                  { value: 'single_bundle', label: 'رابط واحد يظهر جميع الجداول' },
-                  { value: 'personalized', label: includeSignatureAck ? 'لكل معلم رابط خاص مع التوقيع' : 'لكل معلم رابط خاص' },
-                ]}
-              />
-            )}
-
-            {sendScheduleType === 'individual_teacher' && sendAudience === 'teachers' && (
-              <SingleSelectDropdown
-                label="إشعار الاستلام"
-                value={includeSignatureAck ? 'yes' : 'no'}
-                onChange={value => setIncludeSignatureAck(value === 'yes')}
-                placeholder="اختر الحالة"
-                options={[
-                  { value: 'no', label: 'بدون إشعار توقيع' },
-                  { value: 'yes', label: 'تضمين إشعار التوقيع' },
-                ]}
-              />
-            )}
+        <div className="space-y-4">
+          <div className="px-1">
+            <h3 className="font-black text-slate-800 text-lg">إرسال</h3>
           </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[260px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <CalendarDays size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">الجدول المراد إرساله</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                اختر نوع الجدول أولاً
+              </p>
+              <div className="space-y-4">
+                <SingleSelectDropdown
+                  label="نوع الجدول"
+                  value={sendScheduleType}
+                  onChange={value => setSendScheduleType(value as ScheduleType)}
+                  placeholder="اختر الجدول"
+                  options={SCHEDULE_TYPES.map(item => ({ value: item.id, label: item.label }))}
+                />
+                <SingleSelectDropdown
+                  label="المرسل إليه"
+                  value={sendAudience}
+                  onChange={value => setSendAudience(value as SendAudience)}
+                  placeholder="اختر الجهة"
+                  options={allowedAudienceOptions}
+                />
+              </div>
+            </div>
 
-          <div className="bg-gradient-to-l from-[#655ac1]/5 via-white to-indigo-50/30 rounded-[2rem] p-5 border border-[#cfc8ff] shadow-sm flex items-center justify-between gap-4 flex-wrap">
-            <p className="text-sm font-medium text-slate-500">
-              {sendAudience === 'parents'
-                ? 'إرسال جداول الفصول الفردية لأولياء الأمور فقط'
-                : `إرسال ${SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || ''}`}
-            </p>
-            <button
-              onClick={handleSend}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
-            >
-              <Send size={16} />
-              توليد الروابط
-            </button>
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[260px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <SlidersHorizontal size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">المستهدفون</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                عند اختيار جدول معلم أو جدول فصل اختر المستهدفون من القوائم.
+              </p>
+              <div className="space-y-3">
+                {(sendScheduleType === 'individual_teacher' || sendAudience === 'teachers') && (
+                  <MultiSelectDropdown
+                    label={sendScheduleType === 'individual_teacher' ? 'المعلمون المستهدفون' : 'المعلمون المستلمون'}
+                    buttonLabel="اختر المعلمين"
+                    selectedSummary={selectedSendTeacherIds.length > 0 ? `${selectedSendTeacherIds.length} معلمين محددين` : undefined}
+                    options={teacherOptions}
+                    selectedValues={selectedSendTeacherIds}
+                    onToggle={value => {
+                      setSelectedSendTeacherIds(current =>
+                        current.includes(value) ? current.filter(item => item !== value) : [...current, value]
+                      );
+                    }}
+                    onClear={() => setSelectedSendTeacherIds([])}
+                    onSelectAll={() => setSelectedSendTeacherIds(teachers.map(item => item.id))}
+                    searchable
+                  />
+                )}
+
+                {sendAudience === 'admins' && (
+                  <MultiSelectDropdown
+                    label="الإداريون المستلمون"
+                    buttonLabel="اختر الإداريين"
+                    selectedSummary={selectedSendAdminIds.length > 0 ? `${selectedSendAdminIds.length} إداريين محددين` : undefined}
+                    options={adminOptions}
+                    selectedValues={selectedSendAdminIds}
+                    onToggle={value => {
+                      setSelectedSendAdminIds(current =>
+                        current.includes(value) ? current.filter(item => item !== value) : [...current, value]
+                      );
+                    }}
+                    onClear={() => setSelectedSendAdminIds([])}
+                    onSelectAll={() => setSelectedSendAdminIds(admins.map(item => item.id))}
+                    searchable
+                  />
+                )}
+
+                {sendScheduleType === 'individual_class' && (
+                  <MultiSelectDropdown
+                    label="الفصول المستهدفة"
+                    buttonLabel="اختر الفصول"
+                    selectedSummary={selectedSendClassIds.length > 0 ? `${selectedSendClassIds.length} فصول محددة` : undefined}
+                    options={classOptions}
+                    selectedValues={selectedSendClassIds}
+                    onToggle={value => {
+                      setSelectedSendClassIds(current =>
+                        current.includes(value) ? current.filter(item => item !== value) : [...current, value]
+                      );
+                    }}
+                    onClear={() => setSelectedSendClassIds([])}
+                    onSelectAll={() => setSelectedSendClassIds(sortedClasses.map(item => item.id))}
+                    searchable
+                  />
+                )}
+
+                {!needsSendTeacherTargets && !needsSendClassTargets && sendAudience === 'guardians' && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
+                    سيتم إرسال الرابط لأولياء أمور الفصول المتاحة.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[220px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <Copy size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">خيارات إرسال الجدول للمعلمين</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                إرسال الجداول إلى المعلمين مع اختيار التوقيع على استلام الجدول أو بدونه.
+              </p>
+              <div className="space-y-3">
+                {sendAudience === 'teachers' && sendScheduleType === 'individual_teacher' && selectedSendTeacherIds.length > 1 && (
+                  <SingleSelectDropdown
+                    label="نوع الرابط"
+                    value={sendTeacherLinkMode}
+                    onChange={value => setSendTeacherLinkMode(value as SendTeacherLinkMode)}
+                    placeholder="اختر نوع الرابط"
+                    disabled={includeSignatureAck}
+                    options={[
+                      { value: 'single_bundle', label: 'رابط واحد يظهر جميع الجداول' },
+                      { value: 'personalized', label: includeSignatureAck ? 'لكل معلم رابط خاص مع التوقيع' : 'لكل معلم رابط خاص' },
+                    ]}
+                  />
+                )}
+
+                {sendScheduleType === 'individual_teacher' && sendAudience === 'teachers' && (
+                  <SingleSelectDropdown
+                    label="طريقة استلام الجدول"
+                    value={includeSignatureAck ? 'yes' : 'no'}
+                    onChange={value => setIncludeSignatureAck(value === 'yes')}
+                    placeholder="اختر الحالة"
+                    options={[
+                      { value: 'yes', label: 'استلام بتوقيع' },
+                      { value: 'no', label: 'استلام بدون توقيع' },
+                    ]}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[220px] flex flex-col xl:col-span-3">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <CheckCircle2 size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">توليد الروابط</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                أنشئ روابط الجدول للمستهدفين واحفظ العملية في الأرشيف.
+              </p>
+              <div className="rounded-2xl bg-white border border-slate-200 p-4 mb-5">
+                <p className="text-[11px] font-black text-slate-400 mb-1">الاختيار الحالي</p>
+                <p className="text-sm font-black text-slate-800">{selectedScheduleLabel}</p>
+                <p className="text-xs font-bold text-slate-500 mt-1">
+                  {AUDIENCE_LABELS[sendAudience]} • {selectedRecipients.length} مستلم
+                </p>
+              </div>
+              <button
+                onClick={handleSend}
+                disabled={isSending}
+                className="mt-auto self-center inline-flex items-center justify-center gap-2 px-7 py-2.5 rounded-xl bg-[#655ac1] text-white text-sm font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50"
+              >
+                <Send size={16} />
+                {isSending ? 'جاري التوليد...' : 'توليد الروابط'}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
 
       {taskMode === 'export' && (
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-5">
-          <div className="flex flex-wrap items-end gap-4">
+        <TaskPanel
+          icon={taskModeMeta.export.icon}
+          title={taskModeMeta.export.title}
+          description={taskModeMeta.export.description}
+        >
+          <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50/55 p-5">
+            <div className="flex flex-wrap items-end gap-4">
             <SingleSelectDropdown
               label="الجدول المراد تصديره إلى Excel"
               value={exportScheduleType}
@@ -1348,6 +1703,7 @@ const ViewTab: React.FC<Props> = ({
               تصدير Excel
             </button>
           </div>
+          </div>
 
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 flex items-center justify-between gap-4 flex-wrap">
             <div>
@@ -1361,99 +1717,107 @@ const ViewTab: React.FC<Props> = ({
               تصدير XML
             </button>
           </div>
-        </div>
+        </TaskPanel>
       )}
 
       {taskMode === 'send' && generatedLinks.length > 0 && (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2 text-[#655ac1]">
-            <CheckCircle2 size={18} className="text-emerald-500" />
+          <div className="flex items-center gap-2 text-slate-800">
             <h4 className="text-sm font-black">الروابط المولدة</h4>
           </div>
 
-          <div className="px-4 py-3.5 border border-slate-100 rounded-2xl bg-slate-50/80 flex items-center justify-between gap-3 flex-wrap">
+          <div className="px-4 py-3.5 border border-slate-200 rounded-2xl bg-white flex items-center justify-between gap-3 flex-wrap">
             <span className="text-sm font-black text-slate-700">
               {generatedLinks.length} {generatedLinks.length === 1 ? 'رابط جاهز' : 'روابط جاهزة'}
             </span>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyAllLinks}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold"
               >
-                <Copy size={13} />
+                <Copy size={13} className="text-[#655ac1]" />
                 نسخ الكل
               </button>
               <button
                 onClick={openWhatsAppForAll}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] text-xs font-bold border border-[#25D366]/20"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-300"
               >
                 <WhatsAppIcon size={14} />
                 واتساب للكل {generatedLinks.length > 0 && `(${generatedLinks.length})`}
               </button>
               <button
                 onClick={openSMSForAll}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/20 text-[#007AFF] text-xs font-bold border border-[#007AFF]/20"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-300"
               >
-                <Send size={13} />
+                <MessageSquare size={13} className="text-[#007AFF]" />
                 نصية للكل {generatedLinks.length > 0 && `(${generatedLinks.length})`}
               </button>
-              {printableSignatureTeacherIds.length > 0 && (
-                <button
-                  onClick={() => openSignaturePrint(printableSignatureTeacherIds)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200"
-                >
-                  <Printer size={13} />
-                  طباعة الكل {`(${printableSignatureTeacherIds.length})`}
-                </button>
-              )}
+              <button
+                onClick={() => openSignaturePrint(printableSignatureTeacherIds)}
+                disabled={printableSignatureTeacherIds.length === 0}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-300 disabled:opacity-45 disabled:cursor-not-allowed"
+              >
+                <Printer size={13} className="text-[#655ac1]" />
+                طباعة الكل {printableSignatureTeacherIds.length > 0 && `(${printableSignatureTeacherIds.length})`}
+              </button>
             </div>
           </div>
 
-          <div className="space-y-3">
-            {generatedLinks.map(link => (
-              <div key={link.url} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black text-slate-800">{link.label}</p>
-                    <p dir="ltr" className="mt-2 rounded-xl border border-[#d8d1ff] bg-white px-3 py-2 text-xs font-mono text-slate-500 truncate">
-                      {link.url}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                    <button
-                      onClick={() => openWhatsApp(link)}
-                      title="واتساب"
-                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#25D366]/10 active:scale-90 transition-colors"
-                    >
-                      <WhatsAppIcon size={15} />
-                    </button>
-                    <button
-                      onClick={() => openSMS(link)}
-                      title="رسالة نصية"
-                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-[#007AFF]/10 active:scale-90 transition-colors"
-                    >
-                      <Send size={13} className="text-[#007AFF]" />
-                    </button>
-                    <button
-                      onClick={() => copyToClipboard(link.url)}
-                      title="نسخ"
-                      className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      <Copy size={14} />
-                    </button>
-                    {link.teacherId && (
-                      <button
-                        onClick={() => openSignaturePrint([link.teacherId!])}
-                        title="طباعة النموذج"
-                        className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                      >
-                        <Printer size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full min-w-[1080px] text-right" dir="rtl">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-right">اسم المعلم</th>
+                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">رقم الجوال</th>
+                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">خيار الإرسال</th>
+                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">نوع الجدول المرسل</th>
+                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">الرابط</th>
+                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {generatedLinks.map(link => {
+                  const phones = Array.from(new Set(link.recipients.map(item => item.phone).filter(Boolean)));
+                  const actionButtonClassName = 'w-8 h-8 flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-50 active:scale-90 transition-all';
+                  return (
+                    <tr key={link.url} className="hover:bg-accent/5 transition-all">
+                      <td className="px-5 py-3.5">
+                        <div className="font-bold text-[13px] text-slate-800">{link.targetLabel}</div>
+                        <div className="text-[11px] font-bold text-slate-400 mt-0.5">{link.label}</div>
+                      </td>
+                      <td className="px-5 py-3.5 text-center text-[12px] font-bold text-slate-600" dir="ltr">
+                        {phones.length > 0 ? phones.join('، ') : 'بدون رقم'}
+                      </td>
+                      <td className="px-5 py-3.5 text-center text-[12px] font-bold text-slate-600">
+                        {includeSignatureAck && link.teacherId ? 'استلام بتوقيع' : 'استلام بدون توقيع'}
+                      </td>
+                      <td className="px-5 py-3.5 text-center text-[12px] font-bold text-slate-600">{selectedScheduleLabel}</td>
+                      <td className="px-5 py-3.5">
+                        <div dir="ltr" className="max-w-[260px] mx-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-500 truncate">
+                          {link.url}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => openWhatsApp(link)} title="واتساب" className={actionButtonClassName}>
+                            <WhatsAppIcon size={15} />
+                          </button>
+                          <button onClick={() => openSMS(link)} title="رسالة نصية" className={actionButtonClassName}>
+                            <MessageSquare size={14} className="text-[#007AFF]" />
+                          </button>
+                          <button onClick={() => link.teacherId ? openSignaturePrint([link.teacherId]) : openSignaturePrint(printableSignatureTeacherIds)} title="طباعة" className={actionButtonClassName}>
+                            <Printer size={14} className="text-[#655ac1]" />
+                          </button>
+                          <button onClick={() => copyToClipboard(link.url)} title="نسخ الرابط" className={actionButtonClassName}>
+                            <Copy size={14} className="text-[#655ac1]" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

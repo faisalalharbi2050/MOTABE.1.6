@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, PenLine, Eye, Shuffle, Sparkles, Table } from 'lucide-react';
-import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../types';
+import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization, Student } from '../../types';
 import ViewTab from './tabs/ViewTab';
 import EditTab from './tabs/EditTab';
 import CreateTab from './tabs/CreateTab';
@@ -15,9 +15,11 @@ interface Props {
   teachers: Teacher[];
   subjects: Subject[];
   classes: ClassInfo[];
+  students: Student[];
   admins: Admin[];
   assignments: Assignment[];
   specializations: Specialization[];
+  onOpenMessagesArchive?: () => void;
 }
 
 type TabId = 'create' | 'edit' | 'waiting' | 'view' | 'manage';
@@ -125,7 +127,7 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
           />
         )}
         {activeTab === 'view' && (
-          <ViewTab {...props} onNavigate={navigate} isScheduleLocked={isScheduleLocked} />
+          <ViewTab {...props} onNavigate={navigate} isScheduleLocked={isScheduleLocked} onOpenMessagesArchive={props.onOpenMessagesArchive} />
         )}
         {activeTab === 'manage' && (
           <ManageTab
