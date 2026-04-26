@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, PenLine, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { ClassInfo, ScheduleSettingsData, SchoolInfo, Specialization, Subject, Teacher } from '../../types';
 import ScheduleSignatureDocument from './ScheduleSignatureDocument';
 import { APP_STORAGE_KEY, SCHEDULE_SIGNATURE_REQUESTS_KEY } from '../../utils/scheduleShare';
@@ -78,22 +78,7 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
     () => appData?.teachers?.find(item => item.id === request?.teacherId) || null,
     [appData, request]
   );
-  const formattedCreatedAt = request?.createdAt
-    ? new Intl.DateTimeFormat('ar-SA', {
-        dateStyle: 'full',
-        timeStyle: 'short',
-      }).format(new Date(request.createdAt))
-    : '';
   const createdAtDate = request?.createdAt ? new Date(request.createdAt) : null;
-  const createdDayLabel = createdAtDate
-    ? new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(createdAtDate)
-    : '';
-  const createdDateLabel = createdAtDate
-    ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(createdAtDate)
-    : '';
-  const createdTimeLabel = createdAtDate
-    ? new Intl.DateTimeFormat('ar-SA', { timeStyle: 'short' }).format(createdAtDate)
-    : '';
   const specializationNames = useMemo(
     () => Object.fromEntries((appData?.specializations || []).map(item => [item.id, item.name])),
     [appData?.specializations]
@@ -180,18 +165,6 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
     <div className="min-h-screen bg-slate-100" dir="rtl">
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-5">
         <div className="rounded-[2rem] border border-slate-200 bg-white p-4 md:p-5 shadow-sm">
-          <div className="mb-5 rounded-[1.5rem] border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center">
-                <PenLine size={22} className="text-[#655ac1]" />
-              </div>
-              <div>
-                <h1 className="text-slate-800 text-lg font-black">الاطلاع على الجدول والتوقيع بالاستلام</h1>
-                <p className="text-slate-500 text-sm font-medium mt-1">{appData.schoolInfo.schoolName || 'المدرسة'}</p>
-              </div>
-            </div>
-          </div>
-
           <ScheduleSignatureDocument
             teacher={teacher}
             teachers={appData.teachers}
@@ -202,32 +175,12 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
             schoolInfo={appData.schoolInfo}
             mode="electronic"
             signedAt={confirmed ? request.signedAt : undefined}
+            createdAt={createdAtDate}
           >
             {!confirmed ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-slate-400 font-bold mb-1">رقم الجوال</p>
-                      <p className="text-slate-800 font-black" dir="ltr">{teacher.phone || 'غير متوفر'}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-slate-400 font-bold mb-1">اليوم</p>
-                      <p className="text-slate-800 font-black">{createdDayLabel}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-slate-400 font-bold mb-1">التاريخ</p>
-                      <p className="text-slate-800 font-black">{createdDateLabel}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-slate-400 font-bold mb-1">الوقت</p>
-                      <p className="text-slate-800 font-black">{createdTimeLabel}</p>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600">
-                    وقت الإرسال الكامل: {formattedCreatedAt}
-                  </div>
                   <div>
-                    <p className="text-sm font-black text-slate-700 mb-1">التوقيع الحر</p>
+                    <p className="text-sm font-black text-slate-700 mb-1">التوقيع</p>
                     <p className="text-xs text-slate-400 font-medium">وقّع داخل المساحة التالية لتأكيد العلم بالجدول واستلامه.</p>
                   </div>
 
@@ -262,7 +215,7 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
                     <button
                       type="button"
                       onClick={clearCanvas}
-                      className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all"
+                      className="w-full sm:w-36 px-5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all"
                     >
                       مسح التوقيع
                     </button>
@@ -270,7 +223,7 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
                       type="button"
                       disabled={!hasSignature}
                       onClick={handleConfirm}
-                      className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      className="w-full sm:w-36 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                       <Check size={16} />
                       إرسال

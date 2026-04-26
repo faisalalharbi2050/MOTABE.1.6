@@ -26,6 +26,7 @@ export interface ScheduleShareRequest {
   type: ShareScheduleType;
   audience: ShareAudience;
   targetId?: string;
+  targetIds?: string[];
   targetLabel: string;
   title: string;
   createdAt: string;

@@ -19,6 +19,8 @@ interface PrintableScheduleProps {
     hideSignature?: boolean;
     /** Optional send timestamp used in shared links instead of local print time */
     sentAt?: string;
+    /** Hide the built-in schedule header when an outer document header is used */
+    hideHeader?: boolean;
 }
 
 const DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
@@ -26,7 +28,7 @@ const MAX_PERIODS = 7;
 
 const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
     type, settings, teachers, classes, subjects, specializations, targetId, schoolInfo,
-    fontSize = 11, blackAndWhite = false, hideSignature = false, sentAt
+    fontSize = 11, blackAndWhite = false, hideSignature = false, sentAt, hideHeader = false
 }) => {
     const zoomFactor = fontSize / 11;
     const subjectName  = (id: string) => settings.subjectAbbreviations?.[id] || subjects.find(s => s.id === id)?.name || '';
@@ -172,7 +174,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             <div className="w-full flex flex-col bg-white" style={{direction:'rtl', border:'2px solid '+C_DAY_SEP, borderRadius:'12px', overflow:'hidden', zoom: `${zoomFactor}`}}>
 
                 {/* ── School header ── */}
-                <div className="flex justify-between items-center px-5 py-3 border-b" style={{borderColor:C_BORDER}}>
+                <div className="flex justify-between items-center px-5 py-3 border-b" style={{borderColor:C_BORDER, display: hideHeader ? 'none' : undefined}}>
                     <div>
                         <div className="text-base font-black text-slate-800">{schoolName}</div>
                         <div className="text-xs text-slate-500 font-semibold">{academicYear}{academicYear && semesterName ? ' | ' : ''}{semesterName}</div>
@@ -335,7 +337,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
         <div className="bg-white text-black font-sans" style={{ direction: 'rtl', zoom: `${zoomFactor}` }}>
 
             {/* ── Page Header ── */}
-            <div className="text-center mb-4 pb-3 border-b-2 border-gray-400">
+            <div className="text-center mb-4 pb-3 border-b-2 border-gray-400" style={{display: hideHeader ? 'none' : undefined}}>
                 {schoolName && (
                     <h1 className="text-xl font-black mb-1">{schoolName}</h1>
                 )}

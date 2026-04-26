@@ -4,16 +4,17 @@ import MessageComposer from './messaging/MessageComposer';
 import MessageArchive from './messaging/MessageArchive';
 import MessageTemplates from './messaging/MessageTemplates';
 import FintechDashboard from './messaging/FintechDashboard';
-import { Teacher, Admin, Student, ClassInfo, Specialization, SchoolInfo, SubscriptionInfo } from '../types';
+import { Teacher, Admin, Student, ClassInfo, Specialization, SchoolInfo, SubscriptionInfo, MessageComposerDraft } from '../types';
 
 interface MessagesProps {
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
   initialTab?: 'compose' | 'archive' | 'templates' | 'dashboard';
+  initialDraft?: MessageComposerDraft | null;
   onNavigate?: (tab: string) => void;
 }
 
-const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, initialTab, onNavigate }) => {
+const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, initialTab, initialDraft, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard'>(initialTab || 'compose');
 
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
@@ -92,6 +93,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
             specializations={specializations}
             subscription={subscription}
             setSubscription={setSubscription}
+            initialDraft={initialDraft}
           />
         )}
         {activeTab === 'archive' && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react'; // For the lock UI
-import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType } from './types';
+import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType, MessageComposerDraft } from './types';
 import { INITIAL_SPECIALIZATIONS, INITIAL_SUBJECTS } from './constants';
 import { migrateTeacherStructure } from './utils/migrateTeachers';
 import { MessageArchiveProvider } from './components/messaging/MessageArchiveContext';
@@ -282,6 +282,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [subscriptionInitialTab, setSubscriptionInitialTab] = useState<'dashboard' | 'pricing' | 'invoices'>('dashboard');
   const [messagesInitialTab, setMessagesInitialTab] = useState<'compose' | 'archive' | 'templates' | 'dashboard' | 'subscriptions'>('compose');
+  const [messageComposerDraft, setMessageComposerDraft] = useState<MessageComposerDraft | null>(null);
   const [hasHydratedAppState, setHasHydratedAppState] = useState(false);
   const [hasLoadedPersistentState, setHasLoadedPersistentState] = useState(false);
 
@@ -493,7 +494,7 @@ const App: React.FC = () => {
 
       // Schedule Section
       case 'manual': return <ManualAssignment teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
-      case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} />;
+      case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }} />;
 
       // Supervision and Duty
       case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} />;
@@ -501,7 +502,7 @@ const App: React.FC = () => {
 
       // Other Sections
       case 'daily_waiting': return <DailyWaiting teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
-      case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} initialTab={messagesInitialTab as any} onNavigate={(tab) => {
+      case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} initialTab={messagesInitialTab as any} initialDraft={messageComposerDraft} onNavigate={(tab) => {
         if (tab === 'subscription_message_packages') { setSubscriptionInitialTab('message_packages' as any); setActiveTab('subscription'); }
         else { setActiveTab(tab as any); }
       }} />;

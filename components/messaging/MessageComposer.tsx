@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
   Send, Users, AlertCircle, AlertTriangle, Paperclip, CheckCircle2,
   FileText, MessageSquare, Plus, Search, CheckSquare, Square, X, ChevronDown, ChevronLeft,
   Clock, Calendar as CalendarIcon, Eye, Wallet, CalendarClock
 } from 'lucide-react';
-import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo } from '../../types';
+import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
@@ -20,6 +20,7 @@ interface MessageComposerProps {
   specializations: Specialization[];
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
+  initialDraft?: MessageComposerDraft | null;
 }
 
 type GroupType = 'none' | 'teachers' | 'admins' | 'staff' | 'parents';
@@ -28,9 +29,11 @@ type GroupType = 'none' | 'teachers' | 'admins' | 'staff' | 'parents';
 const SMS_LIMIT = 160;
 
 const MessageComposer: React.FC<MessageComposerProps> = ({
-  schoolInfo, teachers, admins, students, classes, specializations, subscription, setSubscription
+  schoolInfo, teachers, admins, students, classes, specializations, subscription, setSubscription, initialDraft
 }) => {
   const { sendMessage, scheduleMessage, templates, stats } = useMessageArchive();
+  const applyingDraftRef = useRef(false);
+  const appliedDraftIdRef = useRef<string | null>(null);
 
   // Toast State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
@@ -60,16 +63,56 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const [scheduleTime, setScheduleTime] = useState('08:00');
   const [isSending, setIsSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<{ source?: MessageSource; senderRole?: string; title?: string; linksByRecipientId?: Record<string, string>; previewUrlByRecipientId?: Record<string, string> } | null>(null);
 
   // Auto-select staff when 'staff' group is chosen
   useEffect(() => {
+    if (applyingDraftRef.current) {
+      applyingDraftRef.current = false;
+      return;
+    }
     if (selectedGroup === 'staff') {
       setSelectedIds(new Set([...teachers.map(t => t.id), ...admins.map(a => a.id)]));
     } else {
       setSelectedIds(new Set());
     }
     setSearchQuery('');
-  }, [selectedGroup, teachers, admins]);
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    if (!initialDraft || appliedDraftIdRef.current === initialDraft.id) return;
+
+    applyingDraftRef.current = true;
+    appliedDraftIdRef.current = initialDraft.id;
+    setDraftMeta({
+      source: initialDraft.source,
+      senderRole: initialDraft.senderRole,
+      title: initialDraft.title,
+      linksByRecipientId: initialDraft.linksByRecipientId,
+      previewUrlByRecipientId: initialDraft.previewUrlByRecipientId,
+    });
+    setSelectedGroup(initialDraft.group);
+    setSelectedIds(new Set(initialDraft.recipients.map(recipient => recipient.id)));
+    const onlyRecipientId = initialDraft.recipients.length === 1 ? initialDraft.recipients[0]?.id : '';
+    const onlyRecipientLinks = onlyRecipientId ? initialDraft.linksByRecipientId?.[onlyRecipientId] : '';
+    setMessageContent(
+      onlyRecipientLinks
+        ? initialDraft.content
+            .replace(/{رابط_الجدول}/g, onlyRecipientLinks)
+            .replace(/{روابط_الجداول}/g, onlyRecipientLinks)
+        : initialDraft.content
+    );
+    setChannel(initialDraft.channel);
+    setSelectedTemplate('');
+    setSearchQuery('');
+    setSelectedSpecId('all');
+    setSelectedClassId('all');
+    setAttachment(null);
+    setIsScheduled(false);
+    setScheduleDate(null);
+    setScheduleTime('08:00');
+    showToast('تم تجهيز مسودة رسالة الجدول ويمكنك تعديلها قبل الإرسال.', 'success');
+  }, [initialDraft]);
 
   // Derived Data
   const activeSpecs = useMemo(() => {
@@ -164,6 +207,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   // ── Live preview ─────────────────────────────────────────────────────────
   const today = useMemo(() => new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date()), []);
   const dateFormatted = useMemo(() => new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()), []);
+  const previewRecipientId = recipientsToSend[0]?.id || '';
+  const previewScheduleLinks = draftMeta?.linksByRecipientId?.[previewRecipientId] || '';
+  const previewScheduleUrl = draftMeta?.previewUrlByRecipientId?.[previewRecipientId] || previewScheduleLinks;
 
   const previewContent = useMemo(() => {
     const sample = recipientsToSend[0]?.name || 'اسم المستلم';
@@ -173,8 +219,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       .replace(/{اسم_الإداري}/g, sample)
       .replace(/{اليوم}/g, today)
       .replace(/{التاريخ}/g, dateFormatted)
-      .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || 'اسم المدرسة');
-  }, [messageContent, recipientsToSend, today, dateFormatted, schoolInfo]);
+      .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || 'اسم المدرسة')
+      .replace(/{رابط_الجدول}/g, previewScheduleLinks || 'رابط الجدول')
+      .replace(/{روابط_الجداول}/g, previewScheduleLinks || 'روابط الجداول');
+  }, [messageContent, recipientsToSend, today, dateFormatted, schoolInfo, previewScheduleLinks]);
 
   // ── Template handler ─────────────────────────────────────────────────────
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -230,28 +278,50 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
     // Personalise message for each recipient
     const messagesToProcess = recipientsToSend.map(rec => {
+      const scheduleLinks = draftMeta?.linksByRecipientId?.[rec.id] || '';
+      const scheduleAttachments = scheduleLinks
+        ? scheduleLinks
+            .split('\n')
+            .map((line, index) => {
+              const trimmed = line.trim();
+              const separatorIndex = trimmed.lastIndexOf(': ');
+              const hasLabel = separatorIndex > -1 && /^https?:\/\//.test(trimmed.slice(separatorIndex + 2));
+              return {
+                name: hasLabel ? trimmed.slice(0, separatorIndex) : (draftMeta?.title || `رابط الجدول ${index + 1}`),
+                url: hasLabel ? trimmed.slice(separatorIndex + 2) : trimmed,
+                type: 'schedule-share-link',
+              };
+            })
+            .filter(item => item.url)
+        : [];
+      const messageAttachments = [
+        ...scheduleAttachments,
+        ...(channel === 'whatsapp' ? attachments : []),
+      ];
       let personalizedContent = messageContent
         .replace(/{اسم_الطالب}/g, rec.name)
         .replace(/{اسم_المعلم}/g, rec.name)
         .replace(/{اسم_الإداري}/g, rec.name)
         .replace(/{اليوم}/g, today)
         .replace(/{التاريخ}/g, dateFormatted)
-        .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || '');
+        .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || '')
+        .replace(/{رابط_الجدول}/g, draftMeta?.linksByRecipientId?.[rec.id] || '')
+        .replace(/{روابط_الجداول}/g, draftMeta?.linksByRecipientId?.[rec.id] || '');
 
       if (channel === 'sms' && attachment)
         personalizedContent += `\nالمرفق: http://t.ly/mock_link`;
 
       return {
         batchId,
-        senderRole: 'مدير النظام',
-        source: 'general' as const,
+        senderRole: draftMeta?.senderRole || 'مدير النظام',
+        source: draftMeta?.source || 'general' as const,
         recipientId: rec.id,
         recipientName: rec.name,
         recipientPhone: rec.phone,
         recipientRole: rec.role,
         content: personalizedContent,
         channel,
-        attachments: channel === 'whatsapp' ? attachments : undefined,
+        attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
         isScheduled,
         scheduledFor: isScheduled ? (buildScheduledTimestamp() ?? undefined) : undefined,
       };
@@ -634,7 +704,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 mb-2">إضافة متغيرات تلقائية:</label>
             <div className="flex gap-2 flex-wrap">
-              {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة'].map(variable => (
+              {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة', 'روابط_الجداول'].map(variable => (
                 <button
                   key={variable}
                   onClick={() => insertVariable(variable)}
@@ -654,6 +724,40 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             placeholder="اكتب نص الرسالة هنا..."
             dir="rtl"
           />
+
+          {draftMeta?.linksByRecipientId && recipientsToSend.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-[#e5e1fe] bg-[#f8f7ff] p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-xs font-black text-[#655ac1] mb-1">الرابط الفعلي في المعاينة</p>
+                  <p className="text-[11px] font-bold text-slate-500">
+                    يتم عرض رابط {recipientsToSend[0]?.name || 'أول مستلم'} هنا، وعند الإرسال يستلم كل شخص رابطه الصحيح.
+                  </p>
+                </div>
+                {previewScheduleLinks && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => window.open(previewScheduleUrl, '_blank')}
+                      className="px-3 py-2 rounded-xl bg-[#655ac1] text-white text-xs font-black"
+                    >
+                      فتح النموذج
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(previewScheduleUrl).then(() => showToast('تم نسخ رابط المعاينة', 'success'))}
+                      className="px-3 py-2 rounded-xl bg-white border border-[#d9d2ff] text-[#655ac1] text-xs font-black"
+                    >
+                      نسخ الرابط
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div dir="ltr" className="mt-3 rounded-xl border border-[#d9d2ff] bg-white px-3 py-2 text-xs font-mono text-slate-600 whitespace-pre-wrap break-all">
+                {previewScheduleLinks || 'لم يتم العثور على رابط لهذا المستلم.'}
+              </div>
+            </div>
+          )}
 
           {/* SMS character counter */}
           {channel === 'sms' && messageContent.length > 0 && (

@@ -5,7 +5,8 @@
       "Bash(npm run *)",
       "Bash(findstr /n \"getWaitingQuota\" \"C:\\\\Users\\\\fasoo\\\\OneDrive\\\\Desktop\\\\متابع1.6\\\\motabe-1.6\\\\components\\\\schedule\\\\PrintableSchedule.tsx\")",
       "Bash(findstr \"getWaitingQuota\")",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(python insert_modal.py)"
     ]
   }
 }

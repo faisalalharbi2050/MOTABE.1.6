@@ -45,6 +45,7 @@ type LinkRecord = {
   key: string;
   label: string;
   url: string;
+  audience: ShareAudience;
   targetId?: string;
   targetLabel: string;
   requestKind: 'share' | 'signature';
@@ -63,6 +64,7 @@ type DeliveryResult = {
 };
 
 type SelectableRecipient = ShareRecipientRecord & {
+  selectionKey: string;
   relatedLabel?: string;
 };
 
@@ -135,7 +137,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   const { showToast } = useToast();
 
   const [selectedSchedule, setSelectedSchedule] = useState<ShareScheduleType | ''>('');
-  const [selectedAudience, setSelectedAudience] = useState<ShareAudience | ''>('');
+  const [selectedAudiences, setSelectedAudiences] = useState<ShareAudience[]>([]);
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [channel, setChannel] = useState<ChannelType>('whatsapp');
@@ -151,7 +153,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   useEffect(() => {
     setGeneratedLinks([]);
     setResults([]);
-  }, [selectedSchedule, selectedAudience, selectedTargetIds, selectedRecipientIds, channel]);
+  }, [selectedSchedule, selectedAudiences, selectedTargetIds, selectedRecipientIds, channel]);
 
   const sortedClasses = useMemo(
     () => [...classes].sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0)),
@@ -167,6 +169,10 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   );
 
   const availableAudiences = selectedSchedule ? allowedAudiences[selectedSchedule] : [];
+  const selectedAudienceLabels = selectedAudiences
+    .map(audience => AUDIENCE_OPTIONS.find(option => option.id === audience)?.title)
+    .filter(Boolean)
+    .join('، ');
   const needsTargetSelection = selectedSchedule === 'individual_teacher' || selectedSchedule === 'individual_class';
 
   const targetOptions = useMemo(() => {
@@ -190,10 +196,13 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   }, [selectedSchedule, sortedTeachers, sortedClasses]);
 
   const recipients = useMemo<SelectableRecipient[]>(() => {
-    if (!selectedAudience) return [];
+    if (selectedAudiences.length === 0) return [];
 
-    if (selectedAudience === 'teachers') {
+    const nextRecipients: SelectableRecipient[] = [];
+
+    if (selectedAudiences.includes('teachers')) {
       const base = sortedTeachers.map(teacher => ({
+        selectionKey: `teacher:${teacher.id}`,
         id: teacher.id,
         name: teacher.name,
         phone: teacher.phone || '',
@@ -202,90 +211,99 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
       }));
 
       if (selectedSchedule === 'individual_teacher' && selectedTargetIds.length > 0) {
-        return base.filter(item => selectedTargetIds.includes(item.id));
+        nextRecipients.push(...base.filter(item => selectedTargetIds.includes(item.id)));
+      } else {
+        nextRecipients.push(...base);
       }
-
-      return base;
     }
 
-    if (selectedAudience === 'admins') {
-      return sortedAdmins.map(admin => ({
+    if (selectedAudiences.includes('admins')) {
+      nextRecipients.push(...sortedAdmins.map(admin => ({
+        selectionKey: `admin:${admin.id}`,
         id: admin.id,
         name: admin.name,
         phone: admin.phone || '',
         role: 'admin' as const,
         relatedLabel: admin.role || 'إداري',
-      }));
+      })));
     }
 
-    const guardianBase = students
-      .filter(student => student.parentPhone)
-      .map(student => {
-        const classItem = classes.find(item => item.id === student.classId);
-        return {
-          id: student.id,
-          name: student.name,
-          phone: student.parentPhone || '',
-          role: 'guardian' as const,
-          classId: student.classId,
-          classLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
-          studentName: student.name,
-          relatedLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
-        };
-      });
+    if (selectedAudiences.includes('guardians')) {
+      const guardianBase = students
+        .filter(student => student.parentPhone)
+        .map(student => {
+          const classItem = classes.find(item => item.id === student.classId);
+          return {
+            selectionKey: `guardian:${student.id}`,
+            id: student.id,
+            name: student.name,
+            phone: student.parentPhone || '',
+            role: 'guardian' as const,
+            classId: student.classId,
+            classLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
+            studentName: student.name,
+            relatedLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
+          };
+        });
 
-    if (selectedTargetIds.length > 0 && selectedSchedule === 'individual_class') {
-      return guardianBase.filter(item => item.classId && selectedTargetIds.includes(item.classId));
+      if (selectedTargetIds.length > 0 && selectedSchedule === 'individual_class') {
+        nextRecipients.push(...guardianBase.filter(item => item.classId && selectedTargetIds.includes(item.classId)));
+      } else {
+        nextRecipients.push(...guardianBase);
+      }
     }
 
-    return guardianBase;
-  }, [selectedAudience, selectedSchedule, selectedTargetIds, sortedTeachers, sortedAdmins, students, classes]);
+    return nextRecipients;
+  }, [selectedAudiences, selectedSchedule, selectedTargetIds, sortedTeachers, sortedAdmins, students, classes]);
 
   useEffect(() => {
     if (!selectedSchedule) {
-      setSelectedAudience('');
+      setSelectedAudiences([]);
       setSelectedTargetIds([]);
       setSelectedRecipientIds([]);
       return;
     }
 
-    if (selectedAudience && !allowedAudiences[selectedSchedule].includes(selectedAudience)) {
-      setSelectedAudience('');
+    const allowed = allowedAudiences[selectedSchedule];
+    if (selectedAudiences.some(audience => !allowed.includes(audience))) {
+      setSelectedAudiences(current => current.filter(audience => allowed.includes(audience)));
       setSelectedRecipientIds([]);
     }
 
     if (selectedSchedule !== 'individual_teacher' && selectedSchedule !== 'individual_class') {
       setSelectedTargetIds([]);
     }
-  }, [selectedSchedule, selectedAudience]);
+  }, [selectedSchedule, selectedAudiences]);
 
   useEffect(() => {
-    if (!selectedAudience) {
+    if (selectedAudiences.length === 0) {
       setSelectedRecipientIds([]);
       return;
     }
 
-    if (selectedAudience === 'teachers' && selectedSchedule === 'individual_teacher') {
-      setSelectedRecipientIds(selectedTargetIds);
+    if (selectedSchedule === 'individual_teacher') {
+      setSelectedRecipientIds(recipients.map(item => item.selectionKey));
       return;
     }
 
-    if (selectedAudience === 'guardians') {
-      setSelectedRecipientIds(recipients.map(item => item.id));
-      return;
-    }
-
-    setSelectedRecipientIds([]);
-  }, [selectedAudience, selectedSchedule, selectedTargetIds, recipients]);
+    setSelectedRecipientIds(recipients.map(item => item.selectionKey));
+  }, [selectedAudiences, selectedSchedule, selectedTargetIds, recipients]);
 
   const selectedRecipients = useMemo(
-    () => recipients.filter(item => selectedRecipientIds.includes(item.id)),
+    () => recipients.filter(item => selectedRecipientIds.includes(item.selectionKey)),
     [recipients, selectedRecipientIds]
   );
 
+  const targetSelectionTitle =
+    selectedSchedule === 'individual_teacher' && selectedAudiences.includes('admins') && !selectedAudiences.includes('teachers')
+      ? 'الجداول المراد إرسالها'
+      : selectedSchedule === 'individual_teacher'
+        ? 'المعلمون المراد إرسال جداولهم'
+        : 'الفصول المراد إرسالها';
+
   const isReadyToGenerate = Boolean(
     selectedSchedule &&
-    selectedAudience &&
+    selectedAudiences.length > 0 &&
     (!needsTargetSelection || selectedTargetIds.length > 0)
   );
 
@@ -300,7 +318,15 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   };
 
   const toggleAllRecipients = () => {
-    setSelectedRecipientIds(selectedRecipientIds.length === recipients.length ? [] : recipients.map(item => item.id));
+    setSelectedRecipientIds(selectedRecipientIds.length === recipients.length ? [] : recipients.map(item => item.selectionKey));
+  };
+
+  const toggleAudience = (audience: ShareAudience) => {
+    setSelectedAudiences(current =>
+      current.includes(audience)
+        ? current.filter(item => item !== audience)
+        : [...current, audience]
+    );
   };
 
   const getTargetLabel = (targetId?: string) => {
@@ -312,7 +338,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   };
 
   const createLinks = () => {
-    if (!selectedSchedule || !selectedAudience || !isReadyToGenerate) return [];
+    if (!selectedSchedule || selectedAudiences.length === 0 || !isReadyToGenerate) return [];
 
     const createdAt = new Date().toISOString();
     const origin = `${window.location.origin}${window.location.pathname}`;
@@ -320,12 +346,14 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
     const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
 
     const targetIds = needsTargetSelection ? selectedTargetIds : ['__general__'];
-    const links = targetIds.map(targetId => {
+    const links = targetIds.flatMap(targetId => {
       const targetLabel = targetId === '__general__'
         ? targetTitleMap[selectedSchedule]
         : getTargetLabel(targetId);
 
-      if (selectedSchedule === 'individual_teacher' && selectedAudience === 'teachers' && targetId !== '__general__') {
+      const targetLinks: LinkRecord[] = [];
+
+      if (selectedSchedule === 'individual_teacher' && selectedAudiences.includes('teachers') && targetId !== '__general__') {
         const teacher = teachers.find(item => item.id === targetId);
         const token = `schedule-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         saveScheduleSignatureRequest({
@@ -335,44 +363,63 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
           createdAt,
           status: 'pending',
         });
-        return {
+        targetLinks.push({
           key: token,
-          label: `رابط توقيع ${targetLabel}`,
+          label: targetLabel,
           url: buildScheduleSignatureLink(origin, token),
+          audience: 'teachers',
           targetId,
           targetLabel,
           requestKind: 'signature' as const,
-        };
+        });
       }
 
-      const filteredRecipients = selectedAudience === 'guardians' && targetId !== '__general__'
-        ? selectedRecipients.filter(item => item.classId === targetId)
-        : selectedRecipients;
+      selectedAudiences.forEach(audience => {
+        if (selectedSchedule === 'individual_teacher' && audience === 'teachers' && targetId !== '__general__') return;
 
-      const token = `schedule-share-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const request: ScheduleShareRequest = {
-        token,
-        type: selectedSchedule,
-        audience: selectedAudience,
-        targetId: targetId === '__general__' ? undefined : targetId,
-        targetLabel,
-        title: targetId === '__general__' ? targetTitleMap[selectedSchedule] : `${targetTitleMap[selectedSchedule]}: ${targetLabel}`,
-        createdAt,
-        schoolName: shareSchoolName,
-        academicYear: schoolInfo.academicYear,
-        semesterName: currentSemester?.name,
-        recipients: filteredRecipients,
-      };
-      saveScheduleShare(request);
+        const filteredRecipients = selectedRecipients.filter(item => {
+          const matchesAudience =
+            (audience === 'teachers' && item.role === 'teacher') ||
+            (audience === 'admins' && item.role === 'admin') ||
+            (audience === 'guardians' && item.role === 'guardian');
 
-      return {
-        key: token,
-        label: request.title,
-        url: buildScheduleShareLink(origin, token),
-        targetId: request.targetId,
-        targetLabel,
-        requestKind: 'share' as const,
-      };
+          if (!matchesAudience) return false;
+
+          return audience === 'guardians' && targetId !== '__general__'
+            ? item.classId === targetId
+            : true;
+        });
+
+        if (filteredRecipients.length === 0) return;
+
+        const token = `schedule-share-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const request: ScheduleShareRequest = {
+          token,
+          type: selectedSchedule,
+          audience,
+          targetId: targetId === '__general__' ? undefined : targetId,
+          targetLabel,
+          title: targetId === '__general__' ? targetTitleMap[selectedSchedule] : `${targetTitleMap[selectedSchedule]}: ${targetLabel}`,
+          createdAt,
+          schoolName: shareSchoolName,
+          academicYear: schoolInfo.academicYear,
+          semesterName: currentSemester?.name,
+          recipients: filteredRecipients,
+        };
+        saveScheduleShare(request);
+
+        targetLinks.push({
+          key: token,
+          label: request.title,
+          url: buildScheduleShareLink(origin, token),
+          audience,
+          targetId: request.targetId,
+          targetLabel,
+          requestKind: 'share' as const,
+        });
+      });
+
+      return targetLinks;
     });
 
     setGeneratedLinks(links);
@@ -411,7 +458,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   };
 
   const buildMessagePayloads = (links: LinkRecord[], batchId: string) => {
-    if (!selectedSchedule || !selectedAudience) return [];
+    if (!selectedSchedule || selectedAudiences.length === 0) return [];
 
     const generalLink = links[0];
     const schoolLabel = schoolName || schoolInfo.schoolName || 'المدرسة';
@@ -421,19 +468,29 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
     return selectedRecipients.map(recipient => {
       let relevantLinks = links;
 
-      if (selectedSchedule === 'individual_teacher' && selectedAudience === 'teachers') {
+      if (selectedSchedule === 'individual_teacher' && recipient.role === 'teacher') {
         relevantLinks = links.filter(link => link.targetId === recipient.id);
-      } else if (selectedSchedule === 'individual_class' && selectedAudience === 'guardians') {
+      } else if (selectedSchedule === 'individual_class' && recipient.role === 'guardian') {
         relevantLinks = links.filter(link => link.targetId === recipient.classId);
       } else if (!needsTargetSelection && generalLink) {
-        relevantLinks = [generalLink];
+        relevantLinks = links.filter(link => link.audience === (
+          recipient.role === 'teacher' ? 'teachers' :
+          recipient.role === 'admin' ? 'admins' :
+          'guardians'
+        ));
+      } else {
+        relevantLinks = links.filter(link => link.audience === (
+          recipient.role === 'teacher' ? 'teachers' :
+          recipient.role === 'admin' ? 'admins' :
+          'guardians'
+        ));
       }
 
       const firstLink = relevantLinks[0];
       const addressedTarget = firstLink?.targetLabel || targetTitleMap[selectedSchedule];
-      const introLine = selectedAudience === 'guardians'
+      const introLine = recipient.role === 'guardian'
         ? `السادة أولياء الأمور، نرفق لكم ${addressedTarget} للاطلاع.`
-        : selectedAudience === 'teachers'
+        : recipient.role === 'teacher'
           ? `عزيزي ${recipient.name}، نرفق لكم ${addressedTarget}.`
           : `نرفق لكم ${addressedTarget}.`;
 
@@ -477,7 +534,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
   };
 
   const handleSend = async () => {
-    if (!selectedSchedule || !selectedAudience || !isReadyToSend) return;
+    if (!selectedSchedule || selectedAudiences.length === 0 || !isReadyToSend) return;
 
     const links = generatedLinks.length > 0 ? generatedLinks : createLinks();
     if (!links.length) return;
@@ -604,25 +661,15 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                 <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">2</span>
                 المرسل إليه
               </div>
-              <select
-                value={selectedAudience}
-                onChange={(event) => setSelectedAudience(event.target.value as ShareAudience)}
-                disabled={!selectedSchedule}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none disabled:opacity-50 focus:border-[#8779fb] focus:bg-white"
-              >
-                <option value="">اختر الفئة المستهدفة</option>
-                {AUDIENCE_OPTIONS.filter(option => !selectedSchedule || availableAudiences.includes(option.id)).map(option => (
-                  <option key={option.id} value={option.id}>{option.title}</option>
-                ))}
-              </select>
-              <div className="hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {AUDIENCE_OPTIONS.filter(option => !selectedSchedule || availableAudiences.includes(option.id)).map(option => (
                   <button
                     key={option.id}
                     type="button"
-                    onClick={() => setSelectedAudience(option.id)}
-                    className={`rounded-2xl border-2 p-4 transition-all text-center ${
-                      selectedAudience === option.id
+                    disabled={!selectedSchedule}
+                    onClick={() => toggleAudience(option.id)}
+                    className={`rounded-2xl border-2 p-4 transition-all text-center disabled:opacity-50 ${
+                      selectedAudiences.includes(option.id)
                         ? 'border-[#8779fb] bg-[#f8f7ff] text-[#655ac1]'
                         : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                     }`}
@@ -658,7 +705,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm font-black text-slate-700">
                     <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">3</span>
-                    {selectedSchedule === 'individual_teacher' ? 'المعلمون المراد إرسال جداولهم' : 'الفصول المراد إرسالها'}
+                    {targetSelectionTitle}
                   </div>
                   <button type="button" onClick={toggleAllTargets} className="text-xs font-black text-[#655ac1]">
                     {selectedTargetIds.length === targetOptions.length ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
@@ -687,7 +734,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-black text-slate-700">
                   <span className="w-7 h-7 rounded-full bg-[#e5e1fe] text-[#655ac1] inline-flex items-center justify-center text-xs">{needsTargetSelection ? '4' : '3'}</span>
-                  {selectedAudience === 'guardians' ? 'الطلاب وأولياء الأمور المرتبطون' : 'المستلمون'}
+                  {selectedAudiences.length === 1 && selectedAudiences.includes('guardians') ? 'الطلاب وأولياء الأمور المرتبطون' : 'المستهدفون'}
                 </div>
                 {recipients.length > 0 && (
                   <button type="button" onClick={toggleAllRecipients} className="text-xs font-black text-[#655ac1]">
@@ -757,12 +804,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-black text-slate-400 mb-1">الجهة المستهدفة</p>
-                <p className="text-sm font-black text-slate-800">
-                  {selectedAudience === 'teachers' && 'المعلمون'}
-                  {selectedAudience === 'admins' && 'الإداريون'}
-                  {selectedAudience === 'guardians' && 'أولياء الأمور'}
-                  {!selectedAudience && 'غير محدد'}
-                </p>
+                <p className="text-sm font-black text-slate-800">{selectedAudienceLabels || 'غير محدد'}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-black text-slate-400 mb-1">المستلمون المحددون</p>
@@ -783,7 +825,10 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                   {generatedLinks.map(link => (
                     <div key={link.key} className="px-5 py-4 flex items-start justify-between gap-3 flex-wrap">
                       <div className="min-w-0 flex-1">
-                        <p className="font-black text-slate-800">{link.label}</p>
+                        <p className="font-black text-slate-800">{link.targetLabel}</p>
+                        <p className="text-xs text-slate-400 font-bold mt-1">
+                          {link.requestKind === 'signature' ? 'بالتوقيع' : 'بدون توقيع'}
+                        </p>
                         <p className="text-xs text-slate-500 font-medium mt-1 break-all" dir="ltr">{link.url}</p>
                       </div>
                       <button
@@ -850,12 +895,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-black text-slate-500 mb-1">الجهة</p>
-                <p className="text-sm font-black text-slate-800">
-                  {selectedAudience === 'teachers' && 'المعلمون'}
-                  {selectedAudience === 'admins' && 'الإداريون'}
-                  {selectedAudience === 'guardians' && 'أولياء الأمور'}
-                  {!selectedAudience && 'غير محدد'}
-                </p>
+                <p className="text-sm font-black text-slate-800">{selectedAudienceLabels || 'غير محدد'}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-black text-slate-500 mb-1">وقت الإرسال</p>

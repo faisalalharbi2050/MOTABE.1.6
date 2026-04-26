@@ -346,6 +346,28 @@ export interface CentralMessage {
   retryCount?: number;
 }
 
+export interface MessageComposerDraftRecipient {
+  id: string;
+  name: string;
+  phone: string;
+  role: MessageRole;
+  classId?: string;
+  classLabel?: string;
+}
+
+export interface MessageComposerDraft {
+  id: string;
+  title?: string;
+  group: 'teachers' | 'admins' | 'staff' | 'parents';
+  recipients: MessageComposerDraftRecipient[];
+  content: string;
+  linksByRecipientId?: Record<string, string>;
+  previewUrlByRecipientId?: Record<string, string>;
+  channel: 'whatsapp' | 'sms';
+  source?: MessageSource;
+  senderRole?: string;
+}
+
 export interface MessageTemplate {
   id: string;
   title: string;
