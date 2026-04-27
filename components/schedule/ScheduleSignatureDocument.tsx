@@ -148,23 +148,6 @@ const ScheduleSignatureDocument: React.FC<Props> = ({
       )}
     </div>
 
-    <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 space-y-4">
-      <p className="text-center text-sm font-black text-slate-700">اعتماد مدير المدرسة</p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-bold text-slate-400 mb-6">اسم المدير</p>
-          <div className="border-b-2 border-slate-300 h-8" />
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-bold text-slate-400 mb-6">التاريخ</p>
-          <div className="border-b-2 border-slate-300 h-8" />
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-bold text-slate-400 mb-6">التوقيع</p>
-          <div className="border-b-2 border-slate-300 h-8" />
-        </div>
-      </div>
-    </div>
   </div>
   );
 };

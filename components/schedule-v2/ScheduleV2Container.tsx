@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, PenLine, Eye, Shuffle, Sparkles, Table } from 'lucide-react';
+import { CalendarDays, PenLine, FileOutput, Shuffle, Sparkles, Table } from 'lucide-react';
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization, Student, MessageComposerDraft } from '../../types';
 import ViewTab from './tabs/ViewTab';
 import EditTab from './tabs/EditTab';
@@ -69,7 +69,7 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
     { id: 'create', label: 'إنشاء الجدول', icon: Sparkles },
     { id: 'edit', label: 'تعديل الجدول', icon: PenLine },
     { id: 'waiting', label: 'إعداد وتوزيع الانتظار', icon: Shuffle },
-    { id: 'view', label: 'طباعة وتصدير الجدول', icon: Eye },
+    { id: 'view', label: 'طباعة وإرسال وتصدير الجدول', icon: FileOutput },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
 

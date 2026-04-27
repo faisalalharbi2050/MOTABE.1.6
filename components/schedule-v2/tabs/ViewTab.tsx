@@ -589,7 +589,7 @@ const PrintWorkspace: React.FC<{
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
           >
             <Printer size={16} />
-            طباعة الآن
+            طباعة
           </button>
         </div>
         <div className="text-sm font-bold text-slate-500 order-1">
@@ -711,7 +711,7 @@ const SignaturePrintWorkspace: React.FC<{
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
           >
             <Printer size={16} />
-            طباعة الآن
+            طباعة
           </button>
         </div>
         <div className="text-sm font-bold text-slate-500">
@@ -787,7 +787,7 @@ const SignatureSummaryPrintWorkspace: React.FC<{
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
           >
             <Printer size={16} />
-            طباعة الآن
+            طباعة
           </button>
         </div>
         <div className="text-sm font-bold text-slate-500 order-1">
@@ -797,7 +797,7 @@ const SignatureSummaryPrintWorkspace: React.FC<{
 
       <div id="signature-print-root" className="bg-white p-8 space-y-6">
         {/* Ministry Header */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center border-b-2 border-slate-200 pb-5">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center border-b border-slate-200 pb-5">
           <div className="text-right space-y-1">
             <p className="text-xs font-bold text-slate-600">وزارة التعليم</p>
             <p className="text-xs font-bold text-slate-600">إدارة التعليم بمنطقة {schoolInfo.region || '—'}</p>
@@ -818,55 +818,68 @@ const SignatureSummaryPrintWorkspace: React.FC<{
         <h1 className="text-center text-xl font-black text-slate-800">تقرير تسليم الجداول للمعلمين</h1>
 
         {/* Summary stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-2xl border-2 border-slate-200 p-4 text-center">
-            <p className="text-3xl font-black text-slate-800">{requests.length}</p>
-            <p className="text-sm font-bold text-slate-500 mt-1">إجمالي المعلمين</p>
-          </div>
-          <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-center">
-            <p className="text-3xl font-black text-emerald-700">{signedCount}</p>
-            <p className="text-sm font-bold text-emerald-600 mt-1">وقّعوا</p>
-          </div>
-          <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-center">
-            <p className="text-3xl font-black text-amber-700">{pendingCount}</p>
-            <p className="text-sm font-bold text-amber-600 mt-1">لم يوقعوا بعد</p>
-          </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'إجمالي المعلمين', value: requests.length, icon: Users, color: 'text-[#655ac1]' },
+            { label: 'وقّعوا', value: signedCount, icon: CheckCircle2, color: 'text-emerald-600' },
+            { label: 'لم يوقعوا بعد', value: pendingCount, icon: AlertCircle, color: 'text-amber-500' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
+              style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div className={`flex items-center justify-center shrink-0 ${s.color}`}>
+                <s.icon size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-400 leading-none">{s.label}</p>
+                <p className="mt-1 font-black text-slate-800 text-xl leading-none">{s.value}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Table */}
-        <div className="rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
+          style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="px-6 py-4 border-b border-slate-100 bg-white">
+            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <ClipboardList size={18} className="text-[#655ac1]" />
+              سجل الاستلام
+            </p>
+          </div>
           <table className="w-full text-right" dir="rtl">
             <thead>
-              <tr className="bg-[#f4f2ff]">
-                <th className="px-4 py-3 font-black text-sm text-[#655ac1]">م</th>
-                <th className="px-4 py-3 font-black text-sm text-[#655ac1]">اسم المعلم</th>
-                <th className="px-4 py-3 font-black text-sm text-[#655ac1]">الحالة</th>
-                <th className="px-4 py-3 font-black text-sm text-[#655ac1]">تاريخ الإرسال</th>
-                <th className="px-4 py-3 font-black text-sm text-[#655ac1]">تاريخ الاستلام</th>
-                <th className="px-4 py-3 font-black text-sm text-[#655ac1] text-center">التوقيع</th>
+              <tr className="bg-slate-50/50 border-b border-slate-100">
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">م</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اسم المعلم</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">الحالة</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الإرسال</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الاستلام</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">التوقيع</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {requests.map((req, idx) => (
-                <tr key={req.token}>
-                  <td className="px-4 py-3 text-slate-400 text-sm">{idx + 1}</td>
-                  <td className="px-4 py-3 font-black text-slate-800">{req.teacherName}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black ${
-                      req.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                <tr key={req.token} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 text-slate-400 text-sm font-bold">{idx + 1}</td>
+                  <td className="px-6 py-4 font-black text-slate-800">{req.teacherName}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
+                      req.status === 'signed'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
                       {req.status === 'signed' ? 'تم التوقيع' : 'لم يوقع'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-sm">
+                  <td className="px-6 py-4 text-slate-500 text-sm">
                     {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-sm">
+                  <td className="px-6 py-4 text-slate-500 text-sm">
                     {req.signedAt
                       ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(req.signedAt))
                       : '—'}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-6 py-4 text-center">
                     {req.signatureData ? (
                       <img
                         src={req.signatureData}
@@ -881,7 +894,7 @@ const SignatureSummaryPrintWorkspace: React.FC<{
               ))}
               {requests.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-400">
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
                     لا توجد بيانات.
                   </td>
                 </tr>
@@ -890,24 +903,6 @@ const SignatureSummaryPrintWorkspace: React.FC<{
           </table>
         </div>
 
-        {/* Principal approval */}
-        <div className="rounded-2xl border-2 border-slate-200 p-5 space-y-4">
-          <p className="text-center text-sm font-black text-slate-700">اعتماد مدير المدرسة</p>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold text-slate-400 mb-6">اسم المدير</p>
-              <div className="border-b-2 border-slate-300 h-8" />
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold text-slate-400 mb-6">التاريخ</p>
-              <div className="border-b-2 border-slate-300 h-8" />
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold text-slate-400 mb-6">التوقيع</p>
-              <div className="border-b-2 border-slate-300 h-8" />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -952,6 +947,7 @@ const ViewTab: React.FC<Props> = ({
   const [isSendingNow, setIsSendingNow] = useState(false);
   const [modalMessageContent, setModalMessageContent] = useState('');
   const [sigFilter, setSigFilter] = useState<'all' | 'signed' | 'pending'>('all');
+  const [sigSearch, setSigSearch] = useState('');
   const [sigReceiptRequests, setSigReceiptRequests] = useState<ScheduleSignatureRequest[]>(() => readScheduleSignatureRequests());
   const [sigReceiptModalOpen, setSigReceiptModalOpen] = useState(false);
   const [summaryPrintRequests, setSummaryPrintRequests] = useState<ScheduleSignatureRequest[] | null>(null);
@@ -1101,29 +1097,18 @@ const ViewTab: React.FC<Props> = ({
   }, [sendAudience, sendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, selectedSendClassIds]);
 
   useEffect(() => {
-    const mixedStaffMode = safeSendAudience === 'teachers_admins';
-    const signatureMode = safeSendScheduleType === 'individual_teacher' && safeSendAudience === 'teachers';
     const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
     const now = new Date();
-    const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
     const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
-    const timeLabel = new Intl.DateTimeFormat('ar-SA', { timeStyle: 'short' }).format(now);
-    const intro = mixedStaffMode
-      ? `{اسم_المعلم}، نرفق لكم روابط الجداول للاطلاع، وللمعلمين يكون الرابط مخصصًا للتوقيع الإلكتروني بالاستلام.`
-      : signatureMode
-      ? `{اسم_المعلم}، نرفق لكم جدولكم المدرسي للاطلاع والتوقيع الإلكتروني بالاستلام.`
-      : safeSendAudience === 'guardians'
-        ? `ولي أمر الطالب/ـة {اسم_الطالب}، نرفق لكم روابط الجداول للاطلاع.`
-        : `{اسم_${safeSendAudience === 'admins' ? 'الإداري' : 'المعلم'}}، نرفق لكم روابط الجداول للاطلاع.`;
+    const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === safeSendScheduleType)?.label || 'الجدول';
+    const recipientName = safeSendAudience === 'guardians'
+      ? 'ولي أمر الطالب/ـة {اسم_الطالب}'
+      : safeSendAudience === 'admins'
+        ? '{اسم_الإداري}'
+        : '{اسم_المعلم}';
     setModalMessageContent([
-      intro,
-      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'}`,
-      `العام الدراسي: ${schoolInfo.academicYear || '-'}`,
-      `الفصل الدراسي: ${currentSemester?.name || '-'}`,
-      `اليوم: ${dayLabel}`,
-      `التاريخ: ${dateLabel}`,
-      `الوقت: ${timeLabel}`,
-      '{روابط_الجداول}',
+      `${recipientName}، نرفق لكم رابط ${scheduleTypeLabel} للعلم والاطلاع.`,
+      `${schoolInfo.schoolName || 'المدرسة'} ، ${schoolInfo.academicYear || '-'} ، ${currentSemester?.name || '-'} ، ${dateLabel} ، {روابط_الجداول}`,
     ].join('\n'));
   }, [safeSendScheduleType, safeSendAudience, schoolInfo]);
 
@@ -1464,9 +1449,7 @@ const ViewTab: React.FC<Props> = ({
 
     const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
     const now = new Date();
-    const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
     const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
-    const timeLabel = new Intl.DateTimeFormat('ar-SA', { timeStyle: 'short' }).format(now);
     const linksByRecipientId = Object.fromEntries(
       Array.from(recipientMap.values()).map(({ recipient, links: recipientLinks }) => {
         return [recipient.id, recipientLinks.length === 1
@@ -1493,23 +1476,15 @@ const ViewTab: React.FC<Props> = ({
       sendAudience === 'teachers' ? 'teachers' :
       sendAudience === 'admins' ? 'admins' :
       'parents';
-    const signatureMode = sendScheduleType === 'individual_teacher' && sendAudience === 'teachers';
-    const mixedStaffMode = sendAudience === 'teachers_admins';
+    const schedTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
+    const recipientName = sendAudience === 'guardians'
+      ? 'ولي أمر الطالب/ـة {اسم_الطالب}'
+      : sendAudience === 'admins'
+        ? '{اسم_الإداري}'
+        : '{اسم_المعلم}';
     const content = [
-      mixedStaffMode
-        ? `{اسم_المعلم}، نرفق لكم روابط الجداول للاطلاع، وللمعلمين يكون الرابط مخصصًا للتوقيع الإلكتروني بالاستلام.`
-        : signatureMode
-        ? `{اسم_المعلم}، نرفق لكم جدولكم المدرسي للاطلاع والتوقيع الإلكتروني بالاستلام.`
-        : sendAudience === 'guardians'
-          ? `ولي أمر الطالب/ـة {اسم_الطالب}، نرفق لكم روابط الجداول للاطلاع.`
-          : `{اسم_${sendAudience === 'admins' ? 'الإداري' : 'المعلم'}}، نرفق لكم روابط الجداول للاطلاع.`,
-      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'}`,
-      `العام الدراسي: ${schoolInfo.academicYear || '-'}`,
-      `الفصل الدراسي: ${currentSemester?.name || '-'}`,
-      `اليوم: ${dayLabel}`,
-      `التاريخ: ${dateLabel}`,
-      `الوقت: ${timeLabel}`,
-      '{روابط_الجداول}',
+      `${recipientName}، نرفق لكم رابط ${schedTypeLabel} للعلم والاطلاع.`,
+      `${schoolInfo.schoolName || 'المدرسة'} ، ${schoolInfo.academicYear || '-'} ، ${currentSemester?.name || '-'} ، ${dateLabel} ، {روابط_الجداول}`,
     ].join('\n');
 
     return {
@@ -1759,6 +1734,227 @@ const ViewTab: React.FC<Props> = ({
     );
   }
 
+  if (sigReceiptModalOpen) {
+    const filteredReceipts = sigReceiptRequests.filter(r =>
+      (sigFilter === 'all' || r.status === sigFilter) &&
+      (sigSearch.trim() === '' || r.teacherName.includes(sigSearch.trim()))
+    );
+    const signedCount = sigReceiptRequests.filter(r => r.status === 'signed').length;
+    const pendingCount = sigReceiptRequests.filter(r => r.status === 'pending').length;
+
+    return (
+      <div className="space-y-5" dir="rtl">
+        {/* Header */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام الجداول</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {signedCount} وقّع من أصل {sigReceiptRequests.length} معلم
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSigReceiptModalOpen(false)}
+              className={actionButtonClass(false)}
+            >
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'إجمالي المعلمين', value: String(sigReceiptRequests.length), icon: Users },
+            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يوقعوا بعد', value: String(pendingCount), icon: AlertCircle },
+          ].map((s, i) => (
+            <div
+              key={i}
+              className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
+              style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}
+            >
+              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+                <s.icon size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-400 leading-none">{s.label}</p>
+                <p className="mt-1 font-black text-slate-800 text-xl leading-none">{s.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters & Actions */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
+            {(['all', 'signed', 'pending'] as const).map(f => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setSigFilter(f)}
+                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                  sigFilter === f
+                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                }`}
+              >
+                {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقع'}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setSigReceiptRequests(readScheduleSignatureRequests())}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+            >
+              <RefreshCw size={13} />
+              تحديث
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (filteredReceipts.length > 0) setSummaryPrintRequests(filteredReceipts);
+                else showToast('لا توجد بيانات للطباعة.');
+              }}
+              disabled={sigReceiptRequests.length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
+            >
+              <Printer size={13} />
+              طباعة التقرير
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const ids = filteredReceipts.map(r => r.teacherId).filter(Boolean);
+                if (ids.length > 0) setSignaturePrintTeacherIds(ids);
+                else showToast('لا توجد نماذج للطباعة.');
+              }}
+              disabled={sigReceiptRequests.length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
+            >
+              <Printer size={13} />
+              طباعة النماذج
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
+          style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
+            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <ClipboardList size={18} className="text-[#655ac1]" />
+              سجل الاستلام
+            </p>
+            <div className="relative w-56">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={sigSearch}
+                onChange={e => setSigSearch(e.target.value)}
+                placeholder="ابحث عن معلم..."
+                className="w-full pr-8 pl-7 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl"
+              />
+              {sigSearch && (
+                <button
+                  type="button"
+                  onClick={() => setSigSearch('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+          {sigReceiptRequests.length === 0 ? (
+            <div className="py-16 text-center">
+              <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
+              <p className="text-sm font-bold text-slate-400">لا توجد جداول مُرسلة للتوقيع بعد.</p>
+              <p className="text-xs text-slate-400 mt-1">أرسل جدول معلم لتظهر هنا بيانات الاستلام.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-right" dir="rtl">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">م</th>
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اسم المعلم</th>
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">الحالة</th>
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الإرسال</th>
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ التوقيع</th>
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredReceipts.map((req, idx) => (
+                    <tr key={req.token} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 text-slate-400 text-sm font-bold">{idx + 1}</td>
+                      <td className="px-6 py-4 font-black text-slate-800">{req.teacherName}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
+                          req.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
+                          {req.status === 'signed' ? 'وقّع' : 'لم يوقع'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 text-sm">
+                        {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 text-sm">
+                        {req.signedAt
+                          ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(req.signedAt))
+                          : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => window.open(buildScheduleSignatureLink(window.location.origin + window.location.pathname, req.token), '_blank')}
+                            title="معاينة النموذج"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+                          >
+                            <Eye size={13} />
+                            معاينة
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setSignaturePrintTeacherIds([req.teacherId]); }}
+                            title="طباعة النموذج"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+                          >
+                            <Printer size={13} />
+                            طباعة
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredReceipts.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                        لا توجد نتائج تطابق الفلتر.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {toast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-xl font-bold shadow-2xl bg-emerald-500 text-white animate-in slide-in-from-bottom-5">
+            {toast}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5" dir="rtl">
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
@@ -1768,32 +1964,37 @@ const ViewTab: React.FC<Props> = ({
             { id: 'send' as TaskMode, label: 'إرسال', icon: Send },
             { id: 'export' as TaskMode, label: 'تصدير', icon: FileDown },
           ].map(option => (
-            <React.Fragment key={option.id}>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  setTaskMode(option.id);
-                  setGeneratedLinks([]);
-                }}
-                className={actionButtonClass(taskMode === option.id)}
-              >
-                <option.icon size={17} />
-                {option.label}
-              </button>
-              {option.id === 'export' && (
-                <button
-                  type="button"
-                  onClick={onOpenMessagesArchive}
-                  disabled={!onOpenMessagesArchive}
-                  className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <Archive size={17} />
-                  أرشيف الرسائل
-                </button>
-              )}
-            </React.Fragment>
+            <button
+              key={option.id}
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                setTaskMode(option.id);
+                setGeneratedLinks([]);
+              }}
+              className={actionButtonClass(taskMode === option.id)}
+            >
+              <option.icon size={17} />
+              {option.label}
+            </button>
           ))}
+          <button
+            type="button"
+            onClick={() => { setSigReceiptRequests(readScheduleSignatureRequests()); setSigReceiptModalOpen(true); }}
+            className={actionButtonClass(false)}
+          >
+            <ClipboardList size={17} />
+            سجل استلام الجداول
+          </button>
+          <button
+            type="button"
+            onClick={onOpenMessagesArchive}
+            disabled={!onOpenMessagesArchive}
+            className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <Archive size={17} />
+            أرشيف الرسائل
+          </button>
         </div>
       </div>
 
@@ -1802,10 +2003,10 @@ const ViewTab: React.FC<Props> = ({
           <div className="px-1">
             <h3 className="font-black text-slate-800 text-lg">الطباعة</h3>
           </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
 
             {/* بطاقة نوع الجدول */}
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[320px]">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[300px]">
               <div className="flex items-center justify-start gap-3 mb-2">
                 <CalendarDays size={20} className="text-[#655ac1]" />
                 <h4 className="font-black text-slate-800">نوع الجدول</h4>
@@ -1854,7 +2055,7 @@ const ViewTab: React.FC<Props> = ({
 
             {/* بطاقة تخصيص الطباعة (عامة) + زر طباعة */}
             {isPrintGeneral && (
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[320px] flex flex-col">
+              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[300px] flex flex-col">
                 <div className="flex items-center justify-start gap-3 mb-2">
                   <SlidersHorizontal size={20} className="text-[#655ac1]" />
                   <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
@@ -1880,9 +2081,9 @@ const ViewTab: React.FC<Props> = ({
                 </div>
                 <button
                   onClick={handlePrint}
-                  className="mt-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
+                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
                 >
-                  <Printer size={16} />
+                  <Printer size={15} />
                   طباعة
                 </button>
               </div>
@@ -1890,7 +2091,7 @@ const ViewTab: React.FC<Props> = ({
 
             {/* بطاقة تخصيص الطباعة (فردية) + زر طباعة */}
             {(printScheduleType === 'individual_teacher' || printScheduleType === 'individual_class') && (
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[320px] flex flex-col">
+              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[300px] flex flex-col">
                 <div className="flex items-center justify-start gap-3 mb-2">
                   <SlidersHorizontal size={20} className="text-[#655ac1]" />
                   <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
@@ -1914,51 +2115,51 @@ const ViewTab: React.FC<Props> = ({
                 </div>
                 <button
                   onClick={handlePrint}
-                  className="mt-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
+                  className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
                 >
-                  <Printer size={16} />
+                  <Printer size={15} />
                   طباعة
                 </button>
               </div>
             )}
 
-          </div>
-
-          {/* نموذج تسليم جدول معلم للتوقيع */}
-          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-start gap-3 mb-2">
-              <CheckCircle2 size={20} className="text-[#655ac1]" />
-              <h4 className="font-black text-slate-800">نموذج تسليم جدول معلم للتوقيع</h4>
-            </div>
-            <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اطبع نموذج التسليم الورقي الرسمي لمعلم واحد أو عدة معلمين أو جميع المعلمين.
-            </p>
-            <div className="space-y-4">
-              <MultiSelectDropdown
-                label="المعلمون"
-                buttonLabel="اختر المعلمين"
-                selectedSummary={selectedDeliveryTeacherIds.length > 0 ? `${selectedDeliveryTeacherIds.length} معلمين محددين` : undefined}
-                options={teacherOptions}
-                selectedValues={selectedDeliveryTeacherIds}
-                onToggle={value => setSelectedDeliveryTeacherIds(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])}
-                onClear={() => setSelectedDeliveryTeacherIds([])}
-                onSelectAll={() => setSelectedDeliveryTeacherIds(teachers.map(item => item.id))}
-                searchable
-                dropdownPlacement="top"
-              />
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-[#655ac1] leading-6 flex items-center gap-2">
-                <AlertCircle size={16} className="text-[#655ac1] shrink-0" />
-                <span>سيتم طباعة نموذج مستقل لكل معلم يحتوي على جدول المعلم وبياناته والتوقيع بالاستلام</span>
+            {/* بطاقة نموذج تسليم جدول معلم للتوقيع */}
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm min-h-[300px] flex flex-col">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <CheckCircle2 size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">نموذج تسليم جدول معلم للتوقيع</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                اطبع نموذج التسليم الورقي الرسمي لمعلم واحد أو عدة معلمين أو جميع المعلمين.
+              </p>
+              <div className="space-y-4 flex-1">
+                <MultiSelectDropdown
+                  label="المعلمون"
+                  buttonLabel="اختر المعلمين"
+                  selectedSummary={selectedDeliveryTeacherIds.length > 0 ? `${selectedDeliveryTeacherIds.length} معلمين محددين` : undefined}
+                  options={teacherOptions}
+                  selectedValues={selectedDeliveryTeacherIds}
+                  onToggle={value => setSelectedDeliveryTeacherIds(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])}
+                  onClear={() => setSelectedDeliveryTeacherIds([])}
+                  onSelectAll={() => setSelectedDeliveryTeacherIds(teachers.map(item => item.id))}
+                  searchable
+                  dropdownPlacement="top"
+                />
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-[#655ac1] leading-6 flex items-center gap-2">
+                  <AlertCircle size={16} className="text-[#655ac1] shrink-0" />
+                  <span>سيتم طباعة نموذج مستقل لكل معلم يحتوي على جدول المعلم وبياناته والتوقيع بالاستلام</span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={handlePrintDeliveryForms}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
+                className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
               >
-                <Printer size={16} />
+                <Printer size={15} />
                 طباعة نموذج التسليم
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -1968,7 +2169,6 @@ const ViewTab: React.FC<Props> = ({
         <div className="space-y-4">
           <div className="px-1">
             <h3 className="font-black text-slate-800 text-lg">إرسال الجداول</h3>
-            <p className="text-xs font-bold text-slate-500 mt-1">حدّد نوع الجدول والجهة المستهدفة، ثم اضغط إرسال.</p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 
@@ -2100,122 +2300,48 @@ const ViewTab: React.FC<Props> = ({
                   <Eye size={20} className="text-[#655ac1]" />
                   <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={openFirstGeneratedModel}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-slate-50 hover:border-[#cfc8ff] transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
                   >
                     <Eye size={15} />
                     معاينة النموذج
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowRecipientsModal(true)}
+                    onClick={() => {
+                      if (!validateSendSelection()) return;
+                      const links = generatedLinks.length > 0 ? generatedLinks : createGeneratedLinks();
+                      setGeneratedLinks(links);
+                      setShowRecipientsModal(true);
+                    }}
                     disabled={selectedRecipients.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-slate-50 hover:border-[#cfc8ff] transition-all disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50"
                   >
                     <Users size={15} />
                     معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
                   </button>
-                  {generatedLinks.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={copyAllLinks}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-slate-50 hover:border-[#cfc8ff] transition-all"
-                    >
-                      <Copy size={15} />
-                      نسخ جميع الروابط
-                    </button>
-                  )}
                 </div>
-                {generatedLinks.length > 0 ? (
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                    <table className="w-full text-right" dir="rtl">
-                      <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-100">
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">الجدول</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">النموذج</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">الرابط</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">إجراءات</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {generatedLinks.map(link => (
-                          <tr key={link.url} className="hover:bg-slate-50 transition-all">
-                            <td className="px-4 py-3">
-                              <div className="font-bold text-xs text-slate-800">{link.targetLabel}</div>
-                              <div className="text-[10px] font-bold text-slate-400 mt-0.5">{link.label}</div>
-                            </td>
-                            <td className="px-4 py-3 text-center text-[11px] font-bold text-slate-600">
-                              {link.teacherId ? 'توقيع إلكتروني' : 'اطلاع فقط'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div dir="ltr" className="max-w-[160px] mx-auto rounded-xl border border-slate-200 bg-white px-2 py-1 text-[10px] font-mono text-slate-400 truncate">
-                                {link.url}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  onClick={() => window.open(link.url, '_blank')}
-                                  title="معاينة"
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-all"
-                                >
-                                  <Eye size={12} className="text-[#655ac1]" />
-                                </button>
-                                <button
-                                  onClick={() => copyToClipboard(link.url)}
-                                  title="نسخ"
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-all"
-                                >
-                                  <Copy size={12} className="text-[#655ac1]" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
-                    <p className="text-xs font-bold text-slate-400">ستظهر الروابط هنا بعد الإرسال</p>
-                  </div>
-                )}
               </div>
 
-              {/* بطاقة: نص الرسالة + جدولة الإرسال */}
+              {/* بطاقة: نص الرسالة + جدولة الإرسال + زر إرسال */}
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <MessageSquare size={20} className="text-[#655ac1]" />
-                    <h4 className="font-black text-slate-800">نص الرسالة</h4>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSigReceiptRequests(readScheduleSignatureRequests()); setSigReceiptModalOpen(true); }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:bg-slate-50 hover:border-[#cfc8ff] transition-all"
-                  >
-                    <ClipboardList size={14} />
-                    سجل استلام الجداول
-                    {sigReceiptRequests.length > 0 && (
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black">
-                        {sigReceiptRequests.filter(r => r.status === 'signed').length}/{sigReceiptRequests.length}
-                      </span>
-                    )}
-                  </button>
+                <div className="flex items-center gap-3 mb-4">
+                  <MessageSquare size={20} className="text-[#655ac1]" />
+                  <h4 className="font-black text-slate-800">نص الرسالة</h4>
                 </div>
                 <textarea
                   value={modalMessageContent}
                   onChange={e => setModalMessageContent(e.target.value)}
-                  rows={8}
+                  rows={5}
                   className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors mb-2"
                   placeholder="نص الرسالة..."
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <CalendarClock size={16} className="text-[#655ac1]" />
@@ -2254,20 +2380,18 @@ const ViewTab: React.FC<Props> = ({
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={handleSendDirectly}
+                  disabled={isSendingNow}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSendingNow ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  {isSendingNow ? 'جارٍ الإرسال...' : `إرسال عبر ${sendChannelLabel}`}
+                </button>
               </div>
             </div>
           </div>
-
-          {/* زر الإرسال */}
-          <button
-            type="button"
-            onClick={handleSendDirectly}
-            disabled={isSendingNow}
-            className="w-full bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white py-4 rounded-[1.5rem] font-black text-base hover:shadow-lg hover:shadow-[#655ac1]/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
-          >
-            {isSendingNow ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-            {isSendingNow ? 'جارٍ الإرسال...' : `إرسال عبر ${sendChannelLabel}`}
-          </button>
 
           {/* نتائج الإرسال المباشر */}
           {sendModalResults.length > 0 && (
@@ -2300,43 +2424,60 @@ const ViewTab: React.FC<Props> = ({
       )}
 
       {taskMode === 'export' && (
-        <TaskPanel
-          icon={taskModeMeta.export.icon}
-          title={taskModeMeta.export.title}
-          description={taskModeMeta.export.description}
-        >
-          <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50/55 p-5">
-            <div className="flex flex-wrap items-end gap-4">
-            <SingleSelectDropdown
-              label="الجدول المراد تصديره إلى Excel"
-              value={exportScheduleType}
-              onChange={value => setExportScheduleType(value as ScheduleType)}
-              placeholder="اختر الجدول"
-              options={scheduleTypeOptions}
-            />
-            <button
-              onClick={handleExportExcel}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#655ac1] text-white font-black shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
-            >
-              <FileSpreadsheet size={16} />
-              تصدير Excel
-            </button>
+        <div className="space-y-4">
+          <div className="px-1">
+            <h3 className="font-black text-slate-800 text-lg">تصدير</h3>
           </div>
-          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
 
-          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-sm font-black text-slate-800">تصدير XML</p>
+            {/* بطاقة تصدير Excel */}
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm flex flex-col min-h-[240px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <FileSpreadsheet size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">تصدير الجدول EXCEL</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                صدّر بيانات الجدول إلى ملف Excel جاهز للفتح والتعديل.
+              </p>
+              <div className="[&_label]:hidden mb-5">
+                <SingleSelectDropdown
+                  label="الجدول"
+                  value={exportScheduleType}
+                  onChange={value => setExportScheduleType(value as ScheduleType)}
+                  placeholder="اختر الجدول"
+                  options={scheduleTypeOptions}
+                />
+              </div>
+              <button
+                onClick={handleExportExcel}
+                className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+              >
+                <FileSpreadsheet size={15} />
+                تصدير EXCEL
+              </button>
             </div>
-            <button
-              onClick={handleExportXML}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-[#655ac1] border-2 border-slate-200 font-black hover:bg-slate-50 hover:border-[#cfc8ff] transition-all"
-            >
-              <FileCode2 size={16} />
-              تصدير XML
-            </button>
+
+            {/* بطاقة تصدير XML */}
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm flex flex-col min-h-[240px]">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                <FileCode2 size={20} className="text-[#655ac1]" />
+                <h4 className="font-black text-slate-800">تصدير الجدول XML</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                صدّر بيانات الجدول بصيغة XML لاستخدامها في أنظمة خارجية.
+              </p>
+              <div className="flex-1" />
+              <button
+                onClick={handleExportXML}
+                className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+              >
+                <FileCode2 size={15} />
+                تصدير XML
+              </button>
+            </div>
+
           </div>
-        </TaskPanel>
+        </div>
       )}
 
       {taskMode === 'send' && generatedLinks.length > 0 && showLinkDetails && (
@@ -2444,187 +2585,6 @@ const ViewTab: React.FC<Props> = ({
 
 
 
-      {sigReceiptModalOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" dir="rtl">
-          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-2xl flex flex-col overflow-hidden">
-            <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center">
-                  <ClipboardList size={20} />
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-800">سجل استلام الجداول</h3>
-                  <p className="text-xs text-slate-500">
-                    {sigReceiptRequests.filter(r => r.status === 'signed').length} وقّع من أصل {sigReceiptRequests.length} معلم
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSigReceiptModalOpen(false)}
-                className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors flex items-center justify-center"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
-                  <p className="text-2xl font-black text-slate-800">{sigReceiptRequests.length}</p>
-                  <p className="text-xs text-slate-500 mt-1">إجمالي المعلمين</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-                  <p className="text-2xl font-black text-emerald-800">{sigReceiptRequests.filter(r => r.status === 'signed').length}</p>
-                  <p className="text-xs text-emerald-600 mt-1">وقّعوا</p>
-                </div>
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-center">
-                  <p className="text-2xl font-black text-amber-800">{sigReceiptRequests.filter(r => r.status === 'pending').length}</p>
-                  <p className="text-xs text-amber-600 mt-1">لم يوقعوا بعد</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {(['all', 'signed', 'pending'] as const).map(f => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setSigFilter(f)}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-black transition-all ${
-                      sigFilter === f
-                        ? 'bg-[#655ac1] text-white border-[#655ac1]'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-[#cfc8ff]'
-                    }`}
-                  >
-                    {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقع'}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setSigReceiptRequests(readScheduleSignatureRequests())}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:bg-slate-50 transition-all"
-                >
-                  <RefreshCw size={13} />
-                  تحديث
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const filtered = sigReceiptRequests.filter(r => sigFilter === 'all' || r.status === sigFilter);
-                    setSigReceiptModalOpen(false);
-                    if (filtered.length > 0) setSummaryPrintRequests(filtered);
-                    else showToast('لا توجد بيانات للطباعة.');
-                  }}
-                  disabled={sigReceiptRequests.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#c4b8f8] bg-[#f8f7ff] text-[#655ac1] text-xs font-black hover:bg-[#eeebff] transition-all disabled:opacity-50"
-                >
-                  <Printer size={13} />
-                  طباعة التقرير
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const filtered = sigReceiptRequests.filter(r => sigFilter === 'all' || r.status === sigFilter);
-                    const ids = filtered.map(r => r.teacherId).filter(Boolean);
-                    setSigReceiptModalOpen(false);
-                    if (ids.length > 0) setSignaturePrintTeacherIds(ids);
-                    else showToast('لا توجد نماذج للطباعة.');
-                  }}
-                  disabled={sigReceiptRequests.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:bg-slate-50 transition-all disabled:opacity-50"
-                >
-                  <Printer size={13} />
-                  طباعة النماذج
-                </button>
-              </div>
-
-              {sigReceiptRequests.length === 0 ? (
-                <div className="py-12 text-center text-sm font-medium text-slate-400">
-                  لا توجد جداول مُرسلة للتوقيع بعد.<br />أرسل جدول معلم لتظهر هنا بيانات الاستلام.
-                </div>
-              ) : (() => {
-                const filtered = sigReceiptRequests.filter(r => sigFilter === 'all' || r.status === sigFilter);
-                return (
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                    <table className="w-full min-w-[600px] text-right" dir="rtl">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100">
-                          <th className="px-4 py-3 font-black text-slate-500 text-xs">م</th>
-                          <th className="px-4 py-3 font-black text-slate-500 text-xs">اسم المعلم</th>
-                          <th className="px-4 py-3 font-black text-slate-500 text-xs">الحالة</th>
-                          <th className="px-4 py-3 font-black text-slate-500 text-xs">تاريخ الإرسال</th>
-                          <th className="px-4 py-3 font-black text-slate-500 text-xs">تاريخ التوقيع</th>
-                          <th className="px-4 py-3 font-black text-slate-500 text-xs text-center">إجراءات</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filtered.map((req, idx) => (
-                          <tr key={req.token} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-slate-400 text-sm">{idx + 1}</td>
-                            <td className="px-4 py-3 font-black text-slate-800">{req.teacherName}</td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
-                                req.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                              }`}>
-                                {req.status === 'signed' ? 'وقّع' : 'لم يوقع'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 text-sm">
-                              {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 text-sm">
-                              {req.signedAt
-                                ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(req.signedAt))
-                                : '-'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => window.open(buildScheduleSignatureLink(window.location.origin + window.location.pathname, req.token), '_blank')}
-                                  title="معاينة نموذج التوقيع"
-                                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[#655ac1] transition-all"
-                                >
-                                  <Eye size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => { setSigReceiptModalOpen(false); setSignaturePrintTeacherIds([req.teacherId]); }}
-                                  title="طباعة نموذج المعلم"
-                                  className="w-8 h-8 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all"
-                                >
-                                  <Printer size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {filtered.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-sm font-medium text-slate-400">
-                              لا توجد نتائج تطابق الفلتر.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div className="p-5 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setSigReceiptModalOpen(false)}
-                className="w-full px-6 py-3 rounded-2xl border border-slate-200 bg-white text-slate-700 font-black text-sm hover:bg-slate-50 transition-all"
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {sendModalOpen && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 bg-slate-900/50 backdrop-blur-sm" dir="rtl">
@@ -2896,41 +2856,88 @@ const ViewTab: React.FC<Props> = ({
         document.body
       )}
 
-      {showRecipientsModal && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-black text-slate-800">المستلمون</h3>
-                <p className="text-xs font-bold text-slate-400 mt-1">{selectedRecipients.length} مستلم محدد</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowRecipientsModal(false)}
-                className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-              >
-                ×
-              </button>
-            </div>
-            <div className="max-h-[58vh] overflow-y-auto divide-y divide-slate-100">
-              {selectedRecipients.length === 0 ? (
-                <div className="p-8 text-center text-sm font-bold text-slate-400">لم يتم اختيار مستلمين بعد.</div>
-              ) : selectedRecipients.map(recipient => (
-                <div key={`${recipient.role}-${recipient.id}`} className="px-5 py-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-black text-slate-800">{recipient.name}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">
-                      {recipient.role === 'teacher' ? 'معلم' : recipient.role === 'admin' ? 'إداري' : 'ولي أمر'}
-                      {recipient.classLabel ? ` • ${recipient.classLabel}` : ''}
-                    </p>
-                  </div>
-                  <p className="text-xs font-bold text-slate-500" dir="ltr">{recipient.phone || 'بدون رقم'}</p>
+      {showRecipientsModal && (() => {
+        const now = new Date();
+        const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
+        const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
+        const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === safeSendScheduleType)?.label || '';
+        return (
+          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+            <div className="w-full max-w-4xl h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+                <div>
+                  <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
+                  <p className="text-xs font-bold text-slate-400 mt-1">{generatedLinks.length} رابط • {scheduleTypeLabel}</p>
                 </div>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setShowRecipientsModal(false)}
+                  className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {generatedLinks.length === 0 ? (
+                  <div className="p-10 text-center text-sm font-bold text-slate-400">لم يتم اختيار مستلمين بعد.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-right" dir="rtl">
+                      <thead className="sticky top-0">
+                        <tr className="bg-[#f4f2ff] border-b border-[#e5e1fe]">
+                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">اليوم</th>
+                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">التاريخ</th>
+                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">المستلم</th>
+                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">نوع الجدول</th>
+                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">الرابط</th>
+                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {generatedLinks.map(link => (
+                          <tr key={link.url} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 text-slate-600 text-sm font-bold">{dayLabel}</td>
+                            <td className="px-4 py-3 text-slate-600 text-sm font-bold">{dateLabel}</td>
+                            <td className="px-4 py-3 font-black text-slate-800">{link.targetLabel}</td>
+                            <td className="px-4 py-3 text-slate-600 text-sm font-bold">{scheduleTypeLabel}</td>
+                            <td className="px-4 py-3">
+                              <div dir="ltr" className="max-w-[180px] rounded-xl border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-400 truncate">
+                                {link.url}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => window.open(link.url, '_blank')}
+                                  title="عرض النموذج"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+                                >
+                                  <Eye size={12} />
+                                  عرض
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(link.url)}
+                                  title="نسخ الرابط"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+                                >
+                                  <Copy size={12} />
+                                  نسخ
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-xl font-bold shadow-2xl bg-emerald-500 text-white animate-in slide-in-from-bottom-5">
