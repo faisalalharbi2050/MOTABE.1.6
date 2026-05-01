@@ -204,13 +204,21 @@ interface DailyWaitingProps {
   subjects: Subject[];
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
+  embeddedSection?: 'register' | 'distribute' | 'balance' | 'printsend' | 'reports';
+  onSectionExit?: () => void;
+  onGoToPrintSend?: () => void;
 }
 
 // ===== Main Component =====
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
-  teachers, admins, classes, subjects, schoolInfo, scheduleSettings
+  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, embeddedSection, onSectionExit, onGoToPrintSend
 }) => {
   const { sendMessage } = useMessageArchive();
+  // ===== Embedded section flags =====
+  const isEmbedded = !!embeddedSection;
+  const isRegister = embeddedSection === 'register';
+  const isDistribute = embeddedSection === 'distribute';
+  const isPrintSend = embeddedSection === 'printsend';
   // ===== State =====
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
   const [sessions, setSessions] = useState<DailyWaitingSession[]>(() => {
@@ -842,6 +850,147 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     setTimeout(() => setToast(null), 4500);
   };
 
+  // ===== Embedded inline-table state =====
+  const [embTableSearch, setEmbTableSearch] = useState('');
+  const [embAbsentsOnly, setEmbAbsentsOnly] = useState(false);
+
+  // ===== Auto-open modals for balance / reports embedded sections =====
+  const [autoOpenedKey, setAutoOpenedKey] = useState<'balance' | 'reports' | null>(null);
+  useEffect(() => {
+    if (embeddedSection === 'balance' && autoOpenedKey !== 'balance') {
+      setResetConfirmStep('idle');
+      setShowBalanceModal(true);
+      setAutoOpenedKey('balance');
+    } else if (embeddedSection === 'reports' && autoOpenedKey !== 'reports') {
+      setShowReportsModal(true);
+      setAutoOpenedKey('reports');
+    } else if (!embeddedSection || (embeddedSection !== 'balance' && embeddedSection !== 'reports')) {
+      setAutoOpenedKey(null);
+    }
+  }, [embeddedSection]);
+
+  useEffect(() => {
+    if (autoOpenedKey === 'balance' && !showBalanceModal) {
+      setAutoOpenedKey(null);
+      onSectionExit?.();
+    }
+  }, [showBalanceModal, autoOpenedKey, onSectionExit]);
+
+  useEffect(() => {
+    if (autoOpenedKey === 'reports' && !showReportsModal) {
+      setAutoOpenedKey(null);
+      onSectionExit?.();
+    }
+  }, [showReportsModal, autoOpenedKey, onSectionExit]);
+
+  // Build / replace an absent record from inline controls
+  const setTeacherAbsenceInline = (teacher: Teacher, type: 'none' | 'full' | 'partial', selectedPeriods: number[] = []) => {
+    if (type === 'none') {
+      const existing = currentSession?.absentTeachers.find(a => a.teacherId === teacher.id);
+      if (existing) {
+        const removedAssignments = (currentSession?.assignments || []).filter(
+          a => a.absentTeacherId === existing.id && !a.isSwap
+        );
+        if (removedAssignments.length > 0) {
+          setWeeklyQuota(prev => {
+            const newCounts = { ...prev.counts };
+            for (const asgn of removedAssignments) {
+              newCounts[asgn.substituteTeacherId] = Math.max(0, (newCounts[asgn.substituteTeacherId] || 0) - 1);
+            }
+            return { ...prev, counts: newCounts };
+          });
+        }
+        updateSession(selectedDate, s => ({
+          ...s,
+          absentTeachers: s.absentTeachers.filter(a => a.id !== existing.id),
+          assignments: s.assignments.filter(a => a.absentTeacherId !== existing.id),
+        }));
+      }
+      return;
+    }
+
+    const allDaySchedule = getTeacherDaySchedule(teacher.id, dayKey);
+    const periodCount = schoolInfo.timing?.periodCounts?.[dayKey] || 7;
+    let periods: AbsentPeriodEntry[];
+    if (type === 'full') {
+      periods = allDaySchedule.length > 0 ? allDaySchedule : Array.from(
+        { length: periodCount },
+        (_, i) => ({
+          periodNumber: i + 1, classId: '', className: '(غير محدد)',
+          subjectId: teacher.assignedSubjectId || '',
+          subjectName: subjects.find(s => s.id === teacher.assignedSubjectId)?.name || 'الحصة',
+        })
+      );
+    } else {
+      const sortedPeriods = [...selectedPeriods].sort((a, b) => a - b);
+      const fromSchedule = allDaySchedule.filter(p => sortedPeriods.includes(p.periodNumber));
+      periods = fromSchedule.length > 0 && fromSchedule.length === sortedPeriods.length
+        ? fromSchedule
+        : sortedPeriods.map(p => {
+            const matched = allDaySchedule.find(s => s.periodNumber === p);
+            return matched || ({
+              periodNumber: p, classId: '', className: '(غير محدد)',
+              subjectId: teacher.assignedSubjectId || '',
+              subjectName: subjects.find(s => s.id === teacher.assignedSubjectId)?.name || 'الحصة',
+            });
+          });
+    }
+
+    const swapCandidates: Record<number, SwapCandidate[]> = {};
+    if (type === 'partial') {
+      const currentAbsentPlusSelf = new Set([...absentTeacherIds, teacher.id]);
+      for (const period of periods) {
+        const candidates = findSwapCandidates(teacher.id, period, dayKey, currentAbsentPlusSelf);
+        if (candidates.length > 0) swapCandidates[period.periodNumber] = candidates;
+      }
+    }
+
+    const existing = currentSession?.absentTeachers.find(a => a.teacherId === teacher.id);
+    if (existing) {
+      const removedAssignments = (currentSession?.assignments || []).filter(
+        a => a.absentTeacherId === existing.id && !a.isSwap
+      );
+      if (removedAssignments.length > 0) {
+        setWeeklyQuota(prev => {
+          const newCounts = { ...prev.counts };
+          for (const asgn of removedAssignments) {
+            newCounts[asgn.substituteTeacherId] = Math.max(0, (newCounts[asgn.substituteTeacherId] || 0) - 1);
+          }
+          return { ...prev, counts: newCounts };
+        });
+      }
+      updateSession(selectedDate, s => ({
+        ...s,
+        absentTeachers: s.absentTeachers.map(a => a.teacherId === teacher.id ? {
+          ...a, absenceType: type, periods, swapCandidates,
+        } : a),
+        assignments: s.assignments.filter(a => a.absentTeacherId !== existing.id),
+      }));
+    } else {
+      const newAbsent: AbsentTeacher = {
+        id: `absent-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${teacher.id}`,
+        teacherId: teacher.id, teacherName: teacher.name, teacherPhone: teacher.phone || '',
+        absenceType: type, periods, swapCandidates,
+        addedAt: new Date().toISOString(),
+      };
+      updateSession(selectedDate, s => ({ ...s, absentTeachers: [...s.absentTeachers, newAbsent] }));
+    }
+  };
+
+  const toggleEmbPartialPeriod = (teacher: Teacher, periodNumber: number) => {
+    const existing = currentSession?.absentTeachers.find(a => a.teacherId === teacher.id);
+    const currentNumbers = existing?.periods.map(p => p.periodNumber) || [];
+    const newNumbers = currentNumbers.includes(periodNumber)
+      ? currentNumbers.filter(p => p !== periodNumber)
+      : [...currentNumbers, periodNumber];
+
+    if (newNumbers.length === 0) {
+      setTeacherAbsenceInline(teacher, 'none');
+    } else {
+      setTeacherAbsenceInline(teacher, 'partial', newNumbers);
+    }
+  };
+
   // ===== Handlers =====
   const handleAddToQueue = () => {
     if (!absenceForm.teacherId) { showToast('يرجى اختيار المعلم الغائب', 'error'); return; }
@@ -1389,6 +1538,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       )}
 
       {/* ══════ Header Card ══════ */}
+      {!isEmbedded && (
       <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
         {/* Decorative corner accent */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
@@ -1403,8 +1553,282 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </p>
         </div>
       </div>
+      )}
 
-      {/* ══════ Primary Toolbar ══════ */}
+      {/* ══════ Embedded UI: Date bar + Teachers table + Distribution method card ══════ */}
+      {isEmbedded && (() => {
+        const periodCount = schoolInfo.timing?.periodCounts?.[dayKey] || 7;
+        const lowerSearch = embTableSearch.trim().toLowerCase();
+        const tableTeachers = teachers
+          .filter(t => {
+            if (lowerSearch && !(t.name || '').toLowerCase().includes(lowerSearch)) return false;
+            if (embAbsentsOnly && !absentTeacherIds.has(t.id)) return false;
+            return true;
+          })
+          .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+
+        const subjectNameOf = (sid?: string) => {
+          if (!sid) return '—';
+          return subjects.find(s => s.id === sid)?.name || '—';
+        };
+
+        const distDone = totalAssigned > 0;
+        const showMethodCard = totalAbsent > 0 && !distDone && !manualDistMode;
+
+        return (
+          <div className="space-y-4 mb-6">
+            {/* Date Picker Bar + Teachers Table — register section only */}
+            {isRegister && (<>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-[#e5e1fe] flex items-center justify-center shrink-0">
+                  <Calendar size={22} className="text-[#655ac1]" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-500">اليوم المختار</p>
+                  <p className="text-base font-black text-slate-800">
+                    {ARABIC_DAYS[new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })] || '—'}
+                    <span className="text-slate-400 font-medium mr-2">— {selectedDate}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:border-[#655ac1] focus:outline-none"
+                />
+                <button
+                  onClick={() => setSelectedDate(getTodayStr())}
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1] text-sm font-bold transition-all"
+                >
+                  اليوم
+                </button>
+              </div>
+            </div>
+
+            {/* Teachers Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <UserX size={20} className="text-[#655ac1]" />
+                  <h4 className="font-black text-slate-800">تسجيل الغياب</h4>
+                  <span className="text-sm font-bold text-slate-500">
+                    الغائبون: <span className="text-[#655ac1]">{totalAbsent}</span> من {teachers.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={embTableSearch}
+                    onChange={e => setEmbTableSearch(e.target.value)}
+                    placeholder="ابحث عن معلم..."
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:border-[#655ac1] focus:outline-none w-56"
+                  />
+                  <label className="flex items-center gap-2 text-sm font-bold text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={embAbsentsOnly}
+                      onChange={e => setEmbAbsentsOnly(e.target.checked)}
+                      className="w-4 h-4 accent-[#655ac1] cursor-pointer"
+                    />
+                    الغائبون فقط
+                  </label>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-slate-50 border-b border-slate-100 z-10">
+                    <tr className="text-xs font-black text-slate-500">
+                      <th className="text-right px-4 py-2.5 w-12">#</th>
+                      <th className="text-right px-4 py-2.5">الاسم</th>
+                      <th className="text-right px-4 py-2.5">التخصص</th>
+                      <th className="text-center px-4 py-2.5">غياب كامل</th>
+                      <th className="text-center px-4 py-2.5">غياب جزئي</th>
+                      <th className="text-right px-4 py-2.5">الحصص</th>
+                      <th className="text-center px-4 py-2.5 w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableTeachers.length === 0 && (
+                      <tr><td colSpan={7} className="text-center text-slate-400 font-medium py-12">
+                        {embAbsentsOnly ? 'لا يوجد غائبون مطابقون' : 'لا توجد نتائج'}
+                      </td></tr>
+                    )}
+                    {tableTeachers.map((t, idx) => {
+                      const rec = currentSession?.absentTeachers.find(a => a.teacherId === t.id);
+                      const type: 'none' | 'full' | 'partial' = rec?.absenceType || 'none';
+                      const selPeriods = new Set((rec?.periods || []).map(p => p.periodNumber));
+                      return (
+                        <tr key={t.id} className={`border-b border-slate-50 transition-colors ${rec ? 'bg-[#fcfbff]' : 'hover:bg-slate-50/60'}`}>
+                          <td className="px-4 py-3 text-slate-400 font-medium">{idx + 1}</td>
+                          <td className="px-4 py-3 font-bold text-slate-800">{t.name}</td>
+                          <td className="px-4 py-3 text-slate-500 font-medium">{subjectNameOf(t.assignedSubjectId)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="radio"
+                              name={`abs-${t.id}`}
+                              checked={type === 'full'}
+                              onChange={() => setTeacherAbsenceInline(t, 'full')}
+                              className="w-4 h-4 accent-[#655ac1] cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="radio"
+                              name={`abs-${t.id}`}
+                              checked={type === 'partial'}
+                              onChange={() => {
+                                if (type !== 'partial') setTeacherAbsenceInline(t, 'partial', [1]);
+                              }}
+                              className="w-4 h-4 accent-[#8779fb] cursor-pointer"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            {type === 'partial' ? (
+                              <div className="flex flex-wrap gap-1">
+                                {Array.from({ length: periodCount }).map((_, i) => {
+                                  const num = i + 1;
+                                  const sel = selPeriods.has(num);
+                                  return (
+                                    <button
+                                      key={num}
+                                      onClick={() => toggleEmbPartialPeriod(t, num)}
+                                      className={`w-7 h-7 rounded-lg text-xs font-black transition-all ${
+                                        sel
+                                          ? 'bg-[#655ac1] text-white shadow-sm'
+                                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                      }`}
+                                      title={`الحصة ${num}`}
+                                    >
+                                      {num}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : type === 'full' ? (
+                              <span className="text-xs font-bold text-[#655ac1]">جميع حصص اليوم ({rec?.periods.length || periodCount})</span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {rec && (
+                              <button
+                                onClick={() => setTeacherAbsenceInline(t, 'none')}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                                title="إزالة من قائمة الغائبين"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            </>)}
+
+            {/* Distribution Method Card — distribute section only */}
+            {isDistribute && showMethodCard && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowAutoConfirm(true)}
+                  className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#8779fb] shadow-sm hover:shadow-md p-5 transition-all relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-[#e5e1fe] rounded-bl-[3rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-11 h-11 rounded-xl bg-[#8779fb] flex items-center justify-center text-white shadow-md shadow-[#8779fb]/30">
+                        <Zap size={22} />
+                      </div>
+                      <h4 className="text-base font-black text-slate-800">التوزيع التلقائي</h4>
+                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">موصى به</span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      توزيع عادل وذكي وفق رصيد كل معلم — مناسب للاستخدام اليومي.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!currentSession || currentSession.absentTeachers.length === 0) return;
+                    setManualDistMode(true);
+                  }}
+                  className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#655ac1] shadow-sm hover:shadow-md p-5 transition-all relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-slate-50 rounded-bl-[3rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-11 h-11 rounded-xl bg-white border-2 border-[#655ac1] flex items-center justify-center text-[#655ac1]">
+                        <PenLine size={22} />
+                      </div>
+                      <h4 className="text-base font-black text-slate-800">التوزيع اليدوي</h4>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      أنت تتحكم بكل تكليف يدويًا — مناسب للحالات الخاصة والتعديلات الدقيقة.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {/* Manual mode indicator + cancel — distribute section only */}
+            {isDistribute && manualDistMode && !distDone && (
+              <div className="bg-[#fcfbff] border-2 border-[#8779fb]/40 rounded-2xl p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center">
+                    <PenLine size={20} className="text-[#655ac1]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-800">وضع التوزيع اليدوي مُفعّل</p>
+                    <p className="text-xs text-slate-500 font-medium">انقر على الحصص في بطاقات الغائبين أدناه لإسناد مناوبين.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setManualDistMode(false)}
+                  className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-800 text-xs font-bold transition-all"
+                >
+                  إيقاف
+                </button>
+              </div>
+            )}
+
+            {/* Distribution report mini-bar — distribute section only */}
+            {isDistribute && lastDistResult && (
+              <button
+                onClick={() => setShowDistReport(true)}
+                className="w-full bg-white rounded-2xl border border-slate-200 hover:border-[#8779fb] shadow-sm p-4 flex items-center gap-3 transition-all"
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  lastDistResult.failed > 0 ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'
+                }`}>
+                  <PieChart size={20} />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="text-sm font-black text-slate-800">تقرير توزيع الانتظار</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    تم إسناد <span className="text-emerald-600 font-bold">{lastDistResult.assigned}</span>
+                    {lastDistResult.failed > 0 && (
+                      <> · تعذّر إسناد <span className="text-rose-500 font-bold">{lastDistResult.failed}</span></>
+                    )}
+                  </p>
+                </div>
+                <ArrowRight size={18} className="text-slate-300 rotate-180" />
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ══════ Primary Toolbar (legacy — hidden in embedded mode; replaced by inline table + cards below) ══════ */}
+      {!isEmbedded && (
       <div className="flex flex-col gap-3 mb-6">
         {/* Tier 1: Primary CTA + زرا التوزيع */}
         <div className="flex flex-wrap items-center gap-3">
@@ -1466,7 +1890,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </button>
         </div>
 
-        {/* Tier 2: Secondary actions bar */}
+        {/* Tier 2: Secondary actions bar — hidden when embedded (actions migrated to tabs) */}
+        {!isEmbedded && (
         <div className="flex justify-between items-center bg-white/60 backdrop-blur-md rounded-2xl py-3 px-4 shadow-sm border border-slate-200">
 
           {/* Right group: تقرير التوزيع اليومي | طباعة الانتظار */}
@@ -1533,8 +1958,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </button>
           </div>
         </div>
+        )}
 
       </div>
+      )}
 
       {/* ══════ Distribution Report Modal ══════ */}
       {showDistReport && lastDistResult && ReactDOM.createPortal(
@@ -1615,7 +2042,68 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         document.body
       )}
 
-      {/* ══════ Stats Strip ══════ */}
+      {/* ══════ Print/Send inline (printsend section only) ══════ */}
+      {isPrintSend && (
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-10 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-24 h-24 bg-slate-50 rounded-br-[3rem] -z-0" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <FileText size={28} className="text-[#655ac1]" />
+              <div>
+                <h3 className="text-lg font-black text-slate-800">طباعة وإرسال الانتظار</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  اختر العملية المطلوبة — الطباعة لإخراج الجدول ورقيًا، الإرسال لإبلاغ المناوبين عبر الواتساب أو الرابط الإلكتروني.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowPrintModal(true)}
+                className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#655ac1] shadow-sm hover:shadow-md p-5 transition-all relative overflow-hidden group"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-[#e5e1fe] rounded-bl-[3rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-11 h-11 rounded-xl bg-white border-2 border-[#655ac1] flex items-center justify-center text-[#655ac1]">
+                      <Printer size={22} />
+                    </div>
+                    <h4 className="text-base font-black text-slate-800">طباعة الانتظار</h4>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    إخراج جدول التوزيع جاهز للطباعة بصيغة احترافية مع بيانات المدرسة.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { setShowSendTable(true); setShowSendModal(true); }}
+                className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#8779fb] shadow-sm hover:shadow-md p-5 transition-all relative overflow-hidden group"
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-50 rounded-bl-[3rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-11 h-11 rounded-xl bg-[#8779fb] flex items-center justify-center text-white shadow-md shadow-[#8779fb]/30">
+                      <Send size={22} />
+                    </div>
+                    <h4 className="text-base font-black text-slate-800">إرسال الانتظار</h4>
+                    {currentSession && currentSession.assignments.filter(a => a.status === 'pending').length > 0 && (
+                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">
+                        {currentSession.assignments.filter(a => a.status === 'pending').length} معلّق
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    إبلاغ المناوبين بالتكاليف عبر الواتساب أو رابط إلكتروني للتوقيع.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════ Stats Strip — visible in non-embedded, register, and distribute sections ══════ */}
+      {(!isEmbedded || isRegister || isDistribute) && (
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm" dir="rtl">
         <div className="flex divide-x divide-x-reverse divide-slate-100">
           <div className="flex items-center gap-2 px-5 py-3 border-l border-slate-100 shrink-0">
@@ -1638,9 +2126,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           ))}
         </div>
       </div>
+      )}
 
       {/* ══════ Empty State ══════ */}
-      {totalAbsent === 0 && (
+      {totalAbsent === 0 && !isEmbedded && (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-16 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:shadow-md transition-all duration-300">
           <div className="absolute top-0 left-0 w-24 h-24 bg-slate-50 rounded-br-[3rem] -z-0" />
           <UserX size={48} className="text-[#655ac1] mb-5 relative z-10" strokeWidth={1.6} />
@@ -1651,8 +2140,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         </div>
       )}
 
-      {/* ══════ Absent Teachers Cards ══════ */}
-      {currentSession?.absentTeachers.map(absentTeacher => {
+      {/* ══════ Absent Teachers Cards — hidden in register section (shown in non-embedded + distribute) ══════ */}
+      {(!isEmbedded || isDistribute) && currentSession?.absentTeachers.map(absentTeacher => {
         const teacherAssignments = currentSession.assignments.filter(a => a.absentTeacherId === absentTeacher.id);
         const hasSwaps = Object.keys(absentTeacher.swapCandidates).length > 0;
         const coveredCount = teacherAssignments.length;
@@ -1898,6 +2387,30 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </div>
         );
       })}
+
+      {/* ══════ CTA: Continue to Print & Send (distribute section only) ══════ */}
+      {isDistribute && totalAbsent > 0 && totalAssigned > 0 && totalPending === 0 && onGoToPrintSend && (
+        <div className="bg-gradient-to-l from-[#fcfbff] to-white border-2 border-[#655ac1]/20 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={24} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-base font-black text-slate-800">تم إسناد جميع الحصص بنجاح</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                يمكنك الآن الانتقال إلى تاب الطباعة والإرسال لإرسال التكليفات للمناوبين.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onGoToPrintSend}
+            className="flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-3 rounded-xl font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
+          >
+            <span>متابعة إلى الطباعة والإرسال</span>
+            <ArrowRight size={18} className="rotate-180" />
+          </button>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════
           MODAL: تأكيد التوزيع التلقائي
@@ -3111,8 +3624,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => setSendSelectedIds(prev => { const n = new Set(prev); n.has(row.key) ? n.delete(row.key) : n.add(row.key); return n; })}
-                                  className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 hover:border-[#655ac1]'}`}
-                                >{checked && <Check size={11} />}</button>
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]'}`}
+                                ><Check size={11} strokeWidth={3} /></button>
                               </td>
                               <td className="px-3 py-3 text-slate-400 font-bold text-xs text-center">{idx + 1}</td>
                               <td className="px-3 py-3"><span className="font-bold text-slate-800 text-sm">{asgn.substituteTeacherName}</span></td>
@@ -3565,10 +4078,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                 return next;
                               });
                             }}
-                            className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between transition-colors"
+                            className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 flex items-center justify-between gap-3 transition-colors"
                           >
-                            {s.name}
-                            {rptSelectedIds.has(s.id) && <Check size={16} className="text-[#655ac1]" />}
+                            <span>{s.name}</span>
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                              rptSelectedIds.has(s.id) ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                            }`}>
+                              <Check size={12} strokeWidth={3} />
+                            </span>
                           </button>
                         ))}
                         {allWaitingStaff.filter(s => s.name.includes(rptSearch)).length === 0 && (

@@ -324,14 +324,22 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                         </button>
                                     </div>
                                     <div className="space-y-0.5 max-h-44 overflow-y-auto">
-                                        {teachers.map(t => (
-                                            <label key={t.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white cursor-pointer transition-colors">
-                                                <input type="checkbox" checked={selectedTeacherIds.includes(t.id)}
-                                                    onChange={() => toggleId(t.id, selectedTeacherIds, setSelectedTeacherIds)}
-                                                    className="w-4 h-4 rounded accent-[#655ac1]" />
-                                                <span className="text-xs font-normal text-slate-700">{t.name}</span>
-                                            </label>
-                                        ))}
+                                        {teachers.map(t => {
+                                            const checked = selectedTeacherIds.includes(t.id);
+                                            return (
+                                                <label key={t.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white cursor-pointer transition-colors">
+                                                    <input type="checkbox" checked={checked}
+                                                        onChange={() => toggleId(t.id, selectedTeacherIds, setSelectedTeacherIds)}
+                                                        className="sr-only" />
+                                                    <span className="text-xs font-normal text-slate-700 flex-1">{t.name}</span>
+                                                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                                        checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                                    }`}>
+                                                        <Check size={12} strokeWidth={3} />
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
                                     </div>
                                     {selectedTeacherIds.length > 0 && (
                                         <p className="text-xs font-medium mt-1.5" style={{ color: '#655ac1' }}>✓ تم اختيار {selectedTeacherIds.length} من {teachers.length} معلم</p>
@@ -355,14 +363,22 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                         </button>
                                     </div>
                                     <div className="space-y-0.5 max-h-44 overflow-y-auto">
-                                        {[...classes].sort((a,b) => a.grade !== b.grade ? a.grade-b.grade : (a.section||0)-(b.section||0)).map(c => (
-                                            <label key={c.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white cursor-pointer transition-colors">
-                                                <input type="checkbox" checked={selectedClassIds.includes(c.id)}
-                                                    onChange={() => toggleId(c.id, selectedClassIds, setSelectedClassIds)}
-                                                    className="w-4 h-4 rounded accent-[#655ac1]" />
-                                                <span className="text-xs font-normal text-slate-700">{c.name || `${c.grade}/${c.section}`}</span>
-                                            </label>
-                                        ))}
+                                        {[...classes].sort((a,b) => a.grade !== b.grade ? a.grade-b.grade : (a.section||0)-(b.section||0)).map(c => {
+                                            const checked = selectedClassIds.includes(c.id);
+                                            return (
+                                                <label key={c.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white cursor-pointer transition-colors">
+                                                    <input type="checkbox" checked={checked}
+                                                        onChange={() => toggleId(c.id, selectedClassIds, setSelectedClassIds)}
+                                                        className="sr-only" />
+                                                    <span className="text-xs font-normal text-slate-700 flex-1">{c.name || `${c.grade}/${c.section}`}</span>
+                                                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                                        checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                                    }`}>
+                                                        <Check size={12} strokeWidth={3} />
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
                                     </div>
                                     {selectedClassIds.length > 0 && (
                                         <p className="text-xs font-medium mt-1.5" style={{ color: '#655ac1' }}>✓ تم اختيار {selectedClassIds.length} من {classes.length} فصل</p>
@@ -443,17 +459,15 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                                 : 'border-slate-200 bg-slate-50/70 text-slate-600 hover:border-[#8779fb]/40 hover:bg-white hover:text-[#655ac1]'
                                         }`}
                                         style={item.val ? { boxShadow: '0 4px 12px rgba(101,90,193,0.15)' } : {}}>
-                                        <div className="w-10 h-6 rounded-full flex items-center transition-all shrink-0"
-                                             style={{ background:item.val?'linear-gradient(135deg,#655ac1,#7c6dd6)':'#e2e8f0',
-                                                      padding:'2px', justifyContent:item.val?'flex-end':'flex-start',
-                                                      boxShadow: item.val?'0 2px 6px rgba(101,90,193,0.3)':'none' }}>
-                                            <div className="w-5 h-5 bg-white rounded-full"
-                                                 style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.15)'}}/>
-                                        </div>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <div className="text-xs font-medium">{item.label}</div>
                                             <div className="text-[10px] font-normal opacity-55">{item.sub}</div>
                                         </div>
+                                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                            item.val ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                        }`}>
+                                            <Check size={12} strokeWidth={3} />
+                                        </span>
                                     </button>
                                 ))}
                             </div>
@@ -479,6 +493,11 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                             style={layoutMode===opt.id ? { boxShadow: '0 4px 12px rgba(101,90,193,0.15)', borderRightWidth: 3 } : {}}>
                                             <span className="shrink-0" style={{ color: layoutMode===opt.id?'#655ac1':'#94a3b8' }}>{opt.icon}</span>
                                             <span className="flex-1 text-right font-medium text-xs">{opt.label}</span>
+                                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                                layoutMode === opt.id ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                            }`}>
+                                                <Check size={12} strokeWidth={3} />
+                                            </span>
                                         </button>
                                     ))}
                                     {layoutMode === 'custom' && (

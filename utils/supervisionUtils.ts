@@ -18,6 +18,8 @@ import {
   SupervisionScheduleData,
   SupervisionSettings,
   SupervisionAttendanceRecord,
+  SupervisionType,
+  SupervisionContextCategory,
   Phase,
 } from '../types';
 
@@ -58,10 +60,7 @@ export function getDefaultLocations(): SupervisionLocation[] {
     { id: 'loc-3', name: 'الفناء الخارجي', category: 'yard_outer', isActive: true, sortOrder: 3 },
     { id: 'loc-4', name: 'الملعب', category: 'playground', isActive: true, sortOrder: 4 },
     { id: 'loc-5', name: 'الصالة الرياضية', category: 'gym', isActive: true, sortOrder: 5 },
-    { id: 'loc-6', name: 'الدور الأرضي', category: 'floor', floorNumber: 0, isActive: true, sortOrder: 6 },
-    { id: 'loc-7', name: 'الدور الأول', category: 'floor', floorNumber: 1, isActive: true, sortOrder: 7 },
-    { id: 'loc-8', name: 'الدور الثاني', category: 'floor', floorNumber: 2, isActive: true, sortOrder: 8 },
-    { id: 'loc-9', name: 'المصلى', category: 'prayer_hall', isActive: true, sortOrder: 9 },
+    { id: 'loc-6', name: 'المصلى', category: 'prayer_hall', isActive: true, sortOrder: 6 },
   ];
 }
 
@@ -95,6 +94,7 @@ export function getSupervisionPeriods(schoolInfo: SchoolInfo): SupervisionPeriod
       name: brk.name || `فسحة ${idx + 1}`,
       isEnabled: true,
       linkedBreakId: brk.id,
+      afterPeriod: brk.afterPeriod,
       duration: brk.duration,
     });
   });
@@ -107,11 +107,206 @@ export function getSupervisionPeriods(schoolInfo: SchoolInfo): SupervisionPeriod
       name: prayer.name || 'صلاة',
       isEnabled: prayer.isEnabled,
       linkedPrayerId: prayer.id,
+      afterPeriod: prayer.afterPeriod,
       duration: prayer.duration,
     });
   });
 
   return periods;
+}
+
+// ===== Supervision Types (الأنواع: اصطفاف/فسحة/أدوار/صلاة/مخصص) =====
+
+/**
+ * الأنواع الأربعة الأساسية الافتراضية.
+ * الفسحة فقط isMandatory ضمنياً (لا تُعطّل من الواجهة).
+ */
+export function getDefaultSupervisionTypes(): SupervisionType[] {
+  return [
+    {
+      id: 'assembly',
+      category: 'assembly',
+      name: 'الاصطفاف',
+      isBuiltIn: true,
+      isEnabled: false,
+      displayMode: 'inline',
+      sortOrder: 1,
+    },
+    {
+      id: 'break',
+      category: 'break',
+      name: 'إشراف الفسحة',
+      isBuiltIn: true,
+      isEnabled: true, // إلزامي
+      displayMode: 'inline',
+      sortOrder: 2,
+    },
+    {
+      id: 'floor',
+      category: 'floor',
+      name: 'إشراف الأدوار',
+      isBuiltIn: true,
+      isEnabled: false,
+      displayMode: 'separate',
+      sortOrder: 3,
+    },
+    {
+      id: 'prayer',
+      category: 'prayer',
+      name: 'إشراف الصلاة',
+      isBuiltIn: true,
+      isEnabled: false,
+      displayMode: 'inline',
+      sortOrder: 4,
+    },
+  ];
+}
+
+/** هل النوع المعطى إلزامي (لا يُعطّل)؟ */
+export function isTypeMandatory(type: SupervisionType): boolean {
+  return type.isBuiltIn && type.category === 'break';
+}
+
+/** الأنواع المفعّلة فقط، مرتّبة. */
+export function getEnabledTypes(types: SupervisionType[]): SupervisionType[] {
+  return [...types].filter(t => t.isEnabled).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+// ===== Teacher Availability (مصدر الحقيقة لقواعد الذكاء) =====
+
+export interface TeacherAvailability {
+  hasFreeBeforePeriod: (period: number) => boolean;
+  hasFreeAfterPeriod: (period: number) => boolean;
+  isLastPeriodFree: boolean;
+  isPenultimatePeriodFree: boolean;
+  isFirstPeriodFree: boolean;
+  lessonsCount: number;
+  freePeriods: number[];
+}
+
+/** يحسب توافر معلم في يوم معيّن (الحصص الفارغة وقواعد القرب من الفسحة/الصلاة) */
+export function getTeacherAvailability(
+  teacherId: string,
+  day: string,
+  schoolInfo: SchoolInfo,
+  timetable: TimetableData
+): TeacherAvailability {
+  const timing = getTimingConfig(schoolInfo);
+  const periodCount = timing.periodCounts?.[day] || 7;
+  const freePeriods: number[] = [];
+  let lessonsCount = 0;
+
+  for (let p = 1; p <= periodCount; p++) {
+    const key = `${teacherId}-${day}-${p}`;
+    if (timetable[key]) {
+      lessonsCount++;
+    } else {
+      freePeriods.push(p);
+    }
+  }
+
+  return {
+    hasFreeBeforePeriod: (period: number) => freePeriods.includes(period),
+    hasFreeAfterPeriod: (period: number) => freePeriods.includes(period + 1),
+    isLastPeriodFree: freePeriods.includes(periodCount),
+    isPenultimatePeriodFree: freePeriods.includes(periodCount - 1),
+    isFirstPeriodFree: freePeriods.includes(1),
+    lessonsCount,
+    freePeriods,
+  };
+}
+
+/**
+ * هل المعلم مرشّح مناسب لفسحة محددة (حصة فارغة قبل أو بعد).
+ * الإداريون يعتبرون مناسبين دائماً لكل الأنواع.
+ */
+export function isStaffSuitableForBreak(
+  staffType: 'teacher' | 'admin',
+  staffId: string,
+  day: string,
+  breakAfterPeriod: number,
+  schoolInfo: SchoolInfo,
+  timetable: TimetableData
+): { suitable: boolean; reason: string } {
+  if (staffType === 'admin') {
+    return { suitable: true, reason: 'إداري متاح' };
+  }
+  const av = getTeacherAvailability(staffId, day, schoolInfo, timetable);
+  if (av.hasFreeBeforePeriod(breakAfterPeriod) || av.hasFreeAfterPeriod(breakAfterPeriod)) {
+    return { suitable: true, reason: 'حصة فارغة محيطة بالفسحة' };
+  }
+  return { suitable: false, reason: 'لا توجد حصة فارغة محيطة بالفسحة' };
+}
+
+/**
+ * هل الكادر (معلم/إداري) مناسب لنوع إشراف معيّن.
+ * يفحص ملاءمته العامة وفق فئة النوع، دون اشتراط فسحة بعينها.
+ */
+export function isStaffSuitableForCategory(
+  staffType: 'teacher' | 'admin',
+  staffId: string,
+  day: string,
+  category: SupervisionContextCategory,
+  schoolInfo: SchoolInfo,
+  timetable: TimetableData
+): { suitable: boolean; reason: string } {
+  // الإداريون مناسبون دائماً لكل الأنواع
+  if (staffType === 'admin') {
+    return { suitable: true, reason: 'إداري متاح' };
+  }
+
+  const av = getTeacherAvailability(staffId, day, schoolInfo, timetable);
+  const timing = getTimingConfig(schoolInfo);
+
+  switch (category) {
+    case 'assembly':
+      // الاصطفاف بدون قيد
+      return { suitable: true, reason: 'بدون قيود' };
+
+    case 'break': {
+      // مناسب إن كان لديه حصة فارغة محيطة بأي فسحة
+      const breakPeriods = timing.breaks?.map(b => b.afterPeriod) || [];
+      const ok = breakPeriods.some(p =>
+        av.hasFreeBeforePeriod(p) || av.hasFreeAfterPeriod(p)
+      );
+      return ok
+        ? { suitable: true, reason: 'حصة فارغة محيطة بالفسحة' }
+        : { suitable: false, reason: 'لا توجد حصة فارغة محيطة بأي فسحة' };
+    }
+
+    case 'prayer':
+      return av.isLastPeriodFree || av.isPenultimatePeriodFree
+        ? { suitable: true, reason: 'حصة أخيرة/قبل الأخيرة فارغة' }
+        : { suitable: false, reason: 'لا توجد حصة أخيرة فارغة' };
+
+    case 'floor':
+      // يفضّل المنخفضين نصاباً، لكن لا يُمنع
+      return av.lessonsCount <= 4
+        ? { suitable: true, reason: 'نصاب منخفض — مناسب للأدوار' }
+        : { suitable: true, reason: 'متاح (نصاب مرتفع)' };
+
+    case 'custom':
+    default:
+      return { suitable: true, reason: 'متاح' };
+  }
+}
+
+/** هل المعلم مناسب لإشراف الصلاة (حصة أخيرة أو قبل الأخيرة فارغة) */
+export function isStaffSuitableForPrayer(
+  staffType: 'teacher' | 'admin',
+  staffId: string,
+  day: string,
+  schoolInfo: SchoolInfo,
+  timetable: TimetableData
+): { suitable: boolean; reason: string } {
+  if (staffType === 'admin') {
+    return { suitable: true, reason: 'إداري متاح' };
+  }
+  const av = getTeacherAvailability(staffId, day, schoolInfo, timetable);
+  if (av.isLastPeriodFree || av.isPenultimatePeriodFree) {
+    return { suitable: true, reason: 'حصة أخيرة/قبل الأخيرة فارغة' };
+  }
+  return { suitable: false, reason: 'لا توجد حصة أخيرة فارغة' };
 }
 
 // ===== Staff Management =====
@@ -212,12 +407,28 @@ export function validateGoldenRule(assignments: SupervisionDayAssignment[]): {
   return { valid: duplicates.length === 0, duplicates };
 }
 
+export interface AssignmentDiagnostic {
+  day: string;
+  contextCategory: SupervisionContextCategory;
+  contextTypeId: string;
+  breakId?: string;
+  severity: 'info' | 'warning' | 'error';
+  message: string;
+}
+
+export interface SmartAssignmentResult {
+  dayAssignments: SupervisionDayAssignment[];
+  diagnostics: AssignmentDiagnostic[];
+}
+
 /**
- * Smart Assignment Algorithm
- * Ranks staff for each day based on:
- * 1. Free period adjacent to break/prayer
- * 2. Lowest quota that day
- * 3. Last period teacher for prayer time
+ * Smart Assignment Algorithm — يدعم أنواع الإشراف المتعددة
+ * قواعد لكل نوع:
+ *  - الفسحة: حصة فارغة قبل/بعد moeed الفسحة (لكل فسحة على حدة)
+ *  - الصلاة: حصة أخيرة/قبل الأخيرة فارغة
+ *  - الاصطفاف: بدون قيد (الجميع متاح)
+ *  - الأدوار: تفضيل الإداريين + معلمين منخفضي النصاب
+ *  - المخصص: لا يُولَّد تلقائياً (يدوي)
  */
 export function generateSmartAssignment(
   teachers: Teacher[],
@@ -345,7 +556,8 @@ export function generateSmartAssignment(
       staffName: scoreObj.staffName,
       staffType: scoreObj.staffType,
       locationIds: [],
-      periodIds: periods.filter(p => p.isEnabled).map(p => p.id),
+      contextCategory: 'break',
+      contextTypeId: 'break',
     });
   }
 
@@ -366,7 +578,8 @@ export function generateSmartAssignment(
       staffName: staff.name,
       staffType: staff.type,
       locationIds: [],
-      periodIds: periods.filter(p => p.isEnabled).map(p => p.id),
+      contextCategory: 'break',
+      contextTypeId: 'break',
     });
   });
 
@@ -515,6 +728,7 @@ export function getDefaultSupervisionData(schoolInfo: SchoolInfo): SupervisionSc
     locations: getDefaultLocations(),
     periods: getSupervisionPeriods(schoolInfo),
     exclusions: [],
+    supervisionTypes: getDefaultSupervisionTypes(),
     dayAssignments: [],
     attendanceRecords: [],
     settings: {

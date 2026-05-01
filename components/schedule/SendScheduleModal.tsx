@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive,
+  Check,
   CheckCircle2,
   Copy,
   Link2,
@@ -712,20 +713,28 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                   </button>
                 </div>
                 <div className="max-h-72 overflow-y-auto rounded-2xl border border-slate-200 divide-y divide-slate-100">
-                  {targetOptions.map(option => (
+                  {targetOptions.map(option => {
+                    const checked = selectedTargetIds.includes(option.id);
+                    return (
                     <label key={option.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
                       <input
                         type="checkbox"
-                        checked={selectedTargetIds.includes(option.id)}
+                        checked={checked}
                         onChange={() => toggleFromList(option.id, selectedTargetIds, setSelectedTargetIds)}
-                        className="w-4 h-4 accent-[#655ac1]"
+                        className="sr-only"
                       />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-black text-slate-800 truncate">{option.title}</p>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">{option.subtitle}</p>
                       </div>
+                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                      }`}>
+                        <Check size={12} strokeWidth={3} />
+                      </span>
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -747,13 +756,15 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                   <div className="px-4 py-8 text-center text-sm font-medium text-slate-400">
                     اختر نوع الجدول والجهة المستهدفة{needsTargetSelection ? ' والعناصر المطلوبة' : ''} لعرض المستلمين.
                   </div>
-                ) : recipients.map(recipient => (
-                  <label key={recipient.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
+                ) : recipients.map(recipient => {
+                  const checked = selectedRecipientIds.includes(recipient.selectionKey);
+                  return (
+                  <label key={recipient.selectionKey} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="checkbox"
-                      checked={selectedRecipientIds.includes(recipient.id)}
-                      onChange={() => toggleFromList(recipient.id, selectedRecipientIds, setSelectedRecipientIds)}
-                      className="w-4 h-4 accent-[#655ac1]"
+                      checked={checked}
+                      onChange={() => toggleFromList(recipient.selectionKey, selectedRecipientIds, setSelectedRecipientIds)}
+                      className="sr-only"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
@@ -765,8 +776,14 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                         <p className="text-xs text-slate-400 mt-1">{recipient.relatedLabel}</p>
                       )}
                     </div>
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                    }`}>
+                      <Check size={12} strokeWidth={3} />
+                    </span>
                   </label>
-                ))}
+                  );
+                })}
               </div>
             </section>
           </div>

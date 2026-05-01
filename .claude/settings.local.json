@@ -7,7 +7,8 @@
       "Bash(findstr \"getWaitingQuota\")",
       "Bash(netstat -ano)",
       "Bash(python insert_modal.py)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(grep -n \"═══.*MODAL\\\\|^      }\\)}\\\\|absent-teacher-cards\\\\|^      {/\\\\\\\\* ══════\" components/DailyWaiting.tsx)"
     ]
   }
 }

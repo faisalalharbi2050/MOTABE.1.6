@@ -49,7 +49,7 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
   // ===== State =====
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showTimingPopup, setShowTimingPopup] = useState(false);
-  const [showSettingsPage, setShowSettingsPage] = useState(false);
+  const [showSettingsPage, setShowSettingsPage] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scheduleChangeAlert, setScheduleChangeAlert] = useState(false);
   
@@ -89,6 +89,9 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
           dayAssignments: parsed.dayAssignments || [],
           attendanceRecords: parsed.attendanceRecords || [],
           savedSchedules: parsed.savedSchedules || [],
+          supervisionTypes: parsed.supervisionTypes && parsed.supervisionTypes.length > 0
+            ? parsed.supervisionTypes
+            : getDefaultSupervisionData(schoolInfo).supervisionTypes,
           settings: parsed.settings || getDefaultSupervisionData(schoolInfo).settings
         };
       } catch { /* ignore */ }
@@ -120,6 +123,9 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
           dayAssignments: parsed.dayAssignments || [],
           attendanceRecords: parsed.attendanceRecords || [],
           savedSchedules: parsed.savedSchedules || [],
+          supervisionTypes: parsed.supervisionTypes && parsed.supervisionTypes.length > 0
+            ? parsed.supervisionTypes
+            : getDefaultSupervisionData(schoolInfo).supervisionTypes,
           settings: {
             ...(parsed.settings || getDefaultSupervisionData(schoolInfo).settings),
             sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified'
@@ -324,9 +330,15 @@ const DailySupervision: React.FC<DailySupervisionProps> = ({
         setPeriods={(periods) => setSupervisionData(prev => ({
           ...prev,
           periods: typeof periods === 'function' ? periods(prev.periods) : periods,
+          }))}
+        supervisionTypes={supervisionData.supervisionTypes}
+        setSupervisionTypes={(t) => setSupervisionData(prev => ({
+          ...prev,
+          supervisionTypes: typeof t === 'function' ? t(prev.supervisionTypes) : t,
         }))}
         schoolInfo={schoolInfo}
         showToast={showToast}
+        onNavigateToTiming={onNavigateToTiming}
       />
     );
   }

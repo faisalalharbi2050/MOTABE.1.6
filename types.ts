@@ -563,10 +563,11 @@ export interface SupervisionPeriodConfig {
   id: string;
   type: 'break' | 'prayer';
   name: string; // فسحة 1، فسحة 2، صلاة
-  isEnabled: boolean;
-  linkedBreakId?: string; // ربط بمعرف الفسحة من TimingConfig
-  linkedPrayerId?: string; // ربط بمعرف الصلاة من TimingConfig
-  startTime?: string;
+    isEnabled: boolean;
+    linkedBreakId?: string; // ربط بمعرف الفسحة من TimingConfig
+    linkedPrayerId?: string; // ربط بمعرف الصلاة من TimingConfig
+    afterPeriod?: number;
+    startTime?: string;
   endTime?: string;
   duration?: number;
 }
@@ -589,12 +590,29 @@ export interface SupervisionDayAssignment {
   followUpSignatureToken?: string;  // unique token for link
 }
 
+export type SupervisionContextCategory = 'assembly' | 'break' | 'prayer' | 'floor' | 'custom';
+
+export interface SupervisionType {
+  id: string;                              // built-in: 'assembly'|'break'|'prayer'|'floor'، المخصص: مولّد
+  category: SupervisionContextCategory;    // الفئة الأساسية لتحديد قاعدة الذكاء
+  name: string;                            // الاسم المعروض (قابل للتعديل)
+  isBuiltIn: boolean;                      // الأنواع الأربعة الأساسية لا تُحذف
+  isEnabled: boolean;                      // تشغيل/إطفاء (الفسحة دائماً true)
+  displayMode: 'inline' | 'separate';      // مدمج كعمود في الجدول الرئيسي أو جدول مستقل
+  tableGroup?: string;                     // تجميع أكثر من نوع في جدول مستقل واحد
+  sortOrder: number;
+}
+
 export interface SupervisionStaffAssignment {
   staffId: string;
   staffType: 'teacher' | 'admin';
   staffName: string;
   locationIds: string[]; // متعدد المواقع
-  periodIds: string[]; // الفترات المخصصة (فسحة/صلاة)
+  // الإسناد بحسب نوع الإشراف
+  contextCategory: SupervisionContextCategory; // assembly | break | prayer | floor | custom
+  contextTypeId: string;                       // FK إلى SupervisionType.id
+  breakId?: string;                            // إن كان contextCategory='break': معرف الفسحة من TimingConfig
+  schoolPhaseId?: string;                      // للمدارس المشتركة في الوضع المنفصل
   // Digital signature fields
   signatureData?: string;   // base64 PNG
   signatureStatus?: 'not-sent' | 'pending' | 'signed';
@@ -630,6 +648,7 @@ export interface SupervisionScheduleData {
   locations: SupervisionLocation[];
   periods: SupervisionPeriodConfig[];
   exclusions: SupervisionStaffExclusion[];
+  supervisionTypes: SupervisionType[]; // أنواع الإشراف المفعّلة (اصطفاف/فسحة/أدوار/صلاة/مخصص)
   dayAssignments: SupervisionDayAssignment[];
   attendanceRecords: SupervisionAttendanceRecord[];
   settings: SupervisionSettings;
@@ -647,6 +666,7 @@ export interface SupervisionSettings {
   excludeVicePrincipals: boolean;
   suggestedCountPerDay?: number;
   enableAutoAssignment: boolean;
+  enableFollowUpSupervisor?: boolean;
   reminderMessageTemplate?: string;
   assignmentMessageTemplate?: string;
   sharedSchoolMode: 'unified' | 'separate'; // جدول موحد أو منفصل

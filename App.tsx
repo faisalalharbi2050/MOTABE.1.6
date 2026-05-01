@@ -26,12 +26,15 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 // import ClassesAndWaiting from './components/ClassesAndWaiting'; // Removed
 import DailySupervision from './components/DailySupervision';
+import SupervisionV2Container from './components/supervision-v2/SupervisionV2Container';
 import SupervisionSignaturePage from './components/supervision/SupervisionSignaturePage';
 import DutySignaturePage from './components/duty/DutySignaturePage';
 import ScheduleSignaturePage from './components/schedule/ScheduleSignaturePage';
 import ScheduleSharePage from './components/schedule/ScheduleSharePage';
 import DailyDuty from './components/DailyDuty';
+import DutyV2Container from './components/duty-v2/DutyV2Container';
 import DailyWaiting from './components/DailyWaiting';
+import WaitingV2Container from './components/waiting-v2/WaitingV2Container';
 import Messages from './components/Messages';
 import RolePermissions from './components/permissions/RolePermissions';
 import SubscriptionContainer from './components/subscription/SubscriptionContainer';
@@ -497,11 +500,11 @@ const App: React.FC = () => {
       case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }} />;
 
       // Supervision and Duty
-      case 'supervision': return <DailySupervision schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} />;
-      case 'duty': return <DailyDuty schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToDashboard={() => setActiveTab('dashboard')} />;
+      case 'supervision': return <SupervisionV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} />;
+      case 'duty': return <DutyV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToDashboard={() => setActiveTab('dashboard')} />;
 
       // Other Sections
-      case 'daily_waiting': return <DailyWaiting teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
+      case 'daily_waiting': return <WaitingV2Container teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
       case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} initialTab={messagesInitialTab as any} initialDraft={messageComposerDraft} onNavigate={(tab) => {
         if (tab === 'subscription_message_packages') { setSubscriptionInitialTab('message_packages' as any); setActiveTab('subscription'); }
         else { setActiveTab(tab as any); }

@@ -310,25 +310,25 @@ const SingleSelectDropdown: React.FC<{
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between border ${
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
                   option.disabled
-                    ? 'text-slate-300 border-transparent cursor-not-allowed bg-slate-50/70'
+                    ? 'text-slate-300 cursor-not-allowed bg-slate-50/70'
                     :
                   value === option.value
-                    ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm'
-                    : 'text-slate-700 border-transparent hover:bg-[#f0edff] hover:text-[#655ac1] hover:border-[#d9d3ff]'
+                    ? 'bg-white text-[#655ac1]'
+                    : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                 }`}
               >
                 <span className="flex items-center gap-2">
                   {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
                   {option.label}
                 </span>
-                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                   value === option.value
-                    ? 'bg-[#655ac1] border-[#655ac1] text-white'
-                    : 'border-slate-300 text-transparent'
+                    ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                    : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} />
+                  <Check size={12} strokeWidth={3} />
                 </span>
               </button>
             ))}
@@ -430,22 +430,22 @@ const MultiSelectDropdown: React.FC<{
                   key={option.value}
                   type="button"
                   onClick={() => onToggle(option.value)}
-                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between border ${
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
                     isSelected
-                      ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm'
-                      : 'text-slate-700 border-transparent hover:bg-[#f0edff] hover:text-[#655ac1] hover:border-[#d9d3ff]'
+                      ? 'bg-white text-[#655ac1]'
+                      : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
                     {option.label}
                   </span>
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                     isSelected
-                      ? 'bg-[#655ac1] border-[#655ac1] text-white'
-                      : 'border-slate-300 text-transparent'
+                      ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                      : 'bg-white border-slate-300 text-transparent'
                   }`}>
-                    <Check size={12} />
+                    <Check size={12} strokeWidth={3} />
                   </span>
                 </button>
               );
