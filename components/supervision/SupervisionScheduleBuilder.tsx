@@ -50,13 +50,19 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [selectedFollowUpId, setSelectedFollowUpId] = useState<string>('');
   const [bulkLocationIds, setBulkLocationIds] = useState<string[]>([]);
   const [bulkTargetTypeIds, setBulkTargetTypeIds] = useState<string[]>([]);
+  const [bulkStaffLocationIds, setBulkStaffLocationIds] = useState<string[]>([]);
+  const [bulkStaffKeys, setBulkStaffKeys] = useState<string[]>([]);
+  const [bulkStaffTab, setBulkStaffTab] = useState<'teacher' | 'admin'>('teacher');
+  const [bulkStaffSearch, setBulkStaffSearch] = useState('');
   const [showDayDropdown, setShowDayDropdown] = useState(false);
   const [showBulkLocationPicker, setShowBulkLocationPicker] = useState(false);
+  const [showBulkStaffLocationPicker, setShowBulkStaffLocationPicker] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showLocationsModal, setShowLocationsModal] = useState(false);
+  const [locationModalView, setLocationModalView] = useState<'cards' | 'type' | 'staff'>('cards');
   const [showFollowUpMenu, setShowFollowUpMenu] = useState(false);
   const [pendingStaffRemoval, setPendingStaffRemoval] = useState<{ day: string; contextTypeId: string; staffId: string; staffName: string } | null>(null);
 
@@ -66,6 +72,12 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const dayAssignments = supervisionData.dayAssignments;
   const activeLocations = supervisionData.locations.filter(l => l.isActive);
   const showFollowUpSupervisor = supervisionData.settings.enableFollowUpSupervisor !== false;
+
+  const getDefaultLocationIdsForType = (typeMeta?: SupervisionType | null): string[] => {
+    if (typeMeta?.category !== 'prayer') return [];
+    const prayerHall = activeLocations.find(loc => loc.category === 'prayer_hall');
+    return prayerHall ? [prayerHall.id] : [];
+  };
 
   // أنواع الإشراف المفعّلة المعروضة ضمن الجدول الرئيسي
   const inlineTypes = useMemo<SupervisionType[]>(() => {
@@ -101,6 +113,28 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     () => getAvailableStaff(teachers, admins, supervisionData.exclusions, supervisionData.settings),
     [teachers, admins, supervisionData.exclusions, supervisionData.settings]
   );
+
+  const assignedStaffForBulkLocations = useMemo(() => {
+    const staffMap = new Map<string, { key: string; id: string; name: string; type: 'teacher' | 'admin'; count: number }>();
+    dayAssignments.forEach(da => {
+      da.staffAssignments.forEach(sa => {
+        const key = `${sa.staffType}-${sa.staffId}`;
+        const existing = staffMap.get(key);
+        if (existing) {
+          existing.count += 1;
+          return;
+        }
+        staffMap.set(key, {
+          key,
+          id: sa.staffId,
+          name: sa.staffName,
+          type: sa.staffType,
+          count: 1,
+        });
+      });
+    });
+    return Array.from(staffMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  }, [dayAssignments]);
 
   // ═══════════ Empty state ═══════════
   const hasContent = dayAssignments.some(
@@ -166,6 +200,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       staffAssignments: dayAssignment.staffAssignments.flatMap(assignment =>
         autoTypes.map(type => ({
           ...assignment,
+          locationIds: getDefaultLocationIdsForType(type),
           contextCategory: type.category,
           contextTypeId: type.id,
         }))
@@ -243,7 +278,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             staffId: staff.id,
             staffName: staff.name,
             staffType: staff.type,
-            locationIds: [],
+            locationIds: getDefaultLocationIdsForType(typeMeta),
             contextCategory: typeMeta.category,
             contextTypeId: typeMeta.id,
           } as SupervisionStaffAssignment;
@@ -305,6 +340,18 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const toggleBulkLocation = (locationId: string) => {
     setBulkLocationIds(prev =>
       prev.includes(locationId) ? prev.filter(id => id !== locationId) : [...prev, locationId]
+    );
+  };
+
+  const toggleBulkStaffLocation = (locationId: string) => {
+    setBulkStaffLocationIds(prev =>
+      prev.includes(locationId) ? prev.filter(id => id !== locationId) : [...prev, locationId]
+    );
+  };
+
+  const toggleBulkStaff = (staffKey: string) => {
+    setBulkStaffKeys(prev =>
+      prev.includes(staffKey) ? prev.filter(key => key !== staffKey) : [...prev, staffKey]
     );
   };
 
@@ -372,6 +419,34 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       setShowDayDropdown(false);
     }
     showToast(day ? `تم مسح المواقع ليوم ${DAY_NAMES[day]}` : 'تم مسح كل المواقع', 'success');
+  };
+
+  const applyLocationsToSelectedStaff = () => {
+    if (bulkStaffKeys.length === 0) {
+      showToast('اختر مشرفًا واحدًا على الأقل', 'warning');
+      return;
+    }
+    if (bulkStaffLocationIds.length === 0) {
+      showToast('اختر موقعًا واحدًا على الأقل', 'warning');
+      return;
+    }
+
+    const selectedKeys = new Set(bulkStaffKeys);
+    setSupervisionData(prev => ({
+      ...prev,
+      dayAssignments: prev.dayAssignments.map(da => ({
+        ...da,
+        staffAssignments: da.staffAssignments.map(sa => {
+          const key = `${sa.staffType}-${sa.staffId}`;
+          if (!selectedKeys.has(key)) return sa;
+          return {
+            ...sa,
+            locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
+          };
+        }),
+      })),
+    }));
+    showToast('تم تطبيق المواقع على إسنادات المشرفين المحددين', 'success');
   };
 
   // ═══════════ Follow-up handlers ═══════════
@@ -456,91 +531,173 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     ? activeDays.reduce((acc, day) => acc + getStaffForCell(day, inlineTypes[0]?.id || '').length, 0)
     : 0;
 
+  const renderCompactStaffRow = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment) => (
+    <div
+      key={`${sa.staffId}-${sa.contextTypeId}`}
+      className="relative grid grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)_auto] items-center gap-2 bg-white px-2.5 py-2 border-b border-slate-200/80 last:border-b-0"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-xs font-bold leading-snug text-slate-800 whitespace-normal break-words">{sa.staffName}</span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+            sa.staffType === 'teacher' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+          }`}>
+            {sa.staffType === 'teacher' ? 'معلم' : 'إداري'}
+          </span>
+        </div>
+      </div>
+
+      <div className="relative min-w-0">
+        <button
+          onClick={() => setShowLocationPicker(prev =>
+            prev === `${day}-${sa.staffId}-${type.id}` ? null : `${day}-${sa.staffId}-${type.id}`
+          )}
+          className="w-full bg-white border border-slate-200 hover:border-[#655ac1]/50 text-[11px] font-bold rounded-lg px-2 py-1.5 text-right flex items-center justify-between gap-1 transition-colors"
+        >
+          <span className={`flex items-center gap-1 truncate ${sa.locationIds.length > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
+            <MapPin size={10} className="shrink-0" />
+            <span className="truncate">{getLocationSummary(sa.locationIds)}</span>
+          </span>
+          <ChevronDown size={11} className="text-slate-400 shrink-0" />
+        </button>
+        {showLocationPicker === `${day}-${sa.staffId}-${type.id}` && (
+          <>
+            <div className="fixed inset-0 z-[9998]" onClick={() => setShowLocationPicker(null)} />
+            <div className="absolute top-[calc(100%+0.25rem)] right-0 z-[9999] w-56 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden">
+              <div className="p-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] font-black text-slate-700">المواقع</span>
+                <span className="text-[9px] text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-full font-bold">{sa.locationIds.length}</span>
+              </div>
+              <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
+                {activeLocations.map(loc => {
+                  const isSel = sa.locationIds.includes(loc.id);
+                  return (
+                    <button
+                      key={loc.id}
+                      onClick={() => toggleLocation(day, sa.staffId, type.id, loc.id)}
+                      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-right hover:bg-slate-50 transition-colors"
+                    >
+                      <span className={`text-xs font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                      <div className={`mr-auto w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                        {isSel && <Check size={10} />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => openAddPanel(day, type.id, type.name, sa.staffId)}
+          className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+          title="تعديل"
+        >
+          <Edit3 size={12} />
+        </button>
+        <button
+          onClick={() => requestRemoveStaffFromCell(day, type.id, sa)}
+          className="p-1.5 rounded-lg border border-rose-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+          title="حذف"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  );
+
   // ═══════════ Render ═══════════
   return (
     <div className="space-y-6">
       {/* ═══ Top Toolbar ═══ */}
-      <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col items-stretch gap-3">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-5">
           <div className="flex items-center gap-3">
             <SlidersHorizontal size={22} className="text-[#655ac1]" />
-            <h3 className="text-base font-black text-slate-800">إجراءات</h3>
+            <h3 className="text-base font-black text-slate-800">إجراءات جدول الإشراف اليومي</h3>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end">
-          <button
-            onClick={() => setShowLocationsModal(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
-            title="تعيين مواقع الإشراف"
-          >
-            <MapPin size={16} />
-            تعيين مواقع الإشراف
-          </button>
-          <div className="relative">
+        <div dir="rtl" className="mt-2 pt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 justify-start">
             <button
-              onClick={() => setShowFollowUpMenu(prev => !prev)}
+              onClick={() => setShowLocationsModal(true)}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
-              title="تعيين المشرف المتابع"
+              title="تعيين مواقع الإشراف"
             >
-              <Shield size={16} />
-              تعيين مشرف متابع
-              <ChevronDown size={14} className="text-slate-400" />
+              <MapPin size={16} />
+              تعيين مواقع الإشراف
             </button>
-            {showFollowUpMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowFollowUpMenu(false)} />
-                <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-44 bg-white border border-slate-200 rounded-2xl overflow-hidden p-1">
-                  {[
-                    { value: true, label: 'تعيين' },
-                    { value: false, label: 'عدم تعيين' },
-                  ].map(opt => (
-                    <button
-                      key={String(opt.value)}
-                      onClick={() => {
-                        setSupervisionData(prev => ({
-                          ...prev,
-                          settings: { ...prev.settings, enableFollowUpSupervisor: opt.value },
-                        }));
-                        setShowFollowUpMenu(false);
-                      }}
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-right text-xs font-black text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      <span>{opt.label}</span>
-                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        showFollowUpSupervisor === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
-                      }`}>
-                        {showFollowUpSupervisor === opt.value && <Check size={10} strokeWidth={3} />}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            <div className="relative">
+              <button
+                onClick={() => setShowFollowUpMenu(prev => !prev)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+                title="تعيين المشرف المتابع"
+              >
+                <Shield size={16} />
+                تعيين مشرف متابع
+                <ChevronDown size={14} className="text-slate-400" />
+              </button>
+              {showFollowUpMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowFollowUpMenu(false)} />
+                  <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-44 bg-white border border-slate-200 rounded-2xl overflow-hidden p-1">
+                    {[
+                      { value: true, label: 'تعيين' },
+                      { value: false, label: 'عدم تعيين' },
+                    ].map(opt => (
+                      <button
+                        key={String(opt.value)}
+                        onClick={() => {
+                          setSupervisionData(prev => ({
+                            ...prev,
+                            settings: { ...prev.settings, enableFollowUpSupervisor: opt.value },
+                          }));
+                          setShowFollowUpMenu(false);
+                        }}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-right text-xs font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        <span>{opt.label}</span>
+                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          showFollowUpSupervisor === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                        }`}>
+                          {showFollowUpSupervisor === opt.value && <Check size={10} strokeWidth={3} />}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
-            title="عرض تقرير توزيع المشرفين"
-          >
-            <BarChart3 size={16} />
-            تقرير التوزيع
-          </button>
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
-            title="إعادة الإنشاء"
-          >
-            <RotateCcw size={16} />
-            إعادة الإنشاء
-          </button>
-          <button
-            onClick={() => setShowDeleteAllConfirm(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-rose-200 text-rose-600 hover:border-rose-400 hover:bg-rose-50 transition-all"
-            title="حذف كل الإسنادات"
-          >
-            <Trash2 size={16} />
-            حذف الكل
-          </button>
+          <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+              title="عرض تقرير توزيع المشرفين"
+            >
+              <BarChart3 size={16} />
+              تقرير التوزيع
+            </button>
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+              title="إعادة الإنشاء"
+            >
+              <RotateCcw size={16} />
+              إعادة الإنشاء
+            </button>
+            <button
+              onClick={() => setShowDeleteAllConfirm(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-rose-200 text-rose-600 hover:border-rose-400 hover:bg-rose-50 transition-all"
+              title="حذف كل الإسنادات"
+            >
+              <Trash2 size={16} />
+              حذف الكل
+            </button>
+          </div>
         </div>
       </div>
 
@@ -557,21 +714,63 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
       {/* ═══ Bulk Location Modal ═══ */}
       {showLocationsModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowLocationsModal(false); setShowBulkLocationPicker(false); setShowDayDropdown(false); }}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl border border-slate-200" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); setShowBulkLocationPicker(false); setShowBulkStaffLocationPicker(false); setShowDayDropdown(false); }}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <MapPin size={24} className="text-[#655ac1]" />
                 <div>
                   <h3 className="text-base font-black text-slate-800">تعيين مواقع الإشراف</h3>
-                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">اختر موقعاً وطبّقه بنقرة على كل الأيام أو يوم محدد</p>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">طبّق المواقع حسب نوع الإشراف أو حسب مجموعة مشرفين</p>
                 </div>
               </div>
-              <button onClick={() => setShowLocationsModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+              <button onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-5 flex flex-col gap-4">
+            <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
+          {locationModalView === 'cards' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+              <button
+                type="button"
+                onClick={() => setLocationModalView('type')}
+                className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-right flex flex-col min-h-[220px]"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
+                </div>
+                <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
+                  اختر نوع الإشراف ( مثال : الفسحة ) ثم اختر المواقع المطلوب توزيع المشرفين عليها ثم اختر التطبيق على كل الأيام أو أيام محددة.
+                </p>
+                <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
+                  تعيين
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLocationModalView('staff')}
+                className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-right flex flex-col min-h-[220px]"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
+                </div>
+                <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
+                  اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم طبّقها.
+                </p>
+                <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
+                  تعيين
+                </span>
+              </button>
+            </div>
+          )}
+
+          {locationModalView === 'type' && (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4">
+            <div className="mb-4">
+              <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر نوع الإشراف ( مثال : الفسحة ) ثم اختر المواقع المطلوب توزيع المشرفين عليها ثم اختر التطبيق على كل الأيام أو أيام محددة.</p>
+            </div>
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 w-full">
             <div>
               <p className="text-xs font-black text-slate-600 mb-2">أعمدة الإشراف المستهدفة</p>
@@ -702,21 +901,168 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               )}
             </div>
           </div>
+          )}
+
+          {locationModalView === 'staff' && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mb-4">
+              <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم طبّقها.</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4">
+              <div className="min-w-0">
+                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl mb-3">
+                  {[
+                    { id: 'teacher' as const, label: 'المعلمون', count: assignedStaffForBulkLocations.filter(s => s.type === 'teacher').length },
+                    { id: 'admin' as const, label: 'الإداريون', count: assignedStaffForBulkLocations.filter(s => s.type === 'admin').length },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setBulkStaffTab(tab.id)}
+                      className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
+                        bulkStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {tab.label} ({tab.count})
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative mb-3">
+                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={bulkStaffSearch}
+                    onChange={e => setBulkStaffSearch(e.target.value)}
+                    placeholder="بحث عن مشرف مسند..."
+                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-64 overflow-y-auto">
+                  {assignedStaffForBulkLocations
+                    .filter(staff => staff.type === bulkStaffTab)
+                    .filter(staff => !bulkStaffSearch.trim() || staff.name.includes(bulkStaffSearch.trim()))
+                    .map(staff => {
+                      const selected = bulkStaffKeys.includes(staff.key);
+                      return (
+                        <button
+                          key={staff.key}
+                          onClick={() => toggleBulkStaff(staff.key)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors"
+                        >
+                          <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                            selected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                          }`}>
+                            {selected && <Check size={13} strokeWidth={3} />}
+                          </span>
+                          <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug">{staff.name}</span>
+                          <span className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">
+                            {staff.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  {assignedStaffForBulkLocations.filter(staff => staff.type === bulkStaffTab).length === 0 && (
+                    <div className="p-5 text-center text-xs font-bold text-slate-400">
+                      لا توجد إسنادات حالية لهذا النوع
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-xs font-black text-slate-600 mb-2">المواقع المختارة للمجموعة</p>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowBulkStaffLocationPicker(prev => !prev)}
+                    className="w-full bg-white border-2 border-[#d7d0ff] hover:border-[#655ac1] text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2 shadow-sm"
+                  >
+                    <span className={bulkStaffLocationIds.length > 0 ? 'text-slate-700' : 'text-[#655ac1]'}>
+                      {bulkStaffLocationIds.length > 0 ? getLocationSummary(bulkStaffLocationIds) : 'اختر موقعاً...'}
+                    </span>
+                    <ChevronDown size={14} className="text-[#655ac1] shrink-0" />
+                  </button>
+
+                  {showBulkStaffLocationPicker && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowBulkStaffLocationPicker(false)} />
+                      <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-full bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden">
+                        <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
+                          <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
+                            {bulkStaffLocationIds.length} محدد
+                          </span>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                          {activeLocations.map(loc => {
+                            const isSel = bulkStaffLocationIds.includes(loc.id);
+                            return (
+                              <button
+                                key={loc.id}
+                                onClick={() => toggleBulkStaffLocation(loc.id)}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
+                              >
+                                <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                                <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                                  {isSel && <Check size={12} />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  onClick={applyLocationsToSelectedStaff}
+                  disabled={bulkStaffKeys.length === 0 || bulkStaffLocationIds.length === 0}
+                  className={`mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                    bulkStaffKeys.length > 0 && bulkStaffLocationIds.length > 0
+                      ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:bg-[#8779fb] hover:border-[#8779fb] hover:-translate-y-0.5'
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Check size={16} /> تطبيق
+                </button>
+              </div>
+            </div>
+          </div>
+          )}
             <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              {locationModalView !== 'cards' && (
+                <button
+                  onClick={() => {
+                    setLocationModalView('cards');
+                    setShowBulkLocationPicker(false);
+                    setShowBulkStaffLocationPicker(false);
+                    setShowDayDropdown(false);
+                  }}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  عودة
+                </button>
+              )}
               <button
-                onClick={() => setShowLocationsModal(false)}
+                onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
                 className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
               >
                 إغلاق
               </button>
-              <button
-                onClick={() => setShowLocationsModal(false)}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
-              >
-                حفظ
-              </button>
+              {locationModalView !== 'cards' && (
+                <button
+                  onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
+                >
+                  حفظ
+                </button>
+              )}
             </div>
           </div>
+        </div>
         </div>
       )}
 
@@ -726,15 +1072,15 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right border-collapse">
               <thead>
-                <tr className="border-b border-slate-200" style={{ background: '#eef0f6' }}>
-                  <th className="p-4 font-black text-center w-28 border-l border-slate-200/60" style={{ color: '#655ac1' }}>اليوم</th>
+                <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
+                  <th className="p-4 font-black text-center w-28 border-l border-white/40">اليوم</th>
                   {inlineTypes.map(type => (
-                    <th key={type.id} className="p-4 font-black text-center border-l border-slate-200/60 min-w-[220px]" style={{ color: '#655ac1' }}>
+                    <th key={type.id} className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">
                       {type.name}
                     </th>
                   ))}
                   {showFollowUpSupervisor && (
-                    <th className="p-4 font-black text-center w-48" style={{ color: '#655ac1' }}>المشرف المتابع</th>
+                    <th className="p-4 font-black text-center w-48">المشرف المتابع</th>
                   )}
                 </tr>
               </thead>
@@ -742,9 +1088,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 {activeDays.map(day => {
                   const da = getDayAssignment(day);
                   return (
-                    <tr key={day} className="border-b border-slate-100 hover:bg-slate-50/40 transition-colors">
+                    <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
                       {/* Day cell */}
-                      <td className="p-3 border-l border-slate-200/60 align-top bg-gradient-to-br from-indigo-50/20 to-transparent text-center">
+                      <td className="p-3 border-l border-slate-200/80 align-top bg-slate-50/50 text-center">
                         <h4 className="font-black text-[#655ac1] text-base mt-2">{DAY_NAMES[day]}</h4>
                       </td>
 
@@ -752,88 +1098,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       {inlineTypes.map(type => {
                         const cellStaff = getStaffForCell(day, type.id);
                         return (
-                          <td key={type.id} className="p-3 border-l border-slate-200/60 align-top">
-                            <div className="flex flex-col gap-2">
-                              {cellStaff.map(sa => (
-                                <div
-                                  key={`${sa.staffId}-${sa.contextTypeId}`}
-                                  className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#655ac1]/40 rounded-xl p-2.5 transition-all group"
-                                >
-                                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-sm font-bold text-slate-800 truncate">{sa.staffName}</span>
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                                          sa.staffType === 'teacher'
-                                            ? 'bg-blue-50 text-blue-700'
-                                            : 'bg-purple-50 text-purple-700'
-                                        }`}>
-                                          {sa.staffType === 'teacher' ? 'معلم' : 'إداري'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        onClick={() => openAddPanel(day, type.id, type.name, sa.staffId)}
-                                        className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-                                        title="تعديل"
-                                      >
-                                        <Edit3 size={12} />
-                                      </button>
-                                      <button
-                                        onClick={() => requestRemoveStaffFromCell(day, type.id, sa)}
-                                        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="إزالة"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  {/* Location selector */}
-                                  <div className="relative">
-                                    <button
-                                      onClick={() => setShowLocationPicker(prev =>
-                                        prev === `${day}-${sa.staffId}-${type.id}` ? null : `${day}-${sa.staffId}-${type.id}`
-                                      )}
-                                      className="w-full bg-white border border-slate-200 hover:border-[#655ac1]/40 text-[11px] font-bold rounded-lg px-2 py-1.5 text-right flex items-center justify-between gap-1 transition-colors"
-                                    >
-                                      <span className={`flex items-center gap-1 truncate ${sa.locationIds.length > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        <MapPin size={10} className="shrink-0" />
-                                        <span className="truncate">{getLocationSummary(sa.locationIds)}</span>
-                                      </span>
-                                      <ChevronDown size={11} className="text-slate-400 shrink-0" />
-                                    </button>
-                                    {showLocationPicker === `${day}-${sa.staffId}-${type.id}` && (
-                                      <>
-                                        <div className="fixed inset-0 z-[9998]" onClick={() => setShowLocationPicker(null)} />
-                                        <div className="absolute top-[calc(100%+0.25rem)] right-0 z-[9999] w-56 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden">
-                                          <div className="p-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                            <span className="text-[11px] font-black text-slate-700">المواقع</span>
-                                            <span className="text-[9px] text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-full font-bold">{sa.locationIds.length}</span>
-                                          </div>
-                                          <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
-                                            {activeLocations.map(loc => {
-                                              const isSel = sa.locationIds.includes(loc.id);
-                                              return (
-                                                <button
-                                                  key={loc.id}
-                                                  onClick={() => toggleLocation(day, sa.staffId, type.id, loc.id)}
-                                                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-right hover:bg-slate-50 transition-colors"
-                                                >
-                                                  <span className={`text-xs font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                                                  <div className={`mr-auto w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
-                                                    {isSel && <Check size={10} />}
-                                                  </div>
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                          <td key={type.id} className="p-3 border-l border-slate-200/80 align-top">
+                            <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(248,250,252,0.9)]">
+                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa))}
 
                               {/* Add button */}
                               <button
@@ -849,7 +1116,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
                       {/* Follow-up cell */}
                       {showFollowUpSupervisor && (
-                        <td className="p-3 align-top border-l border-slate-200/60">
+                        <td className="p-3 align-top border-l border-slate-200/80">
                           <div className="relative w-full h-full flex flex-col justify-center min-h-[60px]">
                             {da.followUpSupervisorId ? (
                               <div className="bg-[#e5e1fe]/40 border border-[#655ac1]/20 rounded-xl p-3 group relative text-center">
@@ -911,112 +1178,38 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       {/* ═══ Separate Type Tables ═══ */}
       {separateTypeGroups.map(group => (
         <div key={group.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-200 flex items-center gap-3" style={{ background: '#eef0f6' }}>
-            <ClipboardList size={18} style={{ color: '#655ac1' }} />
-            <h3 className="text-sm font-black" style={{ color: '#655ac1' }}>
+          <div className="px-5 py-3 border-b border-slate-400 bg-[#a59bf0] text-white flex items-center gap-3">
+            <ClipboardList size={18} />
+            <h3 className="text-sm font-black">
               جدول الإشراف اليومي
             </h3>
-            <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-[#655ac1] bg-white border border-white/50 px-2 py-0.5 rounded-full">
               {group.id.startsWith('solo-') ? group.types[0].name : group.id}
             </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right border-collapse">
               <thead>
-                <tr className="border-b border-slate-200" style={{ background: '#eef0f6' }}>
-                  <th className="p-4 font-black text-center w-28 border-l border-slate-200/60" style={{ color: '#655ac1' }}>اليوم</th>
+                <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
+                  <th className="p-4 font-black text-center w-28 border-l border-white/40">اليوم</th>
                   {group.types.map(type => (
-                    <th key={type.id} className="p-4 font-black text-center border-l border-slate-200/60" style={{ color: '#655ac1' }}>{type.name}</th>
+                    <th key={type.id} className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">{type.name}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {activeDays.map(day => {
                   return (
-                    <tr key={day} className="border-b border-slate-100 hover:bg-slate-50/40 transition-colors">
-                      <td className="p-3 border-l border-slate-200/60 align-top bg-gradient-to-br from-indigo-50/20 to-transparent text-center">
+                    <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
+                      <td className="p-3 border-l border-slate-200/80 align-top bg-slate-50/50 text-center">
                         <h4 className="font-black text-[#655ac1] text-base mt-2">{DAY_NAMES[day]}</h4>
                       </td>
                       {group.types.map(type => {
                         const cellStaff = getStaffForCell(day, type.id);
                         return (
-                          <td key={type.id} className="p-3 border-l border-slate-200/60 align-top">
-                            <div className="flex flex-col gap-2">
-                              {cellStaff.map(sa => (
-                                <div
-                                  key={`${sa.staffId}-${sa.contextTypeId}`}
-                                  className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#655ac1]/40 rounded-xl p-2.5 transition-all group"
-                                >
-                                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-sm font-bold text-slate-800 truncate">{sa.staffName}</span>
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${sa.staffType === 'teacher' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
-                                          {sa.staffType === 'teacher' ? 'معلم' : 'إداري'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        onClick={() => openAddPanel(day, type.id, type.name, sa.staffId)}
-                                        className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-                                        title="تعديل"
-                                      >
-                                        <Edit3 size={12} />
-                                      </button>
-                                      <button
-                                        onClick={() => requestRemoveStaffFromCell(day, type.id, sa)}
-                                        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="إزالة"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="relative">
-                                    <button
-                                      onClick={() => setShowLocationPicker(prev =>
-                                        prev === `${day}-${sa.staffId}-${type.id}` ? null : `${day}-${sa.staffId}-${type.id}`
-                                      )}
-                                      className="w-full bg-white border border-slate-200 hover:border-[#655ac1]/40 text-[11px] font-bold rounded-lg px-2 py-1.5 text-right flex items-center justify-between gap-1 transition-colors"
-                                    >
-                                      <span className={`flex items-center gap-1 truncate ${sa.locationIds.length > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        <MapPin size={10} className="shrink-0" />
-                                        <span className="truncate">{getLocationSummary(sa.locationIds)}</span>
-                                      </span>
-                                      <ChevronDown size={11} className="text-slate-400 shrink-0" />
-                                    </button>
-                                    {showLocationPicker === `${day}-${sa.staffId}-${type.id}` && (
-                                      <>
-                                        <div className="fixed inset-0 z-[9998]" onClick={() => setShowLocationPicker(null)} />
-                                        <div className="absolute top-[calc(100%+0.25rem)] right-0 z-[9999] w-56 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-200 overflow-hidden">
-                                          <div className="p-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                            <span className="text-[11px] font-black text-slate-700">المواقع</span>
-                                            <span className="text-[9px] text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-full font-bold">{sa.locationIds.length}</span>
-                                          </div>
-                                          <div className="max-h-56 overflow-y-auto p-1.5 space-y-0.5">
-                                            {activeLocations.map(loc => {
-                                              const isSel = sa.locationIds.includes(loc.id);
-                                              return (
-                                                <button
-                                                  key={loc.id}
-                                                  onClick={() => toggleLocation(day, sa.staffId, type.id, loc.id)}
-                                                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-right hover:bg-slate-50 transition-colors"
-                                                >
-                                                  <span className={`text-xs font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                                                  <div className={`mr-auto w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
-                                                    {isSel && <Check size={10} />}
-                                                  </div>
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                          <td key={type.id} className="p-3 border-l border-slate-200/80 align-top">
+                            <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(248,250,252,0.9)]">
+                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa))}
                               <button
                                 onClick={() => openAddPanel(day, type.id, type.name)}
                                 className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
