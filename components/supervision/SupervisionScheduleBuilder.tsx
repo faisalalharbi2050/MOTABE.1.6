@@ -3,6 +3,7 @@ import {
   Calendar, MapPin, Plus, X, Copy, Trash2, RotateCcw,
   ChevronDown, Check, AlertTriangle, Search, Shield,
   BarChart3, Users, ClipboardList, SlidersHorizontal, Edit3,
+  MapPinned, UserRoundCheck,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -737,6 +738,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-right flex flex-col min-h-[220px]"
               >
                 <div className="flex items-center gap-3 mb-4">
+                  <MapPinned size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
                   <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
                 </div>
                 <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
@@ -753,10 +755,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-right flex flex-col min-h-[220px]"
               >
                 <div className="flex items-center gap-3 mb-4">
+                  <UserRoundCheck size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
                   <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
                 </div>
                 <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
-                  اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم طبّقها.
+                  اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم تطبيق.
                 </p>
                 <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
                   تعيين
@@ -907,7 +910,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-4">
               <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم طبّقها.</p>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم تطبيق.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4">
@@ -977,7 +980,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 <div className="relative">
                   <button
                     onClick={() => setShowBulkStaffLocationPicker(prev => !prev)}
-                    className="w-full bg-white border-2 border-[#d7d0ff] hover:border-[#655ac1] text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2 shadow-sm"
+                    className="w-full bg-white border-2 border-slate-300 hover:border-[#655ac1] text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2 shadow-sm"
                   >
                     <span className={bulkStaffLocationIds.length > 0 ? 'text-slate-700' : 'text-[#655ac1]'}>
                       {bulkStaffLocationIds.length > 0 ? getLocationSummary(bulkStaffLocationIds) : 'اختر موقعاً...'}
@@ -1022,7 +1025,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   disabled={bulkStaffKeys.length === 0 || bulkStaffLocationIds.length === 0}
                   className={`mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                     bulkStaffKeys.length > 0 && bulkStaffLocationIds.length > 0
-                      ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:bg-[#8779fb] hover:border-[#8779fb] hover:-translate-y-0.5'
+                      ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:bg-[#655ac1] hover:border-[#655ac1] hover:-translate-y-0.5'
                       : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >

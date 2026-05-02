@@ -107,7 +107,7 @@ const SingleSelectDropdown: React.FC<{
         onClick={() => !disabled && setOpen(c => !c)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <span className="truncate">{selected?.label || placeholder}</span>
+        <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && createPortal(
@@ -447,7 +447,6 @@ const PrintSendTab: React.FC<Props> = ({
     const isBW = printColorMode === 'bw';
     const headerColor = isBW ? '#1e293b' : '#1e293b';
     const accentColor = isBW ? '#1e293b' : '#655ac1';
-    const headBg = isBW ? '#ffffff' : '#f1f5f9';
     const stripeBg = isBW ? '#ffffff' : '#f8fafc';
     const dayBg = isBW ? '#ffffff' : '#f1f5f9';
 
@@ -492,23 +491,22 @@ const PrintSendTab: React.FC<Props> = ({
       if (rows.length === 0) return '<span class="empty-state">—</span>';
       return rows.map(() => '<div class="signature-line"></div>').join('');
     };
-    const renderTable = (title: string, types: typeof activeTypes) => {
+    const renderTable = (types: typeof activeTypes) => {
       if (types.length === 0) return '';
       const typeColWidth = includeSignature ? 56 / types.length : 78 / types.length;
       const signatureColWidth = includeSignature ? 22 / types.length : 0;
       return `
         <section class="schedule-section">
-          <h2 class="section-title">${escapeHtml(title)}</h2>
           <table>
             <thead>
               <tr>
                 <th style="width: 12%;">اليوم</th>
                 ${types.map(type => `
                   <th style="width: ${typeColWidth}%;">${escapeHtml(type.name)}</th>
-                  ${includeSignature ? `<th style="width: ${signatureColWidth}%;">توقيع ${escapeHtml(type.name)}</th>` : ''}
+                  ${includeSignature ? `<th style="width: ${signatureColWidth}%;">التوقيع</th>` : ''}
                 `).join('')}
                 <th style="width: 10%;">المشرف المتابع</th>
-                ${includeSignature ? '<th style="width: 10%;">توقيع المشرف المتابع</th>' : ''}
+                ${includeSignature ? '<th style="width: 10%;">التوقيع</th>' : ''}
               </tr>
             </thead>
             <tbody>
@@ -530,8 +528,8 @@ const PrintSendTab: React.FC<Props> = ({
       `;
     };
     const printableTables = [
-      renderTable('جدول الإشراف اليومي', inlineTypes),
-      ...separateGroups.map(group => renderTable(group.types.length === 1 ? group.types[0].name : 'جدول إشراف مستقل', group.types)),
+      renderTable(inlineTypes),
+      ...separateGroups.map(group => renderTable(group.types)),
     ].join('');
 
     printWindow.document.write(`
@@ -539,28 +537,29 @@ const PrintSendTab: React.FC<Props> = ({
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>جدول الإشراف اليومي - ${escapeHtml(printData.schoolName)}</title>
+  <title></title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap');
     @page { size: ${paperSize} landscape; margin: 10mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Tajawal', 'Arial', sans-serif; padding: 18px; direction: rtl; background: #fff; ${isBW ? 'filter: grayscale(100%);' : ''} }
     .print-container { max-width: 100%; margin: 0 auto; }
-    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid ${headerColor}; padding-bottom: 14px; margin-bottom: 18px; }
+    .header-wrapper { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid ${headerColor}; padding-bottom: 14px; margin-bottom: 10px; }
     .header-right, .header-left { width: 33%; font-weight: bold; font-size: 12px; color: ${headerColor}; line-height: 1.8; }
     .header-right { text-align: right; }
     .header-left { text-align: left; }
     .header-center { width: 33%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
     .logo-text { font-size: 9px; color: #94a3b8; }
-    .header-title { font-size: 18px; font-weight: 900; color: ${headerColor}; margin-bottom: 4px; }
-    .section-title { color: ${accentColor}; font-size: 14px; font-weight: 900; margin: 14px 0 8px; text-align: right; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11px; table-layout: fixed; }
-    th { background-color: ${headBg}; color: ${accentColor}; border: 1px solid #cbd5e1; padding: 9px; font-weight: 900; text-align: center; }
-    td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; }
+    .main-title { text-align: center; color: ${headerColor}; font-size: 18px; font-weight: 900; margin: 8px 0 14px; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 16px; font-size: 11px; table-layout: fixed; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+    th { background-color: ${isBW ? '#f1f5f9' : '#a59bf0'}; color: ${isBW ? headerColor : '#ffffff'}; border-left: 1px solid rgba(255,255,255,0.45); padding: 9px; font-weight: 900; text-align: center; }
+    td { border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 8px; vertical-align: top; }
+    th:last-child, td:last-child { border-left: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
     tr:nth-child(even) td { background-color: ${stripeBg}; }
     .day-header { background-color: ${dayBg} !important; font-weight: 900; color: ${accentColor}; text-align: center; vertical-align: middle; }
-    .staff-line { padding: 5px 0; border-bottom: 1px dashed #e2e8f0; }
+    .staff-line { padding: 5px 0; border-bottom: 1px solid #e2e8f0; }
     .staff-line:last-child { border-bottom: 0; }
     .staff-name { font-weight: 900; color: ${headerColor}; line-height: 1.5; }
     .staff-locations { margin-top: 2px; color: #64748b; font-size: 10px; line-height: 1.5; }
@@ -573,7 +572,7 @@ const PrintSendTab: React.FC<Props> = ({
     .footer { margin-top: 18px; text-align: right; font-size: 12px; font-weight: bold; color: #475569; padding: 12px 14px; border: 1px dashed #94a3b8; border-radius: 10px; white-space: pre-wrap; }
     @media print {
       body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      th { background-color: ${headBg} !important; color: ${headerColor} !important; }
+      th { background-color: ${isBW ? '#f1f5f9' : '#a59bf0'} !important; color: ${isBW ? headerColor : '#ffffff'} !important; }
       .day-header { background-color: ${dayBg} !important; color: ${accentColor} !important; }
       tr:nth-child(even) td { background-color: ${stripeBg} !important; }
     }
@@ -593,13 +592,14 @@ const PrintSendTab: React.FC<Props> = ({
         ${schoolInfo.logo
           ? `<img src="${schoolInfo.logo}" style="width:56px;height:56px;object-fit:contain;margin-bottom:8px;" />`
           : `<div class="logo-circle"><span class="logo-text">شعار</span></div>`}
-        <h1 class="header-title">${escapeHtml(printData.title)}</h1>
       </div>
       <div class="header-left">
         <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
         <p>العام الدراسي: ${escapeHtml(schoolInfo.academicYear || '')}</p>
       </div>
     </div>
+
+    <h1 class="main-title">${escapeHtml(printData.title)}</h1>
 
     ${printableTables}
 
@@ -894,8 +894,8 @@ const PrintSendTab: React.FC<Props> = ({
                 onChange={value => setPrintSignatureMode(value as PrintSignatureMode)}
                 placeholder="اختر خيار التوقيع"
                 options={[
-                  { value: 'with', label: 'إضافة خانة توقيع لكل مشرف' },
-                  { value: 'without', label: 'بدون خانة توقيع' },
+                  { value: 'with', label: 'إضافة عامود توقيع لكل مشرف' },
+                  { value: 'without', label: 'بدون إضافة عامود توقيع لكل مشرف' },
                 ]}
               />
             </div>
@@ -928,7 +928,7 @@ const PrintSendTab: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleDirectPrint}
-                className="inline-flex min-w-[160px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-500 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all shadow-sm"
+                className="inline-flex min-w-[160px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all shadow-md shadow-[#655ac1]/20"
               >
                 <Printer size={16} />
                 طباعة

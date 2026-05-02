@@ -941,6 +941,7 @@ const ViewTab: React.FC<Props> = ({
   const [isSending, setIsSending] = useState(false);
   const [showLinkDetails, setShowLinkDetails] = useState(false);
   const [showRecipientsModal, setShowRecipientsModal] = useState(false);
+  const [recipientsListLink, setRecipientsListLink] = useState<GeneratedLink | null>(null);
 
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendModalResults, setSendModalResults] = useState<Array<{id: string; name: string; phone: string; status: 'sent'|'failed'; channel: string; timestamp: string; failureReason?: string}>>([]);
@@ -1057,6 +1058,23 @@ const ViewTab: React.FC<Props> = ({
       ? 'توقيع إلكتروني للمعلمين واطلاع للإداريين'
       : 'اطلاع فقط';
   const sendChannelLabel = sendChannel === 'whatsapp' ? 'واتساب' : 'رسالة نصية';
+  const recipientRoleLabels: Record<ShareRecipientRecord['role'], string> = {
+    teacher: 'معلمين',
+    admin: 'إداريين',
+    guardian: 'أولياء أمور',
+  };
+  const getRecipientsPreview = (recipients: ShareRecipientRecord[]) => {
+    if (recipients.length <= 3) {
+      return recipients.map(item => item.name).join('، ') || 'لا يوجد مستلمين';
+    }
+
+    const groupedRoles = Array.from(new Set(recipients.map(item => item.role)));
+    const roleText = groupedRoles.length === 1
+      ? recipientRoleLabels[groupedRoles[0]]
+      : groupedRoles.map(role => recipientRoleLabels[role]).join(' و');
+
+    return `${roleText} (${recipients.length})`;
+  };
   const printScheduleTypeOptions = useMemo(
     () => SCHEDULE_TYPES.map(item => ({ value: item.id, label: item.label })),
     []
@@ -2252,12 +2270,6 @@ const ViewTab: React.FC<Props> = ({
                     سيتم إرسال الرابط لأولياء أمور الفصول المتاحة.
                   </div>
                 )}
-                {selectedRecipients.length > 0 && (
-                  <div className="rounded-2xl border border-[#e5e1fe] bg-[#f8f7ff] px-4 py-3 text-xs font-black text-[#655ac1] flex items-center gap-2">
-                    <Users size={14} />
-                    {selectedRecipients.length} مستلم محدد — {modelTypeSummary}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -2860,81 +2872,155 @@ const ViewTab: React.FC<Props> = ({
         const now = new Date();
         const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
         const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
-        const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === safeSendScheduleType)?.label || '';
         return (
           <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-            <div className="w-full max-w-4xl h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
-                <div>
+            <div className="w-full max-w-6xl h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Users size={22} className="text-[#655ac1] shrink-0" />
                   <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
-                  <p className="text-xs font-bold text-slate-400 mt-1">{generatedLinks.length} رابط • {scheduleTypeLabel}</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowRecipientsModal(false)}
-                  className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center transition-colors"
+                  onClick={() => {
+                    setShowRecipientsModal(false);
+                    setRecipientsListLink(null);
+                  }}
+                  className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
                 >
                   <X size={16} />
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {generatedLinks.length === 0 ? (
-                  <div className="p-10 text-center text-sm font-bold text-slate-400">لم يتم اختيار مستلمين بعد.</div>
+                  <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400 opacity-70">
+                    <Users size={58} strokeWidth={1.4} style={{ color: '#655ac1' }} />
+                    <p className="text-sm font-bold text-slate-500">لم يتم اختيار مستلمين بعد.</p>
+                  </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-right" dir="rtl">
-                      <thead className="sticky top-0">
-                        <tr className="bg-[#f4f2ff] border-b border-[#e5e1fe]">
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">اليوم</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">التاريخ</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">المستلم</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">نوع الجدول</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs">الرابط</th>
-                          <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">إجراءات</th>
+                    <table className="w-full text-right min-w-[980px]" dir="rtl">
+                      <thead>
+                        <tr className="bg-slate-50/50 border-b border-slate-100">
+                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">اليوم</th>
+                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">التاريخ</th>
+                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">المستلم</th>
+                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">نوع الجدول</th>
+                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">الرابط</th>
+                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {generatedLinks.map(link => (
-                          <tr key={link.url} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-slate-600 text-sm font-bold">{dayLabel}</td>
-                            <td className="px-4 py-3 text-slate-600 text-sm font-bold">{dateLabel}</td>
-                            <td className="px-4 py-3 font-black text-slate-800">{link.targetLabel}</td>
-                            <td className="px-4 py-3 text-slate-600 text-sm font-bold">{scheduleTypeLabel}</td>
-                            <td className="px-4 py-3">
-                              <div dir="ltr" className="max-w-[180px] rounded-xl border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-400 truncate">
-                                {link.url}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => window.open(link.url, '_blank')}
-                                  title="عرض النموذج"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
-                                >
-                                  <Eye size={12} />
-                                  عرض
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboard(link.url)}
-                                  title="نسخ الرابط"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
-                                >
-                                  <Copy size={12} />
-                                  نسخ
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {generatedLinks.map(link => {
+                          const hasManyRecipients = link.recipients.length > 3;
+                          return (
+                            <tr key={link.url} className="hover:bg-accent/5 transition-all">
+                              <td className="px-6 py-3.5 text-center">
+                                <span className="text-[12px] font-bold text-slate-700">{dayLabel}</span>
+                              </td>
+                              <td className="px-6 py-3.5 text-center">
+                                <div className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg">
+                                  <span className="text-[12px] font-bold text-slate-700">{dateLabel}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-3.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-bold text-[13px] text-slate-800 truncate max-w-[240px]" title={link.recipients.map(item => item.name).join('، ')}>
+                                    {getRecipientsPreview(link.recipients)}
+                                  </span>
+                                  {hasManyRecipients && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setRecipientsListLink(link)}
+                                      title="عرض جميع المستلمين"
+                                      className="w-8 h-8 rounded-lg border border-slate-200 bg-white text-[#655ac1] hover:bg-[#f1efff] flex items-center justify-center transition-all shrink-0"
+                                    >
+                                      <Eye size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-3.5">
+                                <span className="font-bold text-[13px] text-slate-700">{link.label}</span>
+                              </td>
+                              <td className="px-6 py-3.5">
+                                <div dir="ltr" className="max-w-[240px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-mono text-slate-500 truncate">
+                                  {link.url}
+                                </div>
+                              </td>
+                              <td className="px-6 py-3.5">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(link.url, '_blank')}
+                                    title="عرض الجدول الذي سيتم إرساله"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all"
+                                  >
+                                    <Eye size={12} />
+                                    عرض
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(link.url)}
+                                    title="نسخ رابط الجدول الذي سيتم إرساله"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all"
+                                  >
+                                    <Copy size={12} />
+                                    نسخ
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 )}
               </div>
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRecipientsModal(false);
+                    setRecipientsListLink(null);
+                  }}
+                  className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  إغلاق
+                </button>
+              </div>
             </div>
+
+            {recipientsListLink && (
+              <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/30" dir="rtl">
+                <div className="w-full max-w-md max-h-[70vh] overflow-hidden rounded-[1.75rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ClipboardList size={18} className="text-[#655ac1] shrink-0" />
+                      <h4 className="font-black text-slate-800 truncate">جميع المستلمين</h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRecipientsListLink(null)}
+                      className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto p-3 space-y-2">
+                    {recipientsListLink.recipients.map(recipient => (
+                      <div key={recipient.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                        <span className="text-sm font-black text-slate-800 truncate">{recipient.name}</span>
+                        <span className="text-[11px] font-black text-[#655ac1] bg-white border border-[#e5e1fe] rounded-lg px-2 py-1 shrink-0">
+                          {recipientRoleLabels[recipient.role]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
