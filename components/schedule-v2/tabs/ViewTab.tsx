@@ -1119,25 +1119,18 @@ const ViewTab: React.FC<Props> = ({
     const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
     const now = new Date();
     const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-    const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
+    const dateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(now);
     const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === safeSendScheduleType)?.label || 'الجدول';
     const recipientName = safeSendAudience === 'guardians'
-      ? 'ولي أمر الطالب/ـة {اسم_الطالب}'
+      ? 'المكرم/ولي أمر الطالب/ـة {اسم_الطالب}'
       : safeSendAudience === 'admins'
-        ? '{اسم_الإداري}'
-        : '{اسم_المعلم}';
+        ? 'المكرم/{اسم_الإداري}'
+        : 'المكرم/{اسم_المعلم}';
     setModalMessageContent([
-      `السلام عليكم ورحمة الله وبركاته`,
       `${recipientName}`,
-      `نرفق لكم ${scheduleTypeLabel} للعلم والاطلاع.`,
+      `نرفق لكم جدول للعلم والاطلاع.`,
       ``,
-      `اسم المدرسة: ${schoolInfo.schoolName || 'المدرسة'}`,
-      `اليوم: ${dayLabel}`,
-      `التاريخ: ${dateLabel}`,
-      `الفصل الدراسي: ${currentSemester?.name || '-'}`,
-      `نوع الجدول: ${scheduleTypeLabel}`,
-      `رابط الجدول:`,
-      `{روابط_الجداول}`,
+      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'} - اليوم (${dayLabel}) - التاريخ (${dateLabel}) - الفصل الدراسي (${currentSemester?.name || '-'}) - نوع الجدول (${scheduleTypeLabel}) - رابط الجدول ({روابط_الجداول})`,
     ].join('\n'));
   }, [safeSendScheduleType, safeSendAudience, schoolInfo]);
 
@@ -1479,7 +1472,7 @@ const ViewTab: React.FC<Props> = ({
     const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
     const now = new Date();
     const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-    const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
+    const dateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(now);
     const linksByRecipientId = Object.fromEntries(
       Array.from(recipientMap.values()).map(({ recipient, links: recipientLinks }) => {
         return [recipient.id, recipientLinks.map(link => `${link.label}: ${link.url}`).join('\n')];
@@ -1505,22 +1498,15 @@ const ViewTab: React.FC<Props> = ({
       'parents';
     const schedTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
     const recipientName = sendAudience === 'guardians'
-      ? 'ولي أمر الطالب/ـة {اسم_الطالب}'
+      ? 'المكرم/ولي أمر الطالب/ـة {اسم_الطالب}'
       : sendAudience === 'admins'
-        ? '{اسم_الإداري}'
-        : '{اسم_المعلم}';
+        ? 'المكرم/{اسم_الإداري}'
+        : 'المكرم/{اسم_المعلم}';
     const content = [
-      `السلام عليكم ورحمة الله وبركاته`,
       `${recipientName}`,
-      `نرفق لكم ${schedTypeLabel} للعلم والاطلاع.`,
+      `نرفق لكم جدول للعلم والاطلاع.`,
       ``,
-      `اسم المدرسة: ${schoolInfo.schoolName || 'المدرسة'}`,
-      `اليوم: ${dayLabel}`,
-      `التاريخ: ${dateLabel}`,
-      `الفصل الدراسي: ${currentSemester?.name || '-'}`,
-      `نوع الجدول: ${schedTypeLabel}`,
-      `رابط الجدول:`,
-      `{روابط_الجداول}`,
+      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'} - اليوم (${dayLabel}) - التاريخ (${dateLabel}) - الفصل الدراسي (${currentSemester?.name || '-'}) - نوع الجدول (${schedTypeLabel}) - رابط الجدول ({روابط_الجداول})`,
     ].join('\n');
 
     return {
@@ -1566,7 +1552,7 @@ const ViewTab: React.FC<Props> = ({
     const batchId = `schedule-batch-${Date.now()}`;
     const now = new Date();
     const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-    const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
+    const dateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(now);
     const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
     return draft.recipients.map(recipient => {
       const recipientLinkText = draft.linksByRecipientId?.[recipient.id] || '';
@@ -2374,6 +2360,7 @@ const ViewTab: React.FC<Props> = ({
                   </div>
                   <button
                     type="button"
+                    title="استعادة النص الافتراضي"
                     onClick={() => {
                       setModalMessageContent(buildMessageComposerDraft(generatedLinks).content);
                       showToast('تمت استعادة النص الافتراضي.');
@@ -2381,7 +2368,7 @@ const ViewTab: React.FC<Props> = ({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all"
                   >
                     <RefreshCw size={13} />
-                    استعادة النص الافتراضي
+                    النص الافتراضي
                   </button>
                 </div>
                 <textarea
@@ -2813,7 +2800,7 @@ const ViewTab: React.FC<Props> = ({
                     if (!firstRecipient) return null;
                     const now = new Date();
                     const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-                    const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
+                    const dateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(now);
                     const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
                     const previewContent = modalMessageContent
                       .replace(/\{اسم_المعلم\}/g, firstRecipient.name)
