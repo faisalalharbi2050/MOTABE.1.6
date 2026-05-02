@@ -1,19 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import arabic from 'react-date-object/calendars/arabic';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+import gregorian from 'react-date-object/calendars/gregorian';
+import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
   Printer, Send, Loader2,
-  Archive, ClipboardList, CalendarDays, CalendarClock, SlidersHorizontal,
-  MessageSquare, Bell, Link2, AlertCircle, CheckCircle2,
-  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X,
+  Archive, ClipboardList, ClipboardCheck, CalendarDays, CalendarClock, SlidersHorizontal,
+  MessageSquare, AlertCircle, CheckCircle2,
+  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy,
 } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData, Teacher, Admin } from '../../../types';
 import {
   getSupervisionPrintData, DAYS, DAY_NAMES, getTimingConfig,
-  generateAssignmentMessage, generateReminderMessage,
 } from '../../../utils/supervisionUtils';
+import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 
 interface Props {
   supervisionData: SupervisionScheduleData;
+  setSupervisionData?: React.Dispatch<React.SetStateAction<SupervisionScheduleData>>;
   schoolInfo: SchoolInfo;
   teachers: Teacher[];
   admins: Admin[];
@@ -221,9 +227,10 @@ const MultiSelectDropdown: React.FC<{
 
 // ────────────────────────────────────────────────────────────────────────
 const PrintSendTab: React.FC<Props> = ({
-  supervisionData, schoolInfo, teachers, admins,
+  supervisionData, setSupervisionData, schoolInfo, teachers, admins,
   onOpenLegacyPrint, onOpenLegacySend, onOpenMessagesArchive, showToast,
 }) => {
+  const { sendMessage, scheduleMessage } = useMessageArchive();
   const [taskMode, setTaskMode] = useState<TaskMode>('print');
 
   // Print state
@@ -235,6 +242,7 @@ const PrintSendTab: React.FC<Props> = ({
 
   // Send state
   const [sendMode, setSendMode] = useState<SendMode>('electronic');
+  const [selectedSupervisionTypeId, setSelectedSupervisionTypeId] = useState('all');
   const [sendAudience, setSendAudience] = useState<SendAudience>('supervisors');
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedStaffKeys, setSelectedStaffKeys] = useState<string[]>([]);
@@ -245,6 +253,9 @@ const PrintSendTab: React.FC<Props> = ({
   const [sendScheduleTime, setSendScheduleTime] = useState('08:00');
   const [isSendingNow, setIsSendingNow] = useState(false);
   const [sendResults, setSendResults] = useState<{ name: string; status: 'sent' | 'failed' }[]>([]);
+  const [previewRow, setPreviewRow] = useState<SendRow | null>(null);
+  const [previewReceiptRow, setPreviewReceiptRow] = useState<ReceiptRow | null>(null);
+  const [recipientsPreviewOpen, setRecipientsPreviewOpen] = useState(false);
 
   // Receipt log state
   const [sigReceiptOpen, setSigReceiptOpen] = useState(false);
@@ -264,6 +275,39 @@ const PrintSendTab: React.FC<Props> = ({
     [activeDays]
   );
 
+  const scheduledTypeIds = useMemo(() => {
+    const ids = new Set<string>();
+    supervisionData.dayAssignments.forEach(da =>
+      da.staffAssignments.forEach(sa => {
+        if (sa.contextTypeId) ids.add(sa.contextTypeId);
+      })
+    );
+    return ids;
+  }, [supervisionData.dayAssignments]);
+
+  const supervisionTypeOptions: DropdownOption[] = useMemo(
+    () => {
+      const scheduledTypes = (supervisionData.supervisionTypes || [])
+        .filter(type => type.isEnabled && scheduledTypeIds.has(type.id))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(type => ({ value: type.id, label: type.name }));
+      return scheduledTypes.length > 0
+        ? [{ value: 'all', label: 'الكل' }, ...scheduledTypes]
+        : [{ value: 'all', label: 'لا يوجد نوع إشراف بجدول منشأ', disabled: true }];
+    },
+    [supervisionData.supervisionTypes, scheduledTypeIds]
+  );
+
+  useEffect(() => {
+    if (supervisionTypeOptions.length <= 1) {
+      setSelectedSupervisionTypeId('all');
+      return;
+    }
+    if (!selectedSupervisionTypeId || !supervisionTypeOptions.some(option => option.value === selectedSupervisionTypeId)) {
+      setSelectedSupervisionTypeId('all');
+    }
+  }, [supervisionTypeOptions, selectedSupervisionTypeId]);
+
   type SendRow = {
     key: string;
     staffId: string;
@@ -271,8 +315,12 @@ const PrintSendTab: React.FC<Props> = ({
     staffType: 'teacher' | 'admin';
     role: 'supervisor' | 'followup';
     day: string;
+    days: string[];
+    contextTypeId?: string;
+    typeName: string;
     locationNames: string[];
     phone?: string;
+    signatureToken?: string;
   };
 
   const sendRows: SendRow[] = useMemo(() => {
@@ -285,53 +333,68 @@ const PrintSendTab: React.FC<Props> = ({
     supervisionData.dayAssignments.forEach(da => {
       da.staffAssignments.forEach(sa => {
         const staff = findStaff(sa.staffId, sa.staffType as 'teacher' | 'admin');
+        const typeName = supervisionData.supervisionTypes.find(type => type.id === sa.contextTypeId)?.name || 'الإشراف اليومي';
         const locationNames = sa.locationIds
           .map(lid => supervisionData.locations.find(l => l.id === lid)?.name || '')
           .filter(Boolean);
         rows.push({
-          key: `sup-${da.day}-${sa.staffId}`,
+          key: `sup-${da.day}-${sa.contextTypeId}-${sa.staffId}`,
           staffId: sa.staffId,
           staffName: sa.staffName,
           staffType: sa.staffType as 'teacher' | 'admin',
           role: 'supervisor',
           day: da.day,
+          contextTypeId: sa.contextTypeId,
+          typeName,
           locationNames,
           phone: (staff as any)?.phone || (staff as any)?.phoneNumber,
+          signatureToken: sa.signatureToken,
         });
       });
       if (da.followUpSupervisorId && da.followUpSupervisorName) {
+        const dayTypeIds = Array.from(new Set(da.staffAssignments.map(sa => sa.contextTypeId).filter(Boolean)));
         const asTeacher = teachers.find(t => t.id === da.followUpSupervisorId);
         const asAdmin = !asTeacher ? admins.find(a => a.id === da.followUpSupervisorId) : null;
         const staffType: 'teacher' | 'admin' = asTeacher ? 'teacher' : 'admin';
         const staff = asTeacher || asAdmin;
-        rows.push({
-          key: `fu-${da.day}-${da.followUpSupervisorId}`,
+        dayTypeIds.forEach(typeId => rows.push({
+          key: `fu-${da.day}-${typeId}-${da.followUpSupervisorId}`,
           staffId: da.followUpSupervisorId,
           staffName: da.followUpSupervisorName,
           staffType,
           role: 'followup',
           day: da.day,
+          contextTypeId: typeId,
+          typeName: supervisionData.supervisionTypes.find(type => type.id === typeId)?.name || 'الإشراف اليومي',
           locationNames: [],
           phone: (staff as any)?.phone || (staff as any)?.phoneNumber,
-        });
+          signatureToken: da.followUpSignatureToken,
+        }));
       }
     });
-    return rows;
-  }, [supervisionData, teachers, admins]);
+    const typeOrder = new Map((supervisionData.supervisionTypes || []).map((type, index) => [type.id, type.sortOrder ?? index]));
+    const dayOrder = new Map(activeDays.map((day, index) => [day, index]));
+    return rows.sort((a, b) =>
+      (typeOrder.get(a.contextTypeId || '') ?? 999) - (typeOrder.get(b.contextTypeId || '') ?? 999) ||
+      (dayOrder.get(a.day) ?? 999) - (dayOrder.get(b.day) ?? 999) ||
+      a.staffName.localeCompare(b.staffName, 'ar')
+    );
+  }, [supervisionData, teachers, admins, activeDays]);
 
   const filteredSendRows = useMemo(() => {
     return sendRows.filter(r => {
       if (selectedDays.length > 0 && !selectedDays.includes(r.day)) return false;
+      if (selectedSupervisionTypeId !== 'all' && r.contextTypeId !== selectedSupervisionTypeId) return false;
       if (sendAudience === 'supervisors' && r.role !== 'supervisor') return false;
       if (sendAudience === 'followups' && r.role !== 'followup') return false;
       return true;
     });
-  }, [sendRows, selectedDays, sendAudience]);
+  }, [sendRows, selectedDays, selectedSupervisionTypeId, sendAudience]);
 
   const staffOptions: DropdownOption[] = useMemo(
     () => filteredSendRows.map(r => ({
       value: r.key,
-      label: `${r.staffName} — ${DAY_NAMES[r.day] || r.day}${r.role === 'followup' ? ' (متابع)' : ''}`,
+      label: `${r.typeName} - ${r.staffName} - ${DAY_NAMES[r.day] || r.day}${r.role === 'followup' ? ' (مشرف متابع)' : ''}`,
     })),
     [filteredSendRows]
   );
@@ -348,68 +411,112 @@ const PrintSendTab: React.FC<Props> = ({
 
   useEffect(() => {
     if (selectedRows.length === 0) { setMessageText(''); return; }
-    const sample = selectedRows[0];
-    let txt = '';
-    if (sendMode === 'electronic') {
-      txt = `${sample.staffType === 'teacher' ? 'المعلم الفاضل' : 'الإداري الفاضل'}/ ${sample.staffName} — نشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${DAY_NAMES[sample.day] || sample.day}.\nالرجاء التوقيع عبر الرابط: <رابط التوقيع>`;
-    } else if (sendMode === 'text') {
-      txt = generateAssignmentMessage(sample.staffName, sample.staffType, sample.day, sample.locationNames);
-    } else {
-      txt = generateReminderMessage(sample.staffName, sample.staffType, sample.day, sample.locationNames);
-    }
-    setMessageText(txt);
+    setMessageText(buildDetailedMessage(selectedRows[0]));
   }, [sendMode, selectedRows]);
 
-  const buildMessage = (row: SendRow): string => {
-    if (sendMode === 'text') return generateAssignmentMessage(row.staffName, row.staffType, row.day, row.locationNames);
-    if (sendMode === 'reminder') return generateReminderMessage(row.staffName, row.staffType, row.day, row.locationNames);
-    return `${row.staffType === 'teacher' ? 'المعلم الفاضل' : 'الإداري الفاضل'}/ ${row.staffName} — نشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${DAY_NAMES[row.day] || row.day}.\nالرجاء التوقيع عبر الرابط: <رابط التوقيع>`;
-  };
+  const buildMessage = (row: SendRow): string => buildDetailedMessage(row);
 
   // ─── Receipt log rows ──────────────────────────────────────────────────
   type ReceiptRow = {
     key: string;
     staffId: string;
     staffName: string;
+    staffType: 'teacher' | 'admin';
     role: 'supervisor' | 'followup';
     day: string;
+    contextTypeId?: string;
+    typeName: string;
     status: 'signed' | 'pending';
     sentAt?: string;
     signedAt?: string;
     signatureData?: string;
+    signatureToken?: string;
   };
 
   const receiptRows: ReceiptRow[] = useMemo(() => {
-    const list: ReceiptRow[] = [];
+    const rows = new Map<string, ReceiptRow>();
+    const getTypeName = (typeId?: string) =>
+      supervisionData.supervisionTypes.find(type => type.id === typeId)?.name || 'الإشراف اليومي';
+    const mergeDate = (current: string | undefined, next: string | undefined, mode: 'earliest' | 'latest') => {
+      if (!next) return current;
+      if (!current) return next;
+      const currentTime = new Date(current).getTime();
+      const nextTime = new Date(next).getTime();
+      if (isNaN(currentTime)) return next;
+      if (isNaN(nextTime)) return current;
+      return mode === 'earliest'
+        ? (nextTime < currentTime ? next : current)
+        : (nextTime > currentTime ? next : current);
+    };
+    const mergeReceiptRow = (row: ReceiptRow) => {
+      const existing = rows.get(row.key);
+      if (!existing) {
+        rows.set(row.key, row);
+        return;
+      }
+      const typeNames = Array.from(new Set([...existing.typeName.split('، '), ...row.typeName.split('، ')].filter(Boolean)));
+      rows.set(row.key, {
+        ...existing,
+        days: Array.from(new Set([...existing.days, ...row.days])),
+        day: existing.day || row.day,
+        typeName: typeNames.join('، '),
+        status: existing.status === 'signed' || row.status === 'signed' ? 'signed' : 'pending',
+        sentAt: mergeDate(existing.sentAt, row.sentAt, 'earliest'),
+        signedAt: mergeDate(existing.signedAt, row.signedAt, 'latest'),
+        signatureData: existing.signatureData || row.signatureData,
+        signatureToken: existing.signatureToken || row.signatureToken,
+      });
+    };
+
     supervisionData.dayAssignments.forEach(da => {
       da.staffAssignments.forEach(sa => {
-        if (sa.signatureToken || sa.signatureStatus) {
-          list.push({
-            key: `sup-${da.day}-${sa.staffId}`,
-            staffId: sa.staffId,
-            staffName: sa.staffName,
-            role: 'supervisor',
-            day: da.day,
-            status: sa.signatureStatus === 'signed' ? 'signed' : 'pending',
-            signatureData: sa.signatureData,
-          });
-        }
+        mergeReceiptRow({
+          key: `sup-${sa.staffType}-${sa.staffId}`,
+          staffId: sa.staffId,
+          staffName: sa.staffName,
+          staffType: sa.staffType as 'teacher' | 'admin',
+          role: 'supervisor',
+          day: da.day,
+          days: [da.day],
+          contextTypeId: sa.contextTypeId,
+          typeName: getTypeName(sa.contextTypeId),
+          status: sa.signatureStatus === 'signed' ? 'signed' : 'pending',
+          sentAt: sa.signatureSentAt,
+          signedAt: sa.signatureSignedAt,
+          signatureData: sa.signatureData,
+          signatureToken: sa.signatureToken,
+        });
       });
-      if (da.followUpSupervisorId && (da.followUpSignatureToken || da.followUpSignatureStatus)) {
-        list.push({
-          key: `fu-${da.day}-${da.followUpSupervisorId}`,
+      if (da.followUpSupervisorId && da.followUpSupervisorName) {
+        const asTeacher = teachers.find(t => t.id === da.followUpSupervisorId);
+        const dayTypeIds = Array.from(new Set(da.staffAssignments.map(sa => sa.contextTypeId).filter(Boolean)));
+        const typeName = dayTypeIds
+          .map(typeId => getTypeName(typeId))
+          .join('، ') || 'الإشراف اليومي';
+        mergeReceiptRow({
+          key: `fu-${asTeacher ? 'teacher' : 'admin'}-${da.followUpSupervisorId}`,
           staffId: da.followUpSupervisorId,
           staffName: da.followUpSupervisorName || '—',
+          staffType: asTeacher ? 'teacher' : 'admin',
           role: 'followup',
           day: da.day,
+          days: [da.day],
+          typeName,
           status: da.followUpSignatureStatus === 'signed' ? 'signed' : 'pending',
+          sentAt: da.followUpSignatureSentAt,
+          signedAt: da.followUpSignatureSignedAt,
           signatureData: da.followUpSignatureData,
+          signatureToken: da.followUpSignatureToken,
         });
       }
     });
-    return list;
-  }, [supervisionData]);
+    return Array.from(rows.values()).sort((a, b) =>
+      a.staffName.localeCompare(b.staffName, 'ar') ||
+      (a.role === 'supervisor' ? 0 : 1) - (b.role === 'supervisor' ? 0 : 1)
+    );
+  }, [supervisionData, teachers]);
 
+  const totalAssignedSupervisors = receiptRows.length;
   const signedCount = receiptRows.filter(r => r.status === 'signed').length;
   const pendingCount = receiptRows.filter(r => r.status === 'pending').length;
 
@@ -430,6 +537,129 @@ const PrintSendTab: React.FC<Props> = ({
 
   const sendChannelLabel = sendChannel === 'whatsapp' ? 'الواتساب' : 'الرسائل النصية';
 
+  const currentSemesterName = useMemo(() => {
+    const current = schoolInfo.semesters?.find(sem => sem.id === schoolInfo.currentSemesterId || sem.isCurrent);
+    return current?.name || printData.semester || '';
+  }, [schoolInfo.semesters, schoolInfo.currentSemesterId, printData.semester]);
+
+  const formatHijriDate = (date?: string) => {
+    const base = date ? new Date(`${date}T12:00:00`) : new Date();
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(base);
+  };
+
+  const formatHijriDateTime = (date?: string) => {
+    if (!date) return '—';
+    const parsed = new Date(date);
+    if (isNaN(parsed.getTime())) return '—';
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(parsed);
+  };
+
+  const refreshSupervisionDataFromStorage = () => {
+    setSigSearch('');
+    setSigFilter('all');
+    if (!setSupervisionData) return;
+    try {
+      const raw = localStorage.getItem('supervision_data_v1');
+      if (raw) setSupervisionData(JSON.parse(raw));
+    } catch {
+      showToast?.('تعذر تحديث سجل الاستلام', 'error');
+    }
+  };
+
+  const formatPickerDate = (date: any) => {
+    if (!date) return '';
+    if (date instanceof DateObject) {
+      const jsDate = date.toDate();
+      if (isNaN(jsDate.getTime())) return '';
+      return `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, '0')}-${String(jsDate.getDate()).padStart(2, '0')}`;
+    }
+    return date.toString();
+  };
+
+  const getValidPickerDate = (date?: string) => {
+    if (!date) return undefined;
+    const parsed = new Date(`${date}T00:00:00`);
+    return isNaN(parsed.getTime()) ? undefined : parsed;
+  };
+
+  const scheduleCalendarType = (schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian';
+
+  const selectedDaysSummary = selectedDays.length === 0
+    ? undefined
+    : selectedDays.map(day => DAY_NAMES[day] || day).join('، ');
+
+  const notificationTypeLabel = sendMode === 'electronic'
+    ? 'رسالة تكليف بالإشراف مع توقيع الكتروني'
+    : sendMode === 'text'
+      ? 'رسالة تكليف بالإشراف نصية'
+      : 'رسالة تذكير يومية بالإشراف';
+
+  const buildToken = (row: SendRow) =>
+    row.signatureToken || `supv-${row.role}-${row.day}-${row.contextTypeId || 'all'}-${row.staffId}`;
+
+  const buildSignatureLink = (row: SendRow) =>
+    `${window.location.origin}${window.location.pathname}?supervisionSign=${encodeURIComponent(buildToken(row))}`;
+
+  const getRowScheduleRows = (row: SendRow) =>
+    sendRows
+      .filter(item => item.staffId === row.staffId && item.staffType === row.staffType && item.role === row.role)
+      .map(item => ({ day: item.day, typeName: item.typeName, locationNames: item.locationNames }));
+
+  const copyToClipboard = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast?.('تم نسخ الرابط', 'success');
+    } catch {
+      showToast?.('تعذر نسخ الرابط', 'error');
+    }
+  };
+
+  const buildDetailedMessage = (row: SendRow): string => {
+    const dayName = DAY_NAMES[row.day] || row.day;
+    const hijri = formatHijriDate(supervisionData.effectiveDate);
+    const schoolName = schoolInfo.schoolName || 'اسم المدرسة';
+    const link = buildSignatureLink(row);
+
+    if (sendMode === 'electronic') {
+      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${dayName}، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.\n${schoolName} - ${dayName} - ${hijri} - ${currentSemesterName}\nرابط التكليف والتوقيع:\n${link}`;
+    }
+    if (sendMode === 'text') {
+      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${dayName}، شاكرين تعاونكم.\n${schoolName} - ${dayName} - ${hijri} - ${currentSemesterName}.`;
+    }
+    return `المكرم/ ${row.staffName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${dayName}، شاكرين تعاونكم.\n${schoolName} - ${dayName} - ${hijri} - ${currentSemesterName}.`;
+  };
+
+  const markSignaturePending = (rows: SendRow[]) => {
+    if (sendMode !== 'electronic' || !setSupervisionData) return;
+    const targets = new Map(rows.map(row => [row.key, buildToken(row)]));
+    const sentAt = new Date().toISOString();
+    setSupervisionData(prev => ({
+      ...prev,
+      dayAssignments: prev.dayAssignments.map(da => ({
+        ...da,
+        staffAssignments: da.staffAssignments.map(sa => {
+          const key = `sup-${da.day}-${sa.contextTypeId}-${sa.staffId}`;
+          const token = targets.get(key);
+          return token ? { ...sa, signatureStatus: 'pending' as const, signatureToken: token, signatureSentAt: sa.signatureSentAt || sentAt } : sa;
+        }),
+        ...(da.followUpSupervisorId ? (() => {
+          const match = rows.find(row => row.role === 'followup' && row.day === da.day && row.staffId === da.followUpSupervisorId);
+          return match ? { followUpSignatureStatus: 'pending' as const, followUpSignatureToken: buildToken(match), followUpSignatureSentAt: da.followUpSignatureSentAt || sentAt } : {};
+        })() : {}),
+      })),
+    }));
+  };
+
   const escapeHtml = (value: unknown) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -438,7 +668,7 @@ const PrintSendTab: React.FC<Props> = ({
     .replace(/'/g, '&#039;');
 
   // ─── Direct print without modal ─────────────────────────────────────────
-  const handleDirectPrint = () => {
+  const handleDirectPrint = (options?: { signed?: boolean }) => {
     if (!hasData) { showToast?.('لا يوجد جدول إشراف للطباعة', 'warning'); return; }
 
     const printWindow = window.open('', '_blank');
@@ -450,7 +680,8 @@ const PrintSendTab: React.FC<Props> = ({
     const stripeBg = isBW ? '#ffffff' : '#f8fafc';
     const dayBg = isBW ? '#ffffff' : '#f1f5f9';
 
-    const includeSignature = printSignatureMode === 'with';
+    const printSignedVersion = options?.signed === true;
+    const includeSignature = printSignatureMode === 'with' || printSignedVersion;
     const finalFooter = showNotesField ? footerText.trim() : '';
     const activeTypes = (supervisionData.supervisionTypes || [])
       .filter(type => type.isEnabled)
@@ -486,10 +717,14 @@ const PrintSendTab: React.FC<Props> = ({
         </div>`;
       }).join('');
     };
+    const renderSignatureImage = (signatureData?: string) =>
+      signatureData
+        ? `<img class="signature-img" src="${signatureData}" alt="توقيع" />`
+        : '<div class="signature-line"></div>';
     const renderSignatureCell = (day: string, typeId: string) => {
       const rows = getStaffForType(day, typeId);
       if (rows.length === 0) return '<span class="empty-state">—</span>';
-      return rows.map(() => '<div class="signature-line"></div>').join('');
+      return rows.map(row => printSignedVersion ? renderSignatureImage(row.signatureData) : '<div class="signature-line"></div>').join('');
     };
     const renderTable = (types: typeof activeTypes) => {
       if (types.length === 0) return '';
@@ -519,7 +754,7 @@ const PrintSendTab: React.FC<Props> = ({
                     ${includeSignature ? `<td>${renderSignatureCell(day, type.id)}</td>` : ''}
                   `).join('')}
                   <td class="followup">${escapeHtml(dayAssignment?.followUpSupervisorName || '—')}</td>
-                  ${includeSignature ? '<td class="followup-signature signature-cell"></td>' : ''}
+                  ${includeSignature ? `<td class="followup-signature signature-cell">${printSignedVersion ? renderSignatureImage(dayAssignment?.followUpSignatureData) : ''}</td>` : ''}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -567,6 +802,7 @@ const PrintSendTab: React.FC<Props> = ({
     .signature-line { min-height: 38px; border-bottom: 1px dotted #94a3b8; margin: 0 4px 6px; }
     .signature-line:last-child { margin-bottom: 0; }
     .signature-cell { height: 46px; border-bottom: 1px dotted #94a3b8; }
+    .signature-img { display: block; max-width: 92px; max-height: 38px; object-fit: contain; margin: 0 auto 6px; }
     .followup-signature { vertical-align: middle; }
     .empty-state { color: #94a3b8; font-style: italic; text-align: center; }
     .footer { margin-top: 18px; text-align: right; font-size: 12px; font-weight: bold; color: #475569; padding: 12px 14px; border: 1px dashed #94a3b8; border-radius: 10px; white-space: pre-wrap; }
@@ -622,6 +858,177 @@ const PrintSendTab: React.FC<Props> = ({
     showToast?.('تم فتح نافذة الطباعة', 'success');
   };
 
+  const openPrintableHtml = (html: string) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { showToast?.('تعذّر فتح نافذة الطباعة', 'error'); return; }
+    printWindow.document.write(html);
+    printWindow.document.close();
+    showToast?.('تم فتح نافذة الطباعة', 'success');
+  };
+
+  const buildAssignmentFormHtml = (rows: ReceiptRow[], autoPrint = true) => `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>نماذج تكليف الإشراف</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @page { size: A4 portrait; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; background: #fff; }
+    .form { min-height: 255mm; padding: 10mm 0; page-break-after: always; display: flex; flex-direction: column; }
+    .form:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 14px; margin-bottom: 22px; font-weight: 700; font-size: 13px; line-height: 1.8; }
+    .logo { width: 64px; height: 64px; object-fit: contain; }
+    .title { text-align: center; font-size: 20px; font-weight: 900; color: #111827; margin: 0 0 18px; }
+    .date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .date-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 10px 12px; line-height: 1.5; }
+    .date-label { color: #64748b; font-size: 12px; font-weight: 900; margin-bottom: 3px; }
+    .date-value { color: #1e293b; font-size: 13px; font-weight: 800; }
+    .info-card { border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+    .info-line { display: flex; gap: 8px; align-items: center; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .info-line:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+    .info-label { color: #64748b; font-weight: 800; flex: 0 0 auto; }
+    .info-value { color: #1e293b; font-weight: 900; }
+    .schedule { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 14px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+    .schedule th, .schedule td { padding: 10px 12px; text-align: right; border-bottom: 1px solid #f1f5f9; }
+    .schedule th { color: #655ac1; background: #ffffff; font-weight: 900; }
+    .schedule tr:last-child td { border-bottom: 0; }
+    .ack { font-size: 14px; font-weight: 900; color: #334155; margin: 0 0 14px; }
+    .signature { border: 2px dashed rgba(101,90,193,0.3); background: #f8fafc; border-radius: 16px; height: 128px; padding: 14px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 12px; font-weight: 900; }
+    .signature img { max-width: 260px; max-height: 96px; object-fit: contain; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  ${rows.map(row => `
+    <section class="form">
+      <div class="header">
+        <div>
+          <div>المملكة العربية السعودية</div>
+          <div>وزارة التعليم</div>
+          <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+          <div>مدرسة ${escapeHtml(printData.schoolName || '')}</div>
+        </div>
+        <div>${schoolInfo.logo ? `<img class="logo" src="${schoolInfo.logo}" />` : ''}</div>
+        <div style="text-align:left">
+          <div>العام الدراسي: ${escapeHtml(schoolInfo.academicYear || '')}</div>
+          <div>الفصل الدراسي: ${escapeHtml(printData.semester || '')}</div>
+          <div>التاريخ: ${formatHijriDateTime(row.sentAt)}</div>
+        </div>
+      </div>
+      <h1 class="title">نموذج تكليف بالإشراف اليومي</h1>
+      <div class="date-grid">
+        <div class="date-box">
+          <div class="date-label">تاريخ الإرسال</div>
+          <div class="date-value">${formatHijriDateTime(row.sentAt)}</div>
+        </div>
+        <div class="date-box">
+          <div class="date-label">تاريخ التوقيع</div>
+          <div class="date-value">${formatHijriDateTime(row.signedAt)}</div>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
+        <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType === 'teacher' ? 'معلم' : 'إداري'}</span></div>
+        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</span></div>
+      </div>
+      <table class="schedule">
+        <thead><tr><th>اليوم</th><th>نوع الإشراف</th></tr></thead>
+        <tbody>
+          ${row.days.map(day => `
+            <tr>
+              <td>${escapeHtml(DAY_NAMES[day] || day)}</td>
+              <td>${escapeHtml(row.typeName)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <p class="ack">تم العلم والاطلاع على جدول الإشراف المسند والتوقيع بالعلم.</p>
+      <div class="signature">
+        ${row.signatureData ? `<img src="${row.signatureData}" alt="توقيع" />` : 'التوقيع'}
+        </div>
+    </section>
+  `).join('')}
+  ${autoPrint ? '<script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>' : ''}
+</body>
+</html>`;
+
+  const handlePrintReceiptReport = () => {
+    if (filteredReceipts.length === 0) { showToast?.('لا توجد بيانات للطباعة', 'warning'); return; }
+    openPrintableHtml(`
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>سجل استلام الإشراف اليومي</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 18px; font-weight: 700; font-size: 12px; line-height: 1.8; }
+    h1 { text-align: center; font-size: 20px; font-weight: 900; color: #111827; margin: 0 0 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; }
+    th { background: #a59bf0; color: #fff; font-weight: 900; }
+    .signed { color: #047857; font-weight: 900; }
+    .pending { color: #b45309; font-weight: 900; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background: #a59bf0 !important; color: #fff !important; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+      <div>مدرسة ${escapeHtml(printData.schoolName || '')}</div>
+    </div>
+    <div style="text-align:left">
+      <div>العام الدراسي: ${escapeHtml(schoolInfo.academicYear || '')}</div>
+      <div>الفصل الدراسي: ${escapeHtml(printData.semester || '')}</div>
+      <div>تاريخ الطباعة: ${formatHijriDateTime(new Date().toISOString())}</div>
+    </div>
+  </div>
+  <h1>سجل استلام الإشراف اليومي</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>م</th>
+        <th>المشرف / المشرف المتابع</th>
+        <th>الصفة</th>
+        <th>نوع الإشراف</th>
+        <th>الحالة</th>
+        <th>تاريخ الإرسال</th>
+        <th>تاريخ التوقيع</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filteredReceipts.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(row.staffName)}</td>
+          <td>${row.staffType === 'teacher' ? 'معلم' : 'إداري'}</td>
+          <td>${escapeHtml(row.typeName)}</td>
+          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</td>
+          <td>${formatHijriDateTime(row.sentAt)}</td>
+          <td>${formatHijriDateTime(row.signedAt)}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  <script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>
+</body>
+</html>`);
+  };
+
+  const handlePrintAssignmentForms = (rows: ReceiptRow[]) => {
+    if (rows.length === 0) { showToast?.('لا توجد نماذج للطباعة', 'warning'); return; }
+    openPrintableHtml(buildAssignmentFormHtml(rows));
+  };
+
   const validateSendSelection = (): boolean => {
     if (selectedRows.length === 0) {
       showToast?.('يرجى اختيار مستلم واحد على الأقل', 'warning');
@@ -632,20 +1039,57 @@ const PrintSendTab: React.FC<Props> = ({
 
   const handleSendDirectly = async () => {
     if (!validateSendSelection()) return;
+
+    const archiveMessages = selectedRows.map(row => ({
+      source: 'supervision' as const,
+      recipientId: row.staffId,
+      recipientName: row.staffName,
+      recipientPhone: row.phone || '',
+      recipientRole: row.staffType,
+      content: selectedRows.length === 1 && messageText.trim() ? messageText : buildMessage(row),
+      channel: sendChannel,
+      senderRole: 'daily-supervision',
+      isScheduled: isSendScheduled,
+      scheduledFor: isSendScheduled && sendScheduleDate ? new Date(`${sendScheduleDate}T${sendScheduleTime}`).toISOString() : undefined,
+    }));
+
+    if (isSendScheduled) {
+      if (!sendScheduleDate) {
+        showToast?.('يرجى تحديد تاريخ جدولة الإرسال', 'warning');
+        return;
+      }
+      scheduleMessage({
+        scheduledFor: new Date(`${sendScheduleDate}T${sendScheduleTime}`).toISOString(),
+        fallbackToSms: false,
+        messages: archiveMessages,
+      });
+      markSignaturePending(selectedRows);
+      setSendResults(selectedRows.map(row => ({ name: row.staffName, status: 'sent' as const })));
+      return;
+    }
+
     setIsSendingNow(true);
     setSendResults([]);
     const results: { name: string; status: 'sent' | 'failed' }[] = [];
 
     for (const row of selectedRows) {
-      const msg = messageText && selectedRows.length === 1 ? messageText : buildMessage(row);
+      const msg = selectedRows.length === 1 && messageText.trim() ? messageText : buildMessage(row);
+      const phone = row.phone || '';
       try {
+        if (!phone) { results.push({ name: row.staffName, status: 'failed' }); continue; }
+        await sendMessage({
+          source: 'supervision',
+          recipientId: row.staffId,
+          recipientName: row.staffName,
+          recipientPhone: phone,
+          recipientRole: row.staffType,
+          content: msg,
+          channel: sendChannel,
+          senderRole: 'daily-supervision',
+        });
         if (sendChannel === 'whatsapp') {
-          const phone = (row.phone || '').replace(/\D/g, '');
-          if (!phone) { results.push({ name: row.staffName, status: 'failed' }); continue; }
-          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+          window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
         } else {
-          const phone = row.phone || '';
-          if (!phone) { results.push({ name: row.staffName, status: 'failed' }); continue; }
           window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, '_blank');
         }
         results.push({ name: row.staffName, status: 'sent' });
@@ -654,9 +1098,9 @@ const PrintSendTab: React.FC<Props> = ({
         results.push({ name: row.staffName, status: 'failed' });
       }
     }
+    markSignaturePending(selectedRows.filter(row => results.some(result => result.name === row.staffName && result.status === 'sent')));
     setSendResults(results);
     setIsSendingNow(false);
-    showToast?.(`اكتمل الإرسال — ${results.filter(r => r.status === 'sent').length} نجح / ${results.filter(r => r.status === 'failed').length} فشل`, 'success');
   };
 
   const openPreviewMessage = () => {
@@ -664,7 +1108,11 @@ const PrintSendTab: React.FC<Props> = ({
       showToast?.('اختر مستلماً واحداً على الأقل لمعاينة الرسالة', 'warning');
       return;
     }
-    onOpenLegacySend();
+    if (sendMode !== 'electronic') {
+      setRecipientsPreviewOpen(true);
+      return;
+    }
+    setPreviewRow(selectedRows[0]);
   };
 
   // ─── Receipt log inline page ──────────────────────────────────────────
@@ -675,9 +1123,9 @@ const PrintSendTab: React.FC<Props> = ({
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-black text-slate-800 text-lg">سجل استلام الإشراف</h2>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام الإشراف اليومي</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {signedCount} وقّع من أصل {receiptRows.length} مشرف
+                {signedCount} وقّع من أصل {totalAssignedSupervisors} مشرف
               </p>
             </div>
             <button type="button" onClick={() => setSigReceiptOpen(false)} className={actionButtonClass(false)}>
@@ -689,7 +1137,7 @@ const PrintSendTab: React.FC<Props> = ({
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'إجمالي المشرفين', value: String(receiptRows.length), icon: Users },
+            { label: 'إجمالي المشرفين', value: String(totalAssignedSupervisors), icon: Users },
             { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
             { label: 'لم يوقعوا بعد', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
@@ -721,20 +1169,25 @@ const PrintSendTab: React.FC<Props> = ({
               </button>
             ))}
             <div className="flex-1" />
-            <button type="button" onClick={() => { setSigSearch(''); setSigFilter('all'); }}
+            <button type="button" onClick={refreshSupervisionDataFromStorage}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
               <RefreshCw size={13} />
               تحديث
             </button>
-            <button type="button" onClick={handleDirectPrint} disabled={receiptRows.length === 0}
+            <button type="button" onClick={handlePrintReceiptReport} disabled={receiptRows.length === 0}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={13} />
               طباعة التقرير
             </button>
-            <button type="button" onClick={onOpenLegacyPrint} disabled={receiptRows.length === 0}
+            <button type="button" onClick={() => handlePrintAssignmentForms(filteredReceipts)} disabled={receiptRows.length === 0}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={13} />
               طباعة النماذج
+            </button>
+            <button type="button" onClick={() => handleDirectPrint({ signed: true })} disabled={!hasData}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={13} />
+              طباعة الإشراف بعد التوقيع
             </button>
           </div>
         </div>
@@ -770,42 +1223,46 @@ const PrintSendTab: React.FC<Props> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-right" dir="rtl">
+              <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">م</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اسم المشرف</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اليوم</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">الدور</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">الحالة</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[19%]">المشرف / المشرف المتابع</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[20%]">نوع الإشراف</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">الحالة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">تاريخ الإرسال</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">تاريخ التوقيع</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[14%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReceipts.map((req, idx) => (
                     <tr key={req.key} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-slate-400 text-sm font-bold">{idx + 1}</td>
-                      <td className="px-6 py-4 font-black text-slate-800">{req.staffName}</td>
-                      <td className="px-6 py-4 text-slate-500 text-sm">{DAY_NAMES[req.day] || req.day}</td>
-                      <td className="px-6 py-4 text-slate-500 text-sm">
-                        {req.role === 'supervisor' ? 'مشرف' : 'مشرف متابع'}
+                      <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
+                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={req.staffName}>{req.staffName}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">
+                        {req.staffType === 'teacher' ? 'معلم' : 'إداري'}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate" title={req.typeName}>{req.typeName}</td>
+                      <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
                           req.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}>
-                          {req.status === 'signed' ? 'وقّع' : 'لم يوقع'}
+                          {req.status === 'signed' ? 'وقع' : 'لم يوقع'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button type="button" onClick={onOpenLegacySend} title="معاينة النموذج"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
+                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.sentAt)}>{formatHijriDateTime(req.sentAt)}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.signedAt)}>{formatHijriDateTime(req.signedAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2 min-w-[118px]">
+                          <button type="button" onClick={() => setPreviewReceiptRow(req)} title="معاينة النموذج"
+                            className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Eye size={13} />
                             معاينة
                           </button>
-                          <button type="button" onClick={onOpenLegacyPrint} title="طباعة النموذج"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
+                          <button type="button" onClick={() => handlePrintAssignmentForms([req])} title="طباعة النموذج"
+                            className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Printer size={13} />
                             طباعة
                           </button>
@@ -815,7 +1272,7 @@ const PrintSendTab: React.FC<Props> = ({
                   ))}
                   {filteredReceipts.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                      <td colSpan={8} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
                         لا توجد نتائج تطابق الفلتر.
                       </td>
                     </tr>
@@ -825,6 +1282,89 @@ const PrintSendTab: React.FC<Props> = ({
             </div>
           )}
         </div>
+
+        {previewReceiptRow && createPortal(
+          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+            <div className="w-full max-w-lg max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Eye size={22} className="text-[#655ac1] shrink-0" />
+                  <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+                </div>
+                <button type="button" onClick={() => setPreviewReceiptRow(null)}
+                  className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="font-black text-slate-400 mb-1">تاريخ الإرسال</p>
+                    <p className="font-bold text-slate-700 truncate">{formatHijriDateTime(previewReceiptRow.sentAt)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="font-black text-slate-400 mb-1">تاريخ التوقيع</p>
+                    <p className="font-bold text-slate-700 truncate">{formatHijriDateTime(previewReceiptRow.signedAt)}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                      <span className="text-slate-500 font-bold shrink-0">الاسم:</span>
+                      <span className="font-black text-slate-800">{previewReceiptRow.staffName}</span>
+                    </div>
+                    <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                      <span className="text-slate-500 font-bold shrink-0">الصفة:</span>
+                      <span className="font-black text-[#655ac1]">{previewReceiptRow.staffType === 'teacher' ? 'معلم' : 'إداري'}</span>
+                    </div>
+                    <div className="flex items-center justify-start gap-2">
+                      <span className="text-slate-500 font-bold shrink-0">الحالة:</span>
+                      <span className="font-black text-slate-800">{previewReceiptRow.status === 'signed' ? 'وقع' : 'لم يوقع'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-white border-b border-slate-100">
+                        <th className="px-3 py-2 text-right text-[#655ac1] font-black">اليوم</th>
+                        <th className="px-3 py-2 text-right text-[#655ac1] font-black">نوع الإشراف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewReceiptRow.days.map((day, index) => (
+                        <tr key={`${previewReceiptRow.key}-${day}-${index}`} className="border-t border-slate-100">
+                          <td className="px-3 py-2 font-black text-slate-700">{DAY_NAMES[day] || day}</td>
+                          <td className="px-3 py-2 font-bold text-slate-600">{previewReceiptRow.typeName}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="text-sm font-black text-slate-700">
+                  تم العلم والاطلاع على جدول الإشراف المسند والتوقيع بالعلم.
+                </p>
+                <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
+                  {previewReceiptRow.signatureData ? (
+                    <img src={previewReceiptRow.signatureData} alt="توقيع" className="max-h-24 max-w-[260px] object-contain" />
+                  ) : (
+                    'التوقيع'
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => handlePrintAssignmentForms([previewReceiptRow])}
+                    className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                    <Printer size={16} /> طباعة النموذج
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     );
   }
@@ -847,7 +1387,7 @@ const PrintSendTab: React.FC<Props> = ({
           ))}
           <button type="button" onClick={() => setSigReceiptOpen(true)} className={actionButtonClass(false)}>
             <ClipboardList size={17} />
-            سجل استلام الإشراف
+            سجل استلام الإشراف اليومي
           </button>
           <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
             className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
@@ -948,7 +1488,7 @@ const PrintSendTab: React.FC<Props> = ({
 
             <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-start gap-3 mb-2">
-                <CalendarDays size={20} className="text-[#655ac1]" />
+                <ClipboardCheck size={20} className="text-[#655ac1]" />
                 <h4 className="font-black text-slate-800">اختر نوع الإشعار والمستلمين</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium text-right mb-5">
@@ -961,10 +1501,18 @@ const PrintSendTab: React.FC<Props> = ({
                   onChange={v => setSendMode(v as SendMode)}
                   placeholder="اختر النوع"
                   options={[
-                    { value: 'electronic', label: 'إشعار إلكتروني للتوقيع', icon: Link2 },
-                    { value: 'text', label: 'رسالة تكليف نصية', icon: MessageSquare },
-                    { value: 'reminder', label: 'رسالة تذكير', icon: Bell },
+                    { value: 'electronic', label: 'رسالة تكليف بالإشراف مع توقيع الكتروني' },
+                    { value: 'text', label: 'رسالة تكليف بالإشراف نصية' },
+                    { value: 'reminder', label: 'رسالة تذكير يومية بالإشراف' },
                   ]}
+                />
+                <SingleSelectDropdown
+                  label="نوع الإشراف"
+                  value={selectedSupervisionTypeId}
+                  onChange={setSelectedSupervisionTypeId}
+                  placeholder="اختر نوع الإشراف"
+                  disabled={scheduledTypeIds.size === 0}
+                  options={supervisionTypeOptions}
                 />
                 <SingleSelectDropdown
                   label="المستلمون"
@@ -980,7 +1528,7 @@ const PrintSendTab: React.FC<Props> = ({
                 <MultiSelectDropdown
                   label="الأيام المستهدفة"
                   buttonLabel="اختر الأيام"
-                  selectedSummary={selectedDays.length > 0 ? `${selectedDays.length} أيام محددة` : undefined}
+                  selectedSummary={selectedDaysSummary}
                   options={dayOptions}
                   selectedValues={selectedDays}
                   onToggle={v => setSelectedDays(c => c.includes(v) ? c.filter(i => i !== v) : [...c, v])}
@@ -998,12 +1546,6 @@ const PrintSendTab: React.FC<Props> = ({
                   onSelectAll={() => setSelectedStaffKeys(filteredSendRows.map(r => r.key))}
                   searchable
                 />
-                {selectedRows.length > 0 && (
-                  <div className="rounded-2xl border border-[#e5e1fe] bg-[#f8f7ff] px-4 py-3 text-xs font-black text-[#655ac1] flex items-center gap-2">
-                    <Users size={14} />
-                    {selectedRows.length} مستلم محدد — {sendMode === 'electronic' ? 'إشعار إلكتروني' : sendMode === 'text' ? 'تكليف نصي' : 'تذكير'}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -1042,9 +1584,9 @@ const PrintSendTab: React.FC<Props> = ({
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={openPreviewMessage}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all">
-                    <Eye size={15} /> معاينة الرسالة
+                    <Eye size={15} /> {sendMode === 'electronic' ? 'معاينة التكليف الإلكتروني' : 'معاينة الرسالة'}
                   </button>
-                  <button type="button" onClick={onOpenLegacySend} disabled={selectedRows.length === 0}
+                  <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRows.length === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50">
                     <Users size={15} /> معاينة المستلمين{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}
                   </button>
@@ -1081,8 +1623,19 @@ const PrintSendTab: React.FC<Props> = ({
                     <div className="mt-3 flex flex-wrap gap-3">
                       <div className="flex-1 min-w-[140px]">
                         <label className="text-xs font-black text-slate-500 block mb-1.5">التاريخ</label>
-                        <input type="date" value={sendScheduleDate} onChange={e => setSendScheduleDate(e.target.value)}
-                          className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors" />
+                        <DatePicker
+                          value={getValidPickerDate(sendScheduleDate)}
+                          onChange={date => setSendScheduleDate(formatPickerDate(date))}
+                          calendar={scheduleCalendarType === 'hijri' ? arabic : gregorian}
+                          locale={scheduleCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
+                          containerClassName="w-full"
+                          inputClass="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer"
+                          placeholder="حدد التاريخ"
+                          portal
+                          portalTarget={document.body}
+                          editable={false}
+                          zIndex={99999}
+                        />
                       </div>
                       <div className="flex-1 min-w-[120px]">
                         <label className="text-xs font-black text-slate-500 block mb-1.5">الوقت</label>
@@ -1101,32 +1654,228 @@ const PrintSendTab: React.FC<Props> = ({
             </div>
           </div>
 
-          {sendResults.length > 0 && (
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-              <div className="flex items-center gap-3 mb-2">
-                <CheckCircle2 size={20} className="text-emerald-500" />
-                <h4 className="font-black text-slate-800">نتائج الإرسال</h4>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-                  <p className="text-2xl font-black text-emerald-800">{sendResults.filter(r => r.status === 'sent').length}</p>
-                  <p className="text-xs text-emerald-600 mt-1">تم الإرسال</p>
-                </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-3 text-center">
-                  <p className="text-2xl font-black text-rose-800">{sendResults.filter(r => r.status === 'failed').length}</p>
-                  <p className="text-xs text-rose-600 mt-1">فشل</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
-                  <p className="text-2xl font-black text-slate-800">{sendResults.length}</p>
-                  <p className="text-xs text-slate-500 mt-1">الإجمالي</p>
-                </div>
-              </div>
-              <p className="text-xs font-medium text-slate-500 rounded-xl border border-[#e5e1fe] bg-[#f8f7ff] px-3 py-2">
-                لإدارة التوقيعات الإلكترونية وإعادة الإرسال استخدم نافذة الإرسال الكاملة.
-              </p>
-            </div>
-          )}
         </div>
+      )}
+
+      {previewRow && createPortal(
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <Eye size={22} className="text-[#655ac1] shrink-0" />
+                <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+              </div>
+              <button type="button" onClick={() => setPreviewRow(null)}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-4">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                    <span className="text-slate-500 font-bold shrink-0">الاسم:</span>
+                    <span className="font-black text-slate-800">{previewRow.staffName}</span>
+                  </div>
+                  <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                    <span className="text-slate-500 font-bold shrink-0">الصفة:</span>
+                    <span className="font-black text-[#655ac1]">{previewRow.staffType === 'teacher' ? 'معلم' : 'إداري'}</span>
+                  </div>
+                  <div className="flex items-center justify-start gap-2">
+                    <span className="text-slate-500 font-bold shrink-0">رقم الجوال:</span>
+                    <span className="font-black text-slate-800" dir="ltr">{previewRow.phone || 'غير مسجل'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-white border-b border-slate-100">
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">اليوم</th>
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">نوع الإشراف</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getRowScheduleRows(previewRow).map((row, index) => (
+                      <tr key={`${row.day}-${row.typeName}-${index}`} className="border-t border-slate-100">
+                        <td className="px-3 py-2 font-black text-slate-700">{DAY_NAMES[row.day] || row.day}</td>
+                        <td className="px-3 py-2 font-bold text-slate-600">{row.typeName}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="text-sm font-black text-slate-700">
+                تم العلم والاطلاع على جدول الإشراف المسند والتوقيع بالعلم.
+              </p>
+              <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
+                التوقيع
+              </div>
+              <div className="flex gap-3">
+                <button type="button" className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm">
+                  مسح التوقيع
+                </button>
+                <button type="button" className="flex-1 py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                  <Check size={16} /> إرسال
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {recipientsPreviewOpen && createPortal(
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-[78rem] h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <Users size={22} className="text-[#655ac1] shrink-0" />
+                <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
+              </div>
+              <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="overflow-x-hidden">
+                <table className="w-full table-fixed text-right whitespace-nowrap" dir="rtl">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[10%]">اليوم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[14%]">التاريخ</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[18%]">المستلم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[22%]">نوع الإشعار</th>
+                      {sendMode === 'electronic' && <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[22%]">الرابط</th>}
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[14%]">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={sendMode === 'electronic' ? 6 : 5} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
+                          لم يتم اختيار مستلمين بعد.
+                        </td>
+                      </tr>
+                    ) : selectedRows.map(row => {
+                      const link = sendMode === 'electronic' ? buildSignatureLink(row) : '';
+                      return (
+                        <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
+                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700 whitespace-nowrap truncate">{DAY_NAMES[row.day] || row.day}</td>
+                          <td className="px-3 py-3.5 text-center">
+                            <span className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 whitespace-nowrap truncate">
+                              {formatHijriDate(supervisionData.effectiveDate)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3.5 whitespace-nowrap min-w-0">
+                            <div className="whitespace-nowrap">
+                              <p className="font-black text-[12px] text-slate-800 whitespace-nowrap truncate" title={row.staffName}>{row.staffName}</p>
+                              <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap truncate" title={row.typeName}>{row.typeName}</p>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 whitespace-nowrap truncate" title={notificationTypeLabel}>{notificationTypeLabel}</td>
+                          {sendMode === 'electronic' && (
+                            <td className="px-3 py-3.5 min-w-0">
+                              <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
+                                {link}
+                              </div>
+                            </td>
+                          )}
+                          <td className="px-3 py-3.5 whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                              {sendMode === 'electronic' && (
+                                <button type="button" onClick={() => setPreviewRow(row)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
+                                  <Eye size={12} />
+                                  عرض
+                                </button>
+                              )}
+                              {sendMode === 'electronic' && (
+                                <button type="button" onClick={() => copyToClipboard(link)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
+                                  <Copy size={12} />
+                                  نسخ
+                                </button>
+                              )}
+                              {sendMode !== 'electronic' && <span className="text-xs font-bold text-slate-400 whitespace-nowrap">بدون رابط</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
+              <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
+                className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {sendResults.length > 0 && createPortal(
+        <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-xl overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl">
+            <div className="px-6 py-5 border-b border-slate-100 bg-[#f8f7ff] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-white text-[#655ac1] flex items-center justify-center shadow-sm border border-[#e5e1fe]">
+                  <CheckCircle2 size={23} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 text-base">نتائج الإرسال</h3>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">تم تسجيل العملية في أرشيف الرسائل</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setSendResults([])}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
+                  <p className="text-3xl font-black text-emerald-800">{sendResults.filter(r => r.status === 'sent').length}</p>
+                  <p className="text-xs text-emerald-600 mt-1 font-bold">تم الإرسال</p>
+                </div>
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-center">
+                  <p className="text-3xl font-black text-rose-800">{sendResults.filter(r => r.status === 'failed').length}</p>
+                  <p className="text-xs text-rose-600 mt-1 font-bold">فشل</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+                  <p className="text-3xl font-black text-slate-800">{sendResults.length}</p>
+                  <p className="text-xs text-slate-500 mt-1 font-bold">الإجمالي</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
+                  {sendResults.map((result, index) => (
+                    <div key={`${result.name}-${index}`} className="px-4 py-3 flex items-center justify-between gap-3 bg-white">
+                      <span className="text-sm font-black text-slate-700 truncate">{result.name}</span>
+                      <span className={`px-3 py-1 rounded-full text-[11px] font-black whitespace-nowrap ${
+                        result.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                      }`}>
+                        {result.status === 'sent' ? 'تم الإرسال' : 'فشل الإرسال'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button type="button" onClick={() => setSendResults([])}
+                className="w-full py-3 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-black transition-all shadow-md shadow-[#655ac1]/20">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

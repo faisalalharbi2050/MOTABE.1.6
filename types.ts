@@ -588,6 +588,8 @@ export interface SupervisionDayAssignment {
   followUpSignatureData?: string;   // base64 PNG
   followUpSignatureStatus?: 'not-sent' | 'pending' | 'signed';
   followUpSignatureToken?: string;  // unique token for link
+  followUpSignatureSentAt?: string; // ISO string
+  followUpSignatureSignedAt?: string; // ISO string
 }
 
 export type SupervisionContextCategory = 'assembly' | 'break' | 'prayer' | 'floor' | 'custom';
@@ -617,6 +619,8 @@ export interface SupervisionStaffAssignment {
   signatureData?: string;   // base64 PNG
   signatureStatus?: 'not-sent' | 'pending' | 'signed';
   signatureToken?: string;  // unique token for link
+  signatureSentAt?: string; // ISO string
+  signatureSignedAt?: string; // ISO string
 }
 
 export type SupervisionAttendanceStatus = 'present' | 'absent' | 'excused' | 'withdrawn' | 'late';

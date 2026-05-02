@@ -11,16 +11,35 @@ interface AssignmentInfo {
   rowType: 'supervisor' | 'followup';
   effectiveDate?: string;
   token: string;
+  phone?: string;
+  scheduleRows: { day: string; typeName: string; locationNames: string[] }[];
 }
 
 function findAssignment(data: SupervisionScheduleData, token: string): AssignmentInfo | null {
+  const getTypeName = (typeId?: string) =>
+    data.supervisionTypes.find(type => type.id === typeId)?.name || 'الإشراف اليومي';
+  const getLocations = (locationIds: string[]) => locationIds
+    .map(lid => data.locations.find(l => l.id === lid)?.name || '')
+    .filter(Boolean);
+  const supervisorToken = (day: string, typeId: string | undefined, staffId: string) =>
+    `supv-supervisor-${day}-${typeId || 'all'}-${staffId}`;
+  const followupToken = (day: string, typeId: string | undefined, staffId: string) =>
+    `supv-followup-${day}-${typeId || 'all'}-${staffId}`;
+
   for (const da of data.dayAssignments) {
     // Check supervisors
     for (const sa of da.staffAssignments) {
-      if (sa.signatureToken === token) {
-        const locs = sa.locationIds
-          .map(lid => data.locations.find(l => l.id === lid)?.name || '')
-          .filter(Boolean);
+      if (sa.signatureToken === token || supervisorToken(da.day, sa.contextTypeId, sa.staffId) === token) {
+        const scheduleRows = data.dayAssignments.flatMap(dayAssignment =>
+          dayAssignment.staffAssignments
+            .filter(item => item.staffId === sa.staffId && item.staffType === sa.staffType)
+            .map(item => ({
+              day: dayAssignment.day,
+              typeName: getTypeName(item.contextTypeId),
+              locationNames: getLocations(item.locationIds),
+            }))
+        );
+        const locs = getLocations(sa.locationIds);
         return {
           staffName: sa.staffName,
           staffType: sa.staffType,
@@ -29,11 +48,26 @@ function findAssignment(data: SupervisionScheduleData, token: string): Assignmen
           rowType: 'supervisor',
           effectiveDate: data.effectiveDate,
           token,
+          scheduleRows,
         };
       }
     }
     // Check follow-up supervisor
-    if (da.followUpSignatureToken === token && da.followUpSupervisorId && da.followUpSupervisorName) {
+    const dayTypeIds = Array.from(new Set(da.staffAssignments.map(item => item.contextTypeId).filter(Boolean)));
+    const followupTokenMatches = da.followUpSupervisorId && dayTypeIds.some(typeId =>
+      followupToken(da.day, typeId, da.followUpSupervisorId!) === token
+    );
+    if ((da.followUpSignatureToken === token || followupTokenMatches) && da.followUpSupervisorId && da.followUpSupervisorName) {
+      const scheduleRows = data.dayAssignments
+        .filter(dayAssignment => dayAssignment.followUpSupervisorId === da.followUpSupervisorId)
+        .flatMap(dayAssignment => {
+          const typeIds = Array.from(new Set(dayAssignment.staffAssignments.map(item => item.contextTypeId).filter(Boolean)));
+          return typeIds.map(typeId => ({
+            day: dayAssignment.day,
+            typeName: getTypeName(typeId),
+            locationNames: [],
+          }));
+        });
       return {
         staffName: da.followUpSupervisorName,
         staffType: 'admin',
@@ -42,6 +76,7 @@ function findAssignment(data: SupervisionScheduleData, token: string): Assignmen
         rowType: 'followup',
         effectiveDate: data.effectiveDate,
         token,
+        scheduleRows,
       };
     }
   }
@@ -53,23 +88,30 @@ function saveSignatureToStorage(token: string, signatureData: string, rowType: '
     const raw = localStorage.getItem('supervision_data_v1');
     if (!raw) return;
     const data: SupervisionScheduleData = JSON.parse(raw);
+    const signedAt = new Date().toISOString();
+    const supervisorToken = (day: string, typeId: string | undefined, staffId: string) =>
+      `supv-supervisor-${day}-${typeId || 'all'}-${staffId}`;
+    const followupToken = (day: string, typeId: string | undefined, staffId: string) =>
+      `supv-followup-${day}-${typeId || 'all'}-${staffId}`;
     const updated: SupervisionScheduleData = {
       ...data,
       dayAssignments: data.dayAssignments.map(da => {
         if (rowType === 'supervisor') {
-          const hasSup = da.staffAssignments.some(sa => sa.signatureToken === token);
+          const hasSup = da.staffAssignments.some(sa => sa.signatureToken === token || supervisorToken(da.day, sa.contextTypeId, sa.staffId) === token);
           if (!hasSup) return da;
           return {
             ...da,
             staffAssignments: da.staffAssignments.map(sa =>
-              sa.signatureToken === token
-                ? { ...sa, signatureData, signatureStatus: 'signed' as const }
+              sa.signatureToken === token || supervisorToken(da.day, sa.contextTypeId, sa.staffId) === token
+                ? { ...sa, signatureData, signatureStatus: 'signed' as const, signatureToken: token, signatureSignedAt: signedAt }
                 : sa
             ),
           };
         } else {
-          if (da.followUpSignatureToken !== token) return da;
-          return { ...da, followUpSignatureData: signatureData, followUpSignatureStatus: 'signed' as const };
+          const dayTypeIds = Array.from(new Set(da.staffAssignments.map(item => item.contextTypeId).filter(Boolean)));
+          const matches = da.followUpSupervisorId && dayTypeIds.some(typeId => followupToken(da.day, typeId, da.followUpSupervisorId!) === token);
+          if (da.followUpSignatureToken !== token && !matches) return da;
+          return { ...da, followUpSignatureData: signatureData, followUpSignatureStatus: 'signed' as const, followUpSignatureToken: token, followUpSignatureSignedAt: signedAt };
         }
       }),
     };
@@ -105,14 +147,21 @@ const SupervisionSignaturePage: React.FC<Props> = ({ token }) => {
       const data: SupervisionScheduleData = JSON.parse(raw);
       const info = findAssignment(data, token);
       if (!info) { setNotFound(true); return; }
-      setAssignment(info);
+      const staffList = [
+        ...((JSON.parse(localStorage.getItem('school_assignment_v4') || '{}')?.teachers || []) as any[]).map(item => ({ ...item, staffType: 'teacher' })),
+        ...((JSON.parse(localStorage.getItem('school_assignment_v4') || '{}')?.admins || []) as any[]).map(item => ({ ...item, staffType: 'admin' })),
+      ];
+      const staff = staffList.find(item => item.name === info.staffName && item.staffType === info.staffType);
+      setAssignment({ ...info, phone: staff?.phone || staff?.phoneNumber || '' });
       // Check if already signed
       for (const da of data.dayAssignments) {
         if (info.rowType === 'supervisor') {
-          const sa = da.staffAssignments.find(s => s.signatureToken === token);
+          const sa = da.staffAssignments.find(s => s.signatureToken === token || `supv-supervisor-${da.day}-${s.contextTypeId || 'all'}-${s.staffId}` === token);
           if (sa?.signatureStatus === 'signed') { setAlreadySigned(true); break; }
         } else {
-          if (da.followUpSignatureToken === token && da.followUpSignatureStatus === 'signed') {
+          const dayTypeIds = Array.from(new Set(da.staffAssignments.map(s => s.contextTypeId).filter(Boolean)));
+          const matches = da.followUpSupervisorId && dayTypeIds.some(typeId => `supv-followup-${da.day}-${typeId || 'all'}-${da.followUpSupervisorId}` === token);
+          if ((da.followUpSignatureToken === token || matches) && da.followUpSignatureStatus === 'signed') {
             setAlreadySigned(true); break;
           }
         }
@@ -247,6 +296,41 @@ const SupervisionSignaturePage: React.FC<Props> = ({ token }) => {
             </div>
           </div>
 
+          <div className="bg-white rounded-2xl p-5 border border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm mb-4">
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                <span className="block text-slate-500 font-medium text-xs mb-1">الصفة</span>
+                <span className="font-black text-[#655ac1]">{assignment.staffType === 'teacher' ? 'معلم' : 'إداري'}</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 sm:col-span-2">
+                <span className="block text-slate-500 font-medium text-xs mb-1">رقم الجوال</span>
+                <span className="font-black text-slate-800">{assignment.phone || 'غير مسجل'}</span>
+              </div>
+            </div>
+            <h3 className="text-xs font-black text-slate-600 mb-2">موعد الإشراف</h3>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-[#655ac1] text-white">
+                    <th className="px-3 py-2 text-right">اليوم</th>
+                    <th className="px-3 py-2 text-right">نوع الإشراف</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignment.scheduleRows.map((row, index) => (
+                    <tr key={`${row.day}-${row.typeName}-${index}`} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-black text-slate-700">{DAY_NAMES[row.day] || row.day}</td>
+                      <td className="px-3 py-2 font-bold text-slate-600">{row.typeName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-sm font-black text-slate-700 mt-4">
+              تم العلم والاطلاع على جدول الإشراف المسند والتوقيع بالعلم.
+            </p>
+          </div>
+
           {/* Signature Pad */}
           {!confirmed ? (
             <div className="space-y-3">
@@ -278,14 +362,14 @@ const SupervisionSignaturePage: React.FC<Props> = ({ token }) => {
                   onClick={clearCanvas}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-colors"
                 >
-                  مسح
+                  مسح التوقيع
                 </button>
                 <button
                   disabled={!hasSignature}
                   onClick={handleConfirm}
                   className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2"
                 >
-                  <Check size={16} /> اعتماد وإرسال
+                  <Check size={16} /> إرسال
                 </button>
               </div>
             </div>

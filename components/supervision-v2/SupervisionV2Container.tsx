@@ -35,6 +35,7 @@ interface Props {
   admins: Admin[];
   scheduleSettings: ScheduleSettingsData;
   onNavigateToTiming?: () => void;
+  onOpenMessagesArchive?: () => void;
 }
 
 type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'reports' | 'manage';
@@ -42,7 +43,7 @@ type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'reports' | 'm
 const TAB_STORAGE_KEY = 'motabe:supervision_v2:lastTab';
 
 const SupervisionV2Container: React.FC<Props> = ({
-  schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings, onNavigateToTiming,
+  schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings, onNavigateToTiming, onOpenMessagesArchive,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('settings');
 
@@ -423,12 +424,13 @@ const SupervisionV2Container: React.FC<Props> = ({
         {activeTab === 'printsend' && (
           <PrintSendTab
             supervisionData={supervisionData}
+            setSupervisionData={setSupervisionData}
             schoolInfo={schoolInfo}
             teachers={filteredTeachers}
             admins={filteredAdmins}
             onOpenLegacyPrint={() => setIsPrintOpen(true)}
             onOpenLegacySend={() => setIsMessagingOpen(true)}
-            onOpenMessagesArchive={undefined}
+            onOpenMessagesArchive={onOpenMessagesArchive}
             showToast={showToast}
           />
         )}
