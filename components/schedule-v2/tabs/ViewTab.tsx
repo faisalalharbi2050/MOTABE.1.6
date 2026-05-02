@@ -1058,6 +1058,7 @@ const ViewTab: React.FC<Props> = ({
       ? 'توقيع إلكتروني للمعلمين واطلاع للإداريين'
       : 'اطلاع فقط';
   const sendChannelLabel = sendChannel === 'whatsapp' ? 'واتساب' : 'رسالة نصية';
+  const previewModelButtonLabel = `معاينة ${selectedScheduleLabel || 'النموذج'}`;
   const recipientRoleLabels: Record<ShareRecipientRecord['role'], string> = {
     teacher: 'معلمين',
     admin: 'إداريين',
@@ -2316,10 +2317,11 @@ const ViewTab: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={openFirstGeneratedModel}
+                    title={previewModelButtonLabel}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
                   >
                     <Eye size={15} />
-                    معاينة النموذج
+                    {previewModelButtonLabel}
                   </button>
                   <button
                     type="button"
