@@ -633,6 +633,8 @@ export interface SupervisionAttendanceRecord {
   staffType: 'teacher' | 'admin';
   staffName: string;
   status: SupervisionAttendanceStatus;
+  contextTypeId?: string;
+  contextTypeName?: string;
   withdrawalTime?: string;
   lateTime?: string;
   notes?: string;

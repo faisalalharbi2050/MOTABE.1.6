@@ -8,7 +8,7 @@ import {
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
   SupervisionScheduleData, SupervisionDayAssignment, SupervisionStaffAssignment,
-  SupervisionType,
+  SupervisionType, SavedSupervisionSchedule,
 } from '../../types';
 import {
   DAYS, DAY_NAMES, getTimingConfig, getAvailableStaff,
@@ -73,6 +73,35 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const dayAssignments = supervisionData.dayAssignments;
   const activeLocations = supervisionData.locations.filter(l => l.isActive);
   const showFollowUpSupervisor = supervisionData.settings.enableFollowUpSupervisor !== false;
+
+  const syncActiveSavedSchedule = (
+    prev: SupervisionScheduleData,
+    next: SupervisionScheduleData
+  ): SupervisionScheduleData => {
+    const activeId = next.activeScheduleId || prev.activeScheduleId;
+    if (!activeId) return next;
+    const schedules = next.savedSchedules || prev.savedSchedules || [];
+    if (!schedules.some(schedule => schedule.id === activeId)) return next;
+    return {
+      ...next,
+      activeScheduleId: activeId,
+      savedSchedules: schedules.map(schedule =>
+        schedule.id === activeId ? { ...schedule, dayAssignments: next.dayAssignments } : schedule
+      ),
+    };
+  };
+
+  const buildSavedSchedule = (
+    id: string,
+    number: number,
+    dayAssignmentsValue: SupervisionDayAssignment[]
+  ): SavedSupervisionSchedule => ({
+    id,
+    name: `جدول رقم ${number}`,
+    createdAt: new Date().toISOString(),
+    dayAssignments: dayAssignmentsValue,
+    isApproved: false,
+  });
 
   const getDefaultLocationIdsForType = (typeMeta?: SupervisionType | null): string[] => {
     if (typeMeta?.category !== 'prayer') return [];
@@ -166,20 +195,27 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     setSupervisionData(prev => {
       const existing = prev.dayAssignments.find(d => d.day === day);
       if (existing) {
-        return {
+        const next = {
           ...prev,
           dayAssignments: prev.dayAssignments.map(d => d.day === day ? updater(d) : d),
         };
+        return syncActiveSavedSchedule(prev, next);
       }
-      return {
+      const next = {
         ...prev,
         dayAssignments: [...prev.dayAssignments, updater({ day, staffAssignments: [] })],
       };
+      return syncActiveSavedSchedule(prev, next);
     });
   };
 
   // ═══════════ Top-level handlers ═══════════
   const handleAutoGenerate = () => {
+    if ((supervisionData.savedSchedules || []).length >= 10) {
+      showToast('وصلت للحد الأقصى 10 جداول. احذف أحد الجداول من إدارة الجداول قبل إنشاء جدول جديد.', 'warning');
+      return;
+    }
+
     const autoTypes = (supervisionData.supervisionTypes || [])
       .filter(type => type.isEnabled && (type.category === 'break' || type.category === 'prayer'));
 
@@ -208,30 +244,66 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       ),
     }));
 
-    setSupervisionData(prev => ({ ...prev, dayAssignments: result }));
+    setSupervisionData(prev => {
+      const prevSaved = prev.savedSchedules || [];
+      if (prevSaved.length >= 10) return prev;
+      const newId = `supervision-schedule-${Date.now()}`;
+      const newSavedEntry = buildSavedSchedule(newId, prevSaved.length + 1, result);
+      return {
+        ...prev,
+        dayAssignments: result,
+        isApproved: false,
+        approvedAt: undefined,
+        savedSchedules: [newSavedEntry, ...prevSaved],
+        activeScheduleId: newId,
+      };
+    });
     setManualStarted(false);
     showToast('تم توليد إشراف الفسحة/الصلاة تلقائياً، وباقي الأنواع جاهزة للتعبئة اليدوية', 'success');
   };
 
-  const handleManualStart = () => setManualStarted(true);
+  const handleManualStart = () => {
+    if ((supervisionData.savedSchedules || []).length >= 10) {
+      showToast('وصلت للحد الأقصى 10 جداول. احذف أحد الجداول من إدارة الجداول قبل إنشاء جدول جديد.', 'warning');
+      return;
+    }
+    setSupervisionData(prev => {
+      const prevSaved = prev.savedSchedules || [];
+      if (prevSaved.length >= 10) return prev;
+      const newId = `supervision-schedule-${Date.now()}`;
+      const newSavedEntry = buildSavedSchedule(newId, prevSaved.length + 1, []);
+      return {
+        ...prev,
+        dayAssignments: [],
+        isApproved: false,
+        approvedAt: undefined,
+        savedSchedules: [newSavedEntry, ...prevSaved],
+        activeScheduleId: newId,
+      };
+    });
+    setManualStarted(true);
+  };
 
   const handleReset = () => {
-    setSupervisionData(prev => ({ ...prev, dayAssignments: [] }));
+    setSupervisionData(prev => ({ ...prev, dayAssignments: [], activeScheduleId: undefined, isApproved: false, approvedAt: undefined }));
     setManualStarted(false);
     setShowResetConfirm(false);
     showToast('تم إعادة بدء الجدول — اختر طريقة الإنشاء من جديد', 'success');
   };
 
   const handleDeleteAll = () => {
-    setSupervisionData(prev => ({
-      ...prev,
-      dayAssignments: prev.dayAssignments.map(da => ({
-        ...da,
-        staffAssignments: [],
-        followUpSupervisorId: undefined,
-        followUpSupervisorName: undefined,
-      })),
-    }));
+    setSupervisionData(prev => {
+      const next = {
+        ...prev,
+        dayAssignments: prev.dayAssignments.map(da => ({
+          ...da,
+          staffAssignments: [],
+          followUpSupervisorId: undefined,
+          followUpSupervisorName: undefined,
+        })),
+      };
+      return syncActiveSavedSchedule(prev, next);
+    });
     setShowDeleteAllConfirm(false);
     showToast('تم حذف كل الإسنادات', 'success');
   };
@@ -386,34 +458,40 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       return;
     }
     const targetTypeIds = getBulkTargetTypeIds();
-    setSupervisionData(prev => ({
-      ...prev,
-      dayAssignments: prev.dayAssignments.map(da => ({
-        ...da,
-        staffAssignments: da.staffAssignments.map(sa => (
-          targetTypeIds.includes(sa.contextTypeId)
-            ? { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) }
-            : sa
-        )),
-      })),
-    }));
+    setSupervisionData(prev => {
+      const next = {
+        ...prev,
+        dayAssignments: prev.dayAssignments.map(da => ({
+          ...da,
+          staffAssignments: da.staffAssignments.map(sa => (
+            targetTypeIds.includes(sa.contextTypeId)
+              ? { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) }
+              : sa
+          )),
+        })),
+      };
+      return syncActiveSavedSchedule(prev, next);
+    });
     showToast('تم تطبيق المواقع على الأعمدة المحددة في كل الأيام', 'success');
   };
 
   const clearLocations = (day?: string) => {
     const targetTypeIds = getBulkTargetTypeIds();
-    setSupervisionData(prev => ({
-      ...prev,
-      dayAssignments: prev.dayAssignments.map(da => {
-        if (day && da.day !== day) return da;
-        return {
-          ...da,
-          staffAssignments: da.staffAssignments.map(sa => (
-            targetTypeIds.includes(sa.contextTypeId) ? { ...sa, locationIds: [] } : sa
-          )),
-        };
-      }),
-    }));
+    setSupervisionData(prev => {
+      const next = {
+        ...prev,
+        dayAssignments: prev.dayAssignments.map(da => {
+          if (day && da.day !== day) return da;
+          return {
+            ...da,
+            staffAssignments: da.staffAssignments.map(sa => (
+              targetTypeIds.includes(sa.contextTypeId) ? { ...sa, locationIds: [] } : sa
+            )),
+          };
+        }),
+      };
+      return syncActiveSavedSchedule(prev, next);
+    });
     if (!day) {
       setBulkLocationIds([]);
       setShowBulkLocationPicker(false);
@@ -433,20 +511,23 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     }
 
     const selectedKeys = new Set(bulkStaffKeys);
-    setSupervisionData(prev => ({
-      ...prev,
-      dayAssignments: prev.dayAssignments.map(da => ({
-        ...da,
-        staffAssignments: da.staffAssignments.map(sa => {
-          const key = `${sa.staffType}-${sa.staffId}`;
-          if (!selectedKeys.has(key)) return sa;
-          return {
-            ...sa,
-            locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
-          };
-        }),
-      })),
-    }));
+    setSupervisionData(prev => {
+      const next = {
+        ...prev,
+        dayAssignments: prev.dayAssignments.map(da => ({
+          ...da,
+          staffAssignments: da.staffAssignments.map(sa => {
+            const key = `${sa.staffType}-${sa.staffId}`;
+            if (!selectedKeys.has(key)) return sa;
+            return {
+              ...sa,
+              locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
+            };
+          }),
+        })),
+      };
+      return syncActiveSavedSchedule(prev, next);
+    });
     showToast('تم تطبيق المواقع على إسنادات المشرفين المحددين', 'success');
   };
 
@@ -489,7 +570,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           followUpSupervisorName: da.followUpSupervisorName,
         };
       });
-      return { ...prev, dayAssignments: newAssignments };
+      const next = { ...prev, dayAssignments: newAssignments };
+      return syncActiveSavedSchedule(prev, next);
     });
     showToast('تم تعيين المشرف المتابع لجميع الأيام', 'success');
   };

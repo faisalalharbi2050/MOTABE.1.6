@@ -251,6 +251,9 @@ const PrintSendTab: React.FC<Props> = ({
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleDate, setSendScheduleDate] = useState('');
   const [sendScheduleTime, setSendScheduleTime] = useState('08:00');
+  const [scheduleCalendarType, setScheduleCalendarType] = useState<'hijri' | 'gregorian'>(
+    ((schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian')
+  );
   const [isSendingNow, setIsSendingNow] = useState(false);
   const [sendResults, setSendResults] = useState<{ name: string; status: 'sent' | 'failed' }[]>([]);
   const [previewRow, setPreviewRow] = useState<SendRow | null>(null);
@@ -592,8 +595,6 @@ const PrintSendTab: React.FC<Props> = ({
     return isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
-  const scheduleCalendarType = (schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian';
-
   const selectedDaysSummary = selectedDays.length === 0
     ? undefined
     : selectedDays.map(day => DAY_NAMES[day] || day).join('، ');
@@ -625,18 +626,30 @@ const PrintSendTab: React.FC<Props> = ({
   };
 
   const buildDetailedMessage = (row: SendRow): string => {
-    const dayName = DAY_NAMES[row.day] || row.day;
-    const hijri = formatHijriDate(supervisionData.effectiveDate);
+    const assignmentDayName = DAY_NAMES[row.day] || row.day;
+    const assignmentHijri = formatHijriDate(supervisionData.effectiveDate);
+    const todayDayName = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date().getDay()];
+    const todayHijri = formatHijriDate();
     const schoolName = schoolInfo.schoolName || 'اسم المدرسة';
     const link = buildSignatureLink(row);
+    const reminderTemplate = supervisionData.settings.reminderMessageTemplate?.trim();
+    const fillReminderTemplate = (template: string) => template
+      .replace(/\(\s*(?:اسم المستلم|اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, row.staffName)
+      .replace(/\(\s*(?:اليوم|يظهر هنا اليوم)\s*\)/g, todayDayName)
+      .replace(/\(\s*(?:اسم المدرسة|يظهر اسم المدرسة)\s*\)/g, schoolName)
+      .replace(/\(\s*(?:التاريخ بالهجري|يظهر التاريخ بالهجري)\s*\)/g, todayHijri)
+      .replace(/\(\s*(?:الفصل الدراسي|يظهر الفصل الدراسي)\s*\)/g, currentSemesterName);
 
     if (sendMode === 'electronic') {
-      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${dayName}، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.\n${schoolName} - ${dayName} - ${hijri} - ${currentSemesterName}\nرابط التكليف والتوقيع:\n${link}`;
+      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}\nرابط التكليف والتوقيع:\n${link}`;
     }
     if (sendMode === 'text') {
-      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${dayName}، شاكرين تعاونكم.\n${schoolName} - ${dayName} - ${hijri} - ${currentSemesterName}.`;
+      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}.`;
     }
-    return `المكرم/ ${row.staffName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${dayName}، شاكرين تعاونكم.\n${schoolName} - ${dayName} - ${hijri} - ${currentSemesterName}.`;
+    if (reminderTemplate) {
+      return fillReminderTemplate(reminderTemplate);
+    }
+    return `المكرم/ ${row.staffName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName}، شاكرين تعاونكم.\n${schoolName} - ${todayDayName} - ${todayHijri} - ${currentSemesterName}.`;
   };
 
   const markSignaturePending = (rows: SendRow[]) => {
@@ -1187,7 +1200,7 @@ const PrintSendTab: React.FC<Props> = ({
             <button type="button" onClick={() => handleDirectPrint({ signed: true })} disabled={!hasData}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={13} />
-              طباعة الإشراف بعد التوقيع
+              طباعة جدول الإشراف بالتوقيع
             </button>
           </div>
         </div>
@@ -1257,12 +1270,12 @@ const PrintSendTab: React.FC<Props> = ({
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
                           <button type="button" onClick={() => setPreviewReceiptRow(req)} title="معاينة النموذج"
-                            className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Eye size={13} />
                             معاينة
                           </button>
                           <button type="button" onClick={() => handlePrintAssignmentForms([req])} title="طباعة النموذج"
-                            className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Printer size={13} />
                             طباعة
                           </button>
@@ -1594,9 +1607,25 @@ const PrintSendTab: React.FC<Props> = ({
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <MessageSquare size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">نص الرسالة</h4>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare size={20} className="text-[#655ac1]" />
+                    <h4 className="font-black text-slate-800">نص الرسالة</h4>
+                  </div>
+                  <button
+                    type="button"
+                    title="استعادة النص الافتراضي"
+                    aria-label="استعادة النص الافتراضي"
+                    onClick={() => {
+                      if (selectedRows.length === 0) return;
+                      setMessageText(buildDetailedMessage(selectedRows[0]));
+                      showToast?.('تمت استعادة النص الافتراضي.', 'success');
+                    }}
+                    disabled={selectedRows.length === 0}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw size={14} className="text-[#655ac1]" />
+                  </button>
                 </div>
                 <textarea
                   value={messageText}
@@ -1622,7 +1651,26 @@ const PrintSendTab: React.FC<Props> = ({
                   {isSendScheduled && (
                     <div className="mt-3 flex flex-wrap gap-3">
                       <div className="flex-1 min-w-[140px]">
-                        <label className="text-xs font-black text-slate-500 block mb-1.5">التاريخ</label>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <label className="text-xs font-black text-slate-500">التاريخ</label>
+                          <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                            {[
+                              { value: 'hijri', label: 'هجري' },
+                              { value: 'gregorian', label: 'ميلادي' },
+                            ].map(option => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setScheduleCalendarType(option.value as 'hijri' | 'gregorian')}
+                                className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                                  scheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <DatePicker
                           value={getValidPickerDate(sendScheduleDate)}
                           onChange={date => setSendScheduleDate(formatPickerDate(date))}

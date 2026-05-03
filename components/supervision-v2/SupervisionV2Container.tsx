@@ -21,7 +21,6 @@ import SupervisionSettingsPage from '../supervision/SupervisionSettingsPage';
 import SupervisionMonitoringModal from '../supervision/modals/SupervisionMonitoringModal';
 import SupervisionPrintModal from '../supervision/modals/SupervisionPrintModal';
 import SupervisionMessagingModal from '../supervision/modals/SupervisionMessagingModal';
-import SupervisionReports from '../supervision/SupervisionReports';
 
 import CreateTab from './tabs/CreateTab';
 import MonitoringTab from './tabs/MonitoringTab';
@@ -38,7 +37,7 @@ interface Props {
   onOpenMessagesArchive?: () => void;
 }
 
-type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'reports' | 'manage';
+type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'manage';
 
 const TAB_STORAGE_KEY = 'motabe:supervision_v2:lastTab';
 
@@ -290,8 +289,7 @@ const SupervisionV2Container: React.FC<Props> = ({
     { id: 'settings', label: 'إعدادات الإشراف', icon: Settings },
     { id: 'create', label: 'إنشاء جدول الإشراف', icon: Sparkles },
     { id: 'printsend', label: 'طباعة وإرسال الإشراف', icon: FileOutput },
-    { id: 'monitoring', label: 'المتابعة اليومية', icon: Eye },
-    { id: 'reports', label: 'التقارير', icon: BarChart3 },
+    { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: Eye },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
 
@@ -419,7 +417,12 @@ const SupervisionV2Container: React.FC<Props> = ({
           />
         )}
         {activeTab === 'monitoring' && (
-          <MonitoringTab onOpenLegacyMonitoring={() => setIsMonitoringOpen(true)} />
+          <MonitoringTab
+            supervisionData={supervisionData}
+            setSupervisionData={setSupervisionData}
+            schoolInfo={schoolInfo}
+            showToast={showToast}
+          />
         )}
         {activeTab === 'printsend' && (
           <PrintSendTab
@@ -431,15 +434,6 @@ const SupervisionV2Container: React.FC<Props> = ({
             onOpenLegacyPrint={() => setIsPrintOpen(true)}
             onOpenLegacySend={() => setIsMessagingOpen(true)}
             onOpenMessagesArchive={onOpenMessagesArchive}
-            showToast={showToast}
-          />
-        )}
-        {activeTab === 'reports' && (
-          <SupervisionReports
-            supervisionData={supervisionData}
-            schoolInfo={schoolInfo}
-            teachers={filteredTeachers}
-            admins={filteredAdmins}
             showToast={showToast}
           />
         )}

@@ -38,7 +38,7 @@ const TABS: { id: TabId; title: string; icon: React.ElementType }[] = [
   { id: 'settings', title: 'الإعدادات الأساسية', icon: Settings },
   { id: 'locations', title: 'مواعيد ومواقع الإشراف', icon: MapPin },
   { id: 'staff', title: 'المشرفون', icon: Users },
-  { id: 'reminders', title: 'الإشعارات', icon: Bell },
+  { id: 'reminders', title: 'الإشعارات التلقائية', icon: Bell },
 ];
 
 const SupervisionSettingsPage: React.FC<Props> = ({
@@ -139,6 +139,7 @@ const SupervisionSettingsPage: React.FC<Props> = ({
             suggestExclude={suggestExclude}
             showToast={showToast}
             activeView="reminders"
+            schoolInfo={schoolInfo}
           />
         )}
       </div>

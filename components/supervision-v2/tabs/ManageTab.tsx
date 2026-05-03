@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { AlertTriangle, BookOpenCheck, Check, Edit3, Table, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, BookOpenCheck, Check, Edit3, Pencil, Table, Trash2, X } from 'lucide-react';
 import { SavedSupervisionSchedule, SupervisionScheduleData } from '../../../types';
 
 interface Props {
@@ -23,12 +24,69 @@ const formatDateTime = (iso: string) => {
 const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showToast }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [menuState, setMenuState] = useState<{ scheduleId: string; top: number; left: number } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<SavedSupervisionSchedule | null>(null);
+  const [confirmAdopt, setConfirmAdopt] = useState<{ schedule: SavedSupervisionSchedule; mode: 'adopt' | 'unadopt' } | null>(null);
+  const warnedFullAutoSaveRef = useRef(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const savedSchedules = supervisionData.savedSchedules || [];
   const activeScheduleId = supervisionData.activeScheduleId;
   const approvedSchedule = savedSchedules.find(schedule => schedule.isApproved || schedule.id === activeScheduleId);
+  const hasCurrentSchedule = supervisionData.dayAssignments.some(day =>
+    day.staffAssignments.length > 0 || !!day.followUpSupervisorId
+  );
+  const currentScheduleIsSaved = !!activeScheduleId && savedSchedules.some(schedule => schedule.id === activeScheduleId);
   const isFull = savedSchedules.length >= 10;
   const isNearFull = savedSchedules.length === 9;
+
+  useEffect(() => {
+    if (!menuState) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuState(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuState]);
+
+  const openMenu = (event: React.MouseEvent<HTMLButtonElement>, scheduleId: string) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 176;
+    const left = Math.max(16, rect.left - menuWidth + rect.width);
+    setMenuState(prev => prev?.scheduleId === scheduleId ? null : { scheduleId, top: rect.bottom + 8, left });
+  };
+
+  useEffect(() => {
+    if (!hasCurrentSchedule || currentScheduleIsSaved) return;
+    if (isFull) {
+      if (!warnedFullAutoSaveRef.current) {
+        warnedFullAutoSaveRef.current = true;
+        showToast('وصلت للحد الأقصى 10 جداول. احذف جدولًا قبل إنشاء جدول جديد.', 'warning');
+      }
+      return;
+    }
+    warnedFullAutoSaveRef.current = false;
+    setSupervisionData(prev => {
+      const prevSaved = prev.savedSchedules || [];
+      const alreadySaved = !!prev.activeScheduleId && prevSaved.some(schedule => schedule.id === prev.activeScheduleId);
+      if (alreadySaved || prevSaved.length >= 10) return prev;
+      const id = `supervision-schedule-${Date.now()}`;
+      const savedEntry: SavedSupervisionSchedule = {
+        id,
+        name: `جدول رقم ${prevSaved.length + 1}`,
+        createdAt: new Date().toISOString(),
+        dayAssignments: prev.dayAssignments,
+        isApproved: false,
+      };
+      return {
+        ...prev,
+        savedSchedules: [savedEntry, ...prevSaved],
+        activeScheduleId: id,
+      };
+    });
+  }, [currentScheduleIsSaved, hasCurrentSchedule, isFull, setSupervisionData, showToast]);
 
   const saveName = (schedule: SavedSupervisionSchedule) => {
     const trimmed = editingName.trim();
@@ -57,6 +115,20 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
       activeScheduleId: schedule.id,
     }));
     showToast('تم اعتماد جدول الإشراف', 'success');
+    setConfirmAdopt(null);
+  };
+
+  const unadoptSchedule = (schedule: SavedSupervisionSchedule) => {
+    setSupervisionData(prev => ({
+      ...prev,
+      savedSchedules: (prev.savedSchedules || []).map(item =>
+        item.id === schedule.id ? { ...item, isApproved: false } : item
+      ),
+      isApproved: false,
+      approvedAt: undefined,
+    }));
+    showToast('تم إلغاء اعتماد جدول الإشراف', 'success');
+    setConfirmAdopt(null);
   };
 
   const deleteSchedule = (schedule: SavedSupervisionSchedule) => {
@@ -70,6 +142,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
       };
     });
     showToast('تم حذف الجدول من القائمة', 'success');
+    setConfirmDelete(null);
   };
 
   const stats = [
@@ -119,7 +192,9 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
             <Table size={64} strokeWidth={1.6} className="text-[#655ac1]" />
             <div className="text-center">
               <p className="font-bold text-slate-600 text-lg mb-1">لا توجد جداول محفوظة بعد</p>
-              <p className="text-sm font-medium text-slate-500">سيظهر الجدول هنا بعد إنشائه من تاب إنشاء وتعديل جدول الإشراف.</p>
+              <p className="text-sm font-medium text-slate-500">
+                {hasCurrentSchedule ? 'سيظهر الجدول الحالي هنا تلقائيًا خلال لحظات.' : 'سيظهر الجدول هنا مباشرة بعد إنشائه من تاب إنشاء جدول الإشراف.'}
+              </p>
             </div>
           </div>
         ) : (
@@ -177,33 +252,29 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
                         )}
                       </td>
                       <td className="px-6 py-3.5">
-                        <div className="flex items-center justify-center gap-2">
-                          {isEditing ? (
+                        {isEditing ? (
+                          <div className="flex items-center justify-center gap-2">
                             <button onClick={() => saveName(schedule)} className="px-3 py-1.5 text-xs font-bold text-white rounded-lg bg-[#655ac1]">
                               حفظ
                             </button>
-                          ) : (
                             <button
-                              onClick={() => { setEditingId(schedule.id); setEditingName(schedule.name); }}
-                              className="p-2 text-slate-500 bg-white hover:text-[#655ac1] hover:bg-[#f5f3ff] rounded-lg transition-all border border-slate-200"
-                              title="تعديل الاسم"
+                              onClick={() => { setEditingId(null); setEditingName(''); }}
+                              className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
+                            >
+                              إلغاء
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <button
+                              onClick={event => openMenu(event, schedule.id)}
+                              className="p-2 text-slate-400 bg-white hover:text-[#655ac1] hover:bg-[#f5f3ff] rounded-lg transition-all border border-slate-200"
+                              title="تعديل"
                             >
                               <Edit3 size={15} />
                             </button>
-                          )}
-                          {!isActive && (
-                            <button onClick={() => adoptSchedule(schedule)} className="px-3 py-2 text-xs font-bold text-[#655ac1] bg-[#f5f3ff] rounded-lg border border-[#d7d0ff]">
-                              اعتماد
-                            </button>
-                          )}
-                          <button
-                            onClick={() => deleteSchedule(schedule)}
-                            className="p-2 text-rose-500 bg-white hover:bg-rose-50 rounded-lg transition-all border border-rose-100"
-                            title="حذف"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -213,6 +284,146 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
           </div>
         )}
       </div>
+
+      {menuState && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed w-44 rounded-2xl bg-white border border-slate-200 shadow-2xl p-1.5 z-[130]"
+          style={{ top: menuState.top, left: menuState.left }}
+          dir="rtl"
+        >
+          <button
+            onClick={() => {
+              const target = savedSchedules.find(schedule => schedule.id === menuState.scheduleId);
+              setEditingId(menuState.scheduleId);
+              setEditingName(target?.name || '');
+              setMenuState(null);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+          >
+            <Pencil size={14} />
+            تعديل
+          </button>
+          {(() => {
+            const schedule = savedSchedules.find(item => item.id === menuState.scheduleId);
+            if (!schedule) return null;
+            const isActive = activeScheduleId === schedule.id || schedule.isApproved;
+            return (
+              <>
+                <button
+                  onClick={() => { setConfirmAdopt({ schedule, mode: isActive ? 'unadopt' : 'adopt' }); setMenuState(null); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold rounded-xl transition-colors ${
+                    isActive ? 'text-amber-700 hover:bg-amber-50' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Check size={14} />
+                  {isActive ? 'إلغاء الاعتماد' : 'اعتماد'}
+                </button>
+                <button
+                  onClick={() => { setConfirmDelete(schedule); setMenuState(null); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                >
+                  <Trash2 size={14} />
+                  حذف
+                </button>
+              </>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
+
+      {confirmAdopt && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
+                  confirmAdopt.mode === 'adopt' ? 'bg-[#f0edff] text-[#655ac1]' : 'bg-amber-50 text-amber-500'
+                }`}>
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xl text-slate-800">
+                    {confirmAdopt.mode === 'adopt' ? 'تأكيد الاعتماد' : 'تأكيد إلغاء الاعتماد'}
+                  </h3>
+                  <p className="text-sm font-bold text-slate-500 mt-0.5">
+                    {confirmAdopt.mode === 'adopt' ? 'سيصبح هذا الجدول هو الجدول المعتمد.' : 'سيتم إلغاء اعتماد هذا الجدول.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmAdopt(null)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
+              {confirmAdopt.mode === 'adopt'
+                ? <>هل تريد اعتماد جدول <span className="font-black text-slate-800">"{confirmAdopt.schedule.name}"</span>؟ سيتم إلغاء اعتماد أي جدول آخر.</>
+                : <>هل تريد إلغاء اعتماد جدول <span className="font-black text-slate-800">"{confirmAdopt.schedule.name}"</span>؟</>}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmAdopt(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-black text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => confirmAdopt.mode === 'adopt' ? adoptSchedule(confirmAdopt.schedule) : unadoptSchedule(confirmAdopt.schedule)}
+                className={`px-5 py-2.5 rounded-xl text-sm font-black text-white transition-colors ${
+                  confirmAdopt.mode === 'adopt' ? 'bg-[#655ac1] hover:bg-[#5046a0]' : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+              >
+                تأكيد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center">
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xl text-slate-800">تأكيد الحذف</h3>
+                  <p className="text-sm font-bold text-slate-500 mt-0.5">سيتم حذف جدول الإشراف المحدد نهائيًا.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
+              هل تريد حذف جدول <span className="font-black text-slate-800">"{confirmDelete.name}"</span>؟ لا يمكن التراجع عن هذا الإجراء.
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-black text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => deleteSchedule(confirmDelete)}
+                className="px-5 py-2.5 rounded-xl text-sm font-black text-white bg-rose-500 hover:bg-rose-600 transition-colors"
+              >
+                تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

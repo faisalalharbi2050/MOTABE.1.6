@@ -724,6 +724,14 @@ export function getSupervisionPrintData(
 
 // ===== Default Supervision Data =====
 export function getDefaultSupervisionData(schoolInfo: SchoolInfo): SupervisionScheduleData {
+  const currentSemesterName = schoolInfo.semesters?.find(sem => sem.id === schoolInfo.currentSemesterId || sem.isCurrent)?.name || '';
+  const todayDayName = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date().getDay()];
+  const todayHijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+
   return {
     locations: getDefaultLocations(),
     periods: getSupervisionPeriods(schoolInfo),
@@ -736,7 +744,9 @@ export function getDefaultSupervisionData(schoolInfo: SchoolInfo): SupervisionSc
       excludeVicePrincipals: false,
       enableAutoAssignment: true,
       sharedSchoolMode: 'unified',
-      reminderMessageTemplate: '',
+      reminderMessageTemplate: `المكرم/ (اسم المستلم)
+نذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName} ، شاكرين تعاونكم.
+${schoolInfo.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${todayHijriDate} - ${currentSemesterName || 'الفصل الدراسي'}`,
       assignmentMessageTemplate: '',
       autoSendReminder: false,       // يدوي بشكل افتراضي
       reminderSendTime: '07:00',

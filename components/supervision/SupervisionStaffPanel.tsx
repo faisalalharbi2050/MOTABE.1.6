@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Bell, MessageSquare, Power, Search, Settings, Users } from 'lucide-react';
+import { Bell, MessageSquare, Power, RefreshCw, Search, Settings, Users } from 'lucide-react';
 import {
-  Teacher, Admin, SupervisionStaffExclusion, SupervisionSettings
+  Teacher, Admin, SchoolInfo, SupervisionStaffExclusion, SupervisionSettings
 } from '../../types';
 
 const Toggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
@@ -81,12 +81,13 @@ interface Props {
   availableCount: number;
   suggestExclude: boolean;
   hasSharedSchools?: boolean;
+  schoolInfo?: SchoolInfo;
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
 }
 
 const SupervisionStaffPanel: React.FC<Props> = ({
   teachers, admins, exclusions, setExclusions, settings, setSettings,
-  hasSharedSchools, activeView
+  hasSharedSchools, activeView, schoolInfo
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'teachers' | 'admins'>('all');
@@ -114,6 +115,23 @@ const SupervisionStaffPanel: React.FC<Props> = ({
   }, [allStaff, filterType, searchTerm]);
 
   const isExcluded = (staffId: string) => exclusions.find(e => e.staffId === staffId)?.isExcluded || false;
+
+  const currentSemesterName = schoolInfo?.semesters?.find(sem => sem.id === schoolInfo.currentSemesterId || sem.isCurrent)?.name || '';
+  const todayDayName = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date().getDay()];
+  const todayHijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+  const defaultReminderTemplate = `المكرم/ (اسم المستلم)
+نذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName} ، شاكرين تعاونكم.
+${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${todayHijriDate} - ${currentSemesterName || 'الفصل الدراسي'}`;
+  const reminderTemplateValue = (settings.reminderMessageTemplate || defaultReminderTemplate)
+    .replace(/\(\s*(?:اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, '(اسم المستلم)')
+    .replace(/\(\s*(?:اليوم|يظهر هنا اليوم)\s*\)/g, todayDayName)
+    .replace(/\(\s*(?:اسم المدرسة|يظهر اسم المدرسة)\s*\)/g, schoolInfo?.schoolName || 'اسم المدرسة')
+    .replace(/\(\s*(?:التاريخ بالهجري|يظهر التاريخ بالهجري)\s*\)/g, todayHijriDate)
+    .replace(/\(\s*(?:الفصل الدراسي|يظهر الفصل الدراسي)\s*\)/g, currentSemesterName || 'الفصل الدراسي');
 
   const setExclusionState = (staffId: string, staffType: 'teacher' | 'admin', excluded: boolean) => {
     setExclusions(prev => {
@@ -265,7 +283,7 @@ const SupervisionStaffPanel: React.FC<Props> = ({
         <div className={CARD_CLASS}>
           <CardHeader
             icon={Bell}
-            title="الإشعارات"
+            title="الإشعارات التلقائية"
             description="إعداد الإشعارات اليومية للمشرفين"
           />
 
@@ -326,6 +344,31 @@ const SupervisionStaffPanel: React.FC<Props> = ({
                   <MessageSquare size={15} className="text-[#007AFF]" />
                   نصية
                 </label>
+              </div>
+            </SettingRow>
+
+            <SettingRow title="رسالة التذكير التلقائية" disabled={!settings.autoSendReminder}>
+              <div className="w-full sm:max-w-xl">
+                <div className="flex justify-end mb-2">
+                  <button
+                    type="button"
+                    title="استعادة النص الافتراضي"
+                    aria-label="استعادة النص الافتراضي"
+                    onClick={() => setSettings(prev => ({ ...prev, reminderMessageTemplate: defaultReminderTemplate }))}
+                    disabled={!settings.autoSendReminder}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw size={14} className="text-[#655ac1]" />
+                  </button>
+                </div>
+                <textarea
+                  value={reminderTemplateValue}
+                  onChange={e => setSettings(prev => ({ ...prev, reminderMessageTemplate: e.target.value }))}
+                  disabled={!settings.autoSendReminder}
+                  rows={5}
+                  className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors disabled:bg-slate-100 disabled:text-slate-400"
+                  dir="rtl"
+                />
               </div>
             </SettingRow>
           </div>

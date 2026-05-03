@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import arabic from 'react-date-object/calendars/arabic';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+import gregorian from 'react-date-object/calendars/gregorian';
+import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
   Users,
   CalendarDays,
@@ -962,6 +967,9 @@ const ViewTab: React.FC<Props> = ({
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleDate, setSendScheduleDate] = useState('');
   const [sendScheduleTime, setSendScheduleTime] = useState('08:00');
+  const [sendScheduleCalendarType, setSendScheduleCalendarType] = useState<'hijri' | 'gregorian'>(
+    ((schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian')
+  );
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const sortedClasses = useMemo(
@@ -979,6 +987,25 @@ const ViewTab: React.FC<Props> = ({
   const showToast = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 3200);
+  };
+
+  const formatPickerDate = (date: any) => {
+    if (!date) return '';
+    if (date instanceof DateObject) {
+      const jsDate = date.toDate();
+      if (isNaN(jsDate.getTime())) return '';
+      return `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, '0')}-${String(jsDate.getDate()).padStart(2, '0')}`;
+    }
+    if (date instanceof Date && !isNaN(date.getTime())) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+    return '';
+  };
+
+  const getValidPickerDate = (date?: string) => {
+    if (!date) return undefined;
+    const parsed = new Date(`${date}T00:00:00`);
+    return isNaN(parsed.getTime()) ? undefined : parsed;
   };
 
   const teacherOptions = useMemo(() => teachers.map(item => ({ value: item.id, label: item.name })), [teachers]);
@@ -2361,14 +2388,14 @@ const ViewTab: React.FC<Props> = ({
                   <button
                     type="button"
                     title="استعادة النص الافتراضي"
+                    aria-label="استعادة النص الافتراضي"
                     onClick={() => {
                       setModalMessageContent(buildMessageComposerDraft(generatedLinks).content);
                       showToast('تمت استعادة النص الافتراضي.');
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all"
                   >
-                    <RefreshCw size={13} />
-                    النص الافتراضي
+                    <RefreshCw size={14} className="text-[#655ac1]" />
                   </button>
                 </div>
                 <textarea
@@ -2399,12 +2426,38 @@ const ViewTab: React.FC<Props> = ({
                   {isSendScheduled && (
                     <div className="mt-3 flex flex-wrap gap-3">
                       <div className="flex-1 min-w-[140px]">
-                        <label className="text-xs font-black text-slate-500 block mb-1.5">التاريخ</label>
-                        <input
-                          type="date"
-                          value={sendScheduleDate}
-                          onChange={e => setSendScheduleDate(e.target.value)}
-                          className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors"
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <label className="text-xs font-black text-slate-500">التاريخ</label>
+                          <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                            {[
+                              { value: 'hijri', label: 'هجري' },
+                              { value: 'gregorian', label: 'ميلادي' },
+                            ].map(option => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setSendScheduleCalendarType(option.value as 'hijri' | 'gregorian')}
+                                className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                                  sendScheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <DatePicker
+                          value={getValidPickerDate(sendScheduleDate)}
+                          onChange={date => setSendScheduleDate(formatPickerDate(date))}
+                          calendar={sendScheduleCalendarType === 'hijri' ? arabic : gregorian}
+                          locale={sendScheduleCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
+                          containerClassName="w-full"
+                          inputClass="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer"
+                          placeholder="حدد التاريخ"
+                          portal
+                          portalTarget={document.body}
+                          editable={false}
+                          zIndex={99999}
                         />
                       </div>
                       <div className="flex-1 min-w-[120px]">
