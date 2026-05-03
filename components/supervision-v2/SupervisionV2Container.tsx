@@ -289,7 +289,7 @@ const SupervisionV2Container: React.FC<Props> = ({
     { id: 'settings', label: 'إعدادات الإشراف', icon: Settings },
     { id: 'create', label: 'إنشاء جدول الإشراف', icon: Sparkles },
     { id: 'printsend', label: 'طباعة وإرسال الإشراف', icon: FileOutput },
-    { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: Eye },
+    { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: BarChart3 },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
 
