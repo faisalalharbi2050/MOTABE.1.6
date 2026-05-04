@@ -1,31 +1,14 @@
 import React, { useState } from 'react';
 import {
-  ArrowRight, Users, Settings, Shield, Bell, Send, Save, Check, AlertTriangle
+  Users, Settings, Bell, Check,
+  ArrowLeft, CalendarDays, Edit3, Lightbulb
 } from 'lucide-react';
 import {
   Teacher, Admin, SchoolInfo,
   DutyStaffExclusion, DutySettings,
 } from '../../types';
 import DutyStaffPanel from './DutyStaffPanel';
-
-// ── Toggle — نفس تصميم صفحة الإشراف ─────────────────────────────────────────
-const Toggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
-  <div className="flex items-center gap-2 shrink-0">
-    <span className={`text-xs font-bold transition-colors duration-200 min-w-[2rem] text-center ${checked ? 'text-green-600' : 'text-slate-400'}`}>
-      {checked ? 'مفعّل' : 'معطّل'}
-    </span>
-    <button
-      onClick={onChange}
-      className={`relative h-6 w-10 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-        checked ? 'bg-green-500 focus:ring-green-400' : 'bg-slate-200 focus:ring-slate-300'
-      }`}
-    >
-      <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-        checked ? 'right-1' : 'left-1'
-      }`} />
-    </button>
-  </div>
-);
+import AcademicCalendarModal from '../dashboard/AcademicCalendarModal';
 
 interface Props {
   onBack: () => void;
@@ -40,62 +23,77 @@ interface Props {
   availableCount: number;
   suggestExclude: boolean;
   schoolInfo: SchoolInfo;
+  setSchoolInfo?: React.Dispatch<React.SetStateAction<SchoolInfo>>;
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
 }
 
-type TabId = 'settings' | 'staff' | 'reminders';
+type TabId = 'calendar' | 'settings' | 'staff' | 'reminders';
 
 const TABS: { id: TabId; title: string; icon: React.ElementType }[] = [
-  { id: 'settings',   title: 'قواعد المناوبة',  icon: Shield },
-  { id: 'staff',      title: 'المناوبون',        icon: Users  },
-  { id: 'reminders',  title: 'الإشعارات',        icon: Bell   },
+  { id: 'calendar',   title: 'الأسابيع الدراسية',     icon: CalendarDays },
+  { id: 'settings',   title: 'الإعدادات الأساسية',  icon: Settings },
+  { id: 'staff',      title: 'المناوبون',           icon: Users  },
+  { id: 'reminders',  title: 'الإشعارات التلقائية', icon: Bell   },
 ];
 
 const DutySettingsPage: React.FC<Props> = ({
-  onBack, onSave,
-  teachers, admins, totalStaffCount,
+  teachers, admins,
   exclusions, setExclusions, settings, setSettings,
   availableCount, suggestExclude,
-  schoolInfo, showToast,
+  schoolInfo, setSchoolInfo, showToast,
 }) => {
   const hasSharedSchools = (schoolInfo.sharedSchools || []).length > 0;
-  const [activeTab, setActiveTab] = useState<TabId>('settings');
-  const [hasSaved, setHasSaved] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
-  const [showBackConfirm, setShowBackConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('calendar');
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
-  const handleSave = () => {
-    onSave();
-    setHasSaved(true);
-    setJustSaved(true);
-    showToast('تم حفظ إعدادات المناوبة', 'success');
-    setTimeout(() => setJustSaved(false), 2000);
+  const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId || s.isCurrent) || schoolInfo.semesters?.[0];
+  const weeksCount = currentSemester?.weeksCount || 0;
+  const hasSelectedCalendar = Boolean(schoolInfo.academicYear && currentSemester?.startDate && currentSemester?.endDate && weeksCount > 0);
+  const allWeeks = Array.from({ length: weeksCount }, (_, i) => i + 1);
+  const weekColumns = Array.from({ length: Math.ceil(allWeeks.length / 4) }, (_, i) => allWeeks.slice(i * 4, i * 4 + 4));
+  const selectedWeeks = settings.selectedWeeks ?? allWeeks;
+  const semesterCalendarType = currentSemester?.calendarType || schoolInfo.calendarType || 'gregorian';
+  const formatSemesterStart = (dateText?: string) => {
+    if (!dateText) return 'لم يتم تحديد تاريخ بداية الفصل الدراسي';
+    const parsed = new Date(dateText);
+    if (Number.isNaN(parsed.getTime())) return `بداية الفصل: ${dateText}`;
+    const locale = semesterCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic' : 'ar-SA';
+    const formatted = new Intl.DateTimeFormat(locale, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(parsed);
+    return `بداية الفصل: ${formatted}`;
   };
-
-  const handleBack = () => {
-    if (!hasSaved) {
-      setShowBackConfirm(true);
-      return;
-    }
-    onBack();
+  const formatSemesterEnd = (dateText?: string) => {
+    if (!dateText) return 'لم يتم تحديد تاريخ نهاية الفصل الدراسي';
+    const parsed = new Date(dateText);
+    if (Number.isNaN(parsed.getTime())) return `نهاية الفصل: ${dateText}`;
+    const locale = semesterCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic' : 'ar-SA';
+    const formatted = new Intl.DateTimeFormat(locale, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(parsed);
+    return `نهاية الفصل: ${formatted}`;
   };
+  const toggleWeek = (w: number) => {
+    setSettings(prev => {
+      const cur = prev.selectedWeeks ?? allWeeks;
+      const next = cur.includes(w) ? cur.filter(x => x !== w) : [...cur, w].sort((a, b) => a - b);
+      return { ...prev, selectedWeeks: next };
+    });
+  };
+  const selectAllWeeks = () => setSettings(prev => ({ ...prev, selectedWeeks: allWeeks }));
+  const clearAllWeeks  = () => setSettings(prev => ({ ...prev, selectedWeeks: [] }));
 
   return (
     <div className="space-y-6 pb-6" dir="rtl">
 
-      {/* ══════ Page Header ══════ */}
-      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all duration-300">
-        <div className="absolute top-0 right-0 w-28 h-28 bg-[#e5e1fe] rounded-bl-[3.5rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-        <div className="relative z-10 flex items-center gap-3">
-          <Settings size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-          <div>
-            <h3 className="text-xl font-black text-slate-800">إعدادات المناوبة اليومية</h3>
-          </div>
-        </div>
-      </div>
-
       {/* ══════ Tabs + Actions ══════ */}
-      <div className="bg-white rounded-[2rem] px-4 py-3 shadow-sm border border-slate-100 space-y-3">
+      <div className="bg-white rounded-[2rem] px-4 py-3 shadow-sm border border-slate-100">
         <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
           {TABS.map(tab => {
             const Icon = tab.icon;
@@ -116,30 +114,121 @@ const DutySettingsPage: React.FC<Props> = ({
             );
           })}
         </div>
-        <div className="border-t border-slate-100 pt-3 flex items-center justify-end gap-2">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1] text-sm"
-          >
-            <ArrowRight size={16} className="text-[#655ac1]" />
-            <span>رجوع</span>
-          </button>
-          <button
-            onClick={handleSave}
-            className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm transition-all shadow-md ${
-              justSaved
-                ? 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/20'
-                : 'bg-[#655ac1] hover:bg-[#5046a0] text-white shadow-[#655ac1]/20 hover:scale-105 active:scale-95'
-            }`}
-          >
-            {justSaved ? <Check size={16} /> : <Save size={16} />}
-            <span>{justSaved ? 'تم الحفظ' : 'حفظ الإعدادات'}</span>
-          </button>
-        </div>
       </div>
 
       {/* ══════ Tab Content ══════ */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-300" key={activeTab}>
+
+        {activeTab === 'calendar' && (
+          <div className="relative rounded-[2rem] p-5 sm:p-6 bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-start gap-3 mb-5">
+              <div className="flex h-11 w-11 items-center justify-center text-[#655ac1] shrink-0">
+                <CalendarDays size={22} strokeWidth={2.1} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-black text-slate-800">الأسابيع الدراسية</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1 leading-6">الأسابيع الدراسية التي ستوزّع فيها المناوبة اليومية.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {!hasSelectedCalendar ? (
+                <div className="rounded-2xl border-2 border-slate-200 bg-white p-6 text-center shadow-sm">
+                  <CalendarDays size={34} strokeWidth={1.9} className="mx-auto mb-3 text-[#655ac1]" />
+                  <p className="text-base font-black text-slate-800">لم يتم اختيار التقويم الدراسي بعد</p>
+                  <p className="mx-auto mt-2 max-w-xl text-sm font-medium leading-6 text-slate-500">اختر التقويم الدراسي أولًا</p>
+                  <button
+                    onClick={() => setShowCalendarModal(true)}
+                    className="mt-4 inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-[#655ac1]/20"
+                  >
+                    <span>اختر التقويم الدراسي</span>
+                    <ArrowLeft size={14} />
+                  </button>
+                </div>
+              ) : (
+                <>
+              {/* Semester summary */}
+              <div className="p-3 rounded-2xl bg-white border border-slate-300 flex items-center justify-between gap-3 flex-wrap">
+                <div className="px-4 py-3 min-w-[260px]">
+                  <div>
+                    <p className="text-base font-black text-slate-800">
+                      {currentSemester?.name || 'الفصل الدراسي'}
+                    </p>
+                    <p className="text-xs font-bold text-slate-500 mt-1">
+                      {formatSemesterStart(currentSemester?.startDate)}
+                    </p>
+                    <p className="text-xs font-bold text-slate-500 mt-1">
+                      {formatSemesterEnd(currentSemester?.endDate)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowCalendarModal(true)}
+                  className="inline-flex items-center gap-2 bg-white text-[#655ac1] px-4 py-2.5 rounded-xl text-xs font-black border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
+                >
+                  <Edit3 size={14} />
+                  <span>إدارة التقويم</span>
+                </button>
+              </div>
+
+              {/* Week selection */}
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-base font-bold text-slate-700">
+                      اختر الأسابيع التي ستوزّع فيها المناوبة
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={selectAllWeeks}
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white text-[#655ac1] border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                      >
+                        اختيار الكل
+                      </button>
+                      <button
+                        onClick={clearAllWeeks}
+                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white text-[#655ac1] border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                      >
+                        إلغاء الكل
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                    {weekColumns.map((column, columnIndex) => (
+                      <div key={columnIndex} className="space-y-2">
+                        {column.map(w => {
+                          const isOn = selectedWeeks.includes(w);
+                          return (
+                            <button
+                              key={w}
+                              onClick={() => toggleWeek(w)}
+                              className="group flex w-full items-center justify-between gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all border border-slate-300 bg-white text-slate-700 hover:border-[#655ac1] hover:bg-slate-50"
+                            >
+                              <span>الأسبوع {w}</span>
+                              <span className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors ${
+                                isOn
+                                  ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                                  : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+                              }`}>
+                                <Check size={12} strokeWidth={3.5} />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                    <Lightbulb size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                    <span className="text-[11px] font-medium text-amber-800 leading-relaxed">
+                      يمكنك اختيار كل أسابيع الفصل الدراسي أو أسابيع محددة قبل إنشاء جدول المناوبة اليومية.
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {activeTab === 'settings' && (
           <DutyStaffPanel
@@ -174,140 +263,32 @@ const DutySettingsPage: React.FC<Props> = ({
         )}
 
         {activeTab === 'reminders' && (
-          <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-sm border border-slate-100 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-[#e5e1fe]/50 to-transparent rounded-br-full -z-0 pointer-events-none" />
-
-            <div className="relative z-10 flex items-center gap-4 mb-6 pb-4 border-b border-slate-100">
-              <div className="w-12 h-12 flex items-center justify-center bg-slate-100 text-[#655ac1] rounded-2xl shadow-sm">
-                <Bell size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-[#655ac1]">الإشعارات</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1">إعداد الإشعارات اليومية للمناوبين</p>
-              </div>
-            </div>
-
-            <div className="relative z-10 space-y-4 animate-in fade-in duration-500">
-
-              {/* 0. رابط نموذج التقرير */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
-                <p className="text-base font-bold text-slate-700">إضافة رابط الكتروني لنموذج التقرير اليومي للمناوب عند الإشعار</p>
-                <Toggle
-                  checked={settings.includeReportLinkInReminder ?? true}
-                  onChange={() => setSettings(prev => ({ ...prev, includeReportLinkInReminder: !(prev.includeReportLinkInReminder ?? true) }))}
-                />
-              </div>
-
-              {/* 1. آلية الإرسال */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
-                <p className="text-base font-bold text-slate-700">اختر آلية إرسال الإشعارات بالمناوبة اليومية</p>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="dutyAutoSendReminder"
-                      checked={settings.autoSendReminder === true}
-                      onChange={() => setSettings(prev => ({ ...prev, autoSendReminder: true }))}
-                      className="w-4 h-4 text-[#655ac1] focus:ring-[#655ac1]"
-                    />
-                    تلقائي
-                  </label>
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer border-r pr-3 border-slate-300">
-                    <input
-                      type="radio"
-                      name="dutyAutoSendReminder"
-                      checked={!settings.autoSendReminder}
-                      onChange={() => setSettings(prev => ({ ...prev, autoSendReminder: false }))}
-                      className="w-4 h-4 text-[#655ac1] focus:ring-[#655ac1]"
-                    />
-                    يدوي
-                  </label>
-                </div>
-              </div>
-
-              {/* 2. وقت الإرسال */}
-              <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${settings.autoSendReminder ? 'hover:border-slate-200' : 'opacity-50 pointer-events-none'}`}>
-                <p className="text-base font-bold text-slate-700">
-                  اختر وقت إرسال الإشعارات التلقائية
-                </p>
-                <input
-                  type="time"
-                  value={settings.reminderSendTime || '06:30'}
-                  onChange={(e) => setSettings(prev => ({ ...prev, reminderSendTime: e.target.value }))}
-                  className="px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1] font-bold text-slate-700"
-                />
-              </div>
-
-              {/* 3. طريقة الإرسال */}
-              <div className={`flex items-center justify-between p-4 rounded-2xl bg-slate-50/80 border border-slate-100 transition-colors ${settings.autoSendReminder ? 'hover:border-slate-200' : 'opacity-50 pointer-events-none'}`}>
-                <p className="text-base font-bold text-slate-700">اختر طريقة إرسال الإشعارات التلقائية</p>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="dutyReminderChannel"
-                      checked={settings.reminderSendChannel === 'whatsapp'}
-                      onChange={() => setSettings(prev => ({ ...prev, reminderSendChannel: 'whatsapp' }))}
-                      className="w-4 h-4 text-[#25D366] focus:ring-[#25D366]"
-                    />
-                    <span className="flex items-center gap-1.5">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="#25D366">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                      </svg>
-                      واتساب
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer border-r pr-3 border-slate-300">
-                    <input
-                      type="radio"
-                      name="dutyReminderChannel"
-                      checked={settings.reminderSendChannel === 'sms'}
-                      onChange={() => setSettings(prev => ({ ...prev, reminderSendChannel: 'sms' }))}
-                      className="w-4 h-4 text-[#007AFF] focus:ring-[#007AFF]"
-                    />
-                    <span className="flex items-center gap-1.5">
-                      <Send size={15} className="text-[#007AFF]" />
-                      نصية
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-            </div>
-          </div>
+          <DutyStaffPanel
+            teachers={teachers}
+            admins={admins}
+            exclusions={exclusions}
+            setExclusions={setExclusions}
+            settings={settings}
+            setSettings={setSettings}
+            availableCount={availableCount}
+            suggestExclude={suggestExclude}
+            showToast={showToast}
+            activeView="reminders"
+            hasSharedSchools={hasSharedSchools}
+            schoolInfo={schoolInfo}
+          />
         )}
 
       </div>
 
-      {/* ══════ Back Without Save Confirmation ══════ */}
-      {showBackConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle size={32} className="text-amber-500" />
-              </div>
-              <h2 className="text-xl font-black text-slate-800 mb-2">الإعدادات غير محفوظة</h2>
-              <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                لم تقم بحفظ الإعدادات بعد. هل تريد الخروج بدون حفٿ
-              </p>
-            </div>
-            <div className="p-6 pt-0 flex gap-3">
-              <button
-                onClick={() => setShowBackConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-              >
-                البقاء والحفظ
-              </button>
-              <button
-                onClick={() => { setShowBackConfirm(false); onBack(); }}
-                className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-amber-500/20"
-              >
-                خروج بدون حفظ
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* ══════ Academic Calendar Modal ══════ */}
+      {setSchoolInfo && (
+        <AcademicCalendarModal
+          isOpen={showCalendarModal}
+          onClose={() => setShowCalendarModal(false)}
+          schoolInfo={schoolInfo}
+          setSchoolInfo={setSchoolInfo}
+        />
       )}
 
     </div>

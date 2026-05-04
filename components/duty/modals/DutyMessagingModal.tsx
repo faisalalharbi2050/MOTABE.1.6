@@ -309,7 +309,7 @@ const DutyMessagingModal: React.FC<Props> = ({
       if (filterWeek !== 'all' && week.weekId !== filterWeek) return;
       week.dayAssignments.forEach(da => {
         if (filterDay !== 'all' && da.day !== filterDay) return;
-        if (da.isOfficialLeave || da.isRemoteWork) return;
+        if (da.isOfficialLeave || da.isRemoteWork || da.isDisabled) return;
         const dateFormatted = formatDate(da.date || '', calendarType);
         da.staffAssignments.forEach(sa => {
           const key = `elec-${week.weekId}-${da.day}-${sa.staffId}`;
@@ -334,7 +334,7 @@ const DutyMessagingModal: React.FC<Props> = ({
       if (filterWeek !== 'all' && week.weekId !== filterWeek) return;
       week.dayAssignments.forEach(da => {
         if (filterDay !== 'all' && da.day !== filterDay) return;
-        if (da.isOfficialLeave || da.isRemoteWork) return;
+        if (da.isOfficialLeave || da.isRemoteWork || da.isDisabled) return;
         const dateFormatted = formatDate(da.date || '', calendarType);
         da.staffAssignments.forEach(sa => {
           const key = `text-${week.weekId}-${da.day}-${sa.staffId}`;
@@ -348,25 +348,34 @@ const DutyMessagingModal: React.FC<Props> = ({
 
   const reminderRows = useMemo((): BaseRow[] => {
     const result: BaseRow[] = [];
+    const currentSemesterName = schoolInfo.semesters?.find(sem => sem.id === schoolInfo.currentSemesterId || sem.isCurrent)?.name || 'الفصل الدراسي';
     weeks.forEach(week => {
       if (filterWeek !== 'all' && week.weekId !== filterWeek) return;
       week.dayAssignments.forEach(da => {
         if (filterDay !== 'all' && da.day !== filterDay) return;
-        if (da.isOfficialLeave || da.isRemoteWork) return;
+        if (da.isOfficialLeave || da.isRemoteWork || da.isDisabled) return;
         const dateFormatted = formatDate(da.date || '', calendarType);
         da.staffAssignments.forEach(sa => {
           const key = `rem-${week.weekId}-${da.day}-${sa.staffId}`;
           const staffReportUrl = `${appBaseUrl}?staffId=${encodeURIComponent(sa.staffId)}&staffName=${encodeURIComponent(sa.staffName)}&day=${da.day}&date=${da.date || da.day}&school=${encodeURIComponent(schoolInfo.schoolName || '')}`;
-          let baseMsg = generateDutyReminderMessage(sa.staffName, sa.staffType, da.day, dateFormatted, schoolInfo.gender);
-          if (dutyData.settings.includeReportLinkInReminder ?? true) {
-            baseMsg += `\n\n📋 *نموذج تقرير المناوبة اليومية:*\nيُرجى تعبئة النموذج بعد انتهاء المناوبة وإرساله من خلال الرابط التالي:\n${staffReportUrl}`;
+          const template = dutyData.settings.reminderMessageTemplate?.trim();
+          let baseMsg = template
+            ? template
+                .replace(/\(\s*(?:اسم المستلم|يظهر هنا اسم المستلم|اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, sa.staffName)
+                .replace(/\(\s*(?:اسم المدرسة حسب البيانات المسجلة|اسم المدرسة|يظهر هنا اسم المدرسة|يظهر اسم المدرسة)\s*\)/g, schoolInfo.schoolName || 'اسم المدرسة')
+                .replace(/\(\s*(?:اليوم والتاريخ الحالي بالهجري|يظهر هنا اليوم والتاريخ الحالي بالهجري|التاريخ بالهجري|يظهر التاريخ بالهجري)\s*\)/g, `${DAY_NAMES[da.day] || da.day} ${dateFormatted}`)
+                .replace(/\(\s*(?:الفصل الدراسي حسب البيانات المسجلة|الفصل الدراسي|يظهر هنا الفصل الدراسي|يظهر الفصل الدراسي)\s*\)/g, currentSemesterName)
+            : generateDutyReminderMessage(sa.staffName, sa.staffType, da.day, dateFormatted, schoolInfo.gender);
+          let finalMessage = customMessages[key] ?? baseMsg;
+          if ((dutyData.settings.includeReportLinkInReminder ?? true) && !finalMessage.includes(staffReportUrl)) {
+            finalMessage += `\n\nرابط تقرير المناوبة اليومي:\n${staffReportUrl}`;
           }
-          result.push({ key, staffId: sa.staffId, staffName: sa.staffName, staffType: sa.staffType, day: da.day, date: da.date || '', weekName: week.weekName, message: customMessages[key] ?? baseMsg });
+          result.push({ key, staffId: sa.staffId, staffName: sa.staffName, staffType: sa.staffType, day: da.day, date: da.date || '', weekName: week.weekName, message: finalMessage });
         });
       });
     });
     return result;
-  }, [weeks, filterWeek, filterDay, calendarType, customMessages, schoolInfo.gender, schoolInfo.schoolName, dutyData.settings.includeReportLinkInReminder, appBaseUrl]);
+  }, [weeks, filterWeek, filterDay, calendarType, customMessages, schoolInfo.gender, schoolInfo.schoolName, schoolInfo.semesters, schoolInfo.currentSemesterId, dutyData.settings.includeReportLinkInReminder, dutyData.settings.reminderMessageTemplate, appBaseUrl]);
 
   const activeRows: BaseRow[] = activeTab === 'electronic' ? electronicRows : activeTab === 'text' ? textRows : reminderRows;
   const allSelected = activeRows.length > 0 && activeRows.every(r => selectedIds.has(r.key));

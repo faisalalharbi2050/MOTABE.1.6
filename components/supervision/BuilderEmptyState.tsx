@@ -41,11 +41,11 @@ const BuilderEmptyState: React.FC<Props> = ({
           )}
           <div className="flex items-center gap-3 mb-4 pl-28">
             <Wand2 size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-            <h3 className="text-lg font-black text-slate-800">إنشاء جدول تلقائي</h3>
+            <h3 className="text-lg font-black text-slate-800">إنشاء جدول آلي</h3>
           </div>
 
           <div className="text-xs font-medium text-slate-600 leading-relaxed mb-4 space-y-2">
-            <p className="font-bold text-slate-700">يقوم النظام بتوزيع المشرفين تلقائيًا:</p>
+            <p className="font-bold text-slate-700">يقوم النظام بتوزيع المشرفين آلياً :</p>
             <ul className="space-y-1.5 pr-4 list-disc marker:text-[#8779fb]">
               <li>
                 <span className="font-bold text-slate-700">المعلمون:</span>
@@ -59,6 +59,7 @@ const BuilderEmptyState: React.FC<Props> = ({
                 يتم توزيعهم عشوائيًا في الأيام الأقل عددًا.
               </li>
             </ul>
+            <p className="font-bold text-slate-700">يمكنك التعديل بسهولة بعد التوزيع.</p>
           </div>
 
           <button
@@ -71,7 +72,7 @@ const BuilderEmptyState: React.FC<Props> = ({
             }`}
           >
             <Sparkles size={16} />
-            إنشاء الجدول تلقائيًا
+            إنشاء جدول آلي
             <ArrowLeft size={16} />
           </button>
 
@@ -92,11 +93,11 @@ const BuilderEmptyState: React.FC<Props> = ({
           )}
           <div className="flex items-center gap-3 mb-4 pl-28">
             <PenLine size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-            <h3 className="text-lg font-black text-slate-800">إنشاء يدوي</h3>
+            <h3 className="text-lg font-black text-slate-800">إنشاء جدول يدوي</h3>
           </div>
 
           <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
-            ابدأ بجدول فارغ واملأه بنفسك يدويًا ووزع الإسناد وفق ما يناسبك.
+            أنشئ جدول الإشراف اليومي مفرغًا ووزع المشرفين يدويًا وفق ما يناسبك.
           </p>
 
           <button
@@ -104,7 +105,7 @@ const BuilderEmptyState: React.FC<Props> = ({
             className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white hover:bg-[#655ac1] hover:border-[#655ac1] hover:shadow-lg hover:-translate-y-0.5 shadow-md shadow-[#655ac1]/20 transition-all"
           >
             <PenLine size={16} />
-            إنشاء الجدول يدويًا
+            إنشاء جدول يدوي
             <ArrowLeft size={16} />
           </button>
         </div>

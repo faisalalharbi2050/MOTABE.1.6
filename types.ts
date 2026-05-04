@@ -727,6 +727,7 @@ export interface DutyDayAssignment {
   date?: string; // actual date in YYYY-MM-DD format
   staffAssignments: DutyStaffAssignment[];
   isRemoteWork?: boolean;
+  isDisabled?: boolean;        // يوم غير مفعل ولا يدخل في المناوبة أو تقاريرها
   isOfficialLeave?: boolean;   // يوم إجازة رسمية
   officialLeaveText?: string;  // نص الإجازة الرسمية (افتراضي: "إجازة رسمية")
 }
@@ -788,6 +789,8 @@ export interface DutySettings {
   autoSendLinks: boolean; // إرسال تلقائي دون تدخل
   reminderSendChannel?: 'whatsapp' | 'sms'; // طريقة الإرسال
   autoSendReminder?: boolean; // إرسال تذكير تلقائي
+  autoSendReminderTouched?: boolean; // تم اختيار آلية إرسال التذكير من المستخدم
+  selectedWeeks?: number[]; // أرقام الأسابيع المحددة من التقويم الدراسي (1-based). فارغ = كل الأسابيع
 }
 
 export interface DutyScheduleData {

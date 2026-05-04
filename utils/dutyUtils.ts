@@ -112,12 +112,28 @@ export interface DutyDateInfo {
   dayKey: string; // sunday, monday...
   weekId: string;
   weekName: string;
+  isOfficialLeave?: boolean;
 }
 
-export function generateDutyDates(schoolInfo: SchoolInfo): DutyDateInfo[] {
+const DUTY_WEEK_NAMES = [
+  'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر',
+  'الحادي عشر', 'الثاني عشر', 'الثالث عشر', 'الرابع عشر', 'الخامس عشر', 'السادس عشر', 'السابع عشر', 'الثامن عشر',
+  'التاسع عشر', 'العشرون',
+];
+
+const getDutyWeekName = (weekNumber: number) => `الأسبوع ${DUTY_WEEK_NAMES[weekNumber - 1] || weekNumber}`;
+
+export function generateDutyDates(
+  schoolInfo: SchoolInfo,
+  selectedWeeks?: number[],
+  options?: { includeOfficialLeaves?: boolean }
+): DutyDateInfo[] {
   const timing = getTimingConfig(schoolInfo);
   const activeDays = timing.activeDays || DAYS.slice();
   const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
+  const selectedWeekSet = selectedWeeks ? new Set(selectedWeeks) : null;
+
+  const includeOfficialLeaves = options?.includeOfficialLeaves === true;
 
   if (!currentSemester || !currentSemester.startDate || !currentSemester.endDate) {
     // Fallback: single generic week if no semester dates
@@ -125,7 +141,7 @@ export function generateDutyDates(schoolInfo: SchoolInfo): DutyDateInfo[] {
       date: '',
       dayKey: day,
       weekId: 'week-1',
-      weekName: 'الأسبوع الأول'
+      weekName: getDutyWeekName(1)
     }));
   }
 
@@ -203,12 +219,14 @@ export function generateDutyDates(schoolInfo: SchoolInfo): DutyDateInfo[] {
       weekCounter++;
     }
 
-    if (activeDays.includes(dayKey) && !holidays.has(dateStr)) {
+    const isOfficialLeave = holidays.has(dateStr);
+    if (activeDays.includes(dayKey) && (!isOfficialLeave || includeOfficialLeaves) && (!selectedWeekSet || selectedWeekSet.has(weekCounter))) {
       dates.push({
         date: dateStr,
         dayKey,
         weekId: `week-${weekCounter}`,
-        weekName: `الأسبوع ${weekCounter}`
+        weekName: getDutyWeekName(weekCounter),
+        isOfficialLeave,
       });
       hasProcessedDays = true;
     } else if (dayKey === 'sunday' || dayKey === 'monday' || dayKey === 'tuesday' || dayKey === 'wednesday' || dayKey === 'thursday') {
@@ -223,12 +241,13 @@ export function generateDutyDates(schoolInfo: SchoolInfo): DutyDateInfo[] {
   // Safety fallback if loop generated zero valid days but we have a weeksCount
   if (dates.length === 0 && totalWeeksExpected > 0) {
      for (let w = 1; w <= totalWeeksExpected; w++) {
+       if (selectedWeekSet && !selectedWeekSet.has(w)) continue;
        activeDays.forEach(day => {
          dates.push({
            date: '',
            dayKey: day,
            weekId: `week-${w}`,
-           weekName: `الأسبوع ${w}`
+           weekName: getDutyWeekName(w)
          });
        });
      }
@@ -333,7 +352,7 @@ export function generateSmartDutyAssignment(
   countPerDay?: number
 ): { assignments: DutyDayAssignment[]; weekAssignments: import('../types').DutyWeekAssignment[]; alerts: string[]; newCounts: Record<string, number> } {
   const timing = getTimingConfig(schoolInfo);
-  const dates = generateDutyDates(schoolInfo);
+  const dates = generateDutyDates(schoolInfo, settings.selectedWeeks, { includeOfficialLeaves: true });
   const availableStaff = getAvailableStaffForDuty(teachers, admins, exclusions, settings);
   // Default to 1 per day if not provided, for across the semester
   const staffPerDay = countPerDay || settings.suggestedCountPerDay || 1;
@@ -386,8 +405,15 @@ export function generateSmartDutyAssignment(
       const dayAssignment: DutyDayAssignment = {
         day: dayKey,
         date: dateInfo.date,
-        staffAssignments: []
+        staffAssignments: [],
+        isOfficialLeave: dateInfo.isOfficialLeave,
+        officialLeaveText: dateInfo.isOfficialLeave ? 'إجازة رسمية' : undefined,
       };
+
+      if (dateInfo.isOfficialLeave) {
+        weekAssignmentsMap[weekId].dayAssignments.push(dayAssignment);
+        return;
+      }
 
       // Score all available staff for THIS specific day
       const dailyScores: DutyStaffScore[] = [];
@@ -550,6 +576,7 @@ export function getDutyBalanceInfo(dayAssignments: DutyDayAssignment[]): {
 } {
   const counts: Record<string, number> = {};
   dayAssignments.forEach(da => {
+    if (da.isOfficialLeave || da.isDisabled) return;
     da.staffAssignments.forEach(sa => {
        counts[sa.staffId] = (counts[sa.staffId] || 0) + 1;
     });
@@ -616,6 +643,7 @@ export function getDutyPrintData(
     days: {
       date: string;
       dayName: string;
+      statusText?: string;
       supervisors: { name: string; type: string; lastPeriod?: number; signature: string }[];
     }[];
   }[];
@@ -635,6 +663,7 @@ export function getDutyPrintData(
         days: wa.dayAssignments.map(da => ({
           date: da.date || '',
           dayName: DAY_NAMES[da.day],
+          statusText: da.isDisabled ? 'غير مفعل' : da.isOfficialLeave ? (da.officialLeaveText || 'إجازة رسمية') : da.isRemoteWork ? 'العمل عن بعد – مدرستي' : undefined,
           supervisors: (da.staffAssignments || []).map(sa => ({
              name: sa.staffName,
              type: sa.staffType === 'teacher' ? 'معلم' : 'إداري',
@@ -660,6 +689,7 @@ export function getDutyPrintData(
         return {
           date: '',
           dayName: DAY_NAMES[day],
+          statusText: da?.isDisabled ? 'غير مفعل' : da?.isOfficialLeave ? (da.officialLeaveText || 'إجازة رسمية') : da?.isRemoteWork ? 'العمل عن بعد – مدرستي' : undefined,
           supervisors: (da?.staffAssignments || []).map(sa => ({
              name: sa.staffName,
              type: sa.staffType === 'teacher' ? 'معلم' : 'إداري',

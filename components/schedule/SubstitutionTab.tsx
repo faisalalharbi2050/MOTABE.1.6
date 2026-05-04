@@ -21,7 +21,7 @@ export default function SubstitutionTab({ teachers, config, weekDays, periodsPer
   );
 
   const methods = [
-    { id: 'auto' as const, label: 'التوزيع التلقائي', icon: Zap },
+    { id: 'auto' as const, label: 'التوزيع الآلي', icon: Zap },
     { id: 'fixed' as const, label: 'التوزيع المحدد', icon: ArrowLeftRight },
     { id: 'manual' as const, label: 'التوزيع اليدوي', icon: GripHorizontal },
   ];
@@ -160,7 +160,7 @@ export default function SubstitutionTab({ teachers, config, weekDays, periodsPer
 
           <div className="px-2 space-y-2">
             {[
-              'ملء فراغات المعلمين في جداولهم تلقائيًا بنصاب الانتظار المحدد لهم مسبقًا',
+              'ملء فراغات المعلمين في جداولهم آليًا بنصاب الانتظار المحدد لهم مسبقًا',
               `الحد الأقصى اليومي في التوزيع ${config.maxDailyTotal} حصص تشمل (مواد + انتظار)`,
               'توزيع الانتظار للمعلم على أيام الأسبوع في الحصص الأولى والوسطى والأخيرة',
             ].map((text, index) => (

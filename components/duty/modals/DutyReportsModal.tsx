@@ -130,31 +130,44 @@ const DutyReportsModalContent: React.FC<Props> = ({
   const allStaffWithRecords = useMemo(() => {
     const map = new Map<string, string>();
     dutyData?.dayAssignments?.forEach(da => {
+      if (da.isDisabled) return;
       da.staffAssignments?.forEach(sa => {
         map.set(sa.staffId, sa.staffName);
       });
     });
     teachers.forEach(t => map.set(t.id, t.name));
     admins.forEach(a => map.set(a.id, a.name));
-    dutyData?.reports?.forEach(r => map.set(r.staffId, r.staffName));
     
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [dutyData?.dayAssignments, dutyData?.reports, teachers, admins]);
+  }, [dutyData?.dayAssignments, teachers, admins]);
 
   const filteredStaff = allStaffWithRecords.filter(s => (s.name || '').includes(selectedStaffSearch));
 
+  const disabledDayIds = useMemo(() => {
+    return new Set(
+      (dutyData?.dayAssignments || [])
+        .filter(da => da.isDisabled)
+        .flatMap(da => [da.date, da.day].filter(Boolean) as string[])
+    );
+  }, [dutyData?.dayAssignments]);
+
+  const activeReports = useMemo(
+    () => (dutyData?.reports || []).filter(r => !disabledDayIds.has(r.date) && !disabledDayIds.has(r.day)),
+    [dutyData?.reports, disabledDayIds]
+  );
+
   const filteredRecords = useMemo(() => {
-    let records = dutyData?.reports || [];
+    let records = activeReports;
     if (perfFromDate) records = records.filter(r => r.date >= perfFromDate);
     if (perfToDate) records = records.filter(r => r.date <= perfToDate);
     if (perfStaffMode === 'specific' && selectedStaffId) {
       records = records.filter(r => r.staffId === selectedStaffId);
     }
     return records;
-  }, [dutyData?.reports, perfFromDate, perfToDate, perfStaffMode, selectedStaffId]);
+  }, [activeReports, perfFromDate, perfToDate, perfStaffMode, selectedStaffId]);
 
   const stats = getDutyStats(filteredRecords);
-  const allStats = getDutyStats(dutyData?.reports || []);
+  const allStats = getDutyStats(activeReports);
 
   const staffSummary = useMemo(() => {
     const map: Record<string, { name: string; present: number; absent: number; late: number; excused: number; withdrawn: number; submitted: number }> = {};
@@ -170,11 +183,11 @@ const DutyReportsModalContent: React.FC<Props> = ({
   interface EnrichedLate { studentName: string; gradeAndClass: string; exitTime: string; actionTaken: string; notes?: string; date: string; staffName: string; }
   interface EnrichedViolation { studentName: string; gradeAndClass: string; violationType: string; actionTaken: string; notes?: string; date: string; staffName: string; }
 
-  const allEnrichedLate: EnrichedLate[] = (dutyData?.reports || []).flatMap(r =>
+  const allEnrichedLate: EnrichedLate[] = activeReports.flatMap(r =>
     (r.lateStudents || []).map(s => ({ ...s, date: r.date, staffName: r.staffName }))
   ).filter(r => r.studentName?.trim());
 
-  const allEnrichedViolations: EnrichedViolation[] = (dutyData?.reports || []).flatMap(r =>
+  const allEnrichedViolations: EnrichedViolation[] = activeReports.flatMap(r =>
     (r.violatingStudents || []).map(s => ({ ...s, date: r.date, staffName: r.staffName }))
   ).filter(r => r.studentName?.trim());
 
@@ -641,7 +654,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
               </div>
 
               {/* ── تنبيه عدم وجود بيانات لليوم ──────────────────────────── */}
-              {dailyFromDate === dailyToDate && !(dutyData?.reports || []).some(r => r.date === dailyFromDate) && (
+              {dailyFromDate === dailyToDate && !activeReports.some(r => r.date === dailyFromDate) && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
                   <AlertTriangle size={18} className="text-amber-500 mt-0.5 shrink-0" />
                   <div>

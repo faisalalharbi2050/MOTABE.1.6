@@ -622,11 +622,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-xs font-bold leading-snug text-slate-800 whitespace-normal break-words">{sa.staffName}</span>
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-            sa.staffType === 'teacher' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
-          }`}>
-            {sa.staffType === 'teacher' ? 'معلم' : 'إداري'}
-          </span>
         </div>
       </div>
 
@@ -1385,7 +1380,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           <th className="px-4 py-3 font-black text-center w-16">م</th>
                           <th className="px-4 py-3 font-black">الاسم</th>
                           <th className="px-4 py-3 font-black w-28">الصفة</th>
-                          <th className="px-4 py-3 font-black text-center w-24">إجراءات</th>
+                          <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1504,7 +1499,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           <th className="px-4 py-3 font-black text-center w-16">م</th>
                           <th className="px-4 py-3 font-black">الاسم</th>
                           <th className="px-4 py-3 font-black w-28">الصفة</th>
-                          <th className="px-4 py-3 font-black text-center w-24">إجراءات</th>
+                          <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">

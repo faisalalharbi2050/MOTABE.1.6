@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Eye, Settings, BarChart3, ShieldCheck,
   CheckCircle, AlertTriangle, AlertCircle,
-  RefreshCw, X, Info, PenLine, Sparkles, FileOutput, Table,
+  RefreshCw, X, Info, Sparkles, FileOutput, Table,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -21,13 +21,10 @@ import DutySettingsPage from '../duty/DutySettingsPage';
 import DutyMonitoringModal from '../duty/DutyMonitoring';
 import DutyPrintModal from '../duty/modals/DutyPrintModal';
 import DutyMessagingModal from '../duty/modals/DutyMessagingModal';
-import DutyReportsModal from '../duty/modals/DutyReportsModal';
 import DutyManageSchedulesModal from '../duty/modals/DutyManageSchedulesModal';
 import DutyCreateScheduleModal from '../duty/modals/DutyCreateScheduleModal';
-import DutyPreCheckModal, { DutyPreCheckItem } from '../duty/modals/DutyPreCheckModal';
 
 import CreateTab from './tabs/CreateTab';
-import EditTab from './tabs/EditTab';
 import MonitoringTab from './tabs/MonitoringTab';
 import PrintSendTab from './tabs/PrintSendTab';
 import ManageTab from './tabs/ManageTab';
@@ -35,14 +32,16 @@ import ManageTab from './tabs/ManageTab';
 const getDefaultDutyData = (): DutyScheduleData => ({
   exclusions: [],
   settings: {
-    excludeVicePrincipals: false,
+    excludeVicePrincipals: true,
     excludeGuards: true,
     autoExcludeTeachersWhen5Admins: false,
-    suggestedCountPerDay: 4,
-    reminderSendTime: '06:30',
+    suggestedCountPerDay: 1,
+    reminderSendTime: '07:00',
     enableAutoAssignment: true,
     sharedSchoolMode: 'unified',
     autoSendLinks: false,
+    autoSendReminder: false,
+    autoSendReminderTouched: false,
   },
   dayAssignments: [],
   weekAssignments: [],
@@ -60,7 +59,7 @@ interface Props {
   onNavigateToDashboard?: () => void;
 }
 
-type TabId = 'create' | 'edit' | 'monitoring' | 'printsend' | 'manage';
+type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'manage';
 
 const TAB_STORAGE_KEY = 'motabe:duty_v2:lastTab';
 const DUTY_ONE_TIME_RESET_MARKER = 'duty_data_reset_2026_04_04_done';
@@ -71,11 +70,11 @@ const DutyV2Container: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     try {
       const saved = localStorage.getItem(TAB_STORAGE_KEY);
-      if (saved === 'create' || saved === 'edit' || saved === 'monitoring' || saved === 'printsend' || saved === 'manage') {
+      if (saved === 'settings' || saved === 'create' || saved === 'printsend' || saved === 'monitoring' || saved === 'manage') {
         return saved as TabId;
       }
     } catch {}
-    return 'edit';
+    return 'settings';
   });
 
   useEffect(() => {
@@ -84,7 +83,6 @@ const DutyV2Container: React.FC<Props> = ({
 
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showAcademicCalendarModal, setShowAcademicCalendarModal] = useState(false);
-  const [showSettingsPage, setShowSettingsPage] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scheduleChangeAlert, setScheduleChangeAlert] = useState(false);
 
@@ -94,10 +92,8 @@ const DutyV2Container: React.FC<Props> = ({
   const [isMonitoringOpen, setIsMonitoringOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
-  const [isReportsOpen, setIsReportsOpen] = useState(false);
   const [isManageSchedulesOpen, setIsManageSchedulesOpen] = useState(false);
   const [isCreateScheduleOpen, setIsCreateScheduleOpen] = useState(false);
-  const [showPreCheckModal, setShowPreCheckModal] = useState(false);
 
   useEffect(() => {
     const handler = () => setIsMessagingOpen(true);
@@ -119,6 +115,13 @@ const DutyV2Container: React.FC<Props> = ({
           exclusions: parsed.exclusions || [],
           dayAssignments: parsed.dayAssignments || [],
           savedSchedules: parsed.savedSchedules || [],
+          settings: {
+            ...getDefaultDutyData().settings,
+            ...(parsed.settings || {}),
+            autoSendReminder: parsed.settings?.autoSendReminderTouched ? parsed.settings?.autoSendReminder === true : false,
+            autoSendReminderTouched: parsed.settings?.autoSendReminderTouched === true,
+            reminderSendTime: parsed.settings?.reminderSendTime || '07:00',
+          },
         };
       } catch { /* ignore */ }
     }
@@ -160,6 +163,9 @@ const DutyV2Container: React.FC<Props> = ({
           settings: {
             ...(parsed.settings || getDefaultDutyData().settings),
             sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified',
+            autoSendReminder: parsed.settings?.autoSendReminderTouched ? parsed.settings?.autoSendReminder === true : false,
+            autoSendReminderTouched: parsed.settings?.autoSendReminderTouched === true,
+            reminderSendTime: parsed.settings?.reminderSendTime || '07:00',
           },
         });
       } catch {
@@ -200,15 +206,6 @@ const DutyV2Container: React.FC<Props> = ({
       } catch (e) {}
     }
   }, [dutyData, storageKey, activeSchoolTab]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isReportLink = params.get('staffId') && params.get('day') && params.get('date');
-    if (isReportLink) return;
-    if (!schoolInfo.academicYear || !(schoolInfo.semesters && schoolInfo.semesters.length > 0)) {
-      setShowAcademicCalendarModal(true);
-    }
-  }, [schoolInfo]);
 
   const prevTimetableRef = React.useRef(scheduleSettings.timetable);
   useEffect(() => {
@@ -271,61 +268,11 @@ const DutyV2Container: React.FC<Props> = ({
     }
   };
 
-  const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
-  const hasSemesterDates = !!(currentSemester?.startDate && currentSemester?.endDate);
-  const preChecks: DutyPreCheckItem[] = [
-    {
-      label: 'الفصل الدراسي',
-      detail: hasSemesterDates
-        ? `${currentSemester!.name || 'الفصل الدراسي'}: من ${currentSemester!.startDate} إلى ${currentSemester!.endDate}`
-        : 'لم يتم تحديد تاريخ بداية ونهاية الفصل الدراسي — يتطلبه إنشاء جدول المناوبة',
-      status: hasSemesterDates ? 'ok' : 'error',
-    },
-    {
-      label: 'المناوبون المتاحون',
-      detail: availableStaff.length > 0
-        ? `${availableStaff.length} مناوب متاح للتوزيع`
-        : 'لا يوجد مناوبون متاحون',
-      status: availableStaff.length === 0 ? 'error' : availableStaff.length >= suggestedCount ? 'ok' : 'warning',
-    },
-    ...(dutyData.dayAssignments.length > 0 ? [{
-      label: 'الجدول الحالي',
-      detail: 'يوجد جدول حالي — سيتم استبداله بالجدول الجديد',
-      status: 'warning' as const,
-    }] : []),
-  ];
-
-  if (showSettingsPage) {
-    return (
-      <DutySettingsPage
-        onBack={() => setShowSettingsPage(false)}
-        onSave={() => { showToast('تم حفظ إعدادات المناوبة بنجاح', 'success'); }}
-        teachers={teachers}
-        admins={admins}
-        totalStaffCount={availableStaff.length}
-        exclusions={dutyData.exclusions}
-        setExclusions={(excs) => setDutyData(prev => ({
-          ...prev,
-          exclusions: typeof excs === 'function' ? excs(prev.exclusions) : excs,
-        }))}
-        settings={dutyData.settings}
-        setSettings={(s) => setDutyData(prev => ({
-          ...prev,
-          settings: typeof s === 'function' ? s(prev.settings) : s,
-        }))}
-        availableCount={availableStaff.length}
-        suggestExclude={suggestExcludeTeachers}
-        schoolInfo={schoolInfo}
-        showToast={showToast}
-      />
-    );
-  }
-
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
+    { id: 'settings', label: 'إعدادات المناوبة', icon: Settings },
     { id: 'create', label: 'إنشاء جدول المناوبة', icon: Sparkles },
-    { id: 'edit', label: 'تعديل الجدول', icon: PenLine },
-    { id: 'monitoring', label: 'المتابعة اليومية', icon: Eye },
     { id: 'printsend', label: 'طباعة وإرسال المناوبة', icon: FileOutput },
+    { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: BarChart3 },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
 
@@ -341,24 +288,8 @@ const DutyV2Container: React.FC<Props> = ({
               المناوبة اليومية
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">
-              إنشاء وإدارة جدول المناوبة اليومية نهاية اليوم الدراسي عبر واجهة تفاعلية بأقسام منظّمة
+              إنشاء وإدارة جدول المناوبة اليومية عبر واجهة تفاعلية بطريق منظّمة
             </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setShowSettingsPage(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <Settings size={18} className="text-[#655ac1]" />
-              <span className="hidden sm:inline">الإعدادات</span>
-            </button>
-            <button
-              onClick={() => setIsReportsOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <BarChart3 size={18} className="text-[#655ac1]" />
-              <span className="hidden sm:inline">التقارير</span>
-            </button>
           </div>
         </div>
       </div>
@@ -455,31 +386,64 @@ const DutyV2Container: React.FC<Props> = ({
 
       {/* ══════ Tab Content ══════ */}
       <div className="min-h-[400px]">
-        {activeTab === 'create' && (
-          <CreateTab onOpenLegacyCreate={() => setShowPreCheckModal(true)} />
+        {activeTab === 'settings' && (
+          <DutySettingsPage
+            onBack={() => setActiveTab('create')}
+            onSave={() => { showToast('تم حفظ إعدادات المناوبة بنجاح', 'success'); }}
+            teachers={teachers}
+            admins={admins}
+            totalStaffCount={availableStaff.length}
+            exclusions={dutyData.exclusions}
+            setExclusions={(excs) => setDutyData(prev => ({
+              ...prev,
+              exclusions: typeof excs === 'function' ? excs(prev.exclusions) : excs,
+            }))}
+            settings={dutyData.settings}
+            setSettings={(s) => setDutyData(prev => ({
+              ...prev,
+              settings: typeof s === 'function' ? s(prev.settings) : s,
+            }))}
+            availableCount={availableStaff.length}
+            suggestExclude={suggestExcludeTeachers}
+            schoolInfo={schoolInfo}
+            setSchoolInfo={setSchoolInfo}
+            showToast={showToast}
+          />
         )}
-        {activeTab === 'edit' && (
-          <EditTab
+        {activeTab === 'create' && (
+          <CreateTab
             dutyData={dutyData}
             setDutyData={setDutyData}
             teachers={filteredTeachers}
             admins={filteredAdmins}
             scheduleSettings={scheduleSettings}
             schoolInfo={schoolInfo}
+            suggestedCount={suggestedCount}
             showToast={showToast}
           />
         )}
         {activeTab === 'monitoring' && (
-          <MonitoringTab onOpenLegacyMonitoring={() => setIsMonitoringOpen(true)} />
+          <MonitoringTab
+            dutyData={dutyData}
+            schoolInfo={schoolInfo}
+            onOpenLegacyMonitoring={() => setIsMonitoringOpen(true)}
+          />
         )}
         {activeTab === 'printsend' && (
           <PrintSendTab
+            dutyData={dutyData}
+            schoolInfo={schoolInfo}
             onOpenLegacyPrint={() => setIsPrintOpen(true)}
             onOpenLegacySend={() => setIsMessagingOpen(true)}
+            showToast={showToast}
           />
         )}
         {activeTab === 'manage' && (
-          <ManageTab onOpenLegacyManage={() => setIsManageSchedulesOpen(true)} />
+          <ManageTab
+            dutyData={dutyData}
+            setDutyData={setDutyData}
+            showToast={showToast}
+          />
         )}
       </div>
 
@@ -520,16 +484,6 @@ const DutyV2Container: React.FC<Props> = ({
         showToast={showToast}
       />
 
-      <DutyReportsModal
-        isOpen={isReportsOpen}
-        onClose={() => setIsReportsOpen(false)}
-        dutyData={dutyData}
-        schoolInfo={schoolInfo}
-        teachers={filteredTeachers}
-        admins={filteredAdmins}
-        showToast={showToast}
-      />
-
       <DutyCreateScheduleModal
         isOpen={isCreateScheduleOpen}
         onClose={() => setIsCreateScheduleOpen(false)}
@@ -543,22 +497,6 @@ const DutyV2Container: React.FC<Props> = ({
         showToast={showToast}
         activeDaysCount={timing.activeDays?.length || 5}
         availableStaffCount={availableStaff.length}
-      />
-
-      <DutyPreCheckModal
-        isOpen={showPreCheckModal}
-        onClose={() => setShowPreCheckModal(false)}
-        onProceed={() => { setShowPreCheckModal(false); setIsCreateScheduleOpen(true); }}
-        onGoToSettings={() => {
-          setShowPreCheckModal(false);
-          if (!hasSemesterDates) {
-            setShowAcademicCalendarModal(true);
-            return;
-          }
-          setShowSettingsPage(true);
-        }}
-        secondaryActionLabel={hasSemesterDates ? 'تعديل الإعدادات' : 'تحديد الفصل الدراسي'}
-        checks={preChecks}
       />
 
       <AcademicCalendarModal

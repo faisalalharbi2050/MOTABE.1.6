@@ -1,9 +1,9 @@
 ﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
-  Calendar, Plus, X, Trash2,
-  AlertTriangle, Search, Shield, Info, CheckCircle2, Check, BarChart2,
-  FileText, CalendarOff, Laptop, ClipboardCheck, ClipboardX,
-  Bell, Send, Eye, PenLine, Hourglass
+  Plus, X, Trash2,
+  Search, Shield, Check, BarChart2,
+  ClipboardCheck, ClipboardX,
+  Eye, PenLine, Hourglass, CircleOff, CalendarCheck2
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -32,13 +32,14 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   scheduleSettings, schoolInfo, showToast
 }) => {
   const [showAddPanel, setShowAddPanel] = useState<string | null>(null);
+  const [addPanelMode, setAddPanelMode] = useState<'add' | 'edit'>('add');
+  const [editStaffId, setEditStaffId] = useState<string | null>(null);
   const [addSearch, setAddSearch] = useState('');
+  const [addStaffTab, setAddStaffTab] = useState<'teacher' | 'admin'>('teacher');
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [addPanelPosition, setAddPanelPosition] = useState<{ top: number; right: number } | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [showDistributionReport, setShowDistributionReport] = useState(false);
-  const [isAutoAssign, setIsAutoAssign] = useState(false);
-  const [assignmentBannerDismissed, setAssignmentBannerDismissed] = useState(false);
+  const [showStaffDistributionReport, setShowStaffDistributionReport] = useState(false);
   const [confirmState, setConfirmState] = useState<{
     title: string;
     message: string;
@@ -46,8 +47,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     tone?: 'warning' | 'danger';
     onConfirm: () => void;
   } | null>(null);
-  const reportRef = useRef<HTMLDivElement>(null);
-
   // State for opening the report entry form (per staff per day)
   // Lazy-init: read URL params synchronously on first render so the form
   // opens immediately without waiting for a useEffect cycle.
@@ -79,7 +78,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   const assignedStaffIds = useMemo(() => {
     const ids = new Set<string>();
-    dayAssignments.forEach(da => da.staffAssignments.forEach(sa => ids.add(sa.staffId)));
+    dayAssignments.forEach(da => {
+      if (da.isOfficialLeave || da.isDisabled) return;
+      da.staffAssignments.forEach(sa => ids.add(sa.staffId));
+    });
     return ids;
   }, [dayAssignments]);
 
@@ -145,24 +147,45 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         return { staffId: staff.id, staffName: staff.name, staffType: staff.type, lastPeriod: lastP, isManual: true };
       }).filter(Boolean) as DutyStaffAssignment[];
 
-      return { ...da, staffAssignments: [...da.staffAssignments, ...newAssignments] };
+      const currentAssignments = addPanelMode === 'edit' && editStaffId
+        ? da.staffAssignments.filter(sa => sa.staffId !== editStaffId)
+        : da.staffAssignments;
+      return { ...da, isDisabled: false, staffAssignments: [...currentAssignments, ...newAssignments] };
     });
 
     setSelectedStaffIds([]);
     setShowAddPanel(null);
+    setAddPanelMode('add');
+    setEditStaffId(null);
     setAddSearch('');
-    setIsAutoAssign(false);
-    showToast('تم إضافة المناوبين بنجاح', 'success');
+    setAddStaffTab('teacher');
+    showToast(addPanelMode === 'edit' ? 'تم تعديل المناوب بنجاح' : 'تم إضافة المناوبين بنجاح', 'success');
   };
 
-  const openAddPanel = (dayId: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setAddPanelPosition({
-      top: Math.min(rect.bottom + 8, window.innerHeight - 320),
-      right: Math.max(window.innerWidth - rect.right, 16),
-    });
-    setShowAddPanel(dayId);
+  const closeAddPanel = () => {
+    setShowAddPanel(null);
     setSelectedStaffIds([]);
+    setAddSearch('');
+    setAddStaffTab('teacher');
+    setAddPanelMode('add');
+    setEditStaffId(null);
+    setAddPanelPosition(null);
+  };
+
+  const openAddPanel = (dayId: string, event?: React.MouseEvent<HTMLButtonElement>, staffIdToEdit?: string) => {
+    if (event) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setAddPanelPosition({
+        top: Math.min(rect.bottom + 8, window.innerHeight - 320),
+        right: Math.max(window.innerWidth - rect.right, 16),
+      });
+    }
+    const existing = staffIdToEdit ? getDayAssignment(dayId).staffAssignments.find(sa => sa.staffId === staffIdToEdit) : null;
+    setShowAddPanel(dayId);
+    setAddPanelMode(staffIdToEdit ? 'edit' : 'add');
+    setEditStaffId(staffIdToEdit || null);
+    setSelectedStaffIds([]);
+    setAddStaffTab(existing?.staffType === 'admin' ? 'admin' : 'teacher');
     setAddSearch('');
   };
 
@@ -172,7 +195,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       return;
     }
 
-    setIsGenerating(true);
     setTimeout(() => {
       try {
         const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
@@ -182,7 +204,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
         setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
         showToast('تم التوزيع الذكي بنجاح بناءً على جدول الحصص الفعلي', 'success');
-        setIsAutoAssign(true);
         setShowDistributionReport(true);
 
         if (alerts.length > 0) {
@@ -191,9 +212,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       } catch (err) {
         showToast('حدث خطأ أثناء التوزيع', 'error');
         console.error(err);
-      } finally {
-        setIsGenerating(false);
-      }
+      } finally {}
     }, 600);
   };
 
@@ -221,11 +240,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   const saveManualStaffAssignments = (dayId: string) => {
     if (selectedStaffIds.length === 0) {
-      setShowAddPanel(null);
+      closeAddPanel();
       return;
     }
     
-    const alreadyAssigned = selectedStaffIds.filter(id => assignedStaffIds.has(id));
+    const alreadyAssigned = addPanelMode === 'edit' ? [] : selectedStaffIds.filter(id => assignedStaffIds.has(id));
     if (alreadyAssigned.length > 0) {
       setConfirmState({
         title: 'تنبيه قبل الإضافة',
@@ -246,16 +265,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   const toggleStaffSelection = (staffId: string) => {
     if (!showAddPanel) return;
-    const dayId = showAddPanel;
-    const assignedCount = getDayAssignment(dayId).staffAssignments.length;
-    const maxCount = dutyData.settings.suggestedCountPerDay || 1;
 
     setSelectedStaffIds(prev => {
+      if (addPanelMode === 'edit') return prev.includes(staffId) ? [] : [staffId];
       if (prev.includes(staffId)) return prev.filter(id => id !== staffId);
-      if (assignedCount + prev.length >= maxCount) {
-        showToast(`تم بلوغ الحد الأقصى للمناوبين (${maxCount})`, 'error');
-        return prev;
-      }
       return [...prev, staffId];
     });
   };
@@ -264,8 +277,22 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     updateDayAssignment(dayId, da => ({
       ...da,
       isRemoteWork: !da.isRemoteWork,
+      isDisabled: false,
       isOfficialLeave: false,
       staffAssignments: !da.isRemoteWork ? [] : da.staffAssignments,
+    }));
+  };
+
+  const toggleDisabledDay = (dayId: string) => {
+    updateDayAssignment(dayId, da => ({
+      ...da,
+      isDisabled: !da.isDisabled,
+      isRemoteWork: false,
+      staffAssignments: !da.isDisabled ? [] : da.staffAssignments,
+    }));
+    setDutyData(prev => ({
+      ...prev,
+      reports: (prev.reports || []).filter(r => r.date !== dayId && r.day !== dayId),
     }));
   };
 
@@ -275,14 +302,36 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       ...da,
       isOfficialLeave: !da.isOfficialLeave,
       isRemoteWork: false,
+      isDisabled: false,
       staffAssignments: !da.isOfficialLeave ? [] : da.staffAssignments,
     }));
   };
 
+  const convertOfficialLeaveToWorkDay = (dayId: string) => {
+    setConfirmState({
+      title: 'تحويل إلى يوم عمل',
+      message: 'سيتم تحويل هذا اليوم من إجازة رسمية إلى يوم عمل وإتاحته لإضافة مناوبين دون إعادة إنشاء الجدول. هل تريد المتابعة؟',
+      confirmLabel: 'نعم، حوّل إلى يوم عمل',
+      tone: 'warning',
+      onConfirm: () => {
+        updateDayAssignment(dayId, da => ({
+          ...da,
+          isOfficialLeave: false,
+          officialLeaveText: undefined,
+          isRemoteWork: false,
+          isDisabled: false,
+          staffAssignments: da.staffAssignments || [],
+        }));
+        setConfirmState(null);
+      }
+    });
+  };
+
   const removeStaffFromDay = (dayId: string, staffId: string) => {
+    const staffName = getDayAssignment(dayId).staffAssignments.find(sa => sa.staffId === staffId)?.staffName || 'المناوب';
     setConfirmState({
       title: 'حذف المناوب',
-      message: 'هل تريد حذف هذا المناوب من اليوم المحدϿ',
+      message: `هل تريد حذف ${staffName} من مناوبة هذا اليوم؟`,
       confirmLabel: 'نعم، احذف',
       tone: 'danger',
       onConfirm: () => {
@@ -290,6 +339,40 @@ const DutyScheduleBuilder: React.FC<Props> = ({
           ...da,
           staffAssignments: da.staffAssignments.filter(sa => sa.staffId !== staffId),
         }));
+        setConfirmState(null);
+      }
+    });
+  };
+
+  const deleteDay = (dayId: string) => {
+    setConfirmState({
+      title: 'حذف اليوم',
+      message: 'سيتم حذف هذا اليوم من جدول المناوبة. هل تريد المتابعة؟',
+      confirmLabel: 'نعم، احذف',
+      tone: 'danger',
+      onConfirm: () => {
+        setDutyData(prev => ({
+          ...prev,
+          dayAssignments: prev.dayAssignments.filter(da => (da.date || da.day) !== dayId),
+          weekAssignments: prev.weekAssignments?.map(week => ({
+            ...week,
+            dayAssignments: week.dayAssignments.filter(da => (da.date || da.day) !== dayId),
+          })).filter(week => week.dayAssignments.length > 0),
+          reports: (prev.reports || []).filter(r => r.date !== dayId && r.day !== dayId),
+        }));
+        setConfirmState(null);
+      }
+    });
+  };
+
+  const clearDayStaff = (dayId: string) => {
+    setConfirmState({
+      title: 'حذف مناوبة اليوم',
+      message: 'سيتم حذف جميع المناوبين المضافين في هذا اليوم. هل تريد المتابعة؟',
+      confirmLabel: 'نعم، احذف',
+      tone: 'danger',
+      onConfirm: () => {
+        updateDayAssignment(dayId, da => ({ ...da, staffAssignments: [] }));
         setConfirmState(null);
       }
     });
@@ -353,34 +436,95 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Scroll to report when it appears
   useEffect(() => {
-    if (showDistributionReport && reportRef.current) {
-      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    }
-  }, [showDistributionReport]);
+    const openDistributionReport = () => setShowDistributionReport(true);
+    window.addEventListener('motabe:duty_distribution_report', openDistributionReport);
+    return () => window.removeEventListener('motabe:duty_distribution_report', openDistributionReport);
+  }, []);
 
-  // Build staff count map for distribution report
-  const staffCountMap = useMemo(() => {
-    const map: Record<string, { name: string; type: string; count: number }> = {};
-    dayAssignments.forEach(da => {
-      da.staffAssignments.forEach(sa => {
-        if (!map[sa.staffId]) {
-          map[sa.staffId] = { name: sa.staffName, type: sa.staffType === 'admin' ? 'إداري' : 'معلم', count: 0 };
-        }
-        map[sa.staffId].count++;
-      });
-    });
-    return Object.entries(map).sort((a, b) => b[1].count - a[1].count);
-  }, [dayAssignments]);
-
-  const maxCount = staffCountMap.length > 0 ? staffCountMap[0][1].count : 0;
-  const allSame = staffCountMap.every(([, v]) => v.count === maxCount);
+  useEffect(() => {
+    const openStaffDistributionReport = () => setShowStaffDistributionReport(true);
+    window.addEventListener('motabe:duty_staff_distribution_report', openStaffDistributionReport);
+    return () => window.removeEventListener('motabe:duty_staff_distribution_report', openStaffDistributionReport);
+  }, []);
 
   // Column headers for duty officers (مناوب 1، مناوب 2، ...)
   const staffColumnHeaders = Array.from({ length: maxStaffPerDay }, (_, i) =>
     maxStaffPerDay === 1 ? 'المناوب' : `مناوب ${i + 1}`
   );
+
+  const calendarType = schoolInfo.semesters?.find(s => s.isCurrent)?.calendarType
+    || schoolInfo.semesters?.[0]?.calendarType || 'hijri';
+
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return calendarType === 'hijri'
+        ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d)
+        : new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d);
+    } catch { return dateStr; }
+  };
+
+  const weeksForReport = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
+    ? dutyData.weekAssignments
+    : [{ weekId: 'legacy-week', weekName: 'الأسبوع الحالي', startDate: '', endDate: '', dayAssignments }];
+
+  const distributionReportRows = weeksForReport.map(week => {
+    const reportDays = week.dayAssignments.filter(da => !da.isOfficialLeave && !da.isDisabled);
+    return {
+      weekId: week.weekId,
+      weekName: week.weekName || 'الأسبوع الحالي',
+      assignedCount: reportDays.reduce((acc, da) => acc + da.staffAssignments.length, 0),
+      daysWithoutDuty: reportDays.filter(da => da.staffAssignments.length === 0).length,
+    };
+  });
+
+  const distributionGaps = weeksForReport.flatMap(week =>
+    week.dayAssignments
+      .filter(da => !da.isOfficialLeave && !da.isDisabled && da.staffAssignments.length === 0)
+      .map(da => ({
+        weekId: week.weekId,
+        weekName: week.weekName || 'الأسبوع الحالي',
+        day: da.day,
+        date: da.date || '',
+      }))
+  );
+
+  const distributionGapsByWeek = weeksForReport
+    .map(week => ({
+      weekId: week.weekId,
+      weekName: week.weekName || 'الأسبوع الحالي',
+      days: week.dayAssignments
+        .filter(da => !da.isOfficialLeave && !da.isDisabled && da.staffAssignments.length === 0)
+        .map(da => ({ day: da.day, date: da.date || '' })),
+    }))
+    .filter(week => week.days.length > 0);
+
+  const totalDutyAssignments = distributionReportRows.reduce((acc, row) => acc + row.assignedCount, 0);
+  const totalDaysWithoutDuty = distributionReportRows.reduce((acc, row) => acc + row.daysWithoutDuty, 0);
+
+  const staffAssignmentCounts = useMemo(() => {
+    const countMap = new Map<string, number>();
+    dayAssignments.forEach(da => {
+      if (da.isOfficialLeave || da.isDisabled) return;
+      da.staffAssignments.forEach(sa => {
+        countMap.set(sa.staffId, (countMap.get(sa.staffId) || 0) + 1);
+      });
+    });
+
+    return availableStaff
+      .map(staff => ({
+        id: staff.id,
+        name: staff.name,
+        type: staff.type === 'teacher' ? 'معلم' : 'إداري',
+        count: countMap.get(staff.id) || 0,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
+  }, [availableStaff, dayAssignments]);
+
+  const highestStaffAssignmentCount = Math.max(0, ...staffAssignmentCounts.map(staff => staff.count));
 
   return (
     <div className="space-y-6">
@@ -424,208 +568,220 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         />
       )}
 
-      {/* ═══ Assignment Notification Banner ═══ */}
-      {dayAssignments.some(da => da.staffAssignments.length > 0) && !assignmentBannerDismissed && (
-        <div className="bg-gradient-to-l from-[#25D366]/10 via-[#e5e1fe]/20 to-[#007AFF]/10 border border-[#655ac1]/20 rounded-2xl p-4 flex items-center gap-4 shadow-sm animate-in slide-in-from-top-2 duration-300">
-          <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
-            <Bell size={20} className="text-[#655ac1]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-black text-slate-800 flex items-center gap-2 flex-wrap">
-              تم إنشاء جدول المناوبة اليومية
-              <span className="text-slate-500 font-medium">يمكنك إشعار المناوبين بتكليفهم عبر زر</span>
-              <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
-                إرسال
-                <span className="inline-flex items-center gap-1">
-                  <span className="inline-flex items-center justify-center w-5 h-5 bg-[#25D366]/15 rounded-md">
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="#25D366">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                    </svg>
-                  </span>
-                  <span className="inline-flex items-center justify-center w-5 h-5 bg-[#007AFF]/15 rounded-md">
-                    <Send size={11} className="text-[#007AFF]" />
-                  </span>
-                </span>
-              </span>
-            </p>
-          </div>
-          <button
-            onClick={() => setAssignmentBannerDismissed(true)}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            title="إغلاق"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-
       {/* Distribution Report Modal Popup */}
       {showDistributionReport && dayAssignments.length > 0 && (
-        <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDistributionReport(false)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-[#e5e1fe] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-l from-[#f3f0ff] to-white rounded-t-[2rem]">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowDistributionReport(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-[#e5e1fe] text-[#655ac1] rounded-xl shadow-sm">
-                  <BarChart2 size={20} />
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <BarChart2 size={22} className="text-[#655ac1]" />
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 text-base">تقرير توزيع المناوبة</h4>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">نصيب كل موظف من أيام المناوبة</p>
+                  <h3 className="text-base font-black text-slate-800">تقرير توزيع المناوبة</h3>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">ملخص حالة جدول المناوبة الحالي</p>
                 </div>
               </div>
-              <button onClick={() => setShowDistributionReport(false)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
+              <button onClick={() => setShowDistributionReport(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Report Body */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {staffCountMap.length === 0 ? (
-                <div className="text-center py-10 text-slate-400">
-                  <Shield size={32} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-bold text-sm">لا توجد بيانات توزيع حتى الآن</p>
+            <div className="p-5 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+                  <p className="text-[11px] font-bold text-slate-500">إجمالي الإسنادات</p>
+                  <p className="text-2xl font-black text-[#655ac1] mt-1">{totalDutyAssignments}</p>
                 </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto rounded-xl border border-slate-100">
-                    <table className="w-full text-right text-sm">
-                      <thead>
-                        <tr className="bg-[#f3f0ff]">
-                          <th className="p-3 font-black text-[#655ac1] rounded-tr-xl">التسلسل</th>
-                          <th className="p-3 font-black text-[#655ac1]">الموظف</th>
-                          <th className="p-3 font-black text-[#655ac1]">الوظيفة</th>
-                          <th className="p-3 font-black text-[#655ac1] text-center rounded-tl-xl">عدد المناوبات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {staffCountMap.map(([id, info], idx) => {
-                          const isHighest = !allSame && info.count === maxCount;
-                          return (
-                            <tr key={id} className={`border-b border-slate-100 transition-colors ${isHighest ? 'bg-amber-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                              <td className="p-3 font-bold text-slate-500 text-center">{idx + 1}</td>
-                              <td className={`p-3 font-bold ${isHighest ? 'text-amber-700' : 'text-slate-800'}`}>
-                                {isHighest && <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2"></span>}
-                                {info.name}
-                              </td>
-                              <td className="p-3">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${
-                                  info.type === 'إداري' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'
-                                }`}>{info.type}</span>
-                              </td>
-                              <td className="p-3 text-center">
-                                <span className={`inline-flex items-center justify-center w-10 h-10 rounded-xl font-black text-base shadow-sm ${
-                                  isHighest ? 'bg-amber-400 text-white' : 'bg-[#e5e1fe] text-[#655ac1]'
-                                }`}>
-                                  {info.count}
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
+                  <p className="text-[11px] font-bold text-slate-500">أيام بلا مناوبين</p>
+                  <p className={`text-2xl font-black mt-1 ${totalDaysWithoutDuty > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{totalDaysWithoutDuty}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-black text-slate-800 text-center">تقرير توزيع المناوبة</div>
+                <table className="w-full text-xs text-right">
+                  <thead className="bg-white border-b border-slate-100 text-[#655ac1]">
+                    <tr>
+                      <th className="px-3 py-2 font-black text-center">الأسبوع</th>
+                      <th className="px-3 py-2 font-black text-center">عدد المناوبون</th>
+                      <th className="px-3 py-2 font-black text-center">أيام بلا مناوب</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {distributionReportRows.map(row => (
+                      <tr key={row.weekId} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 font-bold text-slate-700 text-center">{row.weekName}</td>
+                        <td className={`px-3 py-2 font-black text-center ${row.assignedCount === 0 ? 'text-rose-500' : 'text-emerald-600'}`}>{row.assignedCount}</td>
+                        <td className={`px-3 py-2 font-black text-center ${row.daysWithoutDuty > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.daysWithoutDuty}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {distributionGapsByWeek.length > 0 && (
+                <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-black text-slate-800 text-center">بحاجة إلى إسناد</div>
+                  <table className="w-full text-xs text-right">
+                    <thead className="bg-white border-b border-slate-100 text-[#655ac1]">
+                      <tr>
+                        <th className="px-3 py-2 font-black text-center w-44">الأسبوع</th>
+                        <th className="px-3 py-2 font-black text-center">الأيام والتواريخ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {distributionGapsByWeek.map(week => (
+                        <tr key={week.weekId} className="hover:bg-slate-50">
+                          <td className="px-3 py-3 font-bold text-slate-700 text-center">{week.weekName}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              {week.days.map(day => (
+                                <span
+                                  key={`${week.weekId}-${day.day}-${day.date}`}
+                                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-600"
+                                >
+                                  <span>{DAY_NAMES[day.day]}</span>
+                                  <span>{formatDisplayDate(day.date)}</span>
                                 </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  {allSame && (
-                    <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
-                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
-                      <p className="text-xs font-medium text-emerald-700">
-                        توزيع متساوٍ تام: جميع الموظفين لديهم {maxCount} يوم مناوبة.
-                      </p>
-                    </div>
-                  )}
-                </>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
+
+              {distributionGaps.length === 0 && totalDutyAssignments > 0 && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
+                  ✓ التوزيع مكتمل — جميع أيام المناوبة تحتوي على مناوب .
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end">
+              <button
+                onClick={() => setShowDistributionReport(false)}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                إغلاق
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Unassigned staff alert */}
-      {unassignedStaff.length > 0 && dayAssignments.some(da => da.staffAssignments.length > 0) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start sm:items-center gap-3 shadow-sm">
-          <div className="p-2 bg-blue-100 text-blue-600 rounded-xl shrink-0 mt-1 sm:mt-0">
-            <Info size={20} />
+      {/* Staff Distribution Report Modal Popup */}
+      {showStaffDistributionReport && dayAssignments.length > 0 && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowStaffDistributionReport(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <BarChart2 size={22} className="text-[#655ac1]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-800">تقرير توزيع المناوبين</h3>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">نصيب كل مناوب من أيام المناوبة</p>
+                </div>
+              </div>
+              <button onClick={() => setShowStaffDistributionReport(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-black text-slate-800 text-center">تقرير توزيع المناوبين</div>
+                <table className="w-full text-xs text-right">
+                  <thead className="bg-white border-b border-slate-100 text-[#655ac1]">
+                    <tr>
+                      <th className="px-3 py-2 font-black text-center w-16">م</th>
+                      <th className="px-3 py-2 font-black">المناوب</th>
+                      <th className="px-3 py-2 font-black text-center w-32">الصفة</th>
+                      <th className="px-3 py-2 font-black text-center w-44">عدد المناوبة المسندة</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {staffAssignmentCounts.map((staff, index) => {
+                      const isHighest = highestStaffAssignmentCount > 0 && staff.count === highestStaffAssignmentCount;
+                      return (
+                        <tr key={staff.id} className="hover:bg-slate-50">
+                          <td className="px-3 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
+                          <td className="px-3 py-3 font-bold text-slate-800">
+                            {staff.name}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="text-[11px] font-bold text-slate-600">
+                              {staff.type}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-black text-[#655ac1] ${
+                              isHighest ? 'border-2 border-amber-400' : ''
+                            }`}>
+                              {staff.count}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end">
+              <button
+                onClick={() => setShowStaffDistributionReport(false)}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-bold text-blue-800">يوجد مناوبين متاحين لم يتم تكليفهم</h4>
-            <p className="text-xs text-blue-700 font-medium mt-0.5 leading-relaxed">
-              يوجد ({unassignedStaff.length}) موظفين متاحين للمناوبة لم يتم إضافتهم للجدول في أي يوم.
-            </p>
-          </div>
-          {dayAssignments.length > 0 && (
-            <button
-              onClick={() => setShowDistributionReport(v => !v)}
-              className="flex items-center gap-2 border border-blue-300 bg-white hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl font-bold text-xs transition-all shrink-0"
-            >
-              <BarChart2 size={14} />
-              تقرير التوزيع
-            </button>
-          )}
         </div>
       )}
 
       {/* Main Table Layout */}
       <div className="space-y-8">
         {(() => {
-          const calendarType = schoolInfo.semesters?.find(s => s.isCurrent)?.calendarType
-            || schoolInfo.semesters?.[0]?.calendarType || 'hijri';
-
-          // Helper: format a YYYY-MM-DD date string per the school's calendar preference
-          const formatDisplayDate = (dateStr: string) => {
-            if (!dateStr) return '';
-            try {
-              const d = new Date(dateStr);
-              if (isNaN(d.getTime())) return dateStr;
-              return calendarType === 'hijri'
-                ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d)
-                : new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d);
-            } catch { return dateStr; }
-          };
-
           const weeksToRender = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
             ? dutyData.weekAssignments
             : [{ weekId: 'legacy-week', weekName: '', startDate: '', endDate: '', dayAssignments: activeDays.map(day => getDayAssignment(day)) }];
 
-          return weeksToRender.map((week) => (
-            <div key={week.weekId} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-visible">
-              {week.weekName && (
-                <div className="bg-slate-50/80 border-b border-slate-200 p-5 flex items-center justify-between">
-                  <h4 className="font-black text-[#5C50A4] text-xl">{week.weekName}</h4>
-                  {week.startDate && (
-                    <span className="text-sm font-bold text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm">
-                      {formatDisplayDate(week.startDate)} إلى {formatDisplayDate(week.endDate)}
-                    </span>
-                  )}
-                </div>
-              )}
+          return weeksToRender.map((week, weekIndex) => (
+            <div key={week.weekId} className="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+                <h4 className="font-black text-[#655ac1] text-lg">الأسبوع {weekIndex + 1}</h4>
+              </div>
               <div>
                 <table className="w-full text-sm text-right border-collapse table-fixed">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="p-3 font-black text-slate-700 w-[8%] border-l border-slate-200/60 text-center">اليوم</th>
-                      <th className="p-3 font-black text-slate-700 w-[9%] border-l border-slate-200/60 text-center">التاريخ</th>
-                      <th className="p-3 font-black text-slate-700 w-[30%] border-l border-slate-200/60 text-center">المناوب</th>
+                  <thead className="bg-slate-50 text-[#655ac1]">
+                    <tr className="border-b border-slate-200">
+                      <th className="p-3 font-black w-[16%] border-l border-slate-200/60 text-center">اليوم</th>
+                      <th className="p-3 font-black w-[18%] border-l border-slate-200/60 text-center">التاريخ</th>
+                      <th className="p-3 font-black w-[48%] border-l border-slate-200/60 text-center">المناوب</th>
                       {/* Signature column */}
-                      <th className="p-3 font-black text-slate-700 text-center w-[10%] border-l border-slate-200/60">
+                      <th className="hidden p-3 font-black text-slate-700 text-center w-[10%] border-l border-slate-200/60">
                         <div className="flex items-center justify-center gap-1.5">
                           <PenLine size={14} className="text-[#655ac1]" />
                           <span>التوقيع</span>
                         </div>
                       </th>
                       {/* Report Form column */}
-                      <th className="p-3 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden w-[13%] leading-snug">
+                      <th className="hidden p-3 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden w-[13%] leading-snug">
                         <span className="block">معاينة وطباعة</span>
                         <span className="block">التقرير اليومي</span>
                       </th>
                       {/* Report Submission status column */}
-                      <th className="p-3 font-black text-slate-700 w-[18%] text-center border-l border-slate-200/60 print:hidden leading-snug">
+                      <th className="hidden p-3 font-black text-slate-700 w-[18%] text-center border-l border-slate-200/60 print:hidden leading-snug">
                         <span className="block">متابعة تسليم</span>
                         <span className="block">النموذج اليومي</span>
                       </th>
                       {/* Actions column */}
-                      <th className="p-3 font-black text-slate-700 w-[12%] text-center print:hidden">الإجراءات</th>
+                      <th className="p-3 font-black w-[18%] text-center print:hidden">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -633,22 +789,21 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       const dayId = da.date || da.day;
                       const staffAssignments = da.staffAssignments;
                       const showAdd = showAddPanel === dayId;
-                      const maxPerDay = dutyData.settings.suggestedCountPerDay || 4;
-                      const canAddMore = staffAssignments.length < maxPerDay && !da.isRemoteWork && !da.isOfficialLeave;
+                      const canAddMore = !da.isRemoteWork && !da.isOfficialLeave && !da.isDisabled;
 
                       return (
                         <tr key={dayId} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors align-top">
                           {/* Day Column */}
-                          <td className="p-4 border-l border-slate-200/60 align-middle bg-gradient-to-br from-indigo-50/20 to-transparent">
+                          <td className="p-4 border-l border-slate-200/60 align-middle">
                             <div className="flex flex-col justify-center items-center text-center gap-1">
-                              <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[da.day]}</h4>
+                              <h4 className="font-black text-slate-900 text-base">{DAY_NAMES[da.day]}</h4>
                             </div>
                           </td>
 
                           {/* Date Column */}
                           <td className="p-4 border-l border-slate-200/60 align-middle text-center">
                             {da.date ? (
-                              <span className="font-bold text-[#655ac1] text-xs bg-[#e5e1fe]/40 px-2 py-1 rounded-lg border border-[#655ac1]/20 shadow-sm">
+                              <span className="font-bold text-slate-700 text-sm">
                                 {formatDisplayDate(da.date)}
                               </span>
                             ) : (
@@ -662,6 +817,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                               <div className="flex items-center justify-center p-3 bg-amber-50/50 border border-amber-100 rounded-xl">
                                 <span className="font-black text-amber-600 text-sm">{da.officialLeaveText || 'إجازة رسمية'}</span>
                               </div>
+                            ) : da.isDisabled ? (
+                              <div className="flex items-center justify-center p-3 bg-white border border-slate-200 rounded-xl">
+                                <span className="font-black text-slate-500 text-sm">غير مفعل</span>
+                              </div>
                             ) : da.isRemoteWork ? (
                               <div className="flex items-center justify-center p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
                                 <span className="font-black text-emerald-600 text-sm">العمل عن بعد – مدرستي</span>
@@ -670,84 +829,133 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                               <div className="flex flex-col gap-2">
                                 {/* Assigned staff */}
                                 {staffAssignments.map((sa, idx) => (
-                                  <div key={sa.staffId} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm hover:border-[#655ac1]/20 transition-all group">
-                                    <span className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                                  <div key={sa.staffId} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm hover:border-[#655ac1]/20 transition-all">
+                                    {staffAssignments.length > 1 && (
+                                      <span className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
+                                    )}
                                     <span className="font-bold text-slate-800 text-sm flex-1 text-right">{sa.staffName}</span>
-                                    {/* Per-staff delete icon */}
                                     <button
                                       onClick={() => removeStaffFromDay(dayId, sa.staffId)}
-                                      className="w-6 h-6 rounded-lg flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                      title="حذف المناوب"
+                                      className="w-7 h-7 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-rose-600 hover:bg-rose-50 transition-colors"
                                     >
-                                      <Trash2 size={12} />
+                                      <Trash2 size={13} />
                                     </button>
                                   </div>
                                 ))}
 
                                 {/* Add button */}
-                                {canAddMore && (
+                                {(canAddMore || showAdd) && (
                                   <div className="relative">
-                                    <button
-                                      onClick={(e) => openAddPanel(dayId, e)}
-                                      className="w-full py-2 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/50 hover:bg-[#e5e1fe]/30 font-bold text-xs flex items-center justify-center gap-1 transition-all"
-                                    >
-                                      <Plus size={13} /> إضافة مناوب
-                                    </button>
+                                    {canAddMore && (
+                                      <button
+                                        onClick={(e) => openAddPanel(dayId, e)}
+                                        className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                                      >
+                                        <Plus size={13} /> إضافة مناوب
+                                      </button>
+                                    )}
 
-                                    {/* Dropdown */}
+                                    {/* Staff picker modal */}
                                     {showAdd && (
                                       <>
-                                        <div className="fixed inset-0 z-[9998]" onClick={() => { setShowAddPanel(null); setSelectedStaffIds([]); setAddSearch(''); setAddPanelPosition(null); }} />
+                                        <div className="fixed inset-0 z-[9998] bg-black/40" onClick={closeAddPanel} />
                                         <div
-                                          className="fixed top-[8vh] right-1/2 translate-x-1/2 w-[min(92vw,34rem)] max-h-[78vh] bg-white rounded-3xl shadow-[0_24px_80px_rgba(15,23,42,0.22)] border border-slate-200 z-[9999] overflow-hidden flex flex-col"
+                                          className="fixed top-[7vh] right-1/2 translate-x-1/2 w-[min(94vw,46rem)] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-slate-200 z-[9999] overflow-hidden flex flex-col"
                                           onClick={e => e.stopPropagation()}
                                         >
-                                          <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
-                                            <span className="text-xs font-black text-slate-700">تحديد المناوبين</span>
-                                            <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">{unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch)).length} متاح</span>
+                                          <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
+                                            <div className="flex items-center gap-3">
+                                              <Shield size={22} className="text-[#655ac1]" />
+                                              <div>
+                                                <h3 className="text-base font-black text-slate-800">{addPanelMode === 'edit' ? 'تعديل المناوب' : 'إضافة مناوبين'}</h3>
+                                                <p className="text-[11px] text-slate-500 font-medium mt-0.5">{DAY_NAMES[da.day]}</p>
+                                              </div>
+                                            </div>
+                                            <button onClick={closeAddPanel} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                                              <X size={18} />
+                                            </button>
                                           </div>
-                                          <div className="p-3 border-b border-slate-100 shrink-0">
+                                          <div className="p-4 border-b border-slate-100 shrink-0 space-y-3">
+                                            <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl">
+                                              {[
+                                                { id: 'teacher' as const, label: 'المعلمون', count: unassignedStaff.filter(s => s.type === 'teacher' && (addPanelMode === 'edit' || !staffAssignments.some(sa => sa.staffId === s.id))).length },
+                                                { id: 'admin' as const, label: 'الإداريون', count: unassignedStaff.filter(s => s.type === 'admin' && (addPanelMode === 'edit' || !staffAssignments.some(sa => sa.staffId === s.id))).length },
+                                              ].map(tab => (
+                                                <button
+                                                  key={tab.id}
+                                                  onClick={() => setAddStaffTab(tab.id)}
+                                                  className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
+                                                    addStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                                  }`}
+                                                >
+                                                  {tab.label} ({tab.count})
+                                                </button>
+                                              ))}
+                                            </div>
                                             <div className="relative">
-                                              <Search size={14} className="absolute right-2.5 top-2.5 text-slate-400" />
-                                              <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="بحث عن مناوب متاح..." className="w-full pl-2 pr-8 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]" />
+                                              <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                              <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder={addStaffTab === 'teacher' ? 'بحث عن اسم المعلم...' : 'بحث عن اسم الإداري...'} className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30" />
                                             </div>
                                           </div>
-                                          <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar bg-white">
+                                          <div className="flex-1 overflow-y-auto p-4 bg-white">
                                             {(() => {
-                                              const filtered = unassignedStaff.filter(s => !addSearch.trim() || s.name.includes(addSearch));
+                                              const filtered = unassignedStaff
+                                                .filter(s => addPanelMode === 'edit' || !staffAssignments.some(sa => sa.staffId === s.id))
+                                                .filter(s => s.type === addStaffTab)
+                                                .filter(s => !addSearch.trim() || s.name.includes(addSearch));
                                               if (filtered.length === 0) {
                                                 return (
                                                   <div className="text-center py-6 text-slate-400 text-xs font-bold">
                                                     <Shield size={24} className="mx-auto mb-2 opacity-30" />
-                                                    {addSearch.trim() ? 'لا توجد نتائج مطابقة للبحث' : 'جميع الموظفين مخصصون'}
+                                                    {addSearch.trim() ? 'لا توجد نتائج' : 'لا يوجد مناوبون متاحون'}
                                                   </div>
                                                 );
                                               }
-                                              return filtered.map(staff => {
-                                                const isSelected = selectedStaffIds.includes(staff.id);
-                                                return (
-                                                  <button key={staff.id} onClick={() => toggleStaffSelection(staff.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all outline-none ${isSelected ? 'bg-[#e5e1fe]/40 border-[#655ac1]/20' : 'bg-white border-transparent hover:bg-slate-50'}`}>
-                                                    <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
-                                                      {isSelected && <Check size={11} />}
-                                                    </div>
-                                                    <div className="flex-1 flex flex-col">
-                                                      <span className={`text-sm font-bold ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{staff.name}</span>
-                                                      <div className="flex items-center gap-1">
-                                                        <span className="text-[10px] text-slate-500">{staff.type === 'teacher' ? '(معلم)' : '(إداري)'}</span>
-                                                        {assignedStaffIds.has(staff.id) && (
-                                                          <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">مسند مسبقًا</span>
-                                                        )}
-                                                      </div>
-                                                    </div>
-                                                  </button>
-                                                );
-                                              });
+                                              return (
+                                                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                                                  <table className="w-full text-right text-sm">
+                                                    <thead className="bg-slate-50 text-[#655ac1]">
+                                                      <tr>
+                                                        <th className="px-4 py-3 font-black text-center w-16">م</th>
+                                                        <th className="px-4 py-3 font-black">الاسم</th>
+                                                        <th className="px-4 py-3 font-black w-28">الصفة</th>
+                                                        <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                                                      </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                      {filtered.map((staff, index) => {
+                                                        const isSel = selectedStaffIds.includes(staff.id);
+                                                        return (
+                                                          <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
+                                                            <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
+                                                            <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : 'إداري'}</td>
+                                                            <td className="px-4 py-3">
+                                                              <button
+                                                                type="button"
+                                                                onClick={() => toggleStaffSelection(staff.id)}
+                                                                className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
+                                                                  isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                                                }`}
+                                                              >
+                                                                {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                                              </button>
+                                                            </td>
+                                                          </tr>
+                                                        );
+                                                      })}
+                                                    </tbody>
+                                                  </table>
+                                                </div>
+                                              );
                                             })()}
                                           </div>
-                                          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
-                                            <span className="text-[11px] font-medium text-slate-500">اختر من القائمة ثم احفظ التحديد</span>
-                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-[#655ac1]/20 transition-all">
-                                              حفظ المحدد ({selectedStaffIds.length})
+                                          <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-end gap-2 shrink-0">
+                                            <button onClick={closeAddPanel} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">
+                                              إغلاق
+                                            </button>
+                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all">
+                                              حفظ{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
                                             </button>
                                           </div>
                                         </div>
@@ -764,8 +972,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           </td>
 
                           {/* ── عامود التوقيع الرقمي ── */}
-                          <td className="p-2 border-l border-slate-200/60 align-middle text-center">
-                            {da.isOfficialLeave || da.isRemoteWork ? (
+                          <td className="hidden p-2 border-l border-slate-200/60 align-middle text-center">
+                            {da.isOfficialLeave || da.isRemoteWork || da.isDisabled ? (
                               <span className="text-xs text-slate-300">-</span>
                             ) : (
                               <div className="flex flex-col gap-1.5 items-center">
@@ -806,8 +1014,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           </td>
 
                           {/* ── معاينة نموذج التقرير اليومي (قراءة فقط) ── */}
-                          <td className="p-2 border-l border-slate-200/60 align-middle print:hidden text-center">
-                            {da.isOfficialLeave || da.isRemoteWork ? (
+                          <td className="hidden p-2 border-l border-slate-200/60 align-middle print:hidden text-center">
+                            {da.isOfficialLeave || da.isRemoteWork || da.isDisabled ? (
                               <span className="text-xs text-slate-300">-</span>
                             ) : (
                               <div className="flex flex-wrap gap-1.5 justify-center">
@@ -839,8 +1047,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           </td>
 
                           {/* ── NEW: Report Submission Status Column (hidden in print) ── */}
-                          <td className="p-2 border-l border-slate-200/60 align-middle print:hidden">
-                            {da.isOfficialLeave || da.isRemoteWork ? (
+                          <td className="hidden p-2 border-l border-slate-200/60 align-middle print:hidden">
+                            {da.isOfficialLeave || da.isRemoteWork || da.isDisabled ? (
                               <span className="text-xs text-slate-300 block text-center">-</span>
                             ) : (
                               <div className="flex flex-col gap-1">
@@ -896,41 +1104,51 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           {/* ── Actions Column (hidden in print) ── */}
                           <td className="p-3 align-middle print:hidden">
                             <div className="flex flex-row gap-2 items-center justify-center">
-
-                              {/* Official Leave toggle */}
+                              {da.isOfficialLeave && (
+                                <div className="relative group">
+                                  <button
+                                    onClick={() => convertOfficialLeaveToWorkDay(dayId)}
+                                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-emerald-600 shadow-sm transition-all active:scale-95 hover:bg-emerald-50"
+                                  >
+                                    <CalendarCheck2 size={16} />
+                                  </button>
+                                  <span className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
+                                    تحويل إلى يوم عمل
+                                  </span>
+                                </div>
+                              )}
+                              <button
+                                onClick={(e) => openAddPanel(dayId, e)}
+                                disabled={da.isOfficialLeave || da.isDisabled}
+                                className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] shadow-sm transition-all active:scale-95 hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <PenLine size={15} />
+                              </button>
                               <div className="relative group">
                                 <button
-                                  onClick={() => toggleOfficialLeave(dayId)}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 ${
-                                    da.isOfficialLeave
-                                      ? 'bg-amber-50 text-amber-600 border-amber-300'
-                                      : 'bg-white text-slate-400 border-slate-200 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50'
+                                  onClick={() => toggleDisabledDay(dayId)}
+                                  disabled={da.isOfficialLeave}
+                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                                    da.isDisabled
+                                      ? 'border-[#655ac1]/30 bg-[#e5e1fe]/40 text-[#655ac1]'
+                                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
                                   }`}
                                 >
-                                  <CalendarOff size={15} />
+                                  <CircleOff size={15} />
                                 </button>
-                                <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                  {da.isOfficialLeave ? 'إلغاء الإجازة الرسمية' : 'تعيين إجازة رسمية'}
-                                </span>
+                                {!da.isOfficialLeave && (
+                                  <span className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
+                                    تعطيل اليوم
+                                  </span>
+                                )}
                               </div>
-
-                              {/* Remote Work toggle */}
-                              <div className="relative group">
-                                <button
-                                  onClick={() => toggleRemoteWork(dayId)}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 ${
-                                    da.isRemoteWork
-                                      ? 'bg-emerald-50 text-emerald-600 border-emerald-300'
-                                      : 'bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50'
-                                  }`}
-                                >
-                                  <Laptop size={15} />
-                                </button>
-                                <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-lg bg-[#655ac1] px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                  {da.isRemoteWork ? 'إلغاء العمل عن بعد' : 'تعيين عمل عن بعد'}
-                                </span>
-                              </div>
-
+                              <button
+                                onClick={() => clearDayStaff(dayId)}
+                                disabled={da.isOfficialLeave || staffAssignments.length === 0}
+                                className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-rose-600 shadow-sm transition-all active:scale-95 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 size={15} />
+                              </button>
                             </div>
                           </td>
 

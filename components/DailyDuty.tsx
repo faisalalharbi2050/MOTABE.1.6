@@ -4,7 +4,7 @@ import {
   CheckCircle, AlertTriangle, ShieldCheck,
   RefreshCw, BarChart3,
   X, Table, AlertCircle,
-  Info, Zap
+  Info, Zap, Sparkles, FileOutput
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -40,10 +40,12 @@ const getDefaultDutyData = (): DutyScheduleData => ({
     excludeGuards: true,
     autoExcludeTeachersWhen5Admins: false,
     suggestedCountPerDay: 4,
-    reminderSendTime: '06:30',
+    reminderSendTime: '07:00',
     enableAutoAssignment: true,
     sharedSchoolMode: 'unified',
-    autoSendLinks: false
+    autoSendLinks: false,
+    autoSendReminder: false,
+    autoSendReminderTouched: false,
   },
   dayAssignments: [],
   weekAssignments: [],
@@ -65,6 +67,27 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings
 }) => {
   const DUTY_ONE_TIME_RESET_MARKER = 'duty_data_reset_2026_04_04_done';
+  // ===== Main tabs (mirror SupervisionV2Container) =====
+  type MainTabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'manage';
+  const MAIN_TABS: { id: MainTabId; label: string; icon: React.ComponentType<any> }[] = [
+    { id: 'settings',   label: 'إعدادات المناوبة',       icon: Settings },
+    { id: 'create',     label: 'إنشاء جدول المناوبة',    icon: Sparkles },
+    { id: 'printsend',  label: 'طباعة وإرسال المناوبة',  icon: FileOutput },
+    { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: BarChart3 },
+    { id: 'manage',     label: 'إدارة الجداول',          icon: Table },
+  ];
+  const TAB_STORAGE_KEY = 'motabe:duty_v2:lastTab';
+  const [activeMainTab, setActiveMainTab] = useState<MainTabId>(() => {
+    try {
+      const saved = localStorage.getItem(TAB_STORAGE_KEY) as MainTabId | null;
+      if (saved && ['settings','create','printsend','monitoring','manage'].includes(saved)) return saved;
+    } catch {}
+    return 'settings';
+  });
+  useEffect(() => {
+    try { localStorage.setItem(TAB_STORAGE_KEY, activeMainTab); } catch {}
+  }, [activeMainTab]);
+
   // ===== State =====
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showAcademicCalendarModal, setShowAcademicCalendarModal] = useState(false);
@@ -105,7 +128,14 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
           reports: parsed.reports || [],
           exclusions: parsed.exclusions || [],
           dayAssignments: parsed.dayAssignments || [],
-          savedSchedules: parsed.savedSchedules || []
+          savedSchedules: parsed.savedSchedules || [],
+          settings: {
+            ...getDefaultDutyData().settings,
+            ...(parsed.settings || {}),
+            autoSendReminder: parsed.settings?.autoSendReminderTouched ? parsed.settings?.autoSendReminder === true : false,
+            autoSendReminderTouched: parsed.settings?.autoSendReminderTouched === true,
+            reminderSendTime: parsed.settings?.reminderSendTime || '07:00',
+          },
         };
       } catch { /* ignore */ }
     }
@@ -148,8 +178,12 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
           dayAssignments: parsed.dayAssignments || [],
           savedSchedules: parsed.savedSchedules || [],
           settings: {
-            ...(parsed.settings || getDefaultDutyData().settings),
-            sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified'
+            ...getDefaultDutyData().settings,
+            ...(parsed.settings || {}),
+            sharedSchoolMode: globalSharedMode || parsed.settings?.sharedSchoolMode || 'unified',
+            autoSendReminder: parsed.settings?.autoSendReminderTouched ? parsed.settings?.autoSendReminder === true : false,
+            autoSendReminderTouched: parsed.settings?.autoSendReminderTouched === true,
+            reminderSendTime: parsed.settings?.reminderSendTime || '07:00',
           }
         });
       } catch {
@@ -195,15 +229,6 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
   }, [dutyData, storageKey, activeSchoolTab]);
 
   // ===== Academic Year Check =====
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isReportLink = params.get('staffId') && params.get('day') && params.get('date');
-    if (isReportLink) return;
-    if (!schoolInfo.academicYear || !(schoolInfo.semesters && schoolInfo.semesters.length > 0)) {
-      setShowAcademicCalendarModal(true);
-    }
-  }, [schoolInfo]);
-
   // ===== Schedule Change Detection =====
   const prevTimetableRef = React.useRef(scheduleSettings.timetable);
   useEffect(() => {
@@ -307,35 +332,6 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
     }] : []),
   ];
 
-  // ===== Settings Page =====
-  if (showSettingsPage) {
-    return (
-      <DutySettingsPage
-        onBack={() => setShowSettingsPage(false)}
-        onSave={() => {
-          showToast('تم حفظ إعدادات المناوبة بنجاح', 'success');
-        }}
-        teachers={teachers}
-        admins={admins}
-        totalStaffCount={availableStaff.length}
-        exclusions={dutyData.exclusions}
-        setExclusions={(excs) => setDutyData(prev => ({
-          ...prev,
-          exclusions: typeof excs === 'function' ? excs(prev.exclusions) : excs,
-        }))}
-        settings={dutyData.settings}
-        setSettings={(s) => setDutyData(prev => ({
-          ...prev,
-          settings: typeof s === 'function' ? s(prev.settings) : s,
-        }))}
-        availableCount={availableStaff.length}
-        suggestExclude={suggestExcludeTeachers}
-        schoolInfo={schoolInfo}
-        showToast={showToast}
-      />
-    );
-  }
-
   // ===== Staff filter helper =====
   const filteredTeachers = hasSharedSchools && dutyData.settings.sharedSchoolMode === 'separate'
     ? teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'))
@@ -372,83 +368,28 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         />
       )}
 
-      {/* ══════ Toolbar / Action Bar ══════ */}
-      <div className="flex flex-col gap-4 mb-6">
-        {/* ROW 1 */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Right Side */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setShowSettingsPage(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <Settings size={18} className="text-[#655ac1]" />
-              <span>إعدادات المناوبة</span>
-            </button>
-            <button
-              onClick={() => setShowPreCheckModal(true)}
-              className="flex items-center gap-2 bg-[#655ac1] text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
-            >
-              <Zap size={18} />
-              <span>إنشاء جدول المناوبة</span>
-            </button>
-          </div>
-
-          {/* Left Side — placeholder for future actions */}
-          <div className="flex flex-wrap items-center gap-2"></div>
-        </div>
-
-        {/* ROW 2 */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-          {/* Right Side */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setIsPrintOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <Printer size={18} className="text-[#655ac1]" />
-              <span>طباعة المناوبة</span>
-            </button>
-            <button
-              onClick={() => setIsMessagingOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <Send size={18} className="text-[#655ac1]" />
-              <span>إرسال المناوبة</span>
-            </button>
-            <button
-              onClick={() => setIsMonitoringOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <Eye size={18} className="text-[#655ac1]" />
-              <span>المتابعة اليومية</span>
-            </button>
-          </div>
-
-          {/* Left Side */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setIsReportsOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <BarChart3 size={18} className="text-[#655ac1]" />
-              <span>تقارير المناوبة</span>
-            </button>
-            <button
-              onClick={() => setIsManageSchedulesOpen(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-            >
-              <Table size={18} className="text-[#655ac1]" />
-              <span>إدارة الجداول</span>
-            </button>
-          </div>
-        </div>
+      {/* ══════ Tabs Bar (mirrors SupervisionV2) ══════ */}
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex gap-2 overflow-x-auto custom-scrollbar">
+        {MAIN_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveMainTab(tab.id)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all flex-1 justify-center text-sm ${
+              activeMainTab === tab.id
+                ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
+                : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <tab.icon size={17} />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Admin Suggestion Banner */}
+      {/* ══════ Banners ══════ */}
       {suggestExcludeTeachers && !dutyData.settings.autoExcludeTeachersWhen5Admins && (
-        <div className="bg-[#fcfbff] border-2 border-[#655ac1]/20 rounded-2xl p-5 mb-6 flex items-start gap-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-1 bg-[#655ac1] h-full rounded-r-2xl"></div>
+        <div className="bg-[#fcfbff] border-2 border-[#8779fb]/30 rounded-2xl p-5 flex items-start gap-4 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-1 bg-[#655ac1] h-full rounded-r-2xl" />
           <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center shrink-0">
             <Info size={22} className="text-[#655ac1]" />
           </div>
@@ -457,7 +398,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
               يوجد 5 إداريين أو أكثر - يُقترح استثناء المعلمين من المناوبة
             </p>
             <p className="text-sm font-medium text-slate-500 mt-1">
-              لتقليل العبء على المعلمين الممارسين للتدريӡ ينصح بتفعيل الاستثناء للوصول إلى إدارة أفضل ومريحة للجميع في المناوبة. يمكنك تفعيل هذا الخيار من إعدادات الاستثناءات.
+              لتقليل العبء على المعلمين الممارسين للتدريس ينصح بتفعيل الاستثناء للوصول إلى إدارة أفضل ومريحة للجميع في المناوبة. يمكنك تفعيل هذا الخيار من إعدادات الاستثناءات.
             </p>
           </div>
           <button
@@ -475,10 +416,9 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         </div>
       )}
 
-      {/* Schedule Change Alert */}
       {scheduleChangeAlert && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 mb-6 flex items-start gap-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-1 bg-amber-500 h-full rounded-r-2xl"></div>
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-1 bg-amber-500 h-full rounded-r-2xl" />
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
             <AlertTriangle size={22} className="text-amber-600" />
           </div>
@@ -492,10 +432,7 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
           </div>
           <div className="flex gap-2 items-center mt-auto mb-auto">
             <button
-              onClick={() => {
-                handleAutoAssign();
-                setScheduleChangeAlert(false);
-              }}
+              onClick={() => { handleAutoAssign(); setScheduleChangeAlert(false); }}
               className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
             >
               <RefreshCw size={16} />
@@ -512,18 +449,145 @@ const DailyDuty: React.FC<DailyDutyProps> = ({
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div id="schedule-builder-section" className="mt-2">
-        <DutyScheduleBuilder
-          dutyData={dutyData}
-          setDutyData={setDutyData}
-          teachers={filteredTeachers}
-          admins={filteredAdmins}
-          scheduleSettings={scheduleSettings}
+      {/* ══════ Tab Content ══════ */}
+      <div className="min-h-[400px]" key={activeMainTab}>
+
+      {/* — TAB: إعدادات المناوبة — */}
+      {activeMainTab === 'settings' && (
+        <DutySettingsPage
+          onBack={() => setActiveMainTab('create')}
+          onSave={() => showToast('تم حفظ إعدادات المناوبة بنجاح', 'success')}
+          teachers={teachers}
+          admins={admins}
+          totalStaffCount={availableStaff.length}
+          exclusions={dutyData.exclusions}
+          setExclusions={(excs) => setDutyData(prev => ({
+            ...prev,
+            exclusions: typeof excs === 'function' ? excs(prev.exclusions) : excs,
+          }))}
+          settings={dutyData.settings}
+          setSettings={(s) => setDutyData(prev => ({
+            ...prev,
+            settings: typeof s === 'function' ? s(prev.settings) : s,
+          }))}
+          availableCount={availableStaff.length}
+          suggestExclude={suggestExcludeTeachers}
           schoolInfo={schoolInfo}
+          setSchoolInfo={setSchoolInfo}
           showToast={showToast}
         />
-      </div>
+      )}
+
+      {/* — TAB: طباعة وإرسال المناوبة — */}
+      {activeMainTab === 'printsend' && (
+        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setIsPrintOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Printer size={18} className="text-[#655ac1]" />
+              <span>طباعة المناوبة</span>
+            </button>
+            <button
+              onClick={() => setIsMessagingOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Send size={18} className="text-[#655ac1]" />
+              <span>إرسال المناوبة</span>
+            </button>
+            <button
+              disabled
+              title="قيد التطوير"
+              className="flex items-center gap-2 bg-white text-slate-400 border border-slate-200 px-4 py-2.5 rounded-xl font-bold opacity-60 cursor-not-allowed"
+            >
+              <CheckCircle size={18} />
+              <span>سجل استلام المناوبة</span>
+            </button>
+            <button
+              disabled
+              title="قيد التطوير"
+              className="flex items-center gap-2 bg-white text-slate-400 border border-slate-200 px-4 py-2.5 rounded-xl font-bold opacity-60 cursor-not-allowed"
+            >
+              <Table size={18} />
+              <span>سجل تقرير المناوبة</span>
+            </button>
+            <button
+              disabled
+              title="قيد التطوير"
+              className="flex items-center gap-2 bg-white text-slate-400 border border-slate-200 px-4 py-2.5 rounded-xl font-bold opacity-60 cursor-not-allowed"
+            >
+              <Send size={18} />
+              <span>أرشيف الرسائل</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* — TAB: المتابعة وتقارير الأداء — */}
+      {activeMainTab === 'monitoring' && (
+        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setIsMonitoringOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Eye size={18} className="text-[#655ac1]" />
+              <span>المتابعة اليومية للمناوبة</span>
+            </button>
+            <button
+              onClick={() => setIsReportsOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <BarChart3 size={18} className="text-[#655ac1]" />
+              <span>تقارير الأداء</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* — TAB: إدارة الجداول — */}
+      {activeMainTab === 'manage' && (
+        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setIsManageSchedulesOpen(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+            >
+              <Table size={18} className="text-[#655ac1]" />
+              <span>فتح إدارة الجداول</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* — TAB: إنشاء جدول المناوبة — */}
+      {activeMainTab === 'create' && (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowPreCheckModal(true)}
+              className="flex items-center gap-2 bg-[#655ac1] text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
+            >
+              <Zap size={18} />
+              <span>إنشاء جدول المناوبة</span>
+            </button>
+          </div>
+          <div id="schedule-builder-section">
+            <DutyScheduleBuilder
+              dutyData={dutyData}
+              setDutyData={setDutyData}
+              teachers={filteredTeachers}
+              admins={filteredAdmins}
+              scheduleSettings={scheduleSettings}
+              schoolInfo={schoolInfo}
+              showToast={showToast}
+            />
+          </div>
+        </div>
+      )}
+
+      </div> {/* end Tab Content */}
 
       {/* ══════ Modals ══════ */}
       <DutyMonitoringModal

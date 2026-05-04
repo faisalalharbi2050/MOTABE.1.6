@@ -134,6 +134,14 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
       <tbody>
         ${week.days.map(day => {
           const sups = day.supervisors;
+          if (day.statusText) {
+            return `<tr>
+              <td class="day-header">${day.dayName}</td>
+              <td style="color:#475569;">${day.date || '—'}</td>
+              <td class="empty-state">${day.statusText}</td>
+              ${showSignatures ? '<td class="signature-cell">—</td>' : ''}
+            </tr>`;
+          }
           if (sups.length === 0) {
             return `<tr>
               <td class="day-header">${day.dayName}</td>
@@ -267,6 +275,14 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
       <tbody>
         ${week.days.map(day => {
           const sups = day.supervisors;
+          if (day.statusText) {
+            return `<tr>
+              <td class="day-header">${day.dayName}</td>
+              <td style="color:#475569;">${day.date || '—'}</td>
+              <td class="empty-state">${day.statusText}</td>
+              ${showSignatures ? '<td class="signature-cell">—</td>' : ''}
+            </tr>`;
+          }
           if (sups.length === 0) {
             return `<tr>
               <td class="day-header">${day.dayName}</td>
@@ -476,7 +492,9 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
                                   <td className="border border-[#94a3b8] p-1.5 font-bold bg-[#e2e8f0] text-[#334155] text-center">{day.dayName}</td>
                                   <td className="border border-[#94a3b8] p-1.5 text-center text-slate-500 text-[10px]">{day.date || '—'}</td>
                                   <td className="border border-[#94a3b8] p-1.5 align-top">
-                                    {day.supervisors.length === 0
+                                    {day.statusText
+                                      ? <span className="text-slate-500 font-bold">{day.statusText}</span>
+                                      : day.supervisors.length === 0
                                       ? <span className="text-slate-400 italic">لم يتم التعيين</span>
                                       : <div className="flex flex-col gap-1">
                                           {day.supervisors.map((sup, idx) => (
