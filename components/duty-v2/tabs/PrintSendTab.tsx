@@ -389,7 +389,11 @@ const PrintSendTab: React.FC<Props> = ({
   }, [schedulePrintScope, selectedWeekIds, weeksToRender]);
 
   const reportByStaffAndDate = useMemo(() => (
-    new Map(dutyData.reports.map(report => [`${report.staffId}-${report.date}`, report]))
+    new Map(
+      dutyData.reports
+        .filter(report => !report.manuallySubmitted)
+        .map(report => [`${report.staffId}-${report.date}`, report])
+    )
   ), [dutyData.reports]);
 
   const sendRows = useMemo<DutySendFlatRow[]>(() => {
@@ -631,7 +635,7 @@ ${buildReportLink(target)}` : ''}`;
       sendRows.filter(row => row.staffId === staffId).map(row => row.date || row.day)
     );
     return dutyData.reports
-      .filter(r => r.staffId === staffId && (dutyDates.size === 0 || dutyDates.has(r.date)))
+      .filter(r => r.staffId === staffId && !r.manuallySubmitted && (dutyDates.size === 0 || dutyDates.has(r.date)))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   };
 
@@ -833,7 +837,6 @@ ${buildReportLink(target)}` : ''}`;
     <div class="info-line"><span class="info-label">المناوب:</span><span class="info-value">${escapeHtml(report.staffName)}</span></div>
     <div class="info-line"><span class="info-label">اليوم:</span><span class="info-value">${escapeHtml(DAY_NAMES[report.day] || report.day)}</span></div>
     <div class="info-line"><span class="info-label">التاريخ:</span><span class="info-value">${escapeHtml(formatHijriDate(report.date))}</span></div>
-    <div class="info-line"><span class="info-label">طريقة التسليم:</span><span class="info-value">${report.manuallySubmitted ? 'يدوي (ورقي)' : 'إلكتروني'}</span></div>
   </div>
   <div class="section-title">أولاً: الطلاب المتأخرون</div>
   <table>
@@ -900,7 +903,7 @@ ${buildReportLink(target)}` : ''}`;
   };
 
   const handlePrintAllReports = () => {
-    const all = dutyData.reports.filter(r => r.isSubmitted);
+    const all = dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted);
     if (all.length === 0) { showToast?.('لا توجد تقارير مسلّمة للطباعة', 'warning'); return; }
     openPrintableHtml(wrapReportHtml(all.map(r => buildSingleReportHtml(r)).join('')));
   };
@@ -1496,7 +1499,7 @@ ${buildReportLink(target)}` : ''}`;
               تحديث
             </button>
             <button type="button" onClick={handlePrintAllReports}
-              disabled={dutyData.reports.filter(r => r.isSubmitted).length === 0}
+              disabled={dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted).length === 0}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] hover:border-[#5448ad] transition-all disabled:opacity-50">
               <Printer size={13} />
               طباعة كل التقارير المسلّمة
@@ -1543,9 +1546,8 @@ ${buildReportLink(target)}` : ''}`;
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">عدد المناوبات</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">التقارير المسلّمة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[14%]">الحالة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">طريقة التسليم</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[16%]">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[18%]">الحالة</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[20%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1567,7 +1569,6 @@ ${buildReportLink(target)}` : ''}`;
                             {row.status === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.deliveryType}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2 min-w-[160px]">
                             <button type="button" onClick={() => setPreviewReportStaff({ staffId: row.staffId, staffName: row.staffName, staffType: row.staffType })}
@@ -1591,7 +1592,7 @@ ${buildReportLink(target)}` : ''}`;
                   })}
                   {filteredReportRows.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                      <td colSpan={7} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
                         لا توجد نتائج تطابق الفلتر.
                       </td>
                     </tr>
@@ -1647,8 +1648,6 @@ ${buildReportLink(target)}` : ''}`;
                               <p className="font-black text-slate-800 text-sm">{DAY_NAMES[report.day] || report.day} - {formatHijriDate(report.date)}</p>
                               <p className="text-[11px] text-slate-500 font-bold mt-1">
                                 تسليم: {formatHijriDateTime(report.submittedAt)}
-                                {' • '}
-                                {report.manuallySubmitted ? 'يدوي' : 'إلكتروني'}
                                 {' • '}
                                 متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}
                               </p>
