@@ -13,6 +13,13 @@ interface AssignmentInfo {
   token: string;
 }
 
+interface AssignmentGroupInfo {
+  staffName: string;
+  staffType: 'teacher' | 'admin';
+  assignments: AssignmentInfo[];
+  tokens: string[];
+}
+
 // ─── Find assignment by token ─────────────────────────────────────────────────
 function findDutyAssignment(data: DutyScheduleData, token: string): AssignmentInfo | null {
   // Search current day assignments
@@ -52,8 +59,22 @@ function findDutyAssignment(data: DutyScheduleData, token: string): AssignmentIn
   return null;
 }
 
+function findDutyAssignments(data: DutyScheduleData, tokens: string[]): AssignmentGroupInfo | null {
+  const assignments = tokens
+    .map(token => findDutyAssignment(data, token))
+    .filter((item): item is AssignmentInfo => Boolean(item));
+  if (assignments.length === 0) return null;
+  const first = assignments[0];
+  return {
+    staffName: first.staffName,
+    staffType: first.staffType,
+    assignments,
+    tokens: assignments.map(item => item.token),
+  };
+}
+
 // ─── Save signature to localStorage ──────────────────────────────────────────
-function saveSignatureToStorage(token: string, signatureData: string): void {
+function saveSignatureToStorage(tokens: string[], signatureData: string): void {
   try {
     const raw = localStorage.getItem('duty_data_v1');
     if (!raw) return;
@@ -61,12 +82,12 @@ function saveSignatureToStorage(token: string, signatureData: string): void {
 
     const updateDAs = (das: DutyScheduleData['dayAssignments']) =>
       das.map(da => {
-        const hasSig = da.staffAssignments.some(sa => sa.signatureToken === token);
+        const hasSig = da.staffAssignments.some(sa => sa.signatureToken && tokens.includes(sa.signatureToken));
         if (!hasSig) return da;
         return {
           ...da,
           staffAssignments: da.staffAssignments.map(sa =>
-            sa.signatureToken === token
+            sa.signatureToken && tokens.includes(sa.signatureToken)
               ? { ...sa, signatureData, signatureStatus: 'signed' as const }
               : sa
           ),
@@ -87,20 +108,22 @@ function saveSignatureToStorage(token: string, signatureData: string): void {
 }
 
 // ─── Check already signed ─────────────────────────────────────────────────────
-function isAlreadySigned(data: DutyScheduleData, token: string): boolean {
-  for (const da of data.dayAssignments) {
-    const sa = da.staffAssignments.find(s => s.signatureToken === token);
-    if (sa?.signatureStatus === 'signed') return true;
-  }
-  if (data.weekAssignments) {
-    for (const wa of data.weekAssignments) {
-      for (const da of wa.dayAssignments) {
-        const sa = da.staffAssignments.find(s => s.signatureToken === token);
-        if (sa?.signatureStatus === 'signed') return true;
+function isAlreadySigned(data: DutyScheduleData, tokens: string[]): boolean {
+  return tokens.every(token => {
+    for (const da of data.dayAssignments) {
+      const sa = da.staffAssignments.find(s => s.signatureToken === token);
+      if (sa?.signatureStatus === 'signed') return true;
+    }
+    if (data.weekAssignments) {
+      for (const wa of data.weekAssignments) {
+        for (const da of wa.dayAssignments) {
+          const sa = da.staffAssignments.find(s => s.signatureToken === token);
+          if (sa?.signatureStatus === 'signed') return true;
+        }
       }
     }
-  }
-  return false;
+    return false;
+  });
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -114,7 +137,7 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
   const [hasSignature, setHasSignature] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [alreadySigned, setAlreadySigned] = useState(false);
-  const [assignment, setAssignment] = useState<AssignmentInfo | null>(null);
+  const [assignmentGroup, setAssignmentGroup] = useState<AssignmentGroupInfo | null>(null);
   const [schoolName, setSchoolName] = useState('');
   const [notFound, setNotFound] = useState(false);
 
@@ -130,10 +153,11 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
       const raw = localStorage.getItem('duty_data_v1');
       if (!raw) { setNotFound(true); return; }
       const data: DutyScheduleData = JSON.parse(raw);
-      const info = findDutyAssignment(data, token);
+      const tokens = token.split(',').map(item => item.trim()).filter(Boolean);
+      const info = findDutyAssignments(data, tokens.length ? tokens : [token]);
       if (!info) { setNotFound(true); return; }
-      setAssignment(info);
-      if (isAlreadySigned(data, token)) setAlreadySigned(true);
+      setAssignmentGroup(info);
+      if (isAlreadySigned(data, info.tokens)) setAlreadySigned(true);
     } catch { setNotFound(true); }
   }, [token]);
 
@@ -165,24 +189,23 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
   };
 
   const handleConfirm = () => {
-    const c = canvasRef.current; if (!c || !hasSignature || !assignment) return;
+    const c = canvasRef.current; if (!c || !hasSignature || !assignmentGroup) return;
     const off = document.createElement('canvas'); off.width = 240; off.height = 80;
     const octx = off.getContext('2d'); if (octx) octx.drawImage(c, 0, 0, 240, 80);
     const sigData = off.toDataURL('image/png');
-    saveSignatureToStorage(token, sigData);
+    saveSignatureToStorage(assignmentGroup.tokens, sigData);
     setConfirmed(true);
   };
 
   // ─── Format date ─────────────────────────────────────────────────────────────
-  const formattedDate = assignment?.date
-    ? (() => {
-        try {
-          return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-            day: 'numeric', month: 'long', year: 'numeric'
-          }).format(new Date(assignment.date));
-        } catch { return assignment.date; }
-      })()
-    : '';
+  const formatHijriDate = (date?: string) => {
+    if (!date) return '';
+    try {
+      return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      }).format(new Date(date));
+    } catch { return date; }
+  };
 
   // ─── Not found state ─────────────────────────────────────────────────────────
   if (notFound) {
@@ -215,7 +238,7 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
   }
 
   // ─── Loading state ────────────────────────────────────────────────────────────
-  if (!assignment) {
+  if (!assignmentGroup) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[#655ac1] border-t-transparent rounded-full animate-spin" />
@@ -248,7 +271,7 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">الاسم:</span>
-                <span className="font-black text-slate-800">{assignment.staffName}</span>
+                <span className="font-black text-slate-800">{assignmentGroup.staffName}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">المهمة:</span>
@@ -256,26 +279,32 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">اليوم:</span>
-                <span className="font-black text-slate-800">{DAY_NAMES[assignment.day] || assignment.day}</span>
+                <span className="font-black text-slate-800">{assignmentGroup.assignments.length} مناوبة</span>
               </div>
-              {assignment.weekName && (
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium">الأسبوع:</span>
-                  <span className="font-black text-slate-800">{assignment.weekName}</span>
-                </div>
-              )}
-              {formattedDate && (
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-slate-500 font-medium">التاريخ:</span>
-                  <span className="font-black text-slate-800">{formattedDate}</span>
-                </div>
-              )}
+              <div className="pt-2">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-[#655ac1]">
+                      <th className="py-2 text-right font-black">اليوم</th>
+                      <th className="py-2 text-right font-black">التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignmentGroup.assignments.map(item => (
+                      <tr key={item.token} className="border-t border-slate-100">
+                        <td className="py-2 font-black text-slate-800">{DAY_NAMES[item.day] || item.day}</td>
+                        <td className="py-2 font-bold text-slate-600">{formatHijriDate(item.date)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
           {/* Assignment description */}
           <div className="bg-[#f3f0ff] rounded-2xl p-4 text-sm text-[#4c3aaf] font-medium leading-relaxed border border-[#c4b5fd]/40">
-            {`إسناد مهمة المناوبة اليومية في يوم ${DAY_NAMES[assignment.day] || assignment.day}${formattedDate ? `، الموافق ${formattedDate}` : ''}.\nيُرجى التوقيع أدناه لتأكيد استلام التكليف.`}
+            {`إسناد مهمة المناوبة اليومية حسب الجدول الموضح أعلاه.\nيُرجى التوقيع أدناه لتأكيد استلام التكليف.`}
           </div>
 
           {/* Signature or Confirmed */}

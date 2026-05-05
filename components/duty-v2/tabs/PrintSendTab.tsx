@@ -1,12 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import arabic from 'react-date-object/calendars/arabic';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+import gregorian from 'react-date-object/calendars/gregorian';
+import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
-  Archive, CalendarClock, Check, CheckCircle2, ChevronDown, ClipboardCheck,
-  ClipboardList, MessageSquare, Printer, RefreshCw, Send, SlidersHorizontal,
-  Users,
+  Archive, ArrowRight, CalendarClock, Check, CheckCircle2, ChevronDown,
+  ClipboardCheck, ClipboardList, Copy, Eye, MessageSquare, Printer, RefreshCw,
+  Search, Send, SlidersHorizontal, Users, X,
 } from 'lucide-react';
 import { DutyDayAssignment, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
+import { calculateSmsSegments } from '../../../utils/smsUtils';
 
 interface Props {
   dutyData: DutyScheduleData;
@@ -22,13 +28,40 @@ type PaperSize = 'A4' | 'A3';
 type PrintColorMode = 'color' | 'bw';
 type PrintSignatureMode = 'with' | 'without';
 type SchedulePrintScope = 'all' | 'selectedWeeks';
-type SendMode = 'assignment' | 'reminder' | 'report';
+type SendMode = 'electronic' | 'text' | 'reminder';
 type SendChannel = 'whatsapp' | 'sms';
+type CalendarType = 'hijri' | 'gregorian';
 
 type DropdownOption = {
   value: string;
   label: string;
+  searchText?: string;
   disabled?: boolean;
+};
+
+type DutySendFlatRow = {
+  key: string;
+  dayKey: string;
+  weekId: string;
+  weekName: string;
+  day: string;
+  date: string;
+  staffId: string;
+  staffName: string;
+  staffTypeKey: 'teacher' | 'admin';
+  staffType: string;
+  phone: string;
+  signatureToken: string;
+  status: 'signed' | 'pending' | 'none';
+};
+
+type DutySendDisplayRow = DutySendFlatRow & {
+  assignments: DutySendFlatRow[];
+  assignmentCount: number;
+  reportDueCount: number;
+  reportSubmittedCount: number;
+  dayLabel: string;
+  dateLabel: string;
 };
 
 const actionButtonClass = (active: boolean) =>
@@ -37,6 +70,16 @@ const actionButtonClass = (active: boolean) =>
       ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
       : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50'
   }`;
+
+const normalizeSearchText = (value: string) => (value || '')
+  .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+  .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+  .replace(/[إأآا]/g, 'ا')
+  .replace(/ى/g, 'ي')
+  .replace(/ة/g, 'ه')
+  .replace(/[ًٌٍَُِّْـ]/g, '')
+  .toLowerCase()
+  .trim();
 
 const useDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -148,11 +191,20 @@ const MultiSelectDropdown: React.FC<{
   selectedSummary?: string;
   disabled?: boolean;
   minWidthClass?: string;
-}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, disabled = false, minWidthClass = 'min-w-[260px]' }) => {
+  searchable?: boolean;
+  searchPlaceholder?: string;
+}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, disabled = false, minWidthClass = 'min-w-[260px]', searchable = false, searchPlaceholder = 'ابحث...' }) => {
   const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const { triggerRef, panelRef, position } = useDropdownPosition(open, () => setOpen(false));
+  const visibleOptions = useMemo(() => {
+    const q = normalizeSearchText(searchValue);
+    if (!q) return options;
+    return options.filter(option => normalizeSearchText(`${option.label} ${option.searchText || ''}`).includes(q));
+  }, [options, searchValue]);
 
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  useEffect(() => { if (!open) setSearchValue(''); }, [open]);
 
   return (
     <div className={`flex-1 ${minWidthClass}`}>
@@ -177,18 +229,34 @@ const MultiSelectDropdown: React.FC<{
             {onSelectAll ? <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button> : <span />}
             <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
           </div>
+          {searchable && (
+            <div className="relative mb-2">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchValue}
+                onChange={event => setSearchValue(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full pr-8 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl"
+                autoFocus
+              />
+            </div>
+          )}
           <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-            {options.map(option => {
+            {visibleOptions.map(option => {
               const selected = selectedValues.includes(option.value);
               return (
                 <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => onToggle(option.value)}
-                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
-                    selected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
-                  }`}
-                >
+                key={option.value}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => { if (!option.disabled) onToggle(option.value); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  option.disabled ? 'text-slate-300 cursor-not-allowed bg-slate-50/70' :
+                  selected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
                   <span>{option.label}</span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                     selected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
@@ -198,6 +266,9 @@ const MultiSelectDropdown: React.FC<{
                 </button>
               );
             })}
+            {visibleOptions.length === 0 && (
+              <div className="px-3 py-6 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة.</div>
+            )}
           </div>
         </div>,
         document.body
@@ -224,6 +295,29 @@ const formatDisplayDate = (date?: string) => {
   }).format(parsed);
 };
 
+const formatHijriDate = (date?: string) => {
+  if (!date) return '-';
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(parsed);
+};
+
+const formatPickerDate = (date: DateObject | null) => {
+  if (!date) return '';
+  return date.convert(gregorian).format('YYYY-MM-DD');
+};
+
+const getValidPickerDate = (date?: string, calendarType: CalendarType = 'hijri') => {
+  if (!date) return undefined;
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return new DateObject({ date: parsed, calendar: gregorian }).convert(calendarType === 'hijri' ? arabic : gregorian);
+};
+
 const PrintSendTab: React.FC<Props> = ({
   dutyData,
   schoolInfo,
@@ -240,12 +334,27 @@ const PrintSendTab: React.FC<Props> = ({
   const [showNotesField, setShowNotesField] = useState(false);
   const [footerText, setFooterText] = useState(dutyData.footerText || '');
   const [reportDutyRowsCount, setReportDutyRowsCount] = useState('1');
-  const [sendMode, setSendMode] = useState<SendMode>('assignment');
+  const [sendMode, setSendMode] = useState<SendMode>('electronic');
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleTime, setSendScheduleTime] = useState(dutyData.settings.reminderSendTime || '07:00');
-  const [messageText, setMessageText] = useState(dutyData.settings.reminderMessageTemplate || '');
+  const [messageText, setMessageText] = useState('');
+  const [selectedSendWeekIds, setSelectedSendWeekIds] = useState<string[]>([]);
+  const [selectedSendDayKeys, setSelectedSendDayKeys] = useState<string[]>([]);
+  const [selectedStaffKeys, setSelectedStaffKeys] = useState<string[]>([]);
+  const [staffSelectionTouched, setStaffSelectionTouched] = useState(false);
+  const [includeReportLinkInReminder, setIncludeReportLinkInReminder] = useState(dutyData.settings.includeReportLinkInReminder ?? true);
+  const [sendScheduleDate, setSendScheduleDate] = useState(() => new DateObject({ calendar: gregorian }).format('YYYY-MM-DD'));
+  const [scheduleCalendarType, setScheduleCalendarType] = useState<CalendarType>('hijri');
+  const [previewRowKey, setPreviewRowKey] = useState<string | null>(null);
+  const [recipientsPreviewOpen, setRecipientsPreviewOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [reportReceiptOpen, setReportReceiptOpen] = useState(false);
+  const [receiptFilter, setReceiptFilter] = useState<'all' | 'signed' | 'pending'>('all');
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [reportFilter, setReportFilter] = useState<'all' | 'submitted' | 'pending'>('all');
+  const [reportSearch, setReportSearch] = useState('');
+  const smsStats = useMemo(() => calculateSmsSegments(messageText), [messageText]);
 
   const weeksToRender = useMemo<DutyWeekAssignment[]>(() => {
     if (dutyData.weekAssignments && dutyData.weekAssignments.length > 0) return dutyData.weekAssignments;
@@ -263,27 +372,232 @@ const PrintSendTab: React.FC<Props> = ({
     return weeksToRender.filter(week => selectedWeekIds.includes(week.weekId));
   }, [schedulePrintScope, selectedWeekIds, weeksToRender]);
 
-  const sendRows = useMemo(() => {
-    const sourceDays = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
-      ? dutyData.weekAssignments.flatMap(week => week.dayAssignments)
-      : dutyData.dayAssignments;
-    return sourceDays.flatMap(day =>
-      day.staffAssignments.map(staff => ({
-        key: `${day.date || day.day}-${staff.staffId}`,
-        day: day.day,
-        date: day.date || '',
-        staffName: staff.staffName,
-        staffType: staff.staffType === 'teacher' ? 'معلم' : 'إداري',
-        status: staff.signatureData ? 'signed' : staff.signatureStatus === 'pending' ? 'pending' : 'none',
-      }))
-    );
-  }, [dutyData.dayAssignments, dutyData.weekAssignments]);
+  const reportByStaffAndDate = useMemo(() => (
+    new Map(dutyData.reports.map(report => [`${report.staffId}-${report.date}`, report]))
+  ), [dutyData.reports]);
 
-  const signedCount = sendRows.filter(row => row.status === 'signed').length;
-  const pendingCount = sendRows.filter(row => row.status !== 'signed').length;
+  const sendRows = useMemo<DutySendFlatRow[]>(() => {
+    const sourceWeeks = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
+      ? dutyData.weekAssignments
+      : weeksToRender;
+    return sourceWeeks.flatMap((week, weekIndex) =>
+      week.dayAssignments.flatMap(day =>
+        day.staffAssignments.map(staff => {
+          const dayKey = `${week.weekId}-${day.date || day.day}`;
+          return {
+            key: `${dayKey}-${staff.staffId}`,
+            dayKey,
+            weekId: week.weekId,
+            weekName: week.weekName || `الأسبوع ${weekIndex + 1}`,
+            day: day.day,
+            date: day.date || '',
+            staffId: staff.staffId,
+            staffName: staff.staffName,
+            staffTypeKey: staff.staffType,
+            staffType: staff.staffType === 'teacher' ? 'معلم' : 'إداري',
+            phone: '',
+            signatureToken: staff.signatureToken || `${staff.staffId}-${day.date || day.day}`,
+            status: staff.signatureData ? 'signed' : staff.signatureStatus === 'pending' ? 'pending' : 'none',
+          };
+        })
+      )
+    );
+  }, [dutyData.weekAssignments, weeksToRender]);
+
+  const enrichSendRow = (row: DutySendFlatRow): DutySendDisplayRow => ({
+    ...row,
+    assignments: [row],
+    assignmentCount: 1,
+    reportDueCount: 1,
+    reportSubmittedCount: reportByStaffAndDate.get(`${row.staffId}-${row.date || row.day}`)?.isSubmitted ? 1 : 0,
+    dayLabel: DAY_NAMES[row.day] || row.day,
+    dateLabel: formatHijriDate(row.date),
+  });
+
+  const groupRowsByStaff = (rows: DutySendFlatRow[]): DutySendDisplayRow[] => {
+    const groups = new Map<string, DutySendFlatRow[]>();
+    rows.forEach(row => {
+      const groupKey = `${row.staffId}-${row.staffTypeKey}`;
+      groups.set(groupKey, [...(groups.get(groupKey) || []), row]);
+    });
+    return Array.from(groups.values()).map(assignments => {
+      const first = assignments[0];
+      const reportSubmittedCount = assignments.filter(row => reportByStaffAndDate.get(`${row.staffId}-${row.date || row.day}`)?.isSubmitted).length;
+      const allSigned = assignments.every(row => row.status === 'signed');
+      const anyPending = assignments.some(row => row.status !== 'signed');
+      return {
+        ...first,
+        key: `staff-${first.staffTypeKey}-${first.staffId}`,
+        assignments,
+        assignmentCount: assignments.length,
+        reportDueCount: assignments.length,
+        reportSubmittedCount,
+        status: allSigned ? 'signed' : anyPending ? 'pending' : 'none',
+        dayLabel: `${assignments.length} مناوبة`,
+        dateLabel: assignments.map(row => `${DAY_NAMES[row.day] || row.day} - ${formatHijriDate(row.date)}`).join('، '),
+      };
+    });
+  };
+
+  const assignmentGroupedRows = useMemo(() => groupRowsByStaff(sendRows), [reportByStaffAndDate, sendRows]);
+  const signedCount = assignmentGroupedRows.filter(row => row.status === 'signed').length;
+  const pendingCount = assignmentGroupedRows.length - signedCount;
   const hasData = sendRows.length > 0;
+  const sendWeekOptions = useMemo(() => weeksToRender.map((week, index) => ({
+    value: week.weekId,
+    label: week.weekName || `الأسبوع ${index + 1}`,
+    searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${week.startDate || ''} ${week.endDate || ''} ${formatDisplayDate(week.startDate)} ${formatDisplayDate(week.endDate)} ${formatHijriDate(week.startDate)} ${formatHijriDate(week.endDate)}`,
+    disabled: week.dayAssignments.every(day => day.staffAssignments.length === 0),
+  })), [weeksToRender]);
+  const dayOptions = useMemo(() => {
+    const activeWeekIds = new Set(selectedSendWeekIds);
+    const scopedWeeks = activeWeekIds.size > 0
+      ? weeksToRender.filter(week => activeWeekIds.has(week.weekId))
+      : weeksToRender;
+    return scopedWeeks.flatMap((week, index) => week.dayAssignments
+      .filter(day => !day.isDisabled && !day.isOfficialLeave)
+      .map(day => ({
+        value: `${week.weekId}-${day.date || day.day}`,
+        label: `${week.weekName || `الأسبوع ${index + 1}`} - ${DAY_NAMES[day.day] || day.day}${day.date ? ` - ${formatHijriDate(day.date)}` : ''}`,
+        searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${day.day} ${DAY_NAMES[day.day] || ''} ${day.date || ''} ${formatDisplayDate(day.date)} ${formatHijriDate(day.date)}`,
+        disabled: day.staffAssignments.length === 0,
+      })));
+  }, [selectedSendWeekIds, weeksToRender]);
+  const filteredSendRows = useMemo(() => {
+    const weekSet = new Set(selectedSendWeekIds);
+    const daySet = new Set(selectedSendDayKeys);
+    return sendRows.filter(row =>
+      (weekSet.size === 0 || weekSet.has(row.weekId)) &&
+      (daySet.size === 0 || daySet.has(row.dayKey))
+    );
+  }, [selectedSendDayKeys, selectedSendWeekIds, sendRows]);
+  const displaySendRows = useMemo<DutySendDisplayRow[]>(() => (
+    sendMode === 'reminder'
+      ? filteredSendRows.map(enrichSendRow)
+      : groupRowsByStaff(filteredSendRows)
+  ), [filteredSendRows, reportByStaffAndDate, sendMode]);
+  const staffOptions = useMemo(() => {
+    return displaySendRows.map(row => ({
+      value: row.key,
+      label: sendMode === 'reminder'
+        ? `${row.staffName} - ${row.dayLabel}${row.date ? ` - ${row.dateLabel}` : ''}`
+        : `${row.staffName} - ${row.assignmentCount} مناوبة`,
+    }));
+  }, [displaySendRows, sendMode]);
+  const selectedRows = useMemo(() => {
+    if (!staffSelectionTouched || selectedStaffKeys.length === 0) return [];
+    const selected = new Set(selectedStaffKeys);
+    return displaySendRows.filter(row => selected.has(row.key));
+  }, [displaySendRows, selectedStaffKeys, staffSelectionTouched]);
+  const notificationTypeLabel = sendMode === 'electronic'
+    ? 'رسالة تكليف بالمناوبة مع توقيع الكتروني'
+    : sendMode === 'text'
+      ? 'رسالة تكليف بالمناوبة نصية'
+      : 'رسالة تذكير يومية بالمناوبة';
+  const selectedWeeksSummary = selectedSendWeekIds.length ? `تم اختيار ${selectedSendWeekIds.length} أسبوع` : undefined;
+  const selectedDaysSummary = selectedSendDayKeys.length ? `تم اختيار ${selectedSendDayKeys.length} يوم` : undefined;
+  const firstSelectedRow = selectedRows[0] || null;
+  const previewRow = useMemo(() => (
+    previewRowKey ? selectedRows.find(row => row.key === previewRowKey) || null : null
+  ), [previewRowKey, selectedRows]);
+  useEffect(() => {
+    const available = new Set(displaySendRows.map(row => row.key));
+    setSelectedStaffKeys(current => current.filter(key => available.has(key)));
+  }, [displaySendRows]);
+  useEffect(() => {
+    if (staffSelectionTouched && selectedStaffKeys.length === 0) {
+      setMessageText('');
+      setPreviewRowKey(null);
+    }
+  }, [selectedStaffKeys.length, staffSelectionTouched]);
+  const filteredAssignmentRows = useMemo(() => {
+    const q = receiptSearch.trim();
+    return groupRowsByStaff(sendRows).filter(row =>
+      (receiptFilter === 'all' || (receiptFilter === 'signed' ? row.status === 'signed' : row.status !== 'signed')) &&
+      (!q || row.staffName.includes(q))
+    );
+  }, [receiptFilter, receiptSearch, reportByStaffAndDate, sendRows]);
+  const reportRows = useMemo(() => {
+    return groupRowsByStaff(sendRows).map(row => ({
+      ...row,
+      status: row.reportSubmittedCount === row.reportDueCount ? 'submitted' as const : 'pending' as const,
+      submittedAt: `${row.reportSubmittedCount} / ${row.reportDueCount}`,
+      deliveryType: row.reportSubmittedCount === 0 ? '-' : row.reportSubmittedCount === row.reportDueCount ? 'مكتمل' : 'جزئي',
+    }));
+  }, [reportByStaffAndDate, sendRows]);
+  const submittedReportCount = reportRows.filter(row => row.status === 'submitted').length;
+  const pendingReportCount = reportRows.length - submittedReportCount;
+  const filteredReportRows = useMemo(() => {
+    const q = reportSearch.trim();
+    return reportRows.filter(row =>
+      (reportFilter === 'all' || row.status === reportFilter) &&
+      (!q || row.staffName.includes(q))
+    );
+  }, [reportFilter, reportRows, reportSearch]);
   const principalName = schoolInfo.principal || (schoolInfo as any).managerName || '';
   const printNotePlaceholder = 'يبدأ العمل بهذا الجدول من يوم الأحد الموافق   /   /    ';
+  const semesterName = schoolInfo.semesters?.find(semester => semester.id === schoolInfo.currentSemesterId)?.name
+    || schoolInfo.semesters?.find(semester => semester.isCurrent)?.name
+    || 'الفصل الدراسي الأول';
+  const todayHijriLine = `${schoolInfo.schoolName || 'المدرسة'} - ${new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())} - ${semesterName}`;
+  const buildSignatureLink = (row: DutySendFlatRow | DutySendDisplayRow) => {
+    const base = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';
+    const tokens = 'assignments' in row ? row.assignments.map(item => item.signatureToken) : [row.signatureToken];
+    return `${base}?dutySign=${encodeURIComponent(tokens.filter(Boolean).join(','))}`;
+  };
+  const buildReportLink = (row: DutySendFlatRow | DutySendDisplayRow) => {
+    const base = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';
+    const params = new URLSearchParams({
+      staffId: row.staffId,
+      staffName: row.staffName,
+      day: row.day,
+      date: row.date || row.day,
+    });
+    return `${base}?${params.toString()}`;
+  };
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast?.('تم نسخ الرابط', 'success');
+    } catch {
+      showToast?.('تعذّر نسخ الرابط', 'error');
+    }
+  };
+  const buildDetailedMessage = (row?: typeof sendRows[number]) => {
+    const target = row || selectedRows[0];
+    if (!target) return '';
+    const assignments = 'assignments' in target ? target.assignments : [target];
+    const firstAssignment = assignments[0];
+    const dayName = DAY_NAMES[firstAssignment.day] || firstAssignment.day;
+    const dateText = formatHijriDate(firstAssignment.date);
+    const assignmentLines = assignments.map(item => `- ${DAY_NAMES[item.day] || item.day} الموافق ${formatHijriDate(item.date)}`).join('\n');
+    const assignmentText = assignments.length > 1 ? `الأيام التالية:\n${assignmentLines}` : `يوم ${dayName} الموافق ${dateText}`;
+    if (sendMode === 'electronic') {
+      return `المكرم/ ${target.staffName}
+نشعركم بإسناد مهمة المناوبة اليومية لكم في ${assignmentText} ، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.
+${todayHijriLine}
+
+رابط التكليف والتوقيع:
+${buildSignatureLink(target)}`;
+    }
+    if (sendMode === 'text') {
+      return `المكرم/ ${target.staffName}
+نشعركم بإسناد مهمة المناوبة اليومية لكم في ${assignmentText}، شاكرين تعاونكم.
+${todayHijriLine}`;
+    }
+    return `المكرم/ ${target.staffName}
+نذكركم بمهمة المناوبة اليومية لهذا ${dayName} الموافق ${dateText}، شاكرين تعاونكم.
+${todayHijriLine}${includeReportLinkInReminder ? `
+
+رابط تقرير المناوبة اليومي:
+${buildReportLink(target)}` : ''}`;
+  };
+
+  useEffect(() => {
+    if (staffSelectionTouched && selectedStaffKeys.length > 0) {
+      setMessageText(buildDetailedMessage());
+    }
+  }, [sendMode, selectedRows, todayHijriLine, includeReportLinkInReminder]);
 
   const openPrintableHtml = (html: string, successMessage = 'تم فتح نافذة الطباعة') => {
     const printWindow = window.open('', '_blank');
@@ -508,7 +822,7 @@ const PrintSendTab: React.FC<Props> = ({
     .signature-name { font-size: 12px; font-weight: 900; margin-bottom: 20px; }
     .signature-name span { color: #64748b; }
     .signature-line { border-top: 1px solid #94a3b8; padding-top: 6px; min-height: 30px; font-size: 11px; font-weight: 900; color: #475569; }
-    .print-actions { display: flex; justify-content: flex-start; gap: 8px; max-width: 184mm; margin: 10px auto 8px; }
+    .print-actions { display: flex; justify-content: flex-end; gap: 8px; max-width: 184mm; margin: 10px auto 8px; }
     .print-actions button { border: 0; border-radius: 12px; background: #655ac1; color: #fff; font: 900 12px Tajawal, Arial; padding: 9px 18px; cursor: pointer; box-shadow: 0 10px 24px rgba(101,90,193,0.18); }
     .print-actions .close-button { background: #fff; color: #475569; border: 1px solid #cbd5e1; box-shadow: none; }
     @media print {
@@ -591,24 +905,34 @@ const PrintSendTab: React.FC<Props> = ({
 </html>`, 'تم فتح تقرير المناوبة للتعبئة والطباعة');
   };
 
-  if (receiptOpen) {
+  if (receiptOpen || reportReceiptOpen) {
+    const isReportLog = reportReceiptOpen;
+    const title = isReportLog ? 'سجل استلام تقرير المناوبة اليومية' : 'سجل استلام التكليف بالمناوبة';
+    const rows = isReportLog ? filteredReportRows : filteredAssignmentRows;
+    const total = isReportLog ? reportRows.length : assignmentGroupedRows.length;
+    const done = isReportLog ? submittedReportCount : signedCount;
+    const waiting = isReportLog ? pendingReportCount : pendingCount;
     return (
       <div className="space-y-5" dir="rtl">
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-black text-slate-800 text-lg">سجل استلام المناوبة اليومية</h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">{signedCount} وقّع من أصل {sendRows.length} مناوب</p>
+              <h2 className="font-black text-slate-800 text-lg">{title}</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {done} {isReportLog ? 'تقرير مستلم' : 'استلموا التكليف'} من أصل {total}
+              </p>
             </div>
-            <button type="button" onClick={() => setReceiptOpen(false)} className={actionButtonClass(false)}>رجوع</button>
+            <button type="button" onClick={() => isReportLog ? setReportReceiptOpen(false) : setReceiptOpen(false)} className={actionButtonClass(false)}>
+              <ArrowRight size={16} />
+            </button>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'إجمالي المناوبين', value: String(sendRows.length), icon: Users },
-            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يوقّعوا بعد', value: String(pendingCount), icon: ClipboardList },
+            { label: isReportLog ? 'إجمالي التقارير' : 'إجمالي التكليفات', value: String(total), icon: Users },
+            { label: isReportLog ? 'تم الاستلام' : 'استلموا التكليف', value: String(done), icon: CheckCircle2 },
+            { label: isReportLog ? 'لم تُسلّم بعد' : 'لم يستلموا بعد', value: String(waiting), icon: ClipboardList },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
               <div className="flex items-center justify-center shrink-0 text-[#655ac1]"><s.icon size={22} /></div>
@@ -624,48 +948,96 @@ const PrintSendTab: React.FC<Props> = ({
           <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
               <ClipboardList size={18} className="text-[#655ac1]" />
-              سجل الاستلام
+              {isReportLog ? 'سجل استلام التقرير اليومي' : 'سجل استلام التكليف'}
             </p>
-            <button type="button" onClick={onOpenLegacySend} className={actionButtonClass(false)}>
-              <RefreshCw size={15} />
-              فتح نافذة الإرسال
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {(isReportLog
+                ? [{ value: 'all', label: 'الكل' }, { value: 'submitted', label: 'مستلم' }, { value: 'pending', label: 'لم يسلّم' }]
+                : [{ value: 'all', label: 'الكل' }, { value: 'signed', label: 'استلم' }, { value: 'pending', label: 'لم يستلم' }]
+              ).map(option => (
+                <button key={option.value} type="button" onClick={() => isReportLog ? setReportFilter(option.value as any) : setReceiptFilter(option.value as any)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                    (isReportLog ? reportFilter : receiptFilter) === option.value
+                      ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                  }`}>
+                  {option.label}
+                </button>
+              ))}
+              <div className="relative w-56">
+                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={isReportLog ? reportSearch : receiptSearch}
+                  onChange={e => isReportLog ? setReportSearch(e.target.value) : setReceiptSearch(e.target.value)}
+                  placeholder="ابحث عن مناوب..."
+                  className="w-full pr-8 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                  dir="rtl"
+                />
+              </div>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-right" dir="rtl">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-4 py-3 font-black text-[#655ac1] text-[12px] w-14">م</th>
-                  <th className="px-4 py-3 font-black text-[#655ac1] text-[12px]">المناوب</th>
-                  <th className="px-4 py-3 font-black text-[#655ac1] text-[12px]">الصفة</th>
-                  <th className="px-4 py-3 font-black text-[#655ac1] text-[12px]">اليوم</th>
-                  <th className="px-4 py-3 font-black text-[#655ac1] text-[12px]">التاريخ</th>
-                  <th className="px-4 py-3 font-black text-[#655ac1] text-[12px] text-center">الحالة</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sendRows.map((row, index) => (
-                  <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-slate-400 text-[12px] font-bold">{index + 1}</td>
-                    <td className="px-4 py-3 font-black text-slate-800 text-[13px]">{row.staffName}</td>
-                    <td className="px-4 py-3 text-slate-500 text-[12px]">{row.staffType}</td>
-                    <td className="px-4 py-3 text-slate-600 text-[12px] font-bold">{DAY_NAMES[row.day] || row.day}</td>
-                    <td className="px-4 py-3 text-slate-500 text-[12px]">{row.date || '-'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
-                        row.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}>
-                        {row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
-                      </span>
-                    </td>
+          {total === 0 ? (
+            <div className="py-16 text-center">
+              <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
+              <p className="text-sm font-bold text-slate-400">{isReportLog ? 'لا توجد تقارير مناوبة مسجلة بعد.' : 'لا توجد طلبات استلام مرسلة بعد.'}</p>
+              <p className="text-xs text-slate-400 mt-1">{isReportLog ? 'سيظهر هنا تسليم تقرير المناوبة اليومي لكل مناوب.' : 'أرسل تكليف المناوبة إلكترونيًا ليظهر هنا سجل الاستلام.'}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[20%]">المناوب</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">{isReportLog ? 'التقارير' : 'عدد المناوبات'}</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[14%]">الأيام والتواريخ</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[14%]">الحالة</th>
+                    {isReportLog && <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">نوع التسليم</th>}
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[13%]">{isReportLog ? 'حالة التقارير' : 'إجراءات'}</th>
                   </tr>
-                ))}
-                {sendRows.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-14 text-center text-sm font-bold text-slate-400">لا توجد طلبات استلام مرسلة بعد.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map((row: any, index) => (
+                    <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{index + 1}</td>
+                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
+                      <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">
+                        {isReportLog ? `${row.reportSubmittedCount} / ${row.reportDueCount}` : row.assignmentCount}
+                      </td>
+                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate" title={row.dateLabel}>{row.dateLabel || '-'}</td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
+                          (isReportLog ? row.status === 'submitted' : row.status === 'signed')
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {isReportLog
+                            ? row.status === 'submitted' ? 'مكتمل' : row.reportSubmittedCount > 0 ? 'مستلم جزئيًا' : 'لم يسلّم'
+                            : row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}
+                        </span>
+                      </td>
+                      {isReportLog && <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.deliveryType}</td>}
+                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">
+                        {isReportLog ? (row.submittedAt || '-') : (
+                          <button type="button" onClick={onOpenLegacySend}
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap">
+                            <Eye size={13} />
+                            عرض
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && (
+                    <tr><td colSpan={isReportLog ? 8 : 7} className="px-6 py-10 text-center text-sm font-medium text-slate-400">لا توجد نتائج تطابق الفلتر.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -686,7 +1058,11 @@ const PrintSendTab: React.FC<Props> = ({
           ))}
           <button type="button" onClick={() => setReceiptOpen(true)} className={actionButtonClass(false)}>
             <ClipboardList size={17} />
-            سجل استلام المناوبة اليومية
+            سجل استلام التكليف بالمناوبة
+          </button>
+          <button type="button" onClick={() => setReportReceiptOpen(true)} className={actionButtonClass(false)}>
+            <ClipboardList size={17} />
+            سجل استلام تقرير المناوبة اليومية
           </button>
           <button type="button" onClick={onOpenArchive || (() => showToast?.('أرشيف الرسائل متاح من قسم الرسائل', 'warning'))} className={actionButtonClass(false)}>
             <Archive size={17} />
@@ -845,7 +1221,7 @@ const PrintSendTab: React.FC<Props> = ({
       {taskMode === 'send' && (
         <div className="space-y-4">
           <div className="px-1">
-            <h3 className="font-black text-slate-800 text-lg">إرسال المناوبة</h3>
+            <h3 className="font-black text-slate-800 text-lg">إرسال</h3>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -854,52 +1230,56 @@ const PrintSendTab: React.FC<Props> = ({
                 <h4 className="font-black text-slate-800">اختر نوع الإشعار والمستلمين</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium text-right mb-5">
-                اختر نوع الإشعار ثم تابع معاينة المستلمين وإرسال المناوبة.
+                اختر نوع الإشعار أولاً ثم اختر الأسبوع ثم اختر اليوم ثم حدد المستلمين.
               </p>
               <div className="space-y-4">
                 <SingleSelectDropdown
                   label="نوع الإشعار"
                   value={sendMode}
-                  onChange={value => setSendMode(value as SendMode)}
+                  onChange={value => { setSendMode(value as SendMode); setPreviewRowKey(null); }}
                   placeholder="اختر نوع الإشعار"
                   options={[
-                    { value: 'assignment', label: 'رسالة تكليف بالمناوبة اليومية' },
+                    { value: 'electronic', label: 'رسالة تكليف بالمناوبة مع توقيع الكتروني' },
+                    { value: 'text', label: 'رسالة تكليف بالمناوبة نصية' },
                     { value: 'reminder', label: 'رسالة تذكير يومية بالمناوبة' },
-                    { value: 'report', label: 'إرسال تقرير المناوبة اليومية' },
                   ]}
                 />
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CalendarClock size={16} className="text-[#655ac1]" />
-                      <span className="text-sm font-black text-slate-700">جدولة الإرسال لوقت لاحق</span>
-                    </div>
-                    <button type="button" onClick={() => setIsSendScheduled(c => !c)}
-                      className={`relative inline-flex w-10 h-6 rounded-full transition-all ${isSendScheduled ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
-                      role="switch" aria-checked={isSendScheduled}>
-                      <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isSendScheduled ? 'right-1' : 'left-1'}`} />
-                    </button>
-                  </div>
-                  {isSendScheduled && (
-                    <div className="mt-3">
-                      <label className="text-xs font-black text-slate-500 block mb-1.5">الوقت</label>
-                      <input
-                        type="time"
-                        value={sendScheduleTime}
-                        onChange={event => setSendScheduleTime(event.target.value)}
-                        className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors"
-                      />
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setReceiptOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
-                >
-                  <Users size={15} />
-                  معاينة المستلمين ({sendRows.length})
-                </button>
+                <MultiSelectDropdown
+                  label="الأسبوع"
+                  buttonLabel="كل الأسابيع أو اختر أسبوعًا"
+                  options={sendWeekOptions}
+                  selectedValues={selectedSendWeekIds}
+                  selectedSummary={selectedWeeksSummary}
+                  onToggle={value => setSelectedSendWeekIds(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value])}
+                  onClear={() => setSelectedSendWeekIds([])}
+                  onSelectAll={() => setSelectedSendWeekIds(weeksToRender.map(week => week.weekId))}
+                  searchable
+                  searchPlaceholder="ابحث بالأسبوع..."
+                />
+                <MultiSelectDropdown
+                  label="اليوم"
+                  buttonLabel="كل الأيام أو اختر يومًا"
+                  options={dayOptions}
+                  selectedValues={selectedSendDayKeys}
+                  selectedSummary={selectedDaysSummary}
+                  onToggle={value => setSelectedSendDayKeys(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value])}
+                  onClear={() => setSelectedSendDayKeys([])}
+                  onSelectAll={() => setSelectedSendDayKeys(dayOptions.filter(option => !option.disabled).map(option => option.value))}
+                  searchable
+                  searchPlaceholder="ابحث باليوم أو التاريخ..."
+                />
+                <MultiSelectDropdown
+                  label="المناوبون المستلمون"
+                  buttonLabel="كل المناوبين أو اختر مستلمين"
+                  options={staffOptions}
+                  selectedValues={selectedStaffKeys}
+                  selectedSummary={selectedStaffKeys.length > 0 ? `${selectedStaffKeys.length} مستلم محدد` : 'لم يتم اختيار مستلمين'}
+                  onToggle={value => { setStaffSelectionTouched(true); setSelectedStaffKeys(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value]); }}
+                  onClear={() => { setStaffSelectionTouched(true); setSelectedStaffKeys([]); }}
+                  onSelectAll={() => { setStaffSelectionTouched(true); setSelectedStaffKeys(displaySendRows.map(row => row.key)); }}
+                  searchable
+                  searchPlaceholder="ابحث عن مناوب بالاسم..."
+                />
               </div>
             </div>
 
@@ -927,6 +1307,35 @@ const PrintSendTab: React.FC<Props> = ({
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-start gap-3 mb-4">
+                  <Eye size={20} className="text-[#655ac1]" />
+                  <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {sendMode !== 'text' && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewRowKey(firstSelectedRow?.key || null)}
+                      disabled={!firstSelectedRow}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Eye size={15} />
+                      {sendMode === 'reminder' ? 'تقرير المناوبة اليومية' : 'معاينة التكليف الرسمي'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setRecipientsPreviewOpen(true)}
+                    disabled={selectedRows.length === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50"
+                  >
+                    <Users size={15} />
+                    معاينة المستلمين ({selectedRows.length})
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
                     <MessageSquare size={20} className="text-[#655ac1]" />
@@ -935,8 +1344,12 @@ const PrintSendTab: React.FC<Props> = ({
                   <button
                     type="button"
                     title="استعادة النص الافتراضي"
-                    onClick={() => setMessageText(dutyData.settings.reminderMessageTemplate || 'نذكركم بمهمة المناوبة اليومية لهذا اليوم.')}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all"
+                    onClick={() => {
+                      if (selectedRows.length === 0) return;
+                      setMessageText(buildDetailedMessage());
+                    }}
+                    disabled={selectedRows.length === 0}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <RefreshCw size={14} className="text-[#655ac1]" />
                   </button>
@@ -945,15 +1358,111 @@ const PrintSendTab: React.FC<Props> = ({
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
                   rows={5}
-                  className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors mb-4"
+                  className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors mb-2"
                   placeholder="نص الرسالة..."
                   dir="rtl"
                 />
+                <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                {sendChannel === 'sms' && (
+                  <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">
+                      <span>{smsStats.characterCount} حرفًا</span>
+                      <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
+                      <span>{smsStats.messageCount} رسالة نصية</span>
+                    </div>
+                  </div>
+                )}
+                {sendMode === 'reminder' && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-700">إضافة رابط التقرير اليومي للمناوبة</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">عند إيقافه ترسل رسالة التذكير بدون رابط التقرير.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIncludeReportLinkInReminder(current => !current)}
+                        className={`relative inline-flex w-10 h-6 rounded-full transition-all shrink-0 ${includeReportLinkInReminder ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
+                        role="switch"
+                        aria-checked={includeReportLinkInReminder}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${includeReportLinkInReminder ? 'right-1' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CalendarClock size={16} className="text-[#655ac1]" />
+                      <span className="text-sm font-black text-slate-700">جدولة الإرسال لوقت لاحق</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsSendScheduled(current => !current)}
+                      className={`relative inline-flex w-10 h-6 rounded-full transition-all ${isSendScheduled ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
+                      role="switch"
+                      aria-checked={isSendScheduled}
+                    >
+                      <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isSendScheduled ? 'right-1' : 'left-1'}`} />
+                    </button>
+                  </div>
+                    {isSendScheduled && (
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                        <div className="min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                            <label className="text-xs font-black text-slate-500">التاريخ</label>
+                          <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                            {[
+                              { value: 'hijri', label: 'هجري' },
+                              { value: 'gregorian', label: 'ميلادي' },
+                            ].map(option => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setScheduleCalendarType(option.value as CalendarType)}
+                                className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                                  scheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <DatePicker
+                          value={getValidPickerDate(sendScheduleDate, scheduleCalendarType)}
+                          onChange={date => setSendScheduleDate(formatPickerDate(date))}
+                          calendar={scheduleCalendarType === 'hijri' ? arabic : gregorian}
+                          locale={scheduleCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
+                          containerClassName="w-full"
+                          inputClass="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
+                          placeholder="حدد التاريخ"
+                          portal
+                          portalTarget={document.body}
+                          editable={false}
+                          zIndex={99999}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                            <label className="text-xs font-black text-slate-500">الوقت</label>
+                          </div>
+                          <input
+                          type="time"
+                          value={sendScheduleTime}
+                          onChange={e => setSendScheduleTime(e.target.value)}
+                          className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={onOpenLegacySend}
-                  disabled={!hasData}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50"
+                  disabled={selectedRows.length === 0}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={16} />
                   إرسال عبر {sendChannel === 'whatsapp' ? 'واتساب' : 'الرسائل النصية'}
@@ -962,6 +1471,194 @@ const PrintSendTab: React.FC<Props> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {previewRow && previewRowKey !== null && createPortal(
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <Eye size={22} className="text-[#655ac1] shrink-0" />
+                <h3 className="font-black text-slate-800">{sendMode === 'reminder' ? 'تقرير المناوبة اليومية' : 'معاينة التكليف الرسمي'}</h3>
+              </div>
+              <button type="button" onClick={() => setPreviewRowKey(null)}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 space-y-4">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <span className="block text-slate-500 font-bold mb-1">الاسم</span>
+                    <span className="font-black text-slate-800">{previewRow.staffName}</span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-500 font-bold mb-1">الصفة</span>
+                    <span className="font-black text-[#655ac1]">{previewRow.staffType}</span>
+                  </div>
+                  <div>
+                    <span className="block text-slate-500 font-bold mb-1">رقم الجوال</span>
+                    <span className="font-black text-slate-800" dir="ltr">{previewRow.phone || 'غير مسجل'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {sendMode === 'reminder' ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+                  <div className="text-center">
+                    <p className="text-base font-black text-slate-800">نموذج تقرير المناوبة اليومية</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1">{DAY_NAMES[previewRow.day] || previewRow.day} - {formatHijriDate(previewRow.date)}</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 p-3 text-sm"><span className="text-slate-500 font-bold">المناوب: </span><b>{previewRow.staffName}</b></div>
+                    <div className="rounded-xl border border-slate-200 p-3 text-sm"><span className="text-slate-500 font-bold">الرابط: </span><span className="text-[#655ac1] font-bold break-all" dir="ltr">{buildReportLink(previewRow)}</span></div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        <tr className="border-b border-slate-100"><td className="px-3 py-2 font-black text-[#655ac1]">الطلاب المتأخرون</td><td className="px-3 py-2 text-slate-500">حقول تعبئة للمناوب</td></tr>
+                        <tr><td className="px-3 py-2 font-black text-[#655ac1]">الطلاب المخالفون</td><td className="px-3 py-2 text-slate-500">حقول تعبئة للمناوب</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-white border-b border-slate-100">
+                          <th className="px-3 py-2 text-right text-[#655ac1] font-black">جدول المناوبة</th>
+                          <th className="px-3 py-2 text-right text-[#655ac1] font-black">التاريخ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewRow.assignments.map(row => (
+                          <tr key={row.key} className="border-t border-slate-100">
+                            <td className="px-3 py-2 font-black text-slate-700">{DAY_NAMES[row.day] || row.day}</td>
+                            <td className="px-3 py-2 font-bold text-slate-600">{formatHijriDate(row.date)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-sm font-black text-slate-700">
+                    تم العلم والاطلاع على جدول المناوبة المسند والتوقيع بالعلم.
+                  </p>
+                  <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
+                    خانة التوقيع
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-3">
+                <button type="button" disabled className="flex-1 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold text-sm cursor-not-allowed">
+                  مسح التوقيع
+                </button>
+                <button type="button" disabled className="flex-1 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
+                  <Check size={16} /> إرسال
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold text-center">
+                زر الإرسال والتوقيع يعملان عند فتح الرابط من قبل المناوب.
+              </p>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {recipientsPreviewOpen && createPortal(
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-[78rem] h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <Users size={22} className="text-[#655ac1] shrink-0" />
+                <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
+              </div>
+              <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1040px] table-fixed text-right whitespace-nowrap" dir="rtl">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100">
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[10%]">اليوم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[14%]">التاريخ</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[18%]">المستلم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[20%]">نوع الإشعار</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[24%]">الرابط</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[14%]">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
+                          لم يتم اختيار مستلمين بعد.
+                        </td>
+                      </tr>
+                    ) : selectedRows.map(row => {
+                      const link = sendMode === 'reminder' ? buildReportLink(row) : sendMode === 'electronic' ? buildSignatureLink(row) : '';
+                      return (
+                        <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
+                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700 truncate">{row.dayLabel}</td>
+                          <td className="px-3 py-3.5 text-center">
+                            <span title={row.dateLabel} className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 truncate">
+                              {row.dateLabel}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3.5 min-w-0">
+                            <p className="font-black text-[12px] text-slate-800 truncate" title={row.staffName}>{row.staffName}</p>
+                            <p className="text-[10px] font-bold text-slate-400 truncate">المناوبة اليومية</p>
+                          </td>
+                          <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 truncate" title={notificationTypeLabel}>{notificationTypeLabel}</td>
+                          <td className="px-3 py-3.5 min-w-0">
+                            {link ? (
+                              <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
+                                {link}
+                              </div>
+                            ) : <span className="text-xs font-bold text-slate-400">بدون رابط</span>}
+                          </td>
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {link && (
+                                <button type="button" onClick={() => { setPreviewRowKey(row.key); }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
+                                  <Eye size={12} />
+                                  عرض
+                                </button>
+                              )}
+                              {link && (
+                                <button type="button" onClick={() => copyToClipboard(link)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
+                                  <Copy size={12} />
+                                  نسخ
+                                </button>
+                              )}
+                              {!link && <span className="text-xs font-bold text-slate-400">رسالة نصية</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
+              <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
+                className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

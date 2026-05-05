@@ -15,6 +15,7 @@ import { SchoolInfo, SupervisionScheduleData, Teacher, Admin } from '../../../ty
 import {
   getSupervisionPrintData, DAYS, DAY_NAMES, getTimingConfig,
 } from '../../../utils/supervisionUtils';
+import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 
 interface Props {
@@ -255,6 +256,7 @@ const PrintSendTab: React.FC<Props> = ({
     ((schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian')
   );
   const [isSendingNow, setIsSendingNow] = useState(false);
+  const smsStats = useMemo(() => calculateSmsSegments(messageText), [messageText]);
   const [sendResults, setSendResults] = useState<{ name: string; status: 'sent' | 'failed' }[]>([]);
   const [previewRow, setPreviewRow] = useState<SendRow | null>(null);
   const [previewReceiptRow, setPreviewReceiptRow] = useState<ReceiptRow | null>(null);
@@ -416,6 +418,11 @@ const PrintSendTab: React.FC<Props> = ({
     if (selectedRows.length === 0) { setMessageText(''); return; }
     setMessageText(buildDetailedMessage(selectedRows[0]));
   }, [sendMode, selectedRows]);
+
+  useEffect(() => {
+    if (!previewRow) return;
+    if (!selectedRows.some(row => row.key === previewRow.key)) setPreviewRow(null);
+  }, [previewRow, selectedRows]);
 
   const buildMessage = (row: SendRow): string => buildDetailedMessage(row);
 
@@ -975,7 +982,7 @@ const PrintSendTab: React.FC<Props> = ({
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>سجل استلام الإشراف اليومي</title>
+  <title>سجل استلام التكليف بالإشراف</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
     @page { size: A4 landscape; margin: 10mm; }
@@ -1005,7 +1012,7 @@ const PrintSendTab: React.FC<Props> = ({
       <div>تاريخ الطباعة: ${formatHijriDateTime(new Date().toISOString())}</div>
     </div>
   </div>
-  <h1>سجل استلام الإشراف اليومي</h1>
+  <h1>سجل استلام التكليف بالإشراف</h1>
   <table>
     <thead>
       <tr>
@@ -1136,7 +1143,7 @@ const PrintSendTab: React.FC<Props> = ({
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-black text-slate-800 text-lg">سجل استلام الإشراف اليومي</h2>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالإشراف</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {signedCount} وقّع من أصل {totalAssignedSupervisors} مشرف
               </p>
@@ -1400,7 +1407,7 @@ const PrintSendTab: React.FC<Props> = ({
           ))}
           <button type="button" onClick={() => setSigReceiptOpen(true)} className={actionButtonClass(false)}>
             <ClipboardList size={17} />
-            سجل استلام الإشراف اليومي
+            سجل استلام التكليف بالإشراف
           </button>
           <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
             className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
@@ -1423,7 +1430,7 @@ const PrintSendTab: React.FC<Props> = ({
               <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اضبط مقاس الورقة واختر الألوان وأضف الملاحظات في الجدول قبل الطباعة.
+              اضبط مقاس الورق والألوان وإضافة عامود التوقيع ثم أضف الملاحظات قبل طباعة جدول الإشراف.
             </p>
 
             <div className="flex flex-wrap items-end gap-4 mb-5">
@@ -1595,12 +1602,12 @@ const PrintSendTab: React.FC<Props> = ({
                   <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={openPreviewMessage}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all">
+                  <button type="button" onClick={openPreviewMessage} disabled={selectedRows.length === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <Eye size={15} /> {sendMode === 'electronic' ? 'معاينة التكليف الإلكتروني' : 'معاينة الرسالة'}
                   </button>
                   <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRows.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50">
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <Users size={15} /> معاينة المستلمين{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}
                   </button>
                 </div>
@@ -1636,6 +1643,15 @@ const PrintSendTab: React.FC<Props> = ({
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                {sendChannel === 'sms' && (
+                  <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">
+                      <span>{smsStats.characterCount} حرفًا</span>
+                      <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
+                      <span>{smsStats.messageCount} رسالة نصية</span>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1649,9 +1665,9 @@ const PrintSendTab: React.FC<Props> = ({
                     </button>
                   </div>
                   {isSendScheduled && (
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      <div className="flex-1 min-w-[140px]">
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
                           <label className="text-xs font-black text-slate-500">التاريخ</label>
                           <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
                             {[
@@ -1685,8 +1701,10 @@ const PrintSendTab: React.FC<Props> = ({
                           zIndex={99999}
                         />
                       </div>
-                      <div className="flex-1 min-w-[120px]">
-                        <label className="text-xs font-black text-slate-500 block mb-1.5">الوقت</label>
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                          <label className="text-xs font-black text-slate-500">الوقت</label>
+                        </div>
                         <input type="time" value={sendScheduleTime} onChange={e => setSendScheduleTime(e.target.value)}
                           className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors" />
                       </div>
@@ -1761,17 +1779,20 @@ const PrintSendTab: React.FC<Props> = ({
               <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
                 التوقيع
               </div>
-              <div className="flex gap-3">
-                <button type="button" className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold text-sm">
-                  مسح التوقيع
-                </button>
-                <button type="button" className="flex-1 py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
-                  <Check size={16} /> إرسال
-                </button>
+                <div className="flex gap-3">
+                  <button type="button" disabled className="flex-1 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold text-sm cursor-not-allowed">
+                    مسح التوقيع
+                  </button>
+                  <button type="button" disabled className="flex-1 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
+                    <Check size={16} /> إرسال
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold text-center">
+                  زر الإرسال والتوقيع يعملان عند فتح الرابط من قبل المشرف.
+                </p>
               </div>
             </div>
-          </div>
-        </div>,
+          </div>,
         document.body
       )}
 
