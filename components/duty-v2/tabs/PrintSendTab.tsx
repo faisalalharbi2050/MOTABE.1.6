@@ -6,11 +6,11 @@ import arabic_ar from 'react-date-object/locales/arabic_ar';
 import gregorian from 'react-date-object/calendars/gregorian';
 import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
-  Archive, ArrowRight, CalendarClock, Check, CheckCircle2, ChevronDown,
-  ClipboardCheck, ClipboardList, Copy, Eye, MessageSquare, Printer, RefreshCw,
+  AlertCircle, Archive, ArrowRight, CalendarClock, Check, CheckCircle2, ChevronDown,
+  ClipboardCheck, ClipboardList, Copy, Eye, FileText, MessageSquare, Printer, RefreshCw,
   Search, Send, SlidersHorizontal, Users, X,
 } from 'lucide-react';
-import { DutyDayAssignment, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
+import { DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 
@@ -306,6 +306,19 @@ const formatHijriDate = (date?: string) => {
   }).format(parsed);
 };
 
+const formatHijriDateTime = (date?: string) => {
+  if (!date) return '—';
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return '—';
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed);
+};
+
 const formatPickerDate = (date: DateObject | null) => {
   if (!date) return '';
   return date.convert(gregorian).format('YYYY-MM-DD');
@@ -354,6 +367,9 @@ const PrintSendTab: React.FC<Props> = ({
   const [receiptSearch, setReceiptSearch] = useState('');
   const [reportFilter, setReportFilter] = useState<'all' | 'submitted' | 'pending'>('all');
   const [reportSearch, setReportSearch] = useState('');
+  const [previewAssignmentRow, setPreviewAssignmentRow] = useState<DutySendDisplayRow | null>(null);
+  const [previewReportStaff, setPreviewReportStaff] = useState<{ staffId: string; staffName: string; staffType: string } | null>(null);
+  const [previewReportRecord, setPreviewReportRecord] = useState<DutyReportRecord | null>(null);
   const smsStats = useMemo(() => calculateSmsSegments(messageText), [messageText]);
 
   const weeksToRender = useMemo<DutyWeekAssignment[]>(() => {
@@ -608,6 +624,285 @@ ${buildReportLink(target)}` : ''}`;
     printWindow.document.write(html);
     printWindow.document.close();
     showToast?.(successMessage, 'success');
+  };
+
+  const getStaffReports = (staffId: string): DutyReportRecord[] => {
+    const dutyDates = new Set(
+      sendRows.filter(row => row.staffId === staffId).map(row => row.date || row.day)
+    );
+    return dutyData.reports
+      .filter(r => r.staffId === staffId && (dutyDates.size === 0 || dutyDates.has(r.date)))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  };
+
+  const buildAssignmentFormsHtml = (rows: DutySendDisplayRow[], autoPrint = true) => `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>نموذج تكليف بالمناوبة اليومية</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
+    .form { min-height: 255mm; padding: 10mm 0; page-break-after: always; }
+    .form:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 14px; margin-bottom: 22px; font-weight: 700; font-size: 13px; line-height: 1.8; }
+    .logo { width: 64px; height: 64px; object-fit: contain; }
+    .title { text-align: center; font-size: 20px; font-weight: 900; color: #111827; margin: 0 0 18px; }
+    .date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .date-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 10px 12px; line-height: 1.5; }
+    .date-label { color: #64748b; font-size: 12px; font-weight: 900; margin-bottom: 3px; }
+    .date-value { color: #1e293b; font-size: 13px; font-weight: 800; }
+    .info-card { border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+    .info-line { display: flex; gap: 8px; align-items: center; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .info-line:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+    .info-label { color: #64748b; font-weight: 800; }
+    .info-value { color: #1e293b; font-weight: 900; }
+    .schedule { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 14px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+    .schedule th, .schedule td { padding: 10px 12px; text-align: right; border-bottom: 1px solid #f1f5f9; }
+    .schedule th { color: #655ac1; background: #ffffff; font-weight: 900; }
+    .schedule tr:last-child td { border-bottom: 0; }
+    .ack { font-size: 14px; font-weight: 900; color: #334155; margin: 0 0 14px; }
+    .signature { border: 2px dashed rgba(101,90,193,0.3); background: #f8fafc; border-radius: 16px; height: 128px; padding: 14px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 12px; font-weight: 900; }
+    .signature img { max-width: 260px; max-height: 96px; object-fit: contain; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body>
+  ${rows.map(row => `
+    <section class="form">
+      <div class="header">
+        <div>
+          <div>المملكة العربية السعودية</div>
+          <div>وزارة التعليم</div>
+          <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+          <div>مدرسة ${escapeHtml(schoolInfo.schoolName || '')}</div>
+        </div>
+        <div>${schoolInfo.logo ? `<img class="logo" src="${schoolInfo.logo}" />` : ''}</div>
+        <div style="text-align:left">
+          <div>العام الدراسي: ${escapeHtml((schoolInfo as any).academicYear || '')}</div>
+          <div>الفصل الدراسي: ${escapeHtml(semesterName)}</div>
+        </div>
+      </div>
+      <h1 class="title">نموذج تكليف بالمناوبة اليومية</h1>
+      <div class="info-card">
+        <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
+        <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType}</span></div>
+        <div class="info-line"><span class="info-label">عدد المناوبات:</span><span class="info-value">${row.assignmentCount}</span></div>
+        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</span></div>
+      </div>
+      <table class="schedule">
+        <thead><tr><th>اليوم</th><th>التاريخ</th><th>المهمة</th></tr></thead>
+        <tbody>
+          ${row.assignments.map(item => `
+            <tr>
+              <td>${escapeHtml(DAY_NAMES[item.day] || item.day)}</td>
+              <td>${escapeHtml(formatHijriDate(item.date))}</td>
+              <td>المناوبة اليومية</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <p class="ack">تم العلم والاطلاع على جدول المناوبة المسند والتوقيع بالعلم.</p>
+      <div class="signature">
+        ${row.assignments.find(a => (dutyData.weekAssignments || []).flatMap(w => w.dayAssignments).flatMap(d => d.staffAssignments).find(s => s.staffId === a.staffId && s.signatureData))
+          ? '<span>وقّع إلكترونيًا</span>'
+          : 'التوقيع'}
+      </div>
+    </section>
+  `).join('')}
+  ${autoPrint ? '<script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>' : ''}
+</body>
+</html>`;
+
+  const handlePrintAssignmentForms = (rows: DutySendDisplayRow[]) => {
+    if (rows.length === 0) { showToast?.('لا توجد نماذج للطباعة', 'warning'); return; }
+    openPrintableHtml(buildAssignmentFormsHtml(rows));
+  };
+
+  const handlePrintReceiptReport = (rows: DutySendDisplayRow[]) => {
+    if (rows.length === 0) { showToast?.('لا توجد بيانات للطباعة', 'warning'); return; }
+    openPrintableHtml(`
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>سجل استلام التكليف بالمناوبة</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 18px; font-weight: 700; font-size: 12px; line-height: 1.8; }
+    h1 { text-align: center; font-size: 20px; font-weight: 900; color: #111827; margin: 0 0 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; }
+    th { background: #a59bf0; color: #fff; font-weight: 900; }
+    .signed { color: #047857; font-weight: 900; }
+    .pending { color: #b45309; font-weight: 900; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background: #a59bf0 !important; color: #fff !important; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+      <div>مدرسة ${escapeHtml(schoolInfo.schoolName || '')}</div>
+    </div>
+    <div style="text-align:left">
+      <div>العام الدراسي: ${escapeHtml((schoolInfo as any).academicYear || '')}</div>
+      <div>الفصل الدراسي: ${escapeHtml(semesterName)}</div>
+      <div>تاريخ الطباعة: ${formatHijriDateTime(new Date().toISOString())}</div>
+    </div>
+  </div>
+  <h1>سجل استلام التكليف بالمناوبة</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>م</th>
+        <th>المناوب</th>
+        <th>الصفة</th>
+        <th>عدد المناوبات</th>
+        <th>الأيام والتواريخ</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(row.staffName)}</td>
+          <td>${escapeHtml(row.staffType)}</td>
+          <td>${row.assignmentCount}</td>
+          <td>${escapeHtml(row.dateLabel)}</td>
+          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  <script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>
+</body>
+</html>`);
+  };
+
+  const buildSingleReportHtml = (report: DutyReportRecord, autoPrint = true) => {
+    const lateRows = report.lateStudents.length > 0
+      ? report.lateStudents.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(s.studentName)}</td>
+          <td>${escapeHtml(s.gradeAndClass)}</td>
+          <td>${escapeHtml(s.exitTime)}</td>
+          <td>${escapeHtml(s.actionTaken)}</td>
+          <td>${escapeHtml(s.notes || '')}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">لا يوجد طلاب متأخرون</td></tr>';
+    const violationRows = report.violatingStudents.length > 0
+      ? report.violatingStudents.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(s.studentName)}</td>
+          <td>${escapeHtml(s.gradeAndClass)}</td>
+          <td>${escapeHtml(s.violationType)}</td>
+          <td>${escapeHtml(s.actionTaken)}</td>
+          <td>${escapeHtml(s.notes || '')}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">لا توجد مخالفات سلوكية</td></tr>';
+    return `
+<section class="report-page">
+  <div class="header">
+    <div>
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+      <div>مدرسة ${escapeHtml(schoolInfo.schoolName || '')}</div>
+    </div>
+    <div>${schoolInfo.logo ? `<img class="logo" src="${schoolInfo.logo}" />` : ''}</div>
+    <div style="text-align:left">
+      <div>العام الدراسي: ${escapeHtml((schoolInfo as any).academicYear || '')}</div>
+      <div>الفصل الدراسي: ${escapeHtml(semesterName)}</div>
+      <div>تاريخ التسليم: ${formatHijriDateTime(report.submittedAt)}</div>
+    </div>
+  </div>
+  <h1 class="title">تقرير المناوبة اليومية</h1>
+  <div class="info-card">
+    <div class="info-line"><span class="info-label">المناوب:</span><span class="info-value">${escapeHtml(report.staffName)}</span></div>
+    <div class="info-line"><span class="info-label">اليوم:</span><span class="info-value">${escapeHtml(DAY_NAMES[report.day] || report.day)}</span></div>
+    <div class="info-line"><span class="info-label">التاريخ:</span><span class="info-value">${escapeHtml(formatHijriDate(report.date))}</span></div>
+    <div class="info-line"><span class="info-label">طريقة التسليم:</span><span class="info-value">${report.manuallySubmitted ? 'يدوي (ورقي)' : 'إلكتروني'}</span></div>
+  </div>
+  <div class="section-title">أولاً: الطلاب المتأخرون</div>
+  <table>
+    <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف / الفصل</th><th>زمن الانصراف</th><th>الإجراء</th><th>ملاحظات</th></tr></thead>
+    <tbody>${lateRows}</tbody>
+  </table>
+  <div class="section-title">ثانياً: الطلاب المخالفون سلوكياً</div>
+  <table>
+    <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف / الفصل</th><th>نوع المخالفة</th><th>الإجراء</th><th>ملاحظات</th></tr></thead>
+    <tbody>${violationRows}</tbody>
+  </table>
+  <div class="signature">
+    ${report.signature ? `<img src="${report.signature}" alt="توقيع" />` : 'بدون توقيع'}
+  </div>
+</section>`;
+  };
+
+  const wrapReportHtml = (innerSections: string, autoPrint = true) => `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>تقارير المناوبة اليومية</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @page { size: A4 portrait; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
+    .report-page { padding: 6mm 0; page-break-after: always; }
+    .report-page:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; font-weight: 700; font-size: 12px; line-height: 1.7; }
+    .logo { width: 56px; height: 56px; object-fit: contain; }
+    .title { text-align: center; font-size: 19px; font-weight: 900; color: #111827; margin: 0 0 14px; }
+    .info-card { border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+    .info-line { display: flex; gap: 6px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+    .info-line:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+    .info-label { color: #64748b; font-weight: 800; }
+    .info-value { color: #1e293b; font-weight: 900; }
+    .section-title { color: #655ac1; font-size: 13px; font-weight: 900; margin: 10px 0 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; }
+    th { background: #a59bf0; color: #fff; font-weight: 900; }
+    .signature { border: 2px dashed rgba(101,90,193,0.3); background: #f8fafc; border-radius: 14px; height: 110px; padding: 10px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 11px; font-weight: 900; margin-top: 10px; }
+    .signature img { max-width: 240px; max-height: 86px; object-fit: contain; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      th { background: #a59bf0 !important; color: #fff !important; }
+    }
+  </style>
+</head>
+<body>
+  ${innerSections}
+  ${autoPrint ? '<script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>' : ''}
+</body>
+</html>`;
+
+  const handlePrintSingleReport = (report: DutyReportRecord) => {
+    openPrintableHtml(wrapReportHtml(buildSingleReportHtml(report)));
+  };
+
+  const handlePrintReportsForStaff = (reports: DutyReportRecord[]) => {
+    if (reports.length === 0) { showToast?.('لا توجد تقارير للطباعة', 'warning'); return; }
+    openPrintableHtml(wrapReportHtml(reports.map(r => buildSingleReportHtml(r)).join('')));
+  };
+
+  const handlePrintAllReports = () => {
+    const all = dutyData.reports.filter(r => r.isSubmitted);
+    if (all.length === 0) { showToast?.('لا توجد تقارير مسلّمة للطباعة', 'warning'); return; }
+    openPrintableHtml(wrapReportHtml(all.map(r => buildSingleReportHtml(r)).join('')));
   };
 
   const buildOfficialHeader = (title: string) => `
@@ -905,37 +1200,37 @@ ${buildReportLink(target)}` : ''}`;
 </html>`, 'تم فتح تقرير المناوبة للتعبئة والطباعة');
   };
 
-  if (receiptOpen || reportReceiptOpen) {
-    const isReportLog = reportReceiptOpen;
-    const title = isReportLog ? 'سجل استلام تقرير المناوبة اليومية' : 'سجل استلام التكليف بالمناوبة';
-    const rows = isReportLog ? filteredReportRows : filteredAssignmentRows;
-    const total = isReportLog ? reportRows.length : assignmentGroupedRows.length;
-    const done = isReportLog ? submittedReportCount : signedCount;
-    const waiting = isReportLog ? pendingReportCount : pendingCount;
+  // ─── Assignment receipt log inline page ──────────────────────────────
+  if (receiptOpen) {
     return (
       <div className="space-y-5" dir="rtl">
+        {/* Header */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-black text-slate-800 text-lg">{title}</h2>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالمناوبة</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {done} {isReportLog ? 'تقرير مستلم' : 'استلموا التكليف'} من أصل {total}
+                {signedCount} استلم من أصل {assignmentGroupedRows.length} مناوب
               </p>
             </div>
-            <button type="button" onClick={() => isReportLog ? setReportReceiptOpen(false) : setReceiptOpen(false)} className={actionButtonClass(false)}>
+            <button type="button" onClick={() => setReceiptOpen(false)} className={actionButtonClass(false)}>
               <ArrowRight size={16} />
             </button>
           </div>
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: isReportLog ? 'إجمالي التقارير' : 'إجمالي التكليفات', value: String(total), icon: Users },
-            { label: isReportLog ? 'تم الاستلام' : 'استلموا التكليف', value: String(done), icon: CheckCircle2 },
-            { label: isReportLog ? 'لم تُسلّم بعد' : 'لم يستلموا بعد', value: String(waiting), icon: ClipboardList },
+            { label: 'إجمالي المناوبين', value: String(assignmentGroupedRows.length), icon: Users },
+            { label: 'استلموا التكليف', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يستلموا بعد', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
-              <div className="flex items-center justify-center shrink-0 text-[#655ac1]"><s.icon size={22} /></div>
+            <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
+              style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+                <s.icon size={22} />
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-400 leading-none">{s.label}</p>
                 <p className="mt-1 font-black text-slate-800 text-xl leading-none">{s.value}</p>
@@ -944,44 +1239,299 @@ ${buildReportLink(target)}` : ''}`;
           ))}
         </div>
 
-        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+        {/* Filters & Actions */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
+            {(['all', 'signed', 'pending'] as const).map(f => (
+              <button key={f} type="button" onClick={() => setReceiptFilter(f)}
+                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                  receiptFilter === f
+                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                }`}>
+                {f === 'all' ? 'الكل' : f === 'signed' ? 'استلم' : 'لم يستلم'}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={13} />
+              تحديث
+            </button>
+            <button type="button" onClick={() => handlePrintReceiptReport(filteredAssignmentRows)} disabled={assignmentGroupedRows.length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={13} />
+              طباعة التقرير
+            </button>
+            <button type="button" onClick={() => handlePrintAssignmentForms(filteredAssignmentRows)} disabled={assignmentGroupedRows.length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={13} />
+              طباعة النماذج
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
+          style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
           <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
               <ClipboardList size={18} className="text-[#655ac1]" />
-              {isReportLog ? 'سجل استلام التقرير اليومي' : 'سجل استلام التكليف'}
+              سجل الاستلام
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {(isReportLog
-                ? [{ value: 'all', label: 'الكل' }, { value: 'submitted', label: 'مستلم' }, { value: 'pending', label: 'لم يسلّم' }]
-                : [{ value: 'all', label: 'الكل' }, { value: 'signed', label: 'استلم' }, { value: 'pending', label: 'لم يستلم' }]
-              ).map(option => (
-                <button key={option.value} type="button" onClick={() => isReportLog ? setReportFilter(option.value as any) : setReceiptFilter(option.value as any)}
-                  className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
-                    (isReportLog ? reportFilter : receiptFilter) === option.value
-                      ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
-                  }`}>
-                  {option.label}
+            <div className="relative w-56">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input type="text" value={receiptSearch} onChange={e => setReceiptSearch(e.target.value)}
+                placeholder="ابحث عن مناوب..."
+                className="w-full pr-8 pl-7 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl" />
+              {receiptSearch && (
+                <button type="button" onClick={() => setReceiptSearch('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={13} />
                 </button>
-              ))}
-              <div className="relative w-56">
-                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={isReportLog ? reportSearch : receiptSearch}
-                  onChange={e => isReportLog ? setReportSearch(e.target.value) : setReceiptSearch(e.target.value)}
-                  placeholder="ابحث عن مناوب..."
-                  className="w-full pr-8 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
-                  dir="rtl"
-                />
-              </div>
+              )}
             </div>
           </div>
-          {total === 0 ? (
+
+          {assignmentGroupedRows.length === 0 ? (
             <div className="py-16 text-center">
               <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
-              <p className="text-sm font-bold text-slate-400">{isReportLog ? 'لا توجد تقارير مناوبة مسجلة بعد.' : 'لا توجد طلبات استلام مرسلة بعد.'}</p>
-              <p className="text-xs text-slate-400 mt-1">{isReportLog ? 'سيظهر هنا تسليم تقرير المناوبة اليومي لكل مناوب.' : 'أرسل تكليف المناوبة إلكترونيًا ليظهر هنا سجل الاستلام.'}</p>
+              <p className="text-sm font-bold text-slate-400">لا توجد طلبات استلام مرسلة بعد.</p>
+              <p className="text-xs text-slate-400 mt-1">أرسل تكليف المناوبة إلكترونيًا ليظهر هنا سجل الاستلام.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[19%]">المناوب</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">عدد المناوبات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[24%]">الأيام والتواريخ</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">الحالة</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[14%]">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAssignmentRows.map((row, idx) => (
+                    <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
+                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
+                      <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">{row.assignmentCount}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate" title={row.dateLabel}>{row.dateLabel || '-'}</td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
+                          row.status === 'signed'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2 min-w-[118px]">
+                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="معاينة النموذج"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
+                            <Eye size={13} />
+                            معاينة
+                          </button>
+                          <button type="button" onClick={() => handlePrintAssignmentForms([row])} title="طباعة النموذج"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
+                            <Printer size={13} />
+                            طباعة
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredAssignmentRows.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                        لا توجد نتائج تطابق الفلتر.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {previewAssignmentRow && createPortal(
+          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+            <div className="w-full max-w-lg max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Eye size={22} className="text-[#655ac1] shrink-0" />
+                  <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+                </div>
+                <button type="button" onClick={() => setPreviewAssignmentRow(null)}
+                  className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-6 space-y-4">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                      <span className="text-slate-500 font-bold shrink-0">الاسم:</span>
+                      <span className="font-black text-slate-800">{previewAssignmentRow.staffName}</span>
+                    </div>
+                    <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                      <span className="text-slate-500 font-bold shrink-0">الصفة:</span>
+                      <span className="font-black text-[#655ac1]">{previewAssignmentRow.staffType}</span>
+                    </div>
+                    <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
+                      <span className="text-slate-500 font-bold shrink-0">عدد المناوبات:</span>
+                      <span className="font-black text-slate-800">{previewAssignmentRow.assignmentCount}</span>
+                    </div>
+                    <div className="flex items-center justify-start gap-2">
+                      <span className="text-slate-500 font-bold shrink-0">الحالة:</span>
+                      <span className="font-black text-slate-800">{previewAssignmentRow.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-white border-b border-slate-100">
+                        <th className="px-3 py-2 text-right text-[#655ac1] font-black">اليوم</th>
+                        <th className="px-3 py-2 text-right text-[#655ac1] font-black">التاريخ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewAssignmentRow.assignments.map((item, index) => (
+                        <tr key={`${previewAssignmentRow.key}-${item.day}-${index}`} className="border-t border-slate-100">
+                          <td className="px-3 py-2 font-black text-slate-700">{DAY_NAMES[item.day] || item.day}</td>
+                          <td className="px-3 py-2 font-bold text-slate-600">{formatHijriDate(item.date)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="text-sm font-black text-slate-700">
+                  تم العلم والاطلاع على جدول المناوبة المسند والتوقيع بالعلم.
+                </p>
+                <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
+                  {previewAssignmentRow.status === 'signed' ? 'وقّع إلكترونيًا' : 'التوقيع'}
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => handlePrintAssignmentForms([previewAssignmentRow])}
+                    className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                    <Printer size={16} /> طباعة النموذج
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    );
+  }
+
+  // ─── Daily duty report receipt log inline page ───────────────────────
+  if (reportReceiptOpen) {
+    return (
+      <div className="space-y-5" dir="rtl">
+        {/* Header */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام تقرير المناوبة اليومية</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {submittedReportCount} مناوب سلّم تقاريره من أصل {reportRows.length}
+              </p>
+            </div>
+            <button type="button" onClick={() => setReportReceiptOpen(false)} className={actionButtonClass(false)}>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'إجمالي المناوبين', value: String(reportRows.length), icon: Users },
+            { label: 'سلّموا التقرير', value: String(submittedReportCount), icon: CheckCircle2 },
+            { label: 'لم يسلّموا', value: String(pendingReportCount), icon: AlertCircle },
+          ].map((s, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
+              style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+                <s.icon size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-400 leading-none">{s.label}</p>
+                <p className="mt-1 font-black text-slate-800 text-xl leading-none">{s.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters & Actions */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
+            {(['all', 'submitted', 'pending'] as const).map(f => (
+              <button key={f} type="button" onClick={() => setReportFilter(f)}
+                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                  reportFilter === f
+                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                }`}>
+                {f === 'all' ? 'الكل' : f === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <button type="button" onClick={() => { setReportSearch(''); setReportFilter('all'); }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={13} />
+              تحديث
+            </button>
+            <button type="button" onClick={handlePrintAllReports}
+              disabled={dutyData.reports.filter(r => r.isSubmitted).length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] hover:border-[#5448ad] transition-all disabled:opacity-50">
+              <Printer size={13} />
+              طباعة كل التقارير المسلّمة
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
+          style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
+            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <ClipboardList size={18} className="text-[#655ac1]" />
+              سجل تسليم التقارير
+            </p>
+            <div className="relative w-56">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input type="text" value={reportSearch} onChange={e => setReportSearch(e.target.value)}
+                placeholder="ابحث عن مناوب..."
+                className="w-full pr-8 pl-7 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl" />
+              {reportSearch && (
+                <button type="button" onClick={() => setReportSearch('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {reportRows.length === 0 ? (
+            <div className="py-16 text-center">
+              <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
+              <p className="text-sm font-bold text-slate-400">لا توجد تقارير مناوبة مسجلة بعد.</p>
+              <p className="text-xs text-slate-400 mt-1">سيظهر هنا تسليم تقرير المناوبة اليومي لكل مناوب.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -990,55 +1540,244 @@ ${buildReportLink(target)}` : ''}`;
                   <tr className="bg-slate-50/50 border-b border-slate-100">
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[20%]">المناوب</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">الصفة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">{isReportLog ? 'التقارير' : 'عدد المناوبات'}</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[14%]">الأيام والتواريخ</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">عدد المناوبات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">التقارير المسلّمة</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[14%]">الحالة</th>
-                    {isReportLog && <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">نوع التسليم</th>}
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[13%]">{isReportLog ? 'حالة التقارير' : 'إجراءات'}</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">طريقة التسليم</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[16%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {rows.map((row: any, index) => (
-                    <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{index + 1}</td>
-                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
-                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
-                      <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">
-                        {isReportLog ? `${row.reportSubmittedCount} / ${row.reportDueCount}` : row.assignmentCount}
-                      </td>
-                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate" title={row.dateLabel}>{row.dateLabel || '-'}</td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
-                          (isReportLog ? row.status === 'submitted' : row.status === 'signed')
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>
-                          {isReportLog
-                            ? row.status === 'submitted' ? 'مكتمل' : row.reportSubmittedCount > 0 ? 'مستلم جزئيًا' : 'لم يسلّم'
-                            : row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}
-                        </span>
-                      </td>
-                      {isReportLog && <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.deliveryType}</td>}
-                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">
-                        {isReportLog ? (row.submittedAt || '-') : (
-                          <button type="button" onClick={onOpenLegacySend}
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap">
-                            <Eye size={13} />
-                            عرض
-                          </button>
-                        )}
+                  {filteredReportRows.map((row, idx) => {
+                    const submittedReports = getStaffReports(row.staffId).filter(r => r.isSubmitted);
+                    return (
+                      <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
+                        <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
+                        <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
+                        <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">{row.assignmentCount}</td>
+                        <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">{row.reportSubmittedCount} / {row.reportDueCount}</td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
+                            row.status === 'submitted'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {row.status === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.deliveryType}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2 min-w-[160px]">
+                            <button type="button" onClick={() => setPreviewReportStaff({ staffId: row.staffId, staffName: row.staffName, staffType: row.staffType })}
+                              disabled={submittedReports.length === 0}
+                              title={submittedReports.length === 0 ? 'لا توجد تقارير مسلّمة' : 'عرض التقارير'}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                              <Eye size={13} />
+                              عرض
+                            </button>
+                            <button type="button" onClick={() => handlePrintReportsForStaff(submittedReports)}
+                              disabled={submittedReports.length === 0}
+                              title={submittedReports.length === 0 ? 'لا توجد تقارير للطباعة' : 'طباعة كل تقارير المناوب'}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                              <Printer size={13} />
+                              طباعة
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredReportRows.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                        لا توجد نتائج تطابق الفلتر.
                       </td>
                     </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={isReportLog ? 8 : 7} className="px-6 py-10 text-center text-sm font-medium text-slate-400">لا توجد نتائج تطابق الفلتر.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           )}
         </div>
+
+        {/* Reports list modal for a staff */}
+        {previewReportStaff && createPortal(
+          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
+            <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText size={22} className="text-[#655ac1] shrink-0" />
+                  <div className="min-w-0">
+                    <h3 className="font-black text-slate-800 truncate">تقارير المناوب: {previewReportStaff.staffName}</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">{previewReportStaff.staffType}</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setPreviewReportStaff(null)}
+                  className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-5 space-y-3">
+                {(() => {
+                  const reports = getStaffReports(previewReportStaff.staffId).filter(r => r.isSubmitted);
+                  if (reports.length === 0) {
+                    return (
+                      <div className="py-10 text-center">
+                        <FileText className="mx-auto mb-3 text-slate-300" size={36} />
+                        <p className="text-sm font-bold text-slate-400">لا توجد تقارير مسلّمة لهذا المناوب.</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs font-black text-slate-500">{reports.length} تقرير مسلّم</p>
+                        <button type="button" onClick={() => handlePrintReportsForStaff(reports)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] transition-all">
+                          <Printer size={13} />
+                          طباعة كل التقارير
+                        </button>
+                      </div>
+                      {reports.map(report => (
+                        <div key={report.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="font-black text-slate-800 text-sm">{DAY_NAMES[report.day] || report.day} - {formatHijriDate(report.date)}</p>
+                              <p className="text-[11px] text-slate-500 font-bold mt-1">
+                                تسليم: {formatHijriDateTime(report.submittedAt)}
+                                {' • '}
+                                {report.manuallySubmitted ? 'يدوي' : 'إلكتروني'}
+                                {' • '}
+                                متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button type="button" onClick={() => setPreviewReportRecord(report)} title="معاينة التقرير"
+                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
+                                <Eye size={13} />
+                                معاينة
+                              </button>
+                              <button type="button" onClick={() => handlePrintSingleReport(report)} title="طباعة التقرير"
+                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
+                                <Printer size={13} />
+                                طباعة
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Single report preview modal */}
+        {previewReportRecord && createPortal(
+          <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm" dir="rtl">
+            <div className="w-full max-w-3xl max-h-[92vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText size={22} className="text-[#655ac1] shrink-0" />
+                  <h3 className="font-black text-slate-800">تقرير المناوبة - {previewReportRecord.staffName}</h3>
+                </div>
+                <button type="button" onClick={() => setPreviewReportRecord(null)}
+                  className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="font-black text-slate-400 mb-1">اليوم والتاريخ</p>
+                    <p className="font-bold text-slate-700 truncate">{DAY_NAMES[previewReportRecord.day] || previewReportRecord.day} - {formatHijriDate(previewReportRecord.date)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="font-black text-slate-400 mb-1">تاريخ التسليم</p>
+                    <p className="font-bold text-slate-700 truncate">{formatHijriDateTime(previewReportRecord.submittedAt)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#655ac1] mb-2">أولاً: الطلاب المتأخرون ({previewReportRecord.lateStudents.length})</p>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-[12px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">م</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الاسم</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الصف/الفصل</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">زمن الانصراف</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الإجراء</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewReportRecord.lateStudents.length === 0 ? (
+                          <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-400 font-bold">لا يوجد</td></tr>
+                        ) : previewReportRecord.lateStudents.map((s, i) => (
+                          <tr key={s.id} className="border-t border-slate-100">
+                            <td className="px-2 py-2 font-bold text-slate-500">{i + 1}</td>
+                            <td className="px-2 py-2 font-black text-slate-700">{s.studentName}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.gradeAndClass}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.exitTime}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.actionTaken}</td>
+                            <td className="px-2 py-2 text-slate-500">{s.notes || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#655ac1] mb-2">ثانياً: الطلاب المخالفون سلوكياً ({previewReportRecord.violatingStudents.length})</p>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-[12px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">م</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الاسم</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الصف/الفصل</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">المخالفة</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الإجراء</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewReportRecord.violatingStudents.length === 0 ? (
+                          <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-400 font-bold">لا يوجد</td></tr>
+                        ) : previewReportRecord.violatingStudents.map((s, i) => (
+                          <tr key={s.id} className="border-t border-slate-100">
+                            <td className="px-2 py-2 font-bold text-slate-500">{i + 1}</td>
+                            <td className="px-2 py-2 font-black text-slate-700">{s.studentName}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.gradeAndClass}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.violationType}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.actionTaken}</td>
+                            <td className="px-2 py-2 text-slate-500">{s.notes || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-28 flex items-center justify-center text-xs font-bold text-slate-400">
+                  {previewReportRecord.signature
+                    ? <img src={previewReportRecord.signature} alt="توقيع" className="max-h-20 max-w-[240px] object-contain" />
+                    : 'بدون توقيع'}
+                </div>
+                <button type="button" onClick={() => handlePrintSingleReport(previewReportRecord)}
+                  className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                  <Printer size={16} /> طباعة التقرير
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     );
   }
