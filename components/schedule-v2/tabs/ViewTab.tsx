@@ -63,6 +63,7 @@ import {
   ShareAudience,
   ShareRecipientRecord,
 } from '../../../utils/scheduleShare';
+import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 
 interface Props {
@@ -970,6 +971,7 @@ const ViewTab: React.FC<Props> = ({
   const [sendScheduleCalendarType, setSendScheduleCalendarType] = useState<'hijri' | 'gregorian'>(
     ((schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian')
   );
+  const smsStats = useMemo(() => calculateSmsSegments(modalMessageContent), [modalMessageContent]);
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const sortedClasses = useMemo(
@@ -1141,25 +1143,6 @@ const ViewTab: React.FC<Props> = ({
     setGeneratedLinks([]);
     setShowLinkDetails(false);
   }, [sendAudience, sendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, selectedSendClassIds]);
-
-  useEffect(() => {
-    const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
-    const now = new Date();
-    const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-    const dateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(now);
-    const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === safeSendScheduleType)?.label || 'الجدول';
-    const recipientName = safeSendAudience === 'guardians'
-      ? 'المكرم/ولي أمر الطالب/ـة {اسم_الطالب}'
-      : safeSendAudience === 'admins'
-        ? 'المكرم/{اسم_الإداري}'
-        : 'المكرم/{اسم_المعلم}';
-    setModalMessageContent([
-      `${recipientName}`,
-      `نرفق لكم جدول للعلم والاطلاع.`,
-      ``,
-      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'} - اليوم (${dayLabel}) - التاريخ (${dateLabel}) - الفصل الدراسي (${currentSemester?.name || '-'}) - نوع الجدول (${scheduleTypeLabel}) - رابط الجدول ({روابط_الجداول})`,
-    ].join('\n'));
-  }, [safeSendScheduleType, safeSendAudience, schoolInfo]);
 
   const isPrintGeneral = SCHEDULE_TYPES.find(item => item.id === printScheduleType)?.isGeneral;
   const selectedPrintCount =
@@ -2407,6 +2390,15 @@ const ViewTab: React.FC<Props> = ({
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                {sendChannel === 'sms' && (
+                  <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">
+                      <span>{smsStats.characterCount} حرفًا</span>
+                      <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
+                      <span>{smsStats.messageCount} رسالة نصية</span>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2424,9 +2416,9 @@ const ViewTab: React.FC<Props> = ({
                     </button>
                   </div>
                   {isSendScheduled && (
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      <div className="flex-1 min-w-[140px]">
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
                           <label className="text-xs font-black text-slate-500">التاريخ</label>
                           <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
                             {[
@@ -2460,8 +2452,10 @@ const ViewTab: React.FC<Props> = ({
                           zIndex={99999}
                         />
                       </div>
-                      <div className="flex-1 min-w-[120px]">
-                        <label className="text-xs font-black text-slate-500 block mb-1.5">الوقت</label>
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                          <label className="text-xs font-black text-slate-500">الوقت</label>
+                        </div>
                         <input
                           type="time"
                           value={sendScheduleTime}
@@ -2843,6 +2837,15 @@ const ViewTab: React.FC<Props> = ({
                       placeholder="نص الرسالة..."
                       dir="rtl"
                     />
+                    {sendChannel === 'sms' && (
+                      <div className="rounded-2xl border border-slate-200 px-4 py-3 mt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">
+                          <span>{smsStats.characterCount} حرفًا</span>
+                          <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
+                          <span>{smsStats.messageCount} رسالة نصية</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* live preview */}
