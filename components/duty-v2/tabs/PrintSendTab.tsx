@@ -639,6 +639,58 @@ ${buildReportLink(target)}` : ''}`;
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   };
 
+  const getStaffSignatureByDate = (staffId: string): Map<string, string> => {
+    const map = new Map<string, string>();
+    const sourceWeeks = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
+      ? dutyData.weekAssignments
+      : weeksToRender;
+    sourceWeeks.forEach(week => {
+      week.dayAssignments.forEach(day => {
+        const key = day.date || day.day;
+        day.staffAssignments
+          .filter(s => s.staffId === staffId && s.signatureData)
+          .forEach(s => { map.set(key, s.signatureData!); });
+      });
+    });
+    return map;
+  };
+
+  const getDisplayReports = (staffId: string, staffName: string): DutyReportRecord[] => {
+    const realByDate = new Map<string, DutyReportRecord>();
+    dutyData.reports
+      .filter(r => r.staffId === staffId && r.isSubmitted && !r.manuallySubmitted)
+      .forEach(r => realByDate.set(r.date, r));
+    const sigByDate = getStaffSignatureByDate(staffId);
+
+    const seen = new Set<string>();
+    const result: DutyReportRecord[] = [];
+    sendRows
+      .filter(row => row.staffId === staffId)
+      .forEach(row => {
+        const key = row.date || row.day;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const real = realByDate.get(key);
+        if (real) {
+          result.push(real);
+        } else {
+          result.push({
+            id: `virtual-${staffId}-${key}`,
+            date: row.date || '',
+            day: row.day,
+            staffId,
+            staffName,
+            signature: sigByDate.get(key),
+            lateStudents: [],
+            violatingStudents: [],
+            isSubmitted: false,
+            status: 'present' as any,
+          });
+        }
+      });
+    return result.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  };
+
   const buildAssignmentFormsHtml = (rows: DutySendDisplayRow[], autoPrint = true) => `
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -695,7 +747,7 @@ ${buildReportLink(target)}` : ''}`;
         <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
         <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType}</span></div>
         <div class="info-line"><span class="info-label">عدد المناوبات:</span><span class="info-value">${row.assignmentCount}</span></div>
-        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</span></div>
+        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span></div>
       </div>
       <table class="schedule">
         <thead><tr><th>اليوم</th><th>التاريخ</th><th>المهمة</th></tr></thead>
@@ -783,7 +835,7 @@ ${buildReportLink(target)}` : ''}`;
           <td>${escapeHtml(row.staffType)}</td>
           <td>${row.assignmentCount}</td>
           <td>${escapeHtml(row.dateLabel)}</td>
-          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</td>
+          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -1213,7 +1265,7 @@ ${buildReportLink(target)}` : ''}`;
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالمناوبة</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {signedCount} استلم من أصل {assignmentGroupedRows.length} مناوب
+                {signedCount} وقّع من أصل {assignmentGroupedRows.length} مناوب
               </p>
             </div>
             <button type="button" onClick={() => setReceiptOpen(false)} className={actionButtonClass(false)}>
@@ -1226,8 +1278,8 @@ ${buildReportLink(target)}` : ''}`;
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المناوبين', value: String(assignmentGroupedRows.length), icon: Users },
-            { label: 'استلموا التكليف', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يستلموا بعد', value: String(pendingCount), icon: AlertCircle },
+            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يوقّعوا بعد', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1253,7 +1305,7 @@ ${buildReportLink(target)}` : ''}`;
                     ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
                 }`}>
-                {f === 'all' ? 'الكل' : f === 'signed' ? 'استلم' : 'لم يستلم'}
+                {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقّع'}
               </button>
             ))}
             <div className="flex-1" />
@@ -1332,7 +1384,7 @@ ${buildReportLink(target)}` : ''}`;
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}>
-                          {row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}
+                          {row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -1394,7 +1446,7 @@ ${buildReportLink(target)}` : ''}`;
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-slate-500 font-bold shrink-0">الحالة:</span>
-                      <span className="font-black text-slate-800">{previewAssignmentRow.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</span>
+                      <span className="font-black text-slate-800">{previewAssignmentRow.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span>
                     </div>
                   </div>
                 </div>
@@ -1500,7 +1552,7 @@ ${buildReportLink(target)}` : ''}`;
             </button>
             <button type="button" onClick={handlePrintAllReports}
               disabled={dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted).length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] hover:border-[#5448ad] transition-all disabled:opacity-50">
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all disabled:opacity-50">
               <Printer size={13} />
               طباعة كل التقارير المسلّمة
             </button>
@@ -1552,7 +1604,7 @@ ${buildReportLink(target)}` : ''}`;
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReportRows.map((row, idx) => {
-                    const submittedReports = getStaffReports(row.staffId).filter(r => r.isSubmitted);
+                    const displayReports = getDisplayReports(row.staffId, row.staffName);
                     return (
                       <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
@@ -1572,16 +1624,14 @@ ${buildReportLink(target)}` : ''}`;
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2 min-w-[160px]">
                             <button type="button" onClick={() => setPreviewReportStaff({ staffId: row.staffId, staffName: row.staffName, staffType: row.staffType })}
-                              disabled={submittedReports.length === 0}
-                              title={submittedReports.length === 0 ? 'لا توجد تقارير مسلّمة' : 'عرض التقارير'}
-                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                              title="عرض التقارير"
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                               <Eye size={13} />
                               عرض
                             </button>
-                            <button type="button" onClick={() => handlePrintReportsForStaff(submittedReports)}
-                              disabled={submittedReports.length === 0}
-                              title={submittedReports.length === 0 ? 'لا توجد تقارير للطباعة' : 'طباعة كل تقارير المناوب'}
-                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button type="button" onClick={() => handlePrintReportsForStaff(displayReports)}
+                              title="طباعة كل تقارير المناوب"
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                               <Printer size={13} />
                               طباعة
                             </button>
@@ -1622,21 +1672,22 @@ ${buildReportLink(target)}` : ''}`;
               </div>
               <div className="overflow-y-auto p-5 space-y-3">
                 {(() => {
-                  const reports = getStaffReports(previewReportStaff.staffId).filter(r => r.isSubmitted);
+                  const reports = getDisplayReports(previewReportStaff.staffId, previewReportStaff.staffName);
                   if (reports.length === 0) {
                     return (
                       <div className="py-10 text-center">
                         <FileText className="mx-auto mb-3 text-slate-300" size={36} />
-                        <p className="text-sm font-bold text-slate-400">لا توجد تقارير مسلّمة لهذا المناوب.</p>
+                        <p className="text-sm font-bold text-slate-400">لا توجد مناوبات مسجلة لهذا المناوب.</p>
                       </div>
                     );
                   }
+                  const submittedCount = reports.filter(r => r.isSubmitted).length;
                   return (
                     <>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <p className="text-xs font-black text-slate-500">{reports.length} تقرير مسلّم</p>
+                        <p className="text-xs font-black text-slate-500">{submittedCount} تقرير مسلّم من أصل {reports.length}</p>
                         <button type="button" onClick={() => handlePrintReportsForStaff(reports)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] transition-all">
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
                           <Printer size={13} />
                           طباعة كل التقارير
                         </button>
@@ -1647,9 +1698,9 @@ ${buildReportLink(target)}` : ''}`;
                             <div className="min-w-0">
                               <p className="font-black text-slate-800 text-sm">{DAY_NAMES[report.day] || report.day} - {formatHijriDate(report.date)}</p>
                               <p className="text-[11px] text-slate-500 font-bold mt-1">
-                                تسليم: {formatHijriDateTime(report.submittedAt)}
-                                {' • '}
-                                متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}
+                                {report.isSubmitted
+                                  ? <>تسليم: {formatHijriDateTime(report.submittedAt)} {' • '} متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}</>
+                                  : <span className="text-amber-700">لم يسلّم التقرير بعد — نموذج فارغ</span>}
                               </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
