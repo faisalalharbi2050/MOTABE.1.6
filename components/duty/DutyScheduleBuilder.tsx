@@ -758,25 +758,25 @@ const DutyScheduleBuilder: React.FC<Props> = ({
               </div>
               <div>
                 <table className="w-full text-sm text-right border-collapse table-fixed">
-                  <thead className="bg-slate-50 text-[#655ac1]">
-                    <tr className="border-b border-slate-200">
-                      <th className="p-3 font-black w-[16%] border-l border-slate-200/60 text-center">اليوم</th>
-                      <th className="p-3 font-black w-[18%] border-l border-slate-200/60 text-center">التاريخ</th>
-                      <th className="p-3 font-black w-[48%] border-l border-slate-200/60 text-center">المناوب</th>
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
+                      <th className="p-3 font-black w-[16%] border-l border-white/40 text-center">اليوم</th>
+                      <th className="p-3 font-black w-[18%] border-l border-white/40 text-center">التاريخ</th>
+                      <th className="p-3 font-black w-[48%] border-l border-white/40 text-center">المناوب</th>
                       {/* Signature column */}
-                      <th className="hidden p-3 font-black text-slate-700 text-center w-[10%] border-l border-slate-200/60">
+                      <th className="hidden p-3 font-black text-white text-center w-[10%] border-l border-white/40">
                         <div className="flex items-center justify-center gap-1.5">
-                          <PenLine size={14} className="text-[#655ac1]" />
+                          <PenLine size={14} className="text-white" />
                           <span>التوقيع</span>
                         </div>
                       </th>
                       {/* Report Form column */}
-                      <th className="hidden p-3 font-black text-slate-700 text-center border-l border-slate-200/60 print:hidden w-[13%] leading-snug">
+                      <th className="hidden p-3 font-black text-white text-center border-l border-white/40 print:hidden w-[13%] leading-snug">
                         <span className="block">معاينة وطباعة</span>
                         <span className="block">التقرير اليومي</span>
                       </th>
                       {/* Report Submission status column */}
-                      <th className="hidden p-3 font-black text-slate-700 w-[18%] text-center border-l border-slate-200/60 print:hidden leading-snug">
+                      <th className="hidden p-3 font-black text-white w-[18%] text-center border-l border-white/40 print:hidden leading-snug">
                         <span className="block">متابعة تسليم</span>
                         <span className="block">النموذج اليومي</span>
                       </th>
