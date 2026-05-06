@@ -1441,15 +1441,10 @@ ${buildReportLink(target)}` : ''}`;
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
-                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="معاينة النموذج"
+                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="معاينة وطباعة النموذج"
                             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Eye size={13} />
-                            معاينة
-                          </button>
-                          <button type="button" onClick={() => handlePrintAssignmentForms([row])} title="طباعة النموذج"
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
-                            <Printer size={13} />
-                            طباعة
+                            معاينة وطباعة
                           </button>
                         </div>
                       </td>

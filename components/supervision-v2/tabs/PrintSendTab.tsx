@@ -1276,15 +1276,10 @@ const PrintSendTab: React.FC<Props> = ({
                       <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.signedAt)}>{formatHijriDateTime(req.signedAt)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
-                          <button type="button" onClick={() => setPreviewReceiptRow(req)} title="معاينة النموذج"
+                          <button type="button" onClick={() => setPreviewReceiptRow(req)} title="معاينة وطباعة النموذج"
                             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Eye size={13} />
-                            معاينة
-                          </button>
-                          <button type="button" onClick={() => handlePrintAssignmentForms([req])} title="طباعة النموذج"
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
-                            <Printer size={13} />
-                            طباعة
+                            معاينة وطباعة
                           </button>
                         </div>
                       </td>
