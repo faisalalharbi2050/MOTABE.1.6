@@ -13,7 +13,6 @@ import {
 import { DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
-import DutyReportPreview from '../../duty/DutyReportPreview';
 
 interface Props {
   dutyData: DutyScheduleData;
@@ -390,11 +389,7 @@ const PrintSendTab: React.FC<Props> = ({
   }, [schedulePrintScope, selectedWeekIds, weeksToRender]);
 
   const reportByStaffAndDate = useMemo(() => (
-    new Map(
-      dutyData.reports
-        .filter(report => !report.manuallySubmitted)
-        .map(report => [`${report.staffId}-${report.date}`, report])
-    )
+    new Map(dutyData.reports.map(report => [`${report.staffId}-${report.date}`, report]))
   ), [dutyData.reports]);
 
   const sendRows = useMemo<DutySendFlatRow[]>(() => {
@@ -636,60 +631,8 @@ ${buildReportLink(target)}` : ''}`;
       sendRows.filter(row => row.staffId === staffId).map(row => row.date || row.day)
     );
     return dutyData.reports
-      .filter(r => r.staffId === staffId && !r.manuallySubmitted && (dutyDates.size === 0 || dutyDates.has(r.date)))
+      .filter(r => r.staffId === staffId && (dutyDates.size === 0 || dutyDates.has(r.date)))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  };
-
-  const getStaffSignatureByDate = (staffId: string): Map<string, string> => {
-    const map = new Map<string, string>();
-    const sourceWeeks = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
-      ? dutyData.weekAssignments
-      : weeksToRender;
-    sourceWeeks.forEach(week => {
-      week.dayAssignments.forEach(day => {
-        const key = day.date || day.day;
-        day.staffAssignments
-          .filter(s => s.staffId === staffId && s.signatureData)
-          .forEach(s => { map.set(key, s.signatureData!); });
-      });
-    });
-    return map;
-  };
-
-  const getDisplayReports = (staffId: string, staffName: string): DutyReportRecord[] => {
-    const realByDate = new Map<string, DutyReportRecord>();
-    dutyData.reports
-      .filter(r => r.staffId === staffId && r.isSubmitted && !r.manuallySubmitted)
-      .forEach(r => realByDate.set(r.date, r));
-    const sigByDate = getStaffSignatureByDate(staffId);
-
-    const seen = new Set<string>();
-    const result: DutyReportRecord[] = [];
-    sendRows
-      .filter(row => row.staffId === staffId)
-      .forEach(row => {
-        const key = row.date || row.day;
-        if (seen.has(key)) return;
-        seen.add(key);
-        const real = realByDate.get(key);
-        if (real) {
-          result.push(real);
-        } else {
-          result.push({
-            id: `virtual-${staffId}-${key}`,
-            date: row.date || '',
-            day: row.day,
-            staffId,
-            staffName,
-            signature: sigByDate.get(key),
-            lateStudents: [],
-            violatingStudents: [],
-            isSubmitted: false,
-            status: 'present' as any,
-          });
-        }
-      });
-    return result.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   };
 
   const buildAssignmentFormsHtml = (rows: DutySendDisplayRow[], autoPrint = true) => `
@@ -748,7 +691,7 @@ ${buildReportLink(target)}` : ''}`;
         <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
         <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType}</span></div>
         <div class="info-line"><span class="info-label">عدد المناوبات:</span><span class="info-value">${row.assignmentCount}</span></div>
-        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span></div>
+        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</span></div>
       </div>
       <table class="schedule">
         <thead><tr><th>اليوم</th><th>التاريخ</th><th>المهمة</th></tr></thead>
@@ -836,7 +779,7 @@ ${buildReportLink(target)}` : ''}`;
           <td>${escapeHtml(row.staffType)}</td>
           <td>${row.assignmentCount}</td>
           <td>${escapeHtml(row.dateLabel)}</td>
-          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</td>
+          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -846,104 +789,66 @@ ${buildReportLink(target)}` : ''}`;
 </html>`);
   };
 
-  // Builds one canonical "تقرير المناوبة اليومية" page populated from a real or virtual report.
-  const buildSingleReportHtml = (report: DutyReportRecord) => {
-    const padRows = (rows: string[], minRows: number, columns: number, startIndex = 0) => {
-      const out = [...rows];
-      while (out.length < minRows) {
-        const i = startIndex + out.length + 1;
-        out.push(`<tr><td>${i}</td>${'<td></td>'.repeat(columns - 1)}</tr>`);
-      }
-      return out.join('');
-    };
-    const staffRowHtml = `<tr>
-      <td>1</td>
-      <td>${escapeHtml(report.staffName)}</td>
-      <td>${report.signature ? `<img src="${report.signature}" alt="توقيع" style="max-height:36px;max-width:120px;object-fit:contain;" />` : ''}</td>
-      <td></td>
-    </tr>`;
-    const lateData = report.lateStudents.map((s, i) => `<tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(s.studentName)}</td>
-      <td>${escapeHtml(s.gradeAndClass)}</td>
-      <td>${escapeHtml(s.exitTime)}</td>
-      <td>${escapeHtml(s.actionTaken)}</td>
-      <td>${escapeHtml(s.notes || '')}</td>
-    </tr>`);
-    const violationData = report.violatingStudents.map((s, i) => `<tr>
-      <td>${i + 1}</td>
-      <td>${escapeHtml(s.studentName)}</td>
-      <td>${escapeHtml(s.gradeAndClass)}</td>
-      <td>${escapeHtml(s.violationType)}</td>
-      <td>${escapeHtml(s.actionTaken)}</td>
-      <td>${escapeHtml(s.notes || '')}</td>
-    </tr>`);
-    const dayLabel = escapeHtml(DAY_NAMES[report.day] || report.day || '');
-    const dateLabel = escapeHtml(formatHijriDate(report.date));
+  const buildSingleReportHtml = (report: DutyReportRecord, autoPrint = true) => {
+    const lateRows = report.lateStudents.length > 0
+      ? report.lateStudents.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(s.studentName)}</td>
+          <td>${escapeHtml(s.gradeAndClass)}</td>
+          <td>${escapeHtml(s.exitTime)}</td>
+          <td>${escapeHtml(s.actionTaken)}</td>
+          <td>${escapeHtml(s.notes || '')}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">لا يوجد طلاب متأخرون</td></tr>';
+    const violationRows = report.violatingStudents.length > 0
+      ? report.violatingStudents.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(s.studentName)}</td>
+          <td>${escapeHtml(s.gradeAndClass)}</td>
+          <td>${escapeHtml(s.violationType)}</td>
+          <td>${escapeHtml(s.actionTaken)}</td>
+          <td>${escapeHtml(s.notes || '')}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">لا توجد مخالفات سلوكية</td></tr>';
     return `
-  <main class="page">
-    ${buildOfficialHeader('')}
-    <div class="report-title">تقرير المناوبة اليومية</div>
-    <div class="meta">
-      <div class="field"><span>اليوم:</span><b>${dayLabel}</b></div>
-      <div class="field"><span>التاريخ:</span><b>${dateLabel}</b></div>
+<section class="report-page">
+  <div class="header">
+    <div>
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+      <div>مدرسة ${escapeHtml(schoolInfo.schoolName || '')}</div>
     </div>
-
-    <div class="section-title">أولاً: المناوبون</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:8%">م</th>
-          <th style="width:34%">المناوب</th>
-          <th style="width:24%">التوقيع</th>
-          <th style="width:34%">ملاحظات</th>
-        </tr>
-      </thead>
-      <tbody>${staffRowHtml}</tbody>
-    </table>
-
-    <div class="section-title">ثانيًا: الطلاب المتأخرون</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:7%">م</th>
-          <th style="width:24%">اسم الطالب</th>
-          <th style="width:16%">الصف / الفصل</th>
-          <th style="width:15%">زمن الانصراف</th>
-          <th style="width:18%">الإجراء</th>
-          <th style="width:20%">ملاحظات</th>
-        </tr>
-      </thead>
-      <tbody>${padRows(lateData, Math.max(7, lateData.length), 6)}</tbody>
-    </table>
-
-    <div class="section-title">ثالثًا: الطلاب المخالفون سلوكيًا</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:7%">م</th>
-          <th style="width:24%">اسم الطالب</th>
-          <th style="width:16%">الصف / الفصل</th>
-          <th style="width:20%">نوع المخالفة</th>
-          <th style="width:16%">الإجراء</th>
-          <th style="width:17%">ملاحظات</th>
-        </tr>
-      </thead>
-      <tbody>${padRows(violationData, Math.max(7, violationData.length), 6)}</tbody>
-    </table>
-
-    <div class="notice"><span class="notice-icon">!</span><span>يُسلَّم هذا النموذج في اليوم التالي لوكيل المدرسة</span></div>
-
-    <div class="signatures-row">
-      <div class="agent-field"><span>وكيل المدرسة:</span><b></b></div>
-      <div class="signature-area">
-        <div class="signature-box">
-          <div class="signature-name"><span>مدير المدرسة:</span> <b>${escapeHtml(principalName)}</b></div>
-          <div class="signature-line">التوقيع</div>
-        </div>
-      </div>
+    <div>${schoolInfo.logo ? `<img class="logo" src="${schoolInfo.logo}" />` : ''}</div>
+    <div style="text-align:left">
+      <div>العام الدراسي: ${escapeHtml((schoolInfo as any).academicYear || '')}</div>
+      <div>الفصل الدراسي: ${escapeHtml(semesterName)}</div>
+      <div>تاريخ التسليم: ${formatHijriDateTime(report.submittedAt)}</div>
     </div>
-  </main>`;
+  </div>
+  <h1 class="title">تقرير المناوبة اليومية</h1>
+  <div class="info-card">
+    <div class="info-line"><span class="info-label">المناوب:</span><span class="info-value">${escapeHtml(report.staffName)}</span></div>
+    <div class="info-line"><span class="info-label">اليوم:</span><span class="info-value">${escapeHtml(DAY_NAMES[report.day] || report.day)}</span></div>
+    <div class="info-line"><span class="info-label">التاريخ:</span><span class="info-value">${escapeHtml(formatHijriDate(report.date))}</span></div>
+    <div class="info-line"><span class="info-label">طريقة التسليم:</span><span class="info-value">${report.manuallySubmitted ? 'يدوي (ورقي)' : 'إلكتروني'}</span></div>
+  </div>
+  <div class="section-title">أولاً: الطلاب المتأخرون</div>
+  <table>
+    <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف / الفصل</th><th>زمن الانصراف</th><th>الإجراء</th><th>ملاحظات</th></tr></thead>
+    <tbody>${lateRows}</tbody>
+  </table>
+  <div class="section-title">ثانياً: الطلاب المخالفون سلوكياً</div>
+  <table>
+    <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف / الفصل</th><th>نوع المخالفة</th><th>الإجراء</th><th>ملاحظات</th></tr></thead>
+    <tbody>${violationRows}</tbody>
+  </table>
+  <div class="signature">
+    ${report.signature ? `<img src="${report.signature}" alt="توقيع" />` : 'بدون توقيع'}
+  </div>
+</section>`;
   };
 
   const wrapReportHtml = (innerSections: string, autoPrint = true) => `
@@ -956,37 +861,25 @@ ${buildReportLink(target)}` : ''}`;
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
     @page { size: A4 portrait; margin: 12mm; }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; background: #fff; }
-    .page { max-width: 184mm; margin: 0 auto; padding: 8px 0 0; page-break-after: always; }
-    .page:last-child { page-break-after: auto; }
-    .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: start; gap: 10px; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 7px; }
-    .header-side { font-size: 9.5px; font-weight: 800; line-height: 1.45; color: #1e293b; }
-    .header-left { text-align: left; }
-    .header-center { text-align: center; }
-    .school-logo { width: 44px; height: 44px; object-fit: contain; margin-bottom: 3px; }
-    .logo-placeholder { width: 44px; height: 44px; margin: 0 auto 3px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 9px; font-weight: 900; }
-    h1 { margin: 0; font-size: 18px; font-weight: 900; color: #111827; }
-    .report-title { text-align: center; font-size: 18px; font-weight: 900; margin: 6px 0 8px; color: #111827; }
-    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 auto 8px; max-width: 132mm; }
-    .field { border: 1px solid #cbd5e1; border-radius: 10px; padding: 6px 9px; min-height: 30px; font-size: 11px; font-weight: 900; }
-    .field span { color: #64748b; margin-left: 6px; }
-    .section-title { margin: 8px 0 4px; color: #655ac1; font-size: 12px; font-weight: 900; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9.5px; margin-bottom: 7px; }
-    th, td { border: 1px solid #cbd5e1; padding: 4px 5px; text-align: center; height: 23px; vertical-align: middle; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
+    .report-page { padding: 6mm 0; page-break-after: always; }
+    .report-page:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; font-weight: 700; font-size: 12px; line-height: 1.7; }
+    .logo { width: 56px; height: 56px; object-fit: contain; }
+    .title { text-align: center; font-size: 19px; font-weight: 900; color: #111827; margin: 0 0 14px; }
+    .info-card { border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+    .info-line { display: flex; gap: 6px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+    .info-line:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+    .info-label { color: #64748b; font-weight: 800; }
+    .info-value { color: #1e293b; font-weight: 900; }
+    .section-title { color: #655ac1; font-size: 13px; font-weight: 900; margin: 10px 0 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; }
     th { background: #a59bf0; color: #fff; font-weight: 900; }
-    .notice { display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; padding: 7px 0; color: #111827; background: #fff; font-size: 11px; font-weight: 900; }
-    .notice-icon { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #111827; color: #111827; background: transparent; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; }
-    .signatures-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-top: 8px; }
-    .agent-field { width: 250px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 6px 9px; min-height: 30px; font-size: 11px; font-weight: 900; }
-    .agent-field span { color: #64748b; margin-left: 6px; }
-    .signature-area { display: flex; justify-content: flex-end; }
-    .signature-box { width: 280px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 10px 12px; background: #fff; }
-    .signature-name { font-size: 12px; font-weight: 900; margin-bottom: 20px; }
-    .signature-name span { color: #64748b; }
-    .signature-line { border-top: 1px solid #94a3b8; padding-top: 6px; min-height: 30px; font-size: 11px; font-weight: 900; color: #475569; }
+    .signature { border: 2px dashed rgba(101,90,193,0.3); background: #f8fafc; border-radius: 14px; height: 110px; padding: 10px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 11px; font-weight: 900; margin-top: 10px; }
+    .signature img { max-width: 240px; max-height: 86px; object-fit: contain; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .page { padding: 0; }
       th { background: #a59bf0 !important; color: #fff !important; }
     }
   </style>
@@ -1007,7 +900,7 @@ ${buildReportLink(target)}` : ''}`;
   };
 
   const handlePrintAllReports = () => {
-    const all = dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted);
+    const all = dutyData.reports.filter(r => r.isSubmitted);
     if (all.length === 0) { showToast?.('لا توجد تقارير مسلّمة للطباعة', 'warning'); return; }
     openPrintableHtml(wrapReportHtml(all.map(r => buildSingleReportHtml(r)).join('')));
   };
@@ -1317,7 +1210,7 @@ ${buildReportLink(target)}` : ''}`;
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالمناوبة</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {signedCount} وقّع من أصل {assignmentGroupedRows.length} مناوب
+                {signedCount} استلم من أصل {assignmentGroupedRows.length} مناوب
               </p>
             </div>
             <button type="button" onClick={() => setReceiptOpen(false)} className={actionButtonClass(false)}>
@@ -1330,8 +1223,8 @@ ${buildReportLink(target)}` : ''}`;
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المناوبين', value: String(assignmentGroupedRows.length), icon: Users },
-            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يوقّعوا بعد', value: String(pendingCount), icon: AlertCircle },
+            { label: 'استلموا التكليف', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يستلموا بعد', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1357,7 +1250,7 @@ ${buildReportLink(target)}` : ''}`;
                     ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
                     : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
                 }`}>
-                {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقّع'}
+                {f === 'all' ? 'الكل' : f === 'signed' ? 'استلم' : 'لم يستلم'}
               </button>
             ))}
             <div className="flex-1" />
@@ -1436,15 +1329,20 @@ ${buildReportLink(target)}` : ''}`;
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}>
-                          {row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
+                          {row.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
-                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="معاينة وطباعة النموذج"
+                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="معاينة النموذج"
                             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
                             <Eye size={13} />
-                            معاينة وطباعة
+                            معاينة
+                          </button>
+                          <button type="button" onClick={() => handlePrintAssignmentForms([row])} title="طباعة النموذج"
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
+                            <Printer size={13} />
+                            طباعة
                           </button>
                         </div>
                       </td>
@@ -1493,7 +1391,7 @@ ${buildReportLink(target)}` : ''}`;
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-slate-500 font-bold shrink-0">الحالة:</span>
-                      <span className="font-black text-slate-800">{previewAssignmentRow.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span>
+                      <span className="font-black text-slate-800">{previewAssignmentRow.status === 'signed' ? 'استلم التكليف' : 'لم يستلم'}</span>
                     </div>
                   </div>
                 </div>
@@ -1598,8 +1496,8 @@ ${buildReportLink(target)}` : ''}`;
               تحديث
             </button>
             <button type="button" onClick={handlePrintAllReports}
-              disabled={dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted).length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all disabled:opacity-50">
+              disabled={dutyData.reports.filter(r => r.isSubmitted).length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] hover:border-[#5448ad] transition-all disabled:opacity-50">
               <Printer size={13} />
               طباعة كل التقارير المسلّمة
             </button>
@@ -1645,12 +1543,14 @@ ${buildReportLink(target)}` : ''}`;
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">عدد المناوبات</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">التقارير المسلّمة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[18%]">الحالة</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[20%]">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[14%]">الحالة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">طريقة التسليم</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[16%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReportRows.map((row, idx) => {
+                    const submittedReports = getStaffReports(row.staffId).filter(r => r.isSubmitted);
                     return (
                       <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
@@ -1667,13 +1567,22 @@ ${buildReportLink(target)}` : ''}`;
                             {row.status === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}
                           </span>
                         </td>
+                        <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.deliveryType}</td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-center min-w-[120px]">
+                          <div className="flex items-center justify-center gap-2 min-w-[160px]">
                             <button type="button" onClick={() => setPreviewReportStaff({ staffId: row.staffId, staffName: row.staffName, staffType: row.staffType })}
-                              title="عرض التقارير وطباعتها"
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap">
+                              disabled={submittedReports.length === 0}
+                              title={submittedReports.length === 0 ? 'لا توجد تقارير مسلّمة' : 'عرض التقارير'}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                               <Eye size={13} />
-                              عرض وطباعة
+                              عرض
+                            </button>
+                            <button type="button" onClick={() => handlePrintReportsForStaff(submittedReports)}
+                              disabled={submittedReports.length === 0}
+                              title={submittedReports.length === 0 ? 'لا توجد تقارير للطباعة' : 'طباعة كل تقارير المناوب'}
+                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                              <Printer size={13} />
+                              طباعة
                             </button>
                           </div>
                         </td>
@@ -1682,7 +1591,7 @@ ${buildReportLink(target)}` : ''}`;
                   })}
                   {filteredReportRows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                      <td colSpan={8} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
                         لا توجد نتائج تطابق الفلتر.
                       </td>
                     </tr>
@@ -1712,22 +1621,21 @@ ${buildReportLink(target)}` : ''}`;
               </div>
               <div className="overflow-y-auto p-5 space-y-3">
                 {(() => {
-                  const reports = getDisplayReports(previewReportStaff.staffId, previewReportStaff.staffName);
+                  const reports = getStaffReports(previewReportStaff.staffId).filter(r => r.isSubmitted);
                   if (reports.length === 0) {
                     return (
                       <div className="py-10 text-center">
                         <FileText className="mx-auto mb-3 text-slate-300" size={36} />
-                        <p className="text-sm font-bold text-slate-400">لا توجد مناوبات مسجلة لهذا المناوب.</p>
+                        <p className="text-sm font-bold text-slate-400">لا توجد تقارير مسلّمة لهذا المناوب.</p>
                       </div>
                     );
                   }
-                  const submittedCount = reports.filter(r => r.isSubmitted).length;
                   return (
                     <>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <p className="text-xs font-black text-slate-500">{submittedCount} تقرير مسلّم من أصل {reports.length}</p>
+                        <p className="text-xs font-black text-slate-500">{reports.length} تقرير مسلّم</p>
                         <button type="button" onClick={() => handlePrintReportsForStaff(reports)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#655ac1] text-white text-xs font-black hover:bg-[#5448ad] transition-all">
                           <Printer size={13} />
                           طباعة كل التقارير
                         </button>
@@ -1738,9 +1646,11 @@ ${buildReportLink(target)}` : ''}`;
                             <div className="min-w-0">
                               <p className="font-black text-slate-800 text-sm">{DAY_NAMES[report.day] || report.day} - {formatHijriDate(report.date)}</p>
                               <p className="text-[11px] text-slate-500 font-bold mt-1">
-                                {report.isSubmitted
-                                  ? <>تسليم: {formatHijriDateTime(report.submittedAt)} {' • '} متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}</>
-                                  : <span className="text-amber-700">لم يسلّم التقرير بعد — نموذج فارغ</span>}
+                                تسليم: {formatHijriDateTime(report.submittedAt)}
+                                {' • '}
+                                {report.manuallySubmitted ? 'يدوي' : 'إلكتروني'}
+                                {' • '}
+                                متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}
                               </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -1770,7 +1680,7 @@ ${buildReportLink(target)}` : ''}`;
         {/* Single report preview modal */}
         {previewReportRecord && createPortal(
           <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm" dir="rtl">
-            <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+            <div className="w-full max-w-3xl max-h-[92vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
               <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText size={22} className="text-[#655ac1] shrink-0" />
@@ -1781,8 +1691,84 @@ ${buildReportLink(target)}` : ''}`;
                   <X size={16} />
                 </button>
               </div>
-              <div className="overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
-                <DutyReportPreview report={previewReportRecord} schoolInfo={schoolInfo} />
+              <div className="overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="font-black text-slate-400 mb-1">اليوم والتاريخ</p>
+                    <p className="font-bold text-slate-700 truncate">{DAY_NAMES[previewReportRecord.day] || previewReportRecord.day} - {formatHijriDate(previewReportRecord.date)}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="font-black text-slate-400 mb-1">تاريخ التسليم</p>
+                    <p className="font-bold text-slate-700 truncate">{formatHijriDateTime(previewReportRecord.submittedAt)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#655ac1] mb-2">أولاً: الطلاب المتأخرون ({previewReportRecord.lateStudents.length})</p>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-[12px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">م</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الاسم</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الصف/الفصل</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">زمن الانصراف</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الإجراء</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewReportRecord.lateStudents.length === 0 ? (
+                          <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-400 font-bold">لا يوجد</td></tr>
+                        ) : previewReportRecord.lateStudents.map((s, i) => (
+                          <tr key={s.id} className="border-t border-slate-100">
+                            <td className="px-2 py-2 font-bold text-slate-500">{i + 1}</td>
+                            <td className="px-2 py-2 font-black text-slate-700">{s.studentName}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.gradeAndClass}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.exitTime}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.actionTaken}</td>
+                            <td className="px-2 py-2 text-slate-500">{s.notes || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-[#655ac1] mb-2">ثانياً: الطلاب المخالفون سلوكياً ({previewReportRecord.violatingStudents.length})</p>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-[12px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">م</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الاسم</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الصف/الفصل</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">المخالفة</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الإجراء</th>
+                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">ملاحظات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewReportRecord.violatingStudents.length === 0 ? (
+                          <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-400 font-bold">لا يوجد</td></tr>
+                        ) : previewReportRecord.violatingStudents.map((s, i) => (
+                          <tr key={s.id} className="border-t border-slate-100">
+                            <td className="px-2 py-2 font-bold text-slate-500">{i + 1}</td>
+                            <td className="px-2 py-2 font-black text-slate-700">{s.studentName}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.gradeAndClass}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.violationType}</td>
+                            <td className="px-2 py-2 text-slate-600">{s.actionTaken}</td>
+                            <td className="px-2 py-2 text-slate-500">{s.notes || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-28 flex items-center justify-center text-xs font-bold text-slate-400">
+                  {previewReportRecord.signature
+                    ? <img src={previewReportRecord.signature} alt="توقيع" className="max-h-20 max-w-[240px] object-contain" />
+                    : 'بدون توقيع'}
+                </div>
                 <button type="button" onClick={() => handlePrintSingleReport(previewReportRecord)}
                   className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
                   <Printer size={16} /> طباعة التقرير
@@ -2086,25 +2072,6 @@ ${buildReportLink(target)}` : ''}`;
                     معاينة المستلمين ({selectedRows.length})
                   </button>
                 </div>
-                {sendMode === 'reminder' && (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-black text-slate-700">إضافة رابط التقرير اليومي للمناوبة</p>
-                        <p className="text-[11px] font-bold text-slate-400 mt-1">عند إيقافه ترسل رسالة التذكير بدون رابط التقرير.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIncludeReportLinkInReminder(current => !current)}
-                        className={`relative inline-flex w-10 h-6 rounded-full transition-all shrink-0 ${includeReportLinkInReminder ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
-                        role="switch"
-                        aria-checked={includeReportLinkInReminder}
-                      >
-                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${includeReportLinkInReminder ? 'right-1' : 'left-1'}`} />
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -2141,6 +2108,25 @@ ${buildReportLink(target)}` : ''}`;
                       <span>{smsStats.characterCount} حرفًا</span>
                       <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
                       <span>{smsStats.messageCount} رسالة نصية</span>
+                    </div>
+                  </div>
+                )}
+                {sendMode === 'reminder' && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-700">إضافة رابط التقرير اليومي للمناوبة</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">عند إيقافه ترسل رسالة التذكير بدون رابط التقرير.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIncludeReportLinkInReminder(current => !current)}
+                        className={`relative inline-flex w-10 h-6 rounded-full transition-all shrink-0 ${includeReportLinkInReminder ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
+                        role="switch"
+                        aria-checked={includeReportLinkInReminder}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${includeReportLinkInReminder ? 'right-1' : 'left-1'}`} />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -2228,7 +2214,7 @@ ${buildReportLink(target)}` : ''}`;
 
       {previewRow && previewRowKey !== null && createPortal(
         <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className={`w-full ${sendMode === 'reminder' ? 'max-w-4xl' : 'max-w-2xl'} max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col`}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
             <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <Eye size={22} className="text-[#655ac1] shrink-0" />
@@ -2258,21 +2244,23 @@ ${buildReportLink(target)}` : ''}`;
               </div>
 
               {sendMode === 'reminder' ? (
-                <div className="space-y-3">
-                  <DutyReportPreview
-                    report={{
-                      id: `preview-${previewRow.staffId}`,
-                      date: previewRow.date,
-                      day: previewRow.day,
-                      staffId: previewRow.staffId,
-                      staffName: previewRow.staffName,
-                      lateStudents: [],
-                      violatingStudents: [],
-                      status: 'present' as any,
-                      isSubmitted: false,
-                    }}
-                    schoolInfo={schoolInfo}
-                  />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
+                  <div className="text-center">
+                    <p className="text-base font-black text-slate-800">نموذج تقرير المناوبة اليومية</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1">{DAY_NAMES[previewRow.day] || previewRow.day} - {formatHijriDate(previewRow.date)}</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 p-3 text-sm"><span className="text-slate-500 font-bold">المناوب: </span><b>{previewRow.staffName}</b></div>
+                    <div className="rounded-xl border border-slate-200 p-3 text-sm"><span className="text-slate-500 font-bold">الرابط: </span><span className="text-[#655ac1] font-bold break-all" dir="ltr">{buildReportLink(previewRow)}</span></div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        <tr className="border-b border-slate-100"><td className="px-3 py-2 font-black text-[#655ac1]">الطلاب المتأخرون</td><td className="px-3 py-2 text-slate-500">حقول تعبئة للمناوب</td></tr>
+                        <tr><td className="px-3 py-2 font-black text-[#655ac1]">الطلاب المخالفون</td><td className="px-3 py-2 text-slate-500">حقول تعبئة للمناوب</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : (
                 <>
