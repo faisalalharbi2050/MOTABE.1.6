@@ -13,6 +13,7 @@ import {
 import { DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
+import DutyReportPreview from '../../duty/DutyReportPreview';
 
 interface Props {
   dutyData: DutyScheduleData;
@@ -1774,7 +1775,7 @@ ${buildReportLink(target)}` : ''}`;
         {/* Single report preview modal */}
         {previewReportRecord && createPortal(
           <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm" dir="rtl">
-            <div className="w-full max-w-3xl max-h-[92vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+            <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
               <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText size={22} className="text-[#655ac1] shrink-0" />
@@ -1785,84 +1786,8 @@ ${buildReportLink(target)}` : ''}`;
                   <X size={16} />
                 </button>
               </div>
-              <div className="overflow-y-auto p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-3 text-[12px]">
-                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="font-black text-slate-400 mb-1">اليوم والتاريخ</p>
-                    <p className="font-bold text-slate-700 truncate">{DAY_NAMES[previewReportRecord.day] || previewReportRecord.day} - {formatHijriDate(previewReportRecord.date)}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="font-black text-slate-400 mb-1">تاريخ التسليم</p>
-                    <p className="font-bold text-slate-700 truncate">{formatHijriDateTime(previewReportRecord.submittedAt)}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-black text-[#655ac1] mb-2">أولاً: الطلاب المتأخرون ({previewReportRecord.lateStudents.length})</p>
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <table className="w-full text-[12px]">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100">
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">م</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الاسم</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الصف/الفصل</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">زمن الانصراف</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الإجراء</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">ملاحظات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewReportRecord.lateStudents.length === 0 ? (
-                          <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-400 font-bold">لا يوجد</td></tr>
-                        ) : previewReportRecord.lateStudents.map((s, i) => (
-                          <tr key={s.id} className="border-t border-slate-100">
-                            <td className="px-2 py-2 font-bold text-slate-500">{i + 1}</td>
-                            <td className="px-2 py-2 font-black text-slate-700">{s.studentName}</td>
-                            <td className="px-2 py-2 text-slate-600">{s.gradeAndClass}</td>
-                            <td className="px-2 py-2 text-slate-600">{s.exitTime}</td>
-                            <td className="px-2 py-2 text-slate-600">{s.actionTaken}</td>
-                            <td className="px-2 py-2 text-slate-500">{s.notes || ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-black text-[#655ac1] mb-2">ثانياً: الطلاب المخالفون سلوكياً ({previewReportRecord.violatingStudents.length})</p>
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <table className="w-full text-[12px]">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100">
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">م</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الاسم</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الصف/الفصل</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">المخالفة</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">الإجراء</th>
-                          <th className="px-2 py-2 text-right text-[#655ac1] font-black">ملاحظات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {previewReportRecord.violatingStudents.length === 0 ? (
-                          <tr><td colSpan={6} className="px-2 py-4 text-center text-slate-400 font-bold">لا يوجد</td></tr>
-                        ) : previewReportRecord.violatingStudents.map((s, i) => (
-                          <tr key={s.id} className="border-t border-slate-100">
-                            <td className="px-2 py-2 font-bold text-slate-500">{i + 1}</td>
-                            <td className="px-2 py-2 font-black text-slate-700">{s.studentName}</td>
-                            <td className="px-2 py-2 text-slate-600">{s.gradeAndClass}</td>
-                            <td className="px-2 py-2 text-slate-600">{s.violationType}</td>
-                            <td className="px-2 py-2 text-slate-600">{s.actionTaken}</td>
-                            <td className="px-2 py-2 text-slate-500">{s.notes || ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-28 flex items-center justify-center text-xs font-bold text-slate-400">
-                  {previewReportRecord.signature
-                    ? <img src={previewReportRecord.signature} alt="توقيع" className="max-h-20 max-w-[240px] object-contain" />
-                    : 'بدون توقيع'}
-                </div>
+              <div className="overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
+                <DutyReportPreview report={previewReportRecord} schoolInfo={schoolInfo} />
                 <button type="button" onClick={() => handlePrintSingleReport(previewReportRecord)}
                   className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
                   <Printer size={16} /> طباعة التقرير
@@ -2166,6 +2091,25 @@ ${buildReportLink(target)}` : ''}`;
                     معاينة المستلمين ({selectedRows.length})
                   </button>
                 </div>
+                {sendMode === 'reminder' && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-black text-slate-700">إضافة رابط التقرير اليومي للمناوبة</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">عند إيقافه ترسل رسالة التذكير بدون رابط التقرير.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIncludeReportLinkInReminder(current => !current)}
+                        className={`relative inline-flex w-10 h-6 rounded-full transition-all shrink-0 ${includeReportLinkInReminder ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
+                        role="switch"
+                        aria-checked={includeReportLinkInReminder}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${includeReportLinkInReminder ? 'right-1' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -2202,25 +2146,6 @@ ${buildReportLink(target)}` : ''}`;
                       <span>{smsStats.characterCount} حرفًا</span>
                       <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
                       <span>{smsStats.messageCount} رسالة نصية</span>
-                    </div>
-                  </div>
-                )}
-                {sendMode === 'reminder' && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-black text-slate-700">إضافة رابط التقرير اليومي للمناوبة</p>
-                        <p className="text-[11px] font-bold text-slate-400 mt-1">عند إيقافه ترسل رسالة التذكير بدون رابط التقرير.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIncludeReportLinkInReminder(current => !current)}
-                        className={`relative inline-flex w-10 h-6 rounded-full transition-all shrink-0 ${includeReportLinkInReminder ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
-                        role="switch"
-                        aria-checked={includeReportLinkInReminder}
-                      >
-                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${includeReportLinkInReminder ? 'right-1' : 'left-1'}`} />
-                      </button>
                     </div>
                   </div>
                 )}
@@ -2308,7 +2233,7 @@ ${buildReportLink(target)}` : ''}`;
 
       {previewRow && previewRowKey !== null && createPortal(
         <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
+          <div className={`w-full ${sendMode === 'reminder' ? 'max-w-4xl' : 'max-w-2xl'} max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col`}>
             <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <Eye size={22} className="text-[#655ac1] shrink-0" />
@@ -2338,23 +2263,21 @@ ${buildReportLink(target)}` : ''}`;
               </div>
 
               {sendMode === 'reminder' ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-                  <div className="text-center">
-                    <p className="text-base font-black text-slate-800">نموذج تقرير المناوبة اليومية</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">{DAY_NAMES[previewRow.day] || previewRow.day} - {formatHijriDate(previewRow.date)}</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-slate-200 p-3 text-sm"><span className="text-slate-500 font-bold">المناوب: </span><b>{previewRow.staffName}</b></div>
-                    <div className="rounded-xl border border-slate-200 p-3 text-sm"><span className="text-slate-500 font-bold">الرابط: </span><span className="text-[#655ac1] font-bold break-all" dir="ltr">{buildReportLink(previewRow)}</span></div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <tbody>
-                        <tr className="border-b border-slate-100"><td className="px-3 py-2 font-black text-[#655ac1]">الطلاب المتأخرون</td><td className="px-3 py-2 text-slate-500">حقول تعبئة للمناوب</td></tr>
-                        <tr><td className="px-3 py-2 font-black text-[#655ac1]">الطلاب المخالفون</td><td className="px-3 py-2 text-slate-500">حقول تعبئة للمناوب</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="space-y-3">
+                  <DutyReportPreview
+                    report={{
+                      id: `preview-${previewRow.staffId}`,
+                      date: previewRow.date,
+                      day: previewRow.day,
+                      staffId: previewRow.staffId,
+                      staffName: previewRow.staffName,
+                      lateStudents: [],
+                      violatingStudents: [],
+                      status: 'present' as any,
+                      isSubmitted: false,
+                    }}
+                    schoolInfo={schoolInfo}
+                  />
                 </div>
               ) : (
                 <>
