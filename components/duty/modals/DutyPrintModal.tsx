@@ -139,7 +139,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
               <td class="day-header">${day.dayName}</td>
               <td style="color:#475569;">${day.date || '—'}</td>
               <td class="empty-state">${day.statusText}</td>
-              ${showSignatures ? '<td class="signature-cell">—</td>' : ''}
+              <td class="signature-cell">—</td>
             </tr>`;
           }
           if (sups.length === 0) {
@@ -280,7 +280,7 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
               <td class="day-header">${day.dayName}</td>
               <td style="color:#475569;">${day.date || '—'}</td>
               <td class="empty-state">${day.statusText}</td>
-              ${showSignatures ? '<td class="signature-cell">—</td>' : ''}
+              <td class="signature-cell">—</td>
             </tr>`;
           }
           if (sups.length === 0) {

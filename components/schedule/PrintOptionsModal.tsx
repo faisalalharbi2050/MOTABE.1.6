@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import {
     X, Printer, Users, User, LayoutGrid, BookOpen, CalendarClock,
-    FileText, AlignJustify, SlidersHorizontal, Settings2, Maximize2
+    FileText, AlignJustify, SlidersHorizontal, Settings2, Maximize2, Check
 } from 'lucide-react';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo, Specialization } from '../../types';
 import PrintableSchedule from './PrintableSchedule';

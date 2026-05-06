@@ -845,65 +845,104 @@ ${buildReportLink(target)}` : ''}`;
 </html>`);
   };
 
-  const buildSingleReportHtml = (report: DutyReportRecord, autoPrint = true) => {
-    const lateRows = report.lateStudents.length > 0
-      ? report.lateStudents.map((s, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${escapeHtml(s.studentName)}</td>
-          <td>${escapeHtml(s.gradeAndClass)}</td>
-          <td>${escapeHtml(s.exitTime)}</td>
-          <td>${escapeHtml(s.actionTaken)}</td>
-          <td>${escapeHtml(s.notes || '')}</td>
-        </tr>`).join('')
-      : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">لا يوجد طلاب متأخرون</td></tr>';
-    const violationRows = report.violatingStudents.length > 0
-      ? report.violatingStudents.map((s, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${escapeHtml(s.studentName)}</td>
-          <td>${escapeHtml(s.gradeAndClass)}</td>
-          <td>${escapeHtml(s.violationType)}</td>
-          <td>${escapeHtml(s.actionTaken)}</td>
-          <td>${escapeHtml(s.notes || '')}</td>
-        </tr>`).join('')
-      : '<tr><td colspan="6" style="text-align:center;color:#94a3b8;">لا توجد مخالفات سلوكية</td></tr>';
+  // Builds one canonical "تقرير المناوبة اليومية" page populated from a real or virtual report.
+  const buildSingleReportHtml = (report: DutyReportRecord) => {
+    const padRows = (rows: string[], minRows: number, columns: number, startIndex = 0) => {
+      const out = [...rows];
+      while (out.length < minRows) {
+        const i = startIndex + out.length + 1;
+        out.push(`<tr><td>${i}</td>${'<td></td>'.repeat(columns - 1)}</tr>`);
+      }
+      return out.join('');
+    };
+    const staffRowHtml = `<tr>
+      <td>1</td>
+      <td>${escapeHtml(report.staffName)}</td>
+      <td>${report.signature ? `<img src="${report.signature}" alt="توقيع" style="max-height:36px;max-width:120px;object-fit:contain;" />` : ''}</td>
+      <td></td>
+    </tr>`;
+    const lateData = report.lateStudents.map((s, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(s.studentName)}</td>
+      <td>${escapeHtml(s.gradeAndClass)}</td>
+      <td>${escapeHtml(s.exitTime)}</td>
+      <td>${escapeHtml(s.actionTaken)}</td>
+      <td>${escapeHtml(s.notes || '')}</td>
+    </tr>`);
+    const violationData = report.violatingStudents.map((s, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(s.studentName)}</td>
+      <td>${escapeHtml(s.gradeAndClass)}</td>
+      <td>${escapeHtml(s.violationType)}</td>
+      <td>${escapeHtml(s.actionTaken)}</td>
+      <td>${escapeHtml(s.notes || '')}</td>
+    </tr>`);
+    const dayLabel = escapeHtml(DAY_NAMES[report.day] || report.day || '');
+    const dateLabel = escapeHtml(formatHijriDate(report.date));
     return `
-<section class="report-page">
-  <div class="header">
-    <div>
-      <div>المملكة العربية السعودية</div>
-      <div>وزارة التعليم</div>
-      <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
-      <div>مدرسة ${escapeHtml(schoolInfo.schoolName || '')}</div>
+  <main class="page">
+    ${buildOfficialHeader('')}
+    <div class="report-title">تقرير المناوبة اليومية</div>
+    <div class="meta">
+      <div class="field"><span>اليوم:</span><b>${dayLabel}</b></div>
+      <div class="field"><span>التاريخ:</span><b>${dateLabel}</b></div>
     </div>
-    <div>${schoolInfo.logo ? `<img class="logo" src="${schoolInfo.logo}" />` : ''}</div>
-    <div style="text-align:left">
-      <div>العام الدراسي: ${escapeHtml((schoolInfo as any).academicYear || '')}</div>
-      <div>الفصل الدراسي: ${escapeHtml(semesterName)}</div>
-      <div>تاريخ التسليم: ${formatHijriDateTime(report.submittedAt)}</div>
+
+    <div class="section-title">أولاً: المناوبون</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:8%">م</th>
+          <th style="width:34%">المناوب</th>
+          <th style="width:24%">التوقيع</th>
+          <th style="width:34%">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>${staffRowHtml}</tbody>
+    </table>
+
+    <div class="section-title">ثانيًا: الطلاب المتأخرون</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:7%">م</th>
+          <th style="width:24%">اسم الطالب</th>
+          <th style="width:16%">الصف / الفصل</th>
+          <th style="width:15%">زمن الانصراف</th>
+          <th style="width:18%">الإجراء</th>
+          <th style="width:20%">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>${padRows(lateData, Math.max(7, lateData.length), 6)}</tbody>
+    </table>
+
+    <div class="section-title">ثالثًا: الطلاب المخالفون سلوكيًا</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:7%">م</th>
+          <th style="width:24%">اسم الطالب</th>
+          <th style="width:16%">الصف / الفصل</th>
+          <th style="width:20%">نوع المخالفة</th>
+          <th style="width:16%">الإجراء</th>
+          <th style="width:17%">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>${padRows(violationData, Math.max(7, violationData.length), 6)}</tbody>
+    </table>
+
+    <div class="notice"><span class="notice-icon">!</span><span>يُسلَّم هذا النموذج في اليوم التالي لوكيل المدرسة</span></div>
+
+    <div class="signatures-row">
+      <div class="agent-field"><span>وكيل المدرسة:</span><b></b></div>
+      <div class="signature-area">
+        <div class="signature-box">
+          <div class="signature-name"><span>مدير المدرسة:</span> <b>${escapeHtml(principalName)}</b></div>
+          <div class="signature-line">التوقيع</div>
+        </div>
+      </div>
     </div>
-  </div>
-  <h1 class="title">تقرير المناوبة اليومية</h1>
-  <div class="info-card">
-    <div class="info-line"><span class="info-label">المناوب:</span><span class="info-value">${escapeHtml(report.staffName)}</span></div>
-    <div class="info-line"><span class="info-label">اليوم:</span><span class="info-value">${escapeHtml(DAY_NAMES[report.day] || report.day)}</span></div>
-    <div class="info-line"><span class="info-label">التاريخ:</span><span class="info-value">${escapeHtml(formatHijriDate(report.date))}</span></div>
-  </div>
-  <div class="section-title">أولاً: الطلاب المتأخرون</div>
-  <table>
-    <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف / الفصل</th><th>زمن الانصراف</th><th>الإجراء</th><th>ملاحظات</th></tr></thead>
-    <tbody>${lateRows}</tbody>
-  </table>
-  <div class="section-title">ثانياً: الطلاب المخالفون سلوكياً</div>
-  <table>
-    <thead><tr><th>م</th><th>اسم الطالب</th><th>الصف / الفصل</th><th>نوع المخالفة</th><th>الإجراء</th><th>ملاحظات</th></tr></thead>
-    <tbody>${violationRows}</tbody>
-  </table>
-  <div class="signature">
-    ${report.signature ? `<img src="${report.signature}" alt="توقيع" />` : 'بدون توقيع'}
-  </div>
-</section>`;
+  </main>`;
   };
 
   const wrapReportHtml = (innerSections: string, autoPrint = true) => `
@@ -916,25 +955,37 @@ ${buildReportLink(target)}` : ''}`;
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
     @page { size: A4 portrait; margin: 12mm; }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
-    .report-page { padding: 6mm 0; page-break-after: always; }
-    .report-page:last-child { page-break-after: auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; font-weight: 700; font-size: 12px; line-height: 1.7; }
-    .logo { width: 56px; height: 56px; object-fit: contain; }
-    .title { text-align: center; font-size: 19px; font-weight: 900; color: #111827; margin: 0 0 14px; }
-    .info-card { border: 1px solid #f1f5f9; background: #f8fafc; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
-    .info-line { display: flex; gap: 6px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
-    .info-line:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
-    .info-label { color: #64748b; font-weight: 800; }
-    .info-value { color: #1e293b; font-weight: 900; }
-    .section-title { color: #655ac1; font-size: 13px; font-weight: 900; margin: 10px 0 6px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
-    th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: center; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; background: #fff; }
+    .page { max-width: 184mm; margin: 0 auto; padding: 8px 0 0; page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: start; gap: 10px; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 7px; }
+    .header-side { font-size: 9.5px; font-weight: 800; line-height: 1.45; color: #1e293b; }
+    .header-left { text-align: left; }
+    .header-center { text-align: center; }
+    .school-logo { width: 44px; height: 44px; object-fit: contain; margin-bottom: 3px; }
+    .logo-placeholder { width: 44px; height: 44px; margin: 0 auto 3px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 9px; font-weight: 900; }
+    h1 { margin: 0; font-size: 18px; font-weight: 900; color: #111827; }
+    .report-title { text-align: center; font-size: 18px; font-weight: 900; margin: 6px 0 8px; color: #111827; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 auto 8px; max-width: 132mm; }
+    .field { border: 1px solid #cbd5e1; border-radius: 10px; padding: 6px 9px; min-height: 30px; font-size: 11px; font-weight: 900; }
+    .field span { color: #64748b; margin-left: 6px; }
+    .section-title { margin: 8px 0 4px; color: #655ac1; font-size: 12px; font-weight: 900; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9.5px; margin-bottom: 7px; }
+    th, td { border: 1px solid #cbd5e1; padding: 4px 5px; text-align: center; height: 23px; vertical-align: middle; }
     th { background: #a59bf0; color: #fff; font-weight: 900; }
-    .signature { border: 2px dashed rgba(101,90,193,0.3); background: #f8fafc; border-radius: 14px; height: 110px; padding: 10px; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 11px; font-weight: 900; margin-top: 10px; }
-    .signature img { max-width: 240px; max-height: 86px; object-fit: contain; }
+    .notice { display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; padding: 7px 0; color: #111827; background: #fff; font-size: 11px; font-weight: 900; }
+    .notice-icon { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #111827; color: #111827; background: transparent; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; }
+    .signatures-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-top: 8px; }
+    .agent-field { width: 250px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 6px 9px; min-height: 30px; font-size: 11px; font-weight: 900; }
+    .agent-field span { color: #64748b; margin-left: 6px; }
+    .signature-area { display: flex; justify-content: flex-end; }
+    .signature-box { width: 280px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 10px 12px; background: #fff; }
+    .signature-name { font-size: 12px; font-weight: 900; margin-bottom: 20px; }
+    .signature-name span { color: #64748b; }
+    .signature-line { border-top: 1px solid #94a3b8; padding-top: 6px; min-height: 30px; font-size: 11px; font-weight: 900; color: #475569; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page { padding: 0; }
       th { background: #a59bf0 !important; color: #fff !important; }
     }
   </style>
@@ -1604,7 +1655,6 @@ ${buildReportLink(target)}` : ''}`;
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReportRows.map((row, idx) => {
-                    const displayReports = getDisplayReports(row.staffId, row.staffName);
                     return (
                       <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
@@ -1622,18 +1672,12 @@ ${buildReportLink(target)}` : ''}`;
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2 min-w-[160px]">
+                          <div className="flex items-center justify-center min-w-[120px]">
                             <button type="button" onClick={() => setPreviewReportStaff({ staffId: row.staffId, staffName: row.staffName, staffType: row.staffType })}
-                              title="عرض التقارير"
-                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
+                              title="عرض التقارير وطباعتها"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap">
                               <Eye size={13} />
-                              عرض
-                            </button>
-                            <button type="button" onClick={() => handlePrintReportsForStaff(displayReports)}
-                              title="طباعة كل تقارير المناوب"
-                              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
-                              <Printer size={13} />
-                              طباعة
+                              عرض وطباعة
                             </button>
                           </div>
                         </td>
