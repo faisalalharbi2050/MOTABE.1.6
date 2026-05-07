@@ -793,12 +793,25 @@ export interface DutySettings {
   selectedWeeks?: number[]; // أرقام الأسابيع المحددة من التقويم الدراسي (1-based). فارغ = كل الأسابيع
 }
 
+export interface DutyAttendanceRecord {
+  id: string;
+  date: string; // ISO YYYY-MM-DD
+  day: string;
+  staffId: string;
+  staffType: 'teacher' | 'admin';
+  staffName: string;
+  status: SupervisionAttendanceStatus;
+  notes?: string;
+  recordedAt: string;
+}
+
 export interface DutyScheduleData {
   exclusions: DutyStaffExclusion[];
   dayAssignments: DutyDayAssignment[];
   weekAssignments?: DutyWeekAssignment[]; // Multi-week view grouping
   dutyAssignmentCounts?: Record<string, number>; // Justice counter: staffId -> assignment count
   reports: DutyReportRecord[];
+  attendanceRecords?: DutyAttendanceRecord[];
   settings: DutySettings;
   isApproved: boolean;
   approvedAt?: string;

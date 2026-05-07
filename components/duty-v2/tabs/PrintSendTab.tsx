@@ -17,6 +17,8 @@ import DutyReportPreview from '../../duty/DutyReportPreview';
 
 interface Props {
   dutyData: DutyScheduleData;
+  setDutyData?: React.Dispatch<React.SetStateAction<DutyScheduleData>>;
+  storageKey?: string;
   schoolInfo: SchoolInfo;
   onOpenLegacyPrint: () => void;
   onOpenLegacySend: () => void;
@@ -334,11 +336,24 @@ const getValidPickerDate = (date?: string, calendarType: CalendarType = 'hijri')
 
 const PrintSendTab: React.FC<Props> = ({
   dutyData,
+  setDutyData,
+  storageKey,
   schoolInfo,
   onOpenLegacySend,
   onOpenArchive,
   showToast,
 }) => {
+  const refreshDutyDataFromStorage = () => {
+    if (!setDutyData) return;
+    try {
+      const key = storageKey || 'duty_data_v1';
+      const raw = localStorage.getItem(key);
+      if (raw) setDutyData(JSON.parse(raw));
+      showToast?.('تم تحديث سجل الاستلام', 'success');
+    } catch {
+      showToast?.('تعذر تحديث سجل الاستلام', 'error');
+    }
+  };
   const [taskMode, setTaskMode] = useState<TaskMode>('print');
   const [schedulePrintScope, setSchedulePrintScope] = useState<SchedulePrintScope>('all');
   const [selectedWeekIds, setSelectedWeekIds] = useState<string[]>([]);
@@ -1046,12 +1061,18 @@ ${buildReportLink(target)}` : ''}`;
     `).join('');
   };
 
-  const renderScheduleSignatureCell = (day: DutyDayAssignment) => {
+  const renderScheduleSignatureCell = (day: DutyDayAssignment, useElectronic = false) => {
     if (day.staffAssignments.length === 0) return '<span class="empty-state">-</span>';
-    return day.staffAssignments.map(() => '<div class="signature-line"></div>').join('');
+    return day.staffAssignments.map(sa => {
+      if (useElectronic && sa.signatureData) {
+        return `<div class="signature-img-wrap"><img class="signature-img" src="${sa.signatureData}" alt="توقيع" /></div>`;
+      }
+      return '<div class="signature-line"></div>';
+    }).join('');
   };
 
-  const handlePrintSchedule = () => {
+  const handlePrintSchedule = (opts: { electronicSignatures?: boolean } = {}) => {
+    const useElectronic = !!opts.electronicSignatures;
     if (!hasData) {
       showToast?.('لا توجد بيانات مناوبة للطباعة', 'warning');
       return;
@@ -1060,7 +1081,7 @@ ${buildReportLink(target)}` : ''}`;
       showToast?.('اختر أسبوعًا واحدًا على الأقل لطباعة جدول المناوبة', 'warning');
       return;
     }
-    const includeSignature = printSignatureMode === 'with';
+    const includeSignature = useElectronic ? true : printSignatureMode === 'with';
     const isBW = printColorMode === 'bw';
     const finalFooter = showNotesField ? footerText.trim() : '';
     const printableWeeks = selectedWeeks;
@@ -1100,6 +1121,9 @@ ${buildReportLink(target)}` : ''}`;
     .staff-type { margin-top: 2px; font-size: 10px; font-weight: 800; color: #64748b; }
     .signature-line { height: 36px; border-bottom: 1px dotted #64748b; margin-bottom: 8px; }
     .signature-line:last-child { margin-bottom: 0; }
+    .signature-img-wrap { height: 36px; display: flex; align-items: center; justify-content: center; border-bottom: 1px dotted #64748b; margin-bottom: 8px; }
+    .signature-img-wrap:last-child { margin-bottom: 0; }
+    .signature-img { max-height: 32px; max-width: 100%; object-fit: contain; }
     .empty-state { display: block; text-align: center; color: #94a3b8; font-weight: 800; }
     .footer-note { margin-top: 12px; border: 1px dashed #94a3b8; border-radius: 14px; padding: 12px 14px; font-size: 12px; font-weight: 800; color: #475569; white-space: pre-wrap; }
     .principal { margin-top: 24px; width: 280px; margin-right: auto; font-size: 13px; font-weight: 900; color: #1e293b; }
@@ -1150,7 +1174,7 @@ ${buildReportLink(target)}` : ''}`;
                 <td class="day-cell">${escapeHtml(DAY_NAMES[day.day] || day.day)}</td>
                 <td class="date-cell">${escapeHtml(formatDisplayDate(day.date))}</td>
                 <td>${renderScheduleStaffCell(day)}</td>
-                ${includeSignature ? `<td>${renderScheduleSignatureCell(day)}</td>` : ''}
+                ${includeSignature ? `<td>${renderScheduleSignatureCell(day, useElectronic)}</td>` : ''}
               </tr>
             `).join('')}
           </tbody>
@@ -1313,16 +1337,17 @@ ${buildReportLink(target)}` : ''}`;
       <div className="space-y-5" dir="rtl">
         {/* Header */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setReceiptOpen(false)} title="رجوع"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50 transition-all">
+              <ArrowRight size={18} />
+            </button>
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالمناوبة</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {signedCount} وقّع من أصل {assignmentGroupedRows.length} مناوب
               </p>
             </div>
-            <button type="button" onClick={() => setReceiptOpen(false)} className={actionButtonClass(false)}>
-              <ArrowRight size={16} />
-            </button>
           </div>
         </div>
 
@@ -1330,8 +1355,8 @@ ${buildReportLink(target)}` : ''}`;
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المناوبين', value: String(assignmentGroupedRows.length), icon: Users },
-            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يوقّعوا بعد', value: String(pendingCount), icon: AlertCircle },
+            { label: 'وقّع', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يُوقّع', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1346,35 +1371,28 @@ ${buildReportLink(target)}` : ''}`;
           ))}
         </div>
 
-        {/* Filters & Actions */}
+        {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
-            {(['all', 'signed', 'pending'] as const).map(f => (
-              <button key={f} type="button" onClick={() => setReceiptFilter(f)}
-                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
-                  receiptFilter === f
-                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
-                }`}>
-                {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقّع'}
-              </button>
-            ))}
-            <div className="flex-1" />
-            <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
-              <RefreshCw size={13} />
+            <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); refreshDutyDataFromStorage(); }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={15} />
               تحديث
             </button>
             <button type="button" onClick={() => handlePrintReceiptReport(filteredAssignmentRows)} disabled={assignmentGroupedRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={13} />
-              طباعة التقرير
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة سجل الاستلام الالكتروني
             </button>
             <button type="button" onClick={() => handlePrintAssignmentForms(filteredAssignmentRows)} disabled={assignmentGroupedRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={13} />
-              طباعة النماذج
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة نماذج التكليف الالكترونية
+            </button>
+            <button type="button" onClick={() => handlePrintSchedule({ electronicSignatures: true })} disabled={!hasData}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة جدول المناوبة الالكتروني
             </button>
           </div>
         </div>
@@ -1382,16 +1400,17 @@ ${buildReportLink(target)}` : ''}`;
         {/* Table */}
         <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
           style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
               <ClipboardList size={18} className="text-[#655ac1]" />
               سجل الاستلام
             </p>
+            <div className="flex-1" />
             <div className="relative w-56">
               <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input type="text" value={receiptSearch} onChange={e => setReceiptSearch(e.target.value)}
                 placeholder="ابحث عن مناوب..."
-                className="w-full pr-8 pl-7 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
                 dir="rtl" />
               {receiptSearch && (
                 <button type="button" onClick={() => setReceiptSearch('')}
@@ -1399,6 +1418,18 @@ ${buildReportLink(target)}` : ''}`;
                   <X size={13} />
                 </button>
               )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['all', 'signed', 'pending'] as const).map(f => (
+                <button key={f} type="button" onClick={() => setReceiptFilter(f)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                    receiptFilter === f
+                      ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                  }`}>
+                  {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقّع'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1413,22 +1444,30 @@ ${buildReportLink(target)}` : ''}`;
               <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[19%]">المناوب</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">عدد المناوبات</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[24%]">الأيام والتواريخ</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">الحالة</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[14%]">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[5%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[19%]">المناوب</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[8%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[10%]">عدد المناوبات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[24%]">الأيام والتواريخ</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[12%]">الحالة</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[14%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredAssignmentRows.map((row, idx) => (
                     <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
+                          {idx + 1}
+                        </span>
+                      </td>
                       <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
                       <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
-                      <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">{row.assignmentCount}</td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
+                          {row.assignmentCount}
+                        </span>
+                      </td>
                       <td className="px-3 py-3 text-slate-500 text-[11px] truncate" title={row.dateLabel}>{row.dateLabel || '-'}</td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
@@ -1441,10 +1480,10 @@ ${buildReportLink(target)}` : ''}`;
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
-                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="معاينة وطباعة النموذج"
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
-                            <Eye size={13} />
-                            معاينة وطباعة
+                          <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="عرض وطباعة النموذج"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap shrink-0">
+                            <Eye size={14} />
+                            عرض وطباعة
                           </button>
                         </div>
                       </td>
@@ -1544,16 +1583,17 @@ ${buildReportLink(target)}` : ''}`;
       <div className="space-y-5" dir="rtl">
         {/* Header */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setReportReceiptOpen(false)} title="رجوع"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50 transition-all">
+              <ArrowRight size={18} />
+            </button>
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام تقرير المناوبة اليومية</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {submittedReportCount} مناوب سلّم تقاريره من أصل {reportRows.length}
               </p>
             </div>
-            <button type="button" onClick={() => setReportReceiptOpen(false)} className={actionButtonClass(false)}>
-              <ArrowRight size={16} />
-            </button>
           </div>
         </div>
 
@@ -1561,8 +1601,8 @@ ${buildReportLink(target)}` : ''}`;
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المناوبين', value: String(reportRows.length), icon: Users },
-            { label: 'سلّموا التقرير', value: String(submittedReportCount), icon: CheckCircle2 },
-            { label: 'لم يسلّموا', value: String(pendingReportCount), icon: AlertCircle },
+            { label: 'سلّم التقرير', value: String(submittedReportCount), icon: CheckCircle2 },
+            { label: 'لم يُسلّم التقرير', value: String(pendingReportCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1577,30 +1617,18 @@ ${buildReportLink(target)}` : ''}`;
           ))}
         </div>
 
-        {/* Filters & Actions */}
+        {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
-            {(['all', 'submitted', 'pending'] as const).map(f => (
-              <button key={f} type="button" onClick={() => setReportFilter(f)}
-                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
-                  reportFilter === f
-                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
-                }`}>
-                {f === 'all' ? 'الكل' : f === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}
-              </button>
-            ))}
-            <div className="flex-1" />
-            <button type="button" onClick={() => { setReportSearch(''); setReportFilter('all'); }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
-              <RefreshCw size={13} />
+            <button type="button" onClick={() => { setReportSearch(''); setReportFilter('all'); refreshDutyDataFromStorage(); }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={15} />
               تحديث
             </button>
             <button type="button" onClick={handlePrintAllReports}
               disabled={dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted).length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all disabled:opacity-50">
-              <Printer size={13} />
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
               طباعة كل التقارير المسلّمة
             </button>
           </div>
@@ -1609,16 +1637,17 @@ ${buildReportLink(target)}` : ''}`;
         {/* Table */}
         <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
           style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
               <ClipboardList size={18} className="text-[#655ac1]" />
               سجل تسليم التقارير
             </p>
+            <div className="flex-1" />
             <div className="relative w-56">
               <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input type="text" value={reportSearch} onChange={e => setReportSearch(e.target.value)}
                 placeholder="ابحث عن مناوب..."
-                className="w-full pr-8 pl-7 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
                 dir="rtl" />
               {reportSearch && (
                 <button type="button" onClick={() => setReportSearch('')}
@@ -1626,6 +1655,18 @@ ${buildReportLink(target)}` : ''}`;
                   <X size={13} />
                 </button>
               )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['all', 'submitted', 'pending'] as const).map(f => (
+                <button key={f} type="button" onClick={() => setReportFilter(f)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                    reportFilter === f
+                      ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                  }`}>
+                  {f === 'all' ? 'الكل' : f === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1640,25 +1681,33 @@ ${buildReportLink(target)}` : ''}`;
               <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[20%]">المناوب</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">عدد المناوبات</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">التقارير المسلّمة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[18%]">الحالة</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[20%]">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[5%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[20%]">المناوب</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[8%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[10%]">عدد المناوبات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[12%]">التقارير المسلّمة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[18%]">الحالة</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[20%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReportRows.map((row, idx) => {
                     return (
                       <tr key={row.key} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
+                            {idx + 1}
+                          </span>
+                        </td>
                         <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
                         <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
-                        <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">{row.assignmentCount}</td>
-                        <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate">{row.reportSubmittedCount} / {row.reportDueCount}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3 text-center">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
+                            {row.assignmentCount}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center text-slate-600 text-[12px] font-bold">{row.reportSubmittedCount} / {row.reportDueCount}</td>
+                        <td className="px-3 py-3 text-center">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
                             row.status === 'submitted'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -1671,8 +1720,8 @@ ${buildReportLink(target)}` : ''}`;
                           <div className="flex items-center justify-center min-w-[120px]">
                             <button type="button" onClick={() => setPreviewReportStaff({ staffId: row.staffId, staffName: row.staffName, staffType: row.staffType })}
                               title="عرض التقارير وطباعتها"
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap">
-                              <Eye size={13} />
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap">
+                              <Eye size={14} />
                               عرض وطباعة
                             </button>
                           </div>
@@ -1727,32 +1776,44 @@ ${buildReportLink(target)}` : ''}`;
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <p className="text-xs font-black text-slate-500">{submittedCount} تقرير مسلّم من أصل {reports.length}</p>
                         <button type="button" onClick={() => handlePrintReportsForStaff(reports)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
-                          <Printer size={13} />
-                          طباعة كل التقارير
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+                          <Printer size={14} />
+                          طباعة التقارير
                         </button>
                       </div>
                       {reports.map(report => (
-                        <div key={report.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                        <div key={report.id} className="rounded-2xl border border-slate-100 bg-white p-4">
                           <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div className="min-w-0">
-                              <p className="font-black text-slate-800 text-sm">{DAY_NAMES[report.day] || report.day} - {formatHijriDate(report.date)}</p>
-                              <p className="text-[11px] text-slate-500 font-bold mt-1">
-                                {report.isSubmitted
-                                  ? <>تسليم: {formatHijriDateTime(report.submittedAt)} {' • '} متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}</>
-                                  : <span className="text-amber-700">لم يسلّم التقرير بعد — نموذج فارغ</span>}
-                              </p>
+                            <div className="min-w-0 flex items-center gap-3">
+                              <div className="rounded-xl border border-slate-300 px-3 py-2 flex flex-col items-center justify-center min-w-[110px] shrink-0">
+                                <p className="font-black text-[#655ac1] text-sm leading-tight">{DAY_NAMES[report.day] || report.day}</p>
+                                <p className="font-black text-[#655ac1] text-[12px] mt-0.5 leading-tight">{formatHijriDate(report.date)}</p>
+                              </div>
+                              <div className="min-w-0">
+                                {report.isSubmitted ? (
+                                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-black">
+                                    <CheckCircle2 size={14} />
+                                    سلّم التقرير
+                                    <span className="text-emerald-600/80 font-bold">• {formatHijriDateTime(report.submittedAt)}</span>
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-200 bg-amber-50 text-amber-700 text-[11px] font-black">
+                                    <AlertCircle size={14} />
+                                    لم يُسلّم التقرير بعد
+                                  </div>
+                                )}
+                                {report.isSubmitted && (
+                                  <p className="text-[11px] text-slate-500 font-bold mt-1.5">
+                                    متأخرون: {report.lateStudents.length} • مخالفات: {report.violatingStudents.length}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <button type="button" onClick={() => setPreviewReportRecord(report)} title="معاينة التقرير"
-                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
-                                <Eye size={13} />
-                                معاينة
-                              </button>
-                              <button type="button" onClick={() => handlePrintSingleReport(report)} title="طباعة التقرير"
-                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all">
-                                <Printer size={13} />
-                                طباعة
+                              <button type="button" onClick={() => setPreviewReportRecord(report)} title="عرض وطباعة التقرير"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+                                <Eye size={14} />
+                                عرض وطباعة
                               </button>
                             </div>
                           </div>
@@ -1761,6 +1822,12 @@ ${buildReportLink(target)}` : ''}`;
                     </>
                   );
                 })()}
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 bg-white shrink-0 flex justify-end">
+                <button type="button" onClick={() => setPreviewReportStaff(null)}
+                  className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
+                  إغلاق
+                </button>
               </div>
             </div>
           </div>,
@@ -1916,7 +1983,7 @@ ${buildReportLink(target)}` : ''}`;
             <div className="mt-auto flex justify-center">
               <button
                 type="button"
-                onClick={handlePrintSchedule}
+                onClick={() => handlePrintSchedule()}
                 disabled={!hasData}
                 className="inline-flex min-w-[160px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all shadow-md shadow-[#655ac1]/20 disabled:opacity-50"
               >

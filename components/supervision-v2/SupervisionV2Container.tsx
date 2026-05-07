@@ -428,6 +428,7 @@ const SupervisionV2Container: React.FC<Props> = ({
           <PrintSendTab
             supervisionData={supervisionData}
             setSupervisionData={setSupervisionData}
+            storageKey={storageKey}
             schoolInfo={schoolInfo}
             teachers={filteredTeachers}
             admins={filteredAdmins}

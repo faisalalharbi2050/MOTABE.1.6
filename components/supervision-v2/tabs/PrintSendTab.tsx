@@ -21,6 +21,7 @@ import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 interface Props {
   supervisionData: SupervisionScheduleData;
   setSupervisionData?: React.Dispatch<React.SetStateAction<SupervisionScheduleData>>;
+  storageKey?: string;
   schoolInfo: SchoolInfo;
   teachers: Teacher[];
   admins: Admin[];
@@ -228,7 +229,7 @@ const MultiSelectDropdown: React.FC<{
 
 // ────────────────────────────────────────────────────────────────────────
 const PrintSendTab: React.FC<Props> = ({
-  supervisionData, setSupervisionData, schoolInfo, teachers, admins,
+  supervisionData, setSupervisionData, storageKey, schoolInfo, teachers, admins,
   onOpenLegacyPrint, onOpenLegacySend, onOpenMessagesArchive, showToast,
 }) => {
   const { sendMessage, scheduleMessage } = useMessageArchive();
@@ -579,8 +580,14 @@ const PrintSendTab: React.FC<Props> = ({
     setSigFilter('all');
     if (!setSupervisionData) return;
     try {
-      const raw = localStorage.getItem('supervision_data_v1');
-      if (raw) setSupervisionData(JSON.parse(raw));
+      const key = storageKey || 'supervision_data_v1';
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        setSupervisionData(JSON.parse(raw));
+        showToast?.('تم تحديث سجل الاستلام', 'success');
+      } else {
+        showToast?.('تم تحديث سجل الاستلام', 'success');
+      }
     } catch {
       showToast?.('تعذر تحديث سجل الاستلام', 'error');
     }
@@ -1141,16 +1148,17 @@ const PrintSendTab: React.FC<Props> = ({
       <div className="space-y-5" dir="rtl">
         {/* Header */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setSigReceiptOpen(false)} title="رجوع"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50 transition-all">
+              <ArrowRight size={18} />
+            </button>
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالإشراف</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {signedCount} وقّع من أصل {totalAssignedSupervisors} مشرف
               </p>
             </div>
-            <button type="button" onClick={() => setSigReceiptOpen(false)} className={actionButtonClass(false)}>
-              <ArrowRight size={16} />
-            </button>
           </div>
         </div>
 
@@ -1158,8 +1166,8 @@ const PrintSendTab: React.FC<Props> = ({
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المشرفين', value: String(totalAssignedSupervisors), icon: Users },
-            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يوقعوا بعد', value: String(pendingCount), icon: AlertCircle },
+            { label: 'وقّع', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يُوقّع', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1174,40 +1182,28 @@ const PrintSendTab: React.FC<Props> = ({
           ))}
         </div>
 
-        {/* Filters & Actions */}
+        {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
-            {(['all', 'signed', 'pending'] as const).map(f => (
-              <button key={f} type="button" onClick={() => setSigFilter(f)}
-                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
-                  sigFilter === f
-                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
-                }`}>
-                {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقع'}
-              </button>
-            ))}
-            <div className="flex-1" />
             <button type="button" onClick={refreshSupervisionDataFromStorage}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
-              <RefreshCw size={13} />
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={15} />
               تحديث
             </button>
             <button type="button" onClick={handlePrintReceiptReport} disabled={receiptRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={13} />
-              طباعة التقرير
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة سجل الاستلام الالكتروني
             </button>
             <button type="button" onClick={() => handlePrintAssignmentForms(filteredReceipts)} disabled={receiptRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={13} />
-              طباعة النماذج
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة نماذج التكليف الالكترونية
             </button>
             <button type="button" onClick={() => handleDirectPrint({ signed: true })} disabled={!hasData}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={13} />
-              طباعة جدول الإشراف بالتوقيع
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة جدول الإشراف الالكتروني
             </button>
           </div>
         </div>
@@ -1215,16 +1211,17 @@ const PrintSendTab: React.FC<Props> = ({
         {/* Table */}
         <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
           style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
               <ClipboardList size={18} className="text-[#655ac1]" />
               سجل الاستلام
             </p>
+            <div className="flex-1" />
             <div className="relative w-56">
               <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input type="text" value={sigSearch} onChange={e => setSigSearch(e.target.value)}
                 placeholder="ابحث عن مشرف..."
-                className="w-full pr-8 pl-7 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
                 dir="rtl" />
               {sigSearch && (
                 <button type="button" onClick={() => setSigSearch('')}
@@ -1232,6 +1229,18 @@ const PrintSendTab: React.FC<Props> = ({
                   <X size={13} />
                 </button>
               )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['all', 'signed', 'pending'] as const).map(f => (
+                <button key={f} type="button" onClick={() => setSigFilter(f)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                    sigFilter === f
+                      ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                  }`}>
+                  {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقّع'}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1246,20 +1255,24 @@ const PrintSendTab: React.FC<Props> = ({
               <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[5%]">م</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[19%]">المشرف / المشرف المتابع</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[8%]">الصفة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[20%]">نوع الإشراف</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[10%]">الحالة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">تاريخ الإرسال</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[11px] w-[12%]">تاريخ التوقيع</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[11px] text-center w-[14%]">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[5%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[19%]">المشرف / المشرف المتابع</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[8%]">الصفة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[20%]">نوع الإشراف</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[10%]">الحالة</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[12%]">تاريخ الإرسال</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[12%]">تاريخ التوقيع</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[14%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReceipts.map((req, idx) => (
                     <tr key={req.key} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-3 py-3 text-slate-400 text-[11px] font-bold truncate">{idx + 1}</td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
+                          {idx + 1}
+                        </span>
+                      </td>
                       <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={req.staffName}>{req.staffName}</td>
                       <td className="px-3 py-3 text-slate-500 text-[11px] truncate">
                         {req.staffType === 'teacher' ? 'معلم' : 'إداري'}
@@ -1276,10 +1289,10 @@ const PrintSendTab: React.FC<Props> = ({
                       <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.signedAt)}>{formatHijriDateTime(req.signedAt)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
-                          <button type="button" onClick={() => setPreviewReceiptRow(req)} title="معاينة وطباعة النموذج"
-                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all whitespace-nowrap shrink-0">
-                            <Eye size={13} />
-                            معاينة وطباعة
+                          <button type="button" onClick={() => setPreviewReceiptRow(req)} title="عرض وطباعة النموذج"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap shrink-0">
+                            <Eye size={14} />
+                            عرض وطباعة
                           </button>
                         </div>
                       </td>
