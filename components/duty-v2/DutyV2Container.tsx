@@ -425,8 +425,9 @@ const DutyV2Container: React.FC<Props> = ({
         {activeTab === 'monitoring' && (
           <MonitoringTab
             dutyData={dutyData}
+            setDutyData={setDutyData}
             schoolInfo={schoolInfo}
-            onOpenLegacyMonitoring={() => setIsMonitoringOpen(true)}
+            showToast={showToast}
           />
         )}
         {activeTab === 'printsend' && (

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -147,6 +147,19 @@ const DateField: React.FC<{
   </div>
 );
 
+const useClickOutside = (open: boolean, onClose: () => void) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, onClose]);
+  return ref;
+};
+
 const TypeSelect: React.FC<{
   label: string;
   value: string;
@@ -154,9 +167,10 @@ const TypeSelect: React.FC<{
   onChange: (value: string) => void;
 }> = ({ label, value, options, onChange }) => {
   const [open, setOpen] = useState(false);
+  const ref = useClickOutside(open, () => setOpen(false));
   const selected = options.find(option => option.value === value);
   return (
-    <div className="relative flex-1 min-w-[220px]">
+    <div ref={ref} className="relative flex-1 min-w-[220px]">
       <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
       <button
         type="button"
@@ -187,6 +201,72 @@ const TypeSelect: React.FC<{
   );
 };
 
+const StaffSingleSelect: React.FC<{
+  label: string;
+  options: Array<{ value: string; label: string }>;
+  value: string;
+  onChange: (value: string) => void;
+  emptyLabel?: string;
+  searchPlaceholder?: string;
+}> = ({ label, options, value, onChange, emptyLabel = 'كل المشرفين', searchPlaceholder = 'بحث عن مشرف' }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useClickOutside(open, () => setOpen(false));
+  const filteredOptions = options.filter(option => option.label.toLowerCase().includes(search.trim().toLowerCase()));
+  const selected = options.find(option => option.value === value);
+
+  return (
+    <div ref={ref} className="relative flex-1 min-w-[220px]">
+      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <button
+        type="button"
+        onClick={() => setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+      >
+        <span className="truncate text-[13px] leading-tight">{selected?.label || emptyLabel}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-2 z-50 w-full rounded-2xl border border-slate-200 bg-white shadow-2xl p-2">
+          <div className="relative mb-2">
+            <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none focus:border-[#655ac1]"
+            />
+          </div>
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1">
+            <button
+              type="button"
+              onClick={() => { onChange(''); setOpen(false); }}
+              className="w-full text-right px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1] flex items-center justify-between"
+            >
+              <span>{emptyLabel}</span>
+              <CircleCheck checked={!value} />
+            </button>
+            {filteredOptions.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => { onChange(option.value); setOpen(false); }}
+                className="w-full text-right px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1] flex items-center justify-between"
+              >
+                <span className="truncate">{option.label}</span>
+                <CircleCheck checked={value === option.value} />
+              </button>
+            ))}
+            {filteredOptions.length === 0 && (
+              <div className="px-3 py-4 text-center text-xs font-bold text-slate-400">لا توجد نتائج</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const StaffMultiSelect: React.FC<{
   options: Array<{ value: string; label: string }>;
   selectedValues: string[];
@@ -194,6 +274,7 @@ const StaffMultiSelect: React.FC<{
 }> = ({ options, selectedValues, onChange }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const ref = useClickOutside(open, () => setOpen(false));
   const filteredOptions = options.filter(option => option.label.toLowerCase().includes(search.trim().toLowerCase()));
   const selectedLabel = selectedValues.length === 0
     ? 'كل المشرفين'
@@ -202,7 +283,7 @@ const StaffMultiSelect: React.FC<{
       : `${selectedValues.length} مشرفين`;
 
   return (
-    <div className="relative flex-1 min-w-[250px]">
+    <div ref={ref} className="relative flex-1 min-w-[250px]">
       <label className="block text-xs font-black text-slate-500 mb-2">المشرفون</label>
       <button
         type="button"
@@ -260,7 +341,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   const [dailyCalendarType, setDailyCalendarType] = useState<CalendarType>((schoolInfo.calendarType || 'hijri') as CalendarType);
   const [reportCalendarType, setReportCalendarType] = useState<CalendarType>((schoolInfo.calendarType || 'hijri') as CalendarType);
   const [selectedTypeId, setSelectedTypeId] = useState(supervisionData.supervisionTypes.find(type => type.isEnabled)?.id || '');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('');
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [reportFrom, setReportFrom] = useState(today);
   const [reportTo, setReportTo] = useState(today);
@@ -274,11 +355,23 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   const selectedType = enabledTypes.find(type => type.id === selectedTypeId) || enabledTypes[0];
   const dayAssignment = supervisionData.dayAssignments.find(day => day.day === selectedDayKey);
 
+  const dayStaffOptions = useMemo(() => {
+    const assignments = dayAssignment?.staffAssignments || [];
+    const list = assignments.filter(item => !selectedType || item.contextTypeId === selectedType.id);
+    const map = new Map<string, string>();
+    list.forEach(item => map.set(item.staffId, item.staffName));
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [dayAssignment, selectedType]);
+
+  const effectiveStaffId = selectedStaffId && dayStaffOptions.some(opt => opt.value === selectedStaffId)
+    ? selectedStaffId
+    : '';
+
   const dailyRows = useMemo(() => {
     const assignments = dayAssignment?.staffAssignments || [];
     return assignments
       .filter(item => !selectedType || item.contextTypeId === selectedType.id)
-      .filter(item => item.staffName.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+      .filter(item => !effectiveStaffId || item.staffId === effectiveStaffId)
       .map(item => {
         const record = supervisionData.attendanceRecords.find(record =>
           record.date === selectedDate &&
@@ -292,7 +385,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
           status: record?.status || 'present',
         };
       });
-  }, [dayAssignment, searchTerm, selectedDate, selectedType, supervisionData]);
+  }, [dayAssignment, effectiveStaffId, selectedDate, selectedType, supervisionData]);
 
   const saveAttendance = (
     staff: typeof dailyRows[number],
@@ -428,17 +521,12 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 options={typeOptions}
                 onChange={setSelectedTypeId}
               />
-              <div className="flex-1 min-w-[220px]">
-                <div className="relative">
-                  <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="ابحث عن مشرف"
-                    className="w-full pr-10 pl-3 py-2.5 rounded-xl border-2 border-slate-200 text-sm font-bold focus:border-[#655ac1] outline-none"
-                  />
-                </div>
-              </div>
+              <StaffSingleSelect
+                label="المشرفون"
+                options={dayStaffOptions}
+                value={effectiveStaffId}
+                onChange={setSelectedStaffId}
+              />
             </div>
           </div>
 

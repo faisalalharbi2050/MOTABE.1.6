@@ -501,7 +501,7 @@ const App: React.FC = () => {
 
       // Supervision and Duty
       case 'supervision': return <SupervisionV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} />;
-      case 'duty': return <DutyV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToDashboard={() => setActiveTab('dashboard')} />;
+      case 'duty': return <DutyV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToDashboard={() => setActiveTab('dashboard')} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} />;
 
       // Other Sections
       case 'daily_waiting': return <WaitingV2Container teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
