@@ -58,7 +58,7 @@ const formatPickerDate = (date: any) => {
 
 const dayNameForDate = (date?: string) => {
   const parsed = parseIsoDate(date) || new Date();
-  return DAY_NAMES[DAY_KEYS[parsed.getDay()]] || '';
+  return ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][parsed.getDay()] || '';
 };
 
 const formatHijriDate = (date?: string) => {
@@ -79,8 +79,11 @@ const formatGregorianDate = (date?: string) => {
   }).format(parsed);
 };
 
+const formatCalendarDate = (date: string, calendarType: CalendarType) =>
+  calendarType === 'hijri' ? formatHijriDate(date) : formatGregorianDate(date);
+
 const formatDateLabel = (date: string, calendarType: CalendarType) =>
-  `${dayNameForDate(date)} - ${calendarType === 'hijri' ? formatHijriDate(date) : formatGregorianDate(date)}`;
+  `${dayNameForDate(date)} - ${formatCalendarDate(date, calendarType)}`;
 
 const pluralStaff = (count: number) => {
   if (count === 1) return 'مناوب';
@@ -138,6 +141,7 @@ const DateField: React.FC<{
         containerClassName="flex-1"
         inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
         placeholder="حدد التاريخ"
+        format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
         portal
         portalTarget={document.body}
         editable={false}
@@ -243,7 +247,7 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
 
   const selectedDateObj = parseIsoDate(selectedDate) || new Date();
   const selectedDayKey = DAY_KEYS[selectedDateObj.getDay()] || 'sunday';
-  const selectedDayName = DAY_NAMES[selectedDayKey] || '';
+  const selectedDayName = DAY_NAMES[selectedDayKey] || dayNameForDate(selectedDate);
   const dayAssignment = dutyData.dayAssignments.find(day => day.day === selectedDayKey);
 
   const dailyRows = useMemo(() => {
@@ -419,25 +423,28 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
       {activeView === 'daily' && (
         <div className="space-y-5">
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="mb-4 flex items-center gap-2">
               <span className="text-xs font-black text-slate-500">نوع التقويم</span>
               <CalendarSwitch value={dailyCalendarType} onChange={setDailyCalendarType} />
+            </div>
+            <div className="w-80">
+              <label className="block text-xs font-black text-slate-500 mb-1.5">
+                {`اليوم والتاريخ: ${formatDateLabel(selectedDate, dailyCalendarType)}`}
+              </label>
               <DatePicker
                 value={parseIsoDate(selectedDate)}
                 onChange={date => setSelectedDate(formatPickerDate(date))}
                 calendar={dailyCalendarType === 'hijri' ? arabic : gregorian}
                 locale={dailyCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
-                inputClass="w-56 border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
+                containerClassName="w-full"
+                inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
                 placeholder="حدد التاريخ"
+                format={dailyCalendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
                 portal
                 portalTarget={document.body}
                 editable={false}
                 zIndex={99999}
               />
-            </div>
-            <div className="mt-3 inline-flex items-center gap-2 text-xs font-black text-slate-500">
-              <span>اليوم والتاريخ:</span>
-              <span>{formatDateLabel(selectedDate, dailyCalendarType)}</span>
             </div>
           </div>
 

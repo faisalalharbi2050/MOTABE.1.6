@@ -58,7 +58,7 @@ const formatPickerDate = (date: any) => {
 
 const dayNameForDate = (date?: string) => {
   const parsed = parseIsoDate(date) || new Date();
-  return DAY_NAMES[DAY_KEYS[parsed.getDay()]] || '';
+  return ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][parsed.getDay()] || '';
 };
 
 const formatHijriDate = (date?: string) => {
@@ -79,8 +79,11 @@ const formatGregorianDate = (date?: string) => {
   }).format(parsed);
 };
 
+const formatCalendarDate = (date: string, calendarType: CalendarType) =>
+  calendarType === 'hijri' ? formatHijriDate(date) : formatGregorianDate(date);
+
 const formatDateLabel = (date: string, calendarType: CalendarType) =>
-  `${dayNameForDate(date)} - ${calendarType === 'hijri' ? formatHijriDate(date) : formatGregorianDate(date)}`;
+  `${dayNameForDate(date)} - ${formatCalendarDate(date, calendarType)}`;
 
 const pluralSupervisors = (count: number) => {
   if (count === 1) return 'مشرف';
@@ -138,6 +141,7 @@ const DateField: React.FC<{
         containerClassName="flex-1"
         inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
         placeholder="حدد التاريخ"
+        format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
         portal
         portalTarget={document.body}
         editable={false}
@@ -350,7 +354,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
 
   const selectedDateObj = parseIsoDate(selectedDate) || new Date();
   const selectedDayKey = DAY_KEYS[selectedDateObj.getDay()] || 'sunday';
-  const selectedDayName = DAY_NAMES[selectedDayKey] || '';
+  const selectedDayName = DAY_NAMES[selectedDayKey] || dayNameForDate(selectedDate);
   const enabledTypes = supervisionData.supervisionTypes.filter(type => type.isEnabled);
   const selectedType = enabledTypes.find(type => type.id === selectedTypeId) || enabledTypes[0];
   const dayAssignment = supervisionData.dayAssignments.find(day => day.day === selectedDayKey);

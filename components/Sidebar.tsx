@@ -5,13 +5,13 @@ import {
   Users,
   Calendar,
   Clock,
+  UserX,
   FileText,
   Download,
   Upload,
   ChevronDown,
   ChevronUp,
   Building,
-  UserCheck,
   Bell,
   MessageSquare,
   CreditCard,
@@ -413,7 +413,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <NavItem
             active={activeTab === "daily_waiting"}
             onClick={() => handleTabClick("daily_waiting")}
-            icon={<Clock size={22} />}
+            icon={<UserX size={22} />}
             label="الانتظار اليومي"
             collapsed={isCollapsed}
           />

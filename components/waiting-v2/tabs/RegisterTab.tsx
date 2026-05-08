@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Teacher, Admin, ClassInfo, Subject, SchoolInfo, ScheduleSettingsData,
+  Teacher, Admin, ClassInfo, Subject, SchoolInfo, ScheduleSettingsData, Specialization,
 } from '../../../types';
 import DailyWaiting from '../../DailyWaiting';
 
@@ -11,6 +11,7 @@ interface Props {
   subjects: Subject[];
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
+  specializations?: Specialization[];
   onGoToDistribute?: () => void;
 }
 

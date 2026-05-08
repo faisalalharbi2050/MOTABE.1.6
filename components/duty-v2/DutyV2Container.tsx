@@ -385,7 +385,7 @@ const DutyV2Container: React.FC<Props> = ({
       )}
 
       {/* ══════ Tab Content ══════ */}
-      <div className="min-h-[400px]">
+      <div className="min-h-[400px] pt-4">
         {activeTab === 'settings' && (
           <DutySettingsPage
             onBack={() => setActiveTab('create')}

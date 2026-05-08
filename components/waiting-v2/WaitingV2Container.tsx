@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, UserX, Shuffle, Scale, FileOutput, FileText } from 'lucide-react';
+import { UserX, Shuffle, Scale, FileOutput, FileText } from 'lucide-react';
 import {
-  Teacher, Admin, ClassInfo, Subject, SchoolInfo, ScheduleSettingsData,
+  Teacher, Admin, ClassInfo, Subject, SchoolInfo, ScheduleSettingsData, Specialization,
 } from '../../types';
 import RegisterTab from './tabs/RegisterTab';
 import DistributeTab from './tabs/DistributeTab';
@@ -16,6 +16,7 @@ interface Props {
   subjects: Subject[];
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
+  specializations?: Specialization[];
 }
 
 type TabId = 'register' | 'distribute' | 'balance' | 'printsend' | 'reports';
@@ -54,11 +55,11 @@ const WaitingV2Container: React.FC<Props> = (props) => {
         <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
         <div className="relative z-10">
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-            <Clock size={36} strokeWidth={1.8} className="text-[#655ac1]" />
+            <UserX size={36} strokeWidth={1.8} className="text-[#655ac1]" />
             الانتظار اليومي
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">
-            إسناد حصص الانتظار اليومية توزيعًا يدويًا أو تلقائيًا بطريقة ذكية وعادلة
+            إسناد حصص الانتظار اليومية للمنتظرين بطريقة ذكية ومتوازنة، أو استخدام التوزيع اليدوي
           </p>
         </div>
       </div>
@@ -82,7 +83,7 @@ const WaitingV2Container: React.FC<Props> = (props) => {
       </div>
 
       {/* ══════ Tab Content ══════ */}
-      <div className="min-h-[400px]">
+      <div className="min-h-[400px] pt-4">
         {activeTab === 'register' && <RegisterTab {...props} onGoToDistribute={() => setActiveTab('distribute')} />}
         {activeTab === 'distribute' && <DistributeTab {...props} onGoToPrintSend={() => setActiveTab('printsend')} />}
         {activeTab === 'balance' && <BalanceTab {...props} onSectionExit={handleSectionExit} />}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BookOpenCheck, Check, Edit3, Pencil, Table, Trash2, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, BookOpenCheck, Check, Edit3, Pencil, Table, Trash2, X } from 'lucide-react';
 import { DutyScheduleData, SavedDutySchedule } from '../../../types';
 
 interface Props {
@@ -267,6 +267,13 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="flex items-center gap-2 text-slate-400 px-1">
+        <AlertCircle size={15} className="shrink-0" />
+        <span className="text-xs font-bold">
+          يُحفظ الجدول تلقائياً عند كل إنشاء · الحد الأقصى 10 جداول
+        </span>
       </div>
 
       {menuState && createPortal(

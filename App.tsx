@@ -504,7 +504,7 @@ const App: React.FC = () => {
       case 'duty': return <DutyV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToDashboard={() => setActiveTab('dashboard')} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} />;
 
       // Other Sections
-      case 'daily_waiting': return <WaitingV2Container teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} />;
+      case 'daily_waiting': return <WaitingV2Container teachers={teachers} admins={admins} classes={classes} subjects={subjects} schoolInfo={schoolInfo} scheduleSettings={scheduleSettings} specializations={specializations} />;
       case 'messages': return <Messages subscription={subscription} setSubscription={setSubscription} initialTab={messagesInitialTab as any} initialDraft={messageComposerDraft} onNavigate={(tab) => {
         if (tab === 'subscription_message_packages') { setSubscriptionInitialTab('message_packages' as any); setActiveTab('subscription'); }
         else { setActiveTab(tab as any); }
