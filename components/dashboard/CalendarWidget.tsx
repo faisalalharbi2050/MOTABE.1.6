@@ -87,15 +87,14 @@ const getTaskDateDisplay = (
   const diff   = Math.round((taskD.getTime() - todayD.getTime()) / 86_400_000);
 
   let label: string;
-  if (diff === 0)                  label = 'اليوم';
-  else if (diff === 1)             label = 'الغد';
-  else if (diff > 1 && diff <= 6) label = taskD.toLocaleDateString('ar-SA', { weekday: 'long' });
-  else                             label = taskD.toLocaleDateString('ar-SA', { weekday: 'short' });
+  if (diff === 0)              label = 'اليوم';
+  else if (diff > 0 && diff <= 6) label = taskD.toLocaleDateString('ar-SA', { weekday: 'long' });
+  else                          label = taskD.toLocaleDateString('ar-SA', { weekday: 'short' });
 
   const datePart =
     dateType === 'gregorian'
-      ? taskD.toLocaleDateString('ar-SA', { day: 'numeric', month: 'long' })
-      : new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long' }).format(taskD);
+      ? taskD.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(taskD);
 
   return `${label} · ${datePart}`;
 };

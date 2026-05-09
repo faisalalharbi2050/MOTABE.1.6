@@ -1,10 +1,11 @@
 import React from 'react';
-import { 
-  UserMinus,
-  Send,
+import {
+  UserX,
   Eye,
   ShieldCheck,
-  MessageSquare
+  MessageSquare,
+  CalendarCheck,
+  ClipboardList
 } from 'lucide-react';
 
 interface QuickActionsProps {
@@ -20,15 +21,16 @@ function navWithAction(onNavigate: (tab: string) => void, tab: string, action?: 
 
 const ROWS = [
   [
-    { label: 'إضافة انتظار',  icon: UserMinus,    tab: 'daily_waiting',  action: 'add_waiting',      rotate: false },
-    { label: 'إرسال الانتظار', icon: Send,          tab: 'daily_waiting',  action: 'send_waiting',     rotate: true  },
+    { label: 'إرسال رسالة',     icon: MessageSquare, tab: 'messages',      action: undefined,          rotate: false },
+    { label: 'إضافة انتظار',    icon: UserX,         tab: 'daily_waiting', action: 'add_waiting',      rotate: false },
   ],
   [
-    { label: 'إرسال رسالة',   icon: MessageSquare,   tab: 'messages',        action: undefined,        rotate: false },
+    { label: 'إسناد المواد',    icon: ClipboardList, tab: 'manual',        action: undefined,          rotate: false },
+    { label: 'جدول الحصص',      icon: CalendarCheck, tab: 'schedule_v2',   action: undefined,          rotate: false },
   ],
   [
-    { label: 'إرسال الإشراف', icon: Eye,           tab: 'supervision',    action: 'send_supervision', rotate: false },
-    { label: 'إرسال المناوبة', icon: ShieldCheck,   tab: 'duty',           action: 'send_duty',        rotate: false },
+    { label: 'التذكير بالإشراف', icon: Eye,          tab: 'supervision',   action: 'send_supervision', rotate: false },
+    { label: 'التذكير بالمناوبة', icon: ShieldCheck, tab: 'duty',          action: 'send_duty',        rotate: false },
   ],
 ];
 

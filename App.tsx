@@ -39,6 +39,24 @@ import Messages from './components/Messages';
 import RolePermissions from './components/permissions/RolePermissions';
 import SubscriptionContainer from './components/subscription/SubscriptionContainer';
 import Support from './components/Support';
+import MarketingApp from './components/marketing/MarketingApp';
+
+const AUTH_STORAGE_KEY = 'motabe_auth_status_v1';
+type AuthStatus = 'guest' | 'authenticated';
+const loadAuthStatus = (): AuthStatus => {
+  if (typeof window === 'undefined') return 'guest';
+  try {
+    const v = localStorage.getItem(AUTH_STORAGE_KEY);
+    return v === 'authenticated' ? 'authenticated' : 'guest';
+  } catch {
+    return 'guest';
+  }
+};
+const saveAuthStatus = (s: AuthStatus) => {
+  try {
+    localStorage.setItem(AUTH_STORAGE_KEY, s);
+  } catch {}
+};
 
 const APP_STORAGE_KEY = 'school_assignment_v4';
 const APP_STORAGE_BACKUP_KEY = 'school_assignment_v4_backup';
@@ -425,8 +443,18 @@ const App: React.FC = () => {
     void writeIndexedDbAppData(data);
   }, [hasHydratedAppState, hasLoadedPersistentState, schoolInfo, teachers, specializations, subjects, classes, students, admins, assignments, gradeSubjectMap, phaseDepartmentMap, scheduleSettings, subscription]);
 
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(() => loadAuthStatus());
+
+  const handleAuthenticated = () => {
+    saveAuthStatus('authenticated');
+    setAuthStatus('authenticated');
+    setActiveTab('dashboard');
+  };
+
   const handleLogout = () => {
     if(confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+        saveAuthStatus('guest');
+        setAuthStatus('guest');
         setActiveTab('dashboard');
         setIsSidebarOpen(false);
     }
@@ -555,6 +583,15 @@ const App: React.FC = () => {
     : null;
   if (scheduleShareToken) {
     return <ScheduleSharePage token={scheduleShareToken} />;
+  }
+
+  // Marketing / Auth gate — non-authenticated users land on the marketing site.
+  if (authStatus === 'guest') {
+    return (
+      <ToastProvider>
+        <MarketingApp onAuthenticated={handleAuthenticated} />
+      </ToastProvider>
+    );
   }
 
   return (
