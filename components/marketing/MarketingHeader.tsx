@@ -108,7 +108,7 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
               {it.children ? (
                 <button
                   onClick={() => setOpenDropdown((d) => (d === it.label ? null : it.label))}
-                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-base transition-colors flex items-center gap-1"
+                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-[15px] transition-colors flex items-center gap-1"
                 >
                   {it.label}
                   <ChevronDown className="w-3.5 h-3.5 mt-0.5" />
@@ -118,7 +118,7 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
                   onClick={() =>
                     it.scrollId ? handleScroll(it.scrollId) : it.route && handleRoute(it.route)
                   }
-                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-base transition-colors"
+                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-[15px] transition-colors"
                 >
                   {it.label}
                 </button>
@@ -148,13 +148,13 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
         <div className="hidden md:flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => onNavigate('login')}
-            className="px-6 py-3 rounded-lg bg-transparent text-slate-700 hover:text-[#655ac1] font-bold text-[15px] border border-slate-200 hover:border-[#655ac1] hover:bg-transparent transition-all"
+            className="px-5 py-2.5 rounded-lg bg-transparent text-slate-700 hover:text-[#655ac1] font-bold text-[15px] border border-slate-200 hover:border-[#655ac1] hover:bg-transparent transition-all"
           >
             تسجيل الدخول
           </button>
           <button
             onClick={() => onNavigate('register')}
-            className="px-6 py-3 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white font-bold text-[15px] shadow-lg shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 hover:-translate-y-0.5 transition-all"
+            className="px-5 py-2.5 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white font-bold text-[15px] shadow-lg shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 hover:-translate-y-0.5 transition-all"
           >
             ابدأ الآن مجانًا
           </button>
