@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, X, ChevronDown, MapPin, BookOpen, FileText, MessageSquare } from 'lucide-react';
 import { MarketingRoute } from './MarketingApp';
 
@@ -18,6 +18,7 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 8);
@@ -25,6 +26,17 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
     window.addEventListener('scroll', handler, { passive: true });
     return () => window.removeEventListener('scroll', handler);
   }, []);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [openDropdown]);
 
   const items: NavItem[] = [
     { label: 'الرئيسية', scrollId: 'top' },
@@ -83,21 +95,20 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
           className="flex items-center gap-2.5 group shrink-0"
           aria-label="منصة متابع"
         >
-          <span className="font-black text-xl text-slate-800 tracking-tight">متابع</span>
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center text-white font-black text-lg shadow-lg shadow-[#655ac1]/30 group-hover:shadow-[#655ac1]/50 group-hover:scale-105 transition-all">
             M
           </div>
+          <span className="font-black text-xl text-slate-800 tracking-tight">متابع</span>
         </button>
 
         {/* Desktop nav */}
-        <nav className="hidden lg:flex items-center gap-0.5">
+        <nav ref={navRef} className="hidden lg:flex items-center gap-0.5">
           {items.map((it) => (
             <div key={it.label} className="relative">
               {it.children ? (
                 <button
                   onClick={() => setOpenDropdown((d) => (d === it.label ? null : it.label))}
-                  onMouseEnter={() => setOpenDropdown(it.label)}
-                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-[15px] transition-colors flex items-center gap-1"
+                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-base transition-colors flex items-center gap-1"
                 >
                   {it.label}
                   <ChevronDown className="w-3.5 h-3.5 mt-0.5" />
@@ -107,7 +118,7 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
                   onClick={() =>
                     it.scrollId ? handleScroll(it.scrollId) : it.route && handleRoute(it.route)
                   }
-                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-[15px] transition-colors"
+                  className="px-3.5 py-2 rounded-lg text-slate-700 hover:text-[#655ac1] font-medium text-base transition-colors"
                 >
                   {it.label}
                 </button>
@@ -116,7 +127,6 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
               {/* Dropdown */}
               {it.children && openDropdown === it.label && (
                 <div
-                  onMouseLeave={() => setOpenDropdown(null)}
                   className="absolute top-full right-0 mt-1 min-w-[200px] bg-white rounded-xl shadow-xl shadow-[#655ac1]/10 border border-slate-200/80 py-2 animate-fade-in"
                 >
                   {it.children.map((c) => (
@@ -138,13 +148,13 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
         <div className="hidden md:flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => onNavigate('login')}
-            className="px-5 py-2.5 rounded-lg text-slate-700 hover:text-[#655ac1] font-bold text-sm border border-slate-200 hover:border-[#655ac1]/40 hover:bg-[#e5e1fe]/30 transition-all"
+            className="px-6 py-3 rounded-lg bg-transparent text-slate-700 hover:text-[#655ac1] font-bold text-[15px] border border-slate-200 hover:border-[#655ac1] hover:bg-transparent transition-all"
           >
             تسجيل الدخول
           </button>
           <button
             onClick={() => onNavigate('register')}
-            className="px-5 py-2.5 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white font-bold text-sm shadow-lg shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 hover:-translate-y-0.5 transition-all"
+            className="px-6 py-3 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white font-bold text-[15px] shadow-lg shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 hover:-translate-y-0.5 transition-all"
           >
             ابدأ الآن مجانًا
           </button>

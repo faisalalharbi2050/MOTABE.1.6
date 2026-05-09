@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   CalendarDays,
   CalendarCheck,
+  School,
+  User,
   ClipboardCheck,
   ClipboardList,
   Users,
@@ -77,24 +79,28 @@ const Hero: React.FC<Props> = ({ onNavigate }) => (
     <div className="relative max-w-[1280px] mx-auto px-5 lg:px-8 py-14 lg:py-20 grid lg:grid-cols-2 gap-10 lg:gap-6 items-center w-full">
       {/* Text side — appears on RIGHT in RTL (order-1 = first in flow) */}
       <div className="relative order-1 text-center lg:text-right text-white">
-        <h1 className="font-black leading-[0.95] mb-5">
-          <span className="block text-7xl md:text-8xl lg:text-[120px] tracking-tight drop-shadow-md">
+        <h1 className="font-black leading-[0.95]">
+          <span className="block text-5xl md:text-6xl lg:text-[88px] tracking-tight drop-shadow-md">
             متابع
           </span>
         </h1>
 
-        <p className="text-base md:text-lg text-white/85 leading-relaxed mb-8 max-w-md mx-auto lg:mx-0 lg:mr-0">
-          نظام ذكي يُبسّط المهام ومتوافق مع الواقع المدرسي — جداول، إشراف،
-          مناوبة، ورسائل من مكان واحد.
+        <div className="h-8 md:h-10" aria-hidden />
+
+        <p className="text-base md:text-lg text-white/90 leading-relaxed mb-3 max-w-md mx-auto lg:mx-0 lg:mr-0 font-bold">
+          نظام ذكي يُبسّط المهام ومتوافق مع الواقع المدرسي.
+        </p>
+        <p className="text-sm md:text-base text-white/80 leading-relaxed mb-8 max-w-md mx-auto lg:mx-0 lg:mr-0">
+          إنشاء جداول الحصص والانتظار، إدارة الانتظار اليومي، إنشاء وإدارة الإشراف والمناوبة، إرسال الرسائل والإشعارات اليومية في مكان واحد.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
           <button
             onClick={() => onNavigate('register')}
-            className="group inline-flex items-center justify-center gap-2 px-8 py-4 bg-white hover:bg-white text-[#655ac1] rounded-xl font-black text-base shadow-2xl shadow-black/20 hover:-translate-y-0.5 hover:shadow-black/30 transition-all"
+            className="group inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-[#655ac1] rounded-xl font-black text-base shadow-2xl shadow-black/20 hover:-translate-y-0.5 hover:shadow-black/40 hover:bg-[#f7f5ff] transition-all"
           >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             ابدأ الآن مجاناً
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1.5 transition-transform" />
           </button>
           <button
             onClick={() => onNavigate('login')}
@@ -104,18 +110,11 @@ const Hero: React.FC<Props> = ({ onNavigate }) => (
           </button>
         </div>
 
-        <div className="mt-7 flex items-center justify-center lg:justify-start gap-5 text-sm text-white/80">
-          <div className="flex items-center gap-1.5">
-            <Check className="w-4 h-4 text-green-300" />
-            بدون بطاقة ائتمان
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Check className="w-4 h-4 text-green-300" />
-            10 أيام تجربة
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Check className="w-4 h-4 text-green-300" />
-            دعم فني
+        <div className="mt-6 flex justify-center lg:justify-start">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 border border-white/30 backdrop-blur-sm text-white text-sm font-bold shadow-sm">
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>جرّب متابع مجانًا لمدة</span>
+            <span className="px-2 py-0.5 rounded-full bg-white text-[#655ac1] font-black text-xs">10 أيام</span>
           </div>
         </div>
       </div>
@@ -298,7 +297,7 @@ const Features: React.FC = () => {
             <div className="absolute -inset-6 bg-gradient-to-tr from-[#655ac1]/20 via-[#8779fb]/10 to-transparent rounded-[32px] blur-3xl opacity-80 pointer-events-none" />
 
             {/* Browser-style frame */}
-            <div className="relative bg-white rounded-2xl overflow-hidden shadow-2xl shadow-[#655ac1]/25 ring-1 ring-slate-200/70">
+            <div className="relative bg-white rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(15,23,42,0.25),0_8px_24px_-8px_rgba(15,23,42,0.18)] ring-1 ring-slate-300/80 border border-slate-200">
               {/* Browser top bar */}
               <div className="bg-slate-50 border-b border-slate-100 px-4 py-2.5 flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
@@ -384,7 +383,7 @@ const Features: React.FC = () => {
           </div>
 
           {/* Container card with mini feature tiles (QuickActions-style) */}
-          <div className="relative bg-white rounded-3xl p-6 md:p-7 order-2 shadow-[0_8px_40px_-12px_rgba(101,90,193,0.18)] border border-slate-100">
+          <div className="relative bg-white rounded-3xl p-6 md:p-7 order-2 shadow-[0_8px_40px_-12px_rgba(101,90,193,0.18)] border border-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(101,90,193,0.28)] hover:border-[#655ac1]/30">
             {/* Badge — top-left, no background */}
             <div className="absolute top-5 left-5 inline-flex items-center gap-1.5 text-[#655ac1] text-xs font-black">
               <Sparkles className="w-3.5 h-3.5" />
@@ -575,7 +574,7 @@ const StatItem: React.FC<{
         <span className="text-[#8779fb]">+</span>
       </div>
       <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full text-white/90 text-sm font-bold">
-        <Icon className="w-4 h-4 text-[#a99cf6]" />
+        <Icon className="w-4 h-4 text-white" />
         {label}
       </div>
     </div>
@@ -640,10 +639,10 @@ const Stats: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 md:gap-6">
-          <StatItem icon={Users} value={300} label="مدرسة تثق بنا" start={start} />
-          <StatItem icon={Sparkles} value={1500} label="زائر أسبوعياً" start={start} />
-          <StatItem icon={CalendarDays} value={2750} label="جدول أُنشئ في متابع" start={start} />
-          <StatItem icon={MessageCircle} value={15000} label="رسالة أُرسلت عبر متابع" start={start} />
+          <StatItem icon={School} value={300} label="مدرسة تثق بنا" start={start} />
+          <StatItem icon={User} value={1500} label="زائر أسبوعياً" start={start} />
+          <StatItem icon={CalendarCheck} value={2750} label="جداول تم إنشاءها" start={start} />
+          <StatItem icon={MessageSquare} value={15000} label="رسائل تم إرسالها" start={start} />
         </div>
       </div>
     </section>
@@ -776,20 +775,12 @@ const Testimonials: React.FC = () => {
 
 const TestimonialCard: React.FC<{ t: typeof TESTIMONIALS[0] }> = ({ t }) => (
   <div className="w-[300px] md:w-[360px] bg-white border border-slate-200 rounded-2xl p-6 shadow-lg shadow-[#655ac1]/8">
-    <div className="w-9 h-9 rounded-lg bg-[#e5e1fe]/60 flex items-center justify-center mb-4">
-      <Quote className="w-4 h-4 text-[#655ac1]" fill="currentColor" />
-    </div>
     <p className="text-slate-700 text-sm md:text-[15px] leading-loose mb-5 min-h-[80px]">
-      &ldquo;{t.content}&rdquo;
+      {t.content}
     </p>
-    <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-      <div className="w-10 h-10 rounded-full bg-[#e5e1fe] border border-[#655ac1]/20 flex items-center justify-center text-[#655ac1] font-black text-sm">
-        {t.name.charAt(t.name.indexOf('.') + 2) || t.name.charAt(0)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-black text-slate-800 text-sm">{t.name}</div>
-        <div className="text-xs text-slate-500 mt-0.5">{t.role}</div>
-      </div>
+    <div className="pt-4 border-t border-slate-100">
+      <div className="font-black text-slate-800 text-sm">{t.name}</div>
+      <div className="text-xs text-slate-500 mt-0.5">{t.role}</div>
     </div>
   </div>
 );
@@ -801,11 +792,6 @@ const TestimonialCard: React.FC<{ t: typeof TESTIMONIALS[0] }> = ({ t }) => (
 
 const Pricing: React.FC<Props> = ({ onNavigate }) => {
   const [period, setPeriod] = useState<PaymentPeriod>('semester');
-  const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({});
-
-  const toggleFeatures = (tier: string) => {
-    setExpandedTiers(prev => ({ ...prev, [tier]: !prev[tier] }));
-  };
 
   const TIERS: PackageTier[] = ['basic', 'advanced'];
 
@@ -813,28 +799,23 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
     basic: {
       bgLight: 'bg-[#f8f7ff]',
       textMain: 'text-[#8779fb]',
-      btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-      btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white group-hover:border-[#8779fb] group-hover:bg-[#8779fb] group-hover:text-white',
+      btnDefault: 'bg-white border-2 border-slate-300 text-slate-800',
+      btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white group-hover:border-[#655ac1] group-hover:bg-[#655ac1] group-hover:text-white',
     },
     advanced: {
       bgLight: 'bg-[#f3f0ff]',
       textMain: 'text-[#6e5ee0]',
-      btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-      btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white group-hover:border-[#8779fb] group-hover:bg-[#8779fb] group-hover:text-white',
+      btnDefault: 'bg-white border-2 border-slate-300 text-slate-800',
+      btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white group-hover:border-[#655ac1] group-hover:bg-[#655ac1] group-hover:text-white',
     },
   } as const;
 
   return (
     <section id="pricing" className="py-24 md:py-32 bg-white">
       <div className="max-w-[1280px] mx-auto px-5 lg:px-8">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm max-w-5xl mx-auto">
-          <div className="text-center mb-6">
-            <h3 className="text-xl font-black text-slate-800 mb-2">باقات متابع</h3>
-            <p className="text-sm font-bold text-slate-600">
-              اختر الباقة والمدة التي تناسبك
-            </p>
-          </div>
+        <SectionTitle title="باقات متابع" subtitle="اختر الباقة والمدة التي تناسبك" />
 
+        <div className="max-w-5xl mx-auto">
           {/* Period Toggle */}
           <div className="flex justify-center mb-10">
             <div className="bg-slate-50 p-1.5 rounded-2xl shadow-inner border border-slate-200 inline-flex">
@@ -889,9 +870,7 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
               return (
                 <div
                   key={tier}
-                  className={`bg-white border-2 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden ${
-                    isAdvanced ? 'border-[#8779fb] shadow-indigo-100' : 'border-slate-100 hover:border-slate-300'
-                  }`}
+                  className="bg-white border-2 border-slate-100 hover:border-slate-300 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden"
                 >
                   <div className={`absolute top-0 right-0 w-24 h-24 ${styles.bgLight} rounded-bl-full -z-0 transition-transform group-hover:scale-110`} />
 
@@ -913,7 +892,7 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
                       <span className="text-sm font-bold text-slate-400 mb-1.5">ريال</span>
                     </div>
 
-                    <div className="space-y-3 text-right flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 group-hover:bg-white transition-colors mb-6 flex flex-col">
+                    <div className="space-y-3 text-right flex-1 p-2 transition-colors mb-6 flex flex-col">
                       {isAdvanced && (
                         <div className="mb-3 pb-3 border-b border-indigo-100">
                           <p className="text-sm font-black text-[#655ac1] flex items-center gap-2">
@@ -924,41 +903,31 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
                       )}
                       {(() => {
                         const tierFeatures = PACKAGE_FEATURES.filter(feat => {
+                          if (feat.name === 'باقات الرسائل حسب احتياجك') return false;
                           const included = feat.includedIn.includes(tier);
                           if (!included && !isAdvanced) return false;
                           if (isAdvanced && feat.includedIn.includes('basic')) return false;
                           return included;
                         });
 
-                        const isExpanded = expandedTiers[tier];
-                        const initialCount = isAdvanced ? 4 : 6;
-                        const displayedFeatures = isExpanded ? tierFeatures : tierFeatures.slice(0, initialCount);
-
                         return (
                           <div className="flex flex-col flex-1">
                             <div className="space-y-3">
-                              {displayedFeatures.map((feat, idx) => (
-                                <div key={idx} className="flex items-start gap-3 text-slate-700 animate-fade-in">
-                                  <div className="mt-0.5 p-0.5 rounded-full bg-indigo-50 text-[#8779fb]">
-                                    <Check size={14} strokeWidth={3} />
+                              {tierFeatures.map((feat, idx) => (
+                                <div key={idx} className="flex items-start gap-3 text-slate-900">
+                                  <div className="mt-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30 shrink-0">
+                                    <Check size={12} strokeWidth={3.5} className="text-white" />
                                   </div>
                                   <span className="font-bold text-sm leading-relaxed">{feat.name}</span>
                                 </div>
                               ))}
+                              <div className="mt-4 pt-3 border-t border-slate-200">
+                                <div className="flex items-center justify-center gap-1.5 w-full px-2 py-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 font-black whitespace-nowrap" style={{ fontSize: 'clamp(9px, 2.4vw, 12px)' }}>
+                                  <AlertCircle size={13} strokeWidth={2.5} className="shrink-0" />
+                                  <span>قيمة اشتراك الرسائل منفصلة عن قيمة الباقة</span>
+                                </div>
+                              </div>
                             </div>
-
-                            {tierFeatures.length > initialCount && (
-                              <button
-                                onClick={() => toggleFeatures(tier)}
-                                className="mt-auto pt-3 w-full flex items-center justify-center gap-1 text-xs font-bold text-[#8779fb] hover:text-[#52499d] transition-colors py-2 bg-indigo-50/50 hover:bg-indigo-50 rounded-lg"
-                              >
-                                {isExpanded ? (
-                                  <>إخفاء المزايا <ChevronUp size={14} /></>
-                                ) : (
-                                  <>استعراض كامل المزايا <ChevronDown size={14} /></>
-                                )}
-                              </button>
-                            )}
                           </div>
                         );
                       })()}
@@ -977,8 +946,6 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Messaging packages */}
-        <MessagingPricing onNavigate={onNavigate} />
       </div>
     </section>
   );
