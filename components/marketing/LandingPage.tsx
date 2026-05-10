@@ -382,20 +382,20 @@ const Features: React.FC = () => {
             `}</style>
           </div>
 
-          {/* Container card with mini feature tiles (QuickActions-style) */}
-          <div className="relative bg-white rounded-3xl p-6 md:p-7 order-2 shadow-[0_8px_40px_-12px_rgba(101,90,193,0.18)] border border-slate-100 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(101,90,193,0.28)] hover:border-[#655ac1]/30">
-            {/* Badge — top-left, no background */}
-            <div className="absolute top-5 left-5 inline-flex items-center gap-1.5 text-[#655ac1] text-xs font-black">
+          {/* Right column: heading + separate feature cards (2 per row) */}
+          <div className="relative order-2">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-1.5 text-[#655ac1] text-xs font-black mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               منظومة متكاملة
             </div>
 
-            <h3 className="text-xl md:text-2xl font-black text-[#655ac1] mb-5 flex items-center gap-2.5 mt-2">
+            <h3 className="text-xl md:text-2xl font-black text-[#655ac1] mb-5 flex items-center gap-2.5">
               <span className="w-1.5 h-7 bg-[#655ac1] rounded-full" />
               كل ما تحتاجه في منصة واحدة
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { icon: Download,       title: 'استيراد البيانات',       desc: 'استيراد ذكي لبيانات المعلمين والطلاب' },
                 { icon: ClipboardList,  title: 'إسناد المواد',           desc: 'توزيع المواد على المعلمين بسهولة ومرونة' },
@@ -412,7 +412,7 @@ const Features: React.FC = () => {
                 return (
                   <div
                     key={it.title}
-                    className="group flex items-start gap-2.5 p-3 rounded-2xl border border-slate-200/70 transition-all bg-transparent hover:border-slate-300 hover:shadow-sm"
+                    className="group flex items-start gap-2.5 p-4 rounded-2xl bg-white border border-slate-100 shadow-[0_8px_30px_-12px_rgba(101,90,193,0.18)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-12px_rgba(101,90,193,0.28)] hover:border-[#655ac1]/30"
                   >
                     <div className="w-9 h-9 flex items-center justify-center text-[#8779fb] group-hover:scale-110 transition-transform duration-200 shrink-0">
                       <Icon size={20} strokeWidth={1.8} />
