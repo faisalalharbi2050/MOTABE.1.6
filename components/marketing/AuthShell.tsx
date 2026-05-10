@@ -4,13 +4,14 @@ import { MarketingRoute } from './MarketingApp';
 
 interface Props {
   title: string;
-  subtitle: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
   onNavigate: (r: MarketingRoute) => void;
   children: React.ReactNode;
 }
 
 /** Minimal, centered auth card on a white page (login & register share this shell). */
-const AuthShell: React.FC<Props> = ({ title, subtitle, onNavigate, children }) => {
+const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, children }) => {
   return (
     <div className="min-h-screen bg-white flex flex-col" dir="rtl">
       {/* Top bar with back-to-landing button styled like the primary CTA */}
@@ -26,7 +27,12 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, onNavigate, children }) =
 
       {/* Centered card */}
       <div className="flex-1 flex items-center justify-center p-5 lg:p-12">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/40 p-6 md:p-8">
+        <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/40 p-6 md:p-8">
+          {badge && (
+            <div className="absolute -top-3 left-4">
+              {badge}
+            </div>
+          )}
           <div className="mb-10 text-center">
             <h1 className="text-2xl md:text-3xl font-black mb-2 text-[#655ac1]">
               {title}

@@ -24,6 +24,7 @@ import ManualAssignment from './components/ManualAssignment';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import ConfirmDialog from './components/ui/ConfirmDialog';
 // import ClassesAndWaiting from './components/ClassesAndWaiting'; // Removed
 import DailySupervision from './components/DailySupervision';
 import SupervisionV2Container from './components/supervision-v2/SupervisionV2Container';
@@ -306,6 +307,7 @@ const App: React.FC = () => {
   const [messageComposerDraft, setMessageComposerDraft] = useState<MessageComposerDraft | null>(null);
   const [hasHydratedAppState, setHasHydratedAppState] = useState(false);
   const [hasLoadedPersistentState, setHasLoadedPersistentState] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Mock Data for Dashboard
   const [messages] = useState<Message[]>([
@@ -452,12 +454,15 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if(confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-        saveAuthStatus('guest');
-        setAuthStatus('guest');
-        setActiveTab('dashboard');
-        setIsSidebarOpen(false);
-    }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    saveAuthStatus('guest');
+    setAuthStatus('guest');
+    setActiveTab('dashboard');
+    setIsSidebarOpen(false);
+    setShowLogoutConfirm(false);
   };
 
   const resetAllData = () => {
@@ -614,6 +619,18 @@ const App: React.FC = () => {
           setIsSidebarOpen={setIsSidebarOpen}
           onNavigate={(tab) => setActiveTab(tab as any)}
           onLogout={handleLogout}
+        />
+
+        <ConfirmDialog
+          isOpen={showLogoutConfirm}
+          title="تأكيد تسجيل الخروج"
+          message="هل تريد تسجيل الخروج الآن؟"
+          confirmLabel="نعم، تسجيل الخروج"
+          cancelLabel="إلغاء"
+          tone="danger"
+          bareIcon
+          onConfirm={confirmLogout}
+          onCancel={() => setShowLogoutConfirm(false)}
         />
 
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, User, Phone } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, User, Phone, Sparkles } from 'lucide-react';
 import AuthShell from './AuthShell';
 import SocialAuthButtons from './SocialAuthButtons';
 import { MarketingRoute } from './MarketingApp';
@@ -61,8 +61,13 @@ const RegisterPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
   return (
     <AuthShell
       title="انضم لمتابع"
-      subtitle="جرّب النظام مجانًا لمدة 10 أيام"
       onNavigate={onNavigate}
+      badge={
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-[#655ac1] to-[#8779fb] text-white text-[11px] font-black shadow-lg shadow-[#655ac1]/40 ring-2 ring-white">
+          <Sparkles className="w-3.5 h-3.5" />
+          جرّب النظام مجانًا لمدة 10 أيام
+        </span>
+      }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <SocialAuthButtons />
@@ -137,7 +142,7 @@ const RegisterPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">
             كلمة المرور <span className="text-red-500">*</span>
-            <span className="font-normal text-xs text-slate-400 mr-1">(حقل إلزامي)</span>
+            <span className="font-normal text-xs text-slate-400 mr-1">(إلزامي)</span>
           </label>
           <div className="relative">
             <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -249,7 +254,7 @@ const Field: React.FC<{
         <>
           {' '}
           <span className="text-red-500">*</span>
-          <span className="font-normal text-xs text-slate-400 mr-1">(حقل إلزامي)</span>
+          <span className="font-normal text-xs text-slate-400 mr-1">(إلزامي)</span>
         </>
       )}
     </label>

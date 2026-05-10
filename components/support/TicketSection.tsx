@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   TicketIcon, Clock, CheckCircle2, XCircle,
   ChevronDown, Upload, X, FileText, Image as ImageIcon,
@@ -517,13 +518,13 @@ const TicketSection: React.FC = () => {
       </div>
 
       {/* ── Ticket Creation Modal ── */}
-      {showForm && (
+      {showForm && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
           onClick={() => setShowForm(false)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[96vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[96vh] overflow-y-auto animate-in zoom-in-95 duration-300"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -545,9 +546,9 @@ const TicketSection: React.FC = () => {
                 <div className="flex items-start gap-2.5">
                   <Clock size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-black text-[#655ac1]">أوقات الرد الرسمية</p>
+                    <p className="text-sm font-black text-[#655ac1]">أوقات العمل الرسمية</p>
                     <p className="text-xs font-medium text-[#655ac1] mt-0.5 leading-relaxed">
-                      يتم الرد على التذاكر خلال أوقات العمل: الأحد إلى الخميӡ 8:00 ص - 2:30 م.
+                      يتم الرد على التذاكر خلال أوقات العمل: الأحد إلى الخميس من 8:00 ص إلى 2:30 م.
                     </p>
                   </div>
                 </div>
@@ -714,7 +715,8 @@ const TicketSection: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Ticket List ── */}

@@ -8,6 +8,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   tone?: 'warning' | 'danger';
+  bareIcon?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -32,6 +33,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmLabel = 'تأكيد',
   cancelLabel = 'إلغاء',
   tone = 'warning',
+  bareIcon = false,
   onConfirm,
   onCancel,
 }) => {
@@ -48,7 +50,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       >
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${iconWrap}`}>
+            <div className={`${bareIcon ? 'text-rose-600' : `w-11 h-11 rounded-2xl ${iconWrap}`} flex items-center justify-center`}>
               <Icon size={20} />
             </div>
             <div>
