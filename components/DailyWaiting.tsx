@@ -588,6 +588,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     absentTeacher: AbsentTeacher,
     currentAssignments: WaitingAssignment[],
     day: string,
+    ignoredAssignment?: WaitingAssignment | null,
   ): BusinessRuleViolation[] => {
     const violations: BusinessRuleViolation[] = [];
     const isTeacher = teachers.some(t => t.id === person.id);
@@ -605,7 +606,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
     // Rule 3 [BLOCKING] — already assigned to another absent teacher at same period
     const doubleAssign = currentAssignments.find(
-      a => a.substituteTeacherId === person.id && a.periodNumber === period.periodNumber && a.absentTeacherId !== absentTeacher.id
+      a => a.id !== ignoredAssignment?.id && a.substituteTeacherId === person.id && a.periodNumber === period.periodNumber && a.absentTeacherId !== absentTeacher.id
     );
     if (doubleAssign) {
       violations.push({ ruleId: 'double_assign', severity: 'blocking', message: `مُسنَد بالفعل في الحصة ${period.periodNumber} لغائب آخر` });
@@ -615,7 +616,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     if (isTeacher) {
       const teacher = person as Teacher;
       const total = teacher.waitingQuota || 10;
-      const assigned = weeklyQuota.counts[teacher.id] || 0;
+      const assigned = Math.max(
+        0,
+        (weeklyQuota.counts[teacher.id] || 0) -
+          (!ignoredAssignment?.isSwap && ignoredAssignment?.substituteTeacherId === teacher.id ? 1 : 0)
+      );
       if (assigned >= total) {
         violations.push({ ruleId: 'quota_exceeded', severity: 'blocking', message: `اكتمل نصابه الأسبوعي (${assigned}/${total})` });
       }
@@ -676,6 +681,23 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     setAssignModalTab('teachers');
     setAssignmentSearch('');
     setSelectedAssignPerson(null);
+  };
+
+  const openAssignModal = (period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
+    const existingAssignment = (currentSession?.assignments || []).find(
+      a => a.absentTeacherId === absentTeacher.id && a.periodNumber === period.periodNumber
+    );
+    const selectedTeacher = existingAssignment
+      ? teachers.find(t => t.id === existingAssignment.substituteTeacherId)
+      : undefined;
+    const selectedAdmin = existingAssignment && !selectedTeacher
+      ? admins.find(a => a.id === existingAssignment.substituteTeacherId)
+      : undefined;
+
+    setAssignmentSearch('');
+    setSelectedAssignPerson(selectedTeacher || selectedAdmin || null);
+    setAssignModalTab(selectedAdmin ? 'admins' : 'teachers');
+    setShowAssignModal({ period, absentTeacher });
   };
 
   // ── Phase 4: Message helpers ──
@@ -1447,8 +1469,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       return;
     }
     const currentAssignments = currentSession?.assignments || [];
+    const replacedAssignment = currentAssignments.find(
+      a => a.absentTeacherId === absentTeacher.id && a.periodNumber === period.periodNumber
+    );
     // Phase 3: validate before assigning
-    const violations = validateAssignment(person, period, absentTeacher, currentAssignments, dayKey);
+    const violations = validateAssignment(person, period, absentTeacher, currentAssignments, dayKey, replacedAssignment);
     if (hasBlockingViolations(violations)) {
       const blocking = violations.filter(v => v.severity === 'blocking');
       showToast(`❌ تعذّر الإسناد: ${blocking[0].message}`, 'error');
@@ -1493,7 +1518,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       counts[person.id] = (counts[person.id] || 0) + 1;
       return { ...prev, counts };
     });
-    resetAssignModal();
     showToast(`✅ تم إسناد الحصة لـ${person.name}`, 'success');
   };
 
@@ -3076,7 +3100,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {manualDistMode && !slotDisabled ? (
                                     <button
-                                      onClick={() => { setAssignmentSearch(''); setSelectedAssignPerson(null); setShowAssignModal({ period, absentTeacher }); }}
+                                      onClick={() => openAssignModal(period, absentTeacher)}
                                       className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
                                     >
                                       <Plus size={12} /> إضافة منتظر
@@ -3101,7 +3125,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             <td className="px-5 py-3.5 print:hidden">
                               <div className="flex flex-row gap-2 items-center justify-center">
                                 <button
-                                  onClick={() => { setAssignmentSearch(''); setSelectedAssignPerson(null); setShowAssignModal({ period, absentTeacher }); }}
+                                  onClick={() => openAssignModal(period, absentTeacher)}
                                   disabled={slotDisabled}
                                   title="تعديل المنتظر"
                                   className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] shadow-sm transition-all active:scale-95 hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -3841,7 +3865,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                       <span className="font-bold text-slate-700 text-sm">{assignment.substituteTeacherName}</span>
                                       <button
                                         title="تغيير المنتظر"
-                                        onClick={() => { setAssignmentSearch(''); setShowAssignModal({ period, absentTeacher }); }}
+                                        onClick={() => openAssignModal(period, absentTeacher)}
                                         className="p-1.5 text-[#655ac1] hover:text-[#5046a0] hover:bg-[#e5e1fe] rounded-lg transition-colors"
                                       >
                                         <Edit3 size={14} />
@@ -3872,7 +3896,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                         <Zap size={12} /> تلقائي
                                       </button>
                                       <button
-                                        onClick={() => { setAssignmentSearch(''); setShowAssignModal({ period, absentTeacher }); }}
+                                        onClick={() => openAssignModal(period, absentTeacher)}
                                         className="flex items-center gap-1.5 bg-white hover:bg-[#e5e1fe] text-[#655ac1] border border-[#655ac1]/20 px-3 py-1.5 rounded-xl font-bold text-xs transition-all hover:border-[#655ac1]"
                                       >
                                         <Users size={12} /> يدوي
@@ -3964,9 +3988,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div className="flex-1 overflow-y-auto p-4 bg-white">
               {(() => {
                 const currentAssignments = currentSession?.assignments || [];
+                const currentSlotAssignment = currentAssignments.find(
+                  a => a.absentTeacherId === showAssignModal.absentTeacher.id && a.periodNumber === showAssignModal.period.periodNumber
+                );
                 const alreadyAssignedThisPeriod = new Set(
                   currentAssignments
                     .filter(a => a.periodNumber === showAssignModal.period.periodNumber)
+                    .filter(a => a.id !== currentSlotAssignment?.id)
                     .map(a => a.substituteTeacherId)
                 );
 
@@ -3989,7 +4017,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       const isBusy = timetable[busyKey]?.type === 'lesson';
                       const isQuotaFull = remaining <= 0;
                       // Phase 3: get validation result for this teacher
-                      const violations = validateAssignment(t, showAssignModal.period, showAssignModal.absentTeacher, currentSession?.assignments || [], dayKey);
+                      const violations = validateAssignment(t, showAssignModal.period, showAssignModal.absentTeacher, currentSession?.assignments || [], dayKey, currentSlotAssignment);
                       const hasWarnings = violations.some(v => v.severity === 'warning');
                       const isBlocking = hasBlockingViolations(violations);
                       return { person: t as Teacher | Admin, assigned, total, remaining, isTeacher: true, isBusy, isQuotaFull: isBlocking, violations, hasWarnings };
