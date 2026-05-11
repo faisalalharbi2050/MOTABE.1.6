@@ -17,12 +17,13 @@ interface Props {
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
   specializations?: Specialization[];
+  onOpenMessagesArchive?: () => void;
 }
 
 type TabId = 'register' | 'distribute' | 'balance' | 'printsend' | 'reports';
 
 const TAB_STORAGE_KEY = 'motabe:waiting_v2:lastTab';
-const VALID_TABS: TabId[] = ['register', 'distribute', 'balance', 'printsend', 'reports'];
+const VALID_TABS: TabId[] = ['register', 'distribute', 'printsend', 'balance', 'reports'];
 
 const WaitingV2Container: React.FC<Props> = (props) => {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -40,8 +41,8 @@ const WaitingV2Container: React.FC<Props> = (props) => {
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
     { id: 'register', label: 'تسجيل غياب معلم', icon: UserX },
     { id: 'distribute', label: 'توزيع الانتظار', icon: Shuffle },
-    { id: 'balance', label: 'رصيد الانتظار', icon: Scale },
     { id: 'printsend', label: 'طباعة وإرسال الانتظار', icon: FileOutput },
+    { id: 'balance', label: 'رصيد الانتظار', icon: Scale },
     { id: 'reports', label: 'تقارير الانتظار', icon: FileText },
   ];
 

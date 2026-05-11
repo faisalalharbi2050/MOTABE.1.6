@@ -11,6 +11,7 @@ interface Props {
   subjects: Subject[];
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
+  onOpenMessagesArchive?: () => void;
 }
 
 const PrintSendTab: React.FC<Props> = (props) => {
