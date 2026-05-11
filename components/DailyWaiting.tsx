@@ -7,12 +7,13 @@ import gregorian from 'react-date-object/calendars/gregorian';
 import gregorian_en from 'react-date-object/locales/gregorian_en';
 import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
-  UserX, UserPlus, Clock, X, Search,
+  User, UserX, UserPlus, Clock, X, Search,
   AlertCircle, CheckCircle2, Info, Zap, ArrowLeftRight, Users, ClipboardList,
   Calendar, BookOpen, Layers, RefreshCw, Plus, Trash2,
   BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle, Scale, PieChart,
   ArrowRight, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
-  PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog
+  PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog, Shuffle, CircleOff,
+  Archive, ClipboardCheck
 } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo,
@@ -197,6 +198,87 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+type WaitingDropdownOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+const WaitingSingleSelect: React.FC<{
+  label: string;
+  value: string;
+  options: WaitingDropdownOption[];
+  placeholder: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}> = ({ label, value, options, placeholder, onChange, disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selected = options.find(option => option.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="flex-1 min-w-[220px] relative">
+      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-[60] top-full right-0 left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1">
+            {options.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => {
+                  if (option.disabled) return;
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  option.disabled ? 'text-slate-300 cursor-not-allowed bg-slate-50/70' :
+                  value === option.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span>{option.label}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                }`}>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ===== Props =====
 interface DailyWaitingProps {
   teachers: Teacher[];
@@ -209,11 +291,12 @@ interface DailyWaitingProps {
   embeddedSection?: 'register' | 'distribute' | 'balance' | 'printsend' | 'reports';
   onSectionExit?: () => void;
   onGoToPrintSend?: () => void;
+  onOpenMessagesArchive?: () => void;
 }
 
 // ===== Main Component =====
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
-  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend
+  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onOpenMessagesArchive
 }) => {
   const { sendMessage } = useMessageArchive();
   // ===== Embedded section flags =====
@@ -236,6 +319,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   });
 
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printTargetTeacherId, setPrintTargetTeacherId] = useState<string | null>(null);
+  const [printInitialTab, setPrintInitialTab] = useState<'print' | 'blank'>('print');
+  const [waitingPrintColorMode, setWaitingPrintColorMode] = useState<'color' | 'bw'>('color');
+  const [blankPrintColorMode, setBlankPrintColorMode] = useState<'color' | 'bw'>('color');
+  const [waitingPrintScope, setWaitingPrintScope] = useState<'all' | 'teacher'>('all');
+  const [selectedPrintTeacherId, setSelectedPrintTeacherId] = useState('');
+  const [waitingTaskMode, setWaitingTaskMode] = useState<'print' | 'send'>('print');
+  const [showWaitingReceipt, setShowWaitingReceipt] = useState(false);
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [receiptFilter, setReceiptFilter] = useState<'all' | 'signed' | 'pending'>('all');
 
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
   const [showSwapConfirm, setShowSwapConfirm] = useState<{
@@ -246,6 +339,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   } | null>(null);
   const [showManualDistModal, setShowManualDistModal] = useState(false);
   const [manualDistMode, setManualDistMode] = useState(false);
+  const [distributionMode, setDistributionMode] = useState<'auto' | 'manual' | null>(null);
   type AbsenceQueueEntry = { teacherId: string; teacherName: string; absenceType: 'full' | 'partial'; selectedPeriods: Set<number> };
   const [absentQueue, setAbsentQueue] = useState<AbsenceQueueEntry[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
@@ -265,6 +359,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [showAutoOverwriteConfirm, setShowAutoOverwriteConfirm] = useState(false);
   const [pendingAutoFn, setPendingAutoFn] = useState<(() => void) | null>(null);
   const [showManualOverwriteConfirm, setShowManualOverwriteConfirm] = useState(false);
+  const [removeAssignmentConfirm, setRemoveAssignmentConfirm] = useState<WaitingAssignment | null>(null);
+  const [clearTeacherAssignmentsConfirm, setClearTeacherAssignmentsConfirm] = useState<AbsentTeacher | null>(null);
+  const [disabledWaitingSlots, setDisabledWaitingSlots] = useState<Set<string>>(new Set());
+  const [selectedAssignPerson, setSelectedAssignPerson] = useState<Teacher | Admin | null>(null);
+  const [manualNameSlots, setManualNameSlots] = useState<Set<string>>(new Set());
+  const [manualNameValues, setManualNameValues] = useState<Record<string, string>>({});
   const [showRankModal, setShowRankModal] = useState<'top' | 'bottom' | null>(null);
   const [assignModalTab, setAssignModalTab] = useState<'teachers' | 'admins'>('teachers');
   const [showShortageAlert, setShowShortageAlert] = useState(false);
@@ -549,6 +649,33 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       if (existing) return prev.map(s => s.date === date ? updater(s) : s);
       return [...prev, updater(getOrCreateSession(date))];
     });
+  };
+
+  const releaseAssignmentQuota = (assignments: WaitingAssignment[]) => {
+    const normalAssignments = assignments.filter(a => !a.isSwap);
+    if (normalAssignments.length === 0) return;
+    setWeeklyQuota(prev => {
+      const counts = { ...prev.counts };
+      normalAssignments.forEach(a => {
+        counts[a.substituteTeacherId] = Math.max(0, (counts[a.substituteTeacherId] || 0) - 1);
+      });
+      return { ...prev, counts };
+    });
+  };
+
+  const getWaitingSlotKey = (absentTeacherId: string, periodNumber: number) => `${absentTeacherId}-${periodNumber}`;
+
+  const isWaitingSlotDisabled = (absentTeacherId: string, periodNumber: number) =>
+    disabledWaitingSlots.has(getWaitingSlotKey(absentTeacherId, periodNumber));
+
+  const getActiveAbsentPeriods = (absentTeacher: AbsentTeacher) =>
+    absentTeacher.periods.filter(p => !isWaitingSlotDisabled(absentTeacher.id, p.periodNumber));
+
+  const resetAssignModal = () => {
+    setShowAssignModal(null);
+    setAssignModalTab('teachers');
+    setAssignmentSearch('');
+    setSelectedAssignPerson(null);
   };
 
   // ── Phase 4: Message helpers ──
@@ -1091,6 +1218,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   const handleAutoAssign = (period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
+    if (isWaitingSlotDisabled(absentTeacher.id, period.periodNumber)) {
+      showToast('هذه الحصة معطّلة ولا يمكن إضافة منتظر لها', 'warning');
+      return;
+    }
     const existing = currentSession?.assignments || [];
     const waiters = getWaitersWithQuota(period.periodNumber, dayKey, existing);
     // Filter with validator (skip any candidate with blocking violations)
@@ -1140,6 +1271,36 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   // ── Phase 2: Batch Auto-Assign with distribution report ──
+  const startManualDistribution = () => {
+    if (!currentSession || currentSession.absentTeachers.length === 0) return;
+    const existingAssignments = currentSession.assignments || [];
+    if (existingAssignments.length > 0) {
+      setShowManualOverwriteConfirm(true);
+      return;
+    }
+    setDistributionMode('manual');
+    setManualDistMode(true);
+  };
+
+  const requestAutoDistribution = (absentTeacher?: AbsentTeacher) => {
+    if (!currentSession || currentSession.absentTeachers.length === 0) {
+      showToast('لا يوجد غياب مسجل لهذا اليوم', 'warning');
+      return;
+    }
+    const hasExisting = absentTeacher
+      ? (currentSession.assignments || []).some(a => a.absentTeacherId === absentTeacher.id)
+      : (currentSession.assignments || []).length > 0;
+
+    if (hasExisting) {
+      setPendingAutoFn(() => () => handleBatchAutoAssign(absentTeacher, true));
+      setShowAutoOverwriteConfirm(true);
+      return;
+    }
+
+    setPendingAutoFn(() => () => handleBatchAutoAssign(absentTeacher));
+    setShowAutoConfirm(true);
+  };
+
   const handleBatchAutoAssign = (absentTeacher?: AbsentTeacher, forceReplace = false) => {
     const session = currentSession;
     if (!session || session.absentTeachers.length === 0) {
@@ -1149,14 +1310,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const targetAbsents = absentTeacher ? [absentTeacher] : session.absentTeachers;
 
     let newSessions = { ...session };
+    const newCounts = { ...weeklyQuota.counts };
 
     // If forceReplace, clear existing assignments for the target scope first
     if (forceReplace) {
       const targetIds = new Set(targetAbsents.map(a => a.id));
+      const removedAssignments = newSessions.assignments.filter(a => targetIds.has(a.absentTeacherId));
+      removedAssignments.forEach(a => {
+        if (!a.isSwap) newCounts[a.substituteTeacherId] = Math.max(0, (newCounts[a.substituteTeacherId] || 0) - 1);
+      });
       newSessions = { ...newSessions, assignments: newSessions.assignments.filter(a => !targetIds.has(a.absentTeacherId)) };
     }
 
-    const newCounts = { ...weeklyQuota.counts };
     const result: DistributionResult = {
       assigned: 0, failed: 0, skipped: 0,
       details: [],
@@ -1165,6 +1330,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
     for (const absent of targetAbsents) {
       const pendingPeriods = absent.periods.filter(p =>
+        !isWaitingSlotDisabled(absent.id, p.periodNumber) &&
         !newSessions.assignments.find(a => a.absentTeacherId === absent.id && a.periodNumber === p.periodNumber)
       );
 
@@ -1265,6 +1431,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     if (result.failed > 0) setShowShortageAlert(true);
 
     setManualDistMode(false);
+    setDistributionMode('auto');
     if (result.failed === 0) {
       showToast(`✅ تم توزيع ${result.assigned} حصة بنجاح`, 'success');
     } else if (result.assigned > 0) {
@@ -1275,6 +1442,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   const handleManualAssign = (person: Teacher | Admin, period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
+    if (isWaitingSlotDisabled(absentTeacher.id, period.periodNumber)) {
+      showToast('هذه الحصة معطّلة ولا يمكن إضافة منتظر لها', 'warning');
+      return;
+    }
     const currentAssignments = currentSession?.assignments || [];
     // Phase 3: validate before assigning
     const violations = validateAssignment(person, period, absentTeacher, currentAssignments, dayKey);
@@ -1289,6 +1460,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // Commit the actual assignment (used by both handleManualAssign and force override confirm)
   const commitManualAssign = (person: Teacher | Admin, period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
+    const replacedAssignment = currentSession?.assignments.find(
+      a => a.absentTeacherId === absentTeacher.id && a.periodNumber === period.periodNumber
+    );
     const newAsgn: WaitingAssignment = {
       id: `asgn-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
       absentTeacherId: absentTeacher.id,
@@ -1311,12 +1485,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         a => !(a.absentTeacherId === absentTeacher.id && a.periodNumber === period.periodNumber)
       ), newAsgn],
     }));
-    setWeeklyQuota(prev => ({
-      ...prev,
-      counts: { ...prev.counts, [person.id]: (prev.counts[person.id] || 0) + 1 },
-    }));
-    setShowAssignModal(null);
-    setAssignmentSearch('');
+    setWeeklyQuota(prev => {
+      const counts = { ...prev.counts };
+      if (replacedAssignment && !replacedAssignment.isSwap) {
+        counts[replacedAssignment.substituteTeacherId] = Math.max(0, (counts[replacedAssignment.substituteTeacherId] || 0) - 1);
+      }
+      counts[person.id] = (counts[person.id] || 0) + 1;
+      return { ...prev, counts };
+    });
+    resetAssignModal();
     showToast(`✅ تم إسناد الحصة لـ${person.name}`, 'success');
   };
 
@@ -1332,6 +1509,108 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       }));
     }
     showToast('تم حذف الإسناد', 'info');
+  };
+
+  const confirmRemoveAssignment = () => {
+    if (!removeAssignmentConfirm) return;
+    handleRemoveAssignment(removeAssignmentConfirm);
+    setRemoveAssignmentConfirm(null);
+  };
+
+  const confirmClearTeacherAssignments = () => {
+    if (!clearTeacherAssignmentsConfirm) return;
+    const removed = (currentSession?.assignments || []).filter(a => a.absentTeacherId === clearTeacherAssignmentsConfirm.id);
+    releaseAssignmentQuota(removed);
+    updateSession(selectedDate, s => ({
+      ...s,
+      assignments: s.assignments.filter(a => a.absentTeacherId !== clearTeacherAssignmentsConfirm.id),
+    }));
+    setClearTeacherAssignmentsConfirm(null);
+    showToast('تم حذف جميع المنتظرين لهذا المعلم', 'info');
+  };
+
+  const toggleWaitingSlotDisabled = (absentTeacherId: string, periodNumber: number) => {
+    const key = getWaitingSlotKey(absentTeacherId, periodNumber);
+    const isDisabling = !disabledWaitingSlots.has(key);
+    if (isDisabling) {
+      const removed = (currentSession?.assignments || []).filter(
+        a => a.absentTeacherId === absentTeacherId && a.periodNumber === periodNumber
+      );
+      releaseAssignmentQuota(removed);
+      updateSession(selectedDate, s => ({
+        ...s,
+        assignments: s.assignments.filter(a => !(a.absentTeacherId === absentTeacherId && a.periodNumber === periodNumber)),
+      }));
+      setManualNameSlots(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+      setManualNameValues(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+    setDisabledWaitingSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleManualNameSlot = (absentTeacherId: string, periodNumber: number) => {
+    const key = getWaitingSlotKey(absentTeacherId, periodNumber);
+    setManualNameSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const saveManualNameAssignment = (period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
+    const key = getWaitingSlotKey(absentTeacher.id, period.periodNumber);
+    const name = (manualNameValues[key] || '').trim();
+    if (!name) return;
+    const newAsgn: WaitingAssignment = {
+      id: `manual-asgn-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      absentTeacherId: absentTeacher.id,
+      absentTeacherName: absentTeacher.teacherName,
+      periodNumber: period.periodNumber,
+      classId: period.classId,
+      className: period.className,
+      subjectId: period.subjectId,
+      subjectName: period.subjectName,
+      substituteTeacherId: `manual-${key}`,
+      substituteTeacherName: name,
+      substitutePhone: '',
+      isSwap: true,
+      status: 'pending',
+      assignedAt: new Date().toISOString(),
+    };
+    updateSession(selectedDate, s => ({
+      ...s,
+      assignments: [
+        ...s.assignments.filter(a => !(a.absentTeacherId === absentTeacher.id && a.periodNumber === period.periodNumber)),
+        newAsgn,
+      ],
+    }));
+    setManualNameSlots(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    showToast('تم حفظ اسم المنتظر يدويًا', 'success');
+  };
+
+  const saveSelectedAssignPerson = () => {
+    if (!showAssignModal || !selectedAssignPerson) {
+      showToast('اختر منتظراً أولاً', 'warning');
+      return;
+    }
+    handleManualAssign(selectedAssignPerson, showAssignModal.period, showAssignModal.absentTeacher);
   };
 
   const confirmSwap = () => {
@@ -1373,9 +1652,31 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ===== Computed stats =====
   const totalAbsent = currentSession?.absentTeachers.length || 0;
-  const totalPeriods = currentSession?.absentTeachers.reduce((s, a) => s + a.periods.length, 0) || 0;
-  const totalAssigned = currentSession?.assignments.length || 0;
+  const totalPeriods = currentSession?.absentTeachers.reduce((s, a) => s + getActiveAbsentPeriods(a).length, 0) || 0;
+  const totalAssigned = (currentSession?.assignments || []).filter(
+    a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)
+  ).length;
   const totalPending = totalPeriods - totalAssigned;
+  const receiptRows = useMemo(() => {
+    const q = receiptSearch.trim().toLowerCase();
+    return (currentSession?.assignments || [])
+      .filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber))
+      .filter(a => receiptFilter === 'all' ? true : receiptFilter === 'signed' ? !!a.signatureData : !a.signatureData)
+      .filter(a => !q || [a.substituteTeacherName, a.absentTeacherName, a.className, a.subjectName].some(v => (v || '').toLowerCase().includes(q)));
+  }, [currentSession, receiptFilter, receiptSearch, disabledWaitingSlots]);
+  const signedReceiptCount = (currentSession?.assignments || []).filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber) && !!a.signatureData).length;
+  const pendingReceiptCount = totalAssigned - signedReceiptCount;
+  const actionButtonClass = (active = false) =>
+    `inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-black transition-all ${
+      active
+        ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
+        : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50'
+    }`;
+  const openWaitingPrint = (targetTeacherId: string | null = null, initialTab: 'print' | 'blank' = 'print') => {
+    setPrintTargetTeacherId(targetTeacherId);
+    setPrintInitialTab(initialTab);
+    setShowPrintModal(true);
+  };
 
   // ── Phase 2: Fairness / distribution quality score ──
   const distributionQuality = useMemo(() => {
@@ -1416,6 +1717,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       if (rptFromDate && session.date < rptFromDate) continue;
       if (rptToDate && session.date > rptToDate) continue;
       for (const asgn of session.assignments) {
+        if (isWaitingSlotDisabled(asgn.absentTeacherId, asgn.periodNumber)) continue;
         const sid = asgn.substituteTeacherId;
         if (rptStaffMode === 'specific' && rptSelectedIds.size > 0 && !rptSelectedIds.has(sid)) continue;
         if (!staffMap[sid]) {
@@ -1429,21 +1731,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       }
     }
     return Object.values(staffMap).sort((a, b) => b.totalAssigned - a.totalAssigned);
-  }, [sessions, rptFromDate, rptToDate, rptStaffMode, rptSelectedIds, teachers, admins]);
+  }, [sessions, rptFromDate, rptToDate, rptStaffMode, rptSelectedIds, teachers, admins, disabledWaitingSlots]);
 
   const rptWeekTotal = useMemo(() => {
     const weekDates = new Set(getWeekDates(getTodayStr()));
-    return sessions.reduce((sum, s) => weekDates.has(s.date) ? sum + s.assignments.length : sum, 0);
-  }, [sessions]);
+    return sessions.reduce((sum, s) => weekDates.has(s.date) ? sum + s.assignments.filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)).length : sum, 0);
+  }, [sessions, disabledWaitingSlots]);
 
   const rptMonthTotal = useMemo(() => {
     const today = getTodayStr();
     const [cy, cm] = today.split('-').map(Number);
     return sessions.reduce((sum, s) => {
       const [sy, sm] = s.date.split('-').map(Number);
-      return sy === cy && sm === cm ? sum + s.assignments.length : sum;
+      return sy === cy && sm === cm ? sum + s.assignments.filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)).length : sum;
     }, 0);
-  }, [sessions]);
+  }, [sessions, disabledWaitingSlots]);
 
   // ── Phase 2: Shortage detection ──
   const shortageWarnings = useMemo(() => {
@@ -1451,6 +1753,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const warnings: { absentName: string; periodNumber: number; className: string }[] = [];
     for (const absent of currentSession.absentTeachers) {
       for (const period of absent.periods) {
+        if (isWaitingSlotDisabled(absent.id, period.periodNumber)) continue;
         const alreadyAssigned = currentSession.assignments.find(
           a => a.absentTeacherId === absent.id && a.periodNumber === period.periodNumber
         );
@@ -1487,6 +1790,147 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     ),
     [teachers, teacherSearch, currentSession, absentQueue]
   );
+
+  if (isPrintSend && showWaitingReceipt) {
+    return (
+      <div className="space-y-5" dir="rtl">
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={() => setShowWaitingReceipt(false)} title="رجوع"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50 transition-all">
+              <ArrowRight size={18} />
+            </button>
+            <div>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالانتظار</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {signedReceiptCount} وقّع من أصل {totalAssigned} تكليف انتظار
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { label: 'إجمالي التكليفات', value: String(totalAssigned), icon: ClipboardList },
+            { label: 'وقّع', value: String(signedReceiptCount), icon: CheckCircle2 },
+            { label: 'لم يوقّع', value: String(Math.max(0, pendingReceiptCount)), icon: AlertCircle },
+          ].map((s, i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
+              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+                <s.icon size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-400 leading-none">{s.label}</p>
+                <p className="mt-1 font-black text-slate-800 text-xl leading-none">{s.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={15} />
+              تحديث
+            </button>
+            <button type="button" onClick={() => openWaitingPrint(null, 'print')} disabled={totalAssigned === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة جدول الانتظار الإلكتروني
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
+            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <ClipboardCheck size={18} className="text-[#655ac1]" />
+              سجل الاستلام
+            </p>
+            <div className="flex-1" />
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              {[
+                { id: 'all', label: 'الكل' },
+                { id: 'signed', label: 'وقّع' },
+                { id: 'pending', label: 'لم يوقّع' },
+              ].map(option => (
+                <button key={option.id} type="button" onClick={() => setReceiptFilter(option.id as typeof receiptFilter)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${receiptFilter === option.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-64">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input type="text" value={receiptSearch} onChange={e => setReceiptSearch(e.target.value)}
+                placeholder="ابحث عن منتظر أو غائب..."
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl" />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-right">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">م</th>
+                  <th className="px-4 py-3 font-black text-[#655ac1] text-xs">المعلم المنتظر</th>
+                  <th className="px-4 py-3 font-black text-[#655ac1] text-xs">بدلًا عن</th>
+                  <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">الحصة</th>
+                  <th className="px-4 py-3 font-black text-[#655ac1] text-xs">الصف والفصل</th>
+                  <th className="px-4 py-3 font-black text-[#655ac1] text-xs text-center">حالة التوقيع</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {receiptRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد تكليفات مطابقة.</td>
+                  </tr>
+                ) : receiptRows.map((row, idx) => (
+                  <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-4 py-3 text-center text-slate-400 font-bold">{idx + 1}</td>
+                    <td className="px-4 py-3 font-black text-slate-800">{row.substituteTeacherName}</td>
+                    <td className="px-4 py-3 font-bold text-slate-600">{row.absentTeacherName}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center justify-center min-w-8 h-8 rounded-lg bg-[#e5e1fe] text-[#655ac1] font-black">{row.periodNumber}</span>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-600">{row.className}</td>
+                    <td className="px-4 py-3 text-center">
+                      {row.signatureData ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-black">
+                          <CheckCircle2 size={13} /> وقّع
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-xs font-black">
+                          <Hourglass size={13} /> بانتظار التوقيع
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {showPrintModal && (
+          <DailyWaitingPrintModal
+            isOpen={showPrintModal}
+            onClose={() => setShowPrintModal(false)}
+            dayName={getArabicDayFromDate(selectedDate)}
+            gregorianDateStr={formatGregorian(selectedDate)}
+            hijriDateStr={formatHijri(selectedDate)}
+            schoolInfo={schoolInfo}
+            absentTeachers={currentSession?.absentTeachers || []}
+            assignments={(currentSession?.assignments || []).filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber))}
+            targetTeacherId={printTargetTeacherId}
+            initialTab={printInitialTab}
+            colorMode={printInitialTab === 'blank' ? blankPrintColorMode : waitingPrintColorMode}
+            autoPrint
+          />
+        )}
+      </div>
+    );
+  }
 
   // ===== Render =====
   return (
@@ -1539,7 +1983,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       )}
 
       {/* ══════ Embedded UI: Date bar + Teachers table + Distribution method card ══════ */}
-      {isEmbedded && (() => {
+      {isEmbedded && !isPrintSend && (() => {
         const lowerSearch = embTableSearch.trim().toLowerCase();
         const tableTeachers = teachers
           .filter(t => {
@@ -1555,7 +1999,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         };
 
         const distDone = totalAssigned > 0;
-        const showMethodCard = totalAbsent > 0 && !distDone && !manualDistMode;
+        const showMethodCard = totalAbsent > 0;
 
         return (
           <div className="space-y-4 mb-6">
@@ -1773,72 +2217,68 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
             {/* Distribution Method Card — distribute section only */}
             {isDistribute && showMethodCard && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <button
-                  onClick={() => setShowAutoConfirm(true)}
-                  className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#8779fb] shadow-sm hover:shadow-md p-5 transition-all relative overflow-hidden group"
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-[#e5e1fe] rounded-bl-[3rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-11 h-11 rounded-xl bg-[#8779fb] flex items-center justify-center text-white shadow-md shadow-[#8779fb]/30">
-                        <Zap size={22} />
-                      </div>
-                      <h4 className="text-base font-black text-slate-800">التوزيع التلقائي</h4>
-                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">موصى به</span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      توزيع عادل وذكي وفق رصيد كل معلم — مناسب للاستخدام اليومي.
-                    </p>
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3" dir="rtl">
+                <div className="flex flex-wrap items-center gap-5">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Shuffle size={18} className="text-[#655ac1]" />
+                    <p className="text-sm font-black text-slate-800">اختر طريقة التوزيع</p>
                   </div>
-                </button>
 
-                <button
-                  onClick={() => {
-                    if (!currentSession || currentSession.absentTeachers.length === 0) return;
-                    setManualDistMode(true);
-                  }}
-                  className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#655ac1] shadow-sm hover:shadow-md p-5 transition-all relative overflow-hidden group"
-                >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-slate-50 rounded-bl-[3rem] -z-0 transition-transform group-hover:scale-110 duration-500" />
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-11 h-11 rounded-xl bg-white border-2 border-[#655ac1] flex items-center justify-center text-[#655ac1]">
-                        <PenLine size={22} />
-                      </div>
-                      <h4 className="text-base font-black text-slate-800">التوزيع اليدوي</h4>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                      أنت تتحكم بكل تكليف يدويًا — مناسب للحالات الخاصة والتعديلات الدقيقة.
-                    </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => requestAutoDistribution()}
+                      className={`inline-flex items-center justify-center gap-2 min-w-36 px-7 py-2.5 rounded-xl border text-sm font-black active:scale-95 ${
+                        distributionMode === 'auto'
+                          ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <Zap size={17} />
+                      <span>توزيع آلي</span>
+                    </button>
+
+                    <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
+
+                    <button
+                      onClick={startManualDistribution}
+                      className={`inline-flex items-center justify-center gap-2 min-w-36 px-7 py-2.5 rounded-xl border text-sm font-black active:scale-95 ${
+                        distributionMode === 'manual'
+                          ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <PenLine size={17} />
+                      <span>توزيع يدوي</span>
+                    </button>
                   </div>
-                </button>
+                </div>
               </div>
             )}
 
             {/* Manual mode indicator + cancel — distribute section only */}
-            {isDistribute && manualDistMode && !distDone && (
-              <div className="bg-[#fcfbff] border-2 border-[#8779fb]/40 rounded-2xl p-4 flex items-center justify-between gap-3">
+            {false && isDistribute && manualDistMode && !distDone && (
+              <div className="bg-white border border-[#8779fb]/30 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm" dir="rtl">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center">
-                    <PenLine size={20} className="text-[#655ac1]" />
+                  <div className="w-9 h-9 rounded-xl bg-[#e5e1fe] flex items-center justify-center">
+                    <PenLine size={18} className="text-[#655ac1]" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-800">وضع التوزيع اليدوي مُفعّل</p>
-                    <p className="text-xs text-slate-500 font-medium">انقر على الحصص في بطاقات الغائبين أدناه لإسناد مناوبين.</p>
+                    <p className="text-sm font-black text-slate-800">التوزيع اليدوي مفعّل</p>
+                    <p className="text-xs text-slate-500 font-medium">اختر الحصة من بطاقات الغائبين لإسناد المنتظر.</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setManualDistMode(false)}
-                  className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-800 text-xs font-bold transition-all"
+                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white flex items-center justify-center transition-all"
+                  title="إيقاف التوزيع اليدوي"
                 >
-                  إيقاف
+                  <X size={16} />
                 </button>
               </div>
             )}
 
             {/* Distribution report mini-bar — distribute section only */}
-            {isDistribute && lastDistResult && (
+            {false && isDistribute && lastDistResult && (
               <button
                 onClick={() => setShowDistReport(true)}
                 className="w-full bg-white rounded-2xl border border-slate-200 hover:border-[#8779fb] shadow-sm p-4 flex items-center gap-3 transition-all"
@@ -1893,12 +2333,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               }
               if (manualDistMode) {
                 setManualDistMode(false);
+                setDistributionMode(null);
                 return;
               }
               const hasExisting = (currentSession?.assignments || []).length > 0;
               if (hasExisting) {
                 setShowManualOverwriteConfirm(true);
               } else {
+                setDistributionMode('manual');
                 setManualDistMode(true);
               }
             }}
@@ -2081,6 +2523,308 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
       {/* ══════ Print/Send inline (printsend section only) ══════ */}
       {isPrintSend && (
+        <div className="space-y-5">
+          <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={() => setWaitingTaskMode('print')} className={actionButtonClass(waitingTaskMode === 'print')}>
+                <Printer size={17} />
+                طباعة
+              </button>
+              <button type="button" onClick={() => setWaitingTaskMode('send')} className={actionButtonClass(waitingTaskMode === 'send')}>
+                <Send size={17} />
+                إرسال
+              </button>
+              <button type="button" onClick={() => setShowWaitingReceipt(true)} className={actionButtonClass(false)}>
+                <ClipboardCheck size={17} />
+                سجل استلام التكليف بالانتظار
+              </button>
+              <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
+                className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                <Archive size={17} />
+                أرشيف الرسائل
+              </button>
+            </div>
+          </div>
+
+          {waitingTaskMode === 'print' && (
+          <div className="space-y-5">
+            <div className="px-1">
+              <h3 className="font-black text-slate-800 text-lg">الطباعة</h3>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)] gap-5 items-stretch">
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm h-full flex flex-col">
+            <div className="flex items-center justify-start gap-3 mb-2">
+              <Printer size={20} className="text-[#655ac1]" />
+              <h4 className="font-black text-slate-800">طباعة الانتظار اليومي</h4>
+            </div>
+            <p className="text-xs text-slate-500 font-medium text-right mb-5">
+              اختر المطلوب طباعته ( انتظار اليوم بالكامل - انتظار معلم ) ثم اختر اللون ثم طباعة.
+            </p>
+            <div className="flex flex-wrap items-end gap-4 mb-5">
+              <WaitingSingleSelect
+                label="نوع الانتظار"
+                value={waitingPrintScope}
+                onChange={value => setWaitingPrintScope(value as 'all' | 'teacher')}
+                placeholder="اختر المطلوب طباعته"
+                options={[
+                  { value: 'all', label: 'انتظار اليوم بالكامل' },
+                  { value: 'teacher', label: 'انتظار معلم' },
+                ]}
+              />
+              {waitingPrintScope === 'teacher' && (
+                <WaitingSingleSelect
+                  label="المعلم الغائب"
+                  value={selectedPrintTeacherId}
+                  onChange={setSelectedPrintTeacherId}
+                  placeholder="اختر المعلم الغائب"
+                  options={(currentSession?.absentTeachers || []).map(absent => ({ value: absent.id, label: absent.teacherName }))}
+                />
+              )}
+              <WaitingSingleSelect
+                label="اللون"
+                value={waitingPrintColorMode}
+                onChange={value => setWaitingPrintColorMode(value as typeof waitingPrintColorMode)}
+                placeholder="اختر اللون"
+                options={[
+                  { value: 'color', label: 'ملون' },
+                  { value: 'bw', label: 'أسود وأبيض' },
+                ]}
+              />
+            </div>
+            <div className="mt-auto flex justify-center">
+              <button
+                type="button"
+                onClick={() => openWaitingPrint(waitingPrintScope === 'teacher' ? selectedPrintTeacherId : null, 'print')}
+                disabled={totalAssigned === 0 || (waitingPrintScope === 'teacher' && !selectedPrintTeacherId)}
+                className="inline-flex min-w-[160px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all shadow-md shadow-[#655ac1]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Printer size={16} />
+                طباعة
+              </button>
+            </div>
+          </div>
+          <div className="hidden">
+            <div className="flex items-center justify-start gap-3 mb-2">
+              <Printer size={20} className="text-[#655ac1]" />
+              <h4 className="font-black text-slate-800">طباعة نموذج الانتظار اليومي</h4>
+            </div>
+            <p className="text-xs text-slate-500 font-medium text-right mb-5">
+              النموذج يطبع انتظار اليوم الحالي بترويسة رسمية، مع ضغط الجداول قدر الإمكان على A4 وإضافة عمود توقيع المنتظر وعمود الملاحظات.
+            </p>
+
+            <div className="flex flex-wrap items-end gap-4 mb-5">
+              <div className="min-w-[210px]">
+                <label className="block text-xs font-black text-slate-500 mb-2">اللون</label>
+                <div className="inline-flex rounded-xl bg-slate-100 p-1">
+                  {[
+                    { id: 'color', label: 'ملون' },
+                    { id: 'bw', label: 'أسود وأبيض' },
+                  ].map(option => (
+                    <button key={option.id} type="button" onClick={() => setWaitingPrintColorMode(option.id as typeof waitingPrintColorMode)}
+                      className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${waitingPrintColorMode === option.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="min-w-[260px] flex-1">
+                <label className="block text-xs font-black text-slate-500 mb-2">طباعة جدول معلم غائب محدد</label>
+                <select
+                  value={selectedPrintTeacherId}
+                  onChange={e => setSelectedPrintTeacherId(e.target.value)}
+                  className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 bg-white outline-none focus:border-[#655ac1]"
+                >
+                  <option value="">اختر المعلم الغائب</option>
+                  {(currentSession?.absentTeachers || []).map(absent => (
+                    <option key={absent.id} value={absent.id}>{absent.teacherName}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <button type="button" onClick={() => openWaitingPrint(null, 'print')} disabled={totalAssigned === 0}
+                className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#655ac1] shadow-sm hover:shadow-md p-5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-11 h-11 rounded-xl bg-white border-2 border-[#655ac1] flex items-center justify-center text-[#655ac1]">
+                    <Printer size={22} />
+                  </div>
+                  <h4 className="text-base font-black text-slate-800">انتظار اليوم</h4>
+                </div>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  طباعة نموذج الانتظار اليومي كاملًا للغائبين والمنتظرين المسندين لهذا اليوم.
+                </p>
+              </button>
+
+              <button type="button" onClick={() => openWaitingPrint(selectedPrintTeacherId, 'print')} disabled={!selectedPrintTeacherId}
+                className="text-right bg-white rounded-2xl border-2 border-slate-200 hover:border-[#655ac1] shadow-sm hover:shadow-md p-5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-11 h-11 rounded-xl bg-[#f8f7ff] border-2 border-[#655ac1]/30 flex items-center justify-center text-[#655ac1]">
+                    <UserX size={22} />
+                  </div>
+                  <h4 className="text-base font-black text-slate-800">جدول معلم غائب</h4>
+                </div>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  استخدمها عند إضافة غائب جديد بعد طباعة النموذج، لتطبع جدول هذا المعلم فقط.
+                </p>
+              </button>
+
+              <button type="button" onClick={() => openWaitingPrint(null, 'blank')}
+                className="hidden">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-11 h-11 rounded-xl bg-slate-50 border-2 border-slate-200 flex items-center justify-center text-[#655ac1]">
+                    <FileText size={22} />
+                  </div>
+                  <h4 className="text-base font-black text-slate-800">نموذج مفرغ</h4>
+                </div>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  نموذج انتظار يومي مفرغ بثلاثة جداول للعمل اليدوي بنفس تصميم النموذج الرسمي.
+                </p>
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm h-full flex flex-col">
+            <div className="flex items-center justify-start gap-3 mb-2">
+              <ClipboardList size={20} className="text-[#655ac1]" />
+              <h4 className="font-black text-slate-800">نموذج الانتظار اليومي</h4>
+            </div>
+            <p className="text-xs text-slate-500 font-medium text-right mb-5">
+              نموذج انتظار يومي مفرغ للتعبئة اليدوية.
+            </p>
+            <div className="flex flex-wrap items-end gap-4 mb-5">
+              <div className="hidden">
+                <label className="block text-xs font-black text-slate-500 mb-2">عدد الجداول</label>
+                <input
+                  type="number"
+                  min={3}
+                  max={3}
+                  value={3}
+                  readOnly
+                  className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl outline-none"
+                />
+              </div>
+              <WaitingSingleSelect
+                label="اللون"
+                value={blankPrintColorMode}
+                onChange={value => setBlankPrintColorMode(value as typeof blankPrintColorMode)}
+                placeholder="اختر اللون"
+                options={[
+                  { value: 'color', label: 'ملون' },
+                  { value: 'bw', label: 'أسود وأبيض' },
+                ]}
+              />
+            </div>
+            <div className="mt-auto flex justify-center">
+              <button
+                type="button"
+                onClick={() => openWaitingPrint(null, 'blank')}
+                className="inline-flex min-w-[160px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all shadow-md shadow-[#655ac1]/20"
+              >
+                <Printer size={16} />
+                طباعة النموذج
+              </button>
+            </div>
+          </div>
+            </div>
+          </div>
+          )}
+
+          {waitingTaskMode === 'send' && (
+            <div className="space-y-4">
+              <div className="px-1">
+                <h3 className="font-black text-slate-800 text-lg">إرسال</h3>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-start gap-3 mb-2">
+                    <ClipboardCheck size={20} className="text-[#655ac1]" />
+                    <h4 className="font-black text-slate-800">اختر نوع الإشعار والمستلمين</h4>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                    اختر نوع إشعار الانتظار ثم راجع تكليفات المنتظرين قبل الإرسال.
+                  </p>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { id: 'notification' as const, label: 'إشعار انتظار' },
+                        { id: 'electronic' as const, label: 'تكليف إلكتروني' },
+                      ].map(option => (
+                        <button key={option.id} type="button" onClick={() => { setSendModalMode(option.id); setSendCustomMessages({}); }}
+                          className={`p-4 border-2 rounded-xl text-sm font-black transition-all ${sendModalMode === option.id ? 'border-[#655ac1] text-[#655ac1] bg-[#f8f7ff]' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}>
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <p className="text-xs font-black text-slate-500 mb-2">ملخص المستلمين</p>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="rounded-xl bg-white border border-slate-100 p-3">
+                          <p className="text-xl font-black text-[#655ac1]">{sendRows.length}</p>
+                          <p className="text-[10px] font-bold text-slate-400">إسناد</p>
+                        </div>
+                        <div className="rounded-xl bg-white border border-slate-100 p-3">
+                          <p className="text-xl font-black text-emerald-600">{sendRows.filter(r => r.asgn.substitutePhone).length}</p>
+                          <p className="text-[10px] font-bold text-slate-400">برقم جوال</p>
+                        </div>
+                        <div className="rounded-xl bg-white border border-slate-100 p-3">
+                          <p className="text-xl font-black text-amber-600">{sendRows.filter(r => !r.asgn.signatureData).length}</p>
+                          <p className="text-[10px] font-bold text-slate-400">بانتظار التوقيع</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-start gap-3 mb-4">
+                      <MessageSquare size={20} className="text-[#655ac1]" />
+                      <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button type="button" onClick={() => { setShowSendTable(true); setShowSendModal(true); }}
+                        className="flex flex-col items-center justify-center p-4 border-2 border-[#25D366] rounded-xl bg-white shadow-sm text-[#128C7E] font-black">
+                        <MessageSquare size={28} />
+                        <span className="mt-2 text-sm">واتساب</span>
+                      </button>
+                      <button type="button" onClick={() => { setShowSendTable(true); setShowSendModal(true); }}
+                        className="flex flex-col items-center justify-center p-4 border-2 border-[#007AFF] rounded-xl bg-white shadow-sm text-[#007AFF] font-black">
+                        <Send size={28} />
+                        <span className="mt-2 text-sm">النصية SMS</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center gap-3 mb-4">
+                      <MessageSquare size={20} className="text-[#655ac1]" />
+                      <h4 className="font-black text-slate-800">نص الرسالة</h4>
+                    </div>
+                    <textarea
+                      value={sendRows[0]?.message || ''}
+                      readOnly
+                      rows={5}
+                      className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none resize-none text-sm leading-relaxed transition-colors mb-2 bg-slate-50"
+                      dir="rtl"
+                    />
+                    <div className="flex justify-center pt-2">
+                      <button type="button" onClick={() => { setShowSendTable(true); setShowSendModal(true); }} disabled={sendRows.length === 0}
+                        className="inline-flex min-w-[180px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all shadow-md shadow-[#655ac1]/20 disabled:opacity-50">
+                        <Send size={16} />
+                        إرسال ومراجعة المستلمين
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {false && isPrintSend && (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-24 h-24 bg-slate-50 rounded-br-[3rem] -z-0" />
           <div className="relative z-10">
@@ -2139,8 +2883,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         </div>
       )}
 
-      {/* ══════ Stats Strip — visible in non-embedded and distribute sections ══════ */}
-      {(!isEmbedded || isDistribute) && (
+      {/* ══════ Stats Strip — visible in standalone daily waiting page ══════ */}
+      {!isEmbedded && (
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm" dir="rtl">
         <div className="flex divide-x divide-x-reverse divide-slate-100">
           <div className="flex items-center gap-2 px-5 py-3 border-l border-slate-100 shrink-0">
@@ -2179,32 +2923,36 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
       {/* ══════ Absent Teachers Cards — hidden in register section (shown in non-embedded + distribute) ══════ */}
       {(!isEmbedded || isDistribute) && currentSession?.absentTeachers.map(absentTeacher => {
-        const teacherAssignments = currentSession.assignments.filter(a => a.absentTeacherId === absentTeacher.id);
+        const teacherAssignments = currentSession.assignments.filter(
+          a => a.absentTeacherId === absentTeacher.id && !isWaitingSlotDisabled(absentTeacher.id, a.periodNumber)
+        );
         const hasSwaps = Object.keys(absentTeacher.swapCandidates).length > 0;
         const coveredCount = teacherAssignments.length;
-        const totalCount = absentTeacher.periods.length;
+        const totalCount = getActiveAbsentPeriods(absentTeacher).length;
         const isFullyCovered = coveredCount === totalCount && totalCount > 0;
 
         return (
-          <div key={absentTeacher.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+          <div key={absentTeacher.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
             {/* Card Header */}
             <div className="flex items-center justify-between px-6 py-3 relative">
               {/* الشريط اللوني بجانب سلة الحذف */}
               <div className={`absolute left-0 inset-y-0 w-1 transition-colors duration-300 ${
-                coveredCount > 0 ? 'bg-emerald-400' : 'bg-amber-400'
+                isFullyCovered ? 'bg-emerald-400' : 'bg-rose-500'
               }`} />
               <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-[#8779fb]">
-                  {isFullyCovered ? <CheckCircle2 size={24} /> : <UserX size={24} />}
+                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0">
+                  <User size={28} className="text-[#8779fb]" />
+                  <span className={`absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-white border flex items-center justify-center ${
+                    isFullyCovered ? 'border-emerald-200 text-emerald-600' : 'border-rose-200 text-rose-600'
+                  }`}>
+                    {isFullyCovered ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
+                  </span>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-4 flex-wrap">
                     <h3 className="font-black text-slate-800 text-base">{absentTeacher.teacherName}</h3>
-                    <span className={`text-xs font-black px-3 py-1 rounded-full border ${
-                      isFullyCovered ? 'bg-emerald-100 text-emerald-600 border-emerald-200' :
-                      absentTeacher.absenceType === 'full' ? 'bg-white text-[#8779fb] border-slate-300' : 'bg-white text-amber-600 border-slate-300'
-                    }`}>
-                      {isFullyCovered ? '✓ مكتمل' : absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
+                    <span className="text-xs font-black px-3 py-1 rounded-full border bg-white text-amber-600 border-slate-300">
+                      {absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
                     </span>
                     {hasSwaps && !isFullyCovered && (
                       <span className="text-xs font-black px-3 py-1 rounded-full bg-violet-100 text-violet-600 flex items-center gap-1">
@@ -2215,19 +2963,29 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <p className="text-xs text-slate-400 font-medium hidden sm:block">
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-slate-400 font-medium hidden sm:block ml-5">
                   إجمالي: {totalCount} حصة ·{' '}
                   <span className="text-emerald-600 font-black">{coveredCount} مُسند</span>
                   {coveredCount < totalCount && (
                     <span className="text-rose-500 font-black"> · {totalCount - coveredCount} غير مسندة</span>
                   )}
                 </p>
+                <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
+                <button
+                  onClick={e => { e.stopPropagation(); setClearTeacherAssignmentsConfirm(absentTeacher); }}
+                  disabled={teacherAssignments.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-500 text-xs font-black shadow-sm transition-all hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 size={14} className="text-rose-600" />
+                  حذف المنتظرين
+                </button>
                 <button
                   onClick={e => { e.stopPropagation(); setRemoveAbsentConfirm({ id: absentTeacher.id, name: absentTeacher.teacherName }); }}
-                  className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black shadow-sm transition-all hover:bg-slate-50"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={14} className="text-rose-600" />
+                  حذف الغياب
                 </button>
               </div>
             </div>
@@ -2252,13 +3010,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-400">
-                        <th className="px-5 py-3.5 text-right font-black text-xs">الحصة</th>
-                        <th className="px-5 py-3.5 text-right font-black text-xs">الصف والفصل</th>
-                        <th className="px-5 py-3.5 text-right font-black text-xs">المادة</th>
-                        <th className="px-5 py-3.5 text-right font-black text-xs">المعلم البديل</th>
-                        <th className="px-5 py-3.5 text-center font-black text-xs">التوقيع</th>
-                        <th className="px-5 py-3.5 text-right font-black text-xs">الإجراء</th>
+                      <tr className="bg-slate-50/80 border-b border-slate-100">
+                        <th className="px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px] w-[12%]">الحصة</th>
+                        <th className="px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px] w-[22%]">الصف والفصل</th>
+                        <th className="px-5 py-3.5 text-right font-black text-[#655ac1] text-[13px] w-[24%]">المادة</th>
+                        <th className="px-5 py-3.5 text-right font-black text-[#655ac1] text-[13px]">المعلم المنتظر</th>
+                        <th className="px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px] w-[150px]">إجراء</th>
+                        <th className="hidden print:table-cell px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px]">التوقيع</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -2266,24 +3024,35 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         const assignment = teacherAssignments.find(a => a.periodNumber === period.periodNumber);
                         const swapCandidates = absentTeacher.swapCandidates[period.periodNumber] || [];
                         const hasSwapOption = swapCandidates.length > 0 && !assignment;
+                        const slotDisabled = isWaitingSlotDisabled(absentTeacher.id, period.periodNumber);
+                        const slotKey = getWaitingSlotKey(absentTeacher.id, period.periodNumber);
+                        const manualNameMode = manualNameSlots.has(slotKey);
 
                         return (
                           <tr key={period.periodNumber} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="px-5 py-3.5">
+                            <td className="px-5 py-3.5 text-center">
                               <span className="inline-flex items-center justify-center w-8 h-8 bg-white text-[#8779fb] font-black text-sm rounded-md border border-slate-300">
                                 {period.periodNumber}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 font-bold text-slate-700">{period.className || '—'}</td>
+                            <td className="px-5 py-3.5 font-bold text-slate-700 text-center">{period.className || '—'}</td>
                             <td className="px-5 py-3.5 text-slate-500 font-medium">{period.subjectName || '—'}</td>
                             <td className="px-5 py-3.5">
-                              {assignment ? (
+                              {manualNameMode ? (
+                                <input
+                                  autoFocus
+                                  value={manualNameValues[slotKey] || ''}
+                                  onChange={e => setManualNameValues(prev => ({ ...prev, [slotKey]: e.target.value }))}
+                                  onBlur={() => saveManualNameAssignment(period, absentTeacher)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') saveManualNameAssignment(period, absentTeacher);
+                                    if (e.key === 'Escape') toggleManualNameSlot(absentTeacher.id, period.periodNumber);
+                                  }}
+                                  placeholder="اكتب اسم المنتظر"
+                                  className="w-full max-w-[220px] px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1]"
+                                />
+                              ) : assignment ? (
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full shrink-0 ${
-                                    assignment.status === 'signed'       ? 'bg-emerald-500' :
-                                    assignment.status === 'acknowledged' ? 'bg-blue-500' :
-                                    assignment.status === 'sent'         ? 'bg-amber-500' : 'bg-slate-300'
-                                  }`} />
                                   <span className="font-bold text-slate-700">{assignment.substituteTeacherName}</span>
                                   {assignment.substitutePhone && assignment.status !== 'signed' && (
                                     <button
@@ -2302,27 +3071,77 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                       <ArrowLeftRight size={9} /> تبديل
                                     </span>
                                   )}
-                                  <button
-                                    title="تغيير المنتظر"
-                                    onClick={() => { setAssignmentSearch(''); setShowAssignModal({ period, absentTeacher }); }}
-                                    className="p-1.5 text-[#655ac1] hover:text-[#5046a0] hover:bg-[#e5e1fe] rounded-lg transition-colors"
-                                  >
-                                    <Edit3 size={14} />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (confirm(`هل تريد حذف إسناد "${assignment.substituteTeacherName}"؟`)) handleRemoveAssignment(assignment);
-                                    }}
-                                    className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
                                 </div>
                               ) : (
-                                <span className="text-slate-300 text-xs font-medium">لم يُسند</span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {manualDistMode && !slotDisabled ? (
+                                    <button
+                                      onClick={() => { setAssignmentSearch(''); setSelectedAssignPerson(null); setShowAssignModal({ period, absentTeacher }); }}
+                                      className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                                    >
+                                      <Plus size={12} /> إضافة منتظر
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-300 text-xs font-medium">{slotDisabled ? 'الحصة معطّلة' : 'لم يُسند'}</span>
+                                  )}
+                                  {hasSwapOption && (
+                                    <button
+                                      onClick={() => {
+                                        setSwapSendMode('manual');
+                                        setShowSwapConfirm({ swap: swapCandidates[0], period, absentId: absentTeacher.id, absentName: absentTeacher.teacherName });
+                                      }}
+                                      className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl bg-white hover:bg-violet-50 text-violet-600 border border-violet-200 font-bold text-xs transition-all hover:border-violet-400"
+                                    >
+                                      <ArrowLeftRight size={13} /> تبديل ذكي
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </td>
-                            <td className="px-5 py-3.5 text-center print:hidden">
+                            <td className="px-5 py-3.5 print:hidden">
+                              <div className="flex flex-row gap-2 items-center justify-center">
+                                <button
+                                  onClick={() => { setAssignmentSearch(''); setSelectedAssignPerson(null); setShowAssignModal({ period, absentTeacher }); }}
+                                  disabled={slotDisabled}
+                                  title="تعديل المنتظر"
+                                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] shadow-sm transition-all active:scale-95 hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <PenLine size={15} />
+                                </button>
+                                <button
+                                  onClick={() => toggleManualNameSlot(absentTeacher.id, period.periodNumber)}
+                                  disabled={slotDisabled}
+                                  title="إدخال اسم المنتظر يدويًا"
+                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                                    manualNameMode
+                                      ? 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50'
+                                      : 'border-slate-200 bg-white text-[#655ac1] hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30'
+                                  }`}
+                                >
+                                  {manualNameMode ? <X size={15} /> : <Plus size={15} />}
+                                </button>
+                                <button
+                                  onClick={() => toggleWaitingSlotDisabled(absentTeacher.id, period.periodNumber)}
+                                  title="تعطيل إضافة منتظر"
+                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                                    slotDisabled
+                                      ? 'border-[#655ac1]/30 bg-[#e5e1fe]/40 text-[#655ac1]'
+                                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <CircleOff size={15} />
+                                </button>
+                                <button
+                                  onClick={() => assignment && setRemoveAssignmentConfirm(assignment)}
+                                  disabled={!assignment}
+                                  title="حذف المنتظر"
+                                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-rose-600 shadow-sm transition-all active:scale-95 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="hidden print:table-cell px-5 py-3.5 text-center">
                               {assignment?.signatureData ? (
                                 /* حالة 2: تم التوقيع */
                                 <div className="flex flex-col items-center gap-1">
@@ -2355,63 +3174,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                 <span className="text-[10px] text-slate-300 font-medium">—</span>
                               )}
                             </td>
-                            <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {!assignment && hasSwapOption && (
-                                  <button
-                                    onClick={() => {
-                                      setSwapSendMode('manual');
-                                      setShowSwapConfirm({ swap: swapCandidates[0], period, absentId: absentTeacher.id, absentName: absentTeacher.teacherName });
-                                    }}
-                                    className="flex items-center gap-1.5 bg-white hover:bg-violet-50 text-violet-600 border border-violet-200 px-3 py-2 rounded-xl font-bold text-xs transition-all hover:border-violet-400 hover:scale-105 active:scale-95"
-                                  >
-                                    <ArrowLeftRight size={13} /> تبديل ذكي
-                                  </button>
-                                )}
-                                {assignment ? (
-                                  <button
-                                    disabled={assignment.status === 'signed'}
-                                    title={
-                                      assignment.status === 'pending'      ? 'اضغط للإرسال عبر واتساب' :
-                                      assignment.status === 'sent'         ? 'اضغط لتسجيل اطلاع المعلم' :
-                                      assignment.status === 'acknowledged' ? 'اضغط لتسجيل التوقيع' : ''
-                                    }
-                                    onClick={() => {
-                                      if (assignment.status === 'pending') {
-                                        if (assignment.substitutePhone) {
-                                          dispatchMessage(assignment, buildAssignmentMessage(assignment), 'whatsapp');
-                                        } else {
-                                          handleUpdateStatus(assignment.id, 'sent');
-                                          showToast('تم تسجيل الإرسال', 'success');
-                                        }
-                                      } else if (assignment.status === 'sent') {
-                                      handleUpdateStatus(assignment.id, 'acknowledged');
-                                    } else if (assignment.status === 'acknowledged') {
-                                      handleUpdateStatus(assignment.id, 'signed');
-                                    }
-                                  }}
-                                  className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all ${
-                                    assignment.status === 'signed'       ? 'bg-emerald-100 text-emerald-700 cursor-default' :
-                                    assignment.status === 'acknowledged' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer' :
-                                    assignment.status === 'sent'         ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer' :
-                                                                           'bg-slate-100 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 cursor-pointer'
-                                  }`}
-                                >
-                                  {assignment.status === 'signed'       ? '✅ موقّع' :
-                                   assignment.status === 'acknowledged' ? '👁 اطلع' :
-                                   assignment.status === 'sent'         ? '📤 أُرسل' : '⏳ إرسال'}
-                                </button>
-                                ) : null}
-                                {manualDistMode && (
-                                  <button
-                                    onClick={() => { setAssignmentSearch(''); setShowAssignModal({ period, absentTeacher }); }}
-                                    className="flex items-center gap-1.5 bg-white text-[#8779fb] px-3 py-2 rounded-xl font-bold text-xs transition-all hover:scale-105 active:scale-95 hover:bg-slate-50"
-                                  >
-                                    <Edit3 size={13} /> توزيع يدوي
-                                  </button>
-                                )}
-                              </div>
-                            </td>
                           </tr>
                         );
                       })}
@@ -2426,7 +3188,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       })}
 
       {/* ══════ CTA: Continue to Print & Send (distribute section only) ══════ */}
-      {isDistribute && totalAbsent > 0 && totalAssigned > 0 && totalPending === 0 && onGoToPrintSend && (
+      {false && isDistribute && totalAbsent > 0 && totalAssigned > 0 && totalPending === 0 && onGoToPrintSend && (
         <div className="bg-gradient-to-l from-[#fcfbff] to-white border-2 border-[#655ac1]/20 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
@@ -2453,44 +3215,33 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           MODAL: تأكيد التوزيع التلقائي
       ══════════════════════════════════════════════ */}
       {showAutoConfirm && ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" dir="rtl">
-            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
-              <div className="w-12 h-12 flex items-center justify-center shrink-0">
-                <Zap size={22} className="text-[#8779fb]" />
-              </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-start gap-3 px-6 pt-6 pb-5">
+              <Zap size={24} className="text-[#655ac1] shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-black text-slate-800 text-base">توزيع الانتظار تلقائيًا</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم توزيع حصص جميع الغائبين تلقائيًا</p>
+                <h2 className="text-lg font-black text-slate-800 mb-2">تأكيد توزيع الانتظار آليًا</h2>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  سيتم توزيع حصص الانتظار آليًا وفق المتاحين ورصيد الانتظار. هل تريد بدء التوزيع الآن؟
+                </p>
               </div>
             </div>
-            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
-              {(currentSession?.assignments || []).length > 0
-                ? 'يوجد إسنادات سابقة — هل تريد الاستمرار وإعادة التوزيڿ سيتم استبدال الإسنادات غير المكتملة.'
-                : `هل تريد بدء التوزيع التلقائي لـ ${currentSession?.absentTeachers.length || 0} معلم غائȿ`
-              }
-            </p>
-            <div className="flex gap-2 px-6 pb-6">
+            <div className="flex gap-3 px-6 pb-6">
+              <button
+                onClick={() => { setShowAutoConfirm(false); setPendingAutoFn(null); }}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
               <button
                 onClick={() => {
                   setShowAutoConfirm(false);
-                  const hasExisting = (currentSession?.assignments || []).length > 0;
-                  if (hasExisting) {
-                    setPendingAutoFn(() => () => handleBatchAutoAssign(undefined, true));
-                    setShowAutoOverwriteConfirm(true);
-                  } else {
-                    handleBatchAutoAssign();
-                  }
+                  if (pendingAutoFn) pendingAutoFn();
+                  setPendingAutoFn(null);
                 }}
-                className="flex-1 py-2.5 bg-[#8779fb] hover:bg-[#655ac1] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+                className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 flex items-center justify-center gap-1.5"
               >
                 <Zap size={15} /> بدء التوزيع
-              </button>
-              <button
-                onClick={() => setShowAutoConfirm(false)}
-                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
-              >
-                إلغاء
               </button>
             </div>
           </div>
@@ -2505,9 +3256,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" dir="rtl">
             <div className="flex items-center gap-3 px-6 pt-6 pb-4">
-              <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center shrink-0">
-                <Trash2 size={22} className="text-rose-500" />
-              </div>
+              <Trash2 size={24} className="text-rose-500 shrink-0" />
               <div>
                 <h3 className="font-black text-slate-800 text-base">تأكيد الحذف</h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">هذا الإجراء لا يمكن التراجع عنه</p>
@@ -2518,16 +3267,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </p>
             <div className="flex gap-2 px-6 pb-6">
               <button
-                onClick={() => handleRemoveAbsent(removeAbsentConfirm.id, removeAbsentConfirm.name)}
-                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
-              >
-                <Trash2 size={15} /> تأكيد الحذف
-              </button>
-              <button
                 onClick={() => setRemoveAbsentConfirm(null)}
                 className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
                 إلغاء
+              </button>
+              <button
+                onClick={() => handleRemoveAbsent(removeAbsentConfirm.id, removeAbsentConfirm.name)}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={15} /> تأكيد الحذف
               </button>
             </div>
           </div>
@@ -2994,7 +3743,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <p className="text-xs font-medium text-slate-500 mt-0.5">
                     {currentSession?.absentTeachers.length || 0} غائب ·{' '}
                     <span className="text-rose-500 font-bold">
-                      {(currentSession?.absentTeachers.reduce((s, a) => s + a.periods.length, 0) || 0) - (currentSession?.assignments.length || 0)} حصة غير مسندة
+                      {totalPending} حصة غير مسندة
                     </span>
                   </p>
                 </div>
@@ -3012,9 +3761,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <p className="font-bold">لا يوجد غائبون مسجّلون لهذا اليوم</p>
                 </div>
               ) : currentSession.absentTeachers.map(absentTeacher => {
-                const teacherAssignments = currentSession.assignments.filter(a => a.absentTeacherId === absentTeacher.id);
+                const teacherAssignments = currentSession.assignments.filter(a => a.absentTeacherId === absentTeacher.id && !isWaitingSlotDisabled(absentTeacher.id, a.periodNumber));
                 const coveredCount = teacherAssignments.length;
-                const totalCount = absentTeacher.periods.length;
+                const totalCount = getActiveAbsentPeriods(absentTeacher).length;
                 const isFullyCovered = coveredCount === totalCount && totalCount > 0;
 
                 return (
@@ -3037,7 +3786,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             <span className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
                               isFullyCovered ? 'bg-emerald-100 text-emerald-600' : absentTeacher.absenceType === 'full' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-600'
                             }`}>
-                              {isFullyCovered ? '✓ مكتمل' : absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
+                              {absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
                             </span>
                           </div>
                           <p className="text-xs text-slate-400 font-medium mt-0.5">
@@ -3048,13 +3797,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       {!isFullyCovered && (
                         <button
                           onClick={() => {
-                            const hasExisting = (currentSession?.assignments || []).some(a => a.absentTeacherId === absentTeacher.id);
-                            if (hasExisting) {
-                              setPendingAutoFn(() => () => handleBatchAutoAssign(absentTeacher, true));
-                              setShowAutoOverwriteConfirm(true);
-                            } else {
-                              handleBatchAutoAssign(absentTeacher);
-                            }
+                            requestAutoDistribution(absentTeacher);
                           }}
                           className="flex items-center gap-1.5 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow-sm active:scale-95"
                         >
@@ -3071,7 +3814,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             <th className="px-4 py-3 text-right font-black text-xs">الحصة</th>
                             <th className="px-4 py-3 text-right font-black text-xs">الصف والفصل</th>
                             <th className="px-4 py-3 text-right font-black text-xs">المادة</th>
-                            <th className="px-4 py-3 text-right font-black text-xs">المعلم البديل</th>
+                            <th className="px-4 py-3 text-right font-black text-xs">المعلم المنتظر</th>
                             <th className="px-4 py-3 text-right font-black text-xs">الإجراء</th>
                           </tr>
                         </thead>
@@ -3103,7 +3846,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                       >
                                         <Edit3 size={14} />
                                       </button>
-                                      <button onClick={() => { if (confirm(`هل تريد حذف إسناد "‎${assignment.substituteTeacherName}‎"?‏`)) handleRemoveAssignment(assignment); }} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                                      <button onClick={() => setRemoveAssignmentConfirm(assignment)} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
                                         <Trash2 size={14} />
                                       </button>
                                     </div>
@@ -3160,18 +3903,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
       {showAssignModal && ReactDOM.createPortal(
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" dir="rtl">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
-                <h3 className="font-black text-slate-800">اختر المنتظر</h3>
-                <p className="text-xs text-slate-400 font-medium">
+                <h3 className="font-black text-slate-800">إضافة منتظر</h3>
+                <p className="text-xs text-[#655ac1] font-bold">
                   الحصة {showAssignModal.period.periodNumber} · {showAssignModal.period.className} · {showAssignModal.period.subjectName}
                 </p>
               </div>
               <button
-                onClick={() => { setShowAssignModal(null); setAssignModalTab('teachers'); }}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                onClick={resetAssignModal}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -3218,7 +3961,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+            <div className="flex-1 overflow-y-auto p-4 bg-white">
               {(() => {
                 const currentAssignments = currentSession?.assignments || [];
                 const alreadyAssignedThisPeriod = new Set(
@@ -3233,6 +3976,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       if (absentTeacherIds.has(t.id)) return false;
                       if (alreadyAssignedThisPeriod.has(t.id)) return false;
                       if (t.quotaLimit >= 24 && !t.waitingQuota) return false;
+                      const busyKey = `${t.id}-${dayKey}-${showAssignModal.period.periodNumber}`;
+                      if (timetable[busyKey]?.type === 'lesson') return false;
                       if (!t.name.includes(assignmentSearch)) return false;
                       return true;
                     })
@@ -3264,48 +4009,60 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     </div>
                   );
 
-                  return waiters.map(({ person, assigned, total, remaining, isBusy, isQuotaFull }) => {
-                    const pct = total > 0 ? Math.round((assigned / total) * 100) : 0;
-                    const disabled = isBusy || isQuotaFull;
-                    return (
-                      <button
-                        key={person.id}
-                        onClick={() => !disabled && handleManualAssign(person, showAssignModal.period, showAssignModal.absentTeacher)}
-                        disabled={disabled}
-                        className={`w-full text-right flex items-center gap-4 px-5 py-3 transition-colors ${
-                          disabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                          isBusy ? 'bg-red-50 text-red-400' :
-                          isQuotaFull ? 'bg-slate-100 text-slate-400' :
-                          'bg-[#e5e1fe] text-[#655ac1]'
-                        }`}>
-                          {isBusy ? <AlertCircle size={18} /> : isQuotaFull ? <CheckCircle size={18} /> : <Users size={18} />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-black text-slate-800 text-sm">{person.name}</p>
-                            {isBusy && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">مشغول بحصة</span>}
-                            {isQuotaFull && !isBusy && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">اكتمل النصاب</span>}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[80px]">
-                              <div className={`h-full rounded-full ${pct >= 100 ? 'bg-slate-300' : pct > 70 ? 'bg-amber-400' : 'bg-[#655ac1]'}`} style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs text-slate-400 font-bold">{assigned}/{total}</span>
-                          </div>
-                        </div>
-                        <div className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                          remaining <= 0    ? 'bg-slate-100 text-slate-400' :
-                          remaining <= 2    ? 'bg-amber-100 text-amber-700' :
-                                              'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {remaining > 0 ? `متبقي ${remaining}` : 'مكتمل'}
-                        </div>
-                      </button>
-                    );
-                  });
+                  return (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="w-full text-right text-sm">
+                        <thead className="bg-slate-50 text-[#655ac1]">
+                          <tr>
+                            <th className="px-4 py-3 font-black text-center w-16">م</th>
+                            <th className="px-4 py-3 font-black">الاسم</th>
+                            <th className="px-4 py-3 font-black w-28">الصفة</th>
+                            <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                            <th className="px-4 py-3 font-black text-center w-32">نصاب الانتظار</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {waiters.map(({ person, assigned, total, remaining, isBusy, isQuotaFull }, index) => {
+                            const disabled = isBusy || isQuotaFull;
+                            const isSel = selectedAssignPerson?.id === person.id;
+                            return (
+                              <tr key={person.id} className={`hover:bg-slate-50 transition-colors ${disabled ? 'opacity-50 bg-slate-50' : ''}`}>
+                                <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
+                                <td className="px-4 py-3 font-bold text-slate-800">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span>{person.name}</span>
+                                    {isBusy && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">مشغول بحصة</span>}
+                                    {isQuotaFull && !isBusy && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">اكتمل النصاب</span>}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 font-bold text-slate-500">معلم</td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => !disabled && setSelectedAssignPerson(isSel ? null : person)}
+                                    disabled={disabled}
+                                    className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
+                                      isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                    }`}
+                                    title="اختيار"
+                                  >
+                                    {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                  </button>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`inline-flex items-center justify-center min-w-14 px-3 py-1 rounded-full text-xs font-black ${
+                                    remaining <= 0 ? 'bg-slate-100 text-slate-400' : remaining <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                                  }`}>
+                                    {Math.max(0, remaining)}/{total}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
 
                 } else {
                   // Admins tab
@@ -3328,46 +4085,73 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <div className="px-5 py-10 text-center text-slate-400">
                       <Shield size={32} className="mx-auto mb-3 text-slate-200" />
                       <p className="text-sm font-bold">لا يوجد طاقم إداري متاح</p>
-                      <p className="text-xs mt-1">يُستبعد: {ADMIN_BLOCKED_ROLES.join('، ')}</p>
                     </div>
                   );
 
-                  return adminList.map(({ person, assigned, total, remaining }) => {
-                    const pct = total > 0 ? Math.round((assigned / total) * 100) : 0;
-                    const admin = person as Admin;
-                    return (
-                      <button
-                        key={person.id}
-                        onClick={() => handleManualAssign(person, showAssignModal.period, showAssignModal.absentTeacher)}
-                        className="w-full text-right flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
-                          <Shield size={18} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-black text-slate-800 text-sm">{person.name}</p>
-                            {admin.role && (
-                              <span className="text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold">{admin.role}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[80px]">
-                              <div className={`h-full rounded-full ${pct > 70 ? 'bg-amber-400' : 'bg-[#8779fb]'}`} style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs text-slate-400 font-bold">{assigned}/{total}</span>
-                          </div>
-                        </div>
-                        <div className={`text-xs font-black px-2.5 py-1 rounded-full ${
-                          remaining <= 0 ? 'bg-slate-100 text-slate-400' : 'bg-amber-100 text-amber-700'
-                        }`}>
-                          {remaining > 0 ? `متبقي ${remaining}` : 'مكتمل'}
-                        </div>
-                      </button>
-                    );
-                  });
+                  return (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="w-full text-right text-sm">
+                        <thead className="bg-slate-50 text-[#655ac1]">
+                          <tr>
+                            <th className="px-4 py-3 font-black text-center w-16">م</th>
+                            <th className="px-4 py-3 font-black">الاسم</th>
+                            <th className="px-4 py-3 font-black w-28">الصفة</th>
+                            <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                            <th className="px-4 py-3 font-black text-center w-32">نصاب الانتظار</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {adminList.map(({ person, total, remaining }, index) => {
+                            const admin = person as Admin;
+                            const isSel = selectedAssignPerson?.id === person.id;
+                            return (
+                              <tr key={person.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
+                                <td className="px-4 py-3 font-bold text-slate-800">{person.name}</td>
+                                <td className="px-4 py-3 font-bold text-slate-500">{admin.role || 'إداري'}</td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedAssignPerson(isSel ? null : person)}
+                                    className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
+                                      isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                    }`}
+                                    title="اختيار"
+                                  >
+                                    {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                  </button>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`inline-flex items-center justify-center min-w-14 px-3 py-1 rounded-full text-xs font-black ${
+                                    remaining <= 0 ? 'bg-slate-100 text-slate-400' : 'bg-amber-100 text-amber-700'
+                                  }`}>
+                                    {Math.max(0, remaining)}/{total}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
                 }
               })()}
+            </div>
+            <div className="sticky bottom-0 z-10 p-4 border-t border-slate-100 bg-white flex items-center justify-end gap-2 shrink-0 shadow-[0_-8px_20px_rgba(15,23,42,0.04)]">
+              <button
+                onClick={resetAssignModal}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+              >
+                إغلاق
+              </button>
+              <button
+                onClick={saveSelectedAssignPerson}
+                className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!selectedAssignPerson}
+              >
+                حفظ{selectedAssignPerson ? ' (1)' : ''}
+              </button>
             </div>
           </div>
         </div>,
@@ -3400,7 +4184,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <span className="font-black text-slate-800">حصة {showSwapConfirm.period.periodNumber} · {showSwapConfirm.period.className}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">المعلم البديل:</span>
+                  <span className="text-slate-500">المعلم المنتظر:</span>
                   <span className="font-black text-slate-800">{showSwapConfirm.swap.waitingTeacherName}</span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -3459,6 +4243,70 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         document.body
       )}
 
+      {removeAssignmentConfirm && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <Trash2 size={24} className="text-rose-500 shrink-0" />
+              <div>
+                <h3 className="font-black text-slate-800 text-base">تأكيد حذف المنتظر</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم إلغاء الإسناد من هذه الحصة</p>
+              </div>
+            </div>
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              هل تريد حذف المنتظر <span className="font-black text-slate-800">"{removeAssignmentConfirm.substituteTeacherName}"</span> من الحصة {removeAssignmentConfirm.periodNumber}؟
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
+              <button
+                onClick={() => setRemoveAssignmentConfirm(null)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmRemoveAssignment}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={15} /> تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {clearTeacherAssignmentsConfirm && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <Trash2 size={24} className="text-rose-500 shrink-0" />
+              <div>
+                <h3 className="font-black text-slate-800 text-base">تأكيد حذف المنتظرين</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم حذف جميع الإسنادات لهذا المعلم</p>
+              </div>
+            </div>
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              هل تريد حذف جميع المنتظرين المسندين لحصص <span className="font-black text-slate-800">"{clearTeacherAssignmentsConfirm.teacherName}"</span>؟
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
+              <button
+                onClick={() => setClearTeacherAssignmentsConfirm(null)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmClearTeacherAssignments}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={15} /> تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ════════════════════════════════════════════
           MODAL: Manual-Overwrite Confirmation
       ════════════════════════════════════════════ */}
@@ -3483,9 +4331,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </button>
               <button
                 onClick={() => {
+                  releaseAssignmentQuota(currentSession?.assignments || []);
                   updateSession(selectedDate, s => ({ ...s, assignments: [] }));
+                  setDistributionMode('manual');
                   setManualDistMode(true);
                   setShowManualOverwriteConfirm(false);
+                  setLastDistResult(null);
                   showToast('تم حذف التوزيع — يمكنك الآن التوزيع يدوياً', 'info');
                 }}
                 className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-amber-500/20"
@@ -4643,7 +5494,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           hijriDateStr={formatHijri(selectedDate)}
           schoolInfo={schoolInfo}
           absentTeachers={currentSession?.absentTeachers || []}
-          assignments={currentSession?.assignments || []}
+          assignments={(currentSession?.assignments || []).filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber))}
+          targetTeacherId={printTargetTeacherId}
+          initialTab={printInitialTab}
+          colorMode={printInitialTab === 'blank' ? blankPrintColorMode : waitingPrintColorMode}
+          autoPrint
         />
       )}
 
