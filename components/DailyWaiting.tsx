@@ -13,7 +13,7 @@ import {
   BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle, Scale, PieChart,
   ArrowRight, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
   PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog, Shuffle, CircleOff,
-  Archive, ClipboardCheck
+  Archive, ClipboardCheck, CalendarClock
 } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo,
@@ -193,7 +193,7 @@ const formatMonthName = (yearMonthStr: string, calType: 'gregorian' | 'hijri'): 
 
 // ===== WhatsApp Icon =====
 const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="#25D366">
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
   </svg>
 );
@@ -272,6 +272,86 @@ const WaitingSingleSelect: React.FC<{
                 </span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+type WaitingRecipientRow = { key: string; asgn: { substituteTeacherName: string; periodNumber: number; className: string; absentTeacherName: string; substitutePhone?: string } };
+
+const WaitingRecipientsMultiSelect: React.FC<{
+  rows: any[];
+  selectedIds: Set<string>;
+  open: boolean;
+  setOpen: (v: boolean | ((current: boolean) => boolean)) => void;
+  onToggle: (key: string) => void;
+  onSelectAll: () => void;
+  onClear: () => void;
+}> = ({ rows, selectedIds, open, setOpen, onToggle, onSelectAll, onClear }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const filteredSelectedCount = rows.filter(r => selectedIds.has(r.key)).length;
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, setOpen]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className="block text-xs font-black text-slate-500 mb-2">المنتظرون المستلمون</label>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+      >
+        <span className="truncate text-[13px] leading-tight">
+          {filteredSelectedCount > 0 ? `${filteredSelectedCount} مستلم محدد` : 'لم يتم اختيار مستلمين'}
+        </span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-[60] top-full right-0 left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+          <div className="flex items-center justify-between px-2 py-2 mb-2 border border-slate-100 bg-slate-50 rounded-xl">
+            <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button>
+            <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
+          </div>
+          <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {rows.length === 0 ? (
+              <p className="text-xs font-bold text-slate-400 text-center py-6">لا توجد تكليفات انتظار لهذا اليوم</p>
+            ) : rows.map((row: any) => {
+              const checked = selectedIds.has(row.key);
+              return (
+                <button
+                  key={row.key}
+                  type="button"
+                  onClick={() => onToggle(row.key)}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${checked ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                >
+                  <span className="min-w-0 text-right">
+                    <span className="block text-[13px] font-black truncate">{row.asgn.substituteTeacherName}</span>
+                    <span className="block text-[10px] font-bold text-slate-400 truncate">الحصة {row.asgn.periodNumber} - {row.asgn.className}</span>
+                  </span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 transition-all ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -389,6 +469,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [sendCustomMessages, setSendCustomMessages] = useState<Record<string, string>>({});
   const [sendSelectedIds, setSendSelectedIds] = useState<Set<string>>(new Set());
   const [sendModalMode, setSendModalMode] = useState<'notification' | 'electronic'>('notification');
+  const [sendPreferredChannel, setSendPreferredChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [sendScheduleEnabled, setSendScheduleEnabled] = useState(false);
+  const [sendScheduledAt, setSendScheduledAt] = useState('');
+  const [sendScheduleCalendarType, setSendScheduleCalendarType] = useState<'hijri' | 'gregorian'>('hijri');
+  const [sendScheduleDate, setSendScheduleDate] = useState('');
+  const [sendScheduleTime, setSendScheduleTime] = useState('');
+  const [showSendRecipientsPreview, setShowSendRecipientsPreview] = useState(false);
+  const [sendAbsentFilterId, setSendAbsentFilterId] = useState<string>('');
+  const [sendRecipientsDropdownOpen, setSendRecipientsDropdownOpen] = useState(false);
+  const [showSendRecipientsModal, setShowSendRecipientsModal] = useState(false);
 
   // ── Electronic Signature Preview ──
   const [showElectronicPreview, setShowElectronicPreview] = useState(false);
@@ -703,7 +793,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ── Phase 4: Message helpers ──
   // message without link (notification only)
   const buildNotificationMessage = (asgn: WaitingAssignment): string =>
-    `المعلم ${asgn.substituteTeacherName}، لديك حصة انتظار يوم ${dayName}، الحصة ${asgn.periodNumber} في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}.`;
+    `المكرم المنتظر / ${asgn.substituteTeacherName}، لديك حصة انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}.`;
 
   // generate a deterministic signing token/link for electronic send
   const buildSignLink = (asgn: WaitingAssignment): string => {
@@ -714,7 +804,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // message with signature link (electronic)
   const buildElectronicMessage = (asgn: WaitingAssignment): string =>
-    `المعلم ${asgn.substituteTeacherName}، لديك حصة انتظار يوم ${dayName}، الحصة ${asgn.periodNumber} في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}. الرجاء التوقيع عبر الرابط: ${buildSignLink(asgn)}`;
+    `المكرم المنتظر / ${asgn.substituteTeacherName}، لديك تكليف انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}. الرجاء التوقيع إلكترونياً عبر الرابط: ${buildSignLink(asgn)}`;
 
   // default message builder (backward compat) — uses notification format
   const buildAssignmentMessage = (asgn: WaitingAssignment): string =>
@@ -784,6 +874,70 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSession, sendCustomMessages, sendModalMode]);
+
+  useEffect(() => {
+    if (!showSendModal) return;
+    setSendSelectedIds(new Set((currentSession?.assignments || []).map(a => a.id)));
+  }, [showSendModal, currentSession?.id, sendModalMode]);
+
+  useEffect(() => {
+    if (waitingTaskMode !== 'send') return;
+    setSendSelectedIds(new Set((currentSession?.assignments || []).map(a => a.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingTaskMode, currentSession?.id, currentSession?.assignments.length]);
+
+  const selectedSendRows = useMemo(
+    () => sendRows.filter(r => sendSelectedIds.has(r.key)),
+    [sendRows, sendSelectedIds]
+  );
+
+  const allSendRowsSelected = sendRows.length > 0 && selectedSendRows.length === sendRows.length;
+  const selectedWithPhoneCount = selectedSendRows.filter(r => !!r.asgn.substitutePhone).length;
+
+  const toggleAllSendRows = () => {
+    setSendSelectedIds(prev => {
+      if (sendRows.length > 0 && prev.size === sendRows.length) return new Set();
+      return new Set(sendRows.map(r => r.key));
+    });
+  };
+
+  const sendWaitingBulk = (channel: 'whatsapp' | 'sms' = sendPreferredChannel) => {
+    if (!selectedSendRows.length) {
+      showToast('لم يتم تحديد أي تكليف', 'warning');
+      return;
+    }
+
+    const targets = selectedSendRows.filter(r => r.asgn.substitutePhone);
+    if (!targets.length) {
+      showToast('لا توجد أرقام جوال للمستلمين المحددين', 'warning');
+      return;
+    }
+
+    const sendNow = () => {
+      targets.forEach((r, i) => {
+        if (channel === 'whatsapp') {
+          setTimeout(() => dispatchMessage(r.asgn, r.message, 'whatsapp', sendModalMode), i * 350);
+        } else {
+          dispatchMessage(r.asgn, r.message, 'sms', sendModalMode);
+        }
+      });
+    };
+
+    if (sendScheduleEnabled) {
+      const scheduledTime = sendScheduledAt ? new Date(sendScheduledAt).getTime() : 0;
+      const delay = scheduledTime - Date.now();
+      if (!sendScheduledAt || delay <= 0) {
+        showToast('حدد وقتاً لاحقاً لجدولة الإرسال', 'warning');
+        return;
+      }
+      window.setTimeout(sendNow, delay);
+      showToast(`تمت جدولة ${targets.length} رسالة لوقت لاحق`, 'success');
+      return;
+    }
+
+    sendNow();
+    showToast(`تم فتح ${targets.length} رسالة ${channel === 'whatsapp' ? 'واتساب' : 'نصية'}`, 'success');
+  };
 
   // ── Reports print helper ──
   const handleReportPrint = () => {
@@ -2755,7 +2909,445 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </div>
           )}
 
-          {waitingTaskMode === 'send' && (
+          {false && waitingTaskMode === 'send' && (
+            <div className="space-y-4">
+              <div className="px-1">
+                <h3 className="font-black text-slate-800 text-lg">إرسال الانتظار</h3>
+              </div>
+
+              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-24 h-24 bg-slate-50 rounded-br-[3rem] -z-0" />
+                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5 items-stretch">
+                  <div className="rounded-2xl border-2 border-slate-100 bg-slate-50/60 p-5">
+                    <div className="flex items-start justify-between gap-4 mb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#e5e1fe] flex items-center justify-center text-[#655ac1]">
+                          <Send size={23} />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black text-slate-800">إرسال تكليفات الانتظار</h4>
+                          <p className="text-xs text-slate-500 font-bold mt-1">مراجعة المستلمين والرسائل قبل الإرسال بنفس واجهة إرسال المناوبة اليومية</p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 rounded-xl bg-white border border-slate-200 text-xs font-black text-[#655ac1] shrink-0">
+                        {sendRows.length} تكليف
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                      <div className="rounded-xl bg-white border border-slate-100 p-4 text-center">
+                        <p className="text-2xl font-black text-[#655ac1]">{sendRows.length}</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">إجمالي التكليفات</p>
+                      </div>
+                      <div className="rounded-xl bg-white border border-slate-100 p-4 text-center">
+                        <p className="text-2xl font-black text-emerald-600">{sendRows.filter(r => r.asgn.substitutePhone).length}</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">برقم جوال</p>
+                      </div>
+                      <div className="rounded-xl bg-white border border-slate-100 p-4 text-center">
+                        <p className="text-2xl font-black text-amber-600">{sendRows.filter(r => !r.asgn.signatureData).length}</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">بانتظار التوقيع</p>
+                      </div>
+                    </div>
+
+                    <textarea
+                      value={sendRows[0]?.message || ''}
+                      readOnly
+                      rows={4}
+                      className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none resize-none text-sm leading-relaxed transition-colors bg-white text-slate-700 font-medium"
+                      dir="rtl"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-[#655ac1]/15 bg-white p-5 flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-11 h-11 rounded-2xl bg-[#655ac1] flex items-center justify-center text-white shadow-md shadow-[#655ac1]/20">
+                        <ClipboardCheck size={21} />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-800">مراجعة وإرسال</h4>
+                        <p className="text-xs text-slate-400 font-bold mt-0.5">اختر نوع الإشعار من النافذة التالية</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-5">
+                      <button
+                        type="button"
+                        onClick={() => { setSendModalMode('electronic'); setSendCustomMessages({}); setShowSendTable(true); setShowSendModal(true); }}
+                        disabled={sendRows.length === 0}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border-2 border-slate-100 hover:border-[#655ac1] text-right transition-all disabled:opacity-50"
+                      >
+                        <span>
+                          <span className="block text-sm font-black text-slate-800">رسالة تكليف مع توقيع إلكتروني</span>
+                          <span className="block text-[11px] font-bold text-slate-400 mt-1">رابط للمنتظر للتوقيع وينعكس في سجل الاستلام</span>
+                        </span>
+                        <PenLine size={18} className="text-[#655ac1] shrink-0" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSendModalMode('notification'); setSendCustomMessages({}); setShowSendTable(true); setShowSendModal(true); }}
+                        disabled={sendRows.length === 0}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border-2 border-slate-100 hover:border-[#655ac1] text-right transition-all disabled:opacity-50"
+                      >
+                        <span>
+                          <span className="block text-sm font-black text-slate-800">رسالة تكليف نصية</span>
+                          <span className="block text-[11px] font-bold text-slate-400 mt-1">نص واتساب أو SMS بدون رابط</span>
+                        </span>
+                        <MessageSquare size={18} className="text-[#655ac1] shrink-0" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => { setShowSendTable(true); setShowSendModal(true); }}
+                      disabled={sendRows.length === 0}
+                      className="mt-auto inline-flex w-full items-center justify-center gap-2 px-10 py-3 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all shadow-md shadow-[#655ac1]/20 disabled:opacity-50"
+                    >
+                      <Send size={16} />
+                      فتح صفحة إرسال الانتظار
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {waitingTaskMode === 'send' && (() => {
+            const filteredSendRows = sendAbsentFilterId
+              ? sendRows.filter(r => r.asgn.absentTeacherId === sendAbsentFilterId)
+              : sendRows;
+            const filteredSelected = filteredSendRows.filter(r => sendSelectedIds.has(r.key));
+            const sampleRow = filteredSelected[0] || filteredSendRows[0];
+            return (
+            <div className="space-y-4">
+              <div className="px-1">
+                <h3 className="font-black text-slate-800 text-lg">إرسال</h3>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                {/* ─── LEFT CARD : اختر نوع الإشعار والمستلمين ─── */}
+                <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-start gap-3 mb-2">
+                    <ClipboardCheck size={20} className="text-[#655ac1]" />
+                    <h4 className="font-black text-slate-800">اختر نوع الإشعار والمستلمين</h4>
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                    اختر نوع الإشعار أولاً ثم اختر المعلم الغائب ثم حدد المنتظرين.
+                  </p>
+                  <div className="space-y-4">
+                    <WaitingSingleSelect
+                      label="نوع الإشعار"
+                      value={sendModalMode}
+                      onChange={value => { setSendModalMode(value as 'notification' | 'electronic'); setSendCustomMessages({}); }}
+                      placeholder="اختر نوع الإشعار"
+                      options={[
+                        { value: 'electronic', label: 'رسالة تكليف بالانتظار مع توقيع إلكتروني' },
+                        { value: 'notification', label: 'رسالة تكليف بالانتظار نصية' },
+                      ]}
+                    />
+                    <WaitingSingleSelect
+                      label="المعلم الغائب"
+                      value={sendAbsentFilterId}
+                      onChange={value => setSendAbsentFilterId(value)}
+                      placeholder="كل المعلمين الغائبين"
+                      options={[
+                        { value: '', label: 'كل المعلمين الغائبين' },
+                        ...((currentSession?.absentTeachers || []).map(absent => ({ value: absent.id, label: absent.teacherName }))),
+                      ]}
+                    />
+                    <WaitingRecipientsMultiSelect
+                      rows={filteredSendRows}
+                      selectedIds={sendSelectedIds}
+                      open={sendRecipientsDropdownOpen}
+                      setOpen={setSendRecipientsDropdownOpen}
+                      onToggle={key => setSendSelectedIds(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
+                      onSelectAll={() => setSendSelectedIds(new Set(filteredSendRows.map(r => r.key)))}
+                      onClear={() => setSendSelectedIds(prev => { const n = new Set(prev); filteredSendRows.forEach(r => n.delete(r.key)); return n; })}
+                    />
+                  </div>
+                </div>
+
+                {/* ─── RIGHT COLUMN : 3 cards ─── */}
+                <div className="space-y-4">
+                  {/* طريقة الإرسال المفضلة */}
+                  <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-start gap-3 mb-4">
+                      <MessageSquare size={20} className="text-[#655ac1]" />
+                      <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setSendPreferredChannel('whatsapp')}
+                        className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${sendPreferredChannel === 'whatsapp' ? 'border-[#25D366] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
+                      >
+                        <span className={sendPreferredChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-300'}>
+                          <WhatsAppIcon size={28} />
+                        </span>
+                        <span className={`font-black mt-2 text-sm ${sendPreferredChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-400'}`}>واتساب</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSendPreferredChannel('sms')}
+                        className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${sendPreferredChannel === 'sms' ? 'border-[#007AFF] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
+                      >
+                        <span className={sendPreferredChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'}>
+                          <MessageSquare size={28} />
+                        </span>
+                        <span className={`font-black mt-2 text-sm ${sendPreferredChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-400'}`}>النصية SMS</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* المعاينة والروابط */}
+                  <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-start gap-3 mb-4">
+                      <Eye size={20} className="text-[#655ac1]" />
+                      <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {sendModalMode === 'electronic' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const first = filteredSelected[0] || filteredSendRows[0];
+                            if (!first) { showToast('لا توجد حصص انتظار لمعاينتها', 'warning'); return; }
+                            setPreviewAssignment(first.asgn);
+                            setHasSignature(false);
+                            setShowElectronicPreview(true);
+                          }}
+                          disabled={!sampleRow}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Eye size={15} />
+                          معاينة التكليف الإلكتروني
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowSendRecipientsModal(true)}
+                        disabled={filteredSelected.length === 0}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Users size={15} />
+                        معاينة المستلمين ({filteredSelected.length})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* نص الرسالة */}
+                  <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <MessageSquare size={20} className="text-[#655ac1]" />
+                        <h4 className="font-black text-slate-800">نص الرسالة</h4>
+                      </div>
+                      <button
+                        type="button"
+                        title="استعادة النص الافتراضي"
+                        onClick={() => { setSendCustomMessages({}); setSendMasterTemplate(''); showToast('تمت استعادة النص الافتراضي', 'success'); }}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all"
+                      >
+                        <RefreshCw size={14} className="text-[#655ac1]" />
+                      </button>
+                    </div>
+                    <textarea
+                      value={sendMasterTemplate || sampleRow?.message || ''}
+                      onChange={e => {
+                        setSendMasterTemplate(e.target.value);
+                        const next: Record<string, string> = { ...sendCustomMessages };
+                        filteredSendRows.forEach(r => { next[r.key] = e.target.value; });
+                        setSendCustomMessages(next);
+                      }}
+                      rows={5}
+                      className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors mb-2"
+                      placeholder="نص الرسالة..."
+                      dir="rtl"
+                    />
+                    <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CalendarClock size={16} className="text-[#655ac1]" />
+                          <span className="text-sm font-black text-slate-700">جدولة الإرسال لوقت لاحق</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSendScheduleEnabled(v => !v)}
+                          className={`relative inline-flex w-10 h-6 rounded-full transition-all ${sendScheduleEnabled ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
+                          role="switch"
+                          aria-checked={sendScheduleEnabled}
+                        >
+                          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${sendScheduleEnabled ? 'right-1' : 'left-1'}`} />
+                        </button>
+                      </div>
+                      {sendScheduleEnabled && (
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                          <div className="min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                              <label className="text-xs font-black text-slate-500">التاريخ</label>
+                              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                                {[
+                                  { value: 'hijri', label: 'هجري' },
+                                  { value: 'gregorian', label: 'ميلادي' },
+                                ].map(option => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setSendScheduleCalendarType(option.value as 'hijri' | 'gregorian')}
+                                    className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                                      sendScheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <DatePicker
+                              value={sendScheduleDate ? new DateObject({ date: new Date(`${sendScheduleDate}T12:00:00`), calendar: gregorian }).convert(sendScheduleCalendarType === 'hijri' ? arabic : gregorian) : undefined}
+                              onChange={(d: any) => {
+                                const iso = d ? (d as DateObject).convert(gregorian).format('YYYY-MM-DD') : '';
+                                setSendScheduleDate(iso);
+                                if (iso && sendScheduleTime) setSendScheduledAt(`${iso}T${sendScheduleTime}`);
+                                else setSendScheduledAt('');
+                              }}
+                              calendar={sendScheduleCalendarType === 'hijri' ? arabic : gregorian}
+                              locale={sendScheduleCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
+                              containerClassName="w-full"
+                              inputClass="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
+                              placeholder="حدد التاريخ"
+                              portal
+                              portalTarget={document.body}
+                              editable={false}
+                              zIndex={99999}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                              <label className="text-xs font-black text-slate-500">الوقت</label>
+                            </div>
+                            <input
+                              type="time"
+                              value={sendScheduleTime}
+                              onChange={e => {
+                                const t = e.target.value;
+                                setSendScheduleTime(t);
+                                if (sendScheduleDate && t) setSendScheduledAt(`${sendScheduleDate}T${t}`);
+                                else setSendScheduledAt('');
+                              }}
+                              className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => sendWaitingBulk(sendPreferredChannel)}
+                      disabled={filteredSelected.length === 0}
+                      className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send size={16} />
+                      إرسال عبر {sendPreferredChannel === 'whatsapp' ? 'واتساب' : 'الرسائل النصية'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Recipients Preview Modal ─── */}
+              {showSendRecipientsModal && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl" onClick={() => setShowSendRecipientsModal(false)}>
+                  <div className="w-full max-w-[78rem] h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Users size={22} className="text-[#655ac1] shrink-0" />
+                        <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
+                      </div>
+                      <button type="button" onClick={() => setShowSendRecipientsModal(false)}
+                        className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[1040px] table-fixed text-right whitespace-nowrap" dir="rtl">
+                          <thead>
+                            <tr className="bg-slate-50/50 border-b border-slate-100">
+                              <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[8%]">الحصة</th>
+                              <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[12%]">الفصل</th>
+                              <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[18%]">المستلم</th>
+                              <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[18%]">نوع الإشعار</th>
+                              <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[26%]">الرابط</th>
+                              <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[18%]">إجراءات</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {filteredSelected.length === 0 ? (
+                              <tr><td colSpan={6} className="px-6 py-10 text-center text-sm font-bold text-slate-400">لم يتم اختيار مستلمين بعد.</td></tr>
+                            ) : filteredSelected.map(row => {
+                              const link = sendModalMode === 'electronic' ? buildSignLink(row.asgn) : '';
+                              return (
+                              <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
+                                <td className="px-3 py-3.5 text-center">
+                                  <span className="inline-block bg-[#e5e1fe] text-[#655ac1] px-2 py-0.5 rounded-lg text-xs font-black">{row.asgn.periodNumber}</span>
+                                </td>
+                                <td className="px-3 py-3.5 text-center">
+                                  <span className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 truncate">{row.asgn.className}</span>
+                                </td>
+                                <td className="px-3 py-3.5 min-w-0">
+                                  <p className="font-black text-[12px] text-slate-800 truncate" title={row.asgn.substituteTeacherName}>{row.asgn.substituteTeacherName}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 truncate">بدلاً من {row.asgn.absentTeacherName}</p>
+                                </td>
+                                <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 truncate">{sendModalMode === 'electronic' ? 'مع توقيع إلكتروني' : 'نصية'}</td>
+                                <td className="px-3 py-3.5 min-w-0">
+                                  {link ? (
+                                    <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
+                                      {link}
+                                    </div>
+                                  ) : <span className="text-xs font-bold text-slate-400">بدون رابط</span>}
+                                </td>
+                                <td className="px-3 py-3.5">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {link && (
+                                      <button type="button" onClick={() => { setPreviewAssignment(row.asgn); setHasSignature(false); setShowElectronicPreview(true); }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
+                                        <Eye size={12} />
+                                        عرض
+                                      </button>
+                                    )}
+                                    {link && (
+                                      <button type="button" onClick={() => { try { navigator.clipboard.writeText(link); showToast('تم نسخ الرابط', 'success'); } catch { showToast('تعذر النسخ', 'warning'); } }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
+                                        <Copy size={12} />
+                                        نسخ
+                                      </button>
+                                    )}
+                                    {!link && <span className="text-xs font-bold text-slate-400">رسالة نصية</span>}
+                                  </div>
+                                </td>
+                              </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
+                      <button type="button" onClick={() => setShowSendRecipientsModal(false)}
+                        className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
+                        إغلاق
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
+            );
+          })()}
+
+          {false && waitingTaskMode === 'send' && (
             <div className="space-y-4">
               <div className="px-1">
                 <h3 className="font-black text-slate-800 text-lg">إرسال</h3>
@@ -3090,11 +3682,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                       <MessageSquare size={13} />
                                     </button>
                                   )}
-                                  {assignment.isSwap && (
-                                    <span className="text-[10px] bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                                      <ArrowLeftRight size={9} /> تبديل
-                                    </span>
-                                  )}
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2 flex-wrap">
@@ -3135,14 +3722,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                 <button
                                   onClick={() => toggleManualNameSlot(absentTeacher.id, period.periodNumber)}
                                   disabled={slotDisabled}
-                                  title="إدخال اسم المنتظر يدويًا"
+                                  title={!manualNameMode ? 'إدخال اسم المنتظر يدويًا' : manualNameValues[slotKey] ? 'حفظ الاسم' : 'إلغاء الإدخال اليدوي'}
                                   className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
                                     manualNameMode
-                                      ? 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50'
+                                      ? (manualNameValues[slotKey] ? 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50' : 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50')
                                       : 'border-slate-200 bg-white text-[#655ac1] hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30'
                                   }`}
                                 >
-                                  {manualNameMode ? <X size={15} /> : <Plus size={15} />}
+                                  {manualNameMode ? (manualNameValues[slotKey] ? <Check size={15} /> : <X size={15} />) : <Plus size={15} />}
                                 </button>
                                 <button
                                   onClick={() => toggleWaitingSlotDisabled(absentTeacher.id, period.periodNumber)}
@@ -4505,6 +5092,191 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
+              <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <ClipboardCheck size={19} className="text-[#655ac1]" />
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">نوع الإشعار</h3>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">اختر صيغة تكليف الانتظار</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {[
+                      { id: 'electronic' as const, label: 'رسالة تكليف مع توقيع إلكتروني', icon: <PenLine size={15} />, desc: 'رسالة مرفق فيها رابط صفحة التوقيع' },
+                      { id: 'notification' as const, label: 'رسالة تكليف نصية', icon: <MessageSquare size={15} />, desc: 'نص فقط بدون رابط' },
+                    ].map(option => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => { setSendModalMode(option.id); setSendCustomMessages({}); }}
+                        className={`w-full text-right p-3 rounded-xl border-2 transition-all ${sendModalMode === option.id ? 'bg-[#f8f7ff] border-[#655ac1] text-[#655ac1] shadow-sm' : 'bg-white border-slate-100 text-slate-600 hover:border-[#655ac1]/30'}`}
+                      >
+                        <span className="flex items-center gap-2 text-sm font-black">{option.icon}{option.label}</span>
+                        <span className="block text-[11px] font-bold text-slate-400 mt-1 pr-6">{option.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Users size={19} className="text-[#655ac1]" />
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">المنتظرون</h3>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">{selectedSendRows.length} محدد من أصل {sendRows.length}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSendRecipientsPreview(v => !v)}
+                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate text-[13px] leading-tight">قائمة المستلمين المحددين تلقائياً</span>
+                    <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${showSendRecipientsPreview ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showSendRecipientsPreview && (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-2 max-h-52 overflow-y-auto space-y-1">
+                      {sendRows.length === 0 ? (
+                        <p className="text-xs font-bold text-slate-400 text-center py-6">لا توجد تكليفات انتظار لهذا اليوم</p>
+                      ) : sendRows.map(row => {
+                        const checked = sendSelectedIds.has(row.key);
+                        return (
+                          <button
+                            key={row.key}
+                            type="button"
+                            onClick={() => setSendSelectedIds(prev => { const n = new Set(prev); n.has(row.key) ? n.delete(row.key) : n.add(row.key); return n; })}
+                            className={`w-full text-right px-3 py-2 rounded-xl transition-all flex items-center justify-between gap-3 ${checked ? 'bg-white text-[#655ac1]' : 'text-slate-600 hover:bg-white'}`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-xs font-black truncate">{row.asgn.substituteTeacherName}</span>
+                              <span className="block text-[10px] font-bold text-slate-400 truncate">الحصة {row.asgn.periodNumber} - {row.asgn.className}</span>
+                            </span>
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <button type="button" onClick={toggleAllSendRows} className="text-xs font-black text-[#655ac1] hover:text-[#5046a0]">
+                    {allSendRowsSelected ? 'إلغاء تحديد الجميع' : 'تحديد الجميع'}
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare size={19} className="text-[#655ac1]" />
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">طريقة الإرسال المفضلة</h3>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">{selectedWithPhoneCount} مستلم لديه رقم جوال</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setSendPreferredChannel('whatsapp')} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-black transition-all ${sendPreferredChannel === 'whatsapp' ? 'border-[#25D366] bg-[#25D366]/10 text-[#128C7E]' : 'border-slate-100 text-slate-500 hover:border-[#25D366]/30'}`}>
+                      <WhatsAppIcon size={24} />
+                      واتساب
+                    </button>
+                    <button type="button" onClick={() => setSendPreferredChannel('sms')} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-black transition-all ${sendPreferredChannel === 'sms' ? 'border-[#007AFF] bg-[#007AFF]/10 text-[#007AFF]' : 'border-slate-100 text-slate-500 hover:border-[#007AFF]/30'}`}>
+                      <Send size={22} />
+                      SMS
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => sendWaitingBulk()} disabled={selectedSendRows.length === 0} className="w-full flex items-center justify-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                    <Send size={15} />
+                    إرسال المحددين
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Clock size={19} className="text-[#655ac1]" />
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800">جدولة الإرسال لوقت لاحق</h3>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">بنفس خيار الإرسال الحالي</p>
+                    </div>
+                  </div>
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 cursor-pointer">
+                    <span className="text-sm font-black text-slate-700">تفعيل الجدولة</span>
+                    <input type="checkbox" checked={sendScheduleEnabled} onChange={e => setSendScheduleEnabled(e.target.checked)} className="w-5 h-5 accent-[#655ac1]" />
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={sendScheduledAt}
+                    onChange={e => setSendScheduledAt(e.target.value)}
+                    disabled={!sendScheduleEnabled}
+                    className="w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl outline-none focus:border-[#655ac1] disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Link2 size={19} className="text-[#655ac1]" />
+                      <h3 className="text-sm font-black text-slate-800">المعاينة والروابط</h3>
+                    </div>
+                    <button type="button" onClick={() => setShowSendRecipientsPreview(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold">
+                      <Users size={13} /> معاينة المستلمين
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center mb-4">
+                    <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                      <p className="text-xl font-black text-[#655ac1]">{sendRows.length}</p>
+                      <p className="text-[10px] font-bold text-slate-400">تكليف</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                      <p className="text-xl font-black text-emerald-600">{selectedSendRows.length}</p>
+                      <p className="text-[10px] font-bold text-slate-400">محدد</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                      <p className="text-xl font-black text-amber-600">{sendRows.filter(r => !r.asgn.signatureData).length}</p>
+                      <p className="text-[10px] font-bold text-slate-400">بانتظار التوقيع</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const first = selectedSendRows[0] || sendRows[0];
+                      if (!first) { showToast('لا توجد حصص انتظار لمعاينتها', 'warning'); return; }
+                      setPreviewAssignment(first.asgn);
+                      setHasSignature(false);
+                      setShowElectronicPreview(true);
+                    }}
+                    disabled={sendRows.length === 0}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#655ac1] text-white text-sm font-bold hover:bg-[#5046a0] disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Eye size={15} /> معاينة التكليف الإلكتروني
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare size={19} className="text-[#655ac1]" />
+                      <h3 className="text-sm font-black text-slate-800">نص الرسالة</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { const text = selectedSendRows.map(r => r.message).join('\n\n────────────────────\n\n'); navigator.clipboard?.writeText(text); showToast('تم نسخ رسائل المحددين', 'success'); }}
+                      disabled={selectedSendRows.length === 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold disabled:opacity-40"
+                    >
+                      <Copy size={13} /> نسخ المحدد
+                    </button>
+                  </div>
+                  <textarea
+                    value={selectedSendRows[0]?.message || sendRows[0]?.message || ''}
+                    readOnly
+                    rows={6}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 font-medium outline-none resize-none leading-relaxed"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+
               {/* Zone 1: Controls + Template */}
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
@@ -4600,7 +5372,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <table className="w-full text-sm text-right">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
-                          <th className="px-4 py-3 w-10" />
+                          <th className="px-4 py-3 w-10">
+                            <button onClick={toggleAllSendRows} className={`w-5 h-5 rounded flex items-center justify-center border ${allSendRowsSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 hover:border-[#655ac1]'}`}>
+                              {allSendRowsSelected && <Check size={11} />}
+                            </button>
+                          </th>
                           <th className="px-3 py-3 font-black text-slate-500 text-xs w-8">م</th>
                           <th className="px-3 py-3 font-black text-slate-700 text-xs min-w-[130px]">المعلم البديل</th>
                           <th className="px-3 py-3 font-black text-slate-700 text-xs text-center w-16">الحصة</th>
@@ -4736,191 +5512,84 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       ════════════════════════════════════════════ */}
       {showElectronicPreview && previewAssignment && ReactDOM.createPortal(
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm"
+          dir="rtl"
           onClick={() => setShowElectronicPreview(false)}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
-            dir="rtl"
+            className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="bg-gradient-to-l from-[#655ac1] to-[#8779fb] px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-                  <PenLine size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black text-white">معاينة صفحة التوقيع</h2>
-                  <p className="text-xs text-white/70 mt-0.5">هذه الصفحة ستُرسل للمنتظر عبر الرابط</p>
-                </div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <Eye size={22} className="text-[#655ac1] shrink-0" />
+                <h3 className="font-black text-slate-800">معاينة التكليف الرسمي</h3>
               </div>
-              <button onClick={() => setShowElectronicPreview(false)} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors">
-                <X size={18} />
+              <button
+                type="button"
+                onClick={() => setShowElectronicPreview(false)}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
+              >
+                <X size={16} />
               </button>
             </div>
-
-            {/* Simulated phone frame */}
-            <div className="p-5 bg-slate-50 flex-1 overflow-y-auto">
-              {/* School logo / header */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 mb-4">
-                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
-                  <div className="w-12 h-12 bg-[#e5e1fe] rounded-2xl flex items-center justify-center">
-                    <Clock size={22} className="text-[#655ac1]" />
-                  </div>
+            <div className="overflow-y-auto p-6 space-y-4">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <h3 className="font-black text-slate-800 text-sm">نظام الانتظار الإلكتروني</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">{dayName} — {formatGregorian(selectedDate)}</p>
-                  </div>
-                </div>
-
-                {/* Assignment details */}
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="text-slate-500 font-medium">المعلم المنتظر:</span>
+                    <span className="block text-slate-500 font-bold mb-1">الاسم</span>
                     <span className="font-black text-slate-800">{previewAssignment.substituteTeacherName}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="text-slate-500 font-medium">الحصة:</span>
-                    <span className="font-black text-[#655ac1]">الحصة {previewAssignment.periodNumber}</span>
+                  <div>
+                    <span className="block text-slate-500 font-bold mb-1">الصفة</span>
+                    <span className="font-black text-[#655ac1]">معلم منتظر</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="text-slate-500 font-medium">الصف والفصل:</span>
-                    <span className="font-black text-slate-800">{previewAssignment.className}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                    <span className="text-slate-500 font-medium">المادة:</span>
-                    <span className="font-black text-slate-800">{previewAssignment.subjectName}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-slate-500 font-medium">بدلاً عن:</span>
-                    <span className="font-black text-slate-800">{previewAssignment.absentTeacherName}</span>
+                  <div>
+                    <span className="block text-slate-500 font-bold mb-1">رقم الجوال</span>
+                    <span className="font-black text-slate-800" dir="ltr">{previewAssignment.substitutePhone || 'غير مسجل'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Signature Pad */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                <p className="text-sm font-black text-slate-700 mb-3 flex items-center gap-2">
-                  <PenLine size={15} className="text-[#655ac1]" />
-                  التوقيع الإلكتروني
-                </p>
-                <p className="text-xs text-slate-400 font-medium mb-3">يرجى التوقيع في المربع أدناه لتأكيد استلام الحصة</p>
-                <div
-                  className="relative border-2 border-dashed border-[#655ac1]/30 rounded-2xl overflow-hidden bg-slate-50"
-                  style={{ height: 160 }}
-                >
-                  <canvas
-                    ref={signaturePadRef}
-                    width={380}
-                    height={160}
-                    className="w-full h-full touch-none cursor-crosshair"
-                    onMouseDown={(e) => {
-                      setIsDrawing(true);
-                      const canvas = signaturePadRef.current;
-                      if (!canvas) return;
-                      const ctx = canvas.getContext('2d');
-                      if (!ctx) return;
-                      const rect = canvas.getBoundingClientRect();
-                      const scaleX = canvas.width / rect.width;
-                      const scaleY = canvas.height / rect.height;
-                      ctx.beginPath();
-                      ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
-                    }}
-                    onMouseMove={(e) => {
-                      if (!isDrawing) return;
-                      const canvas = signaturePadRef.current;
-                      if (!canvas) return;
-                      const ctx = canvas.getContext('2d');
-                      if (!ctx) return;
-                      const rect = canvas.getBoundingClientRect();
-                      const scaleX = canvas.width / rect.width;
-                      const scaleY = canvas.height / rect.height;
-                      ctx.lineWidth = 2.5;
-                      ctx.lineCap = 'round';
-                      ctx.strokeStyle = '#1e293b';
-                      ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
-                      ctx.stroke();
-                      setHasSignature(true);
-                    }}
-                    onMouseUp={() => setIsDrawing(false)}
-                    onMouseLeave={() => setIsDrawing(false)}
-                    onTouchStart={(e) => {
-                      e.preventDefault();
-                      setIsDrawing(true);
-                      const canvas = signaturePadRef.current;
-                      if (!canvas) return;
-                      const ctx = canvas.getContext('2d');
-                      if (!ctx) return;
-                      const rect = canvas.getBoundingClientRect();
-                      const scaleX = canvas.width / rect.width;
-                      const scaleY = canvas.height / rect.height;
-                      const touch = e.touches[0];
-                      ctx.beginPath();
-                      ctx.moveTo((touch.clientX - rect.left) * scaleX, (touch.clientY - rect.top) * scaleY);
-                    }}
-                    onTouchMove={(e) => {
-                      e.preventDefault();
-                      if (!isDrawing) return;
-                      const canvas = signaturePadRef.current;
-                      if (!canvas) return;
-                      const ctx = canvas.getContext('2d');
-                      if (!ctx) return;
-                      const rect = canvas.getBoundingClientRect();
-                      const scaleX = canvas.width / rect.width;
-                      const scaleY = canvas.height / rect.height;
-                      const touch = e.touches[0];
-                      ctx.lineWidth = 2.5;
-                      ctx.lineCap = 'round';
-                      ctx.strokeStyle = '#1e293b';
-                      ctx.lineTo((touch.clientX - rect.left) * scaleX, (touch.clientY - rect.top) * scaleY);
-                      ctx.stroke();
-                      setHasSignature(true);
-                    }}
-                    onTouchEnd={() => setIsDrawing(false)}
-                  />
-                  {!hasSignature && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <p className="text-slate-300 text-xs font-bold">وقّع هنا بالضغط والسحب</p>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => {
-                      const canvas = signaturePadRef.current;
-                      if (!canvas) return;
-                      const ctx = canvas.getContext('2d');
-                      if (ctx) { ctx.clearRect(0, 0, canvas.width, canvas.height); }
-                      setHasSignature(false);
-                    }}
-                    className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-sm transition-colors"
-                  >
-                    مسح التوقيع
-                  </button>
-                  <button
-                    disabled={!hasSignature}
-                    onClick={() => {
-                      const canvas = signaturePadRef.current;
-                      if (!canvas || !hasSignature) return;
-                      const signatureData = canvas.toDataURL('image/png');
-                      // Save signature to the assignment
-                      handleUpdateStatus(previewAssignment.id, 'signed', undefined, 'electronic', signatureData);
-                      setShowElectronicPreview(false);
-                      showToast(`✅ تم حفظ توقيع ${previewAssignment.substituteTeacherName}`, 'success');
-                    }}
-                    className="flex-1 py-2 bg-[#655ac1] hover:bg-[#5046a0] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-[#655ac1]/20 flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 size={15} /> تأكيد التوقيع
-                  </button>
-                </div>
+              <div className="rounded-2xl border border-slate-200 overflow-hidden bg-white">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-white border-b border-slate-100">
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">اليوم</th>
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">الحصة</th>
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">الفصل</th>
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">المعلم الغائب</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-black text-slate-700">{dayName}</td>
+                      <td className="px-3 py-2 font-bold text-slate-600">الحصة {previewAssignment.periodNumber}</td>
+                      <td className="px-3 py-2 font-bold text-slate-600">{previewAssignment.className}</td>
+                      <td className="px-3 py-2 font-bold text-slate-600">{previewAssignment.absentTeacherName}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </div>
 
-            {/* Footer note */}
-            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
-              <Info size={13} className="text-slate-400 shrink-0" />
-              <p className="text-[10px] text-slate-400 font-medium">هذه معاينة للصفحة — في التطبيق الفعلي سيفتح المنتظر الرابط ويوقّع من جهازه الشخصي</p>
+              <p className="text-sm font-black text-slate-700">
+                تم الاطلاع على حصة الانتظار المسندة والتوقيع بالعلم.
+              </p>
+              <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
+                خانة التوقيع
+              </div>
+
+              <div className="flex gap-3">
+                <button type="button" disabled className="flex-1 py-3 bg-slate-100 text-slate-400 rounded-xl font-bold text-sm cursor-not-allowed">
+                  مسح التوقيع
+                </button>
+                <button type="button" disabled className="flex-1 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
+                  <Check size={16} /> إرسال
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold text-center">
+                زر الإرسال والتوقيع يعملان عند فتح الرابط من قبل المنتظر.
+              </p>
             </div>
           </div>
         </div>,
