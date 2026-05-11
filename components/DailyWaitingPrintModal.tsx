@@ -30,6 +30,9 @@ export interface DailyWaitingPrintModalProps {
   absentTeachers: PrintAbsentTeacher[];
   assignments: PrintWaitingAssignment[];
   targetTeacherId?: string | null;
+  initialTab?: 'print' | 'blank';
+  colorMode?: 'color' | 'bw';
+  autoPrint?: boolean;
 }
 
 const PRINT_CSS = `
@@ -41,21 +44,123 @@ const PRINT_CSS = `
     font-family: inherit;
   }
   #dw-print-modal .table-container th {
-    background-color: #f1f5f9 !important;
+    background-color: #f8fafc !important;
     -webkit-print-color-adjust: exact;
-    color-adjust: exact;
     print-color-adjust: exact;
-    padding: 6px;
-    border: 1px solid #94a3b8;
-    font-weight: bold;
+    padding: 7px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-top: 0;
+    font-weight: 900;
     font-size: 11px;
-    text-align: right;
+    color: #655ac1;
+    text-align: center;
   }
   #dw-print-modal .table-container td {
-    padding: 4px;
-    border: 1px solid #94a3b8;
+    padding: 10px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-top: 0;
     font-size: 11px;
+    height: 38px;
+  }
+  #dw-print-modal .table-container {
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    overflow: hidden;
+  }
+  #dw-print-modal .official-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: start;
+    gap: 10px;
+    border-bottom: 2px solid #1e293b;
+    padding-bottom: 8px;
+    margin-bottom: 7px;
+  }
+  #dw-print-modal .header-side {
+    font-size: 9.5px;
+    font-weight: 800;
+    line-height: 1.45;
+    color: #1e293b;
+  }
+  #dw-print-modal .header-left { text-align: left; }
+  #dw-print-modal .header-center { text-align: center; }
+  #dw-print-modal .school-logo { width: 44px; height: 44px; object-fit: contain; margin-bottom: 3px; }
+  #dw-print-modal .logo-placeholder { width: 44px; height: 44px; margin: 0 auto 3px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 9px; font-weight: 900; }
+  #dw-print-modal .report-title { text-align: center; font-size: 18px; font-weight: 900; margin: 6px 0 8px; color: #111827; }
+  #dw-print-modal .signature-box { width: 280px; border: 0; border-radius: 0; padding: 10px 0; background: #fff; }
+  #dw-print-modal .signature-name { font-size: 12px; font-weight: 900; margin-bottom: 20px; }
+  #dw-print-modal .signature-name span { color: #64748b; }
+  #dw-print-modal .signature-line { border-top: 1px solid #94a3b8; padding-top: 6px; min-height: 30px; font-size: 11px; font-weight: 900; color: #475569; }
+  #dw-print-modal .absence-note { white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  #dw-print-modal .blank-page {
+    min-height: auto;
+  }
+  #dw-print-modal .blank-page .official-header {
+    padding-bottom: 5px;
+    margin-bottom: 4px;
+  }
+  #dw-print-modal .blank-page .report-title {
+    font-size: 16px;
+    margin: 3px 0 5px;
+  }
+  #dw-print-modal .blank-table-group {
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1.5px dashed #cbd5e1;
+  }
+  #dw-print-modal .blank-table-group:last-child {
+    margin-bottom: 6px;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  #dw-print-modal .blank-table-group .absence-card {
+    padding: 5px 8px;
+    margin-bottom: 5px;
+  }
+  #dw-print-modal .blank-table-group .absence-note {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+  #dw-print-modal .blank-table-group .table-container {
+    margin-top: 0;
+  }
+  #dw-print-modal .blank-table-group .table-container th {
+    padding: 4px 6px;
+    font-size: 9.5px;
+  }
+  #dw-print-modal .blank-table-group .table-container td {
+    padding: 4px 6px;
     height: 24px;
+    font-size: 9.5px;
+  }
+  #dw-print-modal .absence-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-inline: 2px;
+  }
+  #dw-print-modal .absence-checkbox {
+    width: 11px;
+    height: 11px;
+    border: 1.5px solid #64748b;
+    border-radius: 2px;
+    display: inline-block;
+    background: #fff;
+    flex: 0 0 auto;
+  }
+  #dw-print-modal .blank-page .signature-area {
+    margin-top: 2px;
+    padding-top: 2px;
+  }
+  #dw-print-modal .blank-page .signature-name {
+    margin-bottom: 12px;
+  }
+  #dw-print-modal .blank-page .signature-line {
+    min-height: 20px;
   }
     
   #dw-print-modal .header-section {
@@ -73,6 +178,15 @@ const PRINT_CSS = `
     margin-top: 15px;
     padding-top: 10px;
   }
+  .dw-print-auto-source {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
 
   /* Print Only Styles */
   @media print {
@@ -86,6 +200,19 @@ const PRINT_CSS = `
       background: white;
       margin: 0 !important;
       padding: 0 !important;
+    }
+    .dw-print-auto-source {
+      position: static !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    #dw-print-modal.bw-print, #dw-print-modal.bw-print * {
+      filter: grayscale(1) !important;
+      color: #111827 !important;
+      box-shadow: none !important;
     }
     .no-print { display: none !important; }
     
@@ -136,16 +263,34 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
   schoolInfo,
   absentTeachers,
   assignments,
-  targetTeacherId
+  targetTeacherId,
+  initialTab = 'print',
+  colorMode = 'color',
+  autoPrint = false
 }) => {
-  const [activeTab, setActiveTab] = useState<'print' | 'blank'>('print');
+  const [activeTab, setActiveTab] = useState<'print' | 'blank'>(initialTab);
   const [separatePages, setSeparatePages] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
       injectPrintCSS();
+      setActiveTab(initialTab);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (!isOpen || !autoPrint) return;
+    const closeAfterPrint = () => onClose();
+    window.addEventListener('afterprint', closeAfterPrint, { once: true });
+    const timer = window.setTimeout(() => {
+      window.print();
+      window.setTimeout(closeAfterPrint, 400);
+    }, 120);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('afterprint', closeAfterPrint);
+    };
+  }, [autoPrint, isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -153,15 +298,21 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
     window.print();
   };
 
-  const getMissingText = (teacherName: string, type: 'full' | 'partial') => {
-    const absenceStr = type === 'partial' ? ' جزئياً' : '';
-    return `نظراً لغياب زميلنا المعلم ( ${teacherName || ''} )${absenceStr} يوم ( ${dayName} ) ، الموافق ${hijriDateStr} هـ`;
-  };
+  const selectedDateText = String((schoolInfo as any).calendarType || '').toLowerCase() === 'gregorian'
+    ? gregorianDateStr
+    : hijriDateStr;
+
+  const getMissingText = (teacherName: string, absenceType: PrintAbsentTeacher['absenceType']) => (
+    `نظراً لغياب زميلنا المعلم ( ${teacherName || ''} ) يوم ( ${dayName} ) ، الموافق ( ${selectedDateText} ) - ${absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}.`
+  );
 
   // Pre-filter teachers if targetTeacherId is specified
   const filteredTeachers = targetTeacherId 
     ? absentTeachers.filter(t => t.id === targetTeacherId) 
     : absentTeachers;
+  const printableTeachers = filteredTeachers.filter(t =>
+    t.periods.some(p => assignments.some(a => a.absentTeacherId === t.id && a.periodNumber === p.periodNumber))
+  );
 
   // We chunk them into groups of 4 for printing to minimize waste
   const chunks = [];
@@ -170,69 +321,65 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
   }
 
   const renderPrintHeader = () => (
-    <div className="header-section">
-      <div className="text-right">
-        <h2 className="font-bold text-lg mb-1">{schoolInfo.schoolName || 'اسم المدرسة'}</h2>
-        <p className="text-sm font-semibold text-slate-600">العام الدراسي: {schoolInfo.academicYear || '—'}</p>
+    <>
+    <div className="official-header">
+      <div className="header-side">
+        <div>الإدارة العامة للتعليم</div>
+        <div>{schoolInfo.region || ''}</div>
+        <div>المدرسة: {schoolInfo.schoolName || 'اسم المدرسة'}</div>
       </div>
-      <div className="text-center flex-1">
-        <h1 className="text-xl font-black text-slate-800 border-b-2 border-slate-800 inline-block pb-1 px-4">نموذج الانتظار اليومي</h1>
+      <div className="header-center">
+        {schoolInfo.logo ? (
+          <img src={schoolInfo.logo} alt="شعار" className="school-logo" />
+        ) : (
+          <div className="logo-placeholder">شعار</div>
+        )}
+        <h1>{schoolInfo.schoolName || ''}</h1>
       </div>
-      <div className="text-left text-sm font-semibold text-slate-600 space-y-1">
-        <p>اليوم: {dayName}</p>
-        <p>الموافق: {hijriDateStr} هـ</p>
-        <p>الموافق: {gregorianDateStr} م</p>
+      <div className="header-side header-left">
+        <div>اليوم: {dayName}</div>
+        <div>التاريخ: {selectedDateText}</div>
+        <div>العام الدراسي: {schoolInfo.academicYear || ''}</div>
       </div>
     </div>
+    <div className="report-title">نموذج الانتظار اليومي</div>
+    </>
   );
 
   const renderPrintFooter = () => (
     <div className="signature-area">
-      <div className="text-center w-48">
-        <p className="font-bold text-sm mb-8">يعتمد مدير المدرسة</p>
-        <div className="border-b border-dashed border-slate-400 w-32 mx-auto mb-2"></div>
-        <p className="text-sm font-bold">{schoolInfo.principal || '—'}</p>
+      <div className="signature-box">
+        <div className="signature-name"><span>مدير المدرسة:</span> <b>{schoolInfo.principal || ''}</b></div>
+        <div className="signature-line">التوقيع</div>
       </div>
     </div>
   );
 
   const renderTeacherTable = (t: PrintAbsentTeacher, showHeader = true) => {
-    const tableRows = [];
-    // We want 7 rows minimum
-    for (let i = 1; i <= 7; i++) {
-      const periodInfo = t.periods.find(p => p.periodNumber === i);
-      let className = '';
-      let subjectName = '';
-      let subName = '';
-      let signatureStr = '';
+    const assignedRows = t.periods
+      .map(periodInfo => ({
+        periodInfo,
+        assignment: assignments.find(a => a.absentTeacherId === t.id && a.periodNumber === periodInfo.periodNumber),
+      }))
+      .filter(row => !!row.assignment)
+      .sort((a, b) => a.periodInfo.periodNumber - b.periodInfo.periodNumber);
 
-      if (periodInfo) {
-        className = periodInfo.className;
-        subjectName = periodInfo.subjectName;
-        const asgn = assignments.find(a => a.absentTeacherId === t.id && a.periodNumber === i);
-        if (asgn) {
-          subName = asgn.substituteTeacherName;
-          signatureStr = asgn.signatureData || '';
-        }
-      }
-
-      tableRows.push(
-        <tr key={i}>
-          <td className="text-center font-bold text-slate-800 w-16">{i}</td>
-          <td className="text-center w-32">{className}</td>
-          <td className="text-center w-32">{subjectName}</td>
-          <td className="text-right font-semibold text-slate-800 w-48">{subName}</td>
-          <td className="text-center w-24">
-            {signatureStr ? (
-              <span className="text-[10px] text-green-700 font-bold px-2 py-0.5 bg-green-50 rounded-full border border-green-200">
-                موقّع إلكترونياً
-              </span>
-            ) : null}
-          </td>
-          <td></td>
-        </tr>
-      );
-    }
+    const tableRows = assignedRows.map(({ periodInfo, assignment }) => (
+      <tr key={periodInfo.periodNumber}>
+        <td className="text-center font-bold text-slate-800 w-16">{periodInfo.periodNumber}</td>
+        <td className="text-center w-32">{periodInfo.className}</td>
+        <td className="text-center w-32">{periodInfo.subjectName}</td>
+        <td className="text-right font-semibold text-slate-800 w-48">{assignment?.substituteTeacherName || ''}</td>
+        <td className="text-center w-24">
+          {assignment?.signatureData ? (
+            <span className="text-[10px] text-green-700 font-bold px-2 py-0.5 bg-green-50 rounded-full border border-green-200">
+              موقّع إلكترونياً
+            </span>
+          ) : null}
+        </td>
+        <td></td>
+      </tr>
+    ));
 
     return (
       <div key={t.id} className="print-item-wrapper bg-white">
@@ -240,7 +387,7 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
         
         <div className="mb-4 bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-[#655ac1]"></div>
-          <p className="text-sm font-bold text-slate-800">
+          <p className="absence-note text-sm font-bold text-slate-800">
             {getMissingText(t.teacherName, t.absenceType)}
           </p>
         </div>
@@ -266,30 +413,7 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
     );
   };
 
-  const renderBlankHeader = () => (
-    <div className="flex items-start justify-between mb-4 border-b-2 border-slate-800 pb-2">
-      <div className="text-right w-1/3 space-y-1">
-        <p className="font-bold text-sm">الإدارة العامة للتعليم بمنطقة {schoolInfo.region || '___'}</p>
-        <p className="text-sm font-semibold text-slate-800">المدرسة: {schoolInfo.schoolName || '___'}</p>
-        <p className="text-sm font-semibold text-slate-800">الفصل الدراسي: {schoolInfo.academicYear || '___'}</p>
-      </div>
-      <div className="text-center w-1/3 flex flex-col items-center justify-center">
-        {schoolInfo.logo ? (
-          <img src={schoolInfo.logo} alt="شعار التعليم" className="h-14 w-14 object-contain mb-2" />
-        ) : (
-          <div className="h-14 w-14 border-2 border-slate-300 rounded-full flex items-center justify-center mb-2">
-             <span className="text-[10px] text-slate-400">شعار</span>
-          </div>
-        )}
-        <h1 className="text-lg font-black text-slate-800 inline-block px-4">نموذج الانتظار اليومي</h1>
-      </div>
-      <div className="text-left w-1/3 text-sm font-semibold text-slate-800 space-y-1">
-        <p>اليوم: {dayName}</p>
-        <p>الموافق: {hijriDateStr} هـ</p>
-        <p>الموافق: {gregorianDateStr} م</p>
-      </div>
-    </div>
-  );
+  const renderBlankHeader = () => renderPrintHeader();
 
   const renderBlankTableGroup = (index: number) => {
     const tableRows = [];
@@ -307,30 +431,26 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
     }
 
     return (
-      <div key={index}>
-        <div className="mb-2 bg-slate-50 border border-slate-200 p-2 rounded-lg flex items-center gap-2">
+      <div key={index} className="blank-table-group">
+        <div className="absence-card bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0"></div>
-          <p className="text-xs font-bold text-slate-800 w-full flex items-center flex-wrap gap-y-1 gap-x-1 leading-relaxed">
+          <p className="absence-note text-xs font-bold text-slate-800 w-full flex items-center gap-x-1 leading-relaxed">
             <span>نظراً لغياب زميلنا المعلم (</span>
             <span className="inline-block border-b border-dashed border-slate-400 w-32"></span>
-            <span>)</span>
-            <span className="inline-flex items-center gap-1 mx-2">
-              <span className="w-3 h-3 border border-slate-400 rounded-sm inline-block"></span>
-              <span>يوم كامل</span>
-            </span>
-            <span className="inline-flex items-center gap-1 mx-2">
-              <span className="w-3 h-3 border border-slate-400 rounded-sm inline-block"></span>
-              <span>جزئي</span>
-            </span>
-            <span>اليوم</span>
+            <span>) يوم (</span>
             <span className="inline-block border-b border-dashed border-slate-400 w-24"></span>
-            <span>، الموافق</span>
+            <span>) ، الموافق (</span>
             <span className="inline-block border-b border-dashed border-slate-400 w-8"></span>
             <span>/</span>
             <span className="inline-block border-b border-dashed border-slate-400 w-8"></span>
             <span>/</span>
             <span className="inline-block border-b border-dashed border-slate-400 w-16"></span>
-            <span>14 هـ.</span>
+            <span>) - </span>
+            <span>غياب (</span>
+            <span className="absence-choice"><span className="absence-checkbox"></span><span>يوم</span></span>
+            <span>-</span>
+            <span className="absence-choice"><span className="absence-checkbox"></span><span>جزئي</span></span>
+            <span>)</span>
           </p>
         </div>
 
@@ -355,28 +475,53 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
 
   const renderBlankPage = () => {
     return (
-      <div className="print-item-wrapper bg-white !mb-0 flex flex-col h-full print:px-4">
+      <div className="blank-page print-item-wrapper bg-white !mb-0 flex flex-col h-full print:px-4">
         {renderBlankHeader()}
         
         <div className="flex-1 flex flex-col justify-start">
            {[1, 2, 3].map(idx => (
-             <div key={idx} className="mb-6">
+             <div key={idx}>
                {renderBlankTableGroup(idx)}
              </div>
            ))}
         </div>
 
-        <div className="signature-area mt-4 border-t border-slate-200 pt-4">
-          <div className="text-center w-48 mr-auto">
-            <p className="font-bold text-sm mb-6">يعتمد مدير المدرسة</p>
-            <div className="border-b border-dashed border-slate-400 w-32 mx-auto mb-2"></div>
-            <p className="text-sm font-bold">{schoolInfo.principal || '—'}</p>
-          </div>
-        </div>
+        {renderPrintFooter()}
       </div>
     );
   };
 
+  const printContent = (
+    <div
+      id="dw-print-modal"
+      className={`w-full max-w-[850px] bg-white rounded-lg h-fit min-h-full flex flex-col p-8 shadow-xl print:shadow-none print:px-8 print:py-4 print:h-auto print:min-h-0 ${separatePages ? 'separate-pages' : ''} ${colorMode === 'bw' ? 'bw-print' : ''}`}
+    >
+      {activeTab === 'blank' ? (
+        renderBlankPage()
+      ) : (
+        <>
+          {printableTeachers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 no-print text-slate-400">
+              <FileText size={48} className="mb-4 opacity-50" />
+              <p className="font-bold">لا يوجد معلمين غائبين لطباعتهم</p>
+            </div>
+          ) : (
+            <div className="print-content">
+              {printableTeachers.map((t, idx) => renderTeacherTable(t, separatePages || idx === 0))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  if (autoPrint) {
+    return (
+      <div className="dw-print-auto-source" dir="rtl">
+        {printContent}
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose} dir="rtl">
@@ -446,29 +591,7 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
 
         {/* Modal Content - Scrollable Preview */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-200/50 flex justify-center print:bg-white print:p-0 print:overflow-visible">
-           <div 
-              id="dw-print-modal" 
-              className={`w-full max-w-[850px] bg-white rounded-lg h-fit min-h-full flex flex-col p-8 shadow-xl print:shadow-none print:px-8 print:py-4 print:h-auto print:min-h-0 ${separatePages ? 'separate-pages' : ''}`}
-           >
-              {activeTab === 'blank' ? (
-                 <>
-                    {renderBlankPage()}
-                 </>
-              ) : (
-                 <>
-                    {filteredTeachers.length === 0 ? (
-                       <div className="flex flex-col items-center justify-center h-48 no-print text-slate-400">
-                          <FileText size={48} className="mb-4 opacity-50" />
-                          <p className="font-bold">لا يوجد معلمين غائبين لطباعتهم</p>
-                       </div>
-                    ) : (
-                       <div className="print-content">
-                          {filteredTeachers.map((t, idx) => renderTeacherTable(t, separatePages || idx === 0))}
-                       </div>
-                    )}
-                 </>
-              )}
-           </div>
+           {printContent}
         </div>
 
       </div>
