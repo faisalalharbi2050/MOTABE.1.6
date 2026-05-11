@@ -4023,6 +4023,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       return { person: t as Teacher | Admin, assigned, total, remaining, isTeacher: true, isBusy, isQuotaFull: isBlocking, violations, hasWarnings };
                     })
                     .sort((a, b) => {
+                      if (a.person.id === selectedAssignPerson?.id) return -1;
+                      if (b.person.id === selectedAssignPerson?.id) return 1;
                       if (a.isBusy !== b.isBusy) return a.isBusy ? 1 : -1;
                       if (a.isQuotaFull !== b.isQuotaFull) return a.isQuotaFull ? 1 : -1;
                       return b.remaining - a.remaining;
@@ -4107,7 +4109,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       const remaining = total - assigned;
                       return { person: a as Teacher | Admin, assigned, total, remaining, isTeacher: false };
                     })
-                    .sort((a, b) => b.remaining - a.remaining);
+                    .sort((a, b) => {
+                      if (a.person.id === selectedAssignPerson?.id) return -1;
+                      if (b.person.id === selectedAssignPerson?.id) return 1;
+                      return b.remaining - a.remaining;
+                    });
 
                   if (adminList.length === 0) return (
                     <div className="px-5 py-10 text-center text-slate-400">
