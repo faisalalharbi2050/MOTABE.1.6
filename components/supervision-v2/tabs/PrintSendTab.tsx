@@ -1822,18 +1822,22 @@ const PrintSendTab: React.FC<Props> = ({
                 <table className="w-full table-fixed text-right whitespace-nowrap" dir="rtl">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-100">
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[10%]">اليوم</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[14%]">التاريخ</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[18%]">المستلم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[12%]">اليوم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[16%]">التاريخ</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[22%]">المستلم</th>
                       <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[22%]">نوع الإشعار</th>
-                      {sendMode === 'electronic' && <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[22%]">الرابط</th>}
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[14%]">إجراءات</th>
+                      {sendMode === 'electronic' && (
+                        <>
+                          <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right whitespace-nowrap w-[16%]">الرابط</th>
+                          <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center whitespace-nowrap w-[12%]">إجراءات</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {selectedRows.length === 0 ? (
                       <tr>
-                        <td colSpan={sendMode === 'electronic' ? 6 : 5} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
+                        <td colSpan={sendMode === 'electronic' ? 6 : 4} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
                           لم يتم اختيار مستلمين بعد.
                         </td>
                       </tr>
@@ -1855,31 +1859,28 @@ const PrintSendTab: React.FC<Props> = ({
                           </td>
                           <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 whitespace-nowrap truncate" title={notificationTypeLabel}>{notificationTypeLabel}</td>
                           {sendMode === 'electronic' && (
-                            <td className="px-3 py-3.5 min-w-0">
-                              <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
-                                {link}
-                              </div>
-                            </td>
+                            <>
+                              <td className="px-3 py-3.5 min-w-0">
+                                <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
+                                  {link}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3.5 whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                  <button type="button" onClick={() => setPreviewRow(row)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
+                                    <Eye size={12} />
+                                    عرض
+                                  </button>
+                                  <button type="button" onClick={() => copyToClipboard(link)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
+                                    <Copy size={12} />
+                                    نسخ
+                                  </button>
+                                </div>
+                              </td>
+                            </>
                           )}
-                          <td className="px-3 py-3.5 whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                              {sendMode === 'electronic' && (
-                                <button type="button" onClick={() => setPreviewRow(row)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
-                                  <Eye size={12} />
-                                  عرض
-                                </button>
-                              )}
-                              {sendMode === 'electronic' && (
-                                <button type="button" onClick={() => copyToClipboard(link)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
-                                  <Copy size={12} />
-                                  نسخ
-                                </button>
-                              )}
-                              {sendMode !== 'electronic' && <span className="text-xs font-bold text-slate-400 whitespace-nowrap">بدون رابط</span>}
-                            </div>
-                          </td>
                         </tr>
                       );
                     })}

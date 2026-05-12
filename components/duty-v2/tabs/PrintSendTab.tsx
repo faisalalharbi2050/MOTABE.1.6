@@ -2418,23 +2418,27 @@ ${buildReportLink(target)}` : ''}`;
                 <table className="w-full min-w-[1040px] table-fixed text-right whitespace-nowrap" dir="rtl">
                   <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-100">
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[10%]">اليوم</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[14%]">التاريخ</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[18%]">المستلم</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[20%]">نوع الإشعار</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[24%]">الرابط</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[14%]">إجراءات</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[12%]">اليوم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[16%]">التاريخ</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[22%]">المستلم</th>
+                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[22%]">نوع الإشعار</th>
+                      {sendMode === 'electronic' && (
+                        <>
+                          <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[16%]">الرابط</th>
+                          <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[12%]">إجراءات</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {selectedRows.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
+                        <td colSpan={sendMode === 'electronic' ? 6 : 4} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
                           لم يتم اختيار مستلمين بعد.
                         </td>
                       </tr>
                     ) : selectedRows.map(row => {
-                      const link = sendMode === 'reminder' ? buildReportLink(row) : sendMode === 'electronic' ? buildSignatureLink(row) : '';
+                      const link = sendMode === 'electronic' ? buildSignatureLink(row) : '';
                       return (
                         <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
                           <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700 truncate">{row.dayLabel}</td>
@@ -2448,32 +2452,35 @@ ${buildReportLink(target)}` : ''}`;
                             <p className="text-[10px] font-bold text-slate-400 truncate">المناوبة اليومية</p>
                           </td>
                           <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 truncate" title={notificationTypeLabel}>{notificationTypeLabel}</td>
-                          <td className="px-3 py-3.5 min-w-0">
-                            {link ? (
-                              <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
-                                {link}
-                              </div>
-                            ) : <span className="text-xs font-bold text-slate-400">بدون رابط</span>}
-                          </td>
-                          <td className="px-3 py-3.5">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {link && (
-                                <button type="button" onClick={() => { setPreviewRowKey(row.key); }}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
-                                  <Eye size={12} />
-                                  عرض
-                                </button>
-                              )}
-                              {link && (
-                                <button type="button" onClick={() => copyToClipboard(link)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
-                                  <Copy size={12} />
-                                  نسخ
-                                </button>
-                              )}
-                              {!link && <span className="text-xs font-bold text-slate-400">رسالة نصية</span>}
-                            </div>
-                          </td>
+                          {sendMode === 'electronic' && (
+                            <>
+                              <td className="px-3 py-3.5 min-w-0">
+                                {link ? (
+                                  <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
+                                    {link}
+                                  </div>
+                                ) : <span className="text-xs font-bold text-slate-400">بدون رابط</span>}
+                              </td>
+                              <td className="px-3 py-3.5">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {link && (
+                                    <button type="button" onClick={() => { setPreviewRowKey(row.key); }}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
+                                      <Eye size={12} />
+                                      عرض
+                                    </button>
+                                  )}
+                                  {link && (
+                                    <button type="button" onClick={() => copyToClipboard(link)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
+                                      <Copy size={12} />
+                                      نسخ
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </>
+                          )}
                         </tr>
                       );
                     })}
