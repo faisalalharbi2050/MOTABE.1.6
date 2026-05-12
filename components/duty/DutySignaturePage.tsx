@@ -79,6 +79,7 @@ function saveSignatureToStorage(tokens: string[], signatureData: string): void {
     const raw = localStorage.getItem('duty_data_v1');
     if (!raw) return;
     const data: DutyScheduleData = JSON.parse(raw);
+    const signedAt = new Date().toISOString();
 
     const updateDAs = (das: DutyScheduleData['dayAssignments']) =>
       das.map(da => {
@@ -88,7 +89,7 @@ function saveSignatureToStorage(tokens: string[], signatureData: string): void {
           ...da,
           staffAssignments: da.staffAssignments.map(sa =>
             sa.signatureToken && tokens.includes(sa.signatureToken)
-              ? { ...sa, signatureData, signatureStatus: 'signed' as const }
+              ? { ...sa, signatureData, signatureStatus: 'signed' as const, signatureSignedAt: signedAt }
               : sa
           ),
         };

@@ -62,6 +62,8 @@ type DutySendFlatRow = {
   phone: string;
   signatureToken: string;
   status: 'signed' | 'pending' | 'none';
+  sentAt?: string;
+  signedAt?: string;
 };
 
 type DutySendDisplayRow = DutySendFlatRow & {
@@ -440,6 +442,8 @@ const PrintSendTab: React.FC<Props> = ({
             phone: '',
             signatureToken: staff.signatureToken || `${staff.staffId}-${day.date || day.day}`,
             status: staff.signatureData ? 'signed' : staff.signatureStatus === 'pending' ? 'pending' : 'none',
+            sentAt: staff.signatureSentAt,
+            signedAt: staff.signatureSignedAt,
           };
         })
       )
@@ -464,6 +468,8 @@ const PrintSendTab: React.FC<Props> = ({
     });
     return Array.from(groups.values()).map(assignments => {
       const first = assignments[0];
+      const sentAt = assignments.map(row => row.sentAt).filter(Boolean).sort().at(-1);
+      const signedAt = assignments.map(row => row.signedAt).filter(Boolean).sort().at(-1);
       const reportSubmittedCount = assignments.filter(row => reportByStaffAndDate.get(`${row.staffId}-${row.date || row.day}`)?.isSubmitted).length;
       const allSigned = assignments.every(row => row.status === 'signed');
       const anyPending = assignments.some(row => row.status !== 'signed');
@@ -475,6 +481,8 @@ const PrintSendTab: React.FC<Props> = ({
         reportDueCount: assignments.length,
         reportSubmittedCount,
         status: allSigned ? 'signed' : anyPending ? 'pending' : 'none',
+        sentAt,
+        signedAt,
         dayLabel: `${assignments.length} مناوبة`,
         dateLabel: assignments.map(row => `${DAY_NAMES[row.day] || row.day} - ${formatHijriDate(row.date)}`).join('، '),
       };
@@ -769,7 +777,7 @@ ${buildReportLink(target)}` : ''}`;
         <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
         <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType}</span></div>
         <div class="info-line"><span class="info-label">عدد المناوبات:</span><span class="info-value">${row.assignmentCount}</span></div>
-        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span></div>
+        <div class="info-line"><span class="info-label">التوقيع:</span><span class="info-value">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span></div>
       </div>
       <table class="schedule">
         <thead><tr><th>اليوم</th><th>التاريخ</th><th>المهمة</th></tr></thead>
@@ -846,7 +854,9 @@ ${buildReportLink(target)}` : ''}`;
         <th>الصفة</th>
         <th>عدد المناوبات</th>
         <th>الأيام والتواريخ</th>
-        <th>الحالة</th>
+        <th>تاريخ الإرسال</th>
+        <th>التوقيع</th>
+        <th>تاريخ التوقيع</th>
       </tr>
     </thead>
     <tbody>
@@ -857,7 +867,9 @@ ${buildReportLink(target)}` : ''}`;
           <td>${escapeHtml(row.staffType)}</td>
           <td>${row.assignmentCount}</td>
           <td>${escapeHtml(row.dateLabel)}</td>
+          <td>${formatHijriDateTime(row.sentAt)}</td>
           <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</td>
+          <td>${formatHijriDateTime(row.signedAt)}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -1447,16 +1459,18 @@ ${buildReportLink(target)}` : ''}`;
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] table-fixed text-right whitespace-nowrap" dir="rtl">
+              <table className="w-full table-fixed text-right" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[5%]">م</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[19%]">المناوب</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[8%]">الصفة</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[10%]">عدد المناوبات</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[24%]">الأيام والتواريخ</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[12%]">الحالة</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[14%]">إجراءات</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[4%]">م</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[16%]">المناوب</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[7%]">الصفة</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[8%]">عدد المناوبات</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[20%]">الأيام والتواريخ</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[13%]">تاريخ الإرسال</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[9%]">التوقيع</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[13%]">تاريخ التوقيع</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[10%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1467,15 +1481,26 @@ ${buildReportLink(target)}` : ''}`;
                           {idx + 1}
                         </span>
                       </td>
-                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
-                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
-                      <td className="px-3 py-3 text-center">
+                      <td className="px-2 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
+                      <td className="px-2 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
+                      <td className="px-2 py-3 text-center">
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
                           {row.assignmentCount}
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate" title={row.dateLabel}>{row.dateLabel || '-'}</td>
-                      <td className="px-3 py-3">
+                      <td className="px-2 py-3 text-slate-500 text-[11px]" title={row.dateLabel}>
+                        <div className="space-y-1">
+                          {row.assignments.map(item => (
+                            <div key={`${row.key}-${item.key}`} className="leading-tight">
+                              <span className="font-black text-slate-700">{DAY_NAMES[item.day] || item.day}</span>
+                              <span className="mx-1 text-slate-300">-</span>
+                              <span className="font-bold text-slate-500">{formatHijriDate(item.date)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-2 py-3 text-slate-500 text-[10px] leading-snug break-words" title={formatHijriDateTime(row.sentAt)}>{formatHijriDateTime(row.sentAt)}</td>
+                      <td className="px-2 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
                           row.status === 'signed'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -1484,10 +1509,11 @@ ${buildReportLink(target)}` : ''}`;
                           {row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-2 min-w-[118px]">
+                      <td className="px-2 py-3 text-slate-500 text-[10px] leading-snug break-words" title={formatHijriDateTime(row.signedAt)}>{formatHijriDateTime(row.signedAt)}</td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center justify-center gap-1">
                           <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="عرض وطباعة النموذج"
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap shrink-0">
+                            className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap shrink-0">
                             <Eye size={14} />
                             عرض وطباعة
                           </button>
@@ -1497,7 +1523,7 @@ ${buildReportLink(target)}` : ''}`;
                   ))}
                   {filteredAssignmentRows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
+                      <td colSpan={9} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
                         لا توجد نتائج تطابق الفلتر.
                       </td>
                     </tr>
@@ -1537,7 +1563,7 @@ ${buildReportLink(target)}` : ''}`;
                       <span className="font-black text-slate-800">{previewAssignmentRow.assignmentCount}</span>
                     </div>
                     <div className="flex items-center justify-start gap-2">
-                      <span className="text-slate-500 font-bold shrink-0">الحالة:</span>
+                      <span className="text-slate-500 font-bold shrink-0">التوقيع:</span>
                       <span className="font-black text-slate-800">{previewAssignmentRow.status === 'signed' ? 'وقّع' : 'لم يوقّع'}</span>
                     </div>
                   </div>
@@ -2439,13 +2465,36 @@ ${buildReportLink(target)}` : ''}`;
                       </tr>
                     ) : selectedRows.map(row => {
                       const link = sendMode === 'electronic' ? buildSignatureLink(row) : '';
+                      const shouldStackAssignments = sendMode === 'text' && row.assignments.length > 1;
                       return (
                         <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
-                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700 truncate">{row.dayLabel}</td>
+                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700">
+                            {shouldStackAssignments ? (
+                              <div className="flex flex-col gap-1.5 whitespace-normal">
+                                {row.assignments.map(item => (
+                                  <span key={`${row.key}-day-${item.key}`} className="block px-2 py-1 text-[#655ac1] leading-tight">
+                                    {DAY_NAMES[item.day] || item.day}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="block truncate">{row.dayLabel}</span>
+                            )}
+                          </td>
                           <td className="px-3 py-3.5 text-center">
-                            <span title={row.dateLabel} className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 truncate">
-                              {row.dateLabel}
-                            </span>
+                            {shouldStackAssignments ? (
+                              <div className="flex flex-col gap-1.5 whitespace-normal">
+                                {row.assignments.map(item => (
+                                  <span key={`${row.key}-date-${item.key}`} className="block px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 leading-tight">
+                                    {formatHijriDate(item.date)}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span title={row.dateLabel} className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 truncate">
+                                {row.dateLabel}
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-3.5 min-w-0">
                             <p className="font-black text-[12px] text-slate-800 truncate" title={row.staffName}>{row.staffName}</p>

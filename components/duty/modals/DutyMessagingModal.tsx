@@ -432,7 +432,7 @@ const DutyMessagingModal: React.FC<Props> = ({
       const updateDAs = (das: typeof prev.dayAssignments) =>
         das.map(da => {
           if (da.day !== eRow.day) return da;
-          return { ...da, staffAssignments: da.staffAssignments.map(sa => sa.staffId === eRow.staffId ? { ...sa, signatureStatus: 'pending' as const, signatureToken: eRow.token } : sa) };
+          return { ...da, staffAssignments: da.staffAssignments.map(sa => sa.staffId === eRow.staffId ? { ...sa, signatureStatus: 'pending' as const, signatureToken: eRow.token, signatureSentAt: sa.signatureSentAt || new Date().toISOString() } : sa) };
         });
       return { ...prev, dayAssignments: updateDAs(prev.dayAssignments), weekAssignments: prev.weekAssignments?.map(wa => ({ ...wa, dayAssignments: updateDAs(wa.dayAssignments) })) };
     });
@@ -443,7 +443,7 @@ const DutyMessagingModal: React.FC<Props> = ({
       const updateDAs = (das: typeof prev.dayAssignments) =>
         das.map(da => {
           if (da.day !== day) return da;
-          return { ...da, staffAssignments: da.staffAssignments.map(sa => sa.staffId === staffId ? { ...sa, signatureData: sigData, signatureStatus: 'signed' as const } : sa) };
+          return { ...da, staffAssignments: da.staffAssignments.map(sa => sa.staffId === staffId ? { ...sa, signatureData: sigData, signatureStatus: 'signed' as const, signatureSignedAt: new Date().toISOString() } : sa) };
         });
       return { ...prev, dayAssignments: updateDAs(prev.dayAssignments), weekAssignments: prev.weekAssignments?.map(wa => ({ ...wa, dayAssignments: updateDAs(wa.dayAssignments) })) };
     });

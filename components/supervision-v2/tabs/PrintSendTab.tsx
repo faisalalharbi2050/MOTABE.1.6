@@ -959,7 +959,7 @@ const PrintSendTab: React.FC<Props> = ({
       <div class="info-card">
         <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
         <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType === 'teacher' ? 'معلم' : 'إداري'}</span></div>
-        <div class="info-line"><span class="info-label">الحالة:</span><span class="info-value">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</span></div>
+        <div class="info-line"><span class="info-label">التوقيع:</span><span class="info-value">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</span></div>
       </div>
       <table class="schedule">
         <thead><tr><th>اليوم</th><th>نوع الإشراف</th></tr></thead>
@@ -1027,8 +1027,8 @@ const PrintSendTab: React.FC<Props> = ({
         <th>المشرف / المشرف المتابع</th>
         <th>الصفة</th>
         <th>نوع الإشراف</th>
-        <th>الحالة</th>
         <th>تاريخ الإرسال</th>
+        <th>التوقيع</th>
         <th>تاريخ التوقيع</th>
       </tr>
     </thead>
@@ -1039,8 +1039,8 @@ const PrintSendTab: React.FC<Props> = ({
           <td>${escapeHtml(row.staffName)}</td>
           <td>${row.staffType === 'teacher' ? 'معلم' : 'إداري'}</td>
           <td>${escapeHtml(row.typeName)}</td>
-          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</td>
           <td>${formatHijriDateTime(row.sentAt)}</td>
+          <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</td>
           <td>${formatHijriDateTime(row.signedAt)}</td>
         </tr>
       `).join('')}
@@ -1259,8 +1259,8 @@ const PrintSendTab: React.FC<Props> = ({
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[19%]">المشرف / المشرف المتابع</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[8%]">الصفة</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[20%]">نوع الإشراف</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[10%]">الحالة</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[12%]">تاريخ الإرسال</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[10%]">التوقيع</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[12%]">تاريخ التوقيع</th>
                     <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[14%]">إجراءات</th>
                   </tr>
@@ -1278,6 +1278,7 @@ const PrintSendTab: React.FC<Props> = ({
                         {req.staffType === 'teacher' ? 'معلم' : 'إداري'}
                       </td>
                       <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate" title={req.typeName}>{req.typeName}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.sentAt)}>{formatHijriDateTime(req.sentAt)}</td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
                           req.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -1285,7 +1286,6 @@ const PrintSendTab: React.FC<Props> = ({
                           {req.status === 'signed' ? 'وقع' : 'لم يوقع'}
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.sentAt)}>{formatHijriDateTime(req.sentAt)}</td>
                       <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.signedAt)}>{formatHijriDateTime(req.signedAt)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-2 min-w-[118px]">
@@ -1347,7 +1347,7 @@ const PrintSendTab: React.FC<Props> = ({
                       <span className="font-black text-[#655ac1]">{previewReceiptRow.staffType === 'teacher' ? 'معلم' : 'إداري'}</span>
                     </div>
                     <div className="flex items-center justify-start gap-2">
-                      <span className="text-slate-500 font-bold shrink-0">الحالة:</span>
+                      <span className="text-slate-500 font-bold shrink-0">التوقيع:</span>
                       <span className="font-black text-slate-800">{previewReceiptRow.status === 'signed' ? 'وقع' : 'لم يوقع'}</span>
                     </div>
                   </div>

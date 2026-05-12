@@ -712,6 +712,8 @@ export interface DutyStaffAssignment {
   signatureData?: string;           // base64 PNG of digital signature
   signatureStatus?: 'not-sent' | 'pending' | 'signed';
   signatureToken?: string;          // unique token used in the sign link
+  signatureSentAt?: string;         // ISO string
+  signatureSignedAt?: string;       // ISO string
 }
 
 export interface DutyWeekAssignment {
