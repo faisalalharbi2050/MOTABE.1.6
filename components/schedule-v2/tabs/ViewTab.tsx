@@ -2614,7 +2614,7 @@ const ViewTab: React.FC<Props> = ({
               </div>
               <button
                 onClick={handleExportExcel}
-                className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+                className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-white hover:bg-[#655ac1] transition-all"
               >
                 <FileSpreadsheet size={15} />
                 تصدير EXCEL
@@ -2633,7 +2633,7 @@ const ViewTab: React.FC<Props> = ({
               <div className="flex-1" />
               <button
                 onClick={handleExportXML}
-                className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
+                className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-white hover:bg-[#655ac1] transition-all"
               >
                 <FileCode2 size={15} />
                 تصدير XML
