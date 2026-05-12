@@ -294,7 +294,7 @@ const SingleSelectDropdown: React.FC<{
         onClick={() => !disabled && setOpen(current => !current)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <span className="truncate">{selected?.label || placeholder}</span>
+        <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
