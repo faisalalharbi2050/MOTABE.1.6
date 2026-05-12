@@ -765,7 +765,8 @@ const SignaturePrintWorkspace: React.FC<{
 const SignatureSummaryPrintWorkspace: React.FC<{
   requests: ScheduleSignatureRequest[];
   schoolInfo: SchoolInfo;
-}> = ({ requests, schoolInfo }) => {
+  onDone: () => void;
+}> = ({ requests, schoolInfo, onDone }) => {
   const styleTag = useMemo(() => buildSignaturePrintCSS(), []);
   const currentSemester =
     schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) ||
@@ -785,9 +786,27 @@ const SignatureSummaryPrintWorkspace: React.FC<{
   };
 
   useEffect(() => {
+    let finished = false;
+    const finishPrinting = () => {
+      if (finished) return;
+      finished = true;
+      window.setTimeout(onDone, 100);
+    };
+    const printQuery = window.matchMedia?.('print');
+    const handlePrintQueryChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) finishPrinting();
+    };
+
+    window.addEventListener('afterprint', finishPrinting);
+    printQuery?.addEventListener?.('change', handlePrintQueryChange);
     const timer = window.setTimeout(() => window.print(), 250);
-    return () => window.clearTimeout(timer);
-  }, []);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('afterprint', finishPrinting);
+      printQuery?.removeEventListener?.('change', handlePrintQueryChange);
+    };
+  }, [onDone]);
 
   return (
     <div className="signature-summary-print fixed inset-0 z-[125] bg-white overflow-auto" dir="rtl">
@@ -1833,6 +1852,7 @@ const ViewTab: React.FC<Props> = ({
       <SignatureSummaryPrintWorkspace
         requests={summaryPrintRequests}
         schoolInfo={schoolInfo}
+        onDone={() => setSummaryPrintRequests(null)}
       />
     );
   }
