@@ -3707,7 +3707,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm h-full flex flex-col">
             <div className="flex items-center justify-start gap-3 mb-2">
               <ClipboardList size={20} className="text-[#655ac1]" />
-              <h4 className="font-black text-slate-800">نموذج الانتظار اليومي</h4>
+              <h4 className="font-black text-slate-800">نموذج الانتظار اليومي مفرّغ</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
               نموذج انتظار يومي مفرغ للتعبئة اليدوية.
