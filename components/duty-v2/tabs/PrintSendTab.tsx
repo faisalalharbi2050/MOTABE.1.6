@@ -2465,7 +2465,7 @@ ${buildReportLink(target)}` : ''}`;
                       </tr>
                     ) : selectedRows.map(row => {
                       const link = sendMode === 'electronic' ? buildSignatureLink(row) : '';
-                      const shouldStackAssignments = sendMode === 'text' && row.assignments.length > 1;
+                      const shouldStackAssignments = sendMode !== 'reminder' && row.assignments.length > 1;
                       return (
                         <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
                           <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700">
