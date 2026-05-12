@@ -3826,21 +3826,22 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           MODAL: تأكيد التوزيع التلقائي
       ══════════════════════════════════════════════ */}
       {showAutoConfirm && ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
-            <div className="flex items-start gap-3 px-6 pt-6 pb-5">
-              <Zap size={24} className="text-[#655ac1] shrink-0 mt-0.5" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[220] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" dir="rtl">
+            <div className="flex items-center gap-3 px-7 pt-7 pb-4">
+              <Zap size={24} className="text-[#655ac1] shrink-0" />
               <div>
-                <h2 className="text-lg font-black text-slate-800 mb-2">تأكيد توزيع الانتظار آليًا</h2>
-                <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                  سيتم توزيع حصص الانتظار آليًا وفق المتاحين ورصيد الانتظار. هل تريد بدء التوزيع الآن؟
-                </p>
+                <h3 className="font-black text-slate-800 text-base">تأكيد توزيع الانتظار آليًا</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم تطبيق التوزيع على الحصص المتاحة</p>
               </div>
             </div>
-            <div className="flex gap-3 px-6 pb-6">
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              سيتم توزيع حصص الانتظار آليًا وفق المتاحين ورصيد الانتظار، هل تريد بدء التوزيع الآن؟
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
               <button
                 onClick={() => { setShowAutoConfirm(false); setPendingAutoFn(null); }}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
                 إلغاء
               </button>
@@ -3850,7 +3851,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   if (pendingAutoFn) pendingAutoFn();
                   setPendingAutoFn(null);
                 }}
-                className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
               >
                 <Zap size={15} /> بدء التوزيع
               </button>
@@ -3865,8 +3866,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       ══════════════════════════════════════════════ */}
       {removeAbsentConfirm && ReactDOM.createPortal(
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" dir="rtl">
-            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" dir="rtl">
+            <div className="flex items-center gap-3 px-7 pt-7 pb-4">
               <Trash2 size={24} className="text-rose-500 shrink-0" />
               <div>
                 <h3 className="font-black text-slate-800 text-base">تأكيد الحذف</h3>
@@ -4932,23 +4933,24 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           MODAL: Manual-Overwrite Confirmation
       ════════════════════════════════════════════ */}
       {showManualOverwriteConfirm && ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle size={30} className="text-amber-500" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[220] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" dir="rtl">
+            <div className="flex items-center gap-3 px-7 pt-7 pb-4">
+              <ArrowLeftRight size={24} className="text-[#655ac1] shrink-0" />
+              <div>
+                <h3 className="font-black text-slate-800 text-base">التبديل إلى التوزيع اليدوي</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيُحذف التوزيع الحالي قبل التبديل</p>
               </div>
-              <h2 className="text-xl font-black text-slate-800 mb-2">التبديل إلى الوضع اليدوي</h2>
-              <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                يوجد توزيع حالي لهذا اليوم. سيؤدي التبديل إلى الوضع اليدوي إلى <strong className="text-rose-500">حذف جميع التوزيعات المسندة</strong>. هل تريد المتابعɿ
-              </p>
             </div>
-            <div className="px-6 pb-6 flex gap-3">
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              يوجد توزيع حالي لهذا اليوم سيتم حذفه لإعادة التوزيع، هل تريد المتابعة؟
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
               <button
                 onClick={() => setShowManualOverwriteConfirm(false)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
-                تراجع
+                إلغاء
               </button>
               <button
                 onClick={() => {
@@ -4960,9 +4962,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   setLastDistResult(null);
                   showToast('تم حذف التوزيع — يمكنك الآن التوزيع يدوياً', 'info');
                 }}
-                className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-amber-500/20"
+                className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
               >
-                نعم، تبديل إلى يدوي
+                <ArrowLeftRight size={15} /> نعم، بدّل للتوزيع اليدوي
               </button>
             </div>
           </div>
@@ -4974,23 +4976,24 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           MODAL: Auto-Overwrite Confirmation
       ════════════════════════════════════════════ */}
       {showAutoOverwriteConfirm && ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap size={30} className="text-amber-500" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[220] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" dir="rtl">
+            <div className="flex items-center gap-3 px-7 pt-7 pb-4">
+              <Zap size={24} className="text-[#655ac1] shrink-0" />
+              <div>
+                <h3 className="font-black text-slate-800 text-base">تأكيد التوزيع الآلي</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيُحذف التوزيع الحالي قبل إعادة التوزيع</p>
               </div>
-              <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد التوزيع التلقائي</h2>
-              <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                يوجد توزيع حالي لهذا اليوم. سيؤدي التوزيع التلقائي إلى <strong className="text-rose-500">حذف التوزيع الحالي</strong> وإعادة التوزيع من الصفر. هل تريد المتابعɿ
-              </p>
             </div>
-            <div className="px-6 pb-6 flex gap-3">
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              يوجد توزيع حالي لهذا اليوم سيتم حذفه وإعادة التوزيع، هل تريد المتابعة؟
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
               <button
                 onClick={() => { setShowAutoOverwriteConfirm(false); setPendingAutoFn(null); }}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
-                تراجع
+                إلغاء
               </button>
               <button
                 onClick={() => {
@@ -4998,9 +5001,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   setShowAutoOverwriteConfirm(false);
                   setPendingAutoFn(null);
                 }}
-                className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20"
+                className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
               >
-                نعم، أعد التوزيع
+                <Zap size={15} /> نعم، أعد التوزيع
               </button>
             </div>
           </div>
