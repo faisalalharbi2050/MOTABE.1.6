@@ -772,8 +772,18 @@ const SignatureSummaryPrintWorkspace: React.FC<{
     schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) ||
     schoolInfo.semesters?.[0];
   const now = new Date();
-  const signedCount = requests.filter(r => r.status === 'signed').length;
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const formatReceiptDate = (value?: string | Date) => {
+    if (!value) return '—';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(date);
+  };
+  const formatReceiptDateTime = (value?: string | Date) => {
+    if (!value) return '—';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => window.print(), 250);
@@ -783,6 +793,61 @@ const SignatureSummaryPrintWorkspace: React.FC<{
   return (
     <div className="fixed inset-0 z-[125] bg-white overflow-auto" dir="rtl">
       <style>{styleTag}</style>
+      <style>{`
+        @page { size: A4 landscape; margin: 10mm; }
+        @media print {
+          #signature-print-root { padding: 0 !important; }
+          .receipt-print-card { box-shadow: none !important; border-radius: 0 !important; border: 0 !important; }
+        }
+        .receipt-print-root {
+          font-family: "Tajawal", Arial, sans-serif;
+          color: #1e293b;
+          padding: 0;
+        }
+        .receipt-print-header {
+          display: flex;
+          justify-content: space-between;
+          border-bottom: 2px solid #1e293b;
+          padding-bottom: 12px;
+          margin-bottom: 18px;
+          font-weight: 700;
+          font-size: 12px;
+          line-height: 1.8;
+        }
+        .receipt-print-title {
+          text-align: center;
+          font-size: 20px;
+          font-weight: 900;
+          color: #111827;
+          margin: 0 0 18px;
+        }
+        .receipt-print-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 11px;
+        }
+        .receipt-print-table th,
+        .receipt-print-table td {
+          border: 1px solid #cbd5e1;
+          padding: 8px;
+          text-align: center;
+          vertical-align: middle;
+        }
+        .receipt-print-table th {
+          background: #a59bf0;
+          color: #fff;
+          font-weight: 900;
+        }
+        .receipt-status-signed { color: #047857; font-weight: 900; }
+        .receipt-status-pending { color: #b45309; font-weight: 900; }
+        .receipt-signature-img { max-height: 34px; max-width: 110px; object-fit: contain; }
+        @media print {
+          .receipt-print-table th {
+            background: #a59bf0 !important;
+            color: #fff !important;
+          }
+        }
+      `}</style>
       <div className="signature-print-toolbar sticky top-0 z-20 flex items-center justify-between gap-3 px-6 py-4 bg-white border-b border-slate-100 shadow-sm">
         <div className="flex items-center gap-3 order-2">
           <button
@@ -805,114 +870,60 @@ const SignatureSummaryPrintWorkspace: React.FC<{
         </div>
       </div>
 
-      <div id="signature-print-root" className="bg-white p-8 space-y-6">
-        {/* Ministry Header */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center border-b border-slate-200 pb-5">
-          <div className="text-right space-y-1">
-            <p className="text-xs font-bold text-slate-600">وزارة التعليم</p>
-            <p className="text-xs font-bold text-slate-600">إدارة التعليم بمنطقة {schoolInfo.region || '—'}</p>
-            <p className="text-xs font-bold text-slate-600">المدرسة {schoolInfo.schoolName || '—'}</p>
-          </div>
-          <div className="flex justify-center">
-            <MinistryLogo />
-          </div>
-          <div className="text-left space-y-1">
-            <p className="text-xs font-bold text-slate-600">الفصل الدراسي {currentSemester?.name || '—'}</p>
-            <p className="text-xs font-bold text-slate-600">العام الدراسي {schoolInfo.academicYear || '—'}</p>
-            <p className="text-xs font-bold text-slate-600">
-              التاريخ {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now)}
-            </p>
-          </div>
-        </div>
-
-        <h1 className="text-center text-xl font-black text-slate-800">سجل الاستلام الالكتروني</h1>
-
-        {/* Summary stats */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'إجمالي المعلمين', value: requests.length, icon: Users, color: 'text-[#655ac1]' },
-            { label: 'وقّع', value: signedCount, icon: CheckCircle2, color: 'text-emerald-600' },
-            { label: 'لم يوقّع', value: pendingCount, icon: AlertCircle, color: 'text-amber-500' },
-          ].map((s, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
-              style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-              <div className={`flex items-center justify-center shrink-0 ${s.color}`}>
-                <s.icon size={22} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-400 leading-none">{s.label}</p>
-                <p className="mt-1 font-black text-slate-800 text-xl leading-none">{s.value}</p>
-              </div>
+      <div id="signature-print-root" className="bg-white p-8">
+        <div className="receipt-print-root">
+          <div className="receipt-print-header">
+            <div>
+              <div>المملكة العربية السعودية</div>
+              <div>وزارة التعليم</div>
+              <div>{schoolInfo.region || 'إدارة التعليم'}</div>
+              <div>مدرسة {schoolInfo.schoolName || ''}</div>
             </div>
-          ))}
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
-          style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="px-6 py-4 border-b border-slate-100 bg-white">
-            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-              <ClipboardList size={18} className="text-[#655ac1]" />
-              سجل الاستلام
-            </p>
+            <div style={{ textAlign: 'left' }}>
+              <div>العام الدراسي: {schoolInfo.academicYear || ''}</div>
+              <div>الفصل الدراسي: {currentSemester?.name || ''}</div>
+              <div>تاريخ الطباعة: {formatReceiptDateTime(now)}</div>
+            </div>
           </div>
-          <table className="w-full text-right" dir="rtl">
+
+          <h1 className="receipt-print-title">سجل استلام المعلمين للجداول</h1>
+
+          <table className="receipt-print-table" dir="rtl">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">م</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اسم المعلم</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الإرسال</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">التوقيع</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الاستلام</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">صورة التوقيع</th>
+              <tr>
+                <th style={{ width: '7%' }}>م</th>
+                <th style={{ width: '27%' }}>اسم المعلم</th>
+                <th style={{ width: '18%' }}>تاريخ الإرسال</th>
+                <th style={{ width: '14%' }}>التوقيع</th>
+                <th style={{ width: '18%' }}>تاريخ التوقيع</th>
+                <th style={{ width: '16%' }}>صورة التوقيع</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {requests.map((req, idx) => (
-                <tr key={req.token} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-slate-400 text-sm font-bold">{idx + 1}</td>
-                  <td className="px-6 py-4 font-black text-slate-800">{req.teacherName}</td>
-                  <td className="px-6 py-4 text-slate-500 text-sm">
-                    {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
+                <tr key={req.token}>
+                  <td>{idx + 1}</td>
+                  <td>{req.teacherName}</td>
+                  <td>{formatReceiptDate(req.createdAt)}</td>
+                  <td className={req.status === 'signed' ? 'receipt-status-signed' : 'receipt-status-pending'}>
+                    {req.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
-                      req.status === 'signed'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {req.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 text-sm">
-                    {req.signedAt
-                      ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(req.signedAt))
-                      : '—'}
-                  </td>
-                  <td className="px-6 py-4 text-center">
+                  <td>{formatReceiptDateTime(req.signedAt)}</td>
+                  <td>
                     {req.signatureData ? (
-                      <img
-                        src={req.signatureData}
-                        alt={`توقيع ${req.teacherName}`}
-                        className="h-8 mx-auto border border-slate-200 rounded-lg bg-white"
-                      />
-                    ) : (
-                      <span className="text-slate-400 text-sm">—</span>
-                    )}
+                      <img src={req.signatureData} alt={`توقيع ${req.teacherName}`} className="receipt-signature-img" />
+                    ) : '—'}
                   </td>
                 </tr>
               ))}
               {requests.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm font-medium text-slate-400">
-                    لا توجد بيانات.
-                  </td>
+                  <td colSpan={6}>لا توجد بيانات.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   );
