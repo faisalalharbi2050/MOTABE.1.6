@@ -790,12 +790,32 @@ const SignatureSummaryPrintWorkspace: React.FC<{
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[125] bg-white overflow-auto" dir="rtl">
+    <div className="signature-summary-print fixed inset-0 z-[125] bg-white overflow-auto" dir="rtl">
       <style>{styleTag}</style>
       <style>{`
         @page { size: A4 landscape; margin: 10mm; }
         @media print {
-          #signature-print-root { padding: 0 !important; }
+          html, body {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+          }
+          .signature-summary-print {
+            position: static !important;
+            inset: auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            background: #fff !important;
+          }
+          #signature-print-root {
+            position: static !important;
+            inset: auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            padding: 0 !important;
+          }
           .receipt-print-card { box-shadow: none !important; border-radius: 0 !important; border: 0 !important; }
         }
         .receipt-print-root {
@@ -824,6 +844,7 @@ const SignatureSummaryPrintWorkspace: React.FC<{
           width: 100%;
           border-collapse: collapse;
           font-size: 11px;
+          page-break-inside: auto;
         }
         .receipt-print-table th,
         .receipt-print-table td {
@@ -840,10 +861,21 @@ const SignatureSummaryPrintWorkspace: React.FC<{
         .receipt-status-signed { color: #047857; font-weight: 900; }
         .receipt-status-pending { color: #b45309; font-weight: 900; }
         .receipt-signature-img { max-height: 34px; max-width: 110px; object-fit: contain; }
+        .receipt-print-table thead { display: table-header-group; }
+        .receipt-print-table tfoot { display: table-footer-group; }
+        .receipt-print-table tr {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
         @media print {
           .receipt-print-table th {
             background: #a59bf0 !important;
             color: #fff !important;
+          }
+          .receipt-print-table thead { display: table-header-group !important; }
+          .receipt-print-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}</style>
