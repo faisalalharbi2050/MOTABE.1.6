@@ -141,6 +141,27 @@ const getISOWeekKey = (dateStr: string): string => {
   return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 };
 
+const toLocalISODate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getWaitingWeekRange = (dateStr: string): { start: string; end: string; weekKey: string } => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const start = new Date(d);
+  start.setDate(d.getDate() - d.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 4);
+  const startStr = toLocalISODate(start);
+  return {
+    start: startStr,
+    end: toLocalISODate(end),
+    weekKey: getISOWeekKey(startStr),
+  };
+};
+
 const formatHijri = (dateStr: string): string => {
   try {
     return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateStr));
@@ -417,6 +438,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const isEmbedded = !!embeddedSection;
   const isRegister = embeddedSection === 'register';
   const isDistribute = embeddedSection === 'distribute';
+  const isBalance = embeddedSection === 'balance';
   const isPrintSend = embeddedSection === 'printsend';
   // ===== State =====
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
@@ -550,6 +572,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ── Balance Modal ──
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [resetConfirmStep, setResetConfirmStep] = useState<'idle' | 'confirm'>('idle');
+  const [showBalanceResetConfirm, setShowBalanceResetConfirm] = useState(false);
 
   // ── Absence modal date ref ──
   const absenceDateInputRef = useRef<HTMLInputElement>(null);
@@ -565,18 +588,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     localStorage.setItem('daily_waiting_quota_v1', JSON.stringify(weeklyQuota));
   }, [weeklyQuota]);
 
-  // Auto-reset quota on new week (Thursday)
-  useEffect(() => {
-    const day = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-    if (day === 'Thursday') {
-      const weekKey = getISOWeekKey(getTodayStr());
-      if (weeklyQuota.weekKey !== weekKey) {
-        setWeeklyQuota({ weekKey, counts: {}, lastResetDate: getTodayStr() });
-        showToast('تم تصفير عداد حصص الانتظار لأسبوع جديد', 'info');
-      }
-    }
-  }, []);
-
   // ===== Derived data =====
   const timetable: TimetableData = useMemo(() => {
     const activeSaved = scheduleSettings?.savedSchedules?.find(s => s.id === scheduleSettings?.activeScheduleId);
@@ -588,6 +599,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const dayName = useMemo(() => getArabicDayFromDate(selectedDate), [selectedDate]);
   // مفتاح اليوم بالإنجليزية لمطابقة مفاتيح الجدول الزمني (sunday, monday, ...)
   const dayKey = useMemo(() => new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), [selectedDate]);
+  const waitingWeekRange = useMemo(() => getWaitingWeekRange(selectedDate), [selectedDate]);
 
   const currentSession = useMemo(
     () => sessions.find(s => s.date === selectedDate) || null,
@@ -1198,17 +1210,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [receiptSelectedDates, setReceiptSelectedDates] = useState<string[]>([selectedDate]);
   const [showAbsentListModal, setShowAbsentListModal] = useState(false);
 
-  // ===== Auto-open modals for balance / reports embedded sections =====
+  // ===== Auto-open modals for legacy report embedded section =====
   const [autoOpenedKey, setAutoOpenedKey] = useState<'balance' | 'reports' | null>(null);
   useEffect(() => {
-    if (embeddedSection === 'balance' && autoOpenedKey !== 'balance') {
-      setResetConfirmStep('idle');
-      setShowBalanceModal(true);
-      setAutoOpenedKey('balance');
-    } else if (embeddedSection === 'reports' && autoOpenedKey !== 'reports') {
+    if (embeddedSection === 'reports' && autoOpenedKey !== 'reports') {
       setShowReportsModal(true);
       setAutoOpenedKey('reports');
-    } else if (!embeddedSection || (embeddedSection !== 'balance' && embeddedSection !== 'reports')) {
+    } else if (!embeddedSection || embeddedSection !== 'reports') {
       setAutoOpenedKey(null);
     }
   }, [embeddedSection]);
@@ -1226,6 +1234,28 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       onSectionExit?.();
     }
   }, [showReportsModal, autoOpenedKey, onSectionExit]);
+
+  const ensureWaitingWeekDecision = () => {
+    if (weeklyQuota.weekKey === waitingWeekRange.weekKey) return true;
+
+    const shouldReset = window.confirm(
+      `بدأ أسبوع انتظار جديد من ${getArabicDayFromDate(waitingWeekRange.start)} الموافق ${formatHijri(waitingWeekRange.start)} إلى ${getArabicDayFromDate(waitingWeekRange.end)} الموافق ${formatHijri(waitingWeekRange.end)}.\n\nهل تريد إعادة ضبط رصيد الانتظار قبل تسجيل الغياب؟\n\nاختر موافق لإعادة الضبط، أو إلغاء للمتابعة بنفس الرصيد.`
+    );
+
+    setWeeklyQuota(prev => ({
+      weekKey: waitingWeekRange.weekKey,
+      counts: shouldReset ? {} : prev.counts,
+      lastResetDate: shouldReset ? getTodayStr() : prev.lastResetDate,
+    }));
+
+    showToast(
+      shouldReset
+        ? 'تمت إعادة ضبط رصيد الانتظار للأسبوع الجديد'
+        : 'سيتم المتابعة بنفس رصيد الانتظار لهذا الأسبوع',
+      shouldReset ? 'success' : 'info'
+    );
+    return true;
+  };
 
   // Build / replace an absent record from inline controls
   const setTeacherAbsenceInline = (teacher: Teacher, type: 'none' | 'full' | 'partial', selectedPeriods: number[] = []) => {
@@ -1252,6 +1282,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       }
       return;
     }
+    ensureWaitingWeekDecision();
 
     const allDaySchedule = getTeacherDaySchedule(teacher.id, dayKey);
     let periods: AbsentPeriodEntry[];
@@ -1323,6 +1354,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ===== Handlers =====
   const handleAddToQueue = () => {
+    ensureWaitingWeekDecision();
     if (!absenceForm.teacherId) { showToast('يرجى اختيار المعلم الغائب', 'error'); return; }
     if (absenceForm.absenceType === 'partial' && absenceForm.selectedPeriods.size === 0) {
       showToast('يرجى تحديد الحصص المتغيبة في الغياب الجزئي', 'error'); return;
@@ -1346,6 +1378,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   const handleSubmitAbsenceQueue = () => {
+    ensureWaitingWeekDecision();
     let toProcess = [...absentQueue];
     if (absenceForm.teacherId) {
       if (absenceForm.absenceType === 'partial' && absenceForm.selectedPeriods.size === 0) {
@@ -2543,6 +2576,386 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     );
   }
 
+  if (isBalance) {
+    const balanceRows = teachers
+      .filter(t => (t.waitingQuota || 0) > 0)
+      .map(t => {
+        const quota = t.waitingQuota || 0;
+        const assigned = weeklyQuota.counts[t.id] || 0;
+        const balance = quota - assigned;
+        const pct = quota > 0 ? assigned / quota : 0;
+        return { teacher: t, quota, assigned, balance, pct };
+      })
+      .sort((a, b) => b.assigned - a.assigned || a.balance - b.balance || a.teacher.name.localeCompare(b.teacher.name, 'ar'));
+    const totalQuota = balanceRows.reduce((sum, row) => sum + row.quota, 0);
+    const totalAssigned = balanceRows.reduce((sum, row) => sum + row.assigned, 0);
+    const totalBalance = totalQuota - totalAssigned;
+    const mostAssigned = balanceRows
+      .filter(row => row.quota > 0 && row.assigned > row.quota / 2)
+      .sort((a, b) => b.assigned - a.assigned || b.pct - a.pct || a.teacher.name.localeCompare(b.teacher.name, 'ar'))
+      .slice(0, 5);
+    const leastAssigned = balanceRows
+      .filter(row => row.quota > 0 && row.assigned < row.quota / 2)
+      .sort((a, b) => a.assigned - b.assigned || a.pct - b.pct || a.teacher.name.localeCompare(b.teacher.name, 'ar'))
+      .slice(0, 5);
+    const balanceSearch = embTableSearch.trim();
+    const filteredBalanceRows = balanceRows.filter(row => !balanceSearch || row.teacher.name.includes(balanceSearch));
+
+    const printWaitingBalance = () => {
+      const today = getTodayStr();
+      const renderRankRows = (items: typeof balanceRows, tone: 'top' | 'bottom') => items.length
+        ? items.map((row, index) => `
+          <div class="rank-row">
+            <span class="seq-pill">${index + 1}</span>
+            <span class="rank-name">${escapeHtml(row.teacher.name)}</span>
+            <span class="rank-pill"><span class="${tone === 'top' ? 'red' : 'green'}">${row.assigned}</span><span class="slash">/</span><span class="purple">${row.quota}</span></span>
+          </div>
+        `).join('')
+        : '<div class="empty-rank">لا توجد بيانات</div>';
+      const rows = balanceRows.map((row, index) => `
+        <tr>
+          <td><span class="seq-pill">${index + 1}</span></td>
+          <td style="text-align:right;font-weight:900">${escapeHtml(row.teacher.name)}</td>
+          <td><span class="num-pill purple">${row.quota}</span></td>
+          <td><span class="num-pill amber">${row.assigned}</span></td>
+          <td><span class="num-pill green">${row.balance}</span></td>
+        </tr>
+      `).join('');
+      openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>رصيد الانتظار</title><style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+        @page { size: A4 portrait; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body { margin:0; direction:rtl; font-family:'Tajawal',Arial,sans-serif; color:#1e293b; background:white; }
+        .page { padding: 0; }
+        .official-header { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:start; border-bottom:2px solid #1e293b; padding-bottom:12px; margin-bottom:14px; }
+        .header-side { font-size:11px; font-weight:800; line-height:1.7; }
+        .header-center { text-align:center; }
+        .header-left { text-align:left; }
+        .logo-placeholder { width:52px; height:52px; border:2px solid #cbd5e1; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px; font-weight:900; }
+        h1 { margin:0; font-size:18px; font-weight:900; }
+        .title { text-align:center; font-size:18px; font-weight:900; margin:12px 0 6px; }
+        .meta { text-align:center; color:#64748b; font-size:11px; font-weight:800; margin-bottom:14px; }
+        .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+        .stat { border:1px solid #cbd5e1; border-radius:10px; padding:9px; text-align:center; }
+        .stat b { display:block; font-size:18px; color:#655ac1; }
+        .stat span { font-size:10px; color:#64748b; font-weight:900; }
+        table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; }
+        th,td { border:1px solid #cbd5e1; padding:8px; text-align:center; vertical-align:middle; }
+        th { background:#a59bf0; color:#fff; font-weight:900; }
+        tbody tr:nth-child(even) td { background:#f8fafc; }
+        .seq-pill { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:999px; background:#f8fafc; color:#94a3b8; font-size:11px; font-weight:800; }
+        .num-pill { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:999px; border:1.5px solid #cbd5e1; background:transparent; font-size:12px; font-weight:900; }
+        .purple { color:#655ac1; }
+        .amber { color:#d97706; }
+        .green { color:#059669; }
+        .red { color:#dc2626; }
+        .rank-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+        .rank-card { border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+        .rank-title { padding:8px 10px; border-bottom:1px solid #f1f5f9; background:#f8fafc; font-size:11px; font-weight:900; }
+        .rank-body { padding:8px; }
+        .rank-row { display:flex; align-items:center; gap:8px; border:1px solid #cbd5e1; border-radius:12px; padding:6px 8px; margin-bottom:6px; background:#fff; }
+        .rank-row:last-child { margin-bottom:0; }
+        .rank-name { flex:1; text-align:right; font-weight:900; color:#1e293b; }
+        .rank-pill { display:inline-flex; align-items:center; justify-content:center; min-width:52px; border:1px solid #cbd5e1; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:900; }
+        .slash { color:#cbd5e1; margin:0 4px; }
+        .empty-rank { text-align:center; color:#94a3b8; font-size:11px; font-weight:800; padding:12px; }
+        .footer { margin-top:28px; display:flex; justify-content:flex-end; font-size:12px; font-weight:900; }
+        .signature { width:240px; }
+        .line { margin-top:26px; border-top:1px solid #94a3b8; padding-top:6px; color:#475569; }
+        @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } th { background:#a59bf0 !important; color:#fff !important; } }
+      </style></head><body><section class="page">
+        <div class="official-header">
+          <div class="header-side">
+            <div>الإدارة العامة للتعليم</div>
+            <div>${escapeHtml(schoolInfo.region || schoolInfo.educationAdministration || '')}</div>
+            <div>المدرسة: ${escapeHtml(schoolInfo.schoolName || 'اسم المدرسة')}</div>
+          </div>
+          <div class="header-center">
+            ${schoolInfo.logo ? `<img src="${schoolInfo.logo}" style="width:52px;height:52px;object-fit:contain;margin-bottom:4px" />` : '<div class="logo-placeholder">شعار</div>'}
+            <h1>${escapeHtml(schoolInfo.schoolName || '')}</h1>
+          </div>
+          <div class="header-side header-left">
+            <div>الأسبوع: ${escapeHtml(weeklyQuota.weekKey)}</div>
+            <div>تاريخ الطباعة: ${escapeHtml(formatHijri(today))}</div>
+            <div>الموافق: ${escapeHtml(formatGregorian(today))}</div>
+          </div>
+        </div>
+        <div class="title">رصيد الانتظار الأسبوعي</div>
+        <div class="meta">يوضح نصاب كل منتظر، وما أسند له، والمتبقي من رصيده</div>
+        <div class="stats">
+          <div class="stat"><b>${balanceRows.length}</b><span>إجمالي المنتظرين</span></div>
+          <div class="stat"><b>${totalQuota}</b><span>إجمالي النصاب</span></div>
+          <div class="stat"><b>${totalAssigned}</b><span>إجمالي المسند</span></div>
+          <div class="stat"><b>${totalBalance}</b><span>إجمالي الانتظار المتبقي</span></div>
+        </div>
+        <div class="rank-grid">
+          <div class="rank-card">
+            <div class="rank-title red">الأكثر إسنادًا</div>
+            <div class="rank-body">${renderRankRows(mostAssigned, 'top')}</div>
+          </div>
+          <div class="rank-card">
+            <div class="rank-title green">الأقل إسنادًا</div>
+            <div class="rank-body">${renderRankRows(leastAssigned, 'bottom')}</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th style="width:45px">م</th><th style="text-align:right">المنتظر</th><th style="width:100px">نصاب الانتظار</th><th style="width:110px">الانتظار المسند</th><th style="width:120px">المتبقي من الانتظار</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5">لا توجد بيانات رصيد انتظار</td></tr>'}</tbody>
+        </table>
+        <div class="footer"><div class="signature"><div>مدير المدرسة: ${escapeHtml(schoolInfo.principal || '')}</div><div class="line">التوقيع</div></div></div>
+      </section><script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
+      showToast('تم فتح رصيد الانتظار للطباعة', 'success');
+    };
+
+    return (
+      <div className="space-y-5 pb-20" dir="rtl">
+        {toast && ReactDOM.createPortal(
+          <div
+            style={{ top: '82px', left: '50%', transform: 'translateX(-50%)' }}
+            className={`fixed z-[99999] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border min-w-[320px] max-w-[90vw] ${
+              toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+              toast.type === 'error'   ? 'bg-red-50 border-red-200 text-red-800' :
+              toast.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                                         'bg-blue-50 border-blue-200 text-blue-800'
+            }`}
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              toast.type === 'success' ? 'bg-emerald-100' :
+              toast.type === 'error'   ? 'bg-red-100' :
+              toast.type === 'warning' ? 'bg-amber-100' : 'bg-blue-100'
+            }`}>
+              {toast.type === 'success' && <CheckCircle2 size={20} className="text-emerald-600" />}
+              {toast.type === 'error'   && <AlertCircle  size={20} className="text-red-600" />}
+              {toast.type === 'warning' && <AlertTriangle size={20} className="text-amber-600" />}
+              {toast.type === 'info'    && <Info          size={20} className="text-blue-600" />}
+            </div>
+            <p className="font-bold text-sm flex-1 leading-relaxed">{toast.message}</p>
+            <button onClick={() => setToast(null)} className="p-1 rounded-lg hover:bg-black/5 transition-colors shrink-0">
+              <X size={16} className="opacity-50" />
+            </button>
+          </div>,
+          document.body
+        )}
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <Scale size={22} className="text-[#655ac1] mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <h2 className="font-black text-slate-800 text-lg">رصيد الانتظار الأسبوعي</h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  متابعة نصاب المنتظرين أسبوعيًا مع إمكانية إعادة ضبط للإسناد.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {[
+            { label: 'إجمالي المنتظرين', value: balanceRows.length, icon: Users, color: 'text-[#655ac1]' },
+            { label: 'إجمالي نصاب الانتظار', value: totalQuota, icon: ClipboardList, color: 'text-amber-700' },
+            { label: 'إجمالي الانتظار المسند', value: totalAssigned, icon: CheckCircle2, color: 'text-emerald-700' },
+            { label: 'إجمالي الانتظار المتبقي', value: totalBalance, icon: BarChart3, color: totalBalance < 0 ? 'text-rose-700' : 'text-blue-700' },
+          ].map((stat, index) => (
+            <div key={index} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
+              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+                <stat.icon size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-400 leading-none">{stat.label}</p>
+                <p className={`mt-1 font-black text-xl leading-none ${stat.color}`}>{stat.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 text-xs font-black text-slate-500 ml-3">
+              <CalendarClock size={15} className="text-[#655ac1]" />
+              <span>
+                من {getArabicDayFromDate(waitingWeekRange.start)} الموافق {formatHijri(waitingWeekRange.start)} إلى {getArabicDayFromDate(waitingWeekRange.end)} الموافق {formatHijri(waitingWeekRange.end)}
+              </span>
+            </div>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={printWaitingBalance}
+              disabled={balanceRows.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
+            >
+              <Printer size={15} />
+              طباعة رصيد الانتظار
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBalanceResetConfirm(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+            >
+              <RefreshCw size={15} />
+              إعادة ضبط
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {[
+            { title: 'الأكثر إسنادًا', rows: mostAssigned, tone: 'rose' },
+            { title: 'الأقل إسنادًا', rows: leastAssigned, tone: 'emerald' },
+          ].map(section => (
+            <div key={section.title} className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/80">
+                <p className={`text-sm font-black ${section.tone === 'rose' ? 'text-rose-700' : 'text-emerald-700'}`}>{section.title}</p>
+              </div>
+              <div className="p-4 space-y-2">
+                {section.rows.length === 0 ? (
+                  <p className="text-center text-xs font-bold text-slate-400 py-5">لا توجد بيانات</p>
+                ) : section.rows.map((row, index) => (
+                  <div key={row.teacher.id} className="flex items-center gap-3 rounded-2xl bg-white border border-slate-200 px-3 py-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-white border border-slate-200 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
+                    <span className="text-sm font-black text-slate-800 truncate flex-1">{row.teacher.name}</span>
+                    <span className="inline-flex items-center justify-center min-w-[4.25rem] px-3 py-1.5 rounded-full border border-slate-300 bg-transparent text-sm font-black shrink-0">
+                      <span className={section.tone === 'rose' ? 'text-rose-600' : 'text-emerald-600'}>{row.assigned}</span>
+                      <span className="mx-1 text-slate-300">/</span>
+                      <span className="text-[#655ac1]">{row.quota}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
+            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <ClipboardCheck size={18} className="text-[#655ac1]" />
+              رصيد الانتظار
+            </p>
+            <div className="flex-1" />
+            <div className="relative w-full sm:w-72">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={embTableSearch}
+                onChange={e => setEmbTableSearch(e.target.value)}
+                placeholder="ابحث عن منتظر..."
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl"
+              />
+              {embTableSearch && (
+                <button type="button" onClick={() => setEmbTableSearch('')} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+          {filteredBalanceRows.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">
+              لا توجد بيانات رصيد انتظار مطابقة.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] table-fixed text-sm text-right">
+                <thead>
+                  <tr className="bg-white border-b border-slate-100">
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[8%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[30%]">المنتظر</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[14%]">نصاب الانتظار</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[14%]">الانتظار المسند</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">المتبقي من الانتظار</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBalanceRows.map((row, index) => (
+                    <tr key={row.teacher.id} className={`border-b border-slate-100 ${row.pct >= 1 ? 'bg-rose-50/70' : row.pct >= 0.5 ? 'bg-amber-50/60' : 'bg-white'}`}>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
+                          {index + 1}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 font-black text-slate-800 truncate">{row.teacher.name}</td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
+                          {row.quota}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-amber-600 text-[12px] font-black">
+                          {row.assigned}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-emerald-600 text-[12px] font-black">
+                          {row.balance}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {showBalanceResetConfirm && ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
+            dir="rtl"
+            onClick={() => setShowBalanceResetConfirm(false)}
+          >
+            <div
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="text-amber-600 flex items-center justify-center">
+                    <AlertTriangle size={26} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-800">تأكيد إعادة ضبط الرصيد</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">يرجى مراجعة الإجراء قبل المتابعة</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowBalanceResetConfirm(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="px-6 py-5">
+                <p className="text-sm leading-7 font-medium text-slate-600">
+                  سيتم حذف النصاب المسند للمنتظرين من الرصيد الحالي وإعادة ضبط الرصيد المتبقي، مع حفظ سجل الإسناد لاستخدامه لاحقًا في تقارير الانتظار.
+                </p>
+              </div>
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowBalanceResetConfirm(false)}
+                  className="flex-1 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl border border-slate-300 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWeeklyQuota({ weekKey: waitingWeekRange.weekKey, counts: {}, lastResetDate: getTodayStr() });
+                    setShowBalanceResetConfirm(false);
+                    showToast('تمت إعادة ضبط رصيد الانتظار مع حفظ سجل الإسناد للتقارير', 'success');
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 hover:scale-105 active:scale-95"
+                >
+                  تأكيد
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    );
+  }
+
   // ===== Render =====
   return (
     <div className="space-y-6 pb-20" dir="rtl">
@@ -2922,6 +3335,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
+              ensureWaitingWeekDecision();
               setAbsenceForm({ teacherId: '', absenceType: 'full', selectedPeriods: new Set() });
               setTeacherSearch('');
               setAbsentQueue([]);
