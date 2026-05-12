@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
     }
-    const settingsTabs = ['settings_basic', 'settings_timing', 'settings_subjects', 'settings_classes', 'settings_teachers'];
+    const settingsTabs = ['settings_basic', 'settings_timing', 'settings_subjects', 'settings_classes', 'settings_teachers', 'settings_admins', 'settings_students'];
     if (settingsTabs.includes(activeTab)) {
       setIsSettingsExpanded(true);
       if (isCollapsed) setIsCollapsed(false);
@@ -274,6 +274,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                    icon={<Users size={18} />}
                    inverted={true}
                 />
+                <SubNavItem
+                   active={activeTab === "settings_admins"}
+                   onClick={() => handleTabClick("settings_admins")}
+                   label="الإداريون"
+                   icon={<UserCog size={18} />}
+                   inverted={true}
+                />
+                <SubNavItem
+                   active={activeTab === "settings_students"}
+                   onClick={() => handleTabClick("settings_students")}
+                   label="الطلاب"
+                   icon={<GraduationCap size={18} />}
+                   inverted={true}
+                />
              </div>
           </div>
           
@@ -415,20 +429,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => handleTabClick("daily_waiting")}
             icon={<UserX size={22} />}
             label="الانتظار اليومي"
-            collapsed={isCollapsed}
-          />
-          <NavItem
-            active={activeTab === "settings_students"}
-            onClick={() => handleTabClick("settings_students")}
-            icon={<GraduationCap size={22} />}
-            label="الطلاب"
-            collapsed={isCollapsed}
-          />
-          <NavItem
-            active={activeTab === "settings_admins"}
-            onClick={() => handleTabClick("settings_admins")}
-            icon={<UserCog size={22} />}
-            label="الإداريون"
             collapsed={isCollapsed}
           />
           <NavItem
