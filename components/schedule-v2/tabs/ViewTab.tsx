@@ -1967,25 +1967,25 @@ const ViewTab: React.FC<Props> = ({
               <table className="w-full min-w-[920px] table-fixed text-right whitespace-nowrap" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[6%]">م</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[13px] text-center w-[7%]">م</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[28%]">اسم المعلم</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[18%]">تاريخ الإرسال</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[13%]">التوقيع</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[18%]">تاريخ التوقيع</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[17%]">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[16%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReceipts.map((req, idx) => (
                     <tr key={req.token} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-3 py-3 text-center">
+                      <td className="px-2 py-3 text-center align-middle">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
                           {idx + 1}
                         </span>
                       </td>
                       <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={req.teacherName}>{req.teacherName}</td>
-                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate">
-                        {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
+                      <td className="px-3 py-3 text-slate-600 text-[12px] font-bold truncate">
+                        {new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(new Date(req.createdAt))}
                       </td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black border ${
@@ -1999,12 +1999,12 @@ const ViewTab: React.FC<Props> = ({
                           ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(req.signedAt))
                           : '—'}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 text-center align-middle">
                         <button
                           type="button"
                           onClick={() => { setSignaturePrintTeacherIds([req.teacherId]); }}
                           title="عرض وطباعة نموذج الاطلاع على الجدول والتوقيع"
-                          className="mx-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap"
+                          className="mx-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap"
                         >
                           <Eye size={14} />
                           عرض وطباعة
