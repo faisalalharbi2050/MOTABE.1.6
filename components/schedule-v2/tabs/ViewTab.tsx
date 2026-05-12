@@ -58,7 +58,6 @@ import ScheduleSignatureDocument, { MinistryLogo } from '../../schedule/Schedule
 import { generateExtensionXML, downloadFile } from '../../../utils/scheduleExport';
 import {
   buildScheduleShareLink,
-  buildScheduleSignatureLink,
   saveScheduleShare,
   ShareAudience,
   ShareRecipientRecord,
@@ -776,6 +775,11 @@ const SignatureSummaryPrintWorkspace: React.FC<{
   const signedCount = requests.filter(r => r.status === 'signed').length;
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => window.print(), 250);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[125] bg-white overflow-auto" dir="rtl">
       <style>{styleTag}</style>
@@ -797,7 +801,7 @@ const SignatureSummaryPrintWorkspace: React.FC<{
           </button>
         </div>
         <div className="text-sm font-bold text-slate-500 order-1">
-          تقرير تسليم الجداول • {requests.length} معلم
+          سجل الاستلام الالكتروني • {requests.length} معلم
         </div>
       </div>
 
@@ -821,14 +825,14 @@ const SignatureSummaryPrintWorkspace: React.FC<{
           </div>
         </div>
 
-        <h1 className="text-center text-xl font-black text-slate-800">تقرير تسليم الجداول للمعلمين</h1>
+        <h1 className="text-center text-xl font-black text-slate-800">سجل الاستلام الالكتروني</h1>
 
         {/* Summary stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المعلمين', value: requests.length, icon: Users, color: 'text-[#655ac1]' },
-            { label: 'وقّعوا', value: signedCount, icon: CheckCircle2, color: 'text-emerald-600' },
-            { label: 'لم يوقعوا بعد', value: pendingCount, icon: AlertCircle, color: 'text-amber-500' },
+            { label: 'وقّع', value: signedCount, icon: CheckCircle2, color: 'text-emerald-600' },
+            { label: 'لم يوقّع', value: pendingCount, icon: AlertCircle, color: 'text-amber-500' },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -857,10 +861,10 @@ const SignatureSummaryPrintWorkspace: React.FC<{
               <tr className="bg-slate-50/50 border-b border-slate-100">
                 <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">م</th>
                 <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اسم المعلم</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">الحالة</th>
                 <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الإرسال</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">التوقيع</th>
                 <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الاستلام</th>
-                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">التوقيع</th>
+                <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">صورة التوقيع</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -868,17 +872,17 @@ const SignatureSummaryPrintWorkspace: React.FC<{
                 <tr key={req.token} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-slate-400 text-sm font-bold">{idx + 1}</td>
                   <td className="px-6 py-4 font-black text-slate-800">{req.teacherName}</td>
+                  <td className="px-6 py-4 text-slate-500 text-sm">
+                    {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
                       req.status === 'signed'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : 'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
-                      {req.status === 'signed' ? 'تم التوقيع' : 'لم يوقع'}
+                      {req.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 text-sm">
-                    {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-sm">
                     {req.signedAt
@@ -1291,41 +1295,46 @@ const ViewTab: React.FC<Props> = ({
     targetId: string | undefined,
     targetLabel: string,
     recipients: ShareRecipientRecord[],
-    targetIds?: string[]
+    targetIds?: string[],
+    persistShare = true
   ) => {
     const token = `schedule-share-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const currentSemester = schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
-    saveScheduleShare({
-      token,
-      type,
-      audience,
-      targetId,
-      targetIds,
-      targetLabel,
-      title: targetIds && targetIds.length > 1
-        ? targetLabel
-        : targetId ? `${SCHEDULE_TYPES.find(item => item.id === type)?.label || type}: ${targetLabel}` : (SCHEDULE_TYPES.find(item => item.id === type)?.label || type),
-      createdAt: new Date().toISOString(),
-      schoolName: schoolInfo.schoolName,
-      academicYear: schoolInfo.academicYear,
-      semesterName: currentSemester?.name,
-      recipients,
-    });
+    if (persistShare) {
+      saveScheduleShare({
+        token,
+        type,
+        audience,
+        targetId,
+        targetIds,
+        targetLabel,
+        title: targetIds && targetIds.length > 1
+          ? targetLabel
+          : targetId ? `${SCHEDULE_TYPES.find(item => item.id === type)?.label || type}: ${targetLabel}` : (SCHEDULE_TYPES.find(item => item.id === type)?.label || type),
+        createdAt: new Date().toISOString(),
+        schoolName: schoolInfo.schoolName,
+        academicYear: schoolInfo.academicYear,
+        semesterName: currentSemester?.name,
+        recipients,
+      });
+    }
     return buildScheduleShareLink(`${window.location.origin}${window.location.pathname}`, token);
   };
 
-  const buildTeacherSignatureUrl = (teacherId: string) => {
+  const buildTeacherSignatureUrl = (teacherId: string, persistSignatureRequest = true) => {
     const teacher = teachers.find(item => item.id === teacherId);
     const token = createSignatureToken(teacherId);
-    const requests = readScheduleSignatureRequests().filter(request => request.teacherId !== teacherId);
-    requests.push({
-      token,
-      teacherId,
-      teacherName: teacher?.name || 'معلم',
-      createdAt: new Date().toISOString(),
-      status: 'pending',
-    });
-    writeScheduleSignatureRequests(requests);
+    if (persistSignatureRequest) {
+      const requests = readScheduleSignatureRequests().filter(request => request.teacherId !== teacherId);
+      requests.push({
+        token,
+        teacherId,
+        teacherName: teacher?.name || 'معلم',
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      });
+      writeScheduleSignatureRequests(requests);
+    }
 
     const url = new URL(window.location.href);
     url.search = '';
@@ -1372,7 +1381,7 @@ const ViewTab: React.FC<Props> = ({
     return true;
   };
 
-  const createGeneratedLinks = () => {
+  const createGeneratedLinks = (persistSignatureRequests = true) => {
     const links: GeneratedLink[] = [];
 
     if (sendScheduleType === 'individual_teacher') {
@@ -1385,7 +1394,7 @@ const ViewTab: React.FC<Props> = ({
         if ((sendAudience === 'teachers' || sendAudience === 'teachers_admins') && teacherRecipients.length > 0) {
           links.push({
             label: `جدول ${targetLabel}`,
-            url: buildTeacherSignatureUrl(teacherId),
+            url: buildTeacherSignatureUrl(teacherId, persistSignatureRequests),
             teacherId,
             targetId: teacherId,
             targetLabel,
@@ -1396,7 +1405,7 @@ const ViewTab: React.FC<Props> = ({
         if ((sendAudience === 'admins' || sendAudience === 'teachers_admins') && adminRecipients.length > 0) {
           links.push({
             label: `جدول ${targetLabel}`,
-            url: buildShareUrl('individual_teacher', 'admins', teacherId, targetLabel, adminRecipients),
+            url: buildShareUrl('individual_teacher', 'admins', teacherId, targetLabel, adminRecipients, undefined, persistSignatureRequests),
             targetId: teacherId,
             targetLabel,
             recipients: adminRecipients,
@@ -1424,7 +1433,8 @@ const ViewTab: React.FC<Props> = ({
           selectedSendClassIds[0],
           targetLabel,
           recipients,
-          selectedSendClassIds
+          selectedSendClassIds,
+          persistSignatureRequests
         ),
         targetId: selectedSendClassIds[0],
         targetLabel,
@@ -1440,7 +1450,7 @@ const ViewTab: React.FC<Props> = ({
       if (teacherRecipients.length > 0) {
         links.push({
           label: targetLabel,
-          url: buildShareUrl(sendScheduleType, 'teachers', undefined, targetLabel, teacherRecipients),
+          url: buildShareUrl(sendScheduleType, 'teachers', undefined, targetLabel, teacherRecipients, undefined, persistSignatureRequests),
           targetLabel,
           recipients: teacherRecipients,
         });
@@ -1448,7 +1458,7 @@ const ViewTab: React.FC<Props> = ({
       if (adminRecipients.length > 0) {
         links.push({
           label: targetLabel,
-          url: buildShareUrl(sendScheduleType, 'admins', undefined, targetLabel, adminRecipients),
+          url: buildShareUrl(sendScheduleType, 'admins', undefined, targetLabel, adminRecipients, undefined, persistSignatureRequests),
           targetLabel,
           recipients: adminRecipients,
         });
@@ -1458,7 +1468,7 @@ const ViewTab: React.FC<Props> = ({
 
     links.push({
       label: targetLabel,
-      url: buildShareUrl(sendScheduleType, sendAudience as ShareAudience, undefined, targetLabel, selectedRecipients),
+      url: buildShareUrl(sendScheduleType, sendAudience as ShareAudience, undefined, targetLabel, selectedRecipients, undefined, persistSignatureRequests),
       targetLabel,
       recipients: selectedRecipients,
     });
@@ -1533,13 +1543,47 @@ const ViewTab: React.FC<Props> = ({
     };
   };
 
+  useEffect(() => {
+    if (taskMode !== 'send') return;
+    const allowed = ALLOWED_SEND_AUDIENCES[safeSendScheduleType] || [];
+    const hasValidAudience = allowed.includes(safeSendAudience);
+    const hasTeacherTargets = safeSendScheduleType !== 'individual_teacher' || selectedSendTeacherIds.length > 0;
+    const hasClassTargets = safeSendScheduleType !== 'individual_class' || selectedSendClassIds.length > 0;
+    const hasRecipients =
+      (safeSendAudience === 'teachers' && selectedSendTeacherIds.length > 0) ||
+      (safeSendAudience === 'admins' && selectedSendAdminIds.length > 0) ||
+      (safeSendAudience === 'teachers_admins' && selectedSendTeacherIds.length > 0 && selectedSendAdminIds.length > 0) ||
+      (safeSendAudience === 'guardians' && selectedGuardianRecipients.length > 0);
+
+    if (!hasValidAudience || !hasTeacherTargets || !hasClassTargets || !hasRecipients) {
+      setGeneratedLinks([]);
+      setModalMessageContent('');
+      return;
+    }
+
+    const links = createGeneratedLinks(false);
+    setGeneratedLinks(links);
+    setModalMessageContent(buildMessageComposerDraft(links).content);
+  }, [
+    taskMode,
+    safeSendScheduleType,
+    safeSendAudience,
+    selectedSendTeacherIds,
+    selectedSendAdminIds,
+    selectedSendClassIds,
+    selectedGuardianRecipients,
+    sendChannel,
+    schoolInfo.schoolName,
+    schoolInfo.currentSemesterId,
+  ]);
+
   const handlePrepareInMessages = () => {
     if (!validateSendSelection()) return;
     if (!onPrepareMessageDraft) {
       showToast('تعذر فتح صفحة الرسائل من هذا الموضع.');
       return;
     }
-    const links = generatedLinks.length > 0 ? generatedLinks : createGeneratedLinks();
+    const links = createGeneratedLinks();
     setGeneratedLinks(links);
     setIsSending(true);
     onPrepareMessageDraft(buildMessageComposerDraft(links));
@@ -1549,7 +1593,7 @@ const ViewTab: React.FC<Props> = ({
 
   const handleOpenSendModal = () => {
     if (!validateSendSelection()) return;
-    const links = generatedLinks.length > 0 ? generatedLinks : createGeneratedLinks();
+    const links = createGeneratedLinks();
     setGeneratedLinks(links);
     setSendModalResults([]);
     setModalMessageContent(buildMessageComposerDraft(links).content);
@@ -1786,20 +1830,21 @@ const ViewTab: React.FC<Props> = ({
       <div className="space-y-5" dir="rtl">
         {/* Header */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setSigReceiptModalOpen(false)}
+              title="رجوع"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50 transition-all"
+            >
+              <ArrowRight size={18} />
+            </button>
             <div>
-              <h2 className="font-black text-slate-800 text-lg">سجل استلام الجداول</h2>
+              <h2 className="font-black text-slate-800 text-lg">سجل استلام المعلمين للجداول</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {signedCount} وقّع من أصل {sigReceiptRequests.length} معلم
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setSigReceiptModalOpen(false)}
-              className={actionButtonClass(false)}
-            >
-              <ArrowRight size={16} />
-            </button>
           </div>
         </div>
 
@@ -1807,8 +1852,8 @@ const ViewTab: React.FC<Props> = ({
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'إجمالي المعلمين', value: String(sigReceiptRequests.length), icon: Users },
-            { label: 'وقّعوا', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يوقعوا بعد', value: String(pendingCount), icon: AlertCircle },
+            { label: 'وقّع', value: String(signedCount), icon: CheckCircle2 },
+            { label: 'لم يوقّع', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div
               key={i}
@@ -1826,31 +1871,15 @@ const ViewTab: React.FC<Props> = ({
           ))}
         </div>
 
-        {/* Filters & Actions */}
+        {/* Actions */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-black text-slate-500 ml-1">تصفية:</span>
-            {(['all', 'signed', 'pending'] as const).map(f => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setSigFilter(f)}
-                className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
-                  sigFilter === f
-                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
-                }`}
-              >
-                {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقع'}
-              </button>
-            ))}
-            <div className="flex-1" />
             <button
               type="button"
-              onClick={() => setSigReceiptRequests(readScheduleSignatureRequests())}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+              onClick={() => { setSigSearch(''); setSigFilter('all'); setSigReceiptRequests(readScheduleSignatureRequests()); }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={15} />
               تحديث
             </button>
             <button
@@ -1860,10 +1889,10 @@ const ViewTab: React.FC<Props> = ({
                 else showToast('لا توجد بيانات للطباعة.');
               }}
               disabled={sigReceiptRequests.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
             >
-              <Printer size={13} />
-              طباعة التقرير
+              <Printer size={15} />
+              طباعة سجل الاستلام الالكتروني
             </button>
             <button
               type="button"
@@ -1873,10 +1902,10 @@ const ViewTab: React.FC<Props> = ({
                 else showToast('لا توجد نماذج للطباعة.');
               }}
               disabled={sigReceiptRequests.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
             >
-              <Printer size={13} />
-              طباعة النماذج
+              <Printer size={15} />
+              طباعة نموذج الاطلاع على الجدول والتوقيع
             </button>
           </div>
         </div>
@@ -1884,11 +1913,12 @@ const ViewTab: React.FC<Props> = ({
         {/* Table */}
         <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
           style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-4">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
               <ClipboardList size={18} className="text-[#655ac1]" />
               سجل الاستلام
             </p>
+            <div className="flex-1" />
             <div className="relative w-56">
               <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
@@ -1909,6 +1939,22 @@ const ViewTab: React.FC<Props> = ({
                 </button>
               )}
             </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['all', 'signed', 'pending'] as const).map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setSigFilter(f)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-black transition-all ${
+                    sigFilter === f
+                      ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1]'
+                  }`}
+                >
+                  {f === 'all' ? 'الكل' : f === 'signed' ? 'وقّع' : 'لم يوقّع'}
+                </button>
+              ))}
+            </div>
           </div>
           {sigReceiptRequests.length === 0 ? (
             <div className="py-16 text-center">
@@ -1918,58 +1964,51 @@ const ViewTab: React.FC<Props> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-right" dir="rtl">
+              <table className="w-full min-w-[920px] table-fixed text-right whitespace-nowrap" dir="rtl">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">م</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">اسم المعلم</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">الحالة</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ الإرسال</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px]">تاريخ التوقيع</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[6%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[28%]">اسم المعلم</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[18%]">تاريخ الإرسال</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[13%]">التوقيع</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[18%]">تاريخ التوقيع</th>
+                    <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-center w-[17%]">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReceipts.map((req, idx) => (
                     <tr key={req.token} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-slate-400 text-sm font-bold">{idx + 1}</td>
-                      <td className="px-6 py-4 font-black text-slate-800">{req.teacherName}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black ${
-                          req.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {req.status === 'signed' ? 'وقّع' : 'لم يوقع'}
+                      <td className="px-3 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
+                          {idx + 1}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-500 text-sm">
+                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={req.teacherName}>{req.teacherName}</td>
+                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate">
                         {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short' }).format(new Date(req.createdAt))}
                       </td>
-                      <td className="px-6 py-4 text-slate-500 text-sm">
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black border ${
+                          req.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {req.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-slate-500 text-[10px] truncate">
                         {req.signedAt
                           ? new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(req.signedAt))
                           : '—'}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => window.open(buildScheduleSignatureLink(window.location.origin + window.location.pathname, req.token), '_blank')}
-                            title="معاينة النموذج"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
-                          >
-                            <Eye size={13} />
-                            معاينة
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setSignaturePrintTeacherIds([req.teacherId]); }}
-                            title="طباعة النموذج"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
-                          >
-                            <Printer size={13} />
-                            طباعة
-                          </button>
-                        </div>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => { setSignaturePrintTeacherIds([req.teacherId]); }}
+                          title="عرض وطباعة نموذج الاطلاع على الجدول والتوقيع"
+                          className="mx-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap"
+                        >
+                          <Eye size={14} />
+                          عرض وطباعة
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -2024,7 +2063,7 @@ const ViewTab: React.FC<Props> = ({
             className={actionButtonClass(false)}
           >
             <ClipboardList size={17} />
-            سجل استلام الجداول
+            سجل استلام المعلمين للجداول
           </button>
           <button
             type="button"
@@ -2348,7 +2387,7 @@ const ViewTab: React.FC<Props> = ({
                     type="button"
                     onClick={() => {
                       if (!validateSendSelection()) return;
-                      const links = generatedLinks.length > 0 ? generatedLinks : createGeneratedLinks();
+                      const links = createGeneratedLinks();
                       setGeneratedLinks(links);
                       setShowRecipientsModal(true);
                     }}
