@@ -765,8 +765,7 @@ const SignaturePrintWorkspace: React.FC<{
 const SignatureSummaryPrintWorkspace: React.FC<{
   requests: ScheduleSignatureRequest[];
   schoolInfo: SchoolInfo;
-  onBack: () => void;
-}> = ({ requests, schoolInfo, onBack }) => {
+}> = ({ requests, schoolInfo }) => {
   const styleTag = useMemo(() => buildSignaturePrintCSS(), []);
   const currentSemester =
     schoolInfo.semesters?.find(item => item.id === schoolInfo.currentSemesterId) ||
@@ -848,28 +847,6 @@ const SignatureSummaryPrintWorkspace: React.FC<{
           }
         }
       `}</style>
-      <div className="signature-print-toolbar sticky top-0 z-20 flex items-center justify-between gap-3 px-6 py-4 bg-white border-b border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3 order-2">
-          <button
-            onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold hover:bg-slate-100 transition-all"
-          >
-            <ArrowRight size={16} />
-            رجوع
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white font-bold shadow-lg shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all"
-          >
-            <Printer size={16} />
-            طباعة
-          </button>
-        </div>
-        <div className="text-sm font-bold text-slate-500 order-1">
-          سجل الاستلام الالكتروني • {requests.length} معلم
-        </div>
-      </div>
-
       <div id="signature-print-root" className="bg-white p-8">
         <div className="receipt-print-root">
           <div className="receipt-print-header">
@@ -1824,7 +1801,6 @@ const ViewTab: React.FC<Props> = ({
       <SignatureSummaryPrintWorkspace
         requests={summaryPrintRequests}
         schoolInfo={schoolInfo}
-        onBack={() => setSummaryPrintRequests(null)}
       />
     );
   }
