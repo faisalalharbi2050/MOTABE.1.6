@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { Plus, Edit3, Trash2, LayoutTemplate, CheckCircle2, AlertTriangle, X, ChevronDown, Check } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
 
-const PREDEFINED_CATEGORIES = ['غياب طالب', 'تأخر طالب', 'مخالفة سلوكية', 'تعميم'];
+const PREDEFINED_CATEGORIES = ['غياب طالب', 'تأخر طالب', 'مخالفة سلوكية', 'تعميم', 'أخرى'];
 type TemplateForm = { title: string; content: string; category: string };
 
 const SelectDropdown: React.FC<{
@@ -94,6 +94,7 @@ const MessageTemplates: React.FC = () => {
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [formData, setFormData] = useState<TemplateForm>({ title: '', content: '', category: 'غياب طالب' });
   const [editFormData, setEditFormData] = useState<TemplateForm>({ title: '', content: '', category: 'غياب طالب' });
+  const [customCategory, setCustomCategory] = useState('');
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -147,10 +148,15 @@ const MessageTemplates: React.FC = () => {
       return;
     }
 
-    const finalCategory = formData.category;
+    const finalCategory = formData.category === 'أخرى' ? customCategory.trim() : formData.category;
+    if (formData.category === 'أخرى' && !finalCategory) {
+      showToast('error', 'يرجى كتابة عنوان التصنيف');
+      return;
+    }
 
     addTemplate({ ...formData, category: finalCategory, isSystem: false });
     setFormData({ title: '', content: '', category: 'غياب طالب' });
+    setCustomCategory('');
     showToast('success', 'تمت إضافة القالب بنجاح');
   };
 
@@ -173,7 +179,7 @@ const MessageTemplates: React.FC = () => {
       )}
 
       {/* ── Confirm Delete Modal ── */}
-      {confirmDelete && (
+      {confirmDelete && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-fade-in">
             <div className="flex items-center gap-3 mb-4">
@@ -200,7 +206,8 @@ const MessageTemplates: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Templates List */}
@@ -309,11 +316,28 @@ const MessageTemplates: React.FC = () => {
               <label className="block text-sm font-semibold text-slate-700 mb-2">التصنيف</label>
               <SelectDropdown
                 value={formData.category}
-                onChange={category => setFormData({ ...formData, category })}
+                onChange={category => {
+                  setFormData({ ...formData, category });
+                  if (category !== 'أخرى') setCustomCategory('');
+                }}
                 placeholder="اختر التصنيف"
                 options={PREDEFINED_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
               />
-           </div>
+            </div>
+
+           {formData.category === 'أخرى' && (
+             <div className="animate-fade-in">
+               <label className="block text-sm font-semibold text-slate-700 mb-2">عنوان التصنيف</label>
+               <input
+                 type="text"
+                 dir="rtl"
+                 value={customCategory}
+                 onChange={e => setCustomCategory(e.target.value)}
+                 placeholder="اكتب عنوان التصنيف..."
+                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1]"
+               />
+             </div>
+           )}
 
            <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">نص الرسالة</label>
