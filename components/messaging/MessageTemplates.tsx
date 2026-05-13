@@ -4,6 +4,7 @@ import { Plus, Edit3, Trash2, LayoutTemplate, CheckCircle2, AlertTriangle, X, Ch
 import { useMessageArchive } from './MessageArchiveContext';
 
 const PREDEFINED_CATEGORIES = ['غياب طالب', 'تأخر طالب', 'مخالفة سلوكية', 'تعميم'];
+type TemplateForm = { title: string; content: string; category: string };
 
 const SelectDropdown: React.FC<{
   value: string;
@@ -91,7 +92,8 @@ const MessageTemplates: React.FC = () => {
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useMessageArchive();
 
   const [isEditing, setIsEditing] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ title: '', content: '', category: 'غياب طالب' });
+  const [formData, setFormData] = useState<TemplateForm>({ title: '', content: '', category: 'غياب طالب' });
+  const [editFormData, setEditFormData] = useState<TemplateForm>({ title: '', content: '', category: 'غياب طالب' });
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -104,7 +106,7 @@ const MessageTemplates: React.FC = () => {
     const template = templates.find(t => t.id === id);
     if (template) {
       const cat = PREDEFINED_CATEGORIES.includes(template.category || '') ? template.category || 'غياب طالب' : 'غياب طالب';
-      setFormData({ title: template.title, content: template.content, category: cat });
+      setEditFormData({ title: template.title, content: template.content, category: cat });
       setIsEditing(id);
     }
   };
@@ -121,6 +123,24 @@ const MessageTemplates: React.FC = () => {
     }
   };
 
+  const handleSaveEdit = (id: string) => {
+    if (!editFormData.title.trim() || !editFormData.content.trim()) {
+      showToast('error', 'يجب تعبئة العنوان والمحتوى');
+      return;
+    }
+    const existing = templates.find(t => t.id === id);
+    if (existing) {
+      updateTemplate({ ...existing, ...editFormData, category: editFormData.category });
+      showToast('success', 'تم حفظ التغييرات بنجاح');
+    }
+    setIsEditing(null);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(null);
+    setEditFormData({ title: '', content: '', category: 'غياب طالب' });
+  };
+
   const handleSave = () => {
     if (!formData.title.trim() || !formData.content.trim()) {
       showToast('error', 'يجب تعبئة العنوان والمحتوى');
@@ -129,18 +149,9 @@ const MessageTemplates: React.FC = () => {
 
     const finalCategory = formData.category;
 
-    const wasEditing = isEditing;
-    if (isEditing) {
-      const existing = templates.find(t => t.id === isEditing);
-      if (existing) {
-        updateTemplate({ ...existing, ...formData, category: finalCategory });
-      }
-      setIsEditing(null);
-    } else {
-      addTemplate({ ...formData, category: finalCategory, isSystem: false });
-    }
+    addTemplate({ ...formData, category: finalCategory, isSystem: false });
     setFormData({ title: '', content: '', category: 'غياب طالب' });
-    showToast('success', wasEditing ? 'تم حفظ التغييرات بنجاح' : 'تمت إضافة القالب بنجاح');
+    showToast('success', 'تمت إضافة القالب بنجاح');
   };
 
   return (
@@ -163,7 +174,7 @@ const MessageTemplates: React.FC = () => {
 
       {/* ── Confirm Delete Modal ── */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-fade-in">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 bg-red-50 rounded-xl">
@@ -174,18 +185,18 @@ const MessageTemplates: React.FC = () => {
             <p className="text-sm text-slate-600 font-medium mb-2 leading-relaxed">
               هل أنت متأكد من حذف هذا القالب؟
             </p>
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={handleConfirmDelete}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors text-sm"
-              >
-                نعم، احذف القالب
-              </button>
+            <div className="flex gap-3 mt-4" dir="rtl">
               <button
                 onClick={() => setConfirmDelete(null)}
                 className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm"
               >
                 إلغاء
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors text-sm"
+              >
+                نعم، احذف القالب
               </button>
             </div>
           </div>
@@ -202,26 +213,71 @@ const MessageTemplates: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {templates.map(t => (
             <div key={t.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative group overflow-hidden flex flex-col justify-between">
-               <div>
-                 <h4 className="font-bold text-[#655ac1] text-base mb-2">{t.title}</h4>
-                 <p className="text-sm text-slate-500 line-clamp-3 leading-relaxed">{t.content}</p>
-               </div>
+               {isEditing === t.id ? (
+                 <div className="space-y-3">
+                   <input
+                     type="text"
+                     dir="rtl"
+                     value={editFormData.title}
+                     onChange={e => setEditFormData({ ...editFormData, title: e.target.value })}
+                     className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-[#655ac1] outline-none focus:border-[#655ac1]"
+                   />
+                   <SelectDropdown
+                     value={editFormData.category}
+                     onChange={category => setEditFormData({ ...editFormData, category })}
+                     placeholder="اختر التصنيف"
+                     options={PREDEFINED_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                   />
+                   <textarea
+                     value={editFormData.content}
+                     onChange={e => setEditFormData({ ...editFormData, content: e.target.value })}
+                     className="w-full h-32 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 leading-relaxed outline-none focus:border-[#655ac1] resize-none"
+                     dir="rtl"
+                   />
+                 </div>
+               ) : (
+                 <div>
+                   <h4 className="font-bold text-[#655ac1] text-base mb-2">{t.title}</h4>
+                   <p className="text-sm text-slate-500 line-clamp-3 leading-relaxed">{t.content}</p>
+                 </div>
+               )}
 
                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-                  <button
-                    onClick={() => handleEdit(t.id)}
-                    className="p-2 bg-white text-[#655ac1] rounded-lg border border-slate-200 hover:border-[#655ac1] transition-colors"
-                    title="تعديل"
-                  >
-                    <Edit3 size={16}/>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteRequest(t.id)}
-                    className="p-2 bg-white text-red-600 rounded-lg border border-slate-200 hover:border-red-300 transition-colors"
-                    title="حذف"
-                  >
-                    <Trash2 size={16}/>
-                  </button>
+                  {isEditing === t.id ? (
+                    <>
+                      <button
+                        onClick={() => handleSaveEdit(t.id)}
+                        className="p-2 bg-white text-emerald-600 rounded-lg border border-slate-200 hover:border-emerald-300 transition-colors"
+                        title="حفظ"
+                      >
+                        <CheckCircle2 size={16}/>
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="p-2 bg-white text-slate-500 rounded-lg border border-slate-200 hover:border-slate-400 transition-colors"
+                        title="إلغاء"
+                      >
+                        <X size={16}/>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEdit(t.id)}
+                        className="p-2 bg-white text-[#655ac1] rounded-lg border border-slate-200 hover:border-[#655ac1] transition-colors"
+                        title="تعديل"
+                      >
+                        <Edit3 size={16}/>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRequest(t.id)}
+                        className="p-2 bg-white text-red-600 rounded-lg border border-slate-200 hover:border-red-300 transition-colors"
+                        title="حذف"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    </>
+                  )}
                </div>
             </div>
           ))}
@@ -232,8 +288,8 @@ const MessageTemplates: React.FC = () => {
       {/* Form Editor */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit sticky top-6">
         <h3 className="text-lg font-bold text-[#1e293b] mb-6 flex items-center gap-2 pb-4 border-b border-slate-100">
-           {isEditing ? <Edit3 className="text-[#655ac1]" size={20} /> : <Plus className="text-[#655ac1]" size={20} />}
-           {isEditing ? 'تعديل القالب' : 'إضافة قالب جديد'}
+           <Plus className="text-[#655ac1]" size={20} />
+           إضافة قالب جديد
         </h3>
 
         <div className="space-y-4">
@@ -275,16 +331,8 @@ const MessageTemplates: React.FC = () => {
                 onClick={handleSave}
                 className="w-full flex items-center justify-center gap-2 bg-[#655ac1] text-white py-3 rounded-xl font-bold hover:bg-[#5b51ae] transition-colors"
                >
-                <CheckCircle2 size={18}/> {isEditing ? 'حفظ التغييرات' : 'إضافة القالب'}
+                <CheckCircle2 size={18}/> إضافة القالب
               </button>
-              {isEditing && (
-                 <button
-                   onClick={() => { setIsEditing(null); setFormData({ title: '', content: '', category: 'غياب طالب' }); }}
-                   className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors"
-                 >
-                   إلغاء
-                 </button>
-              )}
            </div>
         </div>
       </div>
