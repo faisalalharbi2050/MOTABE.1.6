@@ -829,9 +829,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 <button
                   key={variable}
                   onClick={() => insertVariable(variable)}
-                  className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                  className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-colors flex items-center gap-1"
                 >
-                  <Plus size={12} /> {variable.replace(/_/g, ' ')}
+                  <Plus size={12} className="text-[#655ac1]" /> {variable.replace(/_/g, ' ')}
                 </button>
               ))}
             </div>

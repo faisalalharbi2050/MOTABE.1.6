@@ -33,13 +33,8 @@ const MessageArchiveContext = createContext<MessageArchiveContextType | undefine
 const INITIAL_TEMPLATES: MessageTemplate[] = [
   { id: 't1', title: 'غياب طالب', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نود إشعاركم بغياب ابنكم اليوم {اليوم} الموافق {التاريخ}.', isSystem: true, category: 'غياب طالب' },
   { id: 't2', title: 'تأخر طالب', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نود إشعاركم بتأخر ابنكم عن الطابور الصباحي اليوم {اليوم}.', isSystem: true, category: 'تأخر طالب' },
-  { id: 't3', title: 'مخالفة سلوكية', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نشعركم بارتكاب ابنكم لمخالفة سلوكيɡنأمل زيارتكم للمدرسة في يوم (اليوم) وتاريخ (التاريخ)', isSystem: true, category: 'مخالفة سلوكية' },
-  { id: 't4', title: 'الانتظار اليومي', content: 'المكرم {اسم_المعلم} ، لديك حصة انتظار يوم{اليوم} ، الحصة{رقم_الحصة} في فصل{الفصل} بدلاً من المعلم الغائب {اسم_المعلم_الغائب}', isSystem: true, category: 'انتظار' },
-  { id: 't5', title: 'رسالة التكليف بالإشراف اليومي', content: 'المكرم/ {اسم_المعلم}،{اسم_الإداري} ،نشعركم بإسناد مهمة الإشراف اليومي لكم في يوم{اليوم}.', isSystem: true, category: 'إشراف' },
-  { id: 't6', title: 'التذكير بالإشراف اليومي', content: 'تذكير: المكرم/ {اسم_المعلم}،{اسم_الإداري} ، نذكركم بموعد الإشراف اليومي لهذا اليوم{اليوم} ، شاكرين تعاونكم', isSystem: true, category: 'إشراف' },
-  { id: 't7', title: 'التكليف بالمناوبة اليومية', content: 'المكرم/ {اسم_المعلم}،{اسم_الإداري} ،نشعركم بإسناد مهمة المناوبة اليومية في يوم{اليوم} الموافق {التاريخ} ، نسأل الله لكم العون والتوفيق.', isSystem: true, category: 'مناوبة' },
-  { id: 't8', title: 'التذكير بالمناوبة اليومية', content: 'المكرم / {اسم_المعلم}،{اسم_الإداري} ،نذكركم بموعد المناوبة اليومية لهذا اليوم{اليوم} الموافق{التاريخ} ، شاكرين تعاونكم.', isSystem: true, category: 'مناوبة' },
-  { id: 't9', title: 'التعميم الداخلي', content: 'المكرم / {اسم_المعلم}،{اسم_الإداري} ،نحيطكم علماً بالتعميم {عنوان_التعميم} المرفق نأمل الاطلاع وعمل اللازم.', isSystem: true, category: 'تعميم' },
+  { id: 't3', title: 'مخالفة سلوكية', content: 'المكرم ولي أمر الطالب {اسم_الطالب}، نشعركم بارتكاب ابنكم لمخالفة سلوكية نأمل زيارتكم للمدرسة في يوم (اليوم) وتاريخ (التاريخ) للمناقشة.', isSystem: true, category: 'مخالفة سلوكية' },
+  { id: 't4', title: 'تعميم', content: 'التعميم الداخلي\nالمكرم / {اسم_المعلم}،{اسم_الإداري} ،نحيطكم علماً بالتعميم {عنوان_التعميم} المرفق نأمل الاطلاع والعمل بموجبه.', isSystem: true, category: 'تعميم' },
 ];
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -51,13 +46,19 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   const [templates, setTemplates] = useState<MessageTemplate[]>(() => {
     try {
       let stored: MessageTemplate[] = JSON.parse(localStorage.getItem('smart_messaging_templates_v1') || JSON.stringify(INITIAL_TEMPLATES));
-      stored = stored.map(t => (t.id === 't3' ? INITIAL_TEMPLATES[2] : t));
-      INITIAL_TEMPLATES.forEach(sysTpl => {
-        const idx = stored.findIndex(t => t.id === sysTpl.id);
-        if (idx === -1) stored.push(sysTpl);
-        else if (['t4', 't5', 't6', 't7', 't8', 't9'].includes(sysTpl.id)) stored[idx] = sysTpl;
+      const allowedIds = new Set(INITIAL_TEMPLATES.map(t => t.id));
+      stored = stored.filter(t => allowedIds.has(t.id) || !t.isSystem).map(t => {
+        const systemTemplate = INITIAL_TEMPLATES.find(sysTpl => sysTpl.id === t.id);
+        return systemTemplate || t;
       });
-      return stored;
+      INITIAL_TEMPLATES.forEach(sysTpl => {
+        if (!stored.some(t => t.id === sysTpl.id)) stored.push(sysTpl);
+      });
+      return stored.sort((a, b) => {
+        const aIndex = INITIAL_TEMPLATES.findIndex(t => t.id === a.id);
+        const bIndex = INITIAL_TEMPLATES.findIndex(t => t.id === b.id);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+      });
     } catch { return INITIAL_TEMPLATES; }
   });
 

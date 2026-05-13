@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Printer, AlertTriangle, CheckCircle2, Calendar, Users, Eye, X, Download, Settings, Archive, Info } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
+import { Search, Printer, AlertTriangle, CheckCircle2, Calendar, Users, Eye, X, Download, Settings, Archive, Info, Check, ChevronDown, MessageSquare } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
 import { CentralMessage, MessageRole, MessageSource } from '../../types';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
 import arabic_ar from "react-date-object/locales/arabic_ar";
 import gregorian from "react-date-object/calendars/gregorian";
-import gregorian_en from "react-date-object/locales/gregorian_en";
+import gregorian_ar from "react-date-object/locales/gregorian_ar";
 
 interface MessageArchiveProps {
   schoolName: string;
@@ -29,6 +30,111 @@ const roleLabels: Record<MessageRole, string> = {
   guardian: 'أولياء الأمور'
 };
 
+type CalendarType = 'hijri' | 'gregorian';
+type DropdownOption = { value: string; label: string };
+
+const parseIsoDate = (date?: string) => {
+  if (!date) return undefined;
+  const parsed = new Date(`${date}T00:00:00`);
+  return isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+const formatIsoDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const formatPickerDate = (date: DateObject | DateObject[] | null) => {
+  if (!date) return '';
+  const selected = Array.isArray(date) ? date[0] : date;
+  return selected ? formatIsoDate(selected.toDate()) : '';
+};
+
+const dayNameForDate = (date?: string) => {
+  const parsed = parseIsoDate(date) || new Date();
+  return ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][parsed.getDay()] || '';
+};
+
+const SelectDropdown: React.FC<{
+  value: string;
+  options: DropdownOption[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}> = ({ value, options, placeholder, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
+  const selected = options.find(option => option.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const margin = 16;
+      const width = Math.min(430, Math.max(260, rect.width));
+      const safeWidth = Math.min(width, window.innerWidth - margin * 2);
+      setPosition({
+        top: rect.bottom + 10,
+        left: Math.min(Math.max(margin, rect.left), window.innerWidth - safeWidth - margin),
+        width: safeWidth,
+      });
+    };
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
+
+  return (
+    <div className="w-full">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+      >
+        <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && ReactDOM.createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{ top: position.top, left: position.left, width: position.width }}
+        >
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => { onChange(option.value); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  value === option.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span>{option.label}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                }`}>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
 interface MessageBatch {
   id: string; // The batchId, or a surrogate ID if single message
   day: string;
@@ -48,10 +154,9 @@ interface MessageBatch {
 
 const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   const { messages, resendMessage, clearArchive } = useMessageArchive();
-  // Assume hijri calendar configuration based on requirements
-  const calendarType = 'hijri';
   
   // Advanced Search State (UI Only)
+  const [calendarType, setCalendarType] = useState<CalendarType>('hijri');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['all']);
@@ -73,6 +178,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   const [selectedBatches, setSelectedBatches] = useState<Set<string>>(new Set());
   const [isResending, setIsResending] = useState<string | null>(null);
   const [viewingRecipients, setViewingRecipients] = useState<CentralMessage[] | null>(null);
+  const [viewingMessage, setViewingMessage] = useState<MessageBatch | null>(null);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [toast, setToast] = useState<{ type: 'error' | 'success' | 'info'; message: string } | null>(null);
 
@@ -93,6 +199,10 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   const formatGregorianDate = (date: Date) => {
       return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
   };
+
+  const formatDateLabel = (date: string) => date ? `${dayNameForDate(date)} - ${
+    calendarType === 'hijri' ? formatHijriDate(new Date(`${date}T12:00:00`)) : formatGregorianDate(new Date(`${date}T12:00:00`))
+  }` : 'حدد التاريخ';
 
   const toggleRoleSelection = (role: string) => {
       if (role === 'all') {
@@ -249,13 +359,11 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                  <tr>
                     ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${batch.day}</td>` : ''}
                     ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${formatHijriDate(new Date(batch.timestamp))}<br/><span style="font-size:10px;color:#666">${formatGregorianDate(new Date(batch.timestamp))}</span></td>` : ''}
-                    ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${batch.senderRole}</td>` : ''}
-                    
                     <td><div style="font-weight:bold;">${rec.recipientName}</div><div style="font-size:10px;color:#666;">${roleLabels[rec.recipientRole]}</div></td>
                     <td dir="ltr" style="text-align:right;">${rec.recipientPhone}</td>
                     
                     ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align" style="font-size:11px; max-width:250px;">${batch.content}</td>` : ''}
-                    ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${batch.channel.toUpperCase()}</td>` : ''}
+                    ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${batch.channel === 'whatsapp' ? 'واتساب' : 'رسالة نصية'}</td>` : ''}
                     
                     <td class="${rec.status === 'sent' ? 'status-sent' : 'status-failed'}">
                       ${rec.status === 'sent' ? 'تم الإرسال' : 'فشل'}
@@ -322,7 +430,6 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
               <tr>
                 <th>اليوم</th>
                 <th>التاريخ</th>
-                <th>المرسل</th>
                 <th>المستلم</th>
                 <th>رقم الجوال</th>
                 <th>نص الرسالة</th>
@@ -354,6 +461,26 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
       printMessages(batchesToPrint);
   };
 
+  const recipientSummary = (batch: MessageBatch) => {
+    const roles = Array.from(new Set(batch.recipients.map(rec => rec.recipientRole)));
+    if (batch.totalRecipients === 1) return batch.recipients[0].recipientName;
+    if (roles.length === 1) return roleLabels[roles[0]] || 'مستلمون';
+    return 'مستلمون متعددون';
+  };
+
+  const renderChannel = (channel: MessageBatch['channel']) => (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-black ${
+      channel === 'whatsapp' ? 'bg-emerald-50 text-[#128C7E] border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-200'
+    }`}>
+      {channel === 'whatsapp' ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.066-.3-.15-1.265-.467-2.409-1.487-.883-.788-1.48-1.761-1.653-2.059-.173-.3-.018-.465.13-.615.136-.135.301-.345.45-.523.146-.181.194-.301.292-.502.097-.206.05-.386-.025-.534-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.572-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.09 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.36zm-5.496 7.618A9.973 9.973 0 017.1 20.676L3 22l1.353-3.95A9.977 9.977 0 012.002 12 10 10 0 1112.002 22z" />
+        </svg>
+      ) : <MessageSquare size={14} />}
+      {channel === 'whatsapp' ? 'واتساب' : 'رسالة نصية'}
+    </span>
+  );
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col">
 
@@ -377,45 +504,62 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
         
         {/* Row 1: Date Range */}
         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 mb-2">
-           <p className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2">
-             <Calendar size={17} className="text-[#655ac1]" /> تحديد الفترة الزمنية
-           </p>
+           <div className="mb-4 flex items-center gap-2">
+             <span className="text-xs font-black text-slate-500">نوع التقويم</span>
+             <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+               {[
+                 { value: 'hijri' as CalendarType, label: 'هجري' },
+                 { value: 'gregorian' as CalendarType, label: 'ميلادي' },
+               ].map(option => (
+                 <button
+                   key={option.value}
+                   type="button"
+                   onClick={() => setCalendarType(option.value)}
+                   className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                     calendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                   }`}
+                 >
+                   {option.label}
+                 </button>
+               ))}
+             </div>
+           </div>
            <div className="flex flex-wrap gap-4">
              <div className="flex-1 min-w-[200px]">
-               <label className="text-xs font-bold text-slate-600 mb-1.5 block">من تاريخ</label>
+               <label className="text-xs font-bold text-slate-600 mb-1.5 block">من يوم وتاريخ: {formatDateLabel(dateFrom)}</label>
                <div className="relative">
                  <DatePicker 
-                    value={dateFrom}
-                    onChange={(date: DateObject | DateObject[] | null) => {
-                        if (!date) { setDateFrom(''); return; }
-                        const d = Array.isArray(date) ? date[0] : date;
-                        if (d) setDateFrom(d.convert(gregorian, gregorian_en).format("YYYY-MM-DD"));
-                        else setDateFrom('');
-                    }}
-                    calendar={arabic}
-                    locale={arabic_ar}
+                    value={parseIsoDate(dateFrom)}
+                    onChange={(date: DateObject | DateObject[] | null) => setDateFrom(formatPickerDate(date))}
+                    calendar={calendarType === 'hijri' ? arabic : gregorian}
+                    locale={calendarType === 'hijri' ? arabic_ar : gregorian_ar}
                     containerClassName="w-full"
-                    inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all text-right"
+                    inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
                     placeholder="حدد التاريخ"
+                    format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
+                    portal
+                    portalTarget={document.body}
+                    editable={false}
+                    zIndex={99999}
                  />
                </div>
              </div>
              <div className="flex-1 min-w-[200px]">
-               <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى تاريخ</label>
+               <label className="text-xs font-bold text-slate-600 mb-1.5 block">إلى يوم وتاريخ: {formatDateLabel(dateTo)}</label>
                <div className="relative">
                  <DatePicker 
-                    value={dateTo}
-                    onChange={(date: DateObject | DateObject[] | null) => {
-                        if (!date) { setDateTo(''); return; }
-                        const d = Array.isArray(date) ? date[0] : date;
-                        if (d) setDateTo(d.convert(gregorian, gregorian_en).format("YYYY-MM-DD"));
-                        else setDateTo('');
-                    }}
-                    calendar={arabic}
-                    locale={arabic_ar}
+                    value={parseIsoDate(dateTo)}
+                    onChange={(date: DateObject | DateObject[] | null) => setDateTo(formatPickerDate(date))}
+                    calendar={calendarType === 'hijri' ? arabic : gregorian}
+                    locale={calendarType === 'hijri' ? arabic_ar : gregorian_ar}
                     containerClassName="w-full"
-                    inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all text-right"
+                    inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
                     placeholder="حدد التاريخ"
+                    format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
+                    portal
+                    portalTarget={document.body}
+                    editable={false}
+                    zIndex={99999}
                  />
                </div>
              </div>
@@ -426,22 +570,17 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Target Role Multi-select Simulation */}
           <div className="relative flex flex-col">
-            <div className="relative">
-               <div className="absolute top-1/2 -translate-y-1/2 right-3 flex items-center pointer-events-none">
-                  <Users size={16} className="text-slate-400" />
-               </div>
-               <select 
-                 className="w-full bg-white border border-slate-200 rounded-xl py-3 pr-10 pl-4 text-sm font-medium outline-none shadow-sm focus:border-[#655ac1] appearance-none"
-                 onChange={e => toggleRoleSelection(e.target.value)}
-                 value=""
-               >
-                 <option value="" disabled>المستهدف: {selectedRoles.includes('all') ? 'الكل' : selectedRoles.map(r => roleLabels[r as MessageRole] || r).join(', ')}</option>
-                 <option value="all">الكل</option>
-                 <option value="teacher">المعلمون</option>
-                 <option value="admin">الإداريون</option>
-                 <option value="guardian">أولياء الأمور</option>
-               </select>
-            </div>
+            <SelectDropdown
+              value=""
+              onChange={toggleRoleSelection}
+              placeholder={`المستهدف: ${selectedRoles.includes('all') ? 'الكل' : selectedRoles.map(r => roleLabels[r as MessageRole] || r).join(', ')}`}
+              options={[
+                { value: 'all', label: 'الكل' },
+                { value: 'teacher', label: 'المعلمون' },
+                { value: 'admin', label: 'الإداريون' },
+                { value: 'guardian', label: 'أولياء الأمور' },
+              ]}
+            />
             <div className="mt-2 inline-flex border border-indigo-100 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-3 py-1.5 rounded-lg w-max shadow-sm items-center gap-1.5">
                <span className="text-sm">💡</span> يمكن اختيار المعلمون والإداريون مع بعضهم
             </div>
@@ -449,28 +588,30 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
 
           {/* Channel Filter Container */}
           <div>
-            <select 
-               className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium outline-none shadow-sm focus:border-[#655ac1] appearance-none"
-               value={channelFilter}
-               onChange={e => setChannelFilter(e.target.value as any)}
-            >
-                <option value="all">طريقة الإرسال: الكل</option>
-                <option value="whatsapp">واتساب</option>
-                <option value="sms">رسالة نصية SMS</option>
-            </select>
+            <SelectDropdown
+              value={channelFilter}
+              onChange={value => setChannelFilter(value as any)}
+              placeholder="طريقة الإرسال"
+              options={[
+                { value: 'all', label: 'طريقة الإرسال: الكل' },
+                { value: 'whatsapp', label: 'واتساب' },
+                { value: 'sms', label: 'رسالة نصية SMS' },
+              ]}
+            />
           </div>
 
           {/* Status Filter */}
           <div>
-            <select 
-               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium outline-none shadow-sm focus:border-[#655ac1] appearance-none"
-               value={statusFilter}
-               onChange={e => setStatusFilter(e.target.value as any)}
-            >
-                <option value="all">حالة الإرسال: الكل</option>
-                <option value="sent">تم الإرسال</option>
-                <option value="failed">فشل الإرسال</option>
-            </select>
+            <SelectDropdown
+              value={statusFilter}
+              onChange={value => setStatusFilter(value as any)}
+              placeholder="حالة الإرسال"
+              options={[
+                { value: 'all', label: 'حالة الإرسال: الكل' },
+                { value: 'sent', label: 'تم الإرسال' },
+                { value: 'failed', label: 'فشل الإرسال' },
+              ]}
+            />
           </div>
         </div>
 
@@ -499,7 +640,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                    onClick={handleApplyFilters} 
                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:border-[#8779fb] transition-all text-sm font-bold min-w-[120px]"
                  >
-                   <Search size={20} className="text-[#655ac1]" /> بحث
+                   <Search size={20} className="text-slate-500" /> بحث
                  </button>
                  <div className="flex gap-2 shrink-0">
                      <button
@@ -512,7 +653,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                        }}
                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:border-[#8779fb] transition-all text-sm font-bold min-w-[120px]"
                      >
-                       <Printer size={20} className="text-[#655ac1]" /> طباعة
+                       <Printer size={20} className="text-slate-500" /> طباعة
                      </button>
                      <button
                        onClick={() => {
@@ -527,7 +668,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                        }}
                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:border-[#8779fb] transition-all text-sm font-bold min-w-[120px]"
                      >
-                       <Download size={20} className="text-[#655ac1]" /> تصدير
+                       <Download size={20} className="text-slate-500" /> تصدير
                      </button>
                  </div>
               </div>
@@ -536,11 +677,11 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
       </div>
 
       {/* 2. Full Data Separation Table */}
-      <div className="flex-1 overflow-x-auto custom-scrollbar">
+      <div className="flex-1 overflow-x-auto custom-scrollbar rounded-b-2xl">
         <table className="w-full text-right text-sm">
-          <thead className="bg-[#f8fafc] sticky top-0 z-10 shadow-sm border-b border-slate-200">
+          <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
             <tr>
-              <th className="w-12 px-4 py-3 text-center">
+              <th className="w-12 px-4 py-4 text-center">
                  <input 
                    type="checkbox" 
                    checked={selectedBatches.size === filteredBatches.length && filteredBatches.length > 0} 
@@ -551,22 +692,21 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                    className="rounded text-[#655ac1] focus:ring-[#655ac1]" 
                   />
               </th>
-              <th className="px-4 py-3 font-bold text-[#475569]">اليوم</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">التاريخ</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">المرسل</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">المستلم</th>
-              <th className="px-4 py-3 font-bold text-[#475569] text-center">العدد</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">نص الرسالة</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">الطريقة</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">رقم الجوال</th>
-              <th className="px-4 py-3 font-bold text-[#475569] text-center">الحالة</th>
-              <th className="px-4 py-3 font-bold text-[#475569]">الوقت</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">اليوم</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">التاريخ</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">المستلم</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1] text-center">العدد</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">نص الرسالة</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">الطريقة</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">رقم الجوال</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1] text-center">الحالة</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">الوقت</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredBatches.length === 0 ? (
               <tr>
-                <td colSpan={11} className="p-0 border-none">
+                <td colSpan={10} className="p-0 border-none">
                   <div className="flex flex-col items-center justify-center bg-white py-20 w-full gap-4">
                     <div className="flex flex-col items-center gap-3">
                       <Archive size={48} className="text-[#655ac1]" strokeWidth={1.4} />
@@ -591,8 +731,8 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
               </tr>
             ) : (
                 filteredBatches.map(batch => (
-                <tr key={batch.id} className="hover:bg-slate-50/50 transition-colors bg-white group">
-                  <td className="px-4 py-3 text-center align-middle">
+                <tr key={batch.id} className="hover:bg-[#fbfaff] transition-colors bg-white">
+                  <td className="px-4 py-4 text-center align-middle">
                      <input 
                        type="checkbox" 
                        checked={selectedBatches.has(batch.id)}
@@ -600,25 +740,20 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                        className="rounded text-[#655ac1] focus:ring-[#655ac1] cursor-pointer"
                      />
                   </td>
-                  <td className="px-4 py-3 align-middle font-bold text-slate-700">{batch.day}</td>
-                  <td className="px-4 py-3 align-middle text-slate-600">
-                     <div>{batch.dateStr}</div>
-                     <div className="text-[10px] text-slate-400">{formatGregorianDate(new Date(batch.timestamp))}</div>
+                  <td className="px-5 py-4 align-middle font-bold text-slate-700 whitespace-nowrap">{batch.day}</td>
+                  <td className="px-5 py-4 align-middle text-slate-600 min-w-[150px]">
+                     <div className="font-black text-slate-800">{batch.dateStr}</div>
+                     <div className="mt-1 text-[11px] font-bold text-slate-400">{formatGregorianDate(new Date(batch.timestamp))} م</div>
                   </td>
-                  <td className="px-4 py-3 align-middle text-indigo-700 font-bold bg-indigo-50/30 text-xs rounded">{batch.senderRole}</td>
                   
-                  <td className="px-4 py-3 align-middle">
-                     {batch.totalRecipients === 1 ? (
-                         <div className="font-bold text-slate-800">{batch.recipients[0].recipientName}</div>
-                     ) : (
-                         <div className="font-bold text-slate-800">عدة مستلمين</div>
-                     )}
+                  <td className="px-5 py-4 align-middle min-w-[170px]">
+                     <div className="font-bold text-slate-800">{recipientSummary(batch)}</div>
                      <div className="text-[10px] bg-slate-100 inline-block px-2 py-0.5 rounded-full text-slate-600 mt-1">
                         {batch.totalRecipients === 1 ? roleLabels[batch.recipients[0].recipientRole] : 'مجموعة'}
                      </div>
                   </td>
                   
-                  <td className="px-4 py-3 align-middle text-center">
+                  <td className="px-5 py-4 align-middle text-center">
                      <div className="flex flex-col items-center gap-1">
                         <span className="font-black text-lg text-slate-700">{batch.totalRecipients}</span>
                         {batch.totalRecipients > 1 && (
@@ -632,21 +767,29 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                      </div>
                   </td>
 
-                  <td className="px-4 py-3 align-middle max-w-[200px]">
-                    <p className="text-slate-600 line-clamp-2 text-xs leading-relaxed group-hover:line-clamp-none transition-all">{batch.content}</p>
+                  <td className="px-5 py-4 align-middle max-w-[240px]">
+                    <div className="flex items-center gap-2">
+                      <p className="text-slate-600 line-clamp-1 text-xs leading-relaxed flex-1">{batch.content}</p>
+                      <button
+                        type="button"
+                        onClick={() => setViewingMessage(batch)}
+                        className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1] transition-colors"
+                        title="الاطلاع على نص الرسالة"
+                      >
+                        <Eye size={15} />
+                      </button>
+                    </div>
                   </td>
                   
-                  <td className="px-4 py-3 align-middle">
-                     <span className={`inline-block px-2 py-1 rounded-md text-[10px] font-bold text-center ${batch.channel === 'whatsapp' ? 'bg-[#dcf8c6] text-[#075e54]' : 'bg-indigo-100 text-[#655ac1]'}`}>
-                        {batch.channel.toUpperCase()}
-                     </span>
+                  <td className="px-5 py-4 align-middle">
+                     {renderChannel(batch.channel)}
                   </td>
 
-                  <td className="px-4 py-3 align-middle text-slate-600 font-mono text-xs" dir="ltr">
+                  <td className="px-5 py-4 align-middle text-slate-600 font-mono text-xs" dir="ltr">
                      {batch.totalRecipients === 1 ? batch.recipients[0].recipientPhone : 'متعدد'}
                   </td>
 
-                  <td className="px-4 py-3 align-middle text-center">
+                  <td className="px-5 py-4 align-middle text-center">
                     {batch.status === 'sent' && <div className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold"><CheckCircle2 size={12}/> ناجح</div>}
                     {batch.status === 'failed' && <div className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold"><AlertTriangle size={12}/> فشل</div>}
                     {batch.status === 'partial' && (
@@ -657,7 +800,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                     )}
                   </td>
 
-                  <td className="px-4 py-3 align-middle text-xs text-slate-500 font-bold" dir="ltr">
+                  <td className="px-5 py-4 align-middle text-xs text-slate-500 font-bold" dir="ltr">
                     {batch.timeStr}
                   </td>
                 </tr>
@@ -666,6 +809,33 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Message Content Popup Modal */}
+      {viewingMessage && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setViewingMessage(null)}>
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                      <h3 className="font-black text-slate-800 flex items-center gap-2">
+                          <MessageSquare className="text-[#655ac1]" size={20} />
+                          نص الرسالة المرسلة
+                      </h3>
+                      <button onClick={() => setViewingMessage(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                          <X size={20} className="text-slate-500"/>
+                      </button>
+                  </div>
+                  <div className="p-5 overflow-y-auto custom-scrollbar">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold leading-8 text-slate-700 whitespace-pre-wrap">
+                        {viewingMessage.content}
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                        <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5">{viewingMessage.day}</span>
+                        <span className="rounded-lg bg-white border border-slate-200 px-3 py-1.5">{viewingMessage.dateStr}</span>
+                        {renderChannel(viewingMessage.channel)}
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* 3. Recipients Popup Modal */}
       {viewingRecipients && (
