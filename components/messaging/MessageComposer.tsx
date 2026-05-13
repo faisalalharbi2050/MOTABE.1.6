@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
-  Send, Users, AlertCircle, AlertTriangle, Paperclip, CheckCircle2,
-  MessageSquare, Plus, Search, CheckSquare, Square, X, ChevronDown, ChevronLeft,
-  Clock, Calendar as CalendarIcon, Eye, Wallet, CalendarClock
+  Send, Users, AlertCircle, AlertTriangle, Paperclip, CheckCircle2, Check,
+  MessageSquare, Plus, Search, X, ChevronDown, ChevronLeft,
+  Clock, Eye, Wallet, CalendarClock
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
 import arabic_ar from "react-date-object/locales/arabic_ar";
+import gregorian from "react-date-object/calendars/gregorian";
+import gregorian_ar from "react-date-object/locales/gregorian_ar";
 
 interface MessageComposerProps {
   schoolInfo: SchoolInfo;
@@ -24,9 +26,112 @@ interface MessageComposerProps {
 }
 
 type GroupType = 'none' | 'teachers' | 'admins' | 'staff' | 'parents';
+type CalendarType = 'hijri' | 'gregorian';
 
 // SMS character limit
 const SMS_LIMIT = 160;
+
+type DropdownOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+const useDropdownPosition = (open: boolean, onClose: () => void) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const margin = 16;
+      const width = Math.min(430, Math.max(260, rect.width));
+      const safeWidth = Math.min(width, window.innerWidth - margin * 2);
+      setPosition({
+        top: rect.bottom + 10,
+        left: Math.min(Math.max(margin, rect.left), window.innerWidth - safeWidth - margin),
+        width: safeWidth,
+      });
+    };
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const inButton = triggerRef.current?.contains(target);
+      const inPanel = panelRef.current?.contains(target);
+      if (!inButton && !inPanel) onClose();
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open, onClose]);
+
+  return { triggerRef, panelRef, position };
+};
+
+const RecipientSelectDropdown: React.FC<{
+  value: string;
+  options: DropdownOption[];
+  placeholder: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}> = ({ value, options, placeholder, onChange, disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const { triggerRef, panelRef, position } = useDropdownPosition(open, () => setOpen(false));
+  const selected = options.find(option => option.value === value);
+
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+
+  return (
+    <div className="w-full">
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && ReactDOM.createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{ top: position.top, left: position.left, width: position.width }}
+        >
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => { if (option.disabled) return; onChange(option.value); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  option.disabled ? 'text-slate-300 cursor-not-allowed bg-slate-50/70' :
+                  value === option.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span>{option.label}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                }`}>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 const MessageComposer: React.FC<MessageComposerProps> = ({
   schoolInfo, teachers, admins, students, classes, specializations, subscription, setSubscription, initialDraft
@@ -61,6 +166,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<DateObject | null>(null);
   const [scheduleTime, setScheduleTime] = useState('08:00');
+  const [scheduleCalendarType, setScheduleCalendarType] = useState<CalendarType>('hijri');
   const [isSending, setIsSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [draftMeta, setDraftMeta] = useState<{ source?: MessageSource; senderRole?: string; title?: string; linksByRecipientId?: Record<string, string>; previewUrlByRecipientId?: Record<string, string> } | null>(null);
@@ -226,13 +332,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   }, [messageContent, recipientsToSend, today, dateFormatted, schoolInfo, previewScheduleLinks]);
 
   // ── Template handler ─────────────────────────────────────────────────────
-  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const tId = e.target.value;
-    setSelectedTemplate(tId);
-    if (tId) {
-      const t = templates.find(temp => temp.id === tId);
-      if (t) setMessageContent(t.content);
-    }
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    if (!templateId) return;
+    const template = templates.find(temp => temp.id === templateId);
+    if (template) setMessageContent(template.content);
   };
 
   const insertVariable = (variable: string) => {
@@ -439,16 +543,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         const someSelected = items.some(s => selectedIds.has(s.id));
 
         return (
-          <div key={classId} className="border border-slate-100 rounded-xl overflow-hidden mb-3">
-            <div className="bg-slate-50 p-3 flex items-center justify-between cursor-pointer group hover:bg-slate-100 transition-colors" onClick={() => toggleClassExpand(classId)}>
+          <div key={classId} className="border border-slate-200 rounded-2xl overflow-hidden mb-3 bg-white shadow-sm">
+            <div className="bg-white p-3 flex items-center justify-between cursor-pointer group hover:bg-[#f0edff] transition-colors" onClick={() => toggleClassExpand(classId)}>
               <div className="flex items-center gap-3">
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleClassSelection(classId); }}
-                  className={`p-1 rounded transition-colors ${allSelected ? 'text-indigo-600' : someSelected ? 'text-indigo-400' : 'text-slate-300 hover:text-indigo-500'}`}
+                  className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                    allSelected || someSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+                  }`}
                 >
-                  {allSelected ? <CheckSquare size={20} /> : someSelected ? <CheckSquare size={20} className="opacity-50" /> : <Square size={20} />}
+                  <Check size={12} strokeWidth={3} className={someSelected && !allSelected ? 'opacity-50' : ''} />
                 </button>
-                <span className="font-bold text-slate-700 select-none">فصل {className}</span>
+                <span className={`font-bold select-none ${allSelected || someSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>فصل {className}</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-200">
@@ -458,22 +564,26 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               </div>
             </div>
             {isExpanded && (
-              <div className="p-2 space-y-1 bg-white">
+              <div className="p-2 space-y-1 bg-white border-t border-slate-100">
                 {items.map(item => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 p-2 hover:bg-slate-50 cursor-pointer rounded-lg transition-colors select-none group"
+                    className={`flex items-center justify-between gap-3 px-3 py-2.5 cursor-pointer rounded-xl transition-all select-none group ${
+                      selectedIds.has(item.id) ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                    }`}
                     onClick={() => toggleSelection(item.id)}
                   >
-                    <div className={`p-1 rounded transition-colors ${selectedIds.has(item.id) ? 'text-indigo-600' : 'text-slate-300 group-hover:text-indigo-500'}`}>
-                      {selectedIds.has(item.id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                    </div>
                     <div className="flex-1">
-                      <div className="text-sm font-bold text-slate-700">{item.name}</div>
+                      <div className="text-sm font-bold">{item.name}</div>
                       {item.phone
                         ? <div className="text-xs text-slate-500 font-mono" dir="ltr">{item.phone}</div>
                         : <div className="text-xs text-rose-500">لا يوجد رقم</div>}
                     </div>
+                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                      selectedIds.has(item.id) ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+                    }`}>
+                      <Check size={12} strokeWidth={3} />
+                    </span>
                   </div>
                 ))}
               </div>
@@ -488,14 +598,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         {displayItems.map(item => (
           <div
             key={item.id}
-            className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer rounded-xl border border-transparent hover:border-slate-100 transition-colors select-none group"
+            className={`flex items-center justify-between gap-3 px-3 py-2.5 cursor-pointer rounded-xl transition-all select-none group ${
+              selectedIds.has(item.id) ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+            }`}
             onClick={() => toggleSelection(item.id)}
           >
-            <div className={`p-1 rounded transition-colors ${selectedIds.has(item.id) ? 'text-indigo-600' : 'text-slate-300 group-hover:text-indigo-500'}`}>
-              {selectedIds.has(item.id) ? <CheckSquare size={20} /> : <Square size={20} />}
-            </div>
             <div className="flex-1">
-              <div className="text-sm font-bold text-slate-700">{item.name}</div>
+              <div className="text-sm font-bold">{item.name}</div>
               <div className="flex gap-3 mt-1">
                 <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold">{item.subtitle}</span>
                 {item.phone
@@ -503,6 +612,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                   : <span className="text-xs text-rose-500">جوال مفقود</span>}
               </div>
             </div>
+            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+              selectedIds.has(item.id) ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+            }`}>
+              <Check size={12} strokeWidth={3} />
+            </span>
           </div>
         ))}
         {displayItems.length === 0 && (
@@ -531,18 +645,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </h3>
 
         <div className="space-y-4 mb-6 shrink-0">
-          <select
+          <RecipientSelectDropdown
             value={selectedGroup}
-            onChange={e => setSelectedGroup(e.target.value as GroupType)}
-            className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-[#655ac1] bg-slate-50 font-bold text-slate-700 transition-colors cursor-pointer hover:border-slate-200 appearance-none"
-            style={{ backgroundImage: `url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23131313%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'left 1rem center', backgroundSize: '0.65em auto' }}
-          >
-            <option value="none">-- اختر الفئة المستهدفة --</option>
-            <option value="teachers">المعلمون</option>
-            <option value="admins">الإداريون</option>
-            <option value="staff">معلمون وإداريون</option>
-            <option value="parents">أولياء الأمور</option>
-          </select>
+            onChange={value => setSelectedGroup(value as GroupType)}
+            placeholder="-- اختر الفئة المستهدفة --"
+            options={[
+              { value: 'none', label: '-- اختر الفئة المستهدفة --' },
+              { value: 'teachers', label: 'المعلمون' },
+              { value: 'admins', label: 'الإداريون' },
+              { value: 'staff', label: 'معلمون وإداريون' },
+              { value: 'parents', label: 'أولياء الأمور' },
+            ]}
+          />
 
           {selectedGroup !== 'none' && (
             <div className="flex gap-2 relative">
@@ -552,31 +666,33 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 placeholder="بحث بالاسم..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="flex-1 border-2 border-slate-100 rounded-xl pr-10 pl-4 py-2.5 outline-none focus:border-[#655ac1] text-sm font-medium"
+                className="flex-1 border-2 border-slate-200 rounded-xl pr-10 pl-4 py-2.5 outline-none focus:border-[#655ac1]/50 hover:bg-slate-50 text-sm font-bold text-slate-600 transition-all"
               />
             </div>
           )}
 
           {selectedGroup === 'teachers' && (
-            <select
+            <RecipientSelectDropdown
               value={selectedSpecId}
-              onChange={e => setSelectedSpecId(e.target.value)}
-              className="w-full border-2 border-slate-100 rounded-xl px-4 py-2.5 outline-none focus:border-[#655ac1] text-sm bg-slate-50 cursor-pointer font-medium"
-            >
-              <option value="all">كل التخصصات</option>
-              {activeSpecs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+              onChange={setSelectedSpecId}
+              placeholder="كل التخصصات"
+              options={[
+                { value: 'all', label: 'كل التخصصات' },
+                ...activeSpecs.map(s => ({ value: s.id, label: s.name })),
+              ]}
+            />
           )}
 
           {selectedGroup === 'parents' && (
-            <select
+            <RecipientSelectDropdown
               value={selectedClassId}
-              onChange={e => setSelectedClassId(e.target.value)}
-              className="w-full border-2 border-slate-100 rounded-xl px-4 py-2.5 outline-none focus:border-[#655ac1] text-sm bg-slate-50 cursor-pointer font-medium"
-            >
-              <option value="all">كل الفصول</option>
-              {activeClasses.map(c => <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>)}
-            </select>
+              onChange={setSelectedClassId}
+              placeholder="كل الفصول"
+              options={[
+                { value: 'all', label: 'كل الفصول' },
+                ...activeClasses.map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` })),
+              ]}
+            />
           )}
         </div>
 
@@ -692,21 +808,24 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               <MessageSquare className="text-[#655ac1]" size={20} />
               نص الرسالة
             </h3>
-            <select
+            <div className="w-full sm:w-64">
+            <RecipientSelectDropdown
               value={selectedTemplate}
-              onChange={handleTemplateChange}
-              className="border-2 border-slate-100 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#655ac1] bg-slate-50 w-full sm:w-64 font-bold text-slate-600"
-            >
-              <option value="">استخدام قالب جاهز</option>
-              {templates.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-            </select>
+              onChange={handleTemplateSelect}
+              placeholder="استخدام قالب جاهز"
+              options={[
+                { value: '', label: 'استخدام قالب جاهز' },
+                ...templates.map(t => ({ value: t.id, label: t.title })),
+              ]}
+            />
+            </div>
           </div>
 
           {/* Variable chips */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 mb-2">إضافة متغيرات تلقائية:</label>
             <div className="flex gap-2 flex-wrap">
-              {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة', 'روابط_الجداول'].map(variable => (
+              {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة'].map(variable => (
                 <button
                   key={variable}
                   onClick={() => insertVariable(variable)}
@@ -792,52 +911,78 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
           <div className="mt-6 pt-6 border-t border-slate-100">
             {/* Scheduling toggle */}
-            <label className="relative flex items-center gap-3 p-3 border-2 border-slate-100 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors mb-4">
-              <input type="checkbox" className="sr-only" checked={isScheduled} onChange={(e) => setIsScheduled(e.target.checked)} />
-              {/* RTL toggle: dot goes RIGHT when ON */}
-              <div className={`relative flex items-center w-12 h-6 shrink-0 rounded-full transition-colors ${isScheduled ? 'bg-[#655ac1]' : 'bg-slate-200'}`}>
-                <div className={`absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${isScheduled ? 'right-1' : 'left-1'}`} />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarClock size={16} className="text-[#655ac1]" />
+                  <span className="text-sm font-black text-slate-700">جدولة الإرسال لوقت لاحق</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsScheduled(current => !current)}
+                  className={`relative inline-flex w-10 h-6 rounded-full transition-all ${isScheduled ? 'bg-[#655ac1]' : 'bg-slate-300'}`}
+                  role="switch"
+                  aria-checked={isScheduled}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isScheduled ? 'right-1' : 'left-1'}`} />
+                </button>
               </div>
-              <span className="text-sm font-bold text-slate-700 select-none flex items-center gap-2">
-                <CalendarClock size={16} className={isScheduled ? 'text-[#655ac1]' : 'text-slate-400'} />
-                جدولة الإرسال لوقت لاحق
-              </span>
-            </label>
 
             {/* Scheduling date + time */}
             {isScheduled && (
-              <div className="flex flex-col sm:flex-row gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-slate-500 mb-2">تاريخ الإرسال</label>
-                  <div className="relative">
-                    <DatePicker
-                      value={scheduleDate}
-                      onChange={setScheduleDate}
-                      calendar={arabic}
-                      locale={arabic_ar}
-                      containerClassName="w-full"
-                      fixMainPosition={true}
-                      zIndex={100}
-                      inputClass="w-full px-4 py-3 pl-10 bg-white border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1] font-bold text-slate-700"
-                      placeholder="اختر التاريخ..."
-                      format="YYYY/MM/DD"
-                      minDate={new DateObject({ calendar: arabic })}
-                    />
-                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                    <label className="text-xs font-black text-slate-500">التاريخ</label>
+                    <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                      {[
+                        { value: 'hijri', label: 'هجري' },
+                        { value: 'gregorian', label: 'ميلادي' },
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setScheduleCalendarType(option.value as CalendarType)}
+                          className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                            scheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  <DatePicker
+                    value={scheduleDate ? new DateObject(scheduleDate).convert(scheduleCalendarType === 'hijri' ? arabic : gregorian) : null}
+                    onChange={setScheduleDate}
+                    calendar={scheduleCalendarType === 'hijri' ? arabic : gregorian}
+                    locale={scheduleCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
+                    containerClassName="w-full"
+                    inputClass="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
+                    placeholder="حدد التاريخ"
+                    format="YYYY/MM/DD"
+                    minDate={new DateObject({ calendar: scheduleCalendarType === 'hijri' ? arabic : gregorian })}
+                    portal
+                    portalTarget={document.body}
+                    editable={false}
+                    zIndex={99999}
+                  />
                 </div>
-                <div className="w-full sm:w-48">
-                  <label className="block text-xs font-bold text-slate-500 mb-2">وقت الإرسال</label>
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
+                    <label className="text-xs font-black text-slate-500">الوقت</label>
+                  </div>
                   <input
                     type="time"
                     value={scheduleTime}
                     onChange={(e) => setScheduleTime(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1] font-bold text-slate-700"
+                    className="w-full border-2 border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors"
                     dir="ltr"
                   />
                 </div>
               </div>
             )}
+            </div>
 
             {/* Send / Schedule button */}
             <button
