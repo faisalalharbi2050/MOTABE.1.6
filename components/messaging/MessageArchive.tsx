@@ -164,16 +164,6 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'failed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Applied Filter State (Triggers Table Update)
-  const [appliedFilters, setAppliedFilters] = useState({
-      dateFrom: '',
-      dateTo: '',
-      selectedRoles: ['all'],
-      channelFilter: 'all' as 'all' | 'whatsapp' | 'sms',
-      statusFilter: 'all' as 'all' | 'sent' | 'failed',
-      searchQuery: ''
-  });
-
   // Table State
   const [selectedBatches, setSelectedBatches] = useState<Set<string>>(new Set());
   const [isResending, setIsResending] = useState<string | null>(null);
@@ -265,38 +255,38 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
   const filteredBatches = useMemo(() => {
     return batchedMessages.filter(b => {
       // 1. Date Range Filter
-      if (appliedFilters.dateFrom || appliedFilters.dateTo) {
+      if (dateFrom || dateTo) {
           const bDate = new Date(b.timestamp);
           bDate.setHours(0,0,0,0);
-          if (appliedFilters.dateFrom) {
-              const fromDate = new Date(appliedFilters.dateFrom);
+          if (dateFrom) {
+              const fromDate = new Date(dateFrom);
               fromDate.setHours(0,0,0,0);
               if (bDate < fromDate) return false;
           }
-          if (appliedFilters.dateTo) {
-              const toDate = new Date(appliedFilters.dateTo);
+          if (dateTo) {
+              const toDate = new Date(dateTo);
               toDate.setHours(23,59,59,999);
               if (bDate > toDate) return false;
           }
       }
 
       // 2. Role Filter (Check if batch contains ANY recipient matching roles)
-      if (!appliedFilters.selectedRoles.includes('all')) {
-          const hasMatchingRole = b.recipients.some(r => appliedFilters.selectedRoles.includes(r.recipientRole));
+      if (!selectedRoles.includes('all')) {
+          const hasMatchingRole = b.recipients.some(r => selectedRoles.includes(r.recipientRole));
           if (!hasMatchingRole) return false;
       }
 
       // 3. Channel Filter
-      if (appliedFilters.channelFilter !== 'all' && b.channel !== appliedFilters.channelFilter) return false;
+      if (channelFilter !== 'all' && b.channel !== channelFilter) return false;
 
       // 4. Status Filter (For partial, consider it sent or failed based on strictness, user wants Sent/Failed)
-      if (appliedFilters.statusFilter !== 'all') {
-          if (appliedFilters.statusFilter === 'sent' && b.status === 'failed') return false; // partial is shown in sent
-          if (appliedFilters.statusFilter === 'failed' && b.status === 'sent') return false; // partial is shown in failed
+      if (statusFilter !== 'all') {
+          if (statusFilter === 'sent' && b.status === 'failed') return false; // partial is shown in sent
+          if (statusFilter === 'failed' && b.status === 'sent') return false; // partial is shown in failed
       }
 
       // 5. Text Search (Search in Sender, Content, Recipient Name, Recipient Phone)
-      const q = appliedFilters.searchQuery.toLowerCase();
+      const q = searchQuery.trim().toLowerCase();
       if (q) {
           const matchSender = b.senderRole.toLowerCase().includes(q);
           const matchContent = b.content.toLowerCase().includes(q);
@@ -309,19 +299,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
 
       return true;
     });
-  }, [batchedMessages, appliedFilters]);
-
-  // Apply filters to trigger table re-render
-  const handleApplyFilters = () => {
-      setAppliedFilters({
-          dateFrom,
-          dateTo,
-          selectedRoles,
-          channelFilter,
-          statusFilter,
-          searchQuery
-      });
-  };
+  }, [batchedMessages, dateFrom, dateTo, selectedRoles, channelFilter, statusFilter, searchQuery]);
 
   const toggleBatchSelection = (id: string) => {
       const next = new Set(selectedBatches);
@@ -642,13 +620,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
               </div>
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
-                 <button 
-                   onClick={handleApplyFilters} 
-                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:border-[#8779fb] transition-all text-sm font-bold min-w-[120px]"
-                 >
-                   <Search size={20} className="text-slate-500" /> بحث
-                 </button>
-                 <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0">
                      <button
                        onClick={() => {
                           const b = selectedBatches.size > 0
@@ -735,7 +707,6 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                           setDateFrom(''); setDateTo('');
                           setSelectedRoles(['all']); setChannelFilter('all');
                           setStatusFilter('all'); setSearchQuery('');
-                          setAppliedFilters({ dateFrom: '', dateTo: '', selectedRoles: ['all'], channelFilter: 'all', statusFilter: 'all', searchQuery: '' });
                         }}
                         className="flex items-center gap-2 px-5 py-2.5 border border-[#655ac1] text-[#655ac1] rounded-xl text-sm font-bold hover:bg-[#f0eeff] transition-colors"
                       >
@@ -762,8 +733,8 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                      <div className="mt-1 text-sm font-black text-slate-600">{formatGregorianDate(new Date(batch.timestamp))} م</div>
                   </td>
                   
-                  <td className="px-5 py-4 align-middle min-w-[170px]">
-                     <div className="text-sm font-black text-slate-800">{recipientSummary(batch)}</div>
+                  <td className="px-5 py-4 align-middle min-w-[140px] max-w-[160px]">
+                     <div className="text-xs font-black text-slate-800 leading-5 line-clamp-2">{recipientSummary(batch)}</div>
                      <div className="text-[11px] bg-slate-50 border border-slate-200 inline-block px-2 py-0.5 rounded-full text-slate-500 mt-1 font-bold">
                         {batch.totalRecipients === 1 ? roleLabels[batch.recipients[0].recipientRole] : 'مجموعة'}
                      </div>
