@@ -12,22 +12,22 @@ const packages: Pkg[] = [
     name: 'أساسية', sms: 1000, wa: 10000, price: 289,
     bgLight: 'bg-[#f8f7ff]', textMain: 'text-[#8779fb]',
     bgIcon: 'bg-white text-[#8779fb] shadow-sm border border-[#e5e1fe]',
-    btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-    btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white',
+    btnDefault: 'bg-white border-2 border-slate-300 text-slate-500',
+    btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white',
   },
   {
     name: 'متقدمة', sms: 5000, wa: 20000, price: 749,
     bgLight: 'bg-[#f3f0ff]', textMain: 'text-[#6e5ee0]',
     bgIcon: 'bg-white text-[#8779fb] shadow-sm border border-[#e5e1fe]',
-    btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-    btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white',
+    btnDefault: 'bg-white border-2 border-slate-300 text-slate-500',
+    btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white',
   },
   {
     name: 'احترافية', sms: 10000, wa: 30000, price: 994,
     bgLight: 'bg-[#e5e1fe]', textMain: 'text-[#5b4cb8]',
     bgIcon: 'bg-white text-[#5b4cb8] shadow-sm border border-[#e5e1fe]',
-    btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-    btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white',
+    btnDefault: 'bg-white border-2 border-slate-300 text-slate-500',
+    btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white',
   },
 ];
 

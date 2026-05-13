@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PackageTier, PaymentPeriod, SubscriptionInfo } from '../../types';
 import { PACKAGE_FEATURES, PACKAGE_PRICING, PACKAGE_NAMES, calculateProRata } from './packages';
 import PaymentModal from './PaymentModal';
-import { Check, Shield, Star, Crown, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Check, Star, Crown, CheckCircle2 } from 'lucide-react';
 
 interface PricingPlansProps {
   subscription: SubscriptionInfo;
@@ -13,11 +13,6 @@ interface PricingPlansProps {
 const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscription, onComplete }) => {
   const [period, setPeriod] = useState<PaymentPeriod>('semester');
   const [selectedPlan, setSelectedPlan] = useState<{tier: PackageTier, newPrice: number, finalPrice: number, remainingValue: number} | null>(null);
-  const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({});
-
-  const toggleFeatures = (tier: string) => {
-    setExpandedTiers(prev => ({ ...prev, [tier]: !prev[tier] }));
-  };
 
   const getDaysRemaining = (endDate: string) => {
     const diffTime = new Date(endDate).getTime() - new Date().getTime();
@@ -51,18 +46,14 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
     basic: {
       bgLight: 'bg-[#f8f7ff]',
       textMain: 'text-[#8779fb]',
-      bgIcon: 'bg-white text-[#8779fb] shadow-sm border border-[#e5e1fe]',
-      btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-      btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white group-hover:border-[#8779fb] group-hover:bg-[#8779fb] group-hover:text-white',
-      icon: Shield
+      btnDefault: 'bg-white border-2 border-slate-300 text-slate-800',
+      btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white group-hover:border-[#655ac1] group-hover:bg-[#655ac1] group-hover:text-white',
     },
     advanced: {
       bgLight: 'bg-[#f3f0ff]',
       textMain: 'text-[#6e5ee0]',
-      bgIcon: 'bg-white text-[#8779fb] shadow-sm border border-[#e5e1fe]',
-      btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-      btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white group-hover:border-[#8779fb] group-hover:bg-[#8779fb] group-hover:text-white',
-      icon: Star
+      btnDefault: 'bg-white border-2 border-slate-300 text-slate-800',
+      btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white group-hover:border-[#655ac1] group-hover:bg-[#655ac1] group-hover:text-white',
     }
   };
 
@@ -126,14 +117,15 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
              const price = PACKAGE_PRICING[tier][period];
              const isCurrent = subscription.packageTier === tier && !subscription.isTrial;
              const isAdvanced = tier === 'advanced';
+             const isDowngradeUnavailable = !subscription.isTrial && subscription.packageTier === 'advanced' && tier === 'basic';
+             const isUpgrade = !subscription.isTrial && subscription.packageTier === 'basic' && tier === 'advanced';
              const styles = packageStyles[tier as keyof typeof packageStyles];
              
              return (
                <div
                  key={tier}
                  className={`bg-white border-2 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden ${
-                   isCurrent  ? 'border-green-300 shadow-green-100' :
-                   isAdvanced ? 'border-[#8779fb] shadow-indigo-100' :
+                   isCurrent  ? 'border-[#655ac1] shadow-indigo-100' :
                    'border-slate-100 hover:border-slate-300'
                  }`}
                >
@@ -144,7 +136,7 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
                     {/* ── Badge slot: fixed height keeps cards aligned ── */}
                     <div className="h-7 flex items-center justify-center mb-4">
                       {isCurrent && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500 text-white text-xs font-black rounded-full shadow-sm shadow-green-200">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#655ac1] text-white text-xs font-black rounded-full shadow-sm shadow-indigo-200">
                           <CheckCircle2 size={12} /> الباقة الحالية
                         </span>
                       )}
@@ -162,7 +154,7 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
                       <span className="text-sm font-bold text-slate-400 mb-1.5">ريال</span>
                     </div>
                     
-                    <div className="space-y-3 text-right flex-1 bg-slate-50 rounded-2xl p-5 border border-slate-100 group-hover:bg-white transition-colors mb-6 flex flex-col">
+                    <div className="space-y-3 text-right flex-1 p-2 transition-colors mb-6 flex flex-col">
                       {isAdvanced && (
                         <div className="mb-3 pb-3 border-b border-indigo-100">
                           <p className="text-sm font-black text-[#655ac1] flex items-center gap-2">
@@ -173,41 +165,31 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
                       )}
                       {(() => {
                         const tierFeatures = PACKAGE_FEATURES.filter(feat => {
+                          if (feat === PACKAGE_FEATURES[22]) return false;
                           const included = feat.includedIn.includes(tier);
                           if (!included && !isAdvanced) return false;
                           if (isAdvanced && feat.includedIn.includes('basic')) return false;
                           return included;
                         });
-                        
-                        const isExpanded = expandedTiers[tier];
-                        const initialCount = isAdvanced ? 4 : 6;
-                        const displayedFeatures = isExpanded ? tierFeatures : tierFeatures.slice(0, initialCount);
 
                         return (
                           <div className="flex flex-col flex-1">
                             <div className="space-y-3">
-                              {displayedFeatures.map((feat, idx) => (
-                                <div key={idx} className="flex items-start gap-3 text-slate-700 animate-fade-in">
-                                  <div className="mt-0.5 p-0.5 rounded-full bg-indigo-50 text-[#8779fb]">
-                                    <Check size={14} strokeWidth={3} />
+                              {tierFeatures.map((feat, idx) => (
+                                <div key={idx} className="flex items-start gap-3 text-slate-900">
+                                  <div className="mt-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30 shrink-0">
+                                    <Check size={12} strokeWidth={3.5} className="text-white" />
                                   </div>
                                   <span className="font-bold text-sm leading-relaxed">{feat.name}</span>
                                 </div>
                               ))}
                             </div>
-                            
-                            {tierFeatures.length > initialCount && (
-                              <button 
-                                onClick={() => toggleFeatures(tier)}
-                                className="mt-auto pt-3 w-full flex items-center justify-center gap-1 text-xs font-bold text-[#8779fb] hover:text-[#52499d] transition-colors py-2 bg-indigo-50/50 hover:bg-indigo-50 rounded-lg"
-                              >
-                                {isExpanded ? (
-                                  <>إخفاء المزايا <ChevronUp size={14} /></>
-                                ) : (
-                                  <>استعراض كامل المزايا <ChevronDown size={14} /></>
-                                )}
-                              </button>
-                            )}
+                              <div className="mt-4 pt-3 border-t border-slate-200">
+                                <div className="flex items-center justify-center gap-1.5 w-full px-2 py-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 font-black whitespace-nowrap" style={{ fontSize: 'clamp(9px, 2.4vw, 12px)' }}>
+                                  <AlertCircle size={13} strokeWidth={2.5} className="shrink-0" />
+                                  <span>قيمة اشتراك الرسائل منفصلة عن قيمة الباقة</span>
+                                </div>
+                              </div>
                           </div>
                         );
                       })()}
@@ -215,14 +197,16 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
                     
                     <button
                       onClick={() => handleSelectPlan(tier)}
-                      disabled={isCurrent}
+                      disabled={isCurrent || isDowngradeUnavailable}
                       className={`w-full py-3.5 rounded-xl font-black text-lg transition-all shadow-sm ${
                         isCurrent
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        ? 'bg-[#655ac1] border-2 border-[#655ac1] text-white cursor-not-allowed shadow-sm shadow-indigo-200'
+                        : isDowngradeUnavailable
+                        ? 'bg-slate-100 border-2 border-slate-200 text-slate-400 cursor-not-allowed'
                         : `${styles.btnDefault} ${styles.btnHover}`
                       }`}
                     >
-                      {isCurrent ? 'باقتك الحالية' : 'اشتراك'}
+                      {isCurrent ? 'باقتك الحالية' : isDowngradeUnavailable ? 'غير متاح' : isUpgrade ? 'ترقية' : 'اشتراك'}
                     </button>
                  </div>
                </div>
