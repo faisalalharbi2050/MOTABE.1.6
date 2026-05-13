@@ -13,7 +13,7 @@ import {
   BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle, Scale, PieChart,
   ArrowRight, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
   PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog, Shuffle, CircleOff,
-  Archive, ClipboardCheck, CalendarClock
+  Archive, ClipboardCheck, CalendarClock, Wallet
 } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo,
@@ -78,6 +78,7 @@ interface WaitingAssignment {
   sendType?: 'notification' | 'electronic';
   signatureToken?: string;
 }
+const RECIPIENT_NAME_TOKEN = '{اسم_المستلم}';
 
 interface DailyWaitingSession {
   id: string;
@@ -440,6 +441,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const isDistribute = embeddedSection === 'distribute';
   const isBalance = embeddedSection === 'balance';
   const isPrintSend = embeddedSection === 'printsend';
+  const isReports = embeddedSection === 'reports';
   // ===== State =====
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
   const [sessions, setSessions] = useState<DailyWaitingSession[]>(() => {
@@ -843,8 +845,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ── Phase 4: Message helpers ──
   // message without link (notification only)
-  const buildNotificationMessage = (asgn: WaitingAssignment): string =>
-    `المكرم المنتظر / ${asgn.substituteTeacherName}، لديك حصة انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}.`;
+  const buildNotificationMessage = (asgn: WaitingAssignment, recipientName = asgn.substituteTeacherName): string =>
+    `المكرم المنتظر / ${recipientName}، لديك حصة انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}.`;
 
   // generate a deterministic signing token/link for electronic send
   const buildSignLink = (asgn: WaitingAssignment): string => {
@@ -854,12 +856,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   // message with signature link (electronic)
-  const buildElectronicMessage = (asgn: WaitingAssignment): string =>
-    `المكرم المنتظر / ${asgn.substituteTeacherName}، لديك تكليف انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}. الرجاء التوقيع إلكترونياً عبر الرابط: ${buildSignLink(asgn)}`;
+  const buildElectronicMessage = (asgn: WaitingAssignment, recipientName = asgn.substituteTeacherName): string =>
+    `المكرم المنتظر / ${recipientName}، لديك تكليف انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}. الرجاء التوقيع إلكترونياً عبر الرابط: ${buildSignLink(asgn)}`;
 
   // default message builder (backward compat) — uses notification format
-  const buildAssignmentMessage = (asgn: WaitingAssignment): string =>
-    asgn.sendType === 'electronic' ? buildElectronicMessage(asgn) : buildNotificationMessage(asgn);
+  const buildAssignmentMessage = (asgn: WaitingAssignment, recipientName = asgn.substituteTeacherName): string =>
+    asgn.sendType === 'electronic' ? buildElectronicMessage(asgn, recipientName) : buildNotificationMessage(asgn, recipientName);
+
+  const personalizeWaitingMessage = (message: string, asgn: WaitingAssignment) =>
+    message.replace(/\{اسم_المستلم\}/g, asgn.substituteTeacherName);
 
   const buildWhatsAppUrl = (phone: string, message: string): string => {
     const clean = phone.replace(/\D/g, '');
@@ -920,8 +925,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     if (!currentSession) return [];
     return currentSession.assignments.map(asgn => {
       const baseMsg = sendModalMode === 'electronic'
-        ? buildElectronicMessage(asgn)
-        : buildNotificationMessage(asgn);
+        ? buildElectronicMessage(asgn, RECIPIENT_NAME_TOKEN)
+        : buildNotificationMessage(asgn, RECIPIENT_NAME_TOKEN);
       return { key: asgn.id, asgn, message: sendCustomMessages[asgn.id] ?? baseMsg };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -968,9 +973,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const sendNow = () => {
       targets.forEach((r, i) => {
         if (channel === 'whatsapp') {
-          setTimeout(() => dispatchMessage(r.asgn, r.message, 'whatsapp', sendModalMode), i * 350);
+          setTimeout(() => dispatchMessage(r.asgn, personalizeWaitingMessage(r.message, r.asgn), 'whatsapp', sendModalMode), i * 350);
         } else {
-          dispatchMessage(r.asgn, r.message, 'sms', sendModalMode);
+          dispatchMessage(r.asgn, personalizeWaitingMessage(r.message, r.asgn), 'sms', sendModalMode);
         }
       });
     };
@@ -1052,6 +1057,32 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         </tr>`;
     }).join('');
 
+    const absentRows = rptAbsenceData.absents.slice(0, 12).map((row, idx) => `
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'}">
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-weight:800;">${escapeHtml(row.name)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${row.dayCount}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${row.fullDays}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${row.partialDays}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:900;color:#655ac1;">${row.affectedPeriods}</td>
+      </tr>
+    `).join('');
+    const classRows = rptAbsenceData.classes.slice(0, 12).map((row, idx) => `
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'}">
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-weight:800;">${escapeHtml(row.name)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:900;color:#655ac1;">${row.affectedPeriods}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${row.dayCount}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${escapeHtml(row.topSubject)}</td>
+      </tr>
+    `).join('');
+    const subjectRows = rptAbsenceData.subjects.slice(0, 12).map((row, idx) => `
+      <tr style="background:${idx % 2 === 0 ? '#fff' : '#f8fafc'}">
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-weight:800;">${escapeHtml(row.name)}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:900;color:#655ac1;">${row.affectedPeriods}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${row.absentCount}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center;">${escapeHtml(row.topClass)}</td>
+      </tr>
+    `).join('');
+
     const w = window.open('', '_blank', 'width=900,height=750');
     if (!w) return;
     w.document.write(`<!DOCTYPE html>
@@ -1069,6 +1100,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     .header-left { font-size:11px; line-height:1.9; color:#334155; font-weight:700; text-align:left; }
     .report-title { text-align:center; font-size:18px; font-weight:900; color:#655ac1; margin:12px 0 6px; }
     .date-range { text-align:center; font-size:11px; color:#64748b; font-weight:700; margin-bottom:18px; }
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
+    .stat { border:1px solid #e2e8f0; border-radius:10px; padding:8px; text-align:center; }
+    .stat b { display:block; font-size:17px; color:#655ac1; }
+    .stat span { display:block; font-size:9px; color:#64748b; font-weight:900; margin-top:2px; }
+    .section-title { font-size:13px; font-weight:900; color:#334155; border-right:4px solid #655ac1; padding-right:8px; margin:18px 0 8px; }
     table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:30px; }
     thead th { background:#655ac1; color:#fff; padding:10px 12px; font-weight:800; border-left:1px solid #7c6fcf; }
     thead th:last-child { border-left:none; }
@@ -1103,9 +1139,17 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     من يوم (${fromDayName}) الموافق (${fromDateDisplay}) إلى يوم (${toDayName}) الموافق (${toDateDisplay})
   </div>
 
+  <div class="stats">
+    <div class="stat"><b>${rptSummary.totalAssigned}</b><span>حصص الانتظار</span></div>
+    <div class="stat"><b>${rptSummary.activeWaiters}</b><span>المنتظرون المكلفون</span></div>
+    <div class="stat"><b>${rptSummary.absentCount}</b><span>المعلمون الغائبون</span></div>
+    <div class="stat"><b>${rptSummary.affectedClasses}</b><span>الفصول المتأثرة</span></div>
+  </div>
+
   ${rptTableData.length === 0 ? `
     <p style="text-align:center;color:#94a3b8;font-size:14px;padding:30px;font-weight:bold;">لا توجد بيانات في الفترة الزمنية المحددة</p>
   ` : `
+  <div class="section-title">توزيع الانتظار على المنتظرين</div>
   <table>
     <thead>
       <tr>
@@ -1126,6 +1170,22 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     </tbody>
   </table>
   `}
+
+  <div class="section-title">أكثر المعلمين غيابًا وأثرًا على الانتظار</div>
+  <table>
+    <thead><tr><th style="text-align:right;">المعلم</th><th>أيام الغياب</th><th>غياب كامل</th><th>غياب جزئي</th><th>الحصص المتأثرة</th></tr></thead>
+    <tbody>${absentRows || '<tr><td colspan="5" style="text-align:center;padding:14px;color:#94a3b8;">لا توجد بيانات غياب</td></tr>'}</tbody>
+  </table>
+  <div class="section-title">الفصول المتأثرة بالغياب</div>
+  <table>
+    <thead><tr><th style="text-align:right;">الفصل</th><th>الحصص المتأثرة</th><th>الأيام</th><th>أكثر مادة تأثرًا</th></tr></thead>
+    <tbody>${classRows || '<tr><td colspan="4" style="text-align:center;padding:14px;color:#94a3b8;">لا توجد فصول متأثرة</td></tr>'}</tbody>
+  </table>
+  <div class="section-title">المواد المتأثرة بالغياب</div>
+  <table>
+    <thead><tr><th style="text-align:right;">المادة</th><th>الحصص المتأثرة</th><th>المعلمون الغائبون</th><th>أكثر فصل تأثرًا</th></tr></thead>
+    <tbody>${subjectRows || '<tr><td colspan="4" style="text-align:center;padding:14px;color:#94a3b8;">لا توجد مواد متأثرة</td></tr>'}</tbody>
+  </table>
 
   <div class="footer">
     <div class="signature-box">
@@ -1213,10 +1273,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ===== Auto-open modals for legacy report embedded section =====
   const [autoOpenedKey, setAutoOpenedKey] = useState<'balance' | 'reports' | null>(null);
   useEffect(() => {
-    if (embeddedSection === 'reports' && autoOpenedKey !== 'reports') {
-      setShowReportsModal(true);
-      setAutoOpenedKey('reports');
-    } else if (!embeddedSection || embeddedSection !== 'reports') {
+    if (!embeddedSection || embeddedSection !== 'reports') {
       setAutoOpenedKey(null);
     }
   }, [embeddedSection]);
@@ -2176,19 +2233,23 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const rptCalType = (schoolInfo.semesters?.[0]?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
 
   const allWaitingStaff = useMemo(() => {
-    const list: { id: string; name: string }[] = [];
-    teachers.forEach(t => { if ((t.waitingQuota || 0) > 0) list.push({ id: t.id, name: t.name }); });
+    const list: { id: string; name: string; role: 'teacher' | 'admin'; quota: number }[] = [];
+    teachers.forEach(t => { if ((t.waitingQuota || 0) > 0) list.push({ id: t.id, name: t.name, role: 'teacher', quota: t.waitingQuota || 0 }); });
     admins.forEach(a => {
-      if (!ADMIN_BLOCKED_ROLES.some(r => a.role?.includes(r))) list.push({ id: a.id, name: a.name });
+      if (!ADMIN_BLOCKED_ROLES.some(r => a.role?.includes(r))) list.push({ id: a.id, name: a.name, role: 'admin', quota: a.waitingQuota || 0 });
     });
     return list;
   }, [teachers, admins]);
 
+  const rptFilteredSessions = useMemo(() => sessions.filter(session => {
+    if (rptFromDate && session.date < rptFromDate) return false;
+    if (rptToDate && session.date > rptToDate) return false;
+    return true;
+  }), [sessions, rptFromDate, rptToDate]);
+
   const rptTableData = useMemo(() => {
-    const staffMap: Record<string, { name: string; quota: number; totalAssigned: number; periods: number[] }> = {};
-    for (const session of sessions) {
-      if (rptFromDate && session.date < rptFromDate) continue;
-      if (rptToDate && session.date > rptToDate) continue;
+    const staffMap: Record<string, { id: string; name: string; role: 'teacher' | 'admin'; quota: number; totalAssigned: number; periods: number[]; days: Set<string> }> = {};
+    for (const session of rptFilteredSessions) {
       for (const asgn of session.assignments) {
         if (isWaitingSlotDisabled(asgn.absentTeacherId, asgn.periodNumber)) continue;
         const sid = asgn.substituteTeacherId;
@@ -2197,14 +2258,98 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           const teacher = teachers.find(t => t.id === sid);
           const admin = admins.find(a => a.id === sid);
           const quota = teacher?.waitingQuota || admin?.waitingQuota || 0;
-          staffMap[sid] = { name: asgn.substituteTeacherName, quota, totalAssigned: 0, periods: [] };
+          staffMap[sid] = { id: sid, name: asgn.substituteTeacherName, role: admin ? 'admin' : 'teacher', quota, totalAssigned: 0, periods: [], days: new Set() };
         }
         staffMap[sid].totalAssigned++;
         staffMap[sid].periods.push(asgn.periodNumber);
+        staffMap[sid].days.add(session.date);
       }
     }
-    return Object.values(staffMap).sort((a, b) => b.totalAssigned - a.totalAssigned);
-  }, [sessions, rptFromDate, rptToDate, rptStaffMode, rptSelectedIds, teachers, admins, disabledWaitingSlots]);
+    return Object.values(staffMap)
+      .map(row => ({ ...row, dayCount: row.days.size }))
+      .sort((a, b) => b.totalAssigned - a.totalAssigned || a.name.localeCompare(b.name, 'ar'));
+  }, [rptFilteredSessions, rptStaffMode, rptSelectedIds, teachers, admins, disabledWaitingSlots]);
+
+  const rptAbsenceData = useMemo(() => {
+    const absentMap: Record<string, { id: string; name: string; fullDays: number; partialDays: number; affectedPeriods: number; dates: Set<string> }> = {};
+    const classMap: Record<string, { name: string; affectedPeriods: number; dates: Set<string>; subjects: Record<string, number> }> = {};
+    const subjectMap: Record<string, { name: string; affectedPeriods: number; dates: Set<string>; classes: Record<string, number>; absents: Set<string> }> = {};
+
+    for (const session of rptFilteredSessions) {
+      for (const absent of session.absentTeachers) {
+        if (!absentMap[absent.teacherId]) {
+          absentMap[absent.teacherId] = { id: absent.teacherId, name: absent.teacherName, fullDays: 0, partialDays: 0, affectedPeriods: 0, dates: new Set() };
+        }
+        const absentRow = absentMap[absent.teacherId];
+        absentRow.dates.add(session.date);
+        if (absent.absenceType === 'full') absentRow.fullDays++;
+        else absentRow.partialDays++;
+
+        for (const period of absent.periods) {
+          if (isWaitingSlotDisabled(absent.id, period.periodNumber)) continue;
+          absentRow.affectedPeriods++;
+
+          const classKey = period.classId || period.className || 'unknown-class';
+          if (!classMap[classKey]) classMap[classKey] = { name: period.className || 'غير محدد', affectedPeriods: 0, dates: new Set(), subjects: {} };
+          classMap[classKey].affectedPeriods++;
+          classMap[classKey].dates.add(session.date);
+          classMap[classKey].subjects[period.subjectName || 'غير محدد'] = (classMap[classKey].subjects[period.subjectName || 'غير محدد'] || 0) + 1;
+
+          const subjectKey = period.subjectId || period.subjectName || 'unknown-subject';
+          if (!subjectMap[subjectKey]) subjectMap[subjectKey] = { name: period.subjectName || 'غير محدد', affectedPeriods: 0, dates: new Set(), classes: {}, absents: new Set() };
+          subjectMap[subjectKey].affectedPeriods++;
+          subjectMap[subjectKey].dates.add(session.date);
+          subjectMap[subjectKey].classes[period.className || 'غير محدد'] = (subjectMap[subjectKey].classes[period.className || 'غير محدد'] || 0) + 1;
+          subjectMap[subjectKey].absents.add(absent.teacherId);
+        }
+      }
+    }
+
+    const topFromRecord = (record: Record<string, number>) => {
+      const [name] = Object.entries(record).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+      return name;
+    };
+
+    return {
+      absents: Object.values(absentMap)
+        .map(row => ({ ...row, dayCount: row.dates.size }))
+        .sort((a, b) => b.affectedPeriods - a.affectedPeriods || b.dayCount - a.dayCount || a.name.localeCompare(b.name, 'ar')),
+      classes: Object.values(classMap)
+        .map(row => ({ ...row, dayCount: row.dates.size, topSubject: topFromRecord(row.subjects) }))
+        .sort((a, b) => b.affectedPeriods - a.affectedPeriods || a.name.localeCompare(b.name, 'ar')),
+      subjects: Object.values(subjectMap)
+        .map(row => ({ ...row, dayCount: row.dates.size, absentCount: row.absents.size, topClass: topFromRecord(row.classes) }))
+        .sort((a, b) => b.affectedPeriods - a.affectedPeriods || a.name.localeCompare(b.name, 'ar')),
+    };
+  }, [rptFilteredSessions, disabledWaitingSlots]);
+
+  const rptSummary = useMemo(() => {
+    const totalAssigned = rptTableData.reduce((sum, row) => sum + row.totalAssigned, 0);
+    const activeWaiters = rptTableData.length;
+    const absentCount = rptAbsenceData.absents.length;
+    const affectedClasses = rptAbsenceData.classes.length;
+    const loads = allWaitingStaff
+      .filter(staff => rptStaffMode === 'all' || rptSelectedIds.size === 0 || rptSelectedIds.has(staff.id))
+      .map(staff => {
+        const row = rptTableData.find(item => item.id === staff.id);
+        return staff.quota > 0 ? (row?.totalAssigned || 0) / staff.quota : 0;
+      });
+    const mean = loads.length ? loads.reduce((sum, load) => sum + load, 0) / loads.length : 0;
+    const variance = loads.length ? loads.reduce((sum, load) => sum + Math.pow(load - mean, 2), 0) / loads.length : 0;
+    const fairnessScore = Math.max(0, Math.min(100, Math.round(100 - Math.sqrt(variance) * 220)));
+
+    return {
+      totalAssigned,
+      activeWaiters,
+      absentCount,
+      affectedClasses,
+      avgAssigned: activeWaiters ? Number((totalAssigned / activeWaiters).toFixed(1)) : 0,
+      topWaiter: rptTableData[0]?.name || '—',
+      topAbsent: rptAbsenceData.absents[0]?.name || '—',
+      fairnessScore,
+      fairnessLabel: fairnessScore >= 85 ? 'متوازن' : fairnessScore >= 65 ? 'جيد' : 'يحتاج مراجعة',
+    };
+  }, [rptTableData, rptAbsenceData, allWaitingStaff, rptStaffMode, rptSelectedIds]);
 
   const rptWeekTotal = useMemo(() => {
     const weekDates = new Set(getWeekDates(getTodayStr()));
@@ -2572,6 +2717,332 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             autoPrint
           />
         )}
+      </div>
+    );
+  }
+
+  if (isReports) {
+    const reportDateLabel = rptFromDate && rptToDate
+      ? `من ${formatHijri(rptFromDate)} إلى ${formatHijri(rptToDate)}`
+      : 'كل البيانات المتاحة';
+    const selectedStaffNames = Array.from(rptSelectedIds)
+      .map(id => allWaitingStaff.find(staff => staff.id === id)?.name)
+      .filter(Boolean)
+      .join('، ');
+    const filteredStaffOptions = allWaitingStaff.filter(staff => staff.name.includes(rptSearch));
+
+    return (
+      <div className="space-y-5 pb-20" dir="rtl">
+        {toast && ReactDOM.createPortal(
+          <div
+            style={{ top: '82px', left: '50%', transform: 'translateX(-50%)' }}
+            className={`fixed z-[99999] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border min-w-[320px] max-w-[90vw] ${
+              toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+              toast.type === 'error'   ? 'bg-red-50 border-red-200 text-red-800' :
+              toast.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                                         'bg-blue-50 border-blue-200 text-blue-800'
+            }`}
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              toast.type === 'success' ? 'bg-emerald-100' :
+              toast.type === 'error'   ? 'bg-red-100' :
+              toast.type === 'warning' ? 'bg-amber-100' : 'bg-blue-100'
+            }`}>
+              {toast.type === 'success' && <CheckCircle2 size={20} className="text-emerald-600" />}
+              {toast.type === 'error'   && <AlertCircle  size={20} className="text-red-600" />}
+              {toast.type === 'warning' && <AlertTriangle size={20} className="text-amber-600" />}
+              {toast.type === 'info'    && <Info          size={20} className="text-blue-600" />}
+            </div>
+            <p className="font-bold text-sm flex-1 leading-relaxed">{toast.message}</p>
+            <button onClick={() => setToast(null)} className="p-1 rounded-lg hover:bg-black/5 transition-colors shrink-0">
+              <X size={16} className="opacity-50" />
+            </button>
+          </div>,
+          document.body
+        )}
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <FileText size={23} className="text-[#655ac1] mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <h2 className="font-black text-slate-800 text-lg">تقارير الانتظار</h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5 leading-6">
+                  قراءة مختصرة لتوزيع الانتظار، غياب المعلمين، والفصول والمواد المتأثرة خلال الفترة المحددة.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleWaitingReportPrint}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white text-[13px] font-black shadow-sm hover:bg-[#5046a0] transition-all"
+            >
+              <Printer size={15} />
+              طباعة التقرير
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black text-slate-500 mb-1.5">من تاريخ</label>
+                <DatePicker
+                  value={rptFromDate}
+                  onChange={(date: DateObject | DateObject[] | null) => {
+                    const selectedDateObj = Array.isArray(date) ? date[0] : date;
+                    setRptFromDate(selectedDateObj ? selectedDateObj.convert(gregorian, gregorian_en).format('YYYY-MM-DD') : '');
+                  }}
+                  calendar={arabic}
+                  locale={arabic_ar}
+                  containerClassName="w-full"
+                  inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:border-[#655ac1] transition-all text-right"
+                  editable={false}
+                  portal
+                  portalTarget={document.body}
+                  zIndex={99999}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-500 mb-1.5">إلى تاريخ</label>
+                <DatePicker
+                  value={rptToDate}
+                  onChange={(date: DateObject | DateObject[] | null) => {
+                    const selectedDateObj = Array.isArray(date) ? date[0] : date;
+                    setRptToDate(selectedDateObj ? selectedDateObj.convert(gregorian, gregorian_en).format('YYYY-MM-DD') : '');
+                  }}
+                  calendar={arabic}
+                  locale={arabic_ar}
+                  containerClassName="w-full"
+                  inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:border-[#655ac1] transition-all text-right"
+                  editable={false}
+                  portal
+                  portalTarget={document.body}
+                  zIndex={99999}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200 w-fit">
+                <button
+                  type="button"
+                  onClick={() => { setRptStaffMode('all'); setRptSelectedIds(new Set()); }}
+                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${rptStaffMode === 'all' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  كل المنتظرين
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRptStaffMode('specific')}
+                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${rptStaffMode === 'specific' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  اختيار محدد
+                </button>
+              </div>
+
+              {rptStaffMode === 'specific' && (
+                <div className="relative">
+                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={rptSearch}
+                    onChange={e => setRptSearch(e.target.value)}
+                    onFocus={() => setRptDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setRptDropdownOpen(false), 180)}
+                    placeholder="ابحث عن منتظر..."
+                    className="w-full pr-9 pl-3 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
+                  />
+                  {rptDropdownOpen && (
+                    <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-[90] max-h-56 overflow-y-auto rounded-xl border border-slate-100 bg-white shadow-xl">
+                      {filteredStaffOptions.map(staff => (
+                        <button
+                          key={staff.id}
+                          type="button"
+                          onMouseDown={() => {
+                            setRptSelectedIds(prev => {
+                              const next = new Set(prev);
+                              next.has(staff.id) ? next.delete(staff.id) : next.add(staff.id);
+                              return next;
+                            });
+                          }}
+                          className="w-full px-4 py-2.5 text-right text-sm font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-50 last:border-0 flex items-center justify-between gap-3"
+                        >
+                          <span className="truncate">{staff.name}</span>
+                          <span className="text-[10px] font-black text-slate-400">{staff.role === 'admin' ? 'إداري' : 'معلم'}</span>
+                        </button>
+                      ))}
+                      {filteredStaffOptions.length === 0 && (
+                        <div className="p-4 text-center text-sm font-bold text-slate-400">لا توجد نتائج</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              <p className="text-[11px] font-bold text-slate-400 leading-5">
+                {rptStaffMode === 'all'
+                  ? reportDateLabel
+                  : selectedStaffNames || 'اختر منتظرًا أو أكثر، أو اترك الاختيار فارغًا لعرض الجميع'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {[
+            { label: 'حصص الانتظار', value: rptSummary.totalAssigned, icon: ClipboardCheck, color: 'text-[#655ac1]' },
+            { label: 'المنتظرون المكلفون', value: rptSummary.activeWaiters, icon: Users, color: 'text-slate-700' },
+            { label: 'المعلمون الغائبون', value: rptSummary.absentCount, icon: UserX, color: 'text-slate-700' },
+            { label: 'الفصول المتأثرة', value: rptSummary.affectedClasses, icon: Layers, color: 'text-slate-700' },
+          ].map(stat => (
+            <div key={stat.label} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
+              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+                <stat.icon size={21} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-400 leading-none">{stat.label}</p>
+                <p className={`mt-1 font-black text-xl leading-none ${stat.color}`}>{stat.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-5">
+            <p className="text-xs font-black text-slate-400 mb-2">مؤشر عدالة التوزيع</p>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-3xl font-black text-[#655ac1]">{rptSummary.fairnessScore}%</p>
+                <p className="text-sm font-black text-slate-700 mt-1">{rptSummary.fairnessLabel}</p>
+              </div>
+              <div className="w-28 h-2 rounded-full bg-slate-100 overflow-hidden mb-2">
+                <div className="h-full bg-[#655ac1]" style={{ width: `${rptSummary.fairnessScore}%` }} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-5">
+            <p className="text-xs font-black text-slate-400 mb-2">أكثر منتظر إسنادًا</p>
+            <p className="text-lg font-black text-slate-800 truncate">{rptSummary.topWaiter}</p>
+            <p className="text-xs font-bold text-slate-400 mt-1">متوسط الإسناد: {rptSummary.avgAssigned}</p>
+          </div>
+          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-5">
+            <p className="text-xs font-black text-slate-400 mb-2">أكثر معلم أثر غيابه</p>
+            <p className="text-lg font-black text-slate-800 truncate">{rptSummary.topAbsent}</p>
+            <p className="text-xs font-bold text-slate-400 mt-1">حسب عدد الحصص المتأثرة</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+          {[
+            { title: 'أكثر المنتظرين إسنادًا', rows: rptTableData.slice(0, 5), empty: 'لا توجد إسنادات', render: (row: any, index: number) => (
+              <div key={row.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
+                <span className="w-7 h-7 rounded-xl bg-slate-50 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
+                <span className="text-sm font-black text-slate-800 truncate flex-1">{row.name}</span>
+                <span className="text-sm font-black text-[#655ac1]">{row.totalAssigned}</span>
+              </div>
+            ) },
+            { title: 'أكثر المعلمين غيابًا', rows: rptAbsenceData.absents.slice(0, 5), empty: 'لا توجد غيابات', render: (row: any, index: number) => (
+              <div key={row.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
+                <span className="w-7 h-7 rounded-xl bg-slate-50 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
+                <span className="text-sm font-black text-slate-800 truncate flex-1">{row.name}</span>
+                <span className="text-sm font-black text-[#655ac1]">{row.affectedPeriods}</span>
+              </div>
+            ) },
+            { title: 'الفصول المتأثرة', rows: rptAbsenceData.classes.slice(0, 5), empty: 'لا توجد فصول متأثرة', render: (row: any, index: number) => (
+              <div key={row.name} className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
+                <span className="w-7 h-7 rounded-xl bg-slate-50 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
+                <span className="text-sm font-black text-slate-800 truncate flex-1">{row.name}</span>
+                <span className="text-sm font-black text-[#655ac1]">{row.affectedPeriods}</span>
+              </div>
+            ) },
+          ].map(section => (
+            <div key={section.title} className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70">
+                <p className="text-sm font-black text-slate-800">{section.title}</p>
+              </div>
+              <div className="p-4 space-y-2">
+                {section.rows.length === 0
+                  ? <p className="text-center text-xs font-bold text-slate-400 py-5">{section.empty}</p>
+                  : section.rows.map((row: any, index: number) => section.render(row, index))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-slate-100 bg-white">
+              <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                <ClipboardCheck size={18} className="text-[#655ac1]" />
+                توزيع الانتظار على المنتظرين
+              </p>
+            </div>
+            {rptTableData.length === 0 ? (
+              <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات انتظار في الفترة المحددة.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] table-fixed text-sm text-right">
+                  <thead>
+                    <tr className="bg-white border-b border-slate-100">
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[32%]">المنتظر</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[16%]">الصفة</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[16%]">النصاب</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">المسند</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">أيام الإسناد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rptTableData.map(row => (
+                      <tr key={row.id} className="border-b border-slate-100">
+                        <td className="px-3 py-3 font-black text-slate-800 truncate">{row.name}</td>
+                        <td className="px-3 py-3 text-center text-xs font-bold text-slate-500">{row.role === 'admin' ? 'إداري' : 'معلم'}</td>
+                        <td className="px-3 py-3 text-center font-black text-slate-600">{row.quota || '—'}</td>
+                        <td className="px-3 py-3 text-center font-black text-[#655ac1]">{row.totalAssigned}</td>
+                        <td className="px-3 py-3 text-center font-black text-slate-600">{row.dayCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-slate-100 bg-white">
+              <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                <BookOpen size={18} className="text-[#655ac1]" />
+                المواد المتأثرة بالغياب
+              </p>
+            </div>
+            {rptAbsenceData.subjects.length === 0 ? (
+              <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد مواد متأثرة في الفترة المحددة.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] table-fixed text-sm text-right">
+                  <thead>
+                    <tr className="bg-white border-b border-slate-100">
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[34%]">المادة</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">الحصص</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[20%]">المعلمون</th>
+                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[28%]">أكثر فصل تأثرًا</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rptAbsenceData.subjects.map(row => (
+                      <tr key={row.name} className="border-b border-slate-100">
+                        <td className="px-3 py-3 font-black text-slate-800 truncate">{row.name}</td>
+                        <td className="px-3 py-3 text-center font-black text-[#655ac1]">{row.affectedPeriods}</td>
+                        <td className="px-3 py-3 text-center font-black text-slate-600">{row.absentCount}</td>
+                        <td className="px-3 py-3 text-center text-xs font-bold text-slate-500 truncate">{row.topClass}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -3911,7 +4382,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   {/* طريقة الإرسال المفضلة */}
                   <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-start gap-3 mb-4">
-                      <MessageSquare size={20} className="text-[#655ac1]" />
+                      <Wallet size={20} className="text-[#655ac1]" />
                       <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -4249,7 +4720,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <div className="space-y-4">
                   <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-start gap-3 mb-4">
-                      <MessageSquare size={20} className="text-[#655ac1]" />
+                      <Wallet size={20} className="text-[#655ac1]" />
                       <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -6023,7 +6494,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
                   <div className="flex items-center gap-3">
-                    <MessageSquare size={19} className="text-[#655ac1]" />
+                    <Wallet size={19} className="text-[#655ac1]" />
                     <div>
                       <h3 className="text-sm font-black text-slate-800">طريقة الإرسال المفضلة</h3>
                       <p className="text-[11px] font-bold text-slate-400 mt-0.5">{selectedWithPhoneCount} مستلم لديه رقم جوال</p>
@@ -6198,7 +6669,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         if (!targets.length) { showToast('لم يتم تحديد أي تكليف', 'warning'); return; }
                         targets.forEach((r, i) => {
                           if (r.asgn.substitutePhone) {
-                            setTimeout(() => dispatchMessage(r.asgn, r.message, 'whatsapp', sendModalMode), i * 350);
+                            setTimeout(() => dispatchMessage(r.asgn, personalizeWaitingMessage(r.message, r.asgn), 'whatsapp', sendModalMode), i * 350);
                           }
                         });
                         showToast(`تم فتح ${targets.filter(r => r.asgn.substitutePhone).length} رسالة واتساب`, 'success');
@@ -6212,7 +6683,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         if (!targets.length) { showToast('لم يتم تحديد أي تكليف', 'warning'); return; }
                         targets.forEach(r => {
                           if (r.asgn.substitutePhone) {
-                            dispatchMessage(r.asgn, r.message, 'sms', sendModalMode);
+                            dispatchMessage(r.asgn, personalizeWaitingMessage(r.message, r.asgn), 'sms', sendModalMode);
                           }
                         });
                         showToast(`تم فتح ${targets.filter(r => r.asgn.substitutePhone).length} رسالة نصية`, 'success');
@@ -6290,7 +6761,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                   <button
                                     onClick={() => {
                                       if (!asgn.substitutePhone) { showToast('لا يوجد رقم هاتف', 'warning'); return; }
-                                      dispatchMessage(asgn, row.message, 'whatsapp', sendModalMode);
+                                      dispatchMessage(asgn, personalizeWaitingMessage(row.message, asgn), 'whatsapp', sendModalMode);
                                     }}
                                     title="واتساب"
                                     className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/25 border border-[#25D366]/20 transition-all active:scale-90"
@@ -6298,7 +6769,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                   <button
                                     onClick={() => {
                                       if (!asgn.substitutePhone) { showToast('لا يوجد رقم هاتف', 'warning'); return; }
-                                      dispatchMessage(asgn, row.message, 'sms', sendModalMode);
+                                      dispatchMessage(asgn, personalizeWaitingMessage(row.message, asgn), 'sms', sendModalMode);
                                     }}
                                     title="رسالة نصية"
                                     className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#007AFF]/10 hover:bg-[#007AFF]/25 border border-[#007AFF]/20 transition-all active:scale-90"

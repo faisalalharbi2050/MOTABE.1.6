@@ -8,7 +8,7 @@ import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
   AlertCircle, Archive, ArrowRight, CalendarClock, Check, CheckCircle2, ChevronDown,
   ClipboardCheck, ClipboardList, Copy, Eye, FileText, MessageSquare, Printer, RefreshCw,
-  Search, Send, SlidersHorizontal, Users, X,
+  Search, Send, SlidersHorizontal, Users, Wallet, X,
 } from 'lucide-react';
 import { DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
@@ -40,6 +40,7 @@ type SchedulePrintScope = 'all' | 'selectedWeeks';
 type SendMode = 'electronic' | 'text' | 'reminder';
 type SendChannel = 'whatsapp' | 'sms';
 type CalendarType = 'hijri' | 'gregorian';
+const RECIPIENT_NAME_TOKEN = '{اسم_المستلم}';
 
 type DropdownOption = {
   value: string;
@@ -613,9 +614,10 @@ const PrintSendTab: React.FC<Props> = ({
       showToast?.('تعذّر نسخ الرابط', 'error');
     }
   };
-  const buildDetailedMessage = (row?: typeof sendRows[number]) => {
+  const buildDetailedMessage = (row?: typeof sendRows[number], recipientName?: string) => {
     const target = row || selectedRows[0];
     if (!target) return '';
+    const displayName = recipientName || target.staffName;
     const assignments = 'assignments' in target ? target.assignments : [target];
     const firstAssignment = assignments[0];
     const dayName = DAY_NAMES[firstAssignment.day] || firstAssignment.day;
@@ -623,7 +625,7 @@ const PrintSendTab: React.FC<Props> = ({
     const assignmentLines = assignments.map(item => `- ${DAY_NAMES[item.day] || item.day} الموافق ${formatHijriDate(item.date)}`).join('\n');
     const assignmentText = assignments.length > 1 ? `الأيام التالية:\n${assignmentLines}` : `يوم ${dayName} الموافق ${dateText}`;
     if (sendMode === 'electronic') {
-      return `المكرم/ ${target.staffName}
+      return `المكرم/ ${displayName}
 نشعركم بإسناد مهمة المناوبة اليومية لكم في ${assignmentText} ، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.
 ${todayHijriLine}
 
@@ -631,11 +633,11 @@ ${todayHijriLine}
 ${buildSignatureLink(target)}`;
     }
     if (sendMode === 'text') {
-      return `المكرم/ ${target.staffName}
+      return `المكرم/ ${displayName}
 نشعركم بإسناد مهمة المناوبة اليومية لكم في ${assignmentText}، شاكرين تعاونكم.
 ${todayHijriLine}`;
     }
-    return `المكرم/ ${target.staffName}
+    return `المكرم/ ${displayName}
 نذكركم بمهمة المناوبة اليومية لهذا ${dayName} الموافق ${dateText}، شاكرين تعاونكم.
 ${todayHijriLine}${includeReportLinkInReminder ? `
 
@@ -645,7 +647,7 @@ ${buildReportLink(target)}` : ''}`;
 
   useEffect(() => {
     if (staffSelectionTouched && selectedStaffKeys.length > 0) {
-      setMessageText(buildDetailedMessage());
+      setMessageText(buildDetailedMessage(undefined, RECIPIENT_NAME_TOKEN));
     }
   }, [sendMode, selectedRows, todayHijriLine, includeReportLinkInReminder]);
 
@@ -2138,7 +2140,7 @@ ${buildReportLink(target)}` : ''}`;
             <div className="space-y-4">
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-start gap-3 mb-4">
-                  <MessageSquare size={20} className="text-[#655ac1]" />
+                  <Wallet size={20} className="text-[#655ac1]" />
                   <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -2224,7 +2226,7 @@ ${buildReportLink(target)}` : ''}`;
                     title="استعادة النص الافتراضي"
                     onClick={() => {
                       if (selectedRows.length === 0) return;
-                      setMessageText(buildDetailedMessage());
+                      setMessageText(buildDetailedMessage(undefined, RECIPIENT_NAME_TOKEN));
                     }}
                     disabled={selectedRows.length === 0}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"

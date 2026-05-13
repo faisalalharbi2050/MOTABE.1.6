@@ -36,6 +36,7 @@ import {
   Loader2,
   X,
   RefreshCw,
+  Wallet,
 } from 'lucide-react';
 import {
   SchoolInfo,
@@ -1556,11 +1557,7 @@ const ViewTab: React.FC<Props> = ({
       sendAudience === 'admins' ? 'admins' :
       'parents';
     const schedTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
-    const recipientName = sendAudience === 'guardians'
-      ? 'المكرم/ولي أمر الطالب/ـة {اسم_الطالب}'
-      : sendAudience === 'admins'
-        ? 'المكرم/{اسم_الإداري}'
-        : 'المكرم/{اسم_المعلم}';
+    const recipientName = 'المكرم/ {اسم_المستلم}';
     const content = [
       `${recipientName}`,
       `نرفق لكم جدول للعلم والاطلاع.`,
@@ -1653,6 +1650,7 @@ const ViewTab: React.FC<Props> = ({
         .replace(/\{اسم_المعلم\}/g, recipient.name)
         .replace(/\{اسم_الإداري\}/g, recipient.name)
         .replace(/\{اسم_الطالب\}/g, recipient.classLabel || recipient.name)
+        .replace(/\{اسم_المستلم\}/g, recipient.name)
         .replace(/\{روابط_الجداول\}/g, recipientLinkText)
         .replace(/\{اسم_المدرسة\}/g, schoolInfo.schoolName || 'المدرسة')
         .replace(/\{اليوم\}/g, dayLabel)
@@ -2379,7 +2377,7 @@ const ViewTab: React.FC<Props> = ({
               {/* بطاقة: طريقة الإرسال المفضلة */}
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-start gap-3 mb-4">
-                  <MessageSquare size={20} className="text-[#655ac1]" />
+                  <Wallet size={20} className="text-[#655ac1]" />
                   <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

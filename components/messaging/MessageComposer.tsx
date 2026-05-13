@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
   Send, Users, AlertCircle, AlertTriangle, Paperclip, CheckCircle2,
-  FileText, MessageSquare, Plus, Search, CheckSquare, Square, X, ChevronDown, ChevronLeft,
+  MessageSquare, Plus, Search, CheckSquare, Square, X, ChevronDown, ChevronLeft,
   Clock, Calendar as CalendarIcon, Eye, Wallet, CalendarClock
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
@@ -217,6 +217,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       .replace(/{اسم_الطالب}/g, sample)
       .replace(/{اسم_المعلم}/g, sample)
       .replace(/{اسم_الإداري}/g, sample)
+      .replace(/{اسم_المستلم}/g, sample)
       .replace(/{اليوم}/g, today)
       .replace(/{التاريخ}/g, dateFormatted)
       .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || 'اسم المدرسة')
@@ -302,6 +303,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         .replace(/{اسم_الطالب}/g, rec.name)
         .replace(/{اسم_المعلم}/g, rec.name)
         .replace(/{اسم_الإداري}/g, rec.name)
+        .replace(/{اسم_المستلم}/g, rec.name)
         .replace(/{اليوم}/g, today)
         .replace(/{التاريخ}/g, dateFormatted)
         .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || '')
@@ -687,7 +689,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2">
-              <FileText className="text-[#655ac1]" size={20} />
+              <MessageSquare className="text-[#655ac1]" size={20} />
               نص الرسالة
             </h3>
             <select

@@ -9,7 +9,7 @@ import {
   Printer, Send, Loader2,
   Archive, ClipboardList, ClipboardCheck, CalendarDays, CalendarClock, SlidersHorizontal,
   MessageSquare, AlertCircle, CheckCircle2,
-  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy,
+  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy, Wallet,
 } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData, Teacher, Admin } from '../../../types';
 import {
@@ -39,6 +39,7 @@ type SendMode = 'electronic' | 'text' | 'reminder';
 type SendAudience = 'supervisors' | 'followups' | 'all';
 type SendChannel = 'whatsapp' | 'sms';
 type SigFilter = 'all' | 'signed' | 'pending';
+const RECIPIENT_NAME_TOKEN = '{اسم_المستلم}';
 
 type DropdownOption = {
   value: string;
@@ -417,7 +418,7 @@ const PrintSendTab: React.FC<Props> = ({
 
   useEffect(() => {
     if (selectedRows.length === 0) { setMessageText(''); return; }
-    setMessageText(buildDetailedMessage(selectedRows[0]));
+    setMessageText(buildDetailedMessage(selectedRows[0], RECIPIENT_NAME_TOKEN));
   }, [sendMode, selectedRows]);
 
   useEffect(() => {
@@ -639,7 +640,7 @@ const PrintSendTab: React.FC<Props> = ({
     }
   };
 
-  const buildDetailedMessage = (row: SendRow): string => {
+  const buildDetailedMessage = (row: SendRow, recipientName = row.staffName): string => {
     const assignmentDayName = DAY_NAMES[row.day] || row.day;
     const assignmentHijri = formatHijriDate(supervisionData.effectiveDate);
     const todayDayName = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date().getDay()];
@@ -648,23 +649,26 @@ const PrintSendTab: React.FC<Props> = ({
     const link = buildSignatureLink(row);
     const reminderTemplate = supervisionData.settings.reminderMessageTemplate?.trim();
     const fillReminderTemplate = (template: string) => template
-      .replace(/\(\s*(?:اسم المستلم|اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, row.staffName)
+      .replace(/\(\s*(?:اسم المستلم|اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, recipientName)
       .replace(/\(\s*(?:اليوم|يظهر هنا اليوم)\s*\)/g, todayDayName)
       .replace(/\(\s*(?:اسم المدرسة|يظهر اسم المدرسة)\s*\)/g, schoolName)
       .replace(/\(\s*(?:التاريخ بالهجري|يظهر التاريخ بالهجري)\s*\)/g, todayHijri)
       .replace(/\(\s*(?:الفصل الدراسي|يظهر الفصل الدراسي)\s*\)/g, currentSemesterName);
 
     if (sendMode === 'electronic') {
-      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}\nرابط التكليف والتوقيع:\n${link}`;
+      return `المكرم/ ${recipientName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}\nرابط التكليف والتوقيع:\n${link}`;
     }
     if (sendMode === 'text') {
-      return `المكرم/ ${row.staffName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}.`;
+      return `المكرم/ ${recipientName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}.`;
     }
     if (reminderTemplate) {
       return fillReminderTemplate(reminderTemplate);
     }
-    return `المكرم/ ${row.staffName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName}، شاكرين تعاونكم.\n${schoolName} - ${todayDayName} - ${todayHijri} - ${currentSemesterName}.`;
+    return `المكرم/ ${recipientName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName}، شاكرين تعاونكم.\n${schoolName} - ${todayDayName} - ${todayHijri} - ${currentSemesterName}.`;
   };
+
+  const buildOutgoingMessage = (row: SendRow): string =>
+    (messageText.trim() ? messageText : buildMessage(row)).replace(/\{اسم_المستلم\}/g, row.staffName);
 
   const markSignaturePending = (rows: SendRow[]) => {
     if (sendMode !== 'electronic' || !setSupervisionData) return;
@@ -1073,7 +1077,7 @@ const PrintSendTab: React.FC<Props> = ({
       recipientName: row.staffName,
       recipientPhone: row.phone || '',
       recipientRole: row.staffType,
-      content: selectedRows.length === 1 && messageText.trim() ? messageText : buildMessage(row),
+      content: buildOutgoingMessage(row),
       channel: sendChannel,
       senderRole: 'daily-supervision',
       isScheduled: isSendScheduled,
@@ -1100,7 +1104,7 @@ const PrintSendTab: React.FC<Props> = ({
     const results: { name: string; status: 'sent' | 'failed' }[] = [];
 
     for (const row of selectedRows) {
-      const msg = selectedRows.length === 1 && messageText.trim() ? messageText : buildMessage(row);
+      const msg = buildOutgoingMessage(row);
       const phone = row.phone || '';
       try {
         if (!phone) { results.push({ name: row.staffName, status: 'failed' }); continue; }
@@ -1581,7 +1585,7 @@ const PrintSendTab: React.FC<Props> = ({
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-start gap-3 mb-4">
-                  <MessageSquare size={20} className="text-[#655ac1]" />
+                  <Wallet size={20} className="text-[#655ac1]" />
                   <h4 className="font-black text-slate-800">طريقة الإرسال المفضلة</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1633,7 +1637,7 @@ const PrintSendTab: React.FC<Props> = ({
                     aria-label="استعادة النص الافتراضي"
                     onClick={() => {
                       if (selectedRows.length === 0) return;
-                      setMessageText(buildDetailedMessage(selectedRows[0]));
+                      setMessageText(buildDetailedMessage(selectedRows[0], RECIPIENT_NAME_TOKEN));
                       showToast?.('تمت استعادة النص الافتراضي.', 'success');
                     }}
                     disabled={selectedRows.length === 0}
