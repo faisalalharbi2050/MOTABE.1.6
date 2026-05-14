@@ -44,7 +44,16 @@ const TAB_STORAGE_KEY = 'motabe:supervision_v2:lastTab';
 const SupervisionV2Container: React.FC<Props> = ({
   schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings, onNavigateToTiming, onOpenMessagesArchive,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('settings');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    try {
+      if (sessionStorage.getItem('motabe:supervision_v2:open_send_reminder') === '1') {
+        return 'printsend';
+      }
+      const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null;
+      if (saved) return saved;
+    } catch {}
+    return 'settings';
+  });
 
   useEffect(() => {
     try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch {}

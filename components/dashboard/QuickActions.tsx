@@ -13,24 +13,41 @@ interface QuickActionsProps {
 }
 
 function navWithAction(onNavigate: (tab: string) => void, tab: string, action?: string) {
+  // Pre-seed target containers so they land on the correct sub-tab / mode
+  try {
+    switch (action) {
+      case 'add_waiting':
+        localStorage.setItem('motabe:waiting_v2:lastTab', 'register');
+        break;
+      case 'open_schedule_view':
+        localStorage.setItem('motabe:schedule_v2:lastTab', 'view');
+        break;
+      case 'send_supervision':
+        localStorage.setItem('motabe:supervision_v2:lastTab', 'printsend');
+        sessionStorage.setItem('motabe:supervision_v2:open_send_reminder', '1');
+        break;
+      case 'send_duty':
+        localStorage.setItem('motabe:duty_v2:lastTab', 'printsend');
+        sessionStorage.setItem('motabe:duty_v2:open_send_reminder', '1');
+        break;
+    }
+  } catch {}
+
   onNavigate(tab);
-  if (action) {
-    setTimeout(() => window.dispatchEvent(new CustomEvent(`motabe:${action}`)), 250);
-  }
 }
 
 const ROWS = [
   [
-    { label: 'إرسال رسالة',     icon: MessageSquare, tab: 'messages',      action: undefined,          rotate: false },
-    { label: 'إضافة انتظار',    icon: UserX,         tab: 'daily_waiting', action: 'add_waiting',      rotate: false },
+    { label: 'إرسال رسالة',     icon: MessageSquare, tab: 'messages',      action: undefined,            rotate: false },
+    { label: 'إضافة انتظار',    icon: UserX,         tab: 'daily_waiting', action: 'add_waiting',        rotate: false },
   ],
   [
-    { label: 'إسناد المواد',    icon: ClipboardList, tab: 'manual',        action: undefined,          rotate: false },
-    { label: 'جدول الحصص',      icon: CalendarCheck, tab: 'schedule_v2',   action: undefined,          rotate: false },
+    { label: 'إسناد المواد',    icon: ClipboardList, tab: 'manual',        action: undefined,            rotate: false },
+    { label: 'جدول الحصص',      icon: CalendarCheck, tab: 'schedule_v2',   action: 'open_schedule_view', rotate: false },
   ],
   [
-    { label: 'التذكير بالإشراف', icon: Eye,          tab: 'supervision',   action: 'send_supervision', rotate: false },
-    { label: 'التذكير بالمناوبة', icon: ShieldCheck, tab: 'duty',          action: 'send_duty',        rotate: false },
+    { label: 'التذكير بالإشراف', icon: Eye,          tab: 'supervision',   action: 'send_supervision',   rotate: false },
+    { label: 'التذكير بالمناوبة', icon: ShieldCheck, tab: 'duty',          action: 'send_duty',          rotate: false },
   ],
 ];
 

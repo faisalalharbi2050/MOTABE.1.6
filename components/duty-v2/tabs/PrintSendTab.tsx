@@ -363,7 +363,10 @@ const PrintSendTab: React.FC<Props> = ({
       showToast?.('تعذر تحديث سجل الاستلام', 'error');
     }
   };
-  const [taskMode, setTaskMode] = useState<TaskMode>('print');
+  const openReminderFromDashboard = (() => {
+    try { return sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1'; } catch { return false; }
+  })();
+  const [taskMode, setTaskMode] = useState<TaskMode>(openReminderFromDashboard ? 'send' : 'print');
   const [schedulePrintScope, setSchedulePrintScope] = useState<SchedulePrintScope>('all');
   const [selectedWeekIds, setSelectedWeekIds] = useState<string[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
@@ -372,7 +375,14 @@ const PrintSendTab: React.FC<Props> = ({
   const [showNotesField, setShowNotesField] = useState(false);
   const [footerText, setFooterText] = useState(dutyData.footerText || '');
   const [reportDutyRowsCount, setReportDutyRowsCount] = useState('1');
-  const [sendMode, setSendMode] = useState<SendMode>('electronic');
+  const [sendMode, setSendMode] = useState<SendMode>(openReminderFromDashboard ? 'reminder' : 'electronic');
+
+  useEffect(() => {
+    if (openReminderFromDashboard) {
+      try { sessionStorage.removeItem('motabe:duty_v2:open_send_reminder'); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleTime, setSendScheduleTime] = useState(dutyData.settings.reminderSendTime || '07:00');

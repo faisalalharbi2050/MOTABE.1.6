@@ -69,6 +69,9 @@ const DutyV2Container: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     try {
+      if (sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1') {
+        return 'printsend';
+      }
       const saved = localStorage.getItem(TAB_STORAGE_KEY);
       if (saved === 'settings' || saved === 'create' || saved === 'printsend' || saved === 'monitoring' || saved === 'manage') {
         return saved as TabId;

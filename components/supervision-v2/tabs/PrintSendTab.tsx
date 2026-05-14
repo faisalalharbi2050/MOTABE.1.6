@@ -234,7 +234,10 @@ const PrintSendTab: React.FC<Props> = ({
   onOpenLegacyPrint, onOpenLegacySend, onOpenMessagesArchive, showToast,
 }) => {
   const { sendMessage, scheduleMessage } = useMessageArchive();
-  const [taskMode, setTaskMode] = useState<TaskMode>('print');
+  const openReminderFromDashboard = (() => {
+    try { return sessionStorage.getItem('motabe:supervision_v2:open_send_reminder') === '1'; } catch { return false; }
+  })();
+  const [taskMode, setTaskMode] = useState<TaskMode>(openReminderFromDashboard ? 'send' : 'print');
 
   // Print state
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
@@ -244,7 +247,14 @@ const PrintSendTab: React.FC<Props> = ({
   const [footerText, setFooterText] = useState(supervisionData.footerText || '');
 
   // Send state
-  const [sendMode, setSendMode] = useState<SendMode>('electronic');
+  const [sendMode, setSendMode] = useState<SendMode>(openReminderFromDashboard ? 'reminder' : 'electronic');
+
+  useEffect(() => {
+    if (openReminderFromDashboard) {
+      try { sessionStorage.removeItem('motabe:supervision_v2:open_send_reminder'); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedSupervisionTypeId, setSelectedSupervisionTypeId] = useState('all');
   const [sendAudience, setSendAudience] = useState<SendAudience>('supervisors');
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
