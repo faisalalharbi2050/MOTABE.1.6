@@ -82,6 +82,7 @@ interface Props {
   isScheduleLocked?: boolean;
   onOpenMessagesArchive?: () => void;
   onPrepareMessageDraft?: (draft: MessageComposerDraft) => void;
+  mode?: 'view' | 'send';
 }
 
 type ScheduleType =
@@ -970,16 +971,17 @@ const ViewTab: React.FC<Props> = ({
   onNavigate,
   onOpenMessagesArchive,
   onPrepareMessageDraft,
+  mode = 'view',
 }) => {
   const { sendMessage } = useMessageArchive();
   const [taskMode, setTaskMode] = useState<TaskMode>(() => {
+    if (mode === 'send') return 'send';
     try {
       if (sessionStorage.getItem('motabe:schedule_v2:open_preview') === '1') {
         sessionStorage.removeItem('motabe:schedule_v2:open_preview');
-        return 'preview';
       }
     } catch {}
-    return 'print';
+    return 'preview';
   });
 
   const [previewScheduleType, setPreviewScheduleType] = useState<ScheduleType>('general_teachers');
@@ -2092,12 +2094,14 @@ const ViewTab: React.FC<Props> = ({
     <div className="space-y-5" dir="rtl">
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
         <div className="flex flex-wrap gap-3">
-          {[
-            { id: 'preview' as TaskMode, label: 'معاينة الجدول', icon: Eye },
-            { id: 'print' as TaskMode, label: 'طباعة', icon: Printer },
-            { id: 'send' as TaskMode, label: 'إرسال', icon: Send },
-            { id: 'export' as TaskMode, label: 'تصدير', icon: FileDown },
-          ].map(option => (
+          {(mode === 'send'
+            ? [{ id: 'send' as TaskMode, label: 'إرسال', icon: Send }]
+            : [
+                { id: 'preview' as TaskMode, label: 'معاينة الجدول', icon: Eye },
+                { id: 'print' as TaskMode, label: 'طباعة', icon: Printer },
+                { id: 'export' as TaskMode, label: 'تصدير', icon: FileDown },
+              ]
+          ).map(option => (
             <button
               key={option.id}
               type="button"
@@ -2112,23 +2116,27 @@ const ViewTab: React.FC<Props> = ({
               {option.label}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => { setSigReceiptRequests(readScheduleSignatureRequests()); setSigReceiptModalOpen(true); }}
-            className={actionButtonClass(false)}
-          >
-            <ClipboardList size={17} />
-            سجل استلام المعلمين للجداول
-          </button>
-          <button
-            type="button"
-            onClick={onOpenMessagesArchive}
-            disabled={!onOpenMessagesArchive}
-            className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            <Archive size={17} />
-            أرشيف الرسائل
-          </button>
+          {mode === 'send' && (
+            <>
+              <button
+                type="button"
+                onClick={() => { setSigReceiptRequests(readScheduleSignatureRequests()); setSigReceiptModalOpen(true); }}
+                className={actionButtonClass(false)}
+              >
+                <ClipboardList size={17} />
+                سجل استلام المعلمين للجداول
+              </button>
+              <button
+                type="button"
+                onClick={onOpenMessagesArchive}
+                disabled={!onOpenMessagesArchive}
+                className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Archive size={17} />
+                أرشيف الرسائل
+              </button>
+            </>
+          )}
         </div>
       </div>
 

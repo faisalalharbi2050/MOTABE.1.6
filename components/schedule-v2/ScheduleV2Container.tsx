@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CalendarDays, PenLine, FileOutput, Shuffle, Sparkles, Table } from 'lucide-react';
+import { CalendarDays, PenLine, FileOutput, Send, Shuffle, Sparkles, Table } from 'lucide-react';
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization, Student, MessageComposerDraft } from '../../types';
 import ViewTab from './tabs/ViewTab';
 import EditTab from './tabs/EditTab';
@@ -23,7 +23,7 @@ interface Props {
   onPrepareMessageDraft?: (draft: MessageComposerDraft) => void;
 }
 
-type TabId = 'create' | 'edit' | 'waiting' | 'view' | 'manage';
+type TabId = 'create' | 'edit' | 'waiting' | 'view' | 'send' | 'manage';
 
 const TAB_STORAGE_KEY = 'motabe:schedule_v2:lastTab';
 const LOCK_STORAGE_KEY = 'motabe:schedule_v2:locked';
@@ -32,7 +32,7 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     try {
       const saved = localStorage.getItem(TAB_STORAGE_KEY);
-      if (saved === 'view' || saved === 'edit' || saved === 'create' || saved === 'waiting' || saved === 'manage') {
+      if (saved === 'view' || saved === 'edit' || saved === 'create' || saved === 'waiting' || saved === 'send' || saved === 'manage') {
         return saved as TabId;
       }
     } catch {}
@@ -60,7 +60,7 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
   }, [isScheduleLocked]);
 
   useEffect(() => {
-    const handler = () => setActiveTab('view');
+    const handler = () => setActiveTab('send');
     window.addEventListener('motabe:send_schedule', handler);
     return () => window.removeEventListener('motabe:send_schedule', handler);
   }, []);
@@ -69,7 +69,8 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
     { id: 'create', label: 'إنشاء الجدول', icon: Sparkles },
     { id: 'edit', label: 'تعديل الجدول', icon: PenLine },
     { id: 'waiting', label: 'إعداد وتوزيع الانتظار', icon: Shuffle },
-    { id: 'view', label: 'معاينة وطباعة وتصدير الجدول', icon: FileOutput },
+    { id: 'view', label: 'معاينة وطباعة وتصدير', icon: FileOutput },
+    { id: 'send', label: 'إرسال الجدول', icon: Send },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
 
@@ -128,7 +129,10 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
           />
         )}
         {activeTab === 'view' && (
-          <ViewTab {...props} onNavigate={navigate} isScheduleLocked={isScheduleLocked} onOpenMessagesArchive={props.onOpenMessagesArchive} onPrepareMessageDraft={props.onPrepareMessageDraft} />
+          <ViewTab {...props} mode="view" onNavigate={navigate} isScheduleLocked={isScheduleLocked} onOpenMessagesArchive={props.onOpenMessagesArchive} onPrepareMessageDraft={props.onPrepareMessageDraft} />
+        )}
+        {activeTab === 'send' && (
+          <ViewTab {...props} mode="send" onNavigate={navigate} isScheduleLocked={isScheduleLocked} onOpenMessagesArchive={props.onOpenMessagesArchive} onPrepareMessageDraft={props.onPrepareMessageDraft} />
         )}
         {activeTab === 'manage' && (
           <ManageTab
