@@ -152,6 +152,7 @@ interface InlineScheduleViewProps {
     fullscreenButtonLabel?: string;
     waitingCountPerSlot?: Record<string, number>;
     forceWaitingInteractive?: boolean;
+    hideHeaderActionButton?: boolean;
 }
 
 const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
@@ -175,6 +176,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     fullscreenButtonLabel,
     waitingCountPerSlot = {},
     forceWaitingInteractive = false,
+    hideHeaderActionButton = false,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isFullScreenEditMode, setIsFullScreenEditMode] = useState(false);
@@ -2472,6 +2474,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
                             </div>
                         </div>
+                        {!hideHeaderActionButton && (
                         <button onClick={()=>setIsFullScreen(true)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all active:scale-95 ${
                                 type === 'general_teachers'
@@ -2481,6 +2484,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             <Maximize2 size={14}/>
                             <span>{type === 'general_teachers' ? (fullscreenButtonLabel ?? 'فتح الجدول للتعديل') : 'معاينة'}</span>
                         </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -2496,6 +2500,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
                             </div>
                         </div>
+                        {!hideHeaderActionButton && (
                         <button onClick={()=>setIsFullScreen(true)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all active:scale-95 ${
                                 type === 'general_teachers'
@@ -2505,6 +2510,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             <Maximize2 size={14}/>
                             <span>{type === 'general_teachers' ? (fullscreenButtonLabel ?? 'فتح الجدول للتعديل') : 'معاينة'}</span>
                         </button>
+                        )}
                     </div>
                     {renderGeneralTeacherControlCards()}
                 </div>

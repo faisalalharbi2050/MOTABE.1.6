@@ -2143,7 +2143,7 @@ const ViewTab: React.FC<Props> = ({
               <h4 className="font-black text-slate-800">نوع الجدول</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اختر نوع الجدول الذي تريد معاينته، وستظهر المعاينة أسفل الشريط مباشرة.
+              اختر نوع الجدول الذي تريد معاينته ليظهر لك
             </p>
             <div className="flex flex-wrap items-end gap-4">
               <div className="min-w-[260px]">
@@ -2212,6 +2212,7 @@ const ViewTab: React.FC<Props> = ({
                       : undefined
                 }
                 showWaitingManagement={false}
+                hideHeaderActionButton
               />
             )}
           </div>
