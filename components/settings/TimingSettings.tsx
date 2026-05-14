@@ -1151,7 +1151,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
              </div> {/* End of Collapsible Content */}
         </div>
 
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex justify-end">
             <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
                 <Save size={20} />
                 حفظ التوقيت
