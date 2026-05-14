@@ -1,7 +1,63 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
-import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle } from 'lucide-react';
+import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown } from 'lucide-react';
 import SchoolTabs from '../wizard/SchoolTabs';
+
+interface SeasonOption { value: string; label: string; emoji: string; }
+const SEASON_OPTIONS: SeasonOption[] = [
+  { value: 'summer', label: 'التوقيت الصيفي', emoji: '☀️' },
+  { value: 'winter', label: 'التوقيت الشتوي', emoji: '☁️' },
+  { value: 'ramadan', label: 'توقيت رمضان', emoji: '🌙' },
+];
+
+const SeasonDropdown: React.FC<{ value: string; onChange: (v: string) => void; }> = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+  const selected = SEASON_OPTIONS.find(o => o.value === value) || SEASON_OPTIONS[0];
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+      >
+        <span className="truncate text-[13px] leading-tight">{selected.emoji} {selected.label}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-30 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 animate-in slide-in-from-top-2">
+          <div className="space-y-1">
+            {SEASON_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  value === opt.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span>{opt.emoji} {opt.label}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                  value === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                }`}>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface TimingSettingsProps {
   schoolInfo: SchoolInfo;
@@ -847,11 +903,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                          <div className="space-y-4">
                              <div className="space-y-2">
                                  <label className="text-xs font-bold text-slate-500">النمط الفصلي</label>
-                                 <select value={currentTiming.season || 'summer'} onChange={(e) => updateTiming({ season: e.target.value as any })} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:border-[#8779fb] transition-all">
-                                     <option value="summer">☀️ التوقيت الصيفي</option>
-                                     <option value="winter">☁️ التوقيت الشتوي</option>
-                                     <option value="ramadan">🌙 توقيت رمضان</option>
-                                 </select>
+                                 <SeasonDropdown
+                                   value={currentTiming.season || 'summer'}
+                                   onChange={(v) => updateTiming({ season: v as any })}
+                                 />
                              </div>
                               <div className="space-y-2">
                                  <label className="text-xs font-bold text-slate-500">بداية الاصطفاف</label>
@@ -1127,9 +1182,9 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             </div>
 
             {/* Notes Section */}
-            <div className="mt-8 bg-white border border-slate-300 rounded-2xl p-6 w-full shadow-sm">
+            <div className="mt-8 w-full">
                 <div className="flex items-center gap-2 mb-3 text-slate-500 font-bold">
-                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-xs">i</div>
+                    <div className="w-5 h-5 rounded-full border-2 border-slate-400 text-slate-500 flex items-center justify-center text-[11px] font-black leading-none">!</div>
                     الملاحظات
                 </div>
                 <textarea
@@ -1147,7 +1202,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                        طباعة الجدول
                    </button>
              </div>
-              
+
              </div> {/* End of Collapsible Content */}
         </div>
 

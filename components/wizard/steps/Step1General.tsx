@@ -247,9 +247,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                               }`}
                           >
                             {isSelected && (
-                              <span className="w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30 shrink-0">
-                                <Check size={12} strokeWidth={3.5} className="text-white" />
-                              </span>
+                              <Check size={18} strokeWidth={3.5} className="text-[#655ac1] shrink-0" />
                             )}
                             {p}
                           </button>
@@ -626,9 +624,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                                 }`}
                             >
                               {isSelected && (
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <polyline points="4 10 8 14 14 6" stroke="#8779fb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                                </svg>
+                                <Check size={18} strokeWidth={3.5} className="text-[#655ac1] shrink-0" />
                               )}
                               {p}
                             </button>
@@ -806,7 +802,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                 <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden transition-all duration-300 hover:shadow-md">
                     <div className="flex items-center gap-6">
                          <div className="flex items-center gap-4">
-                            <div className="p-3 bg-slate-50 text-slate-400 rounded-2xl"><Building2 size={24} /></div>
+                            <div className="p-3 text-[#655ac1]"><Building2 size={24} /></div>
                             <div>
                                 <h3 className="text-base font-bold text-slate-700">هل تريد إضافة مدرسة مشتركة ؟</h3>
                                 <p className="text-xs text-slate-400 mt-1">يمكنك إضافة المدارس المشتركة لإدارتها</p>
