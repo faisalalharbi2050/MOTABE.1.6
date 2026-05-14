@@ -18,10 +18,11 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
       <div className="px-5 lg:px-12 pt-6 flex justify-start">
         <button
           onClick={() => onNavigate('landing')}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white font-bold text-sm shadow-lg shadow-[#655ac1]/25 transition-all"
+          aria-label="العودة للرئيسية"
+          title="العودة للرئيسية"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white shadow-lg shadow-[#655ac1]/25 transition-all"
         >
-          <ArrowRight className="w-4 h-4" />
-          العودة للرئيسية
+          <ArrowRight className="w-5 h-5" />
         </button>
       </div>
 

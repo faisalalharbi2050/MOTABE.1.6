@@ -1142,7 +1142,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
 
              {/* Print Options Footer */}
              <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center">
-                   <button onClick={handlePrint} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-[#e5e1fe] transition-all transform hover:-translate-y-1">
+                   <button onClick={handlePrint} className="flex items-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
                        <Printer size={20} />
                        طباعة الجدول
                    </button>
@@ -1152,7 +1152,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
         </div>
 
         <div className="mt-6 flex justify-center">
-            <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white rounded-xl text-md font-bold hover:shadow-lg hover:shadow-[#e5e1fe] transition-all transform hover:-translate-y-1">
+            <button onClick={handleSave} className="flex items-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
                 <Save size={20} />
                 حفظ التوقيت
             </button>
