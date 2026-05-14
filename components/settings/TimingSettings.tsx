@@ -1127,16 +1127,16 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             </div>
 
             {/* Notes Section */}
-            <div className={`mt-8 bg-white border ${theme.border} rounded-2xl p-6 w-full shadow-sm`}>
-                <div className={`flex items-center gap-2 mb-3 ${theme.noteTitle} font-bold`}>
-                    <div className={`w-5 h-5 rounded-full ${theme.noteIconBg} flex items-center justify-center ${theme.noteTitle} text-xs`}>i</div>
+            <div className="mt-8 bg-white border border-slate-300 rounded-2xl p-6 w-full shadow-sm">
+                <div className="flex items-center gap-2 mb-3 text-slate-500 font-bold">
+                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 text-xs">i</div>
                     الملاحظات
                 </div>
                 <textarea
                     value={currentTiming.notes || ''}
                     onChange={(e) => updateTiming({ notes: e.target.value })}
                     placeholder="أضف ملاحظات تعليمية أو إدارية تظهر في الطباعة..."
-                    className={`w-full bg-white border ${theme.border} rounded-xl p-4 text-sm font-medium text-slate-700 ${theme.notePlaceholder} outline-none focus:ring-2 focus:ring-opacity-50 ${theme.inputFocus} resize-none min-h-[80px]`}
+                    className="w-full bg-white border border-slate-300 rounded-xl p-4 text-sm font-medium text-slate-500 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400 resize-none min-h-[80px]"
                 />
             </div>
 
@@ -1151,7 +1151,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
              </div> {/* End of Collapsible Content */}
         </div>
 
-        <div className="mt-6 flex">
+        <div className="mt-6 w-full self-stretch flex">
             <button onClick={handleSave} className="mr-auto flex items-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
                 <Save size={20} />
                 حفظ التوقيت
