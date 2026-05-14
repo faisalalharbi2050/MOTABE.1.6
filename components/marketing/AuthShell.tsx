@@ -33,11 +33,9 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
               {badge}
             </div>
           )}
-          <div className="mb-10 text-center">
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-[#655ac1]/30">
-                M
-              </div>
+          <div className="mb-10 text-center relative">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 rounded-xl bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-[#655ac1]/30">
+              M
             </div>
             <h1 className="text-2xl md:text-3xl font-black mb-2 text-[#655ac1]">
               {title}
