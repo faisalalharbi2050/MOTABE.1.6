@@ -86,7 +86,7 @@ const WaitingV2Container: React.FC<Props> = (props) => {
       </div>
 
       {/* ══════ Tab Content ══════ */}
-      <div className="min-h-[400px] pt-4">
+      <div className="min-h-[400px]">
         {activeTab === 'register' && <RegisterTab {...props} onGoToDistribute={() => setActiveTab('distribute')} />}
         {activeTab === 'distribute' && <DistributeTab {...props} onGoToPrintSend={() => setActiveTab('printsend')} />}
         {activeTab === 'balance' && <BalanceTab {...props} onSectionExit={handleSectionExit} />}
