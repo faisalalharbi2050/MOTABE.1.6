@@ -49,7 +49,7 @@ const MarketingFooter: React.FC<Props> = ({ onNavigate }) => {
               <img
                 src="/logo-white.png"
                 alt="متابع"
-                className="h-11 w-auto select-none [filter:drop-shadow(0_2px_8px_rgba(255,255,255,0.3))_drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]"
+                className="h-11 w-auto select-none"
                 draggable={false}
               />
             </div>
