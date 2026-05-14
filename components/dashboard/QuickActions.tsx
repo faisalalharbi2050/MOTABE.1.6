@@ -21,6 +21,7 @@ function navWithAction(onNavigate: (tab: string) => void, tab: string, action?: 
         break;
       case 'open_schedule_view':
         localStorage.setItem('motabe:schedule_v2:lastTab', 'view');
+        sessionStorage.setItem('motabe:schedule_v2:open_preview', '1');
         break;
       case 'send_supervision':
         localStorage.setItem('motabe:supervision_v2:lastTab', 'printsend');

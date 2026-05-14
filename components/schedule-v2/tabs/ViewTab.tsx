@@ -91,7 +91,7 @@ type ScheduleType =
   | 'individual_teacher'
   | 'individual_class';
 
-type TaskMode = 'print' | 'send' | 'export';
+type TaskMode = 'preview' | 'print' | 'send' | 'export';
 type PaperSize = 'A4' | 'A3';
 type PrintColorMode = 'color' | 'bw';
 type ExportFormat = 'xlsx' | 'xml';
@@ -972,7 +972,19 @@ const ViewTab: React.FC<Props> = ({
   onPrepareMessageDraft,
 }) => {
   const { sendMessage } = useMessageArchive();
-  const [taskMode, setTaskMode] = useState<TaskMode>('print');
+  const [taskMode, setTaskMode] = useState<TaskMode>(() => {
+    try {
+      if (sessionStorage.getItem('motabe:schedule_v2:open_preview') === '1') {
+        sessionStorage.removeItem('motabe:schedule_v2:open_preview');
+        return 'preview';
+      }
+    } catch {}
+    return 'print';
+  });
+
+  const [previewScheduleType, setPreviewScheduleType] = useState<ScheduleType>('general_teachers');
+  const [previewTeacherId, setPreviewTeacherId] = useState<string>('');
+  const [previewClassId, setPreviewClassId] = useState<string>('');
 
   const [printScheduleType, setPrintScheduleType] = useState<ScheduleType>('general_teachers');
   const [selectedPrintTeacherIds, setSelectedPrintTeacherIds] = useState<string[]>([]);
@@ -1158,6 +1170,11 @@ const ViewTab: React.FC<Props> = ({
     []
   );
   const taskModeMeta: Record<TaskMode, { title: string; description: string; icon: React.ComponentType<any> }> = {
+    preview: {
+      title: 'معاينة الجدول',
+      description: 'اختر نوع الجدول لاستعراضه بسرعة قبل الطباعة أو الإرسال أو التصدير.',
+      icon: Eye,
+    },
     print: {
       title: 'إعداد الطباعة',
       description: 'اختر نوع الجدول ثم اضبط خيارات الإخراج قبل فتح صفحة الطباعة.',
@@ -2076,6 +2093,7 @@ const ViewTab: React.FC<Props> = ({
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
         <div className="flex flex-wrap gap-3">
           {[
+            { id: 'preview' as TaskMode, label: 'معاينة الجدول', icon: Eye },
             { id: 'print' as TaskMode, label: 'طباعة', icon: Printer },
             { id: 'send' as TaskMode, label: 'إرسال', icon: Send },
             { id: 'export' as TaskMode, label: 'تصدير', icon: FileDown },
@@ -2113,6 +2131,92 @@ const ViewTab: React.FC<Props> = ({
           </button>
         </div>
       </div>
+
+      {taskMode === 'preview' && (
+        <div className="space-y-4">
+          <div className="px-1">
+            <h3 className="font-black text-slate-800 text-lg">معاينة الجدول</h3>
+          </div>
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-start gap-3 mb-2">
+              <CalendarDays size={20} className="text-[#655ac1]" />
+              <h4 className="font-black text-slate-800">نوع الجدول</h4>
+            </div>
+            <p className="text-xs text-slate-500 font-medium text-right mb-5">
+              اختر نوع الجدول الذي تريد معاينته، وستظهر المعاينة أسفل الشريط مباشرة.
+            </p>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="min-w-[260px]">
+                <SingleSelectDropdown
+                  label="نوع الجدول"
+                  value={previewScheduleType}
+                  onChange={value => setPreviewScheduleType(value as ScheduleType)}
+                  placeholder="اختر نوع الجدول"
+                  options={printScheduleTypeOptions}
+                />
+              </div>
+              {previewScheduleType === 'individual_teacher' && (
+                <div className="min-w-[260px]">
+                  <SingleSelectDropdown
+                    label="المعلم"
+                    value={previewTeacherId}
+                    onChange={value => setPreviewTeacherId(value)}
+                    placeholder="اختر المعلم"
+                    options={teacherOptions}
+                  />
+                </div>
+              )}
+              {previewScheduleType === 'individual_class' && (
+                <div className="min-w-[260px]">
+                  <SingleSelectDropdown
+                    label="الفصل"
+                    value={previewClassId}
+                    onChange={value => setPreviewClassId(value)}
+                    placeholder="اختر الفصل"
+                    options={classOptions}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
+            {!hasSchedule ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                <AlertCircle size={36} className="mb-3 text-slate-300" />
+                <p className="font-bold">لا يوجد جدول لعرضه. يرجى إنشاء الجدول أولاً.</p>
+              </div>
+            ) : previewScheduleType === 'individual_teacher' && !previewTeacherId ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                <User size={36} className="mb-3 text-slate-300" />
+                <p className="font-bold">اختر معلمًا لعرض جدوله.</p>
+              </div>
+            ) : previewScheduleType === 'individual_class' && !previewClassId ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                <BookOpen size={36} className="mb-3 text-slate-300" />
+                <p className="font-bold">اختر فصلاً لعرض جدوله.</p>
+              </div>
+            ) : (
+              <InlineScheduleView
+                type={previewScheduleType}
+                settings={scheduleSettings}
+                teachers={teachers}
+                classes={classes}
+                subjects={subjects}
+                specializationNames={specializationNames}
+                targetId={
+                  previewScheduleType === 'individual_teacher'
+                    ? previewTeacherId
+                    : previewScheduleType === 'individual_class'
+                      ? previewClassId
+                      : undefined
+                }
+                showWaitingManagement={false}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {taskMode === 'print' && (
         <div className="space-y-4">

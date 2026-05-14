@@ -69,7 +69,7 @@ const ScheduleV2Container: React.FC<Props> = (props) => {
     { id: 'create', label: 'إنشاء الجدول', icon: Sparkles },
     { id: 'edit', label: 'تعديل الجدول', icon: PenLine },
     { id: 'waiting', label: 'إعداد وتوزيع الانتظار', icon: Shuffle },
-    { id: 'view', label: 'طباعة وإرسال وتصدير الجدول', icon: FileOutput },
+    { id: 'view', label: 'معاينة وطباعة وتصدير الجدول', icon: FileOutput },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
 
