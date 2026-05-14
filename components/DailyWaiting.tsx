@@ -3479,7 +3479,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       )}
 
       {/* ══════ Embedded UI: Date bar + Teachers table + Distribution method card ══════ */}
-      {isEmbedded && !isPrintSend && (() => {
+      {isEmbedded && !isPrintSend && !isSend && (() => {
         const lowerSearch = embTableSearch.trim().toLowerCase();
         const tableTeachers = teachers
           .filter(t => {
