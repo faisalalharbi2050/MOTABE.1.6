@@ -33,14 +33,14 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
               {badge}
             </div>
           )}
-          <div className="mb-10 text-center relative">
+          <div className="mb-10 text-center">
             <img
               src="/logo.png"
               alt="متابع"
-              className="absolute right-0 top-1/2 -translate-y-1/2 h-12 w-auto select-none"
+              className="h-14 w-auto mx-auto mb-4 select-none"
               draggable={false}
             />
-            <h1 className="text-2xl md:text-3xl font-black mb-2 text-[#655ac1]">
+            <h1 className="text-2xl md:text-3xl font-black mb-2 text-slate-900">
               {title}
             </h1>
             {subtitle && (

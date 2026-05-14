@@ -154,7 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({
              <img
                src="/logo-white.png"
                alt="متابع"
-               className="h-12 w-auto select-none drop-shadow-sm"
+               className="h-14 w-auto select-none [filter:drop-shadow(0_2px_8px_rgba(255,255,255,0.35))_drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]"
                draggable={false}
              />
            </div>
@@ -164,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                <img
                  src="/logo-white.png"
                  alt="متابع"
-                 className="h-9 w-auto select-none drop-shadow-sm"
+                 className="h-10 w-auto select-none [filter:drop-shadow(0_2px_8px_rgba(255,255,255,0.35))_drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]"
                  draggable={false}
                />
             </div>

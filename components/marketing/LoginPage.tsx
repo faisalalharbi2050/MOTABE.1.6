@@ -89,7 +89,7 @@ const LoginPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
 
   return (
     <AuthShell
-      title="مرحباً بك في متابع"
+      title="تسجيل الدخول"
       subtitle=""
       onNavigate={onNavigate}
     >

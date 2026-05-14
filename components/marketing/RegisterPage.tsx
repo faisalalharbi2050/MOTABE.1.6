@@ -60,7 +60,7 @@ const RegisterPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
 
   return (
     <AuthShell
-      title="انضم لمتابع"
+      title="تسجيل جديد"
       onNavigate={onNavigate}
       badge={
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-l from-[#655ac1] to-[#8779fb] text-white text-[11px] font-black shadow-lg shadow-[#655ac1]/40 ring-2 ring-white">
