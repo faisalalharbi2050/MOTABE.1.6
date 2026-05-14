@@ -3058,21 +3058,24 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         weekDates.push(toLocalISODate(d));
       }
     }
-    const perTeacherDayCounts: Record<string, Record<string, number>> = {};
+    const perTeacherDayPeriods: Record<string, Record<string, number[]>> = {};
     sessions.forEach(s => {
       if (!weekDates.includes(s.date)) return;
       s.assignments.forEach(a => {
         if (isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)) return;
-        if (!perTeacherDayCounts[a.substituteTeacherId]) perTeacherDayCounts[a.substituteTeacherId] = {};
-        perTeacherDayCounts[a.substituteTeacherId][s.date] =
-          (perTeacherDayCounts[a.substituteTeacherId][s.date] || 0) + 1;
+        if (!perTeacherDayPeriods[a.substituteTeacherId]) perTeacherDayPeriods[a.substituteTeacherId] = {};
+        if (!perTeacherDayPeriods[a.substituteTeacherId][s.date]) perTeacherDayPeriods[a.substituteTeacherId][s.date] = [];
+        perTeacherDayPeriods[a.substituteTeacherId][s.date].push(a.periodNumber);
       });
     });
-    const buildAssignmentDays = (teacherId: string): { date: string; day: string; count: number }[] => {
-      const map = perTeacherDayCounts[teacherId] || {};
+    const buildAssignmentDays = (teacherId: string): { date: string; day: string; count: number; periods: number[] }[] => {
+      const map = perTeacherDayPeriods[teacherId] || {};
       return weekDates
-        .filter(d => (map[d] || 0) > 0)
-        .map(d => ({ date: d, day: getArabicDayFromDate(d), count: map[d] }));
+        .filter(d => (map[d] || []).length > 0)
+        .map(d => {
+          const periods = [...map[d]].sort((a, b) => a - b);
+          return { date: d, day: getArabicDayFromDate(d), count: periods.length, periods };
+        });
     };
 
     const balanceRows = teachers
@@ -3109,7 +3112,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <td><span class="num-pill purple">${row.quota}</span></td>
           <td><span class="num-pill amber">${row.assigned}</span></td>
           <td class="days-cell">${row.assignmentDays.length
-            ? row.assignmentDays.map(d => `<span class="day-chip">${escapeHtml(d.day)} (${d.count})</span>`).join('')
+            ? row.assignmentDays.map(d => `<span class="day-chip">${escapeHtml(d.day)} (${d.count}) <span class="day-periods">${d.periods.map(p => `ح${p}`).join('، ')}</span></span>`).join('')
             : '<span class="day-empty">—</span>'}</td>
           <td><span class="num-pill green">${row.balance}</span></td>
         </tr>
@@ -3155,7 +3158,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         .empty-rank { text-align:center; color:#94a3b8; font-size:11px; font-weight:800; padding:12px; }
         .week-range { text-align:center; font-size:12px; font-weight:900; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; margin-bottom:14px; }
         .days-cell { text-align:center; }
-        .day-chip { display:inline-flex; align-items:center; justify-content:center; padding:2px 6px; margin:2px; color:#1e293b; font-size:11px; font-weight:800; background:transparent; border:none; }
+        .day-chip { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; margin:2px; color:#1e293b; font-size:11px; font-weight:800; background:transparent; border:none; }
+        .day-periods { color:#64748b; font-weight:800; }
         .day-empty { color:#94a3b8; font-size:11px; font-weight:800; }
         .footer { margin-top:28px; display:flex; justify-content:space-between; gap:24px; font-size:12px; font-weight:900; padding:0 24px; }
         .signature { width:40%; }
@@ -3191,7 +3195,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <div class="stat"><b>${totalBalance}</b><span>إجمالي الانتظار المتبقي</span></div>
         </div>
         <table>
-          <thead><tr><th style="width:45px">م</th><th style="text-align:right">المنتظر</th><th style="width:100px">نصاب الانتظار</th><th style="width:110px">الانتظار المسند</th><th style="width:200px">أيام الإسناد</th><th style="width:120px">المتبقي من الانتظار</th></tr></thead>
+          <thead><tr><th style="width:45px">م</th><th style="text-align:right">المنتظر</th><th style="width:100px">نصاب الانتظار</th><th style="width:110px">الانتظار المسند</th><th style="width:200px">أيام وحصص الإسناد</th><th style="width:120px">المتبقي من الانتظار</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="6">لا توجد بيانات رصيد انتظار</td></tr>'}</tbody>
         </table>
         <div class="footer">
@@ -3367,7 +3371,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[22%]">المنتظر</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[12%]">نصاب الانتظار</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[12%]">الانتظار المسند</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[34%]">أيام الإسناد</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[34%]">أيام وحصص الإسناد</th>
                     <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[14%]">المتبقي من الانتظار</th>
                   </tr>
                 </thead>
@@ -3394,11 +3398,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         {row.assignmentDays.length === 0 ? (
                           <span className="text-slate-300 text-xs font-bold">—</span>
                         ) : (
-                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
                             {row.assignmentDays.map(d => (
                               <span key={d.date} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-black text-slate-700">
                                 {d.day}
                                 <span className="text-[#655ac1]">({d.count})</span>
+                                <span className="text-slate-400">{d.periods.map(p => `ح${p}`).join('، ')}</span>
                               </span>
                             ))}
                           </div>
