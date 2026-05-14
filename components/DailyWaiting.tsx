@@ -3049,6 +3049,32 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }
 
   if (isBalance) {
+    const weekDates: string[] = [];
+    {
+      const startD = new Date(`${waitingWeekRange.start}T00:00:00`);
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(startD);
+        d.setDate(startD.getDate() + i);
+        weekDates.push(toLocalISODate(d));
+      }
+    }
+    const perTeacherDayCounts: Record<string, Record<string, number>> = {};
+    sessions.forEach(s => {
+      if (!weekDates.includes(s.date)) return;
+      s.assignments.forEach(a => {
+        if (isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)) return;
+        if (!perTeacherDayCounts[a.substituteTeacherId]) perTeacherDayCounts[a.substituteTeacherId] = {};
+        perTeacherDayCounts[a.substituteTeacherId][s.date] =
+          (perTeacherDayCounts[a.substituteTeacherId][s.date] || 0) + 1;
+      });
+    });
+    const buildAssignmentDays = (teacherId: string): { date: string; day: string; count: number }[] => {
+      const map = perTeacherDayCounts[teacherId] || {};
+      return weekDates
+        .filter(d => (map[d] || 0) > 0)
+        .map(d => ({ date: d, day: getArabicDayFromDate(d), count: map[d] }));
+    };
+
     const balanceRows = teachers
       .filter(t => (t.waitingQuota || 0) > 0)
       .map(t => {
@@ -3056,7 +3082,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         const assigned = weeklyQuota.counts[t.id] || 0;
         const balance = quota - assigned;
         const pct = quota > 0 ? assigned / quota : 0;
-        return { teacher: t, quota, assigned, balance, pct };
+        const assignmentDays = buildAssignmentDays(t.id);
+        return { teacher: t, quota, assigned, balance, pct, assignmentDays };
       })
       .sort((a, b) => b.assigned - a.assigned || a.balance - b.balance || a.teacher.name.localeCompare(b.teacher.name, 'ar'));
     const totalQuota = balanceRows.reduce((sum, row) => sum + row.quota, 0);
@@ -3075,24 +3102,19 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
     const printWaitingBalance = () => {
       const today = getTodayStr();
-      const renderRankRows = (items: typeof balanceRows, tone: 'top' | 'bottom') => items.length
-        ? items.map((row, index) => `
-          <div class="rank-row">
-            <span class="seq-pill">${index + 1}</span>
-            <span class="rank-name">${escapeHtml(row.teacher.name)}</span>
-            <span class="rank-pill"><span class="${tone === 'top' ? 'red' : 'green'}">${row.assigned}</span><span class="slash">/</span><span class="purple">${row.quota}</span></span>
-          </div>
-        `).join('')
-        : '<div class="empty-rank">لا توجد بيانات</div>';
       const rows = balanceRows.map((row, index) => `
         <tr>
           <td><span class="seq-pill">${index + 1}</span></td>
           <td style="text-align:right;font-weight:900">${escapeHtml(row.teacher.name)}</td>
           <td><span class="num-pill purple">${row.quota}</span></td>
           <td><span class="num-pill amber">${row.assigned}</span></td>
+          <td class="days-cell">${row.assignmentDays.length
+            ? row.assignmentDays.map(d => `<span class="day-chip">${escapeHtml(d.day)} (${d.count})</span>`).join('')
+            : '<span class="day-empty">—</span>'}</td>
           <td><span class="num-pill green">${row.balance}</span></td>
         </tr>
       `).join('');
+      const weekRangeText = `من ${getArabicDayFromDate(waitingWeekRange.start)} الموافق ${formatHijri(waitingWeekRange.start)} هـ إلى ${getArabicDayFromDate(waitingWeekRange.end)} الموافق ${formatHijri(waitingWeekRange.end)} هـ`;
       openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>رصيد الانتظار</title><style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
         @page { size: A4 portrait; margin: 12mm; }
@@ -3131,8 +3153,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         .rank-pill { display:inline-flex; align-items:center; justify-content:center; min-width:52px; border:1px solid #cbd5e1; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:900; }
         .slash { color:#cbd5e1; margin:0 4px; }
         .empty-rank { text-align:center; color:#94a3b8; font-size:11px; font-weight:800; padding:12px; }
-        .footer { margin-top:28px; display:flex; justify-content:flex-end; font-size:12px; font-weight:900; }
-        .signature { width:240px; }
+        .week-range { text-align:center; font-size:12px; font-weight:900; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; margin-bottom:14px; }
+        .days-cell { text-align:center; }
+        .day-chip { display:inline-flex; align-items:center; justify-content:center; padding:2px 6px; margin:2px; color:#1e293b; font-size:11px; font-weight:800; background:transparent; border:none; }
+        .day-empty { color:#94a3b8; font-size:11px; font-weight:800; }
+        .footer { margin-top:28px; display:flex; justify-content:space-between; gap:24px; font-size:12px; font-weight:900; padding:0 24px; }
+        .signature { width:40%; }
+        .signature.left { text-align:right; }
+        .signature.right { text-align:right; }
+        .role-label { color:#1e293b; }
+        .signature-name { margin-top:4px; color:#475569; font-weight:800; }
         .line { margin-top:26px; border-top:1px solid #94a3b8; padding-top:6px; color:#475569; }
         @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } th { background:#a59bf0 !important; color:#fff !important; } }
       </style></head><body><section class="page">
@@ -3153,28 +3183,29 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </div>
         </div>
         <div class="title">رصيد الانتظار الأسبوعي</div>
-        <div class="meta">يوضح نصاب كل منتظر، وما أسند له، والمتبقي من رصيده</div>
+        <div class="week-range">${escapeHtml(weekRangeText)}</div>
         <div class="stats">
           <div class="stat"><b>${balanceRows.length}</b><span>إجمالي المنتظرين</span></div>
           <div class="stat"><b>${totalQuota}</b><span>إجمالي النصاب</span></div>
           <div class="stat"><b>${totalAssigned}</b><span>إجمالي المسند</span></div>
           <div class="stat"><b>${totalBalance}</b><span>إجمالي الانتظار المتبقي</span></div>
         </div>
-        <div class="rank-grid">
-          <div class="rank-card">
-            <div class="rank-title red">الأكثر إسنادًا</div>
-            <div class="rank-body">${renderRankRows(mostAssigned, 'top')}</div>
+        <table>
+          <thead><tr><th style="width:45px">م</th><th style="text-align:right">المنتظر</th><th style="width:100px">نصاب الانتظار</th><th style="width:110px">الانتظار المسند</th><th style="width:200px">أيام الإسناد</th><th style="width:120px">المتبقي من الانتظار</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6">لا توجد بيانات رصيد انتظار</td></tr>'}</tbody>
+        </table>
+        <div class="footer">
+          <div class="signature right">
+            <div class="role-label">وكيل الشؤون التعليمية</div>
+            <div class="signature-name">${escapeHtml(schoolInfo.educationalAgent || '')}</div>
+            <div class="line">التوقيع</div>
           </div>
-          <div class="rank-card">
-            <div class="rank-title green">الأقل إسنادًا</div>
-            <div class="rank-body">${renderRankRows(leastAssigned, 'bottom')}</div>
+          <div class="signature left">
+            <div class="role-label">مدير المدرسة</div>
+            <div class="signature-name">${escapeHtml(schoolInfo.principal || '')}</div>
+            <div class="line">التوقيع</div>
           </div>
         </div>
-        <table>
-          <thead><tr><th style="width:45px">م</th><th style="text-align:right">المنتظر</th><th style="width:100px">نصاب الانتظار</th><th style="width:110px">الانتظار المسند</th><th style="width:120px">المتبقي من الانتظار</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="5">لا توجد بيانات رصيد انتظار</td></tr>'}</tbody>
-        </table>
-        <div class="footer"><div class="signature"><div>مدير المدرسة: ${escapeHtml(schoolInfo.principal || '')}</div><div class="line">التوقيع</div></div></div>
       </section><script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
       showToast('تم فتح رصيد الانتظار للطباعة', 'success');
     };
@@ -3329,14 +3360,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] table-fixed text-sm text-right">
+              <table className="w-full min-w-[1080px] table-fixed text-sm text-right">
                 <thead>
                   <tr className="bg-white border-b border-slate-100">
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[8%]">م</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[30%]">المنتظر</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[14%]">نصاب الانتظار</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[14%]">الانتظار المسند</th>
-                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">المتبقي من الانتظار</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[6%]">م</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[22%]">المنتظر</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[12%]">نصاب الانتظار</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[12%]">الانتظار المسند</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[34%]">أيام الإسناد</th>
+                    <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[14%]">المتبقي من الانتظار</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3357,6 +3389,20 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-amber-600 text-[12px] font-black">
                           {row.assigned}
                         </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {row.assignmentDays.length === 0 ? (
+                          <span className="text-slate-300 text-xs font-bold">—</span>
+                        ) : (
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            {row.assignmentDays.map(d => (
+                              <span key={d.date} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-black text-slate-700">
+                                {d.day}
+                                <span className="text-[#655ac1]">({d.count})</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-center">
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-emerald-600 text-[12px] font-black">
