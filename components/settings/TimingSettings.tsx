@@ -932,7 +932,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                             </div>
                             <button 
                                  onClick={() => handleAddNewBreak(2)} 
-                                 className="text-xs flex items-center gap-1 bg-[#e5e1fe] text-[#655ac1] px-3 py-1.5 rounded-lg font-bold hover:bg-[#8779fb] hover:text-white transition-colors"
+                                 className="text-xs flex items-center gap-1 bg-white border border-slate-300 text-[#655ac1] px-3 py-1.5 rounded-lg font-bold hover:border-slate-400 transition-colors"
                             >
                                  <Plus size={14} /> إضافة
                             </button>
@@ -958,7 +958,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                                     className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-xs outline-none focus:border-[#8779fb] focus:bg-white transition-all"
                                                     placeholder="مسمى الفسحة"
                                                 />
-                                                <button onClick={() => setConfirmDeleteBreak(idx)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex-shrink-0" title="حذف">
+                                                <button onClick={() => setConfirmDeleteBreak(idx)} className="p-1.5 rounded-lg border border-slate-300 text-rose-500 hover:border-slate-400 transition-colors flex-shrink-0" title="حذف">
                                                     <Trash2 size={15} />
                                                 </button>
                                             </div>
@@ -994,7 +994,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                               </h3>
                               <button 
                                  onClick={() => handleAddNewPrayer(6)} 
-                                 className="text-xs flex items-center gap-1 bg-[#e5e1fe] text-[#655ac1] px-3 py-1.5 rounded-lg font-bold hover:bg-[#8779fb] hover:text-white transition-colors"
+                                 className="text-xs flex items-center gap-1 bg-white border border-slate-300 text-[#655ac1] px-3 py-1.5 rounded-lg font-bold hover:border-slate-400 transition-colors"
                              >
                                  <Plus size={14} /> إضافة
                              </button>
@@ -1030,7 +1030,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                                       className="flex-1 p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700"
                                                       placeholder="اسم الصلاة"
                                                   />
-                                                  <button onClick={() => setConfirmDeletePrayer(idx)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex-shrink-0" title="حذف">
+                                                  <button onClick={() => setConfirmDeletePrayer(idx)} className="p-1.5 rounded-lg border border-slate-300 text-rose-500 hover:border-slate-400 transition-colors flex-shrink-0" title="حذف">
                                                       <Trash2 size={15} />
                                                   </button>
                                               </div>
