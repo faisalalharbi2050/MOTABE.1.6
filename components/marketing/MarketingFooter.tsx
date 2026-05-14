@@ -45,11 +45,13 @@ const MarketingFooter: React.FC<Props> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* About */}
           <div>
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center text-white font-black text-lg shadow-lg shadow-black/20 ring-1 ring-white/30">
-                M
-              </div>
-              <span className="font-black text-xl text-white tracking-tight">متابع</span>
+            <div className="flex items-center mb-4">
+              <img
+                src="/logo-white.png"
+                alt="متابع"
+                className="h-11 w-auto select-none [filter:drop-shadow(0_2px_8px_rgba(255,255,255,0.3))_drop-shadow(0_1px_2px_rgba(0,0,0,0.25))]"
+                draggable={false}
+              />
             </div>
             <p className="text-sm text-white/90 leading-relaxed mb-2 font-bold">
               مؤسسة متابع التقنية
