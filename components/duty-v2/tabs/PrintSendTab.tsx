@@ -30,6 +30,7 @@ interface Props {
   onOpenLegacySend: () => void;
   onOpenArchive?: () => void;
   showToast?: (msg: string, type: 'success' | 'warning' | 'error') => void;
+  mode?: 'print' | 'send';
 }
 
 type TaskMode = 'print' | 'send';
@@ -351,6 +352,7 @@ const PrintSendTab: React.FC<Props> = ({
   onOpenLegacySend,
   onOpenArchive,
   showToast,
+  mode = 'print',
 }) => {
   const refreshDutyDataFromStorage = () => {
     if (!setDutyData) return;
@@ -366,7 +368,7 @@ const PrintSendTab: React.FC<Props> = ({
   const openReminderFromDashboard = (() => {
     try { return sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1'; } catch { return false; }
   })();
-  const [taskMode, setTaskMode] = useState<TaskMode>(openReminderFromDashboard ? 'send' : 'print');
+  const [taskMode, setTaskMode] = useState<TaskMode>(mode === 'send' || openReminderFromDashboard ? 'send' : 'print');
   const [schedulePrintScope, setSchedulePrintScope] = useState<SchedulePrintScope>('all');
   const [selectedWeekIds, setSelectedWeekIds] = useState<string[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
@@ -1909,33 +1911,30 @@ ${buildReportLink(target)}` : ''}`;
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
-        <div className="flex flex-wrap gap-3">
-          {[
-            { id: 'print' as TaskMode, label: 'طباعة', icon: Printer },
-            { id: 'send' as TaskMode, label: 'إرسال', icon: Send },
-          ].map(option => (
-            <button key={option.id} type="button" onClick={() => setTaskMode(option.id)} className={actionButtonClass(taskMode === option.id)}>
-              <option.icon size={17} />
-              {option.label}
+      {mode === 'send' && (
+        <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => setTaskMode('send')} className={actionButtonClass(taskMode === 'send')}>
+              <Send size={17} />
+              إرسال
             </button>
-          ))}
-          <button type="button" onClick={() => setReceiptOpen(true)} className={actionButtonClass(false)}>
-            <ClipboardList size={17} />
-            سجل استلام التكليف بالمناوبة
-          </button>
-          <button type="button" onClick={() => setReportReceiptOpen(true)} className={actionButtonClass(false)}>
-            <ClipboardList size={17} />
-            سجل استلام تقرير المناوبة اليومية
-          </button>
-          <button type="button" onClick={onOpenArchive || (() => showToast?.('أرشيف الرسائل متاح من قسم الرسائل', 'warning'))} className={actionButtonClass(false)}>
-            <Archive size={17} />
-            أرشيف الرسائل
-          </button>
+            <button type="button" onClick={() => setReceiptOpen(true)} className={actionButtonClass(false)}>
+              <ClipboardList size={17} />
+              سجل استلام التكليف بالمناوبة
+            </button>
+            <button type="button" onClick={() => setReportReceiptOpen(true)} className={actionButtonClass(false)}>
+              <ClipboardList size={17} />
+              سجل استلام تقرير المناوبة اليومية
+            </button>
+            <button type="button" onClick={onOpenArchive || (() => showToast?.('أرشيف الرسائل متاح من قسم الرسائل', 'warning'))} className={actionButtonClass(false)}>
+              <Archive size={17} />
+              أرشيف الرسائل
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {taskMode === 'print' && (
+      {mode === 'print' && taskMode === 'print' && (
         <div className="space-y-5">
           <div className="px-1">
             <h3 className="font-black text-slate-800 text-lg">الطباعة</h3>
@@ -2082,7 +2081,7 @@ ${buildReportLink(target)}` : ''}`;
         </div>
       )}
 
-      {taskMode === 'send' && (
+      {mode === 'send' && taskMode === 'send' && (
         <div className="space-y-4">
           <div className="px-1">
             <h3 className="font-black text-slate-800 text-lg">إرسال</h3>

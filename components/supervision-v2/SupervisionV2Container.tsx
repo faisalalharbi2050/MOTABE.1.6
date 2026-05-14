@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Eye, Settings, BarChart3,
   CheckCircle, AlertTriangle, AlertCircle,
-  RefreshCw, X, Info, PenLine, Sparkles, FileOutput, Table,
+  RefreshCw, X, Info, PenLine, Sparkles, FileOutput, Send, Table,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -37,7 +37,7 @@ interface Props {
   onOpenMessagesArchive?: () => void;
 }
 
-type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'manage';
+type TabId = 'settings' | 'create' | 'printsend' | 'send' | 'monitoring' | 'manage';
 
 const TAB_STORAGE_KEY = 'motabe:supervision_v2:lastTab';
 
@@ -47,7 +47,7 @@ const SupervisionV2Container: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     try {
       if (sessionStorage.getItem('motabe:supervision_v2:open_send_reminder') === '1') {
-        return 'printsend';
+        return 'send';
       }
       const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null;
       if (saved) return saved;
@@ -297,7 +297,8 @@ const SupervisionV2Container: React.FC<Props> = ({
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
     { id: 'settings', label: 'إعدادات الإشراف', icon: Settings },
     { id: 'create', label: 'إنشاء جدول الإشراف', icon: Sparkles },
-    { id: 'printsend', label: 'طباعة وإرسال الإشراف', icon: FileOutput },
+    { id: 'printsend', label: 'طباعة الإشراف', icon: FileOutput },
+    { id: 'send', label: 'إرسال الإشراف', icon: Send },
     { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: BarChart3 },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
@@ -445,6 +446,22 @@ const SupervisionV2Container: React.FC<Props> = ({
             onOpenLegacySend={() => setIsMessagingOpen(true)}
             onOpenMessagesArchive={onOpenMessagesArchive}
             showToast={showToast}
+            mode="print"
+          />
+        )}
+        {activeTab === 'send' && (
+          <PrintSendTab
+            supervisionData={supervisionData}
+            setSupervisionData={setSupervisionData}
+            storageKey={storageKey}
+            schoolInfo={schoolInfo}
+            teachers={filteredTeachers}
+            admins={filteredAdmins}
+            onOpenLegacyPrint={() => setIsPrintOpen(true)}
+            onOpenLegacySend={() => setIsMessagingOpen(true)}
+            onOpenMessagesArchive={onOpenMessagesArchive}
+            showToast={showToast}
+            mode="send"
           />
         )}
         {activeTab === 'manage' && (

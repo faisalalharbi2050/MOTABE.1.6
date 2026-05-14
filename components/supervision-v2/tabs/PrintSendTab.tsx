@@ -29,6 +29,7 @@ interface Props {
   onOpenLegacySend: () => void;
   onOpenMessagesArchive?: () => void;
   showToast?: (msg: string, type: 'success' | 'warning' | 'error') => void;
+  mode?: 'print' | 'send';
 }
 
 type TaskMode = 'print' | 'send';
@@ -232,12 +233,13 @@ const MultiSelectDropdown: React.FC<{
 const PrintSendTab: React.FC<Props> = ({
   supervisionData, setSupervisionData, storageKey, schoolInfo, teachers, admins,
   onOpenLegacyPrint, onOpenLegacySend, onOpenMessagesArchive, showToast,
+  mode = 'print',
 }) => {
   const { sendMessage, scheduleMessage } = useMessageArchive();
   const openReminderFromDashboard = (() => {
     try { return sessionStorage.getItem('motabe:supervision_v2:open_send_reminder') === '1'; } catch { return false; }
   })();
-  const [taskMode, setTaskMode] = useState<TaskMode>(openReminderFromDashboard ? 'send' : 'print');
+  const [taskMode, setTaskMode] = useState<TaskMode>(mode === 'send' || openReminderFromDashboard ? 'send' : 'print');
 
   // Print state
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
@@ -1415,32 +1417,28 @@ const PrintSendTab: React.FC<Props> = ({
   return (
     <div className="space-y-5" dir="rtl">
       {/* شريط التبويب العلوي */}
-      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
-        <div className="flex flex-wrap gap-3">
-          {[
-            { id: 'print' as TaskMode, label: 'طباعة', icon: Printer },
-            { id: 'send' as TaskMode, label: 'إرسال', icon: Send },
-          ].map(option => (
-            <button key={option.id} type="button" onClick={() => setTaskMode(option.id)}
-              className={actionButtonClass(taskMode === option.id)}>
-              <option.icon size={17} />
-              {option.label}
+      {mode === 'send' && (
+        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => setTaskMode('send')} className={actionButtonClass(taskMode === 'send')}>
+              <Send size={17} />
+              إرسال
             </button>
-          ))}
-          <button type="button" onClick={() => setSigReceiptOpen(true)} className={actionButtonClass(false)}>
-            <ClipboardList size={17} />
-            سجل استلام التكليف بالإشراف
-          </button>
-          <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
-            className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
-            <Archive size={17} />
-            أرشيف الرسائل
-          </button>
+            <button type="button" onClick={() => setSigReceiptOpen(true)} className={actionButtonClass(false)}>
+              <ClipboardList size={17} />
+              سجل استلام التكليف بالإشراف
+            </button>
+            <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
+              className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
+              <Archive size={17} />
+              أرشيف الرسائل
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ══════ الطباعة — بطاقة واحدة ══════ */}
-      {taskMode === 'print' && (
+      {mode === 'print' && taskMode === 'print' && (
         <div className="space-y-4">
           <div className="px-1">
             <h3 className="font-black text-slate-800 text-lg">الطباعة</h3>
@@ -1521,7 +1519,7 @@ const PrintSendTab: React.FC<Props> = ({
       )}
 
       {/* ══════ الإرسال ══════ */}
-      {taskMode === 'send' && (
+      {mode === 'send' && taskMode === 'send' && (
         <div className="space-y-4">
           <div className="px-1">
             <h3 className="font-black text-slate-800 text-lg">إرسال الإشراف</h3>

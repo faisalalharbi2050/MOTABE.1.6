@@ -424,7 +424,7 @@ interface DailyWaitingProps {
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
   specializations?: Specialization[];
-  embeddedSection?: 'register' | 'distribute' | 'balance' | 'printsend' | 'reports';
+  embeddedSection?: 'register' | 'distribute' | 'balance' | 'printsend' | 'send' | 'reports';
   onSectionExit?: () => void;
   onGoToPrintSend?: () => void;
   onOpenMessagesArchive?: () => void;
@@ -441,6 +441,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const isDistribute = embeddedSection === 'distribute';
   const isBalance = embeddedSection === 'balance';
   const isPrintSend = embeddedSection === 'printsend';
+  const isSend = embeddedSection === 'send';
   const isReports = embeddedSection === 'reports';
   // ===== State =====
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
@@ -463,7 +464,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [blankPrintColorMode, setBlankPrintColorMode] = useState<'color' | 'bw'>('color');
   const [waitingPrintScope, setWaitingPrintScope] = useState<'all' | 'teacher'>('all');
   const [selectedPrintTeacherId, setSelectedPrintTeacherId] = useState('');
-  const [waitingTaskMode, setWaitingTaskMode] = useState<'print' | 'send'>('print');
+  const [waitingTaskMode, setWaitingTaskMode] = useState<'print' | 'send'>(embeddedSection === 'send' ? 'send' : 'print');
   const [showWaitingReceipt, setShowWaitingReceipt] = useState(false);
   const [receiptSearch, setReceiptSearch] = useState('');
   const [receiptFilter, setReceiptFilter] = useState<'all' | 'signed' | 'pending'>('all');
@@ -4012,31 +4013,29 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       )}
 
       {/* ══════ Print/Send inline (printsend section only) ══════ */}
-      {isPrintSend && (
+      {(isPrintSend || isSend) && (
         <div className="space-y-5">
-          <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={() => setWaitingTaskMode('print')} className={actionButtonClass(waitingTaskMode === 'print')}>
-                <Printer size={17} />
-                طباعة
-              </button>
-              <button type="button" onClick={() => setWaitingTaskMode('send')} className={actionButtonClass(waitingTaskMode === 'send')}>
-                <Send size={17} />
-                إرسال
-              </button>
-              <button type="button" onClick={() => setShowWaitingReceipt(true)} className={actionButtonClass(false)}>
-                <ClipboardCheck size={17} />
-                سجل استلام التكليف بالانتظار
-              </button>
-              <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
-                className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                <Archive size={17} />
-                أرشيف الرسائل
-              </button>
+          {isSend && (
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => setWaitingTaskMode('send')} className={actionButtonClass(waitingTaskMode === 'send')}>
+                  <Send size={17} />
+                  إرسال
+                </button>
+                <button type="button" onClick={() => setShowWaitingReceipt(true)} className={actionButtonClass(false)}>
+                  <ClipboardCheck size={17} />
+                  سجل استلام التكليف بالانتظار
+                </button>
+                <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
+                  className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                  <Archive size={17} />
+                  أرشيف الرسائل
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {waitingTaskMode === 'print' && (
+          {isPrintSend && waitingTaskMode === 'print' && (
           <div className="space-y-5">
             <div className="px-1">
               <h3 className="font-black text-slate-800 text-lg">الطباعة</h3>

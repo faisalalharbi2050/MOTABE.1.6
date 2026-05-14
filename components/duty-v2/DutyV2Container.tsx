@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Eye, Settings, BarChart3, ShieldCheck,
   CheckCircle, AlertTriangle, AlertCircle,
-  RefreshCw, X, Info, Sparkles, FileOutput, Table,
+  RefreshCw, X, Info, Sparkles, FileOutput, Send, Table,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -59,7 +59,7 @@ interface Props {
   onNavigateToDashboard?: () => void;
 }
 
-type TabId = 'settings' | 'create' | 'printsend' | 'monitoring' | 'manage';
+type TabId = 'settings' | 'create' | 'printsend' | 'send' | 'monitoring' | 'manage';
 
 const TAB_STORAGE_KEY = 'motabe:duty_v2:lastTab';
 const DUTY_ONE_TIME_RESET_MARKER = 'duty_data_reset_2026_04_04_done';
@@ -70,10 +70,10 @@ const DutyV2Container: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     try {
       if (sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1') {
-        return 'printsend';
+        return 'send';
       }
       const saved = localStorage.getItem(TAB_STORAGE_KEY);
-      if (saved === 'settings' || saved === 'create' || saved === 'printsend' || saved === 'monitoring' || saved === 'manage') {
+      if (saved === 'settings' || saved === 'create' || saved === 'printsend' || saved === 'send' || saved === 'monitoring' || saved === 'manage') {
         return saved as TabId;
       }
     } catch {}
@@ -274,7 +274,8 @@ const DutyV2Container: React.FC<Props> = ({
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
     { id: 'settings', label: 'إعدادات المناوبة', icon: Settings },
     { id: 'create', label: 'إنشاء جدول المناوبة', icon: Sparkles },
-    { id: 'printsend', label: 'طباعة وإرسال المناوبة', icon: FileOutput },
+    { id: 'printsend', label: 'طباعة المناوبة', icon: FileOutput },
+    { id: 'send', label: 'إرسال المناوبة', icon: Send },
     { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: BarChart3 },
     { id: 'manage', label: 'إدارة الجداول', icon: Table },
   ];
@@ -440,6 +441,17 @@ const DutyV2Container: React.FC<Props> = ({
             onOpenLegacyPrint={() => setIsPrintOpen(true)}
             onOpenLegacySend={() => setIsMessagingOpen(true)}
             showToast={showToast}
+            mode="print"
+          />
+        )}
+        {activeTab === 'send' && (
+          <PrintSendTab
+            dutyData={dutyData}
+            schoolInfo={schoolInfo}
+            onOpenLegacyPrint={() => setIsPrintOpen(true)}
+            onOpenLegacySend={() => setIsMessagingOpen(true)}
+            showToast={showToast}
+            mode="send"
           />
         )}
         {activeTab === 'manage' && (

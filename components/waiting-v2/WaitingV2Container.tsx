@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserX, Shuffle, Scale, FileOutput, FileText } from 'lucide-react';
+import { UserX, Shuffle, Scale, FileOutput, FileText, Send } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo, ScheduleSettingsData, Specialization,
 } from '../../types';
@@ -7,6 +7,7 @@ import RegisterTab from './tabs/RegisterTab';
 import DistributeTab from './tabs/DistributeTab';
 import BalanceTab from './tabs/BalanceTab';
 import PrintSendTab from './tabs/PrintSendTab';
+import SendTab from './tabs/SendTab';
 import ReportsTab from './tabs/ReportsTab';
 
 interface Props {
@@ -20,10 +21,10 @@ interface Props {
   onOpenMessagesArchive?: () => void;
 }
 
-type TabId = 'register' | 'distribute' | 'balance' | 'printsend' | 'reports';
+type TabId = 'register' | 'distribute' | 'balance' | 'printsend' | 'send' | 'reports';
 
 const TAB_STORAGE_KEY = 'motabe:waiting_v2:lastTab';
-const VALID_TABS: TabId[] = ['register', 'distribute', 'printsend', 'balance', 'reports'];
+const VALID_TABS: TabId[] = ['register', 'distribute', 'printsend', 'send', 'balance', 'reports'];
 
 const WaitingV2Container: React.FC<Props> = (props) => {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -41,7 +42,8 @@ const WaitingV2Container: React.FC<Props> = (props) => {
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
     { id: 'register', label: 'تسجيل غياب معلم', icon: UserX },
     { id: 'distribute', label: 'توزيع الانتظار', icon: Shuffle },
-    { id: 'printsend', label: 'طباعة وإرسال الانتظار', icon: FileOutput },
+    { id: 'printsend', label: 'طباعة الانتظار', icon: FileOutput },
+    { id: 'send', label: 'إرسال الانتظار', icon: Send },
     { id: 'balance', label: 'رصيد الانتظار', icon: Scale },
     { id: 'reports', label: 'تقارير الانتظار', icon: FileText },
   ];
@@ -89,6 +91,7 @@ const WaitingV2Container: React.FC<Props> = (props) => {
         {activeTab === 'distribute' && <DistributeTab {...props} onGoToPrintSend={() => setActiveTab('printsend')} />}
         {activeTab === 'balance' && <BalanceTab {...props} onSectionExit={handleSectionExit} />}
         {activeTab === 'printsend' && <PrintSendTab {...props} />}
+        {activeTab === 'send' && <SendTab {...props} />}
         {activeTab === 'reports' && <ReportsTab {...props} onSectionExit={handleSectionExit} />}
       </div>
     </div>
