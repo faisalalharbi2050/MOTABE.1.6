@@ -934,16 +934,21 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
                       })()}
                     </div>
 
-                    <button
-                      onClick={() => onNavigate('register')}
-                      className={`w-full py-3.5 rounded-xl font-black text-lg transition-all shadow-sm ${styles.btnDefault} ${styles.btnHover}`}
-                    >
-                      اشتراك
-                    </button>
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Unified CTA — actual subscription happens inside the app */}
+          <div className="flex justify-center mt-10">
+            <button
+              onClick={() => onNavigate('register')}
+              className="inline-flex items-center gap-2 px-10 py-4 rounded-xl bg-[#655ac1] hover:bg-[#52499d] text-white font-black text-lg shadow-xl shadow-[#655ac1]/30 hover:-translate-y-0.5 transition-all"
+            >
+              ابدأ الآن
+              <ArrowLeft className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
