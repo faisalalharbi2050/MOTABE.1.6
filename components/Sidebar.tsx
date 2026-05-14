@@ -150,25 +150,23 @@ const Sidebar: React.FC<SidebarProps> = ({
         `}>
            
            {/* Logo Content */}
-           <div className={`flex items-center gap-3 transition-opacity duration-300 ${isCollapsed ? "hidden" : "flex"}`}>
-             {/* Icon (M) - Tilted & Darker White */}
-             <div className="w-11 h-11 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-inner border border-white/5 transform rotate-12 transition-transform duration-300 hover:rotate-0">
-                <span className="font-extrabold text-xl text-white/90 transform">M</span>
-             </div>
-
-             {/* Title */}
-             <div className="flex flex-col">
-                <h1 className="text-3xl font-black text-white tracking-tight leading-none drop-shadow-sm">
-                  متابع
-                </h1>
-             </div>
+           <div className={`flex items-center transition-opacity duration-300 ${isCollapsed ? "hidden" : "flex"}`}>
+             <img
+               src="/logo-white.png"
+               alt="متابع"
+               className="h-12 w-auto select-none drop-shadow-sm"
+               draggable={false}
+             />
            </div>
 
            {/* Collapsed Logo (Shown when collapsed) */}
             <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${isCollapsed ? "opacity-100" : "opacity-0"}`}>
-               <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-inner border border-white/5 transform rotate-12">
-                   <span className="font-extrabold text-lg text-white/90">M</span>
-               </div>
+               <img
+                 src="/logo-white.png"
+                 alt="متابع"
+                 className="h-9 w-auto select-none drop-shadow-sm"
+                 draggable={false}
+               />
             </div>
 
            {/* Toggle Button */}

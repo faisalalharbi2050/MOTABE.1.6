@@ -92,13 +92,15 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
         {/* Logo */}
         <button
           onClick={() => onNavigate('landing')}
-          className="flex items-center gap-2.5 group shrink-0"
+          className="flex items-center group shrink-0"
           aria-label="منصة متابع"
         >
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center text-white font-black text-lg shadow-lg shadow-[#655ac1]/30 group-hover:shadow-[#655ac1]/50 group-hover:scale-105 transition-all">
-            M
-          </div>
-          <span className="font-black text-xl text-slate-800 tracking-tight">متابع</span>
+          <img
+            src="/logo.png"
+            alt="متابع"
+            className="h-11 w-auto select-none group-hover:scale-105 transition-transform"
+            draggable={false}
+          />
         </button>
 
         {/* Desktop nav */}
