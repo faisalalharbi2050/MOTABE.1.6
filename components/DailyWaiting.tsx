@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo,
-  ScheduleSettingsData, TimetableData, Specialization
+  ScheduleSettingsData, TimetableData, Specialization, SemesterInfo
 } from '../types';
 import DailyWaitingPrintModal from './DailyWaitingPrintModal';
 import { useMessageArchive } from './messaging/MessageArchiveContext';
@@ -147,6 +147,50 @@ const toLocalISODate = (date: Date): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+interface AcademicWeek {
+  number: number;
+  start: string;
+  end: string;
+  days: string[];
+  holidays: string[];
+  hasHoliday: boolean;
+}
+
+const buildAcademicWeeks = (semester: SemesterInfo | undefined): AcademicWeek[] => {
+  if (!semester?.startDate || !semester.endDate || !semester.weeksCount) return [];
+  const workStart = semester.workDaysStart ?? 0;
+  const workEnd = semester.workDaysEnd ?? 4;
+  const holidaySet = new Set(semester.holidays || []);
+  const start = new Date(`${semester.startDate}T00:00:00`);
+  const end = new Date(`${semester.endDate}T00:00:00`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+  const cur = new Date(start);
+  while (cur.getDay() !== workStart && cur <= end) cur.setDate(cur.getDate() + 1);
+  const weeks: AcademicWeek[] = [];
+  let num = 1;
+  while (cur <= end && num <= semester.weeksCount) {
+    const days: string[] = [];
+    const weekHolidays: string[] = [];
+    for (let d = workStart; d <= workEnd; d++) {
+      const dateStr = toLocalISODate(cur);
+      days.push(dateStr);
+      if (holidaySet.has(dateStr)) weekHolidays.push(dateStr);
+      cur.setDate(cur.getDate() + 1);
+    }
+    while (cur.getDay() !== workStart && cur <= end) cur.setDate(cur.getDate() + 1);
+    weeks.push({
+      number: num,
+      start: days[0],
+      end: days[days.length - 1],
+      days,
+      holidays: weekHolidays,
+      hasHoliday: weekHolidays.length > 0,
+    });
+    num++;
+  }
+  return weeks;
 };
 
 const getWaitingWeekRange = (dateStr: string): { start: string; end: string; weekKey: string } => {
@@ -428,12 +472,16 @@ interface DailyWaitingProps {
   onSectionExit?: () => void;
   onGoToPrintSend?: () => void;
   onOpenMessagesArchive?: () => void;
+  activeSchoolTab?: string;
 }
 
 // ===== Main Component =====
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
-  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onOpenMessagesArchive
+  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onOpenMessagesArchive, activeSchoolTab = 'main'
 }) => {
+  const storageSuffix = activeSchoolTab && activeSchoolTab !== 'main' ? `_${activeSchoolTab}` : '';
+  const SESSIONS_KEY = `daily_waiting_sessions_v1${storageSuffix}`;
+  const QUOTA_KEY = `daily_waiting_quota_v1${storageSuffix}`;
   const { sendMessage } = useMessageArchive();
   // ===== Embedded section flags =====
   const isEmbedded = !!embeddedSection;
@@ -446,11 +494,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ===== State =====
   const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
   const [sessions, setSessions] = useState<DailyWaitingSession[]>(() => {
-    try { return JSON.parse(localStorage.getItem('daily_waiting_sessions_v1') || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
   });
   const [weeklyQuota, setWeeklyQuota] = useState<WeeklyQuotaRecord>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('daily_waiting_quota_v1') || 'null');
+      const saved = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null');
       const weekKey = getISOWeekKey(getTodayStr());
       if (saved && saved.weekKey === weekKey) return saved;
       return { weekKey, counts: {}, lastResetDate: getTodayStr() };
@@ -562,6 +610,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [rptSelectedIds, setRptSelectedIds] = useState<Set<string>>(new Set());
   const [rptSearch, setRptSearch] = useState('');
   const [rptDropdownOpen, setRptDropdownOpen] = useState(false);
+  const [rptSelectedWeekNumbers, setRptSelectedWeekNumbers] = useState<Set<number>>(new Set());
+  const [rptCalendarType, setRptCalendarType] = useState<'hijri' | 'gregorian'>(schoolInfo.calendarType || 'hijri');
+  const [rptWeekDropdownOpen, setRptWeekDropdownOpen] = useState(false);
+  const [rptWeekSearch, setRptWeekSearch] = useState('');
 
   // ── Teacher Remove Confirm ──
   const [showTeacherRemoveConfirm, setShowTeacherRemoveConfirm] = useState(false);
@@ -584,12 +636,28 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ===== Persistence =====
   useEffect(() => {
-    localStorage.setItem('daily_waiting_sessions_v1', JSON.stringify(sessions));
-  }, [sessions]);
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+  }, [sessions, SESSIONS_KEY]);
 
   useEffect(() => {
-    localStorage.setItem('daily_waiting_quota_v1', JSON.stringify(weeklyQuota));
-  }, [weeklyQuota]);
+    localStorage.setItem(QUOTA_KEY, JSON.stringify(weeklyQuota));
+  }, [weeklyQuota, QUOTA_KEY]);
+
+  // Re-hydrate state when active school changes
+  useEffect(() => {
+    try {
+      const rawSessions = localStorage.getItem(SESSIONS_KEY);
+      setSessions(rawSessions ? JSON.parse(rawSessions) : []);
+    } catch { setSessions([]); }
+    try {
+      const rawQuota = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null');
+      const weekKey = getISOWeekKey(getTodayStr());
+      if (rawQuota && rawQuota.weekKey === weekKey) setWeeklyQuota(rawQuota);
+      else setWeeklyQuota({ weekKey, counts: {}, lastResetDate: getTodayStr() });
+    } catch {}
+    setDisabledWaitingSlots(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSchoolTab]);
 
   // ===== Derived data =====
   const timetable: TimetableData = useMemo(() => {
@@ -602,7 +670,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const dayName = useMemo(() => getArabicDayFromDate(selectedDate), [selectedDate]);
   // مفتاح اليوم بالإنجليزية لمطابقة مفاتيح الجدول الزمني (sunday, monday, ...)
   const dayKey = useMemo(() => new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), [selectedDate]);
-  const waitingWeekRange = useMemo(() => getWaitingWeekRange(selectedDate), [selectedDate]);
+  const waitingWeekRange = useMemo(() => {
+    const semester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
+    const weeks = buildAcademicWeeks(semester);
+    const match = weeks.find(w => selectedDate >= w.start && selectedDate <= w.end);
+    if (match) return { start: match.start, end: match.end, weekKey: `acad-W${match.number}` };
+    return getWaitingWeekRange(selectedDate);
+  }, [selectedDate, schoolInfo.semesters]);
 
   const currentSession = useMemo(
     () => sessions.find(s => s.date === selectedDate) || null,
@@ -2047,7 +2121,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   const refreshWaitingReceiptFromStorage = () => {
     try {
-      const raw = localStorage.getItem('daily_waiting_sessions_v1');
+      const raw = localStorage.getItem(SESSIONS_KEY);
       if (raw) setSessions(JSON.parse(raw));
       setReceiptSearch('');
       setReceiptFilter('all');
@@ -2723,14 +2797,206 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }
 
   if (isReports) {
-    const reportDateLabel = rptFromDate && rptToDate
-      ? `من ${formatHijri(rptFromDate)} إلى ${formatHijri(rptToDate)}`
-      : 'كل البيانات المتاحة';
-    const selectedStaffNames = Array.from(rptSelectedIds)
-      .map(id => allWaitingStaff.find(staff => staff.id === id)?.name)
-      .filter(Boolean)
-      .join('، ');
+    const semesters = schoolInfo.semesters || [];
+    const activeSemester = semesters.find(s => s.isCurrent) || semesters[0];
+    const academicWeeks = buildAcademicWeeks(activeSemester);
+    const today = getTodayStr();
+    const autoWeek =
+      academicWeeks.find(w => today >= w.start && today <= w.end) ||
+      academicWeeks[academicWeeks.length - 1] ||
+      null;
+    const calendarReady = !!activeSemester && academicWeeks.length > 0 && !!autoWeek;
+
+    const formatDateLabel = (dateStr: string) => rptCalendarType === 'hijri' ? formatHijri(dateStr) : formatGregorian(dateStr);
+    const formatDateLabelFull = (dateStr: string) => `${getArabicDayFromDate(dateStr)} ${formatDateLabel(dateStr)}`;
+
+    const effectiveWeeks: AcademicWeek[] = calendarReady
+      ? (rptSelectedWeekNumbers.size > 0
+          ? academicWeeks.filter(w => rptSelectedWeekNumbers.has(w.number))
+          : (autoWeek ? [autoWeek] : []))
+      : [];
+
+    const weekDaysList: string[] = effectiveWeeks.flatMap(w => w.days);
+    const weekDaysSet = new Set(weekDaysList);
+    const weekSessions = sessions.filter(s => weekDaysSet.has(s.date));
+
+    const perStaff: Record<string, { id: string; name: string; role: 'teacher' | 'admin'; quota: number; totalAssigned: number; dayPeriods: Record<string, number[]> }> = {};
+    weekSessions.forEach(s => {
+      s.assignments.forEach(a => {
+        if (isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)) return;
+        const sid = a.substituteTeacherId;
+        const teacher = teachers.find(t => t.id === sid);
+        const admin = admins.find(adm => adm.id === sid);
+        if (!perStaff[sid]) {
+          perStaff[sid] = {
+            id: sid,
+            name: a.substituteTeacherName,
+            role: admin ? 'admin' : 'teacher',
+            quota: teacher?.waitingQuota || admin?.waitingQuota || 0,
+            totalAssigned: 0,
+            dayPeriods: {},
+          };
+        }
+        perStaff[sid].totalAssigned++;
+        if (!perStaff[sid].dayPeriods[s.date]) perStaff[sid].dayPeriods[s.date] = [];
+        perStaff[sid].dayPeriods[s.date].push(a.periodNumber);
+      });
+    });
+
+    const filterByMode = (rows: typeof perStaff[string][]) => {
+      if (rptStaffMode === 'specific' && rptSelectedIds.size > 0) {
+        return rows.filter(r => rptSelectedIds.has(r.id));
+      }
+      return rows;
+    };
+    const allRows = Object.values(perStaff)
+      .sort((a, b) => b.totalAssigned - a.totalAssigned || a.name.localeCompare(b.name, 'ar'));
+    const scopedRows = filterByMode(allRows);
+    const totalAssignedInScope = scopedRows.reduce((sum, r) => sum + r.totalAssigned, 0);
     const filteredStaffOptions = allWaitingStaff.filter(staff => staff.name.includes(rptSearch));
+
+    const dayHeaders = weekDaysList.map(d => ({
+      date: d,
+      day: getArabicDayFromDate(d),
+      isHoliday: effectiveWeeks.some(w => w.holidays.includes(d)),
+    }));
+
+    const weekRangeLabel = effectiveWeeks.length === 1
+      ? `الأسبوع ${effectiveWeeks[0].number} — من ${getArabicDayFromDate(effectiveWeeks[0].start)} ${formatDateLabel(effectiveWeeks[0].start)} إلى ${getArabicDayFromDate(effectiveWeeks[0].end)} ${formatDateLabel(effectiveWeeks[0].end)}`
+      : effectiveWeeks.length > 1
+        ? `${effectiveWeeks.length} أسابيع — من ${getArabicDayFromDate(effectiveWeeks[0].start)} ${formatDateLabel(effectiveWeeks[0].start)} إلى ${getArabicDayFromDate(effectiveWeeks[effectiveWeeks.length - 1].end)} ${formatDateLabel(effectiveWeeks[effectiveWeeks.length - 1].end)}`
+        : '';
+
+    const selectedWeeksLabel = effectiveWeeks.length === 0
+      ? 'اختر الأسبوع الدراسي'
+      : effectiveWeeks.length === 1
+        ? `الأسبوع ${effectiveWeeks[0].number} — ${getArabicDayFromDate(effectiveWeeks[0].start)} ${formatDateLabel(effectiveWeeks[0].start)} → ${getArabicDayFromDate(effectiveWeeks[0].end)} ${formatDateLabel(effectiveWeeks[0].end)}`
+        : rptSelectedWeekNumbers.size === academicWeeks.length
+          ? `كل الأسابيع (${academicWeeks.length})`
+          : `${rptSelectedWeekNumbers.size} أسابيع مختارة`;
+
+    const weekSearchTerm = rptWeekSearch.trim();
+    const filteredWeeks = academicWeeks.filter(w => {
+      if (!weekSearchTerm) return true;
+      const haystack = [
+        `الأسبوع ${w.number}`,
+        getArabicDayFromDate(w.start),
+        getArabicDayFromDate(w.end),
+        formatHijri(w.start),
+        formatHijri(w.end),
+        formatGregorian(w.start),
+        formatGregorian(w.end),
+        w.start,
+        w.end,
+      ].join(' ');
+      return haystack.includes(weekSearchTerm);
+    });
+
+    const printWaitingReport = () => {
+      if (effectiveWeeks.length === 0) return;
+      const todayStr = getTodayStr();
+      const headerCells = dayHeaders.map(d => `<th class="day-head">${escapeHtml(d.day)}${d.isHoliday ? ' <span class="hol-dot">●</span>' : ''}</th>`).join('');
+      const bodyRows = scopedRows.map((row, index) => {
+        const dayCells = dayHeaders.map(d => {
+          const periods = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a - b);
+          return `<td class="day-cell">${periods.length ? `<span class="day-num">${periods.join('، ')}</span>` : '<span class="day-empty">·</span>'}</td>`;
+        }).join('');
+        return `
+          <tr>
+            <td><span class="seq-pill">${index + 1}</span></td>
+            <td style="text-align:right;font-weight:900">${escapeHtml(row.name)}</td>
+            <td><span class="num-pill purple">${row.quota || '—'}</span></td>
+            <td><span class="num-pill amber">${row.totalAssigned}</span></td>
+            ${dayCells}
+          </tr>
+        `;
+      }).join('');
+      openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>تقرير الانتظار الأسبوعي</title><style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+        @page { size: A4 portrait; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body { margin:0; direction:rtl; font-family:'Tajawal',Arial,sans-serif; color:#1e293b; background:white; }
+        .official-header { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:start; border-bottom:2px solid #1e293b; padding-bottom:12px; margin-bottom:14px; }
+        .header-side { font-size:11px; font-weight:800; line-height:1.7; }
+        .header-center { text-align:center; }
+        .header-left { text-align:left; }
+        .logo-placeholder { width:52px; height:52px; border:2px solid #cbd5e1; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px; font-weight:900; }
+        h1 { margin:0; font-size:18px; font-weight:900; }
+        .title { text-align:center; font-size:18px; font-weight:900; margin:12px 0 6px; }
+        .week-range { text-align:center; font-size:12px; font-weight:900; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; margin-bottom:14px; }
+        .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+        .stat { border:1px solid #cbd5e1; border-radius:10px; padding:9px; text-align:center; }
+        .stat b { display:block; font-size:18px; color:#655ac1; }
+        .stat span { font-size:10px; color:#64748b; font-weight:900; }
+        table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; }
+        th,td { border:1px solid #cbd5e1; padding:8px; text-align:center; vertical-align:middle; }
+        th { background:#a59bf0; color:#fff; font-weight:900; }
+        tbody tr:nth-child(even) td { background:#f8fafc; }
+        .seq-pill { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:999px; background:#f8fafc; color:#94a3b8; font-size:11px; font-weight:800; }
+        .num-pill { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:999px; border:1.5px solid #cbd5e1; background:transparent; font-size:12px; font-weight:900; }
+        .purple { color:#655ac1; }
+        .amber { color:#d97706; }
+        .day-head { width:42px; font-size:11px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
+        .day-cell { text-align:center; padding:6px 4px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
+        .day-num { color:#655ac1; font-size:12px; font-weight:900; }
+        .day-empty { color:#cbd5e1; font-size:13px; font-weight:800; }
+        .hol-dot { color:#dc2626; font-size:10px; }
+        .footer { margin-top:28px; display:flex; justify-content:space-between; gap:24px; font-size:12px; font-weight:900; padding:0 24px; }
+        .signature { width:40%; text-align:right; }
+        .role-label { color:#1e293b; }
+        .signature-name { margin-top:4px; color:#475569; font-weight:800; }
+        .line { margin-top:26px; border-top:1px solid #94a3b8; padding-top:6px; color:#475569; }
+        @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } th { background:#a59bf0 !important; color:#fff !important; } }
+      </style></head><body><section class="page">
+        <div class="official-header">
+          <div class="header-side">
+            <div>الإدارة العامة للتعليم</div>
+            <div>${escapeHtml(schoolInfo.region || schoolInfo.educationAdministration || '')}</div>
+            <div>المدرسة: ${escapeHtml(schoolInfo.schoolName || 'اسم المدرسة')}</div>
+          </div>
+          <div class="header-center">
+            ${schoolInfo.logo ? `<img src="${schoolInfo.logo}" style="width:52px;height:52px;object-fit:contain;margin-bottom:4px" />` : '<div class="logo-placeholder">شعار</div>'}
+            <h1>${escapeHtml(schoolInfo.schoolName || '')}</h1>
+          </div>
+          <div class="header-side header-left">
+            <div>${escapeHtml(activeSemester?.name || '')}</div>
+            <div>تاريخ الطباعة: ${escapeHtml(formatDateLabel(todayStr))}</div>
+          </div>
+        </div>
+        <div class="title">تقرير الانتظار الأسبوعي</div>
+        <div class="week-range">${escapeHtml(weekRangeLabel)}${effectiveWeeks.some(w => w.hasHoliday) ? ' — <span style="color:#dc2626">يحتوي إجازة</span>' : ''}</div>
+        <div class="stats">
+          <div class="stat"><b>${scopedRows.length}</b><span>عدد المنتظرين في التقرير</span></div>
+          <div class="stat"><b>${totalAssignedInScope}</b><span>إجمالي حصص الانتظار المسندة</span></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" style="width:38px">م</th>
+              <th rowspan="2" style="text-align:right">المنتظر</th>
+              <th rowspan="2" style="width:70px">النصاب</th>
+              <th rowspan="2" style="width:80px">المسند</th>
+              <th colspan="${dayHeaders.length}">أيام وحصص الإسناد</th>
+            </tr>
+            <tr>${headerCells}</tr>
+          </thead>
+          <tbody>${bodyRows || `<tr><td colspan="${4 + dayHeaders.length}">لا توجد بيانات</td></tr>`}</tbody>
+        </table>
+        <div class="footer">
+          <div class="signature">
+            <div class="role-label">وكيل الشؤون التعليمية</div>
+            <div class="signature-name">${escapeHtml(schoolInfo.educationalAgent || '')}</div>
+            <div class="line">التوقيع</div>
+          </div>
+          <div class="signature">
+            <div class="role-label">مدير المدرسة</div>
+            <div class="signature-name">${escapeHtml(schoolInfo.principal || '')}</div>
+            <div class="line">التوقيع</div>
+          </div>
+        </div>
+      </section><script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
+      showToast('تم فتح تقرير الانتظار للطباعة', 'success');
+    };
 
     return (
       <div className="space-y-5 pb-20" dir="rtl">
@@ -2769,281 +3035,355 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <div className="min-w-0">
                 <h2 className="font-black text-slate-800 text-lg">تقارير الانتظار</h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5 leading-6">
-                  قراءة مختصرة لتوزيع الانتظار، غياب المعلمين، والفصول والمواد المتأثرة خلال الفترة المحددة.
+                  تقرير أسبوعي بحصص الانتظار التي أُسندت للمنتظرين خلال الأسبوع الدراسي المختار.
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleWaitingReportPrint}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white text-[13px] font-black shadow-sm hover:bg-[#5046a0] transition-all"
-            >
-              <Printer size={15} />
-              طباعة التقرير
-            </button>
+            <div className="flex items-center gap-3">
+              {calendarReady && (
+                <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                  {[
+                    { value: 'hijri' as const,     label: 'هجري' },
+                    { value: 'gregorian' as const, label: 'ميلادي' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setRptCalendarType(opt.value)}
+                      className={`px-3 py-1.5 rounded-md text-[11px] font-black transition-all ${rptCalendarType === opt.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {calendarReady && (
+                <button
+                  type="button"
+                  onClick={printWaitingReport}
+                  disabled={scopedRows.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white text-[13px] font-black shadow-sm hover:bg-[#5046a0] transition-all disabled:opacity-50"
+                >
+                  <Printer size={15} />
+                  طباعة التقرير
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-black text-slate-500 mb-1.5">من تاريخ</label>
-                <DatePicker
-                  value={rptFromDate}
-                  onChange={(date: DateObject | DateObject[] | null) => {
-                    const selectedDateObj = Array.isArray(date) ? date[0] : date;
-                    setRptFromDate(selectedDateObj ? selectedDateObj.convert(gregorian, gregorian_en).format('YYYY-MM-DD') : '');
-                  }}
-                  calendar={arabic}
-                  locale={arabic_ar}
-                  containerClassName="w-full"
-                  inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:border-[#655ac1] transition-all text-right"
-                  editable={false}
-                  portal
-                  portalTarget={document.body}
-                  zIndex={99999}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-slate-500 mb-1.5">إلى تاريخ</label>
-                <DatePicker
-                  value={rptToDate}
-                  onChange={(date: DateObject | DateObject[] | null) => {
-                    const selectedDateObj = Array.isArray(date) ? date[0] : date;
-                    setRptToDate(selectedDateObj ? selectedDateObj.convert(gregorian, gregorian_en).format('YYYY-MM-DD') : '');
-                  }}
-                  calendar={arabic}
-                  locale={arabic_ar}
-                  containerClassName="w-full"
-                  inputClass="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:border-[#655ac1] transition-all text-right"
-                  editable={false}
-                  portal
-                  portalTarget={document.body}
-                  zIndex={99999}
-                />
-              </div>
+        {!calendarReady ? (
+          <div className="bg-white rounded-[2rem] border border-amber-200 shadow-sm p-8 text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-50 text-amber-600 mb-4">
+              <CalendarClock size={28} />
             </div>
-
-            <div className="space-y-3">
-              <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-200 w-fit">
-                <button
-                  type="button"
-                  onClick={() => { setRptStaffMode('all'); setRptSelectedIds(new Set()); }}
-                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${rptStaffMode === 'all' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  كل المنتظرين
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRptStaffMode('specific')}
-                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${rptStaffMode === 'specific' ? 'bg-white shadow-sm text-[#655ac1]' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  اختيار محدد
-                </button>
-              </div>
-
-              {rptStaffMode === 'specific' && (
-                <div className="relative">
-                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={rptSearch}
-                    onChange={e => setRptSearch(e.target.value)}
-                    onFocus={() => setRptDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setRptDropdownOpen(false), 180)}
-                    placeholder="ابحث عن منتظر..."
-                    className="w-full pr-9 pl-3 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
-                  />
-                  {rptDropdownOpen && (
-                    <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-[90] max-h-56 overflow-y-auto rounded-xl border border-slate-100 bg-white shadow-xl">
-                      {filteredStaffOptions.map(staff => (
+            <h3 className="font-black text-slate-800 text-base mb-2">اضبط التقويم الدراسي ليظهر التقرير بشكل صحيح</h3>
+            <p className="text-sm font-bold text-slate-500 leading-7 max-w-lg mx-auto">
+              تقارير الانتظار تعتمد على الأسابيع الدراسية من التقويم الدراسي للمدرسة. يمكنك ضبطه من خلال بطاقة التقويم الدراسي في الصفحة الرئيسية، ثم العودة هنا.
+            </p>
+          </div>
+        ) : (
+        <>
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-black text-slate-500 mb-1.5">الأسبوع الدراسي</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setRptWeekDropdownOpen(v => !v)}
+                className="w-full px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+              >
+                <span className="truncate text-[13px] leading-tight text-right">{selectedWeeksLabel}</span>
+                <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${rptWeekDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {rptWeekDropdownOpen && (
+                <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-[120] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in slide-in-from-top-2">
+                  <div className="relative mb-3">
+                    <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={rptWeekSearch}
+                      onChange={e => setRptWeekSearch(e.target.value)}
+                      placeholder="ابحث برقم الأسبوع أو التاريخ..."
+                      className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
+                    />
+                  </div>
+                  <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => setRptSelectedWeekNumbers(new Set(academicWeeks.map(w => w.number)))}
+                      className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                      تحديد الكل
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRptSelectedWeekNumbers(new Set())}
+                      className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+                    >
+                      إلغاء التحديد
+                    </button>
+                    <div className="flex-1" />
+                    <button
+                      type="button"
+                      onClick={() => setRptWeekDropdownOpen(false)}
+                      className="text-xs font-bold text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                      تم
+                    </button>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
+                    {filteredWeeks.length === 0 ? (
+                      <p className="text-center text-sm font-bold text-slate-400 py-6">لا توجد نتائج</p>
+                    ) : filteredWeeks.map(w => {
+                      const isSelected = rptSelectedWeekNumbers.has(w.number) || (rptSelectedWeekNumbers.size === 0 && autoWeek?.number === w.number);
+                      const explicitlySelected = rptSelectedWeekNumbers.has(w.number);
+                      const isAuto = !explicitlySelected && autoWeek?.number === w.number && rptSelectedWeekNumbers.size === 0;
+                      return (
                         <button
-                          key={staff.id}
+                          key={w.number}
                           type="button"
-                          onMouseDown={() => {
-                            setRptSelectedIds(prev => {
+                          onClick={() => {
+                            setRptSelectedWeekNumbers(prev => {
                               const next = new Set(prev);
-                              next.has(staff.id) ? next.delete(staff.id) : next.add(staff.id);
+                              if (next.has(w.number)) next.delete(w.number);
+                              else next.add(w.number);
                               return next;
                             });
                           }}
-                          className="w-full px-4 py-2.5 text-right text-sm font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-50 last:border-0 flex items-center justify-between gap-3"
+                          className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${explicitlySelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
                         >
-                          <span className="truncate">{staff.name}</span>
-                          <span className="text-[10px] font-black text-slate-400">{staff.role === 'admin' ? 'إداري' : 'معلم'}</span>
+                          <span className="flex flex-col items-start min-w-0 flex-1">
+                            <span className="font-black flex items-center gap-2">
+                              الأسبوع {w.number}
+                              {isAuto && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">الحالي</span>}
+                              {w.hasHoliday && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">إجازة</span>}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-400 mt-0.5 truncate max-w-full">
+                              {getArabicDayFromDate(w.start)} {formatDateLabel(w.start)} → {getArabicDayFromDate(w.end)} {formatDateLabel(w.end)}
+                            </span>
+                          </span>
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                            <Check size={12} strokeWidth={3} />
+                          </span>
                         </button>
-                      ))}
-                      {filteredStaffOptions.length === 0 && (
-                        <div className="p-4 text-center text-sm font-bold text-slate-400">لا توجد نتائج</div>
-                      )}
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
                 </div>
               )}
-              <p className="text-[11px] font-bold text-slate-400 leading-5">
-                {rptStaffMode === 'all'
-                  ? reportDateLabel
-                  : selectedStaffNames || 'اختر منتظرًا أو أكثر، أو اترك الاختيار فارغًا لعرض الجميع'}
+            </div>
+            {effectiveWeeks.some(w => w.hasHoliday) && (
+              <p className="mt-2 text-[11px] font-black text-rose-600 flex items-center gap-1.5">
+                <AlertTriangle size={12} />
+                يحتوي أسبوع مختار إجازة — قد ينخفض إسناد الانتظار في ذلك اليوم.
               </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {[
-            { label: 'حصص الانتظار', value: rptSummary.totalAssigned, icon: ClipboardCheck, color: 'text-[#655ac1]' },
-            { label: 'المنتظرون المكلفون', value: rptSummary.activeWaiters, icon: Users, color: 'text-slate-700' },
-            { label: 'المعلمون الغائبون', value: rptSummary.absentCount, icon: UserX, color: 'text-slate-700' },
-            { label: 'الفصول المتأثرة', value: rptSummary.affectedClasses, icon: Layers, color: 'text-slate-700' },
-          ].map(stat => (
-            <div key={stat.label} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
-              <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
-                <stat.icon size={21} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-400 leading-none">{stat.label}</p>
-                <p className={`mt-1 font-black text-xl leading-none ${stat.color}`}>{stat.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-5">
-            <p className="text-xs font-black text-slate-400 mb-2">مؤشر عدالة التوزيع</p>
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-3xl font-black text-[#655ac1]">{rptSummary.fairnessScore}%</p>
-                <p className="text-sm font-black text-slate-700 mt-1">{rptSummary.fairnessLabel}</p>
-              </div>
-              <div className="w-28 h-2 rounded-full bg-slate-100 overflow-hidden mb-2">
-                <div className="h-full bg-[#655ac1]" style={{ width: `${rptSummary.fairnessScore}%` }} />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-5">
-            <p className="text-xs font-black text-slate-400 mb-2">أكثر منتظر إسنادًا</p>
-            <p className="text-lg font-black text-slate-800 truncate">{rptSummary.topWaiter}</p>
-            <p className="text-xs font-bold text-slate-400 mt-1">متوسط الإسناد: {rptSummary.avgAssigned}</p>
-          </div>
-          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-5">
-            <p className="text-xs font-black text-slate-400 mb-2">أكثر معلم أثر غيابه</p>
-            <p className="text-lg font-black text-slate-800 truncate">{rptSummary.topAbsent}</p>
-            <p className="text-xs font-bold text-slate-400 mt-1">حسب عدد الحصص المتأثرة</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-          {[
-            { title: 'أكثر المنتظرين إسنادًا', rows: rptTableData.slice(0, 5), empty: 'لا توجد إسنادات', render: (row: any, index: number) => (
-              <div key={row.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
-                <span className="w-7 h-7 rounded-xl bg-slate-50 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
-                <span className="text-sm font-black text-slate-800 truncate flex-1">{row.name}</span>
-                <span className="text-sm font-black text-[#655ac1]">{row.totalAssigned}</span>
-              </div>
-            ) },
-            { title: 'أكثر المعلمين غيابًا', rows: rptAbsenceData.absents.slice(0, 5), empty: 'لا توجد غيابات', render: (row: any, index: number) => (
-              <div key={row.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
-                <span className="w-7 h-7 rounded-xl bg-slate-50 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
-                <span className="text-sm font-black text-slate-800 truncate flex-1">{row.name}</span>
-                <span className="text-sm font-black text-[#655ac1]">{row.affectedPeriods}</span>
-              </div>
-            ) },
-            { title: 'الفصول المتأثرة', rows: rptAbsenceData.classes.slice(0, 5), empty: 'لا توجد فصول متأثرة', render: (row: any, index: number) => (
-              <div key={row.name} className="flex items-center gap-3 rounded-2xl border border-slate-200 px-3 py-2.5">
-                <span className="w-7 h-7 rounded-xl bg-slate-50 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
-                <span className="text-sm font-black text-slate-800 truncate flex-1">{row.name}</span>
-                <span className="text-sm font-black text-[#655ac1]">{row.affectedPeriods}</span>
-              </div>
-            ) },
-          ].map(section => (
-            <div key={section.title} className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70">
-                <p className="text-sm font-black text-slate-800">{section.title}</p>
-              </div>
-              <div className="p-4 space-y-2">
-                {section.rows.length === 0
-                  ? <p className="text-center text-xs font-bold text-slate-400 py-5">{section.empty}</p>
-                  : section.rows.map((row: any, index: number) => section.render(row, index))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 bg-white">
-              <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <ClipboardCheck size={18} className="text-[#655ac1]" />
-                توزيع الانتظار على المنتظرين
-              </p>
-            </div>
-            {rptTableData.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات انتظار في الفترة المحددة.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] table-fixed text-sm text-right">
-                  <thead>
-                    <tr className="bg-white border-b border-slate-100">
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[32%]">المنتظر</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[16%]">الصفة</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[16%]">النصاب</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">المسند</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">أيام الإسناد</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rptTableData.map(row => (
-                      <tr key={row.id} className="border-b border-slate-100">
-                        <td className="px-3 py-3 font-black text-slate-800 truncate">{row.name}</td>
-                        <td className="px-3 py-3 text-center text-xs font-bold text-slate-500">{row.role === 'admin' ? 'إداري' : 'معلم'}</td>
-                        <td className="px-3 py-3 text-center font-black text-slate-600">{row.quota || '—'}</td>
-                        <td className="px-3 py-3 text-center font-black text-[#655ac1]">{row.totalAssigned}</td>
-                        <td className="px-3 py-3 text-center font-black text-slate-600">{row.dayCount}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             )}
           </div>
 
-          <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 bg-white">
-              <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <BookOpen size={18} className="text-[#655ac1]" />
-                المواد المتأثرة بالغياب
-              </p>
-            </div>
-            {rptAbsenceData.subjects.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد مواد متأثرة في الفترة المحددة.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] table-fixed text-sm text-right">
-                  <thead>
-                    <tr className="bg-white border-b border-slate-100">
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[34%]">المادة</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[18%]">الحصص</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[20%]">المعلمون</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[28%]">أكثر فصل تأثرًا</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rptAbsenceData.subjects.map(row => (
-                      <tr key={row.name} className="border-b border-slate-100">
-                        <td className="px-3 py-3 font-black text-slate-800 truncate">{row.name}</td>
-                        <td className="px-3 py-3 text-center font-black text-[#655ac1]">{row.affectedPeriods}</td>
-                        <td className="px-3 py-3 text-center font-black text-slate-600">{row.absentCount}</td>
-                        <td className="px-3 py-3 text-center text-xs font-bold text-slate-500 truncate">{row.topClass}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div>
+            <label className="block text-xs font-black text-slate-500 mb-1.5">نطاق التقرير</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => { setRptStaffMode('all'); setRptSelectedIds(new Set()); setRptDropdownOpen(false); }}
+                className={`px-5 py-2.5 rounded-xl text-[13px] font-black border-2 transition-all ${rptStaffMode === 'all' ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/30 hover:text-[#655ac1]'}`}
+              >
+                كل المنتظرين
+              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (rptStaffMode !== 'specific') setRptStaffMode('specific');
+                    setRptDropdownOpen(v => !v);
+                  }}
+                  className={`px-5 py-2.5 rounded-xl text-[13px] font-black border-2 transition-all flex items-center gap-2 ${rptStaffMode === 'specific' ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/30 hover:text-[#655ac1]'}`}
+                >
+                  منتظر محدد
+                  {rptStaffMode === 'specific' && rptSelectedIds.size > 0 && (
+                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black">
+                      {rptSelectedIds.size}
+                    </span>
+                  )}
+                  <ChevronDown size={14} className={`transition-transform ${rptDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {rptStaffMode === 'specific' && rptDropdownOpen && (
+                  <div className="absolute top-[calc(100%+0.5rem)] right-0 z-[120] w-[min(360px,calc(100vw-2rem))] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in slide-in-from-top-2">
+                    <div className="relative mb-3">
+                      <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={rptSearch}
+                        onChange={e => setRptSearch(e.target.value)}
+                        placeholder="ابحث عن منتظر..."
+                        className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
+                      />
+                    </div>
+                    <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
+                      <button
+                        type="button"
+                        onClick={() => setRptSelectedIds(new Set(allWaitingStaff.map(s => s.id)))}
+                        className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                      >
+                        تحديد الكل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRptSelectedIds(new Set())}
+                        className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+                      >
+                        إلغاء التحديد
+                      </button>
+                      <div className="flex-1" />
+                      <button
+                        type="button"
+                        onClick={() => setRptDropdownOpen(false)}
+                        className="text-xs font-bold text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        تم
+                      </button>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
+                      {filteredStaffOptions.length === 0 ? (
+                        <p className="text-center text-sm font-bold text-slate-400 py-6">لا توجد نتائج</p>
+                      ) : filteredStaffOptions.map(staff => {
+                        const checked = rptSelectedIds.has(staff.id);
+                        return (
+                          <button
+                            key={staff.id}
+                            type="button"
+                            onClick={() => {
+                              setRptSelectedIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(staff.id)) next.delete(staff.id);
+                                else next.add(staff.id);
+                                return next;
+                              });
+                            }}
+                            className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${checked ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                          >
+                            <span className="flex flex-col items-start min-w-0 flex-1">
+                              <span className="font-black truncate">{staff.name}</span>
+                              <span className="text-[10px] font-black text-slate-400 mt-0.5">{staff.role === 'admin' ? 'إداري' : 'معلم'}</span>
+                            </span>
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl px-5 py-5 flex items-center gap-4 shadow-sm">
+          <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+            <ClipboardCheck size={26} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black text-slate-400 leading-none">إجمالي حصص الانتظار المسندة في الأسبوع</p>
+            <p className="mt-2 font-black text-2xl leading-none text-[#655ac1]">{totalAssignedInScope}</p>
+          </div>
+          {weekRangeLabel && (
+            <div className="hidden md:flex items-center gap-2 text-left">
+              <CalendarClock size={17} className="text-[#655ac1] shrink-0" />
+              <p className="text-[13px] font-black text-slate-700 leading-6">{weekRangeLabel}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
+            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <Users size={18} className="text-[#655ac1]" />
+              تقرير المنتظرين في الأسبوع
+            </p>
+            <div className="flex-1" />
+            <div className="relative w-full sm:w-72">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={embTableSearch}
+                onChange={e => setEmbTableSearch(e.target.value)}
+                placeholder="ابحث في الجدول..."
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl"
+              />
+            </div>
+          </div>
+          {scopedRows.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">
+              لا توجد إسنادات انتظار في {effectiveWeeks.length > 1 ? 'الأسابيع المختارة' : 'هذا الأسبوع'}.
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+              <table className="w-full min-w-[1080px] table-fixed text-sm text-right">
+                <thead>
+                  <tr className="bg-white">
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[5%] align-middle shadow-[0_1px_0_#e2e8f0]">م</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs w-[22%] align-middle shadow-[0_1px_0_#e2e8f0]">المنتظر</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[10%] align-middle shadow-[0_1px_0_#e2e8f0]">نصاب الانتظار</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[10%] align-middle shadow-[0_1px_0_#e2e8f0]">الانتظار المسند</th>
+                    <th colSpan={dayHeaders.length} className="sticky top-0 z-20 bg-white px-3 pt-3 pb-1 font-black text-[#655ac1] text-xs text-center border-b border-slate-100">أيام وحصص الإسناد</th>
+                  </tr>
+                  <tr className="bg-white">
+                    {dayHeaders.map((d, i) => (
+                      <th
+                        key={d.date}
+                        className={`sticky top-[42px] z-20 bg-white px-1 pb-3 pt-1 font-black text-[11px] text-center border-r border-slate-100 shadow-[0_1px_0_#e2e8f0] ${i === dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-slate-500'}`}
+                        style={{ width: `${Math.max(6, Math.floor(53 / Math.max(dayHeaders.length, 1)))}%` }}
+                      >
+                        {d.day}
+                        {d.isHoliday && <span className="block text-[9px] font-black text-rose-500 mt-0.5">إجازة</span>}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {scopedRows
+                    .filter(r => !embTableSearch.trim() || r.name.includes(embTableSearch.trim()))
+                    .map((row, index) => (
+                      <tr key={row.id} className="border-b border-slate-100 bg-white hover:bg-[#f5f3ff] transition-colors">
+                        <td className="px-3 py-3 text-center">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">{index + 1}</span>
+                        </td>
+                        <td className="px-3 py-3 font-black text-slate-800 truncate">{row.name}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
+                            {row.quota || '—'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-amber-600 text-[12px] font-black">
+                            {row.totalAssigned}
+                          </span>
+                        </td>
+                        {dayHeaders.map((d, i) => {
+                          const periods = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a - b);
+                          return (
+                            <td key={d.date} className={`px-1 py-3 text-center border-r border-slate-100 ${i === dayHeaders.length - 1 ? 'border-l border-slate-100' : ''}`}>
+                              {periods.length === 0 ? (
+                                <span className="text-slate-300 text-xs">·</span>
+                              ) : (
+                                <span className="text-[#655ac1] text-[12px] font-black">{periods.join('، ')}</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        </>
+        )}
       </div>
     );
   }

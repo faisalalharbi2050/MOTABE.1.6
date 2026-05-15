@@ -9,6 +9,7 @@ import BalanceTab from './tabs/BalanceTab';
 import PrintSendTab from './tabs/PrintSendTab';
 import SendTab from './tabs/SendTab';
 import ReportsTab from './tabs/ReportsTab';
+import SchoolTabs from '../wizard/SchoolTabs';
 
 interface Props {
   teachers: Teacher[];
@@ -26,6 +27,8 @@ type TabId = 'register' | 'distribute' | 'balance' | 'printsend' | 'send' | 'rep
 const TAB_STORAGE_KEY = 'motabe:waiting_v2:lastTab';
 const VALID_TABS: TabId[] = ['register', 'distribute', 'printsend', 'send', 'balance', 'reports'];
 
+const SCHOOL_TAB_STORAGE_KEY = 'motabe:waiting_v2:activeSchoolTab';
+
 const WaitingV2Container: React.FC<Props> = (props) => {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     try {
@@ -35,9 +38,45 @@ const WaitingV2Container: React.FC<Props> = (props) => {
     return 'register';
   });
 
+  const { schoolInfo, scheduleSettings } = props;
+  const sharedSchools = schoolInfo?.sharedSchools || [];
+  const hasSharedSchools = sharedSchools.length > 0;
+  const isSeparateMode = (scheduleSettings?.generationMode || 'unified') === 'separate';
+  const showSchoolTabs = hasSharedSchools && isSeparateMode;
+
+  const [activeSchoolTab, setActiveSchoolTab] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(SCHOOL_TAB_STORAGE_KEY);
+      if (saved && (saved === 'main' || sharedSchools.some(s => s.id === saved))) return saved;
+    } catch {}
+    return 'main';
+  });
+
   useEffect(() => {
     try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch {}
   }, [activeTab]);
+
+  useEffect(() => {
+    try { localStorage.setItem(SCHOOL_TAB_STORAGE_KEY, activeSchoolTab); } catch {}
+  }, [activeSchoolTab]);
+
+  useEffect(() => {
+    if (!showSchoolTabs && activeSchoolTab !== 'main') setActiveSchoolTab('main');
+  }, [showSchoolTabs, activeSchoolTab]);
+
+  const filteredTeachers = showSchoolTabs
+    ? props.teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'))
+    : props.teachers;
+  const filteredAdmins = showSchoolTabs
+    ? props.admins.filter(a => (a as any).schoolId === activeSchoolTab || (!(a as any).schoolId && activeSchoolTab === 'main'))
+    : props.admins;
+
+  const childProps = {
+    ...props,
+    teachers: filteredTeachers,
+    admins: filteredAdmins,
+    activeSchoolTab,
+  };
 
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
     { id: 'register', label: 'تسجيل غياب معلم', icon: UserX },
@@ -67,6 +106,15 @@ const WaitingV2Container: React.FC<Props> = (props) => {
         </div>
       </div>
 
+      {/* ══════ School Tabs (only when separate mode + shared schools) ══════ */}
+      {showSchoolTabs && (
+        <SchoolTabs
+          schoolInfo={schoolInfo}
+          activeSchoolId={activeSchoolTab}
+          onTabChange={setActiveSchoolTab}
+        />
+      )}
+
       {/* ══════ Tabs Bar ══════ */}
       <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex gap-2 overflow-x-auto custom-scrollbar">
         {tabs.map(tab => (
@@ -87,12 +135,12 @@ const WaitingV2Container: React.FC<Props> = (props) => {
 
       {/* ══════ Tab Content ══════ */}
       <div className="min-h-[400px]">
-        {activeTab === 'register' && <RegisterTab {...props} onGoToDistribute={() => setActiveTab('distribute')} />}
-        {activeTab === 'distribute' && <DistributeTab {...props} onGoToPrintSend={() => setActiveTab('printsend')} />}
-        {activeTab === 'balance' && <BalanceTab {...props} onSectionExit={handleSectionExit} />}
-        {activeTab === 'printsend' && <PrintSendTab {...props} />}
-        {activeTab === 'send' && <SendTab {...props} />}
-        {activeTab === 'reports' && <ReportsTab {...props} onSectionExit={handleSectionExit} />}
+        {activeTab === 'register' && <RegisterTab {...childProps} onGoToDistribute={() => setActiveTab('distribute')} />}
+        {activeTab === 'distribute' && <DistributeTab {...childProps} onGoToPrintSend={() => setActiveTab('printsend')} />}
+        {activeTab === 'balance' && <BalanceTab {...childProps} onSectionExit={handleSectionExit} />}
+        {activeTab === 'printsend' && <PrintSendTab {...childProps} />}
+        {activeTab === 'send' && <SendTab {...childProps} />}
+        {activeTab === 'reports' && <ReportsTab {...childProps} onSectionExit={handleSectionExit} />}
       </div>
     </div>
   );

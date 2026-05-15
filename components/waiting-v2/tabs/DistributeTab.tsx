@@ -11,6 +11,7 @@ interface Props {
   subjects: Subject[];
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
+  activeSchoolTab?: string;
   onGoToPrintSend?: () => void;
 }
 
