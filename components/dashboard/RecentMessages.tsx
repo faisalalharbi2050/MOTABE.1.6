@@ -98,18 +98,28 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
           <p className="text-xs font-bold">لا توجد رسائل</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto custom-scrollbar rounded-2xl border border-slate-100">
-          <table className="w-full text-sm">
+        <div className="flex-1 overflow-hidden rounded-2xl border border-slate-100">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              <col className="w-[11%]" />
+              <col className="w-[16%]" />
+              <col className="w-[14%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[7%]" />
+            </colgroup>
             <thead className="sticky top-0 bg-slate-50 z-10">
               <tr className="text-slate-500">
-                <th className="px-4 py-3 text-right text-xs font-black">اليوم</th>
-                <th className="px-4 py-3 text-right text-xs font-black">التاريخ</th>
-                <th className="px-4 py-3 text-right text-xs font-black">الوقت</th>
-                <th className="px-4 py-3 text-right text-xs font-black">المرسل</th>
-                <th className="px-4 py-3 text-right text-xs font-black">المستلم</th>
-                <th className="px-4 py-3 text-right text-xs font-black">الإرسال</th>
-                <th className="px-4 py-3 text-right text-xs font-black">الحالة</th>
-                <th className="px-4 py-3 text-right text-xs font-black">عرض</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">اليوم</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">التاريخ</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">الوقت</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">المرسل</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">المستلم</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">الإرسال</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">الحالة</th>
+                <th className="px-2 py-3 text-right text-[11px] font-black">عرض</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -120,48 +130,48 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
 
                 return (
                   <tr key={msg.id || index} className="hover:bg-slate-50/70 transition-colors align-top">
-                    <td className="px-4 py-3 text-xs font-black text-slate-700 whitespace-nowrap">
+                    <td className="px-2 py-3 text-[11px] font-black text-slate-700 truncate">
                       {formatDay(date)}
                     </td>
-                    <td className="px-4 py-3 text-[11px] font-medium text-slate-500 whitespace-nowrap">
+                    <td className="px-2 py-3 text-[10px] font-medium text-slate-500 truncate">
                       {formatHijri(date)}
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-[#655ac1] whitespace-nowrap" dir="ltr">
+                    <td className="px-2 py-3 text-[11px] font-bold text-[#655ac1] truncate" dir="ltr">
                       {formatTime(date)}
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-[#655ac1] whitespace-nowrap">
+                    <td className="px-2 py-3 text-[11px] font-bold text-[#655ac1] truncate">
                       {msg.sender}
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-slate-600 whitespace-nowrap">
+                    <td className="px-2 py-3 text-[11px] font-bold text-slate-600 truncate">
                       {msg.recipient}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-bold whitespace-nowrap ${isWhatsapp ? 'text-[#25D366]' : 'text-[#655ac1]'}`}>
-                        {isWhatsapp ? <WhatsAppIcon size={14} /> : <MessageSquare size={14} strokeWidth={2} />}
-                        {isWhatsapp ? 'واتساب' : 'رسالة نصية'}
+                    <td className="px-2 py-3">
+                      <span className={`inline-flex max-w-full items-center gap-1 text-[11px] font-bold ${isWhatsapp ? 'text-[#25D366]' : 'text-[#655ac1]'}`}>
+                        <span className="shrink-0">{isWhatsapp ? <WhatsAppIcon size={13} /> : <MessageSquare size={13} strokeWidth={2} />}</span>
+                        <span className="truncate">{isWhatsapp ? 'واتساب' : 'رسالة نصية'}</span>
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-3">
                       {isSent ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-700 text-[11px] font-bold whitespace-nowrap">
+                        <span className="inline-flex max-w-full items-center gap-1 text-emerald-700 text-[10px] font-bold">
                           <CheckCircle2 size={12} />
-                          تم الإرسال
+                          <span className="truncate">تم الإرسال</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-red-600 text-[11px] font-bold whitespace-nowrap">
+                        <span className="inline-flex max-w-full items-center gap-1 text-red-600 text-[10px] font-bold">
                           <AlertTriangle size={12} />
-                          فشل الإرسال
+                          <span className="truncate">فشل الإرسال</span>
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-3">
                       <button
                         type="button"
                         onClick={onOpenArchive}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] hover:text-[#5448b0] transition-colors whitespace-nowrap"
+                        className="inline-flex items-center justify-center text-[#655ac1] hover:text-[#5448b0] transition-colors"
+                        title="عرض"
                       >
                         <Eye size={14} />
-                        عرض
                       </button>
                     </td>
                   </tr>
