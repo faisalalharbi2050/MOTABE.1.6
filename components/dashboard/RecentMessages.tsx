@@ -133,13 +133,13 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
                     <td className="px-2 py-3 text-[11px] font-black text-slate-700 truncate">
                       {formatDay(date)}
                     </td>
-                    <td className="px-2 py-3 text-[10px] font-medium text-slate-500 truncate">
+                    <td className="px-2 py-3 text-[11px] font-bold text-slate-600 truncate">
                       {formatHijri(date)}
                     </td>
                     <td className="px-2 py-3 text-center text-[11px] font-bold text-[#655ac1] truncate" dir="ltr">
                       {formatTime(date)}
                     </td>
-                    <td className="px-2 py-3 text-[11px] font-bold text-[#655ac1] truncate">
+                    <td className="px-2 py-3 text-[11px] font-bold text-slate-800 truncate">
                       {msg.sender}
                     </td>
                     <td className="px-2 py-3 text-[11px] font-bold text-slate-600 truncate">
