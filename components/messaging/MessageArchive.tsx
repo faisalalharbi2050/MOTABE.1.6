@@ -855,7 +855,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
 
       {/* 3. Recipients Popup Modal */}
       {viewingRecipients && typeof document !== 'undefined' && ReactDOM.createPortal(
-          <div className="fixed inset-0 bg-transparent z-[220] flex items-center justify-center p-4" onClick={() => setViewingRecipients(null)}>
+          <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[220] flex items-center justify-center p-4" onClick={() => setViewingRecipients(null)}>
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[82vh] border border-slate-200" onClick={e => e.stopPropagation()}>
                   <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                       <h3 className="font-black text-slate-800 flex items-center gap-2">

@@ -180,8 +180,8 @@ const MessageTemplates: React.FC = () => {
 
       {/* ── Confirm Delete Modal ── */}
       {confirmDelete && typeof document !== 'undefined' && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[220] flex items-center justify-center p-4" onClick={() => setConfirmDelete(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in border border-slate-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 bg-red-50 rounded-xl">
                 <Trash2 size={20} className="text-red-500" />
