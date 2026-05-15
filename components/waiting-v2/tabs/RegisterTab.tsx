@@ -12,6 +12,8 @@ interface Props {
   schoolInfo: SchoolInfo;
   scheduleSettings: ScheduleSettingsData;
   activeSchoolTab?: string;
+  selectedDate?: string;
+  onSelectedDateChange?: (date: string) => void;
   specializations?: Specialization[];
   onGoToDistribute?: () => void;
 }

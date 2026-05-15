@@ -528,6 +528,7 @@ export interface ScheduleSettingsData {
   savedSchedules?: SavedSchedule[];
   activeScheduleId?: string; // ID of the currently adopted saved schedule
   generationMode?: 'unified' | 'separate'; // نوع الجدول للمدارس المشتركة
+  generationModeLocked?: boolean; // قُفل الاختيار بعد التأكيد (يخفي بطاقة الاختيار)
   scheduleGenerationCount?: number; // عداد مرات إنشاء جدول الحصص
   waitingGenerationCount?: number;  // عداد مرات إنشاء جدول الانتظار
 }

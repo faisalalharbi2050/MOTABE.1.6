@@ -28,6 +28,7 @@ const TAB_STORAGE_KEY = 'motabe:waiting_v2:lastTab';
 const VALID_TABS: TabId[] = ['register', 'distribute', 'printsend', 'send', 'balance', 'reports'];
 
 const SCHOOL_TAB_STORAGE_KEY = 'motabe:waiting_v2:activeSchoolTab';
+const SELECTED_DATE_STORAGE_KEY = 'motabe:waiting_v2:selectedDate';
 
 const WaitingV2Container: React.FC<Props> = (props) => {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -51,6 +52,13 @@ const WaitingV2Container: React.FC<Props> = (props) => {
     } catch {}
     return 'main';
   });
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    try {
+      return localStorage.getItem(SELECTED_DATE_STORAGE_KEY) || new Date().toISOString().split('T')[0];
+    } catch {
+      return new Date().toISOString().split('T')[0];
+    }
+  });
 
   useEffect(() => {
     try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch {}
@@ -59,6 +67,10 @@ const WaitingV2Container: React.FC<Props> = (props) => {
   useEffect(() => {
     try { localStorage.setItem(SCHOOL_TAB_STORAGE_KEY, activeSchoolTab); } catch {}
   }, [activeSchoolTab]);
+
+  useEffect(() => {
+    try { localStorage.setItem(SELECTED_DATE_STORAGE_KEY, selectedDate); } catch {}
+  }, [selectedDate]);
 
   useEffect(() => {
     if (!showSchoolTabs && activeSchoolTab !== 'main') setActiveSchoolTab('main');
@@ -76,6 +88,8 @@ const WaitingV2Container: React.FC<Props> = (props) => {
     teachers: filteredTeachers,
     admins: filteredAdmins,
     activeSchoolTab,
+    selectedDate,
+    onSelectedDateChange: setSelectedDate,
   };
 
   const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [

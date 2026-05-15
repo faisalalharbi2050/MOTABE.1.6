@@ -58,9 +58,12 @@ const CreateTab: React.FC<Props> = ({
     teachers: 0, classes: 0, assignments: 0, periodsPerDay: 0, activeDays: 0,
   });
 
-  const generationMode = scheduleSettings.generationMode || 'unified';
+  const generationMode = scheduleSettings.generationMode;
+  const isModeLocked = !!scheduleSettings.generationModeLocked && !!generationMode;
   const setGenerationMode = (mode: 'unified' | 'separate') =>
     setScheduleSettings(prev => ({ ...prev, generationMode: mode }));
+  const unlockGenerationMode = () =>
+    setScheduleSettings(prev => ({ ...prev, generationModeLocked: false }));
 
   const hasSharedSchools = !!(schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0);
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
@@ -128,7 +131,8 @@ const CreateTab: React.FC<Props> = ({
         const periodsPerDay = Math.max(...(Object.values(timing.periodCounts || {}) as number[]));
         let finalTimetable: Record<string, any> = {};
 
-        if (hasSharedSchools && generationMode === 'separate') {
+        const effectiveMode = generationMode || 'unified';
+        if (hasSharedSchools && effectiveMode === 'separate') {
           const schoolIds = ['main', ...(schoolInfo.sharedSchools || []).map(s => s.id)];
           let accumulated: Record<string, any> = {};
           for (let i = 0; i < schoolIds.length; i++) {
@@ -168,6 +172,7 @@ const CreateTab: React.FC<Props> = ({
           timetable: finalTimetable,
           savedSchedules: [newEntry, ...prevSaved].slice(0, 10),
           activeScheduleId: newId,
+          generationModeLocked: hasSharedSchools ? true : scheduleSettings.generationModeLocked,
           scheduleGenerationCount: (scheduleSettings.scheduleGenerationCount || 0) + 1,
         });
         setGenerationStatus('success');
@@ -212,41 +217,60 @@ const CreateTab: React.FC<Props> = ({
         ))}
       </div>
 
-      {hasSharedSchools && (
-        <div className="bg-white rounded-2xl p-5 border border-slate-200" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div className="flex items-center gap-3 mb-4">
+      {hasSharedSchools && !isModeLocked && (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center gap-3 mb-1">
             <Calendar size={20} className="text-[#655ac1]" />
-            <h4 className="font-black text-slate-800 text-sm">وضع الجدول</h4>
+            <h4 className="font-black text-slate-800 text-sm">اختر آلية إنشاء الجدول للمدرستين</h4>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setGenerationMode('unified')}
-              className={`flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all border-2 ${
-                generationMode === 'unified'
-                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
-              }`}
-            >
-              {generationMode === 'unified' && <Check size={16} />}
-              <Grid size={16} /> جدول موحد
-            </button>
-            <button
-              onClick={() => setGenerationMode('separate')}
-              className={`flex-1 flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all border-2 ${
-                generationMode === 'separate'
-                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
-              }`}
-            >
-              {generationMode === 'separate' && <Check size={16} />}
-              <LayoutGrid size={16} /> جدولان منفصلان
-            </button>
+          <p className="text-xs font-medium text-slate-500 mb-5 pr-8">
+            حدّد كيف تريد توزيع الحصص بين المدرستين المشتركتين قبل البدء.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              {
+                id: 'unified' as const,
+                title: 'جدول موحد',
+                desc: 'إنشاء جدول واحد يشمل المدرستين بنفس آلية التوزيع.',
+                Icon: Grid,
+              },
+              {
+                id: 'separate' as const,
+                title: 'جدولان منفصلان',
+                desc: 'إنشاء جدول مستقل لكل مدرسة مع تجنّب تعارضات المعلمين المشتركين.',
+                Icon: LayoutGrid,
+              },
+            ].map(opt => {
+              const active = generationMode === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setGenerationMode(opt.id)}
+                  className={`relative text-right px-5 py-4 rounded-2xl border-2 transition-all flex items-start gap-3 ${
+                    active
+                      ? 'border-[#655ac1] bg-white shadow-sm ring-2 ring-[#655ac1]/10'
+                      : 'border-slate-200 bg-white hover:border-[#655ac1]/40 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${active ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <opt.Icon size={18} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-black text-sm text-slate-800 mb-0.5">{opt.title}</span>
+                    <span className="block text-[11px] font-medium text-slate-500 leading-5">{opt.desc}</span>
+                  </span>
+                  <span className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${active ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
       <div className="bg-white rounded-2xl p-6 border border-slate-200 transition-all w-full text-center" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-        <div className="flex items-center justify-center gap-3 mb-2">
+        <div className="flex items-center justify-center gap-3 mb-2 flex-wrap">
           <Sparkles size={22} className="text-[#655ac1] shrink-0" />
           <h3 className="font-black text-slate-800">إنشاء جداول الحصص</h3>
           {hasSchedule && <CheckCircle2 size={24} className="text-emerald-500 shrink-0" />}
@@ -257,6 +281,10 @@ const CreateTab: React.FC<Props> = ({
         <div className="flex justify-center">
           <button
             onClick={() => {
+              if (hasSharedSchools && !generationMode) {
+                showToast('اختر آلية إنشاء الجدول للمدرستين أولاً', 'info');
+                return;
+              }
               if (hasSchedule) {
                 setShowRegenerateConfirm(true);
                 return;
@@ -324,6 +352,11 @@ const CreateTab: React.FC<Props> = ({
               <button
                 onClick={() => {
                   setShowRegenerateConfirm(false);
+                  if (hasSharedSchools && isModeLocked) {
+                    unlockGenerationMode();
+                    showToast('اختر آلية إنشاء الجدول للمدرستين قبل المتابعة', 'info');
+                    return;
+                  }
                   handleValidation();
                 }}
                 className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"

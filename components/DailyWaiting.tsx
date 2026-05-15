@@ -473,11 +473,13 @@ interface DailyWaitingProps {
   onGoToPrintSend?: () => void;
   onOpenMessagesArchive?: () => void;
   activeSchoolTab?: string;
+  selectedDate?: string;
+  onSelectedDateChange?: (date: string) => void;
 }
 
 // ===== Main Component =====
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
-  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onOpenMessagesArchive, activeSchoolTab = 'main'
+  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onOpenMessagesArchive, activeSchoolTab = 'main', selectedDate: controlledSelectedDate, onSelectedDateChange
 }) => {
   const storageSuffix = activeSchoolTab && activeSchoolTab !== 'main' ? `_${activeSchoolTab}` : '';
   const SESSIONS_KEY = `daily_waiting_sessions_v1${storageSuffix}`;
@@ -492,7 +494,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const isSend = embeddedSection === 'send';
   const isReports = embeddedSection === 'reports';
   // ===== State =====
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayStr());
+  const [localSelectedDate, setLocalSelectedDate] = useState<string>(getTodayStr());
+  const selectedDate = controlledSelectedDate ?? localSelectedDate;
+  const setSelectedDate = useCallback((date: string) => {
+    setLocalSelectedDate(date);
+    onSelectedDateChange?.(date);
+  }, [onSelectedDateChange]);
   const [sessions, setSessions] = useState<DailyWaitingSession[]>(() => {
     try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
   });
@@ -614,6 +621,20 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [rptCalendarType, setRptCalendarType] = useState<'hijri' | 'gregorian'>(schoolInfo.calendarType || 'hijri');
   const [rptWeekDropdownOpen, setRptWeekDropdownOpen] = useState(false);
   const [rptWeekSearch, setRptWeekSearch] = useState('');
+  const rptWeekDropdownRef = useRef<HTMLDivElement>(null);
+  const [rptStaffModalOpen, setRptStaffModalOpen] = useState(false);
+  const [rptStaffTab, setRptStaffTab] = useState<'teacher' | 'admin'>('teacher');
+
+  useEffect(() => {
+    if (!rptWeekDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (rptWeekDropdownRef.current && !rptWeekDropdownRef.current.contains(e.target as Node)) {
+        setRptWeekDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [rptWeekDropdownOpen]);
 
   // ── Teacher Remove Confirm ──
   const [showTeacherRemoveConfirm, setShowTeacherRemoveConfirm] = useState(false);
@@ -2876,7 +2897,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           : `${rptSelectedWeekNumbers.size} أسابيع مختارة`;
 
     const weekSearchTerm = rptWeekSearch.trim();
-    const filteredWeeks = academicWeeks.filter(w => {
+    const nonHolidayWeeks = academicWeeks.filter(w => !w.hasHoliday);
+    const filteredWeeks = nonHolidayWeeks.filter(w => {
       if (!weekSearchTerm) return true;
       const haystack = [
         `الأسبوع ${w.number}`,
@@ -2898,6 +2920,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       const headerCells = dayHeaders.map(d => `<th class="day-head">${escapeHtml(d.day)}${d.isHoliday ? ' <span class="hol-dot">●</span>' : ''}</th>`).join('');
       const bodyRows = scopedRows.map((row, index) => {
         const dayCells = dayHeaders.map(d => {
+          if (d.isHoliday) return `<td class="day-cell"><span class="day-holiday">هذا اليوم إجازة</span></td>`;
           const periods = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a - b);
           return `<td class="day-cell">${periods.length ? `<span class="day-num">${periods.join('، ')}</span>` : '<span class="day-empty">·</span>'}</td>`;
         }).join('');
@@ -2940,6 +2963,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         .day-cell { text-align:center; padding:6px 4px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
         .day-num { color:#655ac1; font-size:12px; font-weight:900; }
         .day-empty { color:#cbd5e1; font-size:13px; font-weight:800; }
+        .day-holiday { display:inline-block; font-size:10px; font-weight:900; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:3px 6px; }
         .hol-dot { color:#dc2626; font-size:10px; }
         .footer { margin-top:28px; display:flex; justify-content:space-between; gap:24px; font-size:12px; font-weight:900; padding:0 24px; }
         .signature { width:40%; text-align:right; }
@@ -3041,23 +3065,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
             <div className="flex items-center gap-3">
               {calendarReady && (
-                <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                  {[
-                    { value: 'hijri' as const,     label: 'هجري' },
-                    { value: 'gregorian' as const, label: 'ميلادي' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setRptCalendarType(opt.value)}
-                      className={`px-3 py-1.5 rounded-md text-[11px] font-black transition-all ${rptCalendarType === opt.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'}`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {calendarReady && (
                 <button
                   type="button"
                   onClick={printWaitingReport}
@@ -3086,8 +3093,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <>
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-4">
           <div>
-            <label className="block text-xs font-black text-slate-500 mb-1.5">الأسبوع الدراسي</label>
-            <div className="relative">
+            <div className="flex items-center gap-2 mb-1.5">
+              <label className="block text-xs font-black text-slate-500">الأسبوع الدراسي</label>
+              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                {[
+                  { value: 'hijri' as const, label: 'هجري' },
+                  { value: 'gregorian' as const, label: 'ميلادي' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRptCalendarType(opt.value)}
+                    className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${rptCalendarType === opt.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="relative" ref={rptWeekDropdownRef}>
               <button
                 type="button"
                 onClick={() => setRptWeekDropdownOpen(v => !v)}
@@ -3111,7 +3135,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
                     <button
                       type="button"
-                      onClick={() => setRptSelectedWeekNumbers(new Set(academicWeeks.map(w => w.number)))}
+                      onClick={() => setRptSelectedWeekNumbers(new Set(nonHolidayWeeks.map(w => w.number)))}
                       className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
                     >
                       تحديد الكل
@@ -3191,92 +3215,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               >
                 كل المنتظرين
               </button>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (rptStaffMode !== 'specific') setRptStaffMode('specific');
-                    setRptDropdownOpen(v => !v);
-                  }}
-                  className={`px-5 py-2.5 rounded-xl text-[13px] font-black border-2 transition-all flex items-center gap-2 ${rptStaffMode === 'specific' ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/30 hover:text-[#655ac1]'}`}
-                >
-                  منتظر محدد
-                  {rptStaffMode === 'specific' && rptSelectedIds.size > 0 && (
-                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black">
-                      {rptSelectedIds.size}
-                    </span>
-                  )}
-                  <ChevronDown size={14} className={`transition-transform ${rptDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {rptStaffMode === 'specific' && rptDropdownOpen && (
-                  <div className="absolute top-[calc(100%+0.5rem)] right-0 z-[120] w-[min(360px,calc(100vw-2rem))] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in slide-in-from-top-2">
-                    <div className="relative mb-3">
-                      <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={rptSearch}
-                        onChange={e => setRptSearch(e.target.value)}
-                        placeholder="ابحث عن منتظر..."
-                        className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
-                      />
-                    </div>
-                    <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
-                      <button
-                        type="button"
-                        onClick={() => setRptSelectedIds(new Set(allWaitingStaff.map(s => s.id)))}
-                        className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
-                      >
-                        تحديد الكل
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRptSelectedIds(new Set())}
-                        className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
-                      >
-                        إلغاء التحديد
-                      </button>
-                      <div className="flex-1" />
-                      <button
-                        type="button"
-                        onClick={() => setRptDropdownOpen(false)}
-                        className="text-xs font-bold text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                      >
-                        تم
-                      </button>
-                    </div>
-                    <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
-                      {filteredStaffOptions.length === 0 ? (
-                        <p className="text-center text-sm font-bold text-slate-400 py-6">لا توجد نتائج</p>
-                      ) : filteredStaffOptions.map(staff => {
-                        const checked = rptSelectedIds.has(staff.id);
-                        return (
-                          <button
-                            key={staff.id}
-                            type="button"
-                            onClick={() => {
-                              setRptSelectedIds(prev => {
-                                const next = new Set(prev);
-                                if (next.has(staff.id)) next.delete(staff.id);
-                                else next.add(staff.id);
-                                return next;
-                              });
-                            }}
-                            className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${checked ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
-                          >
-                            <span className="flex flex-col items-start min-w-0 flex-1">
-                              <span className="font-black truncate">{staff.name}</span>
-                              <span className="text-[10px] font-black text-slate-400 mt-0.5">{staff.role === 'admin' ? 'إداري' : 'معلم'}</span>
-                            </span>
-                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                              <Check size={12} strokeWidth={3} />
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (rptStaffMode !== 'specific') setRptStaffMode('specific');
+                  setRptStaffModalOpen(true);
+                }}
+                className={`px-5 py-2.5 rounded-xl text-[13px] font-black border-2 transition-all flex items-center gap-2 ${rptStaffMode === 'specific' ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/30 hover:text-[#655ac1]'}`}
+              >
+                منتظر محدد
+                {rptStaffMode === 'specific' && rptSelectedIds.size > 0 && (
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black">
+                    {rptSelectedIds.size}
+                  </span>
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -3367,7 +3320,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                           const periods = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a - b);
                           return (
                             <td key={d.date} className={`px-1 py-3 text-center border-r border-slate-100 ${i === dayHeaders.length - 1 ? 'border-l border-slate-100' : ''}`}>
-                              {periods.length === 0 ? (
+                              {d.isHoliday ? (
+                                <span className="inline-block text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 leading-tight">هذا اليوم إجازة</span>
+                              ) : periods.length === 0 ? (
                                 <span className="text-slate-300 text-xs">·</span>
                               ) : (
                                 <span className="text-[#655ac1] text-[12px] font-black">{periods.join('، ')}</span>
@@ -3383,6 +3338,146 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           )}
         </div>
         </>
+        )}
+
+        {rptStaffModalOpen && (
+          <>
+            <div className="fixed inset-0 z-[9998] bg-black/40" onClick={() => setRptStaffModalOpen(false)} />
+            <div className="fixed top-[7vh] right-1/2 translate-x-1/2 w-[min(94vw,46rem)] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-slate-200 z-[9999] overflow-hidden flex flex-col" dir="rtl">
+              <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <Users size={22} className="text-[#655ac1]" />
+                  <div>
+                    <h3 className="text-base font-black text-slate-800">اختيار المنتظرين</h3>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">حدّد المنتظرين الذين تريد ظهورهم في التقرير</p>
+                  </div>
+                </div>
+                <button onClick={() => setRptStaffModalOpen(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-4 border-b border-slate-100 shrink-0 space-y-3">
+                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl">
+                  {[
+                    { id: 'teacher' as const, label: 'المعلمون', count: allWaitingStaff.filter(s => s.role === 'teacher').length },
+                    { id: 'admin' as const, label: 'الإداريون', count: allWaitingStaff.filter(s => s.role === 'admin').length },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setRptStaffTab(tab.id)}
+                      className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
+                        rptStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {tab.label} ({tab.count})
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text" autoFocus
+                    value={rptSearch}
+                    onChange={e => setRptSearch(e.target.value)}
+                    placeholder={rptStaffTab === 'teacher' ? 'بحث عن اسم المعلم...' : 'بحث عن اسم الإداري...'}
+                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRptSelectedIds(prev => {
+                      const next = new Set(prev);
+                      allWaitingStaff.filter(s => s.role === rptStaffTab).forEach(s => next.add(s.id));
+                      return next;
+                    })}
+                    className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    تحديد كل {rptStaffTab === 'teacher' ? 'المعلمين' : 'الإداريين'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRptSelectedIds(new Set())}
+                    className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    إلغاء التحديد
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 bg-white">
+                {(() => {
+                  const filtered = allWaitingStaff
+                    .filter(s => s.role === rptStaffTab)
+                    .filter(s => !rptSearch.trim() || s.name.includes(rptSearch));
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-6 text-slate-400 text-xs font-bold">
+                        <Users size={24} className="mx-auto mb-2 opacity-30" />
+                        {rptSearch.trim() ? 'لا توجد نتائج' : 'لا يوجد منتظرون'}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="w-full text-right text-sm">
+                        <thead className="bg-slate-50 text-[#655ac1]">
+                          <tr>
+                            <th className="px-4 py-3 font-black text-center w-16">م</th>
+                            <th className="px-4 py-3 font-black">الاسم</th>
+                            <th className="px-4 py-3 font-black w-28">الصفة</th>
+                            <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filtered.map((staff, index) => {
+                            const isSel = rptSelectedIds.has(staff.id);
+                            return (
+                              <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
+                                <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
+                                <td className="px-4 py-3 font-bold text-slate-500">{staff.role === 'teacher' ? 'معلم' : 'إداري'}</td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setRptSelectedIds(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(staff.id)) next.delete(staff.id);
+                                      else next.add(staff.id);
+                                      return next;
+                                    })}
+                                    className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
+                                      isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                    }`}
+                                    title="اختيار"
+                                  >
+                                    {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-end gap-2 shrink-0">
+                <button
+                  onClick={() => setRptStaffModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  إغلاق
+                </button>
+                <button
+                  onClick={() => setRptStaffModalOpen(false)}
+                  className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
+                >
+                  تم{rptSelectedIds.size > 0 ? ` (${rptSelectedIds.size})` : ''}
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     );
