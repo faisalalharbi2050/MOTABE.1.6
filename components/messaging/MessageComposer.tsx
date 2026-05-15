@@ -313,6 +313,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   // ── Live preview ─────────────────────────────────────────────────────────
   const today = useMemo(() => new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date()), []);
   const dateFormatted = useMemo(() => new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()), []);
+  const timeFormatted = useMemo(() => new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit' }).format(new Date()), []);
   const previewRecipientId = recipientsToSend[0]?.id || '';
   const previewScheduleLinks = draftMeta?.linksByRecipientId?.[previewRecipientId] || '';
   const previewScheduleUrl = draftMeta?.previewUrlByRecipientId?.[previewRecipientId] || previewScheduleLinks;
@@ -326,10 +327,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       .replace(/{اسم_المستلم}/g, sample)
       .replace(/{اليوم}/g, today)
       .replace(/{التاريخ}/g, dateFormatted)
+      .replace(/{الوقت}/g, timeFormatted)
       .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || 'اسم المدرسة')
       .replace(/{رابط_الجدول}/g, previewScheduleLinks || 'رابط الجدول')
       .replace(/{روابط_الجداول}/g, previewScheduleLinks || 'روابط الجداول');
-  }, [messageContent, recipientsToSend, today, dateFormatted, schoolInfo, previewScheduleLinks]);
+  }, [messageContent, recipientsToSend, today, dateFormatted, timeFormatted, schoolInfo, previewScheduleLinks]);
 
   // ── Template handler ─────────────────────────────────────────────────────
   const handleTemplateSelect = (templateId: string) => {
@@ -410,6 +412,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         .replace(/{اسم_المستلم}/g, rec.name)
         .replace(/{اليوم}/g, today)
         .replace(/{التاريخ}/g, dateFormatted)
+        .replace(/{الوقت}/g, timeFormatted)
         .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || '')
         .replace(/{رابط_الجدول}/g, draftMeta?.linksByRecipientId?.[rec.id] || '')
         .replace(/{روابط_الجداول}/g, draftMeta?.linksByRecipientId?.[rec.id] || '');
@@ -824,15 +827,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           {/* Variable chips */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 mb-2">إضافة متغيرات تلقائية:</label>
-            <div className="flex gap-2 flex-wrap">
-              {['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اليوم', 'التاريخ', 'اسم_المدرسة'].map(variable => (
-                <button
-                  key={variable}
-                  onClick={() => insertVariable(variable)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-colors flex items-center gap-1"
-                >
-                  <Plus size={12} className="text-[#655ac1]" /> {variable.replace(/_/g, ' ')}
-                </button>
+            <div className="space-y-2">
+              {[
+                ['اسم_المعلم', 'اسم_الإداري', 'اسم_الطالب'],
+                ['اليوم', 'التاريخ', 'الوقت', 'اسم_المدرسة'],
+              ].map((row, rowIndex) => (
+                <div key={rowIndex} className="flex gap-2 flex-wrap">
+                  {row.map(variable => (
+                    <button
+                      key={variable}
+                      onClick={() => insertVariable(variable)}
+                      className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={12} className="text-[#655ac1]" /> {variable.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
