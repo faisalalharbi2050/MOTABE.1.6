@@ -15,6 +15,7 @@ import {
   generateSmartAssignment, isStaffSuitableForCategory,
 } from '../../utils/supervisionUtils';
 import BuilderEmptyState from './BuilderEmptyState';
+import LoadingLogo from '../ui/LoadingLogo';
 
 interface Props {
   supervisionData: SupervisionScheduleData;
@@ -40,6 +41,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   scheduleSettings, schoolInfo, showToast,
 }) => {
   // ═══════════ State ═══════════
+  const [isGenerating, setIsGenerating] = useState(false);
   const [manualStarted, setManualStarted] = useState(false);
   const [addPanel, setAddPanel] = useState<AddPanelContext | null>(null);
   const [addSearch, setAddSearch] = useState('');
@@ -224,42 +226,48 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       return;
     }
 
-    const baseResult = generateSmartAssignment(
-      teachers, admins,
-      supervisionData.exclusions,
-      supervisionData.settings,
-      scheduleSettings, schoolInfo,
-      supervisionData.periods.filter(p => p.isEnabled),
-    );
+    setIsGenerating(true);
+    setTimeout(() => {
+      const baseResult = generateSmartAssignment(
+        teachers, admins,
+        supervisionData.exclusions,
+        supervisionData.settings,
+        scheduleSettings, schoolInfo,
+        supervisionData.periods.filter(p => p.isEnabled),
+      );
 
-    const result = baseResult.map(dayAssignment => ({
-      ...dayAssignment,
-      staffAssignments: dayAssignment.staffAssignments.flatMap(assignment =>
-        autoTypes.map(type => ({
-          ...assignment,
-          locationIds: getDefaultLocationIdsForType(type),
-          contextCategory: type.category,
-          contextTypeId: type.id,
-        }))
-      ),
-    }));
+      const result = baseResult.map(dayAssignment => ({
+        ...dayAssignment,
+        staffAssignments: dayAssignment.staffAssignments.flatMap(assignment =>
+          autoTypes.map(type => ({
+            ...assignment,
+            locationIds: getDefaultLocationIdsForType(type),
+            contextCategory: type.category,
+            contextTypeId: type.id,
+          }))
+        ),
+      }));
 
-    setSupervisionData(prev => {
-      const prevSaved = prev.savedSchedules || [];
-      if (prevSaved.length >= 10) return prev;
-      const newId = `supervision-schedule-${Date.now()}`;
-      const newSavedEntry = buildSavedSchedule(newId, prevSaved.length + 1, result);
-      return {
-        ...prev,
-        dayAssignments: result,
-        isApproved: false,
-        approvedAt: undefined,
-        savedSchedules: [newSavedEntry, ...prevSaved],
-        activeScheduleId: newId,
-      };
-    });
-    setManualStarted(false);
-    showToast('تم توليد إشراف الفسحة/الصلاة تلقائياً، وباقي الأنواع جاهزة للتعبئة اليدوية', 'success');
+      setSupervisionData(prev => {
+        const prevSaved = prev.savedSchedules || [];
+        if (prevSaved.length >= 10) return prev;
+        const newId = `supervision-schedule-${Date.now()}`;
+        const newSavedEntry = buildSavedSchedule(newId, prevSaved.length + 1, result);
+        return {
+          ...prev,
+          dayAssignments: result,
+          isApproved: false,
+          approvedAt: undefined,
+          savedSchedules: [newSavedEntry, ...prevSaved],
+          activeScheduleId: newId,
+        };
+      });
+      setManualStarted(false);
+      setTimeout(() => {
+        setIsGenerating(false);
+        showToast('تم توليد إشراف الفسحة/الصلاة تلقائياً، وباقي الأنواع جاهزة للتعبئة اليدوية', 'success');
+      }, 2500);
+    }, 50);
   };
 
   const handleManualStart = () => {
@@ -576,15 +584,26 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     showToast('تم تعيين المشرف المتابع لجميع الأيام', 'success');
   };
 
+  // ═══════════ Loading overlay (auto-generate) ═══════════
+  const loadingOverlay = isGenerating ? (
+    <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+      <LoadingLogo size="lg" />
+      <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول الإشراف...</p>
+    </div>
+  ) : null;
+
   // ═══════════ Empty state ═══════════
   if (showEmptyState) {
     return (
-      <BuilderEmptyState
-        onAutoGenerate={handleAutoGenerate}
-        onManualStart={handleManualStart}
-        availableCount={availableStaff.length}
-        hasTimetable={hasTimetable}
-      />
+      <>
+        {loadingOverlay}
+        <BuilderEmptyState
+          onAutoGenerate={handleAutoGenerate}
+          onManualStart={handleManualStart}
+          availableCount={availableStaff.length}
+          hasTimetable={hasTimetable}
+        />
+      </>
     );
   }
 
@@ -689,7 +708,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
   // ═══════════ Render ═══════════
   return (
-    <div className="space-y-6">
+    <>
+      {loadingOverlay}
+      <div className="space-y-6">
       {/* ═══ Top Toolbar ═══ */}
       <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col items-stretch gap-3">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-5">
@@ -1779,7 +1800,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           </div>
         );
       })()}
-    </div>
+      </div>
+    </>
   );
 };
 

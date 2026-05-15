@@ -7,6 +7,7 @@ import { parseTeachersExcel, TeacherData } from '../../../utils/excelTeachers';
 import SchoolTabs from '../SchoolTabs';
 import TeacherConstraintsModal from '../../teachers/TeacherConstraintsModal';
 import PrintHeader from '../../ui/PrintHeader';
+import LoadingLogo, { useMinLoadingTime } from '../../ui/LoadingLogo';
 
 interface Step6Props {
   teachers: Teacher[];
@@ -37,6 +38,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const showImportLoader = useMinLoadingTime(loading, 2500);
   
   // Bulk Edit Logic
   const [isBulkEdit, setIsBulkEdit] = useState(false);
@@ -656,6 +658,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   return (
     <>
+      {/* ══════ Import Loading Overlay ══════ */}
+      {showImportLoader && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري استيراد المعلمين...</p>
+        </div>,
+        document.body
+      )}
       {/* ══════ Toast Notification ══════ */}
       {toast && ReactDOM.createPortal(
         <>

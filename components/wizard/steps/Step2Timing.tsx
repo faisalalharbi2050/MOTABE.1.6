@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../../types';
 import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake } from 'lucide-react';
 import SchoolTabs from '../SchoolTabs';
+import LoadingLogo, { useMinLoadingTime } from '../../ui/LoadingLogo';
 
 interface Step2Props {
   schoolInfo: SchoolInfo;
@@ -38,6 +39,7 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
     showNotes: true
   });
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+  const showLoader = useMinLoadingTime(!schoolInfo.timing, 1500);
 
   // Ensure config exists for main and shared schools
   useEffect(() => {
@@ -81,7 +83,12 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
     });
   }, [schoolInfo.sharedSchools?.length, setSchoolInfo]);
 
-  if (!schoolInfo.timing) return <div className="p-10 text-center text-slate-500">جاري تحميل الإعدادات...</div>;
+  if (showLoader || !schoolInfo.timing) return (
+    <div className="p-10 flex flex-col items-center justify-center gap-4">
+      <LoadingLogo size="md" />
+      <span className="text-sm text-slate-500 font-bold">جاري تحميل الإعدادات...</span>
+    </div>
+  );
 
   const getCurrentTiming = (): TimingConfig => {
     if (activeTab === 'main') {

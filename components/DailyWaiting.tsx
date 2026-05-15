@@ -21,6 +21,7 @@ import {
 } from '../types';
 import DailyWaitingPrintModal from './DailyWaitingPrintModal';
 import { useMessageArchive } from './messaging/MessageArchiveContext';
+import LoadingLogo from './ui/LoadingLogo';
 
 // ===== Local Type Definitions =====
 
@@ -572,6 +573,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [assignModalTab, setAssignModalTab] = useState<'teachers' | 'admins'>('teachers');
   const [showShortageAlert, setShowShortageAlert] = useState(false);
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
+  const [isAutoDistributing, setIsAutoDistributing] = useState(false);
 
   // ── Phase 4: Messaging ──
   const [showSendModal, setShowSendModal] = useState(false);
@@ -3948,6 +3950,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ===== Render =====
   return (
     <div className="space-y-6 pb-20" dir="rtl">
+      {/* ── Auto-distribution loading overlay ── */}
+      {isAutoDistributing && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري التوزيع الآلي للانتظار...</p>
+        </div>,
+        document.body
+      )}
       {/* ── Toast ── */}
       {toast && ReactDOM.createPortal(
         <div
@@ -5688,8 +5698,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <button
                 onClick={() => {
                   setShowAutoConfirm(false);
-                  if (pendingAutoFn) pendingAutoFn();
+                  const fn = pendingAutoFn;
                   setPendingAutoFn(null);
+                  if (fn) {
+                    setIsAutoDistributing(true);
+                    setTimeout(() => {
+                      fn();
+                      setTimeout(() => setIsAutoDistributing(false), 2500);
+                    }, 50);
+                  }
                 }}
                 className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
               >
@@ -6837,9 +6854,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </button>
               <button
                 onClick={() => {
-                  if (pendingAutoFn) pendingAutoFn();
                   setShowAutoOverwriteConfirm(false);
+                  const fn = pendingAutoFn;
                   setPendingAutoFn(null);
+                  if (fn) {
+                    setIsAutoDistributing(true);
+                    setTimeout(() => {
+                      fn();
+                      setTimeout(() => setIsAutoDistributing(false), 2500);
+                    }, 50);
+                  }
                 }}
                 className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
               >

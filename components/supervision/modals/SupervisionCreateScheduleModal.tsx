@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, Zap, UserPlus } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, SupervisionScheduleData, ScheduleSettingsData } from '../../../types';
 import { generateSmartAssignment } from '../../../utils/supervisionUtils';
+import LoadingLogo from '../../ui/LoadingLogo';
 
 interface Props {
   isOpen: boolean;
@@ -24,39 +25,48 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
 }) => {
   const [selectedMode, setSelectedMode] = useState<'auto' | 'manual' | null>(null);
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   if (!isOpen) return null;
 
   const buildAutoSavedScheduleName = (count: number) => `جدول رقم ${count}`;
 
   const handleAutoAssign = () => {
-    const assignments = generateSmartAssignment(
-      teachers, admins, supervisionData.exclusions, supervisionData.settings,
-      scheduleSettings, schoolInfo, supervisionData.periods, suggestedCount
-    );
-    setSupervisionData(prev => {
-      const prevSaved = prev.savedSchedules || [];
-      const newId = `supervision-schedule-${Date.now()}`;
-      const autoScheduleNumber = prevSaved.length + 1;
-      const newSavedEntry = {
-        id: newId,
-        name: buildAutoSavedScheduleName(autoScheduleNumber),
-        createdAt: new Date().toISOString(),
-        dayAssignments: assignments,
-        isApproved: false,
-      };
+    setIsGenerating(true);
+    // إعطاء المتصفح فرصة لرسم شعار التحميل قبل العمل التزامني
+    setTimeout(() => {
+      const assignments = generateSmartAssignment(
+        teachers, admins, supervisionData.exclusions, supervisionData.settings,
+        scheduleSettings, schoolInfo, supervisionData.periods, suggestedCount
+      );
+      setSupervisionData(prev => {
+        const prevSaved = prev.savedSchedules || [];
+        const newId = `supervision-schedule-${Date.now()}`;
+        const autoScheduleNumber = prevSaved.length + 1;
+        const newSavedEntry = {
+          id: newId,
+          name: buildAutoSavedScheduleName(autoScheduleNumber),
+          createdAt: new Date().toISOString(),
+          dayAssignments: assignments,
+          isApproved: false,
+        };
 
-      return {
-        ...prev,
-        dayAssignments: assignments,
-        isApproved: false,
-        approvedAt: undefined,
-        savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
-        activeScheduleId: newId,
-      };
-    });
-    showToast('تم التوزيع التلقائي للمشرفين بنجاح', 'success');
-    onClose();
+        return {
+          ...prev,
+          dayAssignments: assignments,
+          isApproved: false,
+          approvedAt: undefined,
+          savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
+          activeScheduleId: newId,
+        };
+      });
+      // إبقاء الشعار ظاهرًا فترة كافية ليراه المستخدم
+      setTimeout(() => {
+        setIsGenerating(false);
+        showToast('تم التوزيع التلقائي للمشرفين بنجاح', 'success');
+        onClose();
+      }, 1500);
+    }, 50);
   };
 
   const handleManualAssign = () => {
@@ -78,6 +88,12 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isGenerating && (
+        <div className="fixed inset-0 z-[10000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول الإشراف...</p>
+        </div>
+      )}
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
 
         {/* Header */}

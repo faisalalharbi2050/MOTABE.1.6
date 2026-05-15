@@ -16,7 +16,7 @@ import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, A
 import { validateAllConstraints, ValidationWarning } from '../../../utils/scheduleConstraints';
 import { generateSchedule } from '../../../utils/scheduleGenerator';
 import ConflictModal from '../../schedule/ConflictModal';
-import GenerationStatusModal from '../../wizard/schedule/GenerationStatusModal';
+import LoadingLogo from '../../ui/LoadingLogo';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -47,16 +47,10 @@ const CreateTab: React.FC<Props> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBypassingConflicts, setIsBypassingConflicts] = useState(false);
   const [showConflictReport, setShowConflictReport] = useState(false);
-  const [showGenerationModal, setShowGenerationModal] = useState(false);
-  const [generationStatus, setGenerationStatus] = useState<'ready' | 'generating' | 'success'>('ready');
-  const [generationProgress, setGenerationProgress] = useState(0);
   const [validationWarnings, setValidationWarnings] = useState<ValidationWarning[]>([]);
   const [missingDataAlert, setMissingDataAlert] = useState<{ title: string; message: string } | null>(null);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [generationStats, setGenerationStats] = useState({
-    teachers: 0, classes: 0, assignments: 0, periodsPerDay: 0, activeDays: 0,
-  });
 
   const generationMode = scheduleSettings.generationMode;
   const isModeLocked = !!scheduleSettings.generationModeLocked && !!generationMode;
@@ -103,27 +97,18 @@ const CreateTab: React.FC<Props> = ({
       return;
     }
     if (warnings.length > 0) setShowConflictReport(true);
-    else openGenerationModal();
-  };
-
-  const openGenerationModal = () => {
-    const timing = getTimingConfig();
-    const periodsPerDay = Math.max(...(Object.values(timing.periodCounts || {}) as number[]));
-    setGenerationStats({ teachers: teachers.length, classes: classes.length, assignments: assignments.length, periodsPerDay, activeDays: timing.activeDays.length });
-    setGenerationStatus('ready');
-    setGenerationProgress(0);
-    setShowGenerationModal(true);
-    setShowConflictReport(false);
+    else startGeneration();
   };
 
   const handleContinueWithBypass = (bypass: boolean) => {
     setIsBypassingConflicts(bypass);
-    openGenerationModal();
+    setShowConflictReport(false);
+    startGeneration();
   };
 
   const startGeneration = async () => {
-    setGenerationStatus('generating');
     setIsGenerating(true);
+    const wasRegeneration = hasSchedule;
 
     setTimeout(async () => {
       try {
@@ -141,7 +126,7 @@ const CreateTab: React.FC<Props> = ({
             const tt = await generateSchedule(
               teachers, subjects, schoolClasses, scheduleSettings,
               { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length },
-              (p) => setGenerationProgress(Math.floor((i * 100 + p) / schoolIds.length)),
+              () => {},
               assignments, isBypassingConflicts,
               Object.keys(accumulated).length > 0 ? accumulated : undefined
             );
@@ -152,7 +137,7 @@ const CreateTab: React.FC<Props> = ({
           finalTimetable = await generateSchedule(
             teachers, subjects, classes, scheduleSettings,
             { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length },
-            (p) => setGenerationProgress(p),
+            () => {},
             assignments, isBypassingConflicts, undefined
           );
         }
@@ -175,17 +160,18 @@ const CreateTab: React.FC<Props> = ({
           generationModeLocked: hasSharedSchools ? true : scheduleSettings.generationModeLocked,
           scheduleGenerationCount: (scheduleSettings.scheduleGenerationCount || 0) + 1,
         });
-        setGenerationStatus('success');
-        setGenerationProgress(100);
-        setTimeout(() => setShowGenerationModal(false), 2000);
+
+        // إبقاء شعار التحميل ظاهرًا فترة كافية ليراه المستخدم
+        setTimeout(() => {
+          setIsGenerating(false);
+          showToast(wasRegeneration ? 'تم إعادة إنشاء الجدول بنجاح' : 'تم إنشاء الجدول بنجاح', 'success');
+        }, 2500);
       } catch (err) {
         console.error(err);
-        setMissingDataAlert({ title: 'خطأ غير متوقع', message: 'حدث خطأ أثناء بناء الجدول. حاول مرة أخرى.' });
-        setShowGenerationModal(false);
-      } finally {
         setIsGenerating(false);
+        setMissingDataAlert({ title: 'خطأ غير متوقع', message: 'حدث خطأ أثناء بناء الجدول. حاول مرة أخرى.' });
       }
-    }, 100);
+    }, 50);
   };
 
   const totalAssignedPeriods = assignments.reduce((sum, a) => {
@@ -285,11 +271,7 @@ const CreateTab: React.FC<Props> = ({
                 showToast('اختر آلية إنشاء الجدول للمدرستين أولاً', 'info');
                 return;
               }
-              if (hasSchedule) {
-                setShowRegenerateConfirm(true);
-                return;
-              }
-              handleValidation();
+              setShowRegenerateConfirm(true);
             }}
             disabled={isGenerating || (!hasSchedule && isScheduleLocked)}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-[#655ac1] transition-all hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -334,13 +316,19 @@ const CreateTab: React.FC<Props> = ({
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 animate-in zoom-in-95">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-11 h-11 bg-rose-100 rounded-xl flex items-center justify-center">
-                <AlertTriangle size={22} className="text-rose-600" />
+              <div className={`w-11 h-11 ${hasSchedule ? 'bg-rose-100' : 'bg-indigo-100'} rounded-xl flex items-center justify-center`}>
+                {hasSchedule
+                  ? <AlertTriangle size={22} className="text-rose-600" />
+                  : <Sparkles size={22} className="text-[#655ac1]" />}
               </div>
-              <h3 className="font-black text-slate-800 text-lg">إعادة إنشاء الجدول؟</h3>
+              <h3 className="font-black text-slate-800 text-lg">
+                {hasSchedule ? 'إعادة إنشاء الجدول؟' : 'إنشاء الجدول؟'}
+              </h3>
             </div>
             <p className="text-sm text-slate-600 leading-relaxed mb-5">
-              سيتم حذف الجدول الحالي واستبداله بجدول جديد بعد إعادة الإنشاء. هل تريد المتابعة؟
+              {hasSchedule
+                ? 'سيتم حذف الجدول الحالي واستبداله بجدول جديد بعد إعادة الإنشاء. هل تريد المتابعة؟'
+                : 'سيقوم النظام ببناء الجدول تلقائيًا بناءً على إسناد المواد والقيود المحددة. هل تريد المتابعة؟'}
             </p>
             <div className="flex gap-3">
               <button
@@ -361,7 +349,7 @@ const CreateTab: React.FC<Props> = ({
                 }}
                 className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"
               >
-                تأكيد إعادة الإنشاء
+                {hasSchedule ? 'تأكيد إعادة الإنشاء' : 'تأكيد الإنشاء'}
               </button>
             </div>
           </div>
@@ -377,14 +365,12 @@ const CreateTab: React.FC<Props> = ({
         onNavigateTo={() => {}}
       />
 
-      <GenerationStatusModal
-        isOpen={showGenerationModal}
-        onClose={() => setShowGenerationModal(false)}
-        onStart={startGeneration}
-        status={generationStatus}
-        stats={generationStats}
-        progress={generationProgress}
-      />
+      {isGenerating && (
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول الحصص...</p>
+        </div>
+      )}
     </div>
   );
 };

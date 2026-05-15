@@ -16,6 +16,7 @@ import {
 import DutyReportEntry from './DutyReportEntry';
 import DutyReportViewModal from './DutyReportViewModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import LoadingLogo from '../ui/LoadingLogo';
 
 interface Props {
   dutyData: DutyScheduleData;
@@ -31,6 +32,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   dutyData, setDutyData, teachers, admins,
   scheduleSettings, schoolInfo, showToast
 }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState<string | null>(null);
   const [addPanelMode, setAddPanelMode] = useState<'add' | 'edit'>('add');
   const [editStaffId, setEditStaffId] = useState<string | null>(null);
@@ -195,6 +197,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       return;
     }
 
+    setIsGenerating(true);
     setTimeout(() => {
       try {
         const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
@@ -203,17 +206,21 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         );
 
         setDutyData(prev => ({ ...prev, dayAssignments: assignments, weekAssignments, dutyAssignmentCounts: newCounts }));
-        showToast('تم التوزيع الذكي بنجاح بناءً على جدول الحصص الفعلي', 'success');
-        setShowDistributionReport(true);
 
-        if (alerts.length > 0) {
-          showToast(alerts[0], 'warning');
-        }
+        setTimeout(() => {
+          setIsGenerating(false);
+          showToast('تم التوزيع الذكي بنجاح بناءً على جدول الحصص الفعلي', 'success');
+          setShowDistributionReport(true);
+          if (alerts.length > 0) {
+            showToast(alerts[0], 'warning');
+          }
+        }, 2500);
       } catch (err) {
+        setIsGenerating(false);
         showToast('حدث خطأ أثناء التوزيع', 'error');
         console.error(err);
-      } finally {}
-    }, 600);
+      }
+    }, 50);
   };
 
   const resetSchedule = () => {
@@ -528,6 +535,12 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
+      {isGenerating && (
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول المناوبة...</p>
+        </div>
+      )}
       <ConfirmDialog
         isOpen={!!confirmState}
         title={confirmState?.title || ''}

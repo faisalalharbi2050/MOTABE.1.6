@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, Play, Loader2, Users, LayoutGrid, ClipboardList, CalendarDays, CheckCircle2, Sparkles, Info } from 'lucide-react';
+import { X, Play, Users, LayoutGrid, ClipboardList, CalendarDays, CheckCircle2, Sparkles, Info } from 'lucide-react';
+import LoadingLogo, { useMinLoadingTime } from '../../ui/LoadingLogo';
 
 interface GenerationStatusModalProps {
   isOpen: boolean;
@@ -19,7 +20,10 @@ interface GenerationStatusModalProps {
 const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
   isOpen, onClose, onStart, status, stats, progress = 0
 }) => {
+  // إبقاء طور "جاري البناء" ظاهرًا 2.5 ثانية على الأقل حتى لو انتهى التوليد بسرعة
+  const stickyGenerating = useMinLoadingTime(status === 'generating', 2500);
   if (!isOpen) return null;
+  const displayStatus = stickyGenerating ? 'generating' : status;
 
   const cards = [
     { label: 'المعلمون',   value: stats.teachers,    icon: Users        },
@@ -33,7 +37,7 @@ const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 flex flex-col relative">
 
         {/* Close Button (Only if not generating) */}
-        {status !== 'generating' && (
+        {displayStatus !== 'generating' && (
           <button
             onClick={onClose}
             className="absolute top-4 left-4 p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors z-10"
@@ -44,19 +48,19 @@ const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
 
         {/* Header — White */}
         <div className="px-7 pt-7 pb-5 border-b border-slate-100 flex items-center gap-4">
-          <div className="flex items-center justify-center shrink-0">
-            {status === 'generating' ? (
-              <Loader2 size={24} className="text-[#655ac1] animate-spin" />
-            ) : status === 'success' ? (
-              <CheckCircle2 size={24} className="text-[#655ac1]" />
-            ) : (
-              <Sparkles size={24} className="text-[#655ac1]" />
-            )}
-          </div>
+          {displayStatus !== 'generating' && (
+            <div className="flex items-center justify-center shrink-0">
+              {displayStatus === 'success' ? (
+                <CheckCircle2 size={24} className="text-[#655ac1]" />
+              ) : (
+                <Sparkles size={24} className="text-[#655ac1]" />
+              )}
+            </div>
+          )}
           <div>
             <h3 className="text-xl font-black text-slate-800">
-              {status === 'generating' ? 'جاري بناء الجدول...' :
-               status === 'success'    ? 'تم إنشاء الجدول بنجاح!' :
+              {displayStatus === 'generating' ? 'جاري بناء الجدول...' :
+               displayStatus === 'success'    ? 'تم إنشاء الجدول بنجاح!' :
                'إنشاء جدول الحصص'}
             </h3>
           </div>
@@ -82,8 +86,11 @@ const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
           </div>
 
           {/* Progress Bar (if generating) */}
-          {status === 'generating' && (
-            <div className="space-y-2">
+          {displayStatus === 'generating' && (
+            <div className="space-y-3">
+              <div className="flex justify-center py-2">
+                <LoadingLogo size="md" />
+              </div>
               <div className="flex justify-between text-xs font-bold text-slate-500">
                 <span>التقدم</span>
                 <span>{progress}%</span>
@@ -99,7 +106,7 @@ const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
           )}
 
           {/* Info Text (if ready) */}
-          {status === 'ready' && (
+          {displayStatus === 'ready' && (
             <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
               <div className="p-1 bg-indigo-100 text-indigo-500 rounded-lg shrink-0 mt-0.5">
                 <Info size={14} />
@@ -112,7 +119,7 @@ const GenerationStatusModal: React.FC<GenerationStatusModalProps> = ({
           )}
 
           {/* Action Button */}
-          {status === 'ready' && (
+          {displayStatus === 'ready' && (
             <button
               onClick={onStart}
               className="w-full py-4 bg-gradient-to-l from-[#655ac1] to-[#7f75d0] text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center gap-3"

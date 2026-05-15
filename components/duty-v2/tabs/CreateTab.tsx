@@ -5,6 +5,7 @@ import {
   DutyScheduleData, DutyDayAssignment,
 } from '../../../types';
 import DutyScheduleBuilder from '../../duty/DutyScheduleBuilder';
+import LoadingLogo from '../../ui/LoadingLogo';
 import {
   generateDutyDates,
   generateSmartDutyAssignment,
@@ -34,6 +35,9 @@ const CreateTab: React.FC<Props> = ({
 }) => {
   const [confirmMode, setConfirmMode] = useState<'regenerate' | 'clear' | null>(null);
   const [manualStarted, setManualStarted] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const buildAutoSavedScheduleName = (count: number) => `جدول رقم ${count}`;
   const availableStaff = useMemo(
     () => getAvailableStaffForDuty(teachers, admins, dutyData.exclusions, dutyData.settings),
     [teachers, admins, dutyData.exclusions, dutyData.settings],
@@ -64,11 +68,31 @@ const CreateTab: React.FC<Props> = ({
     });
 
     const weekAssignments = Object.values(weekMap);
-    setDutyData(prev => ({
-      ...prev,
-      dayAssignments: weekAssignments.flatMap(week => week.dayAssignments),
-      weekAssignments,
-    }));
+    const flatAssignments = weekAssignments.flatMap(week => week.dayAssignments);
+    setDutyData(prev => {
+      if ((prev.savedSchedules || []).length >= 10) {
+        showToast('وصلت للحد الأقصى 10 جداول. احذف أحد الجداول قبل إنشاء جدول جديد.', 'warning');
+        return prev;
+      }
+      const prevSaved = prev.savedSchedules || [];
+      const newId = `duty-schedule-${Date.now()}`;
+      const newSavedEntry = {
+        id: newId,
+        name: buildAutoSavedScheduleName(prevSaved.length + 1),
+        createdAt: new Date().toISOString(),
+        dayAssignments: flatAssignments,
+        isApproved: false,
+      };
+      return {
+        ...prev,
+        dayAssignments: flatAssignments,
+        weekAssignments,
+        isApproved: false,
+        approvedAt: undefined,
+        savedSchedules: [newSavedEntry, ...prevSaved],
+        activeScheduleId: newId,
+      };
+    });
     setManualStarted(true);
     showToast('تم إنشاء جدول المناوبة اليدوي مفرغاً', 'success');
   };
@@ -78,27 +102,54 @@ const CreateTab: React.FC<Props> = ({
       showToast('لا يوجد مناوبون متاحون للتوزيع', 'warning');
       return;
     }
+    if ((dutyData.savedSchedules || []).length >= 10) {
+      showToast('وصلت للحد الأقصى 10 جداول. احذف أحد الجداول قبل إنشاء جدول جديد.', 'warning');
+      return;
+    }
 
-    const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
-      teachers,
-      admins,
-      dutyData.exclusions,
-      dutyData.settings,
-      scheduleSettings,
-      schoolInfo,
-      dutyData.dutyAssignmentCounts || {},
-      dutyData.settings.suggestedCountPerDay || suggestedCount,
-    );
+    setIsGenerating(true);
+    setTimeout(() => {
+      const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
+        teachers,
+        admins,
+        dutyData.exclusions,
+        dutyData.settings,
+        scheduleSettings,
+        schoolInfo,
+        dutyData.dutyAssignmentCounts || {},
+        dutyData.settings.suggestedCountPerDay || suggestedCount,
+      );
 
-    setDutyData(prev => ({
-      ...prev,
-      dayAssignments: assignments,
-      weekAssignments,
-      dutyAssignmentCounts: newCounts,
-    }));
-    setManualStarted(false);
-    showToast('تم إنشاء جدول المناوبة آلياً', 'success');
-    if (alerts[0]) showToast(alerts[0], 'warning');
+      setDutyData(prev => {
+        const prevSaved = prev.savedSchedules || [];
+        if (prevSaved.length >= 10) return prev;
+        const newId = `duty-schedule-${Date.now()}`;
+        const newSavedEntry = {
+          id: newId,
+          name: buildAutoSavedScheduleName(prevSaved.length + 1),
+          createdAt: new Date().toISOString(),
+          dayAssignments: assignments,
+          isApproved: false,
+        };
+        return {
+          ...prev,
+          dayAssignments: assignments,
+          weekAssignments,
+          dutyAssignmentCounts: newCounts,
+          isApproved: false,
+          approvedAt: undefined,
+          savedSchedules: [newSavedEntry, ...prevSaved],
+          activeScheduleId: newId,
+        };
+      });
+      setManualStarted(false);
+
+      setTimeout(() => {
+        setIsGenerating(false);
+        showToast('تم إنشاء جدول المناوبة آلياً', 'success');
+        if (alerts[0]) showToast(alerts[0], 'warning');
+      }, 2500);
+    }, 50);
   };
 
   const clearSchedule = () => {
@@ -190,6 +241,12 @@ const CreateTab: React.FC<Props> = ({
 
   return (
     <div className="space-y-5">
+      {isGenerating && (
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول المناوبة...</p>
+        </div>
+      )}
       {confirmMode && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmMode(null)}>
           <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-md" dir="rtl" onClick={e => e.stopPropagation()}>

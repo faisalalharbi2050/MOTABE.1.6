@@ -3,6 +3,7 @@ import { Check, X } from 'lucide-react';
 import { ClassInfo, ScheduleSettingsData, SchoolInfo, Specialization, Subject, Teacher } from '../../types';
 import ScheduleSignatureDocument from './ScheduleSignatureDocument';
 import { APP_STORAGE_KEY, SCHEDULE_SIGNATURE_REQUESTS_KEY } from '../../utils/scheduleShare';
+import LoadingLogo, { useMinLoadingTime } from '../ui/LoadingLogo';
 
 type ScheduleSignatureRequest = {
   token: string;
@@ -54,6 +55,9 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
   const [notFound, setNotFound] = useState(false);
   const [request, setRequest] = useState<ScheduleSignatureRequest | null>(null);
   const [appData, setAppData] = useState<AppDataShape | null>(null);
+
+  const isDataLoading = !notFound && (!request || !appData);
+  const showLoader = useMinLoadingTime(isDataLoading, 1500);
 
   useEffect(() => {
     try {
@@ -153,10 +157,10 @@ const ScheduleSignaturePage: React.FC<Props> = ({ token }) => {
     );
   }
 
-  if (!request || !appData?.schoolInfo || !appData.scheduleSettings || !appData.teachers || !appData.classes || !appData.subjects || !teacher) {
+  if (showLoader || !request || !appData?.schoolInfo || !appData.scheduleSettings || !appData.teachers || !appData.classes || !appData.subjects || !teacher) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#655ac1] border-t-transparent rounded-full animate-spin" />
+        <LoadingLogo size="md" />
       </div>
     );
   }

@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Check, PenLine, X } from 'lucide-react';
 import { DutyScheduleData } from '../../types';
 import { DAY_NAMES } from '../../utils/dutyUtils';
+import LoadingLogo, { useMinLoadingTime } from '../ui/LoadingLogo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AssignmentInfo {
@@ -141,6 +142,7 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
   const [assignmentGroup, setAssignmentGroup] = useState<AssignmentGroupInfo | null>(null);
   const [schoolName, setSchoolName] = useState('');
   const [notFound, setNotFound] = useState(false);
+  const showLoader = useMinLoadingTime(!assignmentGroup && !notFound && !alreadySigned, 1500);
 
   useEffect(() => {
     try {
@@ -239,10 +241,10 @@ const DutySignaturePage: React.FC<Props> = ({ token }) => {
   }
 
   // ─── Loading state ────────────────────────────────────────────────────────────
-  if (!assignmentGroup) {
+  if (showLoader || !assignmentGroup) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#655ac1] border-t-transparent rounded-full animate-spin" />
+        <LoadingLogo size="md" />
       </div>
     );
   }

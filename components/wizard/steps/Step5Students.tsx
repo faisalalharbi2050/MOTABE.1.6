@@ -13,6 +13,7 @@ import {
   printStudentList,
   getStudentStats,
 } from '../../../utils/studentUtils';
+import LoadingLogo, { useMinLoadingTime } from '../../ui/LoadingLogo';
 import SchoolTabs from '../SchoolTabs';
 
 interface Step5Props {
@@ -151,6 +152,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
   // ─── Import State ───
   const [isImporting, setIsImporting] = useState(false);
+  const showImportLoader = useMinLoadingTime(isImporting, 2500);
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ matched: number; unmatched: number; total: number; errors: string[] } | null>(null);
   const [showImportErrors, setShowImportErrors] = useState(false);
@@ -991,15 +993,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           )}
 
           {/* ══════ Import Loading Overlay ══════ */}
-          {isImporting && (
+          {showImportLoader && (
             <div className="flex flex-col items-center justify-center py-16 space-y-6 animate-in fade-in duration-300">
-              <div className="relative w-20 h-20">
-                <div className="absolute inset-0 rounded-full border-4 border-slate-100"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-                <div className="absolute inset-3 bg-primary/10 rounded-full flex items-center justify-center">
-                  <FileSpreadsheet size={24} className="text-primary" />
-                </div>
-              </div>
+              <LoadingLogo size="lg" />
               <div className="text-center">
                 <h4 className="font-black text-slate-700 mb-1">جاري تحميل البيانات...</h4>
                 <p className="text-sm text-slate-400">يتم قراءة ملف Excel ومطابقة الطلاب بالفصول</p>

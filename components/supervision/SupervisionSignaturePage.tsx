@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Check, PenLine, X } from 'lucide-react';
 import { SupervisionScheduleData } from '../../types';
 import { DAY_NAMES } from '../../utils/supervisionUtils';
+import LoadingLogo, { useMinLoadingTime } from '../ui/LoadingLogo';
 
 interface AssignmentInfo {
   staffName: string;
@@ -132,6 +133,7 @@ const SupervisionSignaturePage: React.FC<Props> = ({ token }) => {
   const [assignment, setAssignment] = useState<AssignmentInfo | null>(null);
   const [schoolName, setSchoolName] = useState('');
   const [notFound, setNotFound] = useState(false);
+  const showLoader = useMinLoadingTime(!assignment && !notFound && !alreadySigned, 1500);
 
   useEffect(() => {
     try {
@@ -236,10 +238,10 @@ const SupervisionSignaturePage: React.FC<Props> = ({ token }) => {
     );
   }
 
-  if (!assignment) {
+  if (showLoader || !assignment) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#655ac1] border-t-transparent rounded-full animate-spin" />
+        <LoadingLogo size="md" />
       </div>
     );
   }

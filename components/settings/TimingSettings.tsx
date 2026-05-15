@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
 import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown } from 'lucide-react';
 import SchoolTabs from '../wizard/SchoolTabs';
+import LoadingLogo, { useMinLoadingTime } from '../ui/LoadingLogo';
 
 interface SeasonOption { value: string; label: string; emoji: string; }
 const SEASON_OPTIONS: SeasonOption[] = [
@@ -97,6 +98,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [confirmDeleteBreak, setConfirmDeleteBreak] = useState<number | null>(null);
   const [confirmDeletePrayer, setConfirmDeletePrayer] = useState<number | null>(null);
+  const showLoader = useMinLoadingTime(!schoolInfo.timing, 1500);
 
   // Ensure config exists for main and shared schools
   useEffect(() => {
@@ -140,7 +142,12 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
     });
   }, [schoolInfo.sharedSchools?.length, setSchoolInfo]);
 
-  if (!schoolInfo.timing) return <div className="p-10 text-center text-slate-500">جاري تحميل الإعدادات...</div>;
+  if (showLoader || !schoolInfo.timing) return (
+    <div className="p-10 flex flex-col items-center justify-center gap-4">
+      <LoadingLogo size="md" />
+      <span className="text-sm text-slate-500 font-bold">جاري تحميل الإعدادات...</span>
+    </div>
+  );
 
   const getCurrentTiming = (): TimingConfig => {
     if (activeTab === 'main') {

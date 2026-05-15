@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, Zap, UserPlus } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, DutyScheduleData, ScheduleSettingsData } from '../../../types';
 import { generateSmartDutyAssignment } from '../../../utils/dutyUtils';
+import LoadingLogo from '../../ui/LoadingLogo';
 
 interface Props {
   isOpen: boolean;
@@ -24,49 +25,57 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
 }) => {
   const [selectedMode, setSelectedMode] = useState<'auto' | 'manual' | null>(null);
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   if (!isOpen) return null;
 
   const buildAutoSavedScheduleName = (count: number) => `جدول رقم ${count}`;
 
   const handleAutoAssign = () => {
-    try {
-      const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
-        teachers, admins, dutyData.exclusions, dutyData.settings,
-        scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, dutyData.settings.suggestedCountPerDay || suggestedCount
-      );
-      setDutyData(prev => {
-        const prevSaved = prev.savedSchedules || [];
-        const newId = `duty-schedule-${Date.now()}`;
-        const autoScheduleNumber = prevSaved.length + 1;
-        const newSavedEntry = {
-          id: newId,
-          name: buildAutoSavedScheduleName(autoScheduleNumber),
-          createdAt: new Date().toISOString(),
-          dayAssignments: assignments,
-          isApproved: false,
-        };
+    setIsGenerating(true);
+    setTimeout(() => {
+      try {
+        const { assignments, weekAssignments, alerts, newCounts } = generateSmartDutyAssignment(
+          teachers, admins, dutyData.exclusions, dutyData.settings,
+          scheduleSettings, schoolInfo, dutyData.dutyAssignmentCounts || {}, dutyData.settings.suggestedCountPerDay || suggestedCount
+        );
+        setDutyData(prev => {
+          const prevSaved = prev.savedSchedules || [];
+          const newId = `duty-schedule-${Date.now()}`;
+          const autoScheduleNumber = prevSaved.length + 1;
+          const newSavedEntry = {
+            id: newId,
+            name: buildAutoSavedScheduleName(autoScheduleNumber),
+            createdAt: new Date().toISOString(),
+            dayAssignments: assignments,
+            isApproved: false,
+          };
 
-        return {
-          ...prev,
-          dayAssignments: assignments,
-          weekAssignments,
-          dutyAssignmentCounts: newCounts,
-          isApproved: false,
-          approvedAt: undefined,
-          savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
-          activeScheduleId: newId,
-        };
-      });
-      showToast('تم التوزيع التلقائي للمناوبين بنجاح', 'success');
-      if (alerts.length > 0) {
-        showToast(alerts[0], 'warning');
+          return {
+            ...prev,
+            dayAssignments: assignments,
+            weekAssignments,
+            dutyAssignmentCounts: newCounts,
+            isApproved: false,
+            approvedAt: undefined,
+            savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
+            activeScheduleId: newId,
+          };
+        });
+        setTimeout(() => {
+          setIsGenerating(false);
+          showToast('تم التوزيع التلقائي للمناوبين بنجاح', 'success');
+          if (alerts.length > 0) {
+            showToast(alerts[0], 'warning');
+          }
+          onClose();
+        }, 1500);
+      } catch (err) {
+        setIsGenerating(false);
+        showToast('حدث خطأ أثناء التوزيع', 'error');
+        console.error(err);
       }
-      onClose();
-    } catch (err) {
-      showToast('حدث خطأ أثناء التوزيع', 'error');
-      console.error(err);
-    }
+    }, 50);
   };
 
   const handleManualAssign = () => {
@@ -93,6 +102,12 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      {isGenerating && (
+        <div className="fixed inset-0 z-[10000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول المناوبة...</p>
+        </div>
+      )}
       <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
