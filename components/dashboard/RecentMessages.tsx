@@ -102,7 +102,8 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-slate-50 z-10">
               <tr className="text-slate-500">
-                <th className="px-4 py-3 text-right text-xs font-black">اليوم / التاريخ</th>
+                <th className="px-4 py-3 text-right text-xs font-black">اليوم</th>
+                <th className="px-4 py-3 text-right text-xs font-black">التاريخ</th>
                 <th className="px-4 py-3 text-right text-xs font-black">الوقت</th>
                 <th className="px-4 py-3 text-right text-xs font-black">المرسل</th>
                 <th className="px-4 py-3 text-right text-xs font-black">المستلم</th>
@@ -119,11 +120,11 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
 
                 return (
                   <tr key={msg.id || index} className="hover:bg-slate-50/70 transition-colors align-top">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-black text-slate-700">{formatDay(date)}</span>
-                        <span className="text-[11px] font-medium text-slate-400">{formatHijri(date)}</span>
-                      </div>
+                    <td className="px-4 py-3 text-xs font-black text-slate-700 whitespace-nowrap">
+                      {formatDay(date)}
+                    </td>
+                    <td className="px-4 py-3 text-[11px] font-medium text-slate-500 whitespace-nowrap">
+                      {formatHijri(date)}
                     </td>
                     <td className="px-4 py-3 text-xs font-bold text-[#655ac1] whitespace-nowrap" dir="ltr">
                       {formatTime(date)}
