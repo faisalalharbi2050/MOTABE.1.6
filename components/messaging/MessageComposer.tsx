@@ -37,6 +37,14 @@ type DropdownOption = {
   disabled?: boolean;
 };
 
+const getCurrentSenderName = () => {
+  try {
+    const profile = JSON.parse(localStorage.getItem('motabe_profile') || 'null');
+    if (profile?.name?.trim()) return profile.name.trim();
+  } catch {}
+  return 'مدير النظام';
+};
+
 const useDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -232,9 +240,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   }, [students, classes]);
 
   const displayItems = useMemo(() => {
-    type Item = { id: string; name: string; subtitle?: string; role: 'teacher' | 'admin' | 'student' | 'guardian'; phone: string; classId?: string };
+    type Item = { id: string; name: string; subtitle?: string; role: 'teacher' | 'admin' | 'student' | 'guardian'; phone: string; classId?: string; classLabel?: string };
     const items: Item[] = [];
     const q = searchQuery.toLowerCase();
+    const classLabelById = new Map(classes.map(cls => [cls.id, cls.name || `${cls.grade}-${cls.section}`]));
 
     if (selectedGroup === 'teachers' || selectedGroup === 'staff') {
       let filtered = teachers;
@@ -254,11 +263,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       let filtered = students;
       if (selectedClassId !== 'all') filtered = filtered.filter(s => s.classId === selectedClassId);
       if (q) filtered = filtered.filter(s => s.name.toLowerCase().includes(q));
-      items.push(...filtered.map(s => ({ id: s.id, name: s.name, subtitle: 'ولي أمر', role: 'guardian' as const, phone: s.parentPhone || '', classId: s.classId })));
+      items.push(...filtered.map(s => ({ id: s.id, name: s.name, subtitle: 'ولي أمر', role: 'guardian' as const, phone: s.parentPhone || '', classId: s.classId, classLabel: classLabelById.get(s.classId) })));
     }
 
     return items;
-  }, [selectedGroup, teachers, admins, students, searchQuery, selectedSpecId, selectedClassId]);
+  }, [selectedGroup, teachers, admins, students, classes, searchQuery, selectedSpecId, selectedClassId]);
 
   // Selection Handlers
   const toggleSelection = (id: string) => {
@@ -384,6 +393,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     const batchId = `batch-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     // Personalise message for each recipient
+    const senderName = getCurrentSenderName();
     const messagesToProcess = recipientsToSend.map(rec => {
       const scheduleLinks = draftMeta?.linksByRecipientId?.[rec.id] || '';
       const scheduleAttachments = scheduleLinks
@@ -423,12 +433,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       return {
         batchId,
         senderRole: draftMeta?.senderRole || 'مدير النظام',
+        senderName,
         source: draftMeta?.source || 'general' as const,
         recipientId: rec.id,
         recipientName: rec.name,
         recipientPhone: rec.phone,
         recipientRole: rec.role,
+        recipientClassLabel: rec.classLabel,
         content: personalizedContent,
+        originalContent: messageContent,
         channel,
         attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
         isScheduled,

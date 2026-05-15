@@ -48,6 +48,14 @@ const formatPickerDate = (date: DateObject | DateObject[] | null) => {
   return selected ? formatIsoDate(selected.toDate()) : '';
 };
 
+const getCurrentSenderName = () => {
+  try {
+    const profile = JSON.parse(localStorage.getItem('motabe_profile') || 'null');
+    if (profile?.name?.trim()) return profile.name.trim();
+  } catch {}
+  return 'مدير النظام';
+};
+
 const dayNameForDate = (date?: string) => {
   const parsed = parseIsoDate(date) || new Date();
   return ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][parsed.getDay()] || '';
@@ -142,6 +150,7 @@ interface MessageBatch {
   timestamp: string; // the time of the first message
   timeStr: string;
   senderRole: string;
+  senderName: string;
   content: string;
   channel: 'whatsapp' | 'sms';
   source: MessageSource;
@@ -237,7 +246,8 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
              timestamp: first.timestamp,
              timeStr: new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit' }).format(date),
              senderRole: first.senderRole || 'مدير النظام',
-             content: first.content,
+             senderName: first.senderName || getCurrentSenderName() || first.senderRole || 'مدير النظام',
+             content: first.originalContent || first.content,
              channel: first.channel,
              source: first.source,
              status: overallStatus,
@@ -288,7 +298,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
       // 5. Text Search (Search in Sender, Content, Recipient Name, Recipient Phone)
       const q = searchQuery.trim().toLowerCase();
       if (q) {
-          const matchSender = b.senderRole.toLowerCase().includes(q);
+          const matchSender = b.senderName.toLowerCase().includes(q) || b.senderRole.toLowerCase().includes(q);
           const matchContent = b.content.toLowerCase().includes(q);
           const matchRecipients = b.recipients.some(r => 
               r.recipientName.toLowerCase().includes(q) || 
@@ -339,6 +349,8 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                  <tr>
                     ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${batch.day}</td>` : ''}
                     ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${formatHijriDate(new Date(batch.timestamp))}<br/><span style="font-size:10px;color:#666">${formatGregorianDate(new Date(batch.timestamp))}</span></td>` : ''}
+                    ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align" dir="ltr" style="text-align:right;color:#655ac1;font-weight:bold;">${batch.timeStr}</td>` : ''}
+                    ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align">${batch.senderName}</td>` : ''}
                     <td><div style="font-weight:bold;">${rec.recipientName}</div><div style="font-size:10px;color:#666;">${roleLabels[rec.recipientRole]}</div></td>
                     <td dir="ltr" style="text-align:right;">${rec.recipientPhone}</td>
                     
@@ -348,8 +360,6 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                     <td class="${rec.status === 'sent' ? 'status-sent' : 'status-failed'}">
                       ${rec.status === 'sent' ? 'تم الإرسال' : 'فشل'}
                     </td>
-                    
-                    ${idx === 0 ? `<td rowspan="${batch.recipients.length}" class="v-align" dir="ltr" style="text-align:right;">${batch.timeStr}</td>` : ''}
                  </tr>
               `;
           });
@@ -410,12 +420,13 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
               <tr>
                 <th>اليوم</th>
                 <th>التاريخ</th>
+                <th>الوقت</th>
+                <th>المرسل</th>
                 <th>المستلم</th>
                 <th>رقم الجوال</th>
                 <th>نص الرسالة</th>
                 <th>الطريقة</th>
                 <th>الحالة</th>
-                <th>الوقت</th>
               </tr>
             </thead>
             <tbody>
@@ -446,6 +457,15 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
     if (batch.totalRecipients === 1) return batch.recipients[0].recipientName;
     if (roles.length === 1) return roleLabels[roles[0]] || 'مستلمون';
     return 'مستلمون متعددون';
+  };
+
+  const recipientButtonLabel = (batch: MessageBatch) => {
+    const roles = new Set(batch.recipients.map(rec => rec.recipientRole));
+    if (roles.has('guardian')) return 'أولياء الأمور';
+    if (roles.has('teacher') && roles.has('admin')) return 'معلمون وإداريون';
+    if (roles.has('teacher')) return 'المعلمون';
+    if (roles.has('admin')) return 'الإداريون';
+    return recipientSummary(batch);
   };
 
   const selectedRoleLabel = selectedRoles.includes('all')
@@ -682,19 +702,20 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
               </th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1]">اليوم</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1]">التاريخ</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">الوقت</th>
+              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">المرسل</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1]">المستلم</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1] text-center">العدد</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1]">نص الرسالة</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1]">الطريقة</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1]">رقم الجوال</th>
               <th className="px-5 py-4 text-xs font-black text-[#655ac1] text-center">الحالة</th>
-              <th className="px-5 py-4 text-xs font-black text-[#655ac1]">الوقت</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredBatches.length === 0 ? (
               <tr>
-                <td colSpan={10} className="p-0 border-none">
+                <td colSpan={11} className="p-0 border-none">
                   <div className="flex flex-col items-center justify-center bg-white py-20 w-full gap-4">
                     <div className="flex flex-col items-center gap-3">
                       <Archive size={48} className="text-[#655ac1]" strokeWidth={1.4} />
@@ -732,12 +753,21 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                      <div className="text-sm font-black text-slate-800">{batch.dateStr}</div>
                      <div className="mt-1 text-sm font-black text-slate-600">{formatGregorianDate(new Date(batch.timestamp))} م</div>
                   </td>
+                  <td className="px-5 py-4 align-middle text-[13px] text-[#655ac1] font-black" dir="ltr">
+                    {batch.timeStr}
+                  </td>
+                  <td className="px-5 py-4 align-middle min-w-[130px]">
+                    <div className="text-xs font-black text-slate-800 leading-5">{batch.senderName}</div>
+                  </td>
                   
                   <td className="px-5 py-4 align-middle min-w-[140px] max-w-[160px]">
-                     <div className="text-xs font-black text-slate-800 leading-5 line-clamp-2">{recipientSummary(batch)}</div>
-                     <div className="text-[11px] bg-slate-50 border border-slate-200 inline-block px-2 py-0.5 rounded-full text-slate-500 mt-1 font-bold">
-                        {batch.totalRecipients === 1 ? roleLabels[batch.recipients[0].recipientRole] : 'مجموعة'}
-                     </div>
+                     <button
+                       type="button"
+                       onClick={() => setViewingRecipients(batch.recipients)}
+                       className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-[#655ac1] hover:border-[#655ac1] hover:bg-[#f8f7ff] transition-colors whitespace-nowrap"
+                     >
+                       {recipientButtonLabel(batch)}
+                     </button>
                   </td>
                   
                   <td className="px-5 py-4 align-middle text-center">
@@ -787,9 +817,6 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                     )}
                   </td>
 
-                  <td className="px-5 py-4 align-middle text-[13px] text-slate-600 font-black" dir="ltr">
-                    {batch.timeStr}
-                  </td>
                 </tr>
               ))
             )}
@@ -860,6 +887,9 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                              <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
                                  <div>
                                      <div className="font-bold text-slate-800 text-sm">{rec.recipientName}</div>
+                                     {rec.recipientRole === 'guardian' && rec.recipientClassLabel && (
+                                       <div className="text-[11px] text-slate-500 font-bold mt-1">الفصل: {rec.recipientClassLabel}</div>
+                                     )}
                                      <div className="text-xs text-slate-500 font-mono mt-1" dir="ltr">{rec.recipientPhone}</div>
                                      <div className="text-[10px] bg-slate-100 inline-block px-2 py-0.5 rounded-md text-slate-600 mt-1">{roleLabels[rec.recipientRole]}</div>
                                  </div>

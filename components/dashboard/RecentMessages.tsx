@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquare, CheckCircle2, AlertTriangle, Eye } from 'lucide-react';
 import { Message } from '../../types';
+import { useMessageArchive } from '../messaging/MessageArchiveContext';
 
 const WhatsAppIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -31,7 +32,54 @@ const formatDay = (date: Date) =>
 const formatTime = (date: Date) =>
   new Intl.DateTimeFormat('ar-SA', { hour: '2-digit', minute: '2-digit' }).format(date);
 
+const getCurrentSenderName = () => {
+  try {
+    const profile = JSON.parse(localStorage.getItem('motabe_profile') || 'null');
+    if (profile?.name?.trim()) return profile.name.trim();
+  } catch {}
+  return 'مدير النظام';
+};
+
 const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenArchive }) => {
+  const { messages: archivedMessages } = useMessageArchive();
+  const displayMessages = React.useMemo<Message[]>(() => {
+    if (archivedMessages.length > 0) {
+      const batches = new Map<string, typeof archivedMessages>();
+      archivedMessages.forEach(msg => {
+        const key = msg.batchId || msg.id;
+        if (!batches.has(key)) batches.set(key, []);
+        batches.get(key)!.push(msg);
+      });
+
+      return Array.from(batches.entries())
+        .map(([id, batch]) => {
+          const first = batch[0];
+          const roles = new Set(batch.map(msg => msg.recipientRole));
+          const recipient =
+            roles.has('guardian') ? 'أولياء الأمور' :
+            roles.has('teacher') && roles.has('admin') ? 'معلمون وإداريون' :
+            roles.has('teacher') ? 'المعلمون' :
+            roles.has('admin') ? 'الإداريون' :
+            first.recipientName;
+
+          return {
+            id,
+            sender: first.senderName || getCurrentSenderName() || first.senderRole,
+            recipient,
+            content: first.originalContent || first.content,
+            timestamp: first.timestamp,
+            type: first.channel,
+            status: batch.some(msg => msg.status === 'failed') ? 'failed' : first.status,
+          };
+        })
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5);
+    }
+
+    const fallbackSender = getCurrentSenderName();
+    return messages.map(msg => ({ ...msg, sender: fallbackSender }));
+  }, [archivedMessages, messages]);
+
   return (
     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col h-full hover:shadow-md transition-shadow" dir="rtl">
       <div className="flex justify-between items-center mb-5">
@@ -40,11 +88,11 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
           <h3 className="font-bold text-slate-800 text-lg">آخر الرسائل</h3>
         </div>
         <span className="text-sm font-black text-[#655ac1] bg-white px-3 py-1 rounded-full shadow shadow-slate-300">
-          {messages.length}
+          {displayMessages.length}
         </span>
       </div>
 
-      {messages.length === 0 ? (
+      {displayMessages.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-40 text-slate-300">
           <MessageSquare size={36} strokeWidth={1.5} className="mb-2 opacity-50" />
           <p className="text-xs font-bold">لا توجد رسائل</p>
@@ -64,7 +112,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {messages.map((msg, index) => {
+              {displayMessages.map((msg, index) => {
                 const date = new Date(msg.timestamp);
                 const isWhatsapp = msg.type === 'whatsapp';
                 const isSent = msg.status === 'sent';
@@ -77,7 +125,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
                         <span className="text-[11px] font-medium text-slate-400">{formatHijri(date)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-slate-500 whitespace-nowrap" dir="ltr">
+                    <td className="px-4 py-3 text-xs font-bold text-[#655ac1] whitespace-nowrap" dir="ltr">
                       {formatTime(date)}
                     </td>
                     <td className="px-4 py-3 text-xs font-bold text-[#655ac1] whitespace-nowrap">

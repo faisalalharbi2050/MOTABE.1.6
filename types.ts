@@ -329,12 +329,15 @@ export interface CentralMessage {
   id: string;
   batchId?: string; // To group messages sent together
   senderRole?: string; // To identify who sent the message (e.g. manager, admin)
+  senderName?: string;
   source: MessageSource;
   recipientId: string;
   recipientName: string;
   recipientPhone: string;
   recipientRole: MessageRole;
+  recipientClassLabel?: string;
   content: string;
+  originalContent?: string;
   timestamp: string;
   channel: 'whatsapp' | 'sms';
   status: 'sent' | 'pending' | 'failed';
