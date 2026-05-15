@@ -2832,9 +2832,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const formatDateLabelFull = (dateStr: string) => `${getArabicDayFromDate(dateStr)} ${formatDateLabel(dateStr)}`;
 
     const effectiveWeeks: AcademicWeek[] = calendarReady
-      ? (rptSelectedWeekNumbers.size > 0
-          ? academicWeeks.filter(w => rptSelectedWeekNumbers.has(w.number))
-          : (autoWeek ? [autoWeek] : []))
+      ? academicWeeks.filter(w => rptSelectedWeekNumbers.has(w.number))
       : [];
 
     const weekDaysList: string[] = effectiveWeeks.flatMap(w => w.days);
@@ -2897,8 +2895,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           : `${rptSelectedWeekNumbers.size} أسابيع مختارة`;
 
     const weekSearchTerm = rptWeekSearch.trim();
-    const nonHolidayWeeks = academicWeeks.filter(w => !w.hasHoliday);
-    const filteredWeeks = nonHolidayWeeks.filter(w => {
+    const filteredWeeks = academicWeeks.filter(w => {
       if (!weekSearchTerm) return true;
       const haystack = [
         `الأسبوع ${w.number}`,
@@ -3135,7 +3132,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
                     <button
                       type="button"
-                      onClick={() => setRptSelectedWeekNumbers(new Set(nonHolidayWeeks.map(w => w.number)))}
+                      onClick={() => setRptSelectedWeekNumbers(new Set(academicWeeks.map(w => w.number)))}
                       className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
                     >
                       تحديد الكل
@@ -3160,9 +3157,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     {filteredWeeks.length === 0 ? (
                       <p className="text-center text-sm font-bold text-slate-400 py-6">لا توجد نتائج</p>
                     ) : filteredWeeks.map(w => {
-                      const isSelected = rptSelectedWeekNumbers.has(w.number) || (rptSelectedWeekNumbers.size === 0 && autoWeek?.number === w.number);
-                      const explicitlySelected = rptSelectedWeekNumbers.has(w.number);
-                      const isAuto = !explicitlySelected && autoWeek?.number === w.number && rptSelectedWeekNumbers.size === 0;
+                      const isSelected = rptSelectedWeekNumbers.has(w.number);
+                      const isAuto = autoWeek?.number === w.number;
                       return (
                         <button
                           key={w.number}
@@ -3175,7 +3171,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               return next;
                             });
                           }}
-                          className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${explicitlySelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                          className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${isSelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
                         >
                           <span className="flex flex-col items-start min-w-0 flex-1">
                             <span className="font-black flex items-center gap-2">
