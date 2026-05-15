@@ -193,6 +193,15 @@ const buildAcademicWeeks = (semester: SemesterInfo | undefined): AcademicWeek[] 
   return weeks;
 };
 
+const getCurrentAcademicSemester = (schoolInfo: SchoolInfo): SemesterInfo | undefined => {
+  const semesters = schoolInfo.semesters || [];
+  if (semesters.length === 0) return undefined;
+
+  return semesters.find(s => s.id === schoolInfo.currentSemesterId)
+    || semesters.find(s => s.isCurrent)
+    || semesters[0];
+};
+
 const getWaitingWeekRange = (dateStr: string): { start: string; end: string; weekKey: string } => {
   const d = new Date(`${dateStr}T00:00:00`);
   const start = new Date(d);
@@ -692,12 +701,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // مفتاح اليوم بالإنجليزية لمطابقة مفاتيح الجدول الزمني (sunday, monday, ...)
   const dayKey = useMemo(() => new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), [selectedDate]);
   const waitingWeekRange = useMemo(() => {
-    const semester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
+    const semester = getCurrentAcademicSemester(schoolInfo);
     const weeks = buildAcademicWeeks(semester);
     const match = weeks.find(w => selectedDate >= w.start && selectedDate <= w.end);
     if (match) return { start: match.start, end: match.end, weekKey: `acad-W${match.number}` };
     return getWaitingWeekRange(selectedDate);
-  }, [selectedDate, schoolInfo.semesters]);
+  }, [selectedDate, schoolInfo]);
 
   const currentSession = useMemo(
     () => sessions.find(s => s.date === selectedDate) || null,
@@ -1117,7 +1126,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ── Reports print helper (new design) ──
   const handleWaitingReportPrint = () => {
-    const calType = (schoolInfo.semesters?.[0]?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
+    const calType = (getCurrentAcademicSemester(schoolInfo)?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
     const todayDate = new Date();
     const todayDayName = todayDate.toLocaleDateString('ar-SA', { weekday: 'long' });
     const todayHijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(todayDate);
@@ -1137,7 +1146,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const fromDayName = rptFromDate ? new Date(rptFromDate).toLocaleDateString('ar-SA', { weekday: 'long' }) : '';
     const toDayName = rptToDate ? new Date(rptToDate).toLocaleDateString('ar-SA', { weekday: 'long' }) : '';
 
-    const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
+    const currentSemester = getCurrentAcademicSemester(schoolInfo);
     const semesterName = currentSemester?.name || '';
     const educationAdmin = schoolInfo.educationAdministration || schoolInfo.region || '';
 
@@ -2326,7 +2335,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }, [teachers, weeklyQuota]);
 
   // ── New report modal computed data ──
-  const rptCalType = (schoolInfo.semesters?.[0]?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
+  const rptCalType = (getCurrentAcademicSemester(schoolInfo)?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
 
   const allWaitingStaff = useMemo(() => {
     const list: { id: string; name: string; role: 'teacher' | 'admin'; quota: number }[] = [];
@@ -2818,8 +2827,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }
 
   if (isReports) {
-    const semesters = schoolInfo.semesters || [];
-    const activeSemester = semesters.find(s => s.isCurrent) || semesters[0];
+    const activeSemester = getCurrentAcademicSemester(schoolInfo);
     const academicWeeks = buildAcademicWeeks(activeSemester);
     const today = getTodayStr();
     const autoWeek =
