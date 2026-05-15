@@ -114,7 +114,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
               <tr className="text-slate-500">
                 <th className="px-2 py-3 text-right text-[11px] font-black">اليوم</th>
                 <th className="px-2 py-3 text-right text-[11px] font-black">التاريخ</th>
-                <th className="px-2 py-3 text-right text-[11px] font-black">الوقت</th>
+                <th className="px-2 py-3 text-center text-[11px] font-black">الوقت</th>
                 <th className="px-2 py-3 text-right text-[11px] font-black">المرسل</th>
                 <th className="px-2 py-3 text-right text-[11px] font-black">المستلم</th>
                 <th className="px-2 py-3 text-right text-[11px] font-black">الإرسال</th>
@@ -136,7 +136,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
                     <td className="px-2 py-3 text-[10px] font-medium text-slate-500 truncate">
                       {formatHijri(date)}
                     </td>
-                    <td className="px-2 py-3 text-[11px] font-bold text-[#655ac1] truncate" dir="ltr">
+                    <td className="px-2 py-3 text-center text-[11px] font-bold text-[#655ac1] truncate" dir="ltr">
                       {formatTime(date)}
                     </td>
                     <td className="px-2 py-3 text-[11px] font-bold text-[#655ac1] truncate">
