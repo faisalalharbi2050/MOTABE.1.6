@@ -3267,7 +3267,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 type="text"
                 value={embTableSearch}
                 onChange={e => setEmbTableSearch(e.target.value)}
-                placeholder="ابحث في الجدول..."
+                placeholder="ابحث"
                 className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
                 dir="rtl"
               />
