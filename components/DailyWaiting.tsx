@@ -661,6 +661,24 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [resetConfirmStep, setResetConfirmStep] = useState<'idle' | 'confirm'>('idle');
   const [showBalanceResetConfirm, setShowBalanceResetConfirm] = useState(false);
 
+  // ── New-week reset prompt (custom modal replacing window.confirm) ──
+  const [newWeekResetPrompt, setNewWeekResetPrompt] = useState<{ start: string; end: string; weekKey: string } | null>(null);
+
+  // ── Past-week editing banner: dismissed per-date in this session ──
+  const [pastBannerDismissed, setPastBannerDismissed] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = sessionStorage.getItem('dw-past-banner-dismissed');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const dismissPastBanner = (dateStr: string) => {
+    setPastBannerDismissed(prev => {
+      const next = { ...prev, [dateStr]: true };
+      try { sessionStorage.setItem('dw-past-banner-dismissed', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   // ── Absence modal date ref ──
   const absenceDateInputRef = useRef<HTMLInputElement>(null);
 
@@ -709,6 +727,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     if (match) return { start: match.start, end: match.end, weekKey: `acad-W${match.number}` };
     return getWaitingWeekRange(selectedDate);
   }, [selectedDate, schoolInfo]);
+
+  // Week relation: is selectedDate's week before / equal / after today's week?
+  const weekRelation = useMemo<'same' | 'past' | 'future'>(() => {
+    const today = getTodayStr();
+    const semester = getCurrentAcademicSemester(schoolInfo);
+    const weeks = buildAcademicWeeks(semester);
+    const todayMatch = weeks.find(w => today >= w.start && today <= w.end);
+    const todayWeekStart = todayMatch ? todayMatch.start : getWaitingWeekRange(today).start;
+    if (waitingWeekRange.start < todayWeekStart) return 'past';
+    if (waitingWeekRange.start > todayWeekStart) return 'future';
+    return 'same';
+  }, [waitingWeekRange.start, schoolInfo]);
 
   const currentSession = useMemo(
     () => sessions.find(s => s.date === selectedDate) || null,
@@ -1400,24 +1430,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }, [showReportsModal, autoOpenedKey, onSectionExit]);
 
   const ensureWaitingWeekDecision = () => {
+    // Editing a past week must never touch the current week's quota.
+    // The dismissible banner already informs the user; no prompt needed.
+    if (weekRelation === 'past') return true;
     if (weeklyQuota.weekKey === waitingWeekRange.weekKey) return true;
-
-    const shouldReset = window.confirm(
-      `بدأ أسبوع انتظار جديد من ${getArabicDayFromDate(waitingWeekRange.start)} الموافق ${formatHijri(waitingWeekRange.start)} إلى ${getArabicDayFromDate(waitingWeekRange.end)} الموافق ${formatHijri(waitingWeekRange.end)}.\n\nهل تريد إعادة ضبط رصيد الانتظار قبل تسجيل الغياب؟\n\nاختر موافق لإعادة الضبط، أو إلغاء للمتابعة بنفس الرصيد.`
-    );
-
-    setWeeklyQuota(prev => ({
-      weekKey: waitingWeekRange.weekKey,
-      counts: shouldReset ? {} : prev.counts,
-      lastResetDate: shouldReset ? getTodayStr() : prev.lastResetDate,
-    }));
-
-    showToast(
-      shouldReset
-        ? 'تمت إعادة ضبط رصيد الانتظار للأسبوع الجديد'
-        : 'سيتم المتابعة بنفس رصيد الانتظار لهذا الأسبوع',
-      shouldReset ? 'success' : 'info'
-    );
+    // New week detected (current or future) — show custom modal once.
+    setNewWeekResetPrompt(prev => prev ?? waitingWeekRange);
     return true;
   };
 
@@ -3985,6 +4003,93 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </button>
         </div>,
         document.body
+      )}
+
+      {/* ── New-week reset prompt (custom modal) ── */}
+      {newWeekResetPrompt && ReactDOM.createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
+          dir="rtl"
+          onClick={() => {
+            setWeeklyQuota(prev => ({ ...prev, weekKey: newWeekResetPrompt.weekKey }));
+            setNewWeekResetPrompt(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="text-[#655ac1] flex items-center justify-center">
+                  <Info size={26} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-800">بداية أسبوع انتظار جديد</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {getArabicDayFromDate(newWeekResetPrompt.start)} – {getArabicDayFromDate(newWeekResetPrompt.end)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setWeeklyQuota(prev => ({ ...prev, weekKey: newWeekResetPrompt.weekKey }));
+                  setNewWeekResetPrompt(null);
+                }}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm leading-7 font-medium text-slate-600">
+                هل تريد إعادة ضبط رصيد الانتظار لبداية الأسبوع الجديد، أم المتابعة بنفس الرصيد المتراكم؟
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setWeeklyQuota(prev => ({ ...prev, weekKey: newWeekResetPrompt.weekKey }));
+                  setNewWeekResetPrompt(null);
+                  showToast('سيتم المتابعة بنفس رصيد الانتظار لهذا الأسبوع', 'info');
+                }}
+                className="flex-1 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl border border-slate-300 transition-colors"
+              >
+                متابعة بنفس الرصيد
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWeeklyQuota({ weekKey: newWeekResetPrompt.weekKey, counts: {}, lastResetDate: getTodayStr() });
+                  setNewWeekResetPrompt(null);
+                  showToast('تمت إعادة ضبط رصيد الانتظار للأسبوع الجديد', 'success');
+                }}
+                className="flex-1 px-4 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 hover:scale-105 active:scale-95"
+              >
+                تصفير الرصيد
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Past-week editing banner (non-intrusive, dismissible) ── */}
+      {weekRelation === 'past' && !pastBannerDismissed[selectedDate] && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 flex items-start gap-3 text-amber-900">
+          <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-sm leading-relaxed font-medium flex-1">
+            أنت تعدّل أسبوعًا سابقًا — ستنعكس التعديلات على تقارير ذلك الأسبوع فقط، ولن يتأثر رصيد الأسبوع الحالي.
+          </p>
+          <button
+            onClick={() => dismissPastBanner(selectedDate)}
+            className="p-1 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors shrink-0"
+            aria-label="إغلاق التنبيه"
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
 
       {/* ══════ Header Card ══════ */}
