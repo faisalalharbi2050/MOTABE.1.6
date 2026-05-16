@@ -11,8 +11,7 @@ export function PageHeader({ title, subtitle, children }: PageHeaderProps) {
     <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500 space-y-4 sticky top-0 z-[9999]">
       
       {/* 1. Title Bar */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200/60 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                 <h1 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight flex items-center gap-3">

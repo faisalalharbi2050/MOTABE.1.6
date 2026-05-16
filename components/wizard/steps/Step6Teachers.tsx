@@ -698,8 +698,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
     <div className="space-y-8 animate-in fade-in duration-500 pb-20 print:pb-0 print:space-y-4">
       
       {/* ══════ Header (Hidden in Print) ══════ */}
-      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden mb-6 print:hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
+      <div className="bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300 mb-6 print:hidden">
           
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
             <Users size={36} strokeWidth={1.8} className="text-[#655ac1]" />

@@ -270,8 +270,7 @@ const SubjectDatabase: React.FC<Props> = ({ subjects, setSubjects, specializatio
       {renderPlanPreview()}
 
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
-         <div className="absolute top-0 left-0 w-32 h-32 bg-primary/5 rounded-full -translate-x-10 -translate-y-10 blur-2xl"></div>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300">
          <div className="space-y-2 relative z-10">
             <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
               <Database size={36} strokeWidth={1.8} className="text-[#655ac1]" />
