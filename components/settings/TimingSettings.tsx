@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
-import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown } from 'lucide-react';
+import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown, Lightbulb, Edit3 } from 'lucide-react';
 import SchoolTabs from '../wizard/SchoolTabs';
 import LoadingLogo, { useMinLoadingTime } from '../ui/LoadingLogo';
 
@@ -10,6 +10,19 @@ const SEASON_OPTIONS: SeasonOption[] = [
   { value: 'winter', label: 'التوقيت الشتوي', emoji: '☁️' },
   { value: 'ramadan', label: 'توقيت رمضان', emoji: '🌙' },
 ];
+
+const getSeasonOptionIcon = (value: string, size = 16) => {
+  switch (value) {
+    case 'summer':
+      return <Sun size={size} className="text-amber-500 shrink-0" />;
+    case 'winter':
+      return <Snowflake size={size} className="text-[#2a93d5] shrink-0" />;
+    case 'ramadan':
+      return <Moon size={size} className="text-slate-400 shrink-0" />;
+    default:
+      return <Clock size={size} className="text-slate-500 shrink-0" />;
+  }
+};
 
 const SeasonDropdown: React.FC<{ value: string; onChange: (v: string) => void; }> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -30,7 +43,10 @@ const SeasonDropdown: React.FC<{ value: string; onChange: (v: string) => void; }
         onClick={() => setOpen(o => !o)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
       >
-        <span className="truncate text-[13px] leading-tight">{selected.emoji} {selected.label}</span>
+        <span className="min-w-0 flex items-center gap-2 truncate text-[13px] leading-tight">
+          {getSeasonOptionIcon(selected.value)}
+          <span className="truncate">{selected.label}</span>
+        </span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
@@ -45,7 +61,10 @@ const SeasonDropdown: React.FC<{ value: string; onChange: (v: string) => void; }
                   value === opt.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                 }`}
               >
-                <span>{opt.emoji} {opt.label}</span>
+                <span className="flex items-center gap-2">
+                  {getSeasonOptionIcon(opt.value)}
+                  <span>{opt.label}</span>
+                </span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                   value === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
                 }`}>
@@ -95,7 +114,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
     showNotes: true
   });
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+  const [isScheduleEditMode, setIsScheduleEditMode] = useState(false);
+  const [hasUnsavedScheduleEdits, setHasUnsavedScheduleEdits] = useState(false);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
+  const [scheduleNotice, setScheduleNotice] = useState<{ message: string; type: 'warning' | 'success' } | null>(null);
   const [confirmDeleteBreak, setConfirmDeleteBreak] = useState<number | null>(null);
   const [confirmDeletePrayer, setConfirmDeletePrayer] = useState<number | null>(null);
   const showLoader = useMinLoadingTime(!schoolInfo.timing, 1500);
@@ -116,7 +138,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           { id: 'b1', name: 'الفسحة الأولى', duration: 25, afterPeriod: 2 }
         ],
         prayers: [
-          { id: 'p1', name: 'صلاة الظهر', duration: 20, afterPeriod: 6, isEnabled: true }
+          { id: 'p1', name: 'صلاة الظهر', duration: 20, afterPeriod: 6, isEnabled: false }
         ],
         hasAssembly: true,
         season: 'summer',
@@ -159,6 +181,16 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
 
   const currentTiming = getCurrentTiming();
 
+  useEffect(() => {
+    if (!hasUnsavedScheduleEdits) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedScheduleEdits]);
+
   const getTheme = () => {
       switch(currentTiming.season) {
           case 'winter': return {
@@ -184,6 +216,43 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   
   const theme = getTheme();
 
+  const getScheduleTableTheme = () => {
+      switch (currentTiming.season) {
+          case 'winter':
+              return {
+                  head: 'bg-sky-50/80',
+                  text: 'text-[#1f7fb8]',
+                  border: 'border-sky-100',
+                  divide: 'divide-sky-100',
+                  hover: '',
+                  focus: 'focus:border-[#1f7fb8]',
+                  badge: 'bg-amber-50 text-amber-800 border-amber-200'
+              };
+          case 'ramadan':
+              return {
+                  head: 'bg-slate-50/90',
+                  text: 'text-slate-600',
+                  border: 'border-slate-200',
+                  divide: 'divide-slate-100',
+                  hover: '',
+                  focus: 'focus:border-slate-400',
+                  badge: 'bg-amber-50 text-amber-800 border-amber-200'
+              };
+          default:
+              return {
+                  head: 'bg-amber-50/80',
+                  text: 'text-amber-700',
+                  border: 'border-amber-100',
+                  divide: 'divide-amber-100',
+                  hover: '',
+                  focus: 'focus:border-amber-400',
+                  badge: 'bg-amber-50 text-amber-800 border-amber-200'
+              };
+      }
+  };
+
+  const scheduleTableTheme = getScheduleTableTheme();
+
   const updateTiming = (updates: Partial<TimingConfig>) => {
     setSchoolInfo(prev => {
       const newData = { ...prev };
@@ -201,7 +270,37 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       return newData;
     });
   };
-  
+
+  const markScheduleEdited = () => {
+      setHasUnsavedScheduleEdits(true);
+  };
+
+  const showScheduleNotice = (message: string, type: 'warning' | 'success' = 'warning') => {
+      setScheduleNotice({ message, type });
+      setTimeout(() => setScheduleNotice(null), 3000);
+  };
+
+  const handleScheduleHeaderClick = () => {
+      if (isScheduleExpanded && hasUnsavedScheduleEdits) {
+          const shouldClose = window.confirm('لديك تعديلات غير محفوظة في الجدول التفاعلي. هل تريد إغلاق الجدول دون حفظ التعديل؟');
+          if (!shouldClose) return;
+          setHasUnsavedScheduleEdits(false);
+          setIsScheduleEditMode(false);
+      }
+      setIsScheduleExpanded(!isScheduleExpanded);
+  };
+
+  const handleSaveScheduleEdits = () => {
+      if (!hasUnsavedScheduleEdits) {
+          showScheduleNotice('لا توجد تعديلات لحفظها', 'warning');
+          return;
+      }
+      handleSave();
+      setHasUnsavedScheduleEdits(false);
+      setIsScheduleEditMode(false);
+      showScheduleNotice('تم حفظ تعديل الجدول', 'success');
+  };
+
   // --- Interactions --- //
   
   const toggleDay = (dayId: string) => {
@@ -366,6 +465,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
 
   // --- Edit Handlers --- //
   const handleItemNameChange = (item: ScheduleItem, newName: string) => {
+      markScheduleEdited();
       if (item.type === 'period') {
           updateTiming({ customPeriodNames: { ...currentTiming.customPeriodNames, [item.originalIndex!]: newName } });
       } else if (item.type === 'break') {
@@ -390,6 +490,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   };
 
   const handleItemStartTimeChange = (item: ScheduleItem, newStart: string) => {
+      markScheduleEdited();
       // If it's assembly, update assemblyTime
        if (item.type === 'assembly') {
            updateTiming({ assemblyTime: newStart });
@@ -400,6 +501,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   };
 
   const handleItemEndTimeChange = (item: ScheduleItem, newEnd: string) => {
+      markScheduleEdited();
       const newDuration = calculateDuration(item.startTime, newEnd);
       if (newDuration > 0) {
           handleItemDurationChange(item, newDuration);
@@ -407,6 +509,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   };
 
   const handleItemDurationChange = (item: ScheduleItem, newDuration: number) => {
+      markScheduleEdited();
       if (item.type === 'period') {
           updateTiming({ customDurations: { ...currentTiming.customDurations, [item.originalIndex!]: newDuration } });
       } else if (item.type === 'break') {
@@ -439,6 +542,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
    * - يُزيح أوقات البداية المخصصة للصفوف التالية بمقدار مدة الفعالية الجديدة حتى لا يحدث تداخل.
    */
   const handleAddRowBelow = (item: ScheduleItem, currentIndex: number) => {
+      markScheduleEdited();
       const newBreakId = Math.random().toString();
       const newBreakDuration = 15;
       const newAfterPeriod = item.relatedPeriodIndex;
@@ -502,6 +606,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   };
 
   const handleDeleteItem = (item: ScheduleItem) => {
+      markScheduleEdited();
       if (item.type === 'break') {
           const newBreaks = currentTiming.breaks.filter((_, idx) => idx !== item.originalIndex);
           updateTiming({ breaks: newBreaks });
@@ -536,8 +641,14 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       if (!printWindow) return;
 
       const title = currentTiming.season === 'summer' ? 'التوقيت الصيفي' : currentTiming.season === 'winter' ? 'التوقيت الشتوي' : 'توقيت رمضان';
-      const themeColor = currentTiming.season === 'summer' ? '#f59e0b' : currentTiming.season === 'winter' ? '#2a93d5' : '#3bb273';
-      const bgColor = currentTiming.season === 'summer' ? '#fffbeb' : currentTiming.season === 'winter' ? '#eaf6fd' : '#ebf9f2';
+      const themeColor = currentTiming.season === 'summer' ? '#d97706' : currentTiming.season === 'winter' ? '#2a93d5' : '#64748b';
+      const bgColor = currentTiming.season === 'summer' ? '#fffbeb' : currentTiming.season === 'winter' ? '#eaf6fd' : '#f8fafc';
+      const escapeHtml = (value: unknown) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 
       // Current date in Gregorian and Hijri
       const now = new Date();
@@ -549,14 +660,9 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       const currentSemester = (schoolInfo.semesters || []).find(s => s.id === schoolInfo.currentSemesterId);
       const semesterLabel = currentSemester?.name || '';
 
-      // Ministry of Education logo SVG (simplified)
-      const moeLogo = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="80" height="80">
-        <circle cx="50" cy="50" r="48" fill="none" stroke="#1a5276" stroke-width="3"/>
-        <text x="50" y="38" text-anchor="middle" font-size="9" font-weight="bold" fill="#1a5276" font-family="Tajawal,sans-serif">وزارة</text>
-        <text x="50" y="52" text-anchor="middle" font-size="9" font-weight="bold" fill="#1a5276" font-family="Tajawal,sans-serif">التعليم</text>
-        <text x="50" y="66" text-anchor="middle" font-size="7" fill="#1a5276" font-family="Tajawal,sans-serif">المملكة العربية</text>
-        <text x="50" y="78" text-anchor="middle" font-size="7" fill="#1a5276" font-family="Tajawal,sans-serif">السعودية</text>
-      </svg>`;
+      const schoolLogo = schoolInfo.logo
+        ? `<img src="${schoolInfo.logo}" class="school-logo" />`
+        : '<div class="logo-placeholder">شعار</div>';
 
       const html = `
         <!DOCTYPE html>
@@ -568,21 +674,21 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             * { box-sizing: border-box; }
             @page { size: A4 portrait; margin: 10mm 12mm; }
             html, body { width: 210mm; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; font-size: 11px; }
-            .page-wrapper { width: 100%; padding: 0; }
-            .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; border-bottom: 2px solid ${themeColor}; padding-bottom: 8px; }
-            .header-right { text-align: right; }
-            .header-right p { margin: 2px 0; font-size: 10px; font-weight: bold; color: #1e293b; }
-            .header-right p span { color: #334155; }
-            .header-center { text-align: center; flex: 0 0 70px; display: flex; flex-direction: column; align-items: center; }
+            .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: start; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }
+            .header-side { font-size: 11px; font-weight: 800; line-height: 1.65; color: #334155; }
+            .header-center { text-align: center; }
             .header-left { text-align: left; }
-            .header-left p { margin: 2px 0; font-size: 10px; font-weight: bold; color: #1e293b; }
-            .header-left p span { color: #334155; }
-            .schedule-title { text-align: center; margin: 6px 0 8px; }
-            .schedule-title h2 { font-size: 14px; font-weight: 900; color: #1e293b; margin: 0 0 3px; }
-            .schedule-title .season-badge { display: inline-block; background: ${bgColor}; color: #1e293b; border: 1px solid ${themeColor}; border-radius: 5px; padding: 1px 10px; font-size: 10px; font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-            th { background: ${bgColor}; color: #1e293b; font-weight: 900; padding: 5px 8px; text-align: right; border: 1px solid ${themeColor}; font-size: 10px; }
-            td { padding: 4px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155; font-size: 10px; }
+            .school-logo { width: 52px; height: 52px; object-fit: contain; margin-bottom: 4px; }
+            .logo-placeholder { width: 52px; height: 52px; border: 2px solid #cbd5e1; border-radius: 50%; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; font-weight: 900; }
+            h1 { margin: 0; font-size: 18px; font-weight: 900; color: #111827; }
+            .schedule-title { text-align: center; margin: 8px 0 12px; }
+            .schedule-title h2 { font-size: 18px; font-weight: 900; color: #111827; margin: 0 0 6px; }
+            .schedule-title .season-badge { display: inline-block; background: ${bgColor}; color: ${themeColor}; border: 1px solid ${themeColor}; border-radius: 8px; padding: 3px 12px; font-size: 11px; font-weight: 900; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; margin-bottom: 18px; }
+            th, td { border: 1px solid #cbd5e1; padding: 7px 8px; text-align: center; vertical-align: middle; }
+            th { background: ${bgColor}; color: ${themeColor}; font-weight: 900; }
+            td { font-weight: 800; color: #334155; }
+            tbody tr:nth-child(even) td { background: #f8fafc; }
             .time-cell { text-align: center; direction: ltr; font-family: sans-serif; }
             .footer { display: flex; justify-content: flex-end; margin-top: 16px; }
             .signature { text-align: center; }
@@ -591,29 +697,27 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             .notes { background: ${bgColor}; padding: 6px 10px; border-radius: 5px; border: 1px solid ${themeColor}; margin-top: 8px; font-size: 10px; }
             @media print {
                .no-print { display: none; }
+               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
           </style>
         </head>
         <body>
-          <div class="page-header">
-            <!-- Right side -->
-            <div class="header-right">
-              <p>المملكة العربية السعودية</p>
-              <p>وزارة التعليم</p>
-              <p>إدارة التعليم بمنطقة <span>${schoolInfo.region || ''}</span></p>
-              <p>المدرسة: <span>${schoolInfo.schoolName || ''}</span></p>
+          <div class="official-header">
+            <div class="header-side">
+              <div>الإدارة العامة للتعليم</div>
+              <div>${escapeHtml(schoolInfo.region || '')}</div>
+              <div>المدرسة: ${escapeHtml(schoolInfo.schoolName || 'اسم المدرسة')}</div>
             </div>
-            <!-- Center: logo -->
             <div class="header-center">
-              ${moeLogo}
+              ${schoolLogo}
+              <h1>${escapeHtml(schoolInfo.schoolName || '')}</h1>
             </div>
-            <!-- Left side -->
-            <div class="header-left">
-              <p>العام الدراسي: <span>${schoolInfo.academicYear || ''}</span></p>
-              ${semesterLabel ? `<p>الفصل الدراسي: <span>${semesterLabel}</span></p>` : ''}
-              <p>اليوم: <span>${dayName}</span></p>
-              <p>التاريخ: <span>${hijriDate}</span></p>
-              <p style="font-size:11px;color:#64748b;">${gregDate}</p>
+            <div class="header-side header-left">
+              <div>اليوم: ${escapeHtml(dayName)}</div>
+              <div>التاريخ: ${escapeHtml(hijriDate)}</div>
+              <div>${escapeHtml(gregDate)}</div>
+              <div>العام الدراسي: ${escapeHtml(schoolInfo.academicYear || '')}</div>
+              ${semesterLabel ? `<div>الفصل الدراسي: ${escapeHtml(semesterLabel)}</div>` : ''}
             </div>
           </div>
 
@@ -625,8 +729,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           <table>
              <thead>
                 <tr>
-                   <th style="width: 55px;">#</th>
-                   <th>الفعالية / الحصة</th>
+                   <th style="width: 55px;">م</th>
+                   <th>اسم الفعالية</th>
                    <th style="width: 140px; text-align: center;">بداية الوقت</th>
                    <th style="width: 140px; text-align: center;">نهاية الوقت</th>
                    <th style="width: 100px; text-align: center;">المدة</th>
@@ -638,7 +742,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                      !printOptions.showPrayer && item.type === 'prayer' ? '' :
                     `<tr>
                       <td>${idx + 1}</td>
-                      <td>${item.name}</td>
+                      <td>${escapeHtml(item.name)}</td>
                       <td class="time-cell">${item.startTime}</td>
                       <td class="time-cell">${item.endTime}</td>
                       <td style="text-align: center;">${item.duration} دقيقة</td>
@@ -651,14 +755,14 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           ${currentTiming.notes && printOptions.showNotes ? `
              <div class="notes">
                 <strong>ملاحظات:</strong>
-                <p>${currentTiming.notes}</p>
+                <p>${escapeHtml(currentTiming.notes)}</p>
              </div>
           ` : ''}
 
           <div class="footer">
              <div class="signature">
                 <p>مدير المدرسة</p>
-                <p>${schoolInfo.principal || ''}</p>
+                <p>${escapeHtml(schoolInfo.principal || '')}</p>
                 <div class="line"></div>
                 <p style="margin-top:8px;font-size:11px;color:#94a3b8;">التوقيع</p>
              </div>
@@ -685,12 +789,12 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       }
   };
 
-  const getSeasonIcon = () => {
+  const getSeasonIcon = (size = 32) => {
       switch(currentTiming.season) {
-          case 'summer': return <Sun size={32} className="text-amber-500" />;
-          case 'winter': return <Snowflake size={32} className="text-[#2a93d5]" />;
-          case 'ramadan': return <Moon size={32} className="text-[#3bb273]" />;
-          default: return <Clock size={32} className="text-slate-500" />;
+          case 'summer': return <Sun size={size} className="text-amber-500" />;
+          case 'winter': return <Snowflake size={size} className="text-[#2a93d5]" />;
+          case 'ramadan': return <Moon size={size} className="text-slate-400" />;
+          default: return <Clock size={size} className="text-slate-500" />;
       }
   };
 
@@ -839,8 +943,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                               >
                                   {/* Selection Checkmark Background */}
                                   {isActive && (
-                                    <div className="absolute -top-3 -left-3 w-10 h-10 bg-[#e5e1fe] rounded-full flex items-center justify-center">
-                                       <Check size={14} className="text-[#655ac1] mt-2 ml-2" />
+                                    <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
+                                       <Check size={12} strokeWidth={3.5} className="text-white" />
                                     </div>
                                   )}
 
@@ -861,7 +965,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                           </button>
                                           
                                           <div className="text-center w-8">
-                                              <span className="block text-lg font-black text-slate-800">{periodCount}</span>
+                                              <span className="block text-lg font-black text-[#655ac1]">{periodCount}</span>
                                           </div>
 
                                           <button 
@@ -883,10 +987,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                   </div>
 
                    {/* Weekly Total - Bottom Left */}
-                   <div className="absolute bottom-4 right-4 bg-white text-[#655ac1] px-4 py-1 rounded-xl text-xs font-black shadow-sm flex items-center gap-2 border border-[#8779fb]">
-                      <span className="text-[#655ac1]">الإجمالي الأسبوعي:</span>
+                   <div className="absolute bottom-4 right-4 bg-white text-[#655ac1] px-4 py-1 rounded-xl text-xs font-black shadow-sm flex items-center gap-2 border border-slate-200">
+                      <span className="text-[#655ac1]">إجمالي الحصص في الأسبوع:</span>
                       <span className="text-xl text-[#655ac1]">{WeeklyTotal}</span>
-                      <span className="text-[10px] text-[#8779fb] opacity-75">حصة</span>
+                      <span className="text-[10px] text-[#655ac1] opacity-75">حصة</span>
                    </div>
               </div>
               </div>
@@ -914,13 +1018,21 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                    onChange={(v) => updateTiming({ season: v as any })}
                                  />
                              </div>
-                              <div className="space-y-2">
-                                 <label className="text-xs font-bold text-slate-500">بداية الاصطفاف</label>
-                                  <input type="time" value={currentTiming.assemblyTime || '06:45'} onChange={(e) => updateTiming({ assemblyTime: e.target.value })} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none text-center dir-ltr focus:border-[#8779fb] transition-all" />
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-2">
+                                     <label className="text-xs font-bold text-slate-500">بداية الاصطفاف</label>
+                                      <input type="time" value={currentTiming.assemblyTime || '06:45'} onChange={(e) => updateTiming({ assemblyTime: e.target.value })} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none text-center dir-ltr focus:border-[#8779fb] transition-all" />
+                                 </div>
+                                  <div className="space-y-2">
+                                     <label className="text-xs font-bold text-slate-500">مدة الحصة (دقيقة)</label>
+                                      <input type="number" value={currentTiming.periodDuration || 45} onChange={(e) => updateTiming({ periodDuration: parseInt(e.target.value) })} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none text-center focus:border-[#8779fb] transition-all" />
+                                 </div>
                              </div>
-                              <div className="space-y-2">
-                                 <label className="text-xs font-bold text-slate-500">مدة الحصة (دقيقة)</label>
-                                  <input type="number" value={currentTiming.periodDuration || 45} onChange={(e) => updateTiming({ periodDuration: parseInt(e.target.value) })} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none text-center focus:border-[#8779fb] transition-all" />
+                             <div className="pt-8">
+                                <button onClick={handleSave} className="w-full flex items-center justify-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
+                                    <Save size={20} />
+                                    حفظ التوقيت
+                                </button>
                              </div>
                          </div>
                       </div>
@@ -932,7 +1044,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                 <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                                     <Utensils size={20} className="text-[#655ac1]" /> إعدادات الفسح
                                 </h3>
-                                <div className="text-[10px] bg-[#e5e1fe] text-[#655ac1] px-2 py-1 rounded-lg font-bold">
+                                <div className="text-[10px] bg-white border border-slate-200 text-[#655ac1] px-2 py-1 rounded-lg font-bold">
                                     {currentTiming.breaks?.length || 0}
                                 </div>
                             </div>
@@ -948,11 +1060,20 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                             {currentTiming.breaks?.map((b, idx) => (
                                 <div key={b.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:border-[#8779fb]/50 transition-all">
                                     {confirmDeleteBreak === idx ? (
-                                        <div className="p-3 bg-rose-50 flex items-center justify-between gap-2">
-                                            <span className="text-xs font-bold text-rose-600">حذف "{b.name}"؟</span>
+                                        <div className="p-4 bg-white">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Trash2 size={20} className="text-rose-500 shrink-0" />
+                                                <div>
+                                                    <h4 className="font-black text-slate-800 text-sm">تأكيد الحذف</h4>
+                                                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">هذا الإجراء لا يمكن التراجع عنه</p>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mb-4">
+                                                هل تريد حذف <span className="font-black text-slate-800">"{b.name}"</span>؟
+                                            </p>
                                             <div className="flex gap-2">
-                                                <button onClick={() => { const nb = currentTiming.breaks?.filter((_, i) => i !== idx); updateTiming({ breaks: nb }); setConfirmDeleteBreak(null); }} className="text-xs bg-rose-500 text-white px-3 py-1 rounded-lg font-bold hover:bg-rose-600 transition-colors">حذف</button>
-                                                <button onClick={() => setConfirmDeleteBreak(null)} className="text-xs bg-white text-slate-600 border border-slate-200 px-3 py-1 rounded-lg font-bold hover:bg-slate-50 transition-colors">إلغاء</button>
+                                                <button onClick={() => setConfirmDeleteBreak(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
+                                                <button onClick={() => { const nb = currentTiming.breaks?.filter((_, i) => i !== idx); updateTiming({ breaks: nb }); setConfirmDeleteBreak(null); }} className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"><Trash2 size={15} /> تأكيد الحذف</button>
                                             </div>
                                         </div>
                                     ) : (
@@ -995,9 +1116,14 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                       {/* Column 3: Prayer Settings */}
                       <div className="pt-6 lg:pt-0 lg:pr-6">
                           <div className="flex items-center justify-between mb-4">
-                              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                                  <Sunset size={20} className="text-[#655ac1]" /> إعدادات الصلاة
-                              </h3>
+                              <div className="flex items-center gap-2">
+                                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                      <Sunset size={20} className="text-[#655ac1]" /> إعدادات الصلاة
+                                  </h3>
+                                  <div className="text-[10px] bg-white border border-slate-200 text-[#655ac1] px-2 py-1 rounded-lg font-bold">
+                                      {currentTiming.prayers?.length || 0}
+                                  </div>
+                              </div>
                               <button 
                                  onClick={() => handleAddNewPrayer(6)} 
                                  className="text-xs flex items-center gap-1 bg-white border border-slate-300 text-[#655ac1] px-3 py-1.5 rounded-lg font-bold hover:border-slate-400 transition-colors"
@@ -1008,32 +1134,43 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                           
                           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                               {currentTiming.prayers?.map((p, idx) => (
-                                  <div key={p.id} className={`rounded-xl border overflow-hidden transition-all ${p.isEnabled ? 'border-[#e5e1fe]' : 'border-slate-200'}`}>
+                                  <div key={p.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:border-[#8779fb]/50 transition-all">
                                       {confirmDeletePrayer === idx ? (
-                                          <div className="p-3 bg-rose-50 flex items-center justify-between gap-2">
-                                              <span className="text-xs font-bold text-rose-600">حذف "{p.name}"؟</span>
+                                          <div className="p-4 bg-white">
+                                              <div className="flex items-center gap-3 mb-3">
+                                                  <Trash2 size={20} className="text-rose-500 shrink-0" />
+                                                  <div>
+                                                      <h4 className="font-black text-slate-800 text-sm">تأكيد الحذف</h4>
+                                                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">هذا الإجراء لا يمكن التراجع عنه</p>
+                                                  </div>
+                                              </div>
+                                              <p className="text-xs text-slate-600 font-medium mb-4">
+                                                  هل تريد حذف <span className="font-black text-slate-800">"{p.name}"</span>؟
+                                              </p>
                                               <div className="flex gap-2">
-                                                  <button onClick={() => { const np = currentTiming.prayers?.filter((_, i) => i !== idx); updateTiming({ prayers: np }); setConfirmDeletePrayer(null); }} className="text-xs bg-rose-500 text-white px-3 py-1 rounded-lg font-bold hover:bg-rose-600 transition-colors">حذف</button>
-                                                  <button onClick={() => setConfirmDeletePrayer(null)} className="text-xs bg-white text-slate-600 border border-slate-200 px-3 py-1 rounded-lg font-bold hover:bg-slate-50 transition-colors">إلغاء</button>
+                                                  <button onClick={() => setConfirmDeletePrayer(null)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
+                                                  <button onClick={() => { const np = currentTiming.prayers?.filter((_, i) => i !== idx); updateTiming({ prayers: np }); setConfirmDeletePrayer(null); }} className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"><Trash2 size={15} /> تأكيد الحذف</button>
                                               </div>
                                           </div>
                                       ) : (
-                                          <div className={`p-3 space-y-2 ${p.isEnabled ? 'bg-[#e5e1fe]/20' : 'bg-slate-50'}`}>
+                                          <div className="p-3 space-y-2">
                                               {/* Header row: toggle + name + delete */}
                                               <div className="flex items-center gap-2">
                                                   <button
                                                       onClick={() => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], isEnabled: !np[idx].isEnabled }; updateTiming({ prayers: np }); }}
-                                                      className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold transition-all border ${p.isEnabled ? 'bg-[#e5e1fe] text-[#655ac1] border-[#8779fb]/30' : 'bg-white text-slate-400 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1]'}`}
+                                                      className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold transition-all border ${p.isEnabled ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm shadow-[#655ac1]/20' : 'bg-white text-slate-400 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1]'}`}
                                                       title={p.isEnabled ? 'إلغاء التفعيل' : 'تفعيل'}
                                                   >
-                                                      {p.isEnabled ? <CheckCircle size={12} /> : <div className="w-3 h-3 rounded-full border-2 border-slate-300" />}
+                                                      <span className={`relative inline-flex h-4 w-7 rounded-full transition-colors ${p.isEnabled ? 'bg-white/25' : 'bg-slate-200'}`}>
+                                                        <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${p.isEnabled ? 'translate-x-0.5' : '-translate-x-3'}`} />
+                                                      </span>
                                                       {p.isEnabled ? 'مفعّل' : 'غير مفعّل'}
                                                   </button>
                                                   <input
                                                       type="text"
                                                       value={p.name}
                                                       onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], name: e.target.value }; updateTiming({ prayers: np }); }}
-                                                      className="flex-1 p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700"
+                                                      className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] focus:bg-white transition-all text-slate-700"
                                                       placeholder="اسم الصلاة"
                                                   />
                                                   <button onClick={() => setConfirmDeletePrayer(idx)} className="p-1.5 rounded-lg border border-slate-300 text-rose-500 hover:border-slate-400 transition-colors flex-shrink-0" title="حذف">
@@ -1043,13 +1180,13 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                               <div className="grid grid-cols-2 gap-2">
                                                   <div>
                                                       <label className="text-[10px] font-bold text-slate-400 block mb-1">بعد الحصة</label>
-                                                      <select value={p.afterPeriod} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], afterPeriod: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700">
+                                                      <select value={p.afterPeriod} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], afterPeriod: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700">
                                                           {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
                                                       </select>
                                                   </div>
                                                   <div>
                                                       <label className="text-[10px] font-bold text-slate-400 block mb-1">المدة (د)</label>
-                                                      <input type="number" value={p.duration} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], duration: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-white border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-center text-slate-700" />
+                                                      <input type="number" value={p.duration} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], duration: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-center text-slate-700" />
                                                   </div>
                                               </div>
                                           </div>
@@ -1074,25 +1211,26 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             {/* Header */}
             <div 
                 className="flex items-center justify-between mb-8 border-b border-slate-100 pb-4 w-full cursor-pointer group select-none"
-                onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}
+                onClick={handleScheduleHeaderClick}
             >
                 <div className="flex items-center gap-4">
-                    {getSeasonIcon()}
                     <div>
                         <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                            {getSeasonTitle()}
-                            <span className={`text-xs px-2 py-1 rounded-lg transition-colors ${isScheduleExpanded ? 'bg-rose-100 text-rose-600' : 'bg-[#e5e1fe] text-[#655ac1]'}`}>
-                                {isScheduleExpanded ? 'إغلاق الجدول' : 'فتح الجدول'}
-                            </span>
+                            الجدول التفاعلي للتوقيت
                         </h1>
                         <p className="text-sm text-slate-500 font-bold group-hover:text-[#655ac1] transition-colors">
-                            الجدول التفاعلي - اضغط هنا {isScheduleExpanded ? 'لإخفاء' : 'لعرض'} التفاصيل
+                            <span className="inline-flex items-center gap-2">
+                              {getSeasonIcon(16)}
+                              <span>{getSeasonTitle()}</span>
+                              <span className="text-slate-400">- انقر هنا لعرض التفاصيل</span>
+                            </span>
                         </p>
                     </div>
                 </div>
-                <div className={`transition-transform duration-300 ${isScheduleExpanded ? 'rotate-180' : ''}`}>
-                     <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1] transition-colors">
-                         <Settings size={20} />
+                <div className="flex items-center gap-2 text-[#655ac1] font-black text-xs">
+                     <span>{isScheduleExpanded ? 'إغلاق الجدول' : 'فتح الجدول'}</span>
+                     <div className={`transition-transform duration-300 ${isScheduleExpanded ? 'rotate-180' : ''}`}>
+                         <ChevronDown size={22} strokeWidth={3} />
                      </div>
                 </div>
             </div>
@@ -1100,70 +1238,111 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             {/* Collapsible Content */}
             <div className={`transition-all duration-500 overflow-hidden ${isScheduleExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
             
-             {/* Edit Indicator */}
-             <div className="mb-4 flex items-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 p-2 rounded-lg w-fit mx-auto">
-                 <Settings size={14} />
-                 يمكنك تعديل أوقات البداية والنهاية ومسميات الفعاليات يدوياً من الجدول أدناه
+             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                 <div className={`flex items-start gap-2 text-xs font-bold p-3 rounded-xl border w-fit ${scheduleTableTheme.badge}`}>
+                     <Lightbulb size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                     يمكنك تعديل أوقات البداية والنهاية ومسميات الفعاليات يدوياً من الجدول أدناه
+                 </div>
+                 <div className="flex items-center gap-2">
+                    {scheduleNotice && (
+                      <span className={`text-[11px] font-black border px-3 py-2 rounded-xl ${
+                        scheduleNotice.type === 'success'
+                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                          : 'text-amber-700 bg-amber-50 border-amber-200'
+                      }`}>
+                        {scheduleNotice.message}
+                      </span>
+                    )}
+                    {hasUnsavedScheduleEdits && (
+                      <span className="text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
+                        تعديلات غير محفوظة
+                      </span>
+                    )}
+                    {isScheduleEditMode ? (
+                      <button
+                        type="button"
+                        onClick={handleSaveScheduleEdits}
+                        className="h-10 inline-flex items-center gap-2 px-4 rounded-xl bg-[#655ac1] hover:bg-[#52499d] text-white text-sm font-bold shadow-sm transition-all"
+                      >
+                        <Save size={16} /> حفظ التعديل
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsScheduleEditMode(true)}
+                        className="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:border-[#655ac1] text-sm font-bold text-slate-700 transition-all"
+                      >
+                        <Edit3 size={16} className="text-[#655ac1]" /> تعديل
+                      </button>
+                    )}
+                 </div>
              </div>
 
             {/* Schedule Table */}
-            <div className={`overflow-hidden rounded-2xl border ${theme.border} shadow-sm bg-white w-full transition-colors duration-300`}>
-                <table className="w-full">
-                    <thead className={`${theme.bg} ${theme.text} border-b ${theme.border}`}>
-                        <tr>
-                            <th className="px-6 py-4 text-right text-sm font-black w-16">#</th>
-                            <th className="px-6 py-4 text-right text-sm font-black">الفعالية</th>
-                            <th className="px-6 py-4 text-center text-sm font-black w-32">البداية</th>
-                            <th className="px-6 py-4 text-center text-sm font-black w-32">النهاية</th>
-                            <th className="px-6 py-4 text-center text-sm font-black w-32">المدة (د)</th>
-                            <th className="px-6 py-4 text-center text-sm font-black w-32">إجراءات</th>
+            <div className="overflow-hidden rounded-[2rem] border border-slate-100 shadow-sm bg-white w-full transition-colors duration-300">
+                <table className="w-full table-fixed text-right" dir="rtl">
+                    <thead>
+                        <tr className={`${scheduleTableTheme.head} border-b ${scheduleTableTheme.border}`}>
+                            <th className={`px-3 py-3 font-black ${scheduleTableTheme.text} text-[13px] text-center w-[7%]`}>م</th>
+                            <th className={`px-3 py-3 font-black ${scheduleTableTheme.text} text-[13px] w-[32%]`}>اسم الفعالية</th>
+                            <th className={`px-3 py-3 font-black ${scheduleTableTheme.text} text-[13px] text-center w-[15%]`}>البداية</th>
+                            <th className={`px-3 py-3 font-black ${scheduleTableTheme.text} text-[13px] text-center w-[15%]`}>النهاية</th>
+                            <th className={`px-3 py-3 font-black ${scheduleTableTheme.text} text-[13px] text-center w-[13%]`}>المدة (د)</th>
+                            <th className={`px-3 py-3 font-black ${scheduleTableTheme.text} text-[13px] text-center w-[18%]`}>إجراءات</th>
                         </tr>
                     </thead>
-                    <tbody className={`divide-y ${currentTiming.season === 'winter' ? 'divide-[#2a93d5]/10' : currentTiming.season === 'ramadan' ? 'divide-[#3bb273]/10' : 'divide-amber-100'}`}>
+                    <tbody className={`divide-y ${scheduleTableTheme.divide}`}>
                         {schedule.map((item, index) => (
-                            <tr key={item.id} className={`${theme.rowHover} transition-colors group`}>
-                                <td className="px-6 py-4 text-sm font-bold text-slate-400">{index + 1}</td>
-                                <td className="px-6 py-4">
+                            <tr key={item.id} className={`bg-white ${scheduleTableTheme.hover} transition-colors group`}>
+                                <td className="px-4 py-3 text-center">
+                                    <span className="inline-flex w-7 h-7 items-center justify-center rounded-full bg-slate-50 text-slate-400 text-xs font-bold">{index + 1}</span>
+                                </td>
+                                <td className="px-3 py-3">
                                     <input 
                                         value={item.name}
                                         onChange={(e) => handleItemNameChange(item, e.target.value)}
-                                        className={`w-full bg-transparent font-bold text-slate-800 text-base outline-none border-b border-transparent ${theme.inputFocus} px-1`}
+                                        disabled={!isScheduleEditMode}
+                                        className={`w-full rounded-xl px-3 py-2 font-black text-slate-800 text-sm outline-none border transition-all disabled:bg-transparent disabled:border-transparent disabled:px-0 enabled:bg-slate-50 enabled:border-slate-200 ${scheduleTableTheme.focus}`}
                                     />
                                 </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-3 py-3 text-center">
                                     <input 
                                         type="time" 
                                         value={item.startTime}
                                         onChange={(e) => handleItemStartTimeChange(item, e.target.value)}
-                                        className={`font-bold text-slate-600 dir-ltr bg-transparent outline-none text-center w-full px-2 py-1 text-sm rounded hover:bg-white focus:bg-white transition-colors ${theme.inputFocus}`}
+                                        disabled={!isScheduleEditMode}
+                                        className={`font-bold text-slate-600 dir-ltr outline-none text-center w-full px-2 py-2 text-sm rounded-xl border transition-all disabled:bg-transparent disabled:border-transparent enabled:bg-slate-50 enabled:border-slate-200 ${scheduleTableTheme.focus}`}
                                     />
                                 </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-3 py-3 text-center">
                                       <input 
                                         type="time" 
                                         value={item.endTime}
                                         onChange={(e) => handleItemEndTimeChange(item, e.target.value)}
-                                        className={`font-bold text-slate-600 dir-ltr bg-transparent outline-none text-center w-full px-2 py-1 text-sm rounded hover:bg-white focus:bg-white transition-colors ${theme.inputFocus}`}
+                                        disabled={!isScheduleEditMode}
+                                        className={`font-bold text-slate-600 dir-ltr outline-none text-center w-full px-2 py-2 text-sm rounded-xl border transition-all disabled:bg-transparent disabled:border-transparent enabled:bg-slate-50 enabled:border-slate-200 ${scheduleTableTheme.focus}`}
                                     />
                                 </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-3 py-3 text-center">
                                     <input 
                                         type="number"
                                         value={item.duration}
                                         onChange={(e) => handleItemDurationChange(item, parseInt(e.target.value))}
-                                        className={`w-16 mx-auto bg-transparent text-center font-bold text-slate-600 text-sm outline-none border-b border-transparent ${theme.inputFocus}`}
+                                        disabled={!isScheduleEditMode}
+                                        className={`w-20 mx-auto text-center font-bold text-slate-600 text-sm outline-none rounded-xl px-2 py-2 border transition-all disabled:bg-transparent disabled:border-transparent enabled:bg-slate-50 enabled:border-slate-200 ${scheduleTableTheme.focus}`}
                                     />
                                 </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-3 py-3 text-center">
                                     <div className="flex items-center justify-center gap-2">
                                         {/* Add Below Button */}
                                         <div className="relative group/tooltip">
                                           <button
                                             onClick={() => handleAddRowBelow(item, index)}
-                                            className="text-[#655ac1] hover:text-[#8779fb] p-1.5 rounded-lg hover:bg-[#e5e1fe] transition-colors"
+                                            disabled={!isScheduleEditMode}
+                                            className="w-8 h-8 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-emerald-600 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 transition-colors disabled:opacity-40 disabled:hover:bg-white disabled:hover:border-slate-200"
                                             title="إضافة فعالية"
                                           >
-                                            <Plus size={18} />
+                                            <Plus size={17} />
                                           </button>
                                           <div className="absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-44 bg-white text-[#655ac1] text-xs rounded-xl px-3 py-2 font-bold opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-20 text-center leading-relaxed shadow-lg border border-[#8779fb]/30">
                                             أضف فعالية: حصة - فسحة - ...
@@ -1174,10 +1353,11 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                         {/* Delete Button - ALWAYS visible for all removable items */}
                                         <button 
                                             onClick={() => handleDeleteItem(item)}
-                                            className="text-rose-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                                            disabled={!isScheduleEditMode}
+                                            className="w-8 h-8 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-rose-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors disabled:opacity-40 disabled:hover:bg-white disabled:hover:border-slate-200"
                                             title="حذف"
                                         >
-                                            <Trash2 size={18} />
+                                            <Trash2 size={17} />
                                         </button>
                                     </div>
                                 </td>
@@ -1205,18 +1385,11 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
              <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center">
                    <button onClick={handlePrint} className="flex items-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
                        <Printer size={20} />
-                       طباعة الجدول
+                       طباعة التوقيت
                    </button>
              </div>
 
              </div> {/* End of Collapsible Content */}
-        </div>
-
-        <div className="mt-6 w-full self-stretch flex">
-            <button onClick={handleSave} className="mr-auto flex items-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
-                <Save size={20} />
-                حفظ التوقيت
-            </button>
         </div>
       </div>
     </div>
