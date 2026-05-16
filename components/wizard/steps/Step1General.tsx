@@ -836,7 +836,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 flex items-center justify-center shrink-0">
                 <Trash2 size={20} className="text-rose-500" />
               </div>
               <div>
@@ -850,7 +850,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
+                className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
                 إلغاء
               </button>

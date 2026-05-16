@@ -627,7 +627,7 @@ const Header: React.FC<HeaderProps> = ({
                </div>
                {/* Date */}
                <div className="flex items-center gap-2">
-                   <Calendar size={18} className="text-slate-400" />
+                   <Calendar size={18} className="text-[#655ac1]" />
                    <span className="text-xs font-bold text-slate-600">{gregorianDate}</span>
                    <span className="text-xs text-slate-300 mx-1">|</span>
                    <span className="text-xs font-bold text-slate-500">{hijriDate}</span>
