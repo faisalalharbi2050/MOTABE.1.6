@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { SchoolInfo, Subject, ClassInfo } from '../../types';
-import { CheckCircle, Save, Pencil, AlertCircle } from 'lucide-react';
+import { SchoolInfo, Subject, ClassInfo, EntityType } from '../../types';
+import { CheckCircle, Save, Pencil, AlertCircle, XCircle } from 'lucide-react';
 import Step1General from './steps/Step1General';
 
 interface BasicDataProps {
@@ -27,15 +27,40 @@ const BasicData: React.FC<BasicDataProps> = ({
   const [isEditMode, setIsEditMode] = useState(true);
   const lastSavedRef = useRef(JSON.stringify(schoolInfo));
 
-  // Notifications: 'saved' | 'no_changes' | 'edit_mode' | null
-  const [notification, setNotification] = useState<'saved' | 'no_changes' | 'edit_mode' | null>(null);
+  // Notifications: 'saved' | 'no_changes' | 'edit_mode' | 'validation_error' | null
+  const [notification, setNotification] = useState<'saved' | 'no_changes' | 'edit_mode' | 'validation_error' | null>(null);
+  const [validationMsg, setValidationMsg] = useState('');
 
-  const showNotif = (type: 'saved' | 'no_changes' | 'edit_mode') => {
+  const showNotif = (type: 'saved' | 'no_changes' | 'edit_mode' | 'validation_error', msg?: string) => {
     setNotification(type);
-    setTimeout(() => setNotification(null), 3000);
+    if (msg !== undefined) setValidationMsg(msg);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const validate = (): string | null => {
+    const errors: string[] = [];
+    const isSchool = !schoolInfo.entityType || schoolInfo.entityType === EntityType.SCHOOL;
+    if (!schoolInfo.schoolName?.trim()) {
+      errors.push(isSchool ? 'اسم المدرسة الأساسية' : `اسم ${schoolInfo.entityType || 'الكيان'}`);
+    }
+    if (isSchool && !(schoolInfo.phases && schoolInfo.phases.length > 0)) {
+      errors.push('المرحلة الدراسية للمدرسة الأساسية');
+    }
+    if (isSchool) {
+      (schoolInfo.sharedSchools || []).forEach((s, i) => {
+        if (!s.name?.trim()) errors.push(`اسم المدرسة المشتركة (${i + 1})`);
+        if (!(s.phases && s.phases.length > 0)) errors.push(`المرحلة الدراسية للمدرسة المشتركة (${i + 1})`);
+      });
+    }
+    return errors.length > 0 ? `يرجى تعبئة: ${errors.join('، ')}` : null;
   };
 
   const handleSave = () => {
+    const validationError = validate();
+    if (validationError) {
+      showNotif('validation_error', validationError);
+      return;
+    }
     const current = JSON.stringify(schoolInfo);
     if (current === lastSavedRef.current) {
       showNotif('no_changes');
@@ -74,6 +99,12 @@ const BasicData: React.FC<BasicDataProps> = ({
             <div className="bg-[#8779fb] text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
               <Pencil size={20} />
               <span className="font-bold">يمكنك التعديل الآن</span>
+            </div>
+          )}
+          {notification === 'validation_error' && (
+            <div className="bg-rose-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 max-w-2xl">
+              <XCircle size={20} className="shrink-0" />
+              <span className="font-bold text-sm">{validationMsg}</span>
             </div>
           )}
         </div>

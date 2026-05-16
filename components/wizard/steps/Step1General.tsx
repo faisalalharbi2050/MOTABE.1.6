@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SchoolInfo, Phase, SharedSchool, EntityType } from '../../../types';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
-import { School, Building2, Plus, Trash2, MapPin, Phone, Mail, CheckCircle2, Upload, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { School, Building2, Plus, Trash2, MapPin, Phone, Mail, CheckCircle2, Upload, X, Check, ChevronDown } from 'lucide-react';
 
 interface EntityTypeDropdownProps {
   value: string;
@@ -64,6 +64,66 @@ const EntityTypeDropdown: React.FC<EntityTypeDropdownProps> = ({ value, onChange
   );
 };
 
+interface SimpleDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  disabled?: boolean;
+}
+
+const SimpleDropdown: React.FC<SimpleDropdownProps> = ({ value, onChange, options, disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(o => !o)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span className="truncate text-[13px] leading-tight">{value}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-30 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 animate-in slide-in-from-top-2">
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { onChange(opt); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  value === opt ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span>{opt}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                  value === opt ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                }`}>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface Step1Props {
   schoolInfo: SchoolInfo;
   setSchoolInfo: React.Dispatch<React.SetStateAction<SchoolInfo>>;
@@ -74,11 +134,13 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Shared School State (Inline Mode)
-  const [expandedSharedSchoolId, setExpandedSharedSchoolId] = useState<string | null>(null);
   const sharedSchoolFileInputRefs = useRef<{[key: string]: HTMLInputElement | null}>({});
 
   // Custom delete confirm dialog
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Custom add confirm dialog
+  const [addConfirmOpen, setAddConfirmOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
@@ -125,7 +187,6 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
       ...prev,
       sharedSchools: [...(prev.sharedSchools || []), newSchool]
     }));
-    setExpandedSharedSchoolId(newSchool.id);
   };
 
   const updateSharedSchool = (id: string, field: keyof SharedSchool, value: any) => {
@@ -136,9 +197,6 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
       )
     }));
   };
-
-  // Main School State for Collapsible Card
-  const [isMainSchoolExpanded, setIsMainSchoolExpanded] = useState(true);
 
   const handleSharedSchoolPhaseChange = (id: string, phase: Phase) => {
     setSchoolInfo(prev => ({
@@ -179,36 +237,11 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
   };
 
   const renderSchoolForm = () => (
-    <div className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isMainSchoolExpanded ? 'border-primary shadow-lg ring-1 ring-primary/20' : 'border-slate-100 shadow-sm hover:border-slate-200'}`}>
-         {/* Card Header for Main School */}
-         <div 
-            className="p-4 flex items-start justify-between cursor-pointer bg-slate-50"
-            onClick={() => setIsMainSchoolExpanded(!isMainSchoolExpanded)}
-         >
-            <div className="flex items-center gap-3">
-               <div>
-                  <h4 className={`font-bold text-base ${!schoolInfo.schoolName ? 'text-slate-400 italic' : 'text-slate-800'}`}>
-                    {schoolInfo.schoolName || 'المدرسة الأساسية'}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-1">
-                     <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500">
-                       {schoolInfo.phases && schoolInfo.phases.length > 0 ? schoolInfo.phases.join(', ') : 'لا توجد مراحل'}
-                     </span>
-                     <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-100 font-bold">
-                       الرئيسية
-                     </span>
-                  </div>
-               </div>
-            </div>
-            <div className="flex items-center gap-2">
-               {isMainSchoolExpanded ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
-            </div>
-         </div>
-
-      {isMainSchoolExpanded && (
-        <div className="p-6 border-t border-slate-100 bg-white animate-in slide-in-from-top-2 duration-300">
+    <div className="rounded-2xl bg-white border border-slate-200 shadow-lg shadow-slate-200/60 overflow-hidden">
+        <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
                 <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3">
+                    <div className="text-sm font-black text-[#655ac1] mb-1">( رئيسية )</div>
                     <label className="text-sm font-bold text-slate-600">اسم المدرسة <span className="text-rose-500">*</span></label>
                     <input
                         name="schoolName"
@@ -216,7 +249,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         onChange={handleChange}
                         placeholder="أدخل اسم المدرسة"
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -261,16 +294,12 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
 
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-600">نوع المدرسة</label>
-                    <select
-                        name="gender"
+                    <SimpleDropdown
                         value={schoolInfo.gender}
-                        onChange={handleChange}
+                        onChange={(v) => setSchoolInfo(prev => ({ ...prev, gender: v }))}
+                        options={['بنين', 'بنات']}
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                        <option value="بنين">بنين</option>
-                        <option value="بنات">بنات</option>
-                    </select>
+                    />
                 </div>
 
                 <div className="space-y-2">
@@ -281,7 +310,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         onChange={handleChange}
                         placeholder="مثال: الرياض"
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
                 
@@ -293,7 +322,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         onChange={handleChange}
                         placeholder="المنطقة"
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -306,7 +335,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             value={schoolInfo.address || ''}
                             onChange={handleChange}
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                     </div>
                 </div>
@@ -321,7 +350,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             value={schoolInfo.email || ''}
                             onChange={handleChange}
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
                         />
                     </div>
@@ -337,7 +366,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             value={schoolInfo.phone || ''}
                             onChange={handleChange}
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
                         />
                     </div>
@@ -350,7 +379,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         value={schoolInfo.principal}
                         onChange={handleChange}
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         placeholder="الاسم الثلاثي"
                     />
                 </div>
@@ -364,7 +393,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             value={schoolInfo.principalMobile || ''}
                             onChange={handleChange}
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             placeholder="05xxxxxxxx"
                             dir="ltr"
                         />
@@ -377,7 +406,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                     <div className="flex items-center gap-4">
                         <div
                             onClick={() => isEditMode && fileInputRef.current?.click()}
-                            className={`px-6 py-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
+                            className={`px-6 py-3 bg-white border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                         >
                             <input
                                 type="file"
@@ -411,7 +440,6 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                 </div>
             </div>
         </div>
-      )}
     </div>
   );
 
@@ -426,7 +454,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                   onChange={handleChange}
                   placeholder={`أدخل اسم ${schoolInfo.entityType || 'الكيان'}`}
                   disabled={!isEditMode}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               />
           </div>
 
@@ -438,7 +466,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                   onChange={handleChange}
                   placeholder="الدولة"
                   disabled={!isEditMode}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               />
           </div>
 
@@ -449,7 +477,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                   value={schoolInfo.region || ''}
                   onChange={handleChange}
                   placeholder="المنطقة"
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
+                  className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium"
               />
           </div>
 
@@ -461,7 +489,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                   onChange={handleChange}
                   placeholder="المدينة"
                   disabled={!isEditMode}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               />
           </div>
            
@@ -475,7 +503,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                      value={schoolInfo.email || ''}
                      onChange={handleChange}
                      disabled={!isEditMode}
-                     className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                     className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                      dir="ltr"
                  />
               </div>
@@ -490,7 +518,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                    value={schoolInfo.principal}
                    onChange={handleChange}
                    disabled={!isEditMode}
-                   className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                   className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                />
           </div>
            <div className="space-y-2">
@@ -503,7 +531,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                      value={schoolInfo.principalMobile || ''}
                      onChange={handleChange}
                      disabled={!isEditMode}
-                     className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                     className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                      placeholder="05xxxxxxxx"
                      dir="ltr"
                  />
@@ -516,7 +544,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
               <div className="flex items-center gap-3">
                  <div
                      onClick={() => isEditMode && fileInputRef.current?.click()}
-                     className={`flex-1 p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
+                     className={`flex-1 p-3.5 bg-white border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                  >
                      <input
                          type="file"
@@ -553,44 +581,22 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
   );
 
   const renderSharedSchoolCard = (school: SharedSchool, index: number) => {
-    const isExpanded = expandedSharedSchoolId === school.id;
     return (
-      <div key={school.id} className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-primary shadow-lg ring-1 ring-primary/20' : 'border-slate-100 shadow-sm hover:border-slate-200'}`}>
-         {/* Card Header */}
-         <div 
-            className="p-4 flex items-start justify-between cursor-pointer bg-slate-50"
-            onClick={() => setExpandedSharedSchoolId(isExpanded ? null : school.id)}
+      <div key={school.id} className="rounded-2xl bg-white border border-slate-200 shadow-lg shadow-slate-200/60 overflow-hidden relative">
+         {/* Delete Button */}
+         <button
+            onClick={() => deleteSharedSchool(school.id)}
+            className="absolute top-4 left-4 p-2 bg-white border border-slate-300 text-rose-500 hover:border-slate-400 rounded-lg transition-colors z-10"
+            title="حذف المدرسة"
          >
-            <div className="flex items-center gap-3">
-               <div>
-                  <h4 className={`font-bold text-base ${!school.name ? 'text-slate-400 italic' : 'text-slate-800'}`}>
-                    {school.name || 'مدرسة مشتركة'}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-1">
-                     <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500">
-                       {school.phases && school.phases.length > 0 ? school.phases.join(', ') : 'لا توجد مراحل'}
-                     </span>
-                  </div>
-               </div>
-            </div>
-            <div className="flex items-center gap-2">
-               <button
-                  onClick={(e) => { e.stopPropagation(); deleteSharedSchool(school.id); }}
-                  className="p-2 bg-white border border-slate-300 text-rose-500 hover:border-slate-400 rounded-lg transition-colors"
-                  title="حذف المدرسة"
-               >
-                  <Trash2 size={16} />
-               </button>
-               {isExpanded ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
-            </div>
-         </div>
+            <Trash2 size={16} />
+         </button>
 
-         {/* Card Content (Form) */}
-         {isExpanded && (
-            <div className="p-6 border-t border-slate-100 bg-white animate-in slide-in-from-top-2 duration-300" onClick={e => e.stopPropagation()}>
+         <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                    {/* School Name */}
                    <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3">
+                      <div className="text-sm font-black text-[#655ac1] mb-1">( مشتركة )</div>
                       <label className="text-xs font-bold text-slate-500">اسم المدرسة <span className="text-rose-500">*</span></label>
                       <input
                          value={school.name}
@@ -598,7 +604,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                          onClick={(e) => e.stopPropagation()}
                          placeholder="أدخل اسم المدرسة"
                          disabled={!isEditMode}
-                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                         className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                    </div>
 
@@ -639,15 +645,12 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                    {/* Other Fields */}
                    <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500">نوع المدرسة</label>
-                      <select
+                      <SimpleDropdown
                          value={school.gender}
-                         onChange={(e) => updateSharedSchool(school.id, 'gender', e.target.value)}
+                         onChange={(v) => updateSharedSchool(school.id, 'gender', v)}
+                         options={['بنين', 'بنات']}
                          disabled={!isEditMode}
-                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                         <option value="بنين">بنين</option>
-                         <option value="بنات">بنات</option>
-                      </select>
+                      />
                    </div>
 
                    <div className="space-y-2">
@@ -655,8 +658,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                       <input
                          value={school.educationAdministration || ''}
                          onChange={(e) => updateSharedSchool(school.id, 'educationAdministration', e.target.value)}
+                         placeholder="مثال: الرياض"
                          disabled={!isEditMode}
-                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                         className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                    </div>
 
@@ -665,8 +669,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                        <input
                           value={school.region || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'region', e.target.value)}
+                          placeholder="المنطقة"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                        />
                    </div>
 
@@ -675,8 +680,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                        <input
                           value={school.address || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'address', e.target.value)}
+                          placeholder="عنوان المدرسة"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                        />
                    </div>
 
@@ -685,8 +691,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                        <input
                           value={school.email || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'email', e.target.value)}
+                          placeholder="example@school.edu.sa"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           dir="ltr"
                        />
                    </div>
@@ -696,8 +703,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                        <input
                           value={school.phone || ''}
                           onChange={(e) => updateSharedSchool(school.id, 'phone', e.target.value)}
+                          placeholder="05xxxxxxxx"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           dir="ltr"
                        />
                    </div>
@@ -707,7 +715,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                       <div className="flex items-center gap-4">
                          <div
                              onClick={() => isEditMode && sharedSchoolFileInputRefs.current[school.id]?.click()}
-                             className={`px-6 py-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
+                             className={`px-6 py-3 bg-white border border-dashed border-slate-300 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors ${isEditMode ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                          >
                             <input
                                type="file"
@@ -736,8 +744,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                       </div>
                    </div>
                 </div>
-            </div>
-         )}
+         </div>
       </div>
     );
   };
@@ -746,22 +753,17 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-500 pb-20">
       {/* 0. Page Header */}
-      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative group hover:shadow-md transition-all duration-300 overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#e5e1fe] rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-
-          <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 relative z-10">
+      <div className="bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300">
+          <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
             <School size={36} strokeWidth={1.8} className="text-[#655ac1]" />
              المعلومات العامة
           </h3>
-          <p className="text-slate-500 font-medium mt-2 mr-12 relative z-10">إدارة البيانات الأساسية</p>
+          <p className="text-slate-500 font-medium mt-2 mr-12">إدارة البيانات الأساسية</p>
       </div>
       
       {/* 1. Entity Type Selection */}
-      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[4rem] -z-0 transition-transform group-hover:scale-110 duration-500"></div>
-
-
-          <div className="relative z-10 space-y-6">
+      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100">
+          <div className="space-y-6">
                <div className="space-y-2 max-w-md">
                   <label className="text-sm font-bold text-slate-600">نوع الكيان</label>
                   <EntityTypeDropdown
@@ -780,14 +782,14 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
       {(schoolInfo.entityType === EntityType.SCHOOL || !schoolInfo.entityType) && (
         <>
             {schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0 ? (
-                <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden transition-all duration-300">
-                    <div className="flex items-center justify-between relative z-10 mb-6">
+                <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100">
+                    <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl"><Building2 size={24} /></div>
+                            <Building2 size={36} strokeWidth={1.8} className="text-[#655ac1]" />
                             المدارس المشتركة
                         </h3>
                         <button
-                          onClick={addSharedSchool}
+                          onClick={() => setAddConfirmOpen(true)}
                           className="flex items-center gap-2 px-4 py-2 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#52499d] transition-all active:scale-95"
                         >
                           <Plus size={16} /> إضافة مدرسة
@@ -799,7 +801,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden transition-all duration-300 hover:shadow-md">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                     <div className="flex items-center gap-6">
                          <div className="flex items-center gap-4">
                             <div className="p-3 text-[#655ac1]"><Building2 size={24} /></div>
@@ -809,7 +811,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             </div>
                          </div>
                          <button
-                            onClick={addSharedSchool}
+                            onClick={() => setAddConfirmOpen(true)}
                             className="flex items-center gap-2 px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#52499d] transition-all active:scale-95"
                           >
                             <Plus size={16} /> إضافة مدرسة
@@ -854,6 +856,46 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                 className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl font-bold text-sm hover:bg-rose-600 transition-all active:scale-95"
               >
                 تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Add Confirm Dialog ── */}
+      {addConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setAddConfirmOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#f0edff] flex items-center justify-center shrink-0">
+                <Building2 size={20} className="text-[#655ac1]" />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 text-base">إضافة مدرسة مشتركة</h4>
+                <p className="text-slate-400 text-xs mt-0.5">سيتم إضافة مدرسة جديدة لتعبئة بياناتها</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              هل أنت متأكد من إضافة مدرسة مشتركة جديدة؟
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAddConfirmOpen(false)}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { addSharedSchool(); setAddConfirmOpen(false); }}
+                className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#52499d] transition-all active:scale-95"
+              >
+                تأكيد الإضافة
               </button>
             </div>
           </div>
