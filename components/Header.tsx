@@ -251,8 +251,11 @@ const Header: React.FC<HeaderProps> = ({
     year: 'numeric'
   }).format(currentTime);
 
-  const gregorianDate = new Intl.DateTimeFormat('ar-SA', {
+  const dayName = new Intl.DateTimeFormat('ar-SA', {
     weekday: 'long',
+  }).format(currentTime);
+
+  const gregorianDate = new Intl.DateTimeFormat('ar-SA', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
@@ -628,9 +631,10 @@ const Header: React.FC<HeaderProps> = ({
                {/* Date */}
                <div className="flex items-center gap-2">
                    <Calendar size={18} className="text-[#655ac1]" />
-                   <span className="text-xs font-bold text-slate-600">{gregorianDate}</span>
-                   <span className="text-xs text-slate-300 mx-1">|</span>
-                   <span className="text-xs font-bold text-slate-500">{hijriDate}</span>
+                   <span className="text-xs font-bold text-slate-600">{dayName}</span>
+                   <span className="text-xs font-bold text-slate-600">{hijriDate}</span>
+                   <span className="text-xs text-slate-300 mx-1">-</span>
+                   <span className="text-xs font-bold text-slate-500">{gregorianDate}</span>
                </div>
           </div>
 
