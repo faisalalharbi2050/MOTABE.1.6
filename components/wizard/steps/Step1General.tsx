@@ -334,6 +334,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             name="address"
                             value={schoolInfo.address || ''}
                             onChange={handleChange}
+                            placeholder="عنوان المدرسة"
                             disabled={!isEditMode}
                             className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         />
@@ -349,6 +350,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             name="email"
                             value={schoolInfo.email || ''}
                             onChange={handleChange}
+                            placeholder="example@school.edu.sa"
                             disabled={!isEditMode}
                             className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
@@ -365,6 +367,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             name="phone"
                             value={schoolInfo.phone || ''}
                             onChange={handleChange}
+                            placeholder="05xxxxxxxx"
                             disabled={!isEditMode}
                             className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
@@ -751,7 +754,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
 
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-right duration-500 pb-20">
+    <div className="space-y-6 animate-in slide-in-from-right duration-500 pb-6">
       {/* 0. Page Header */}
       <div className="bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300">
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
@@ -873,7 +876,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#f0edff] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 flex items-center justify-center shrink-0">
                 <Building2 size={20} className="text-[#655ac1]" />
               </div>
               <div>
@@ -887,7 +890,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
             <div className="flex gap-3">
               <button
                 onClick={() => setAddConfirmOpen(false)}
-                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
+                className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
                 إلغاء
               </button>

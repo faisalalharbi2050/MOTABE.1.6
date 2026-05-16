@@ -120,7 +120,7 @@ const BasicData: React.FC<BasicDataProps> = ({
           />
 
           {/* Action Buttons */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mt-6">
+          <div className="mt-3 mb-8 px-2">
             <div className="flex justify-end gap-4">
               {isEditMode ? (
                 <button

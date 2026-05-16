@@ -848,6 +848,15 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                         {renderChannel(viewingMessage.channel)}
                       </div>
                   </div>
+                  <div className="flex justify-end border-t border-slate-100 bg-white p-4">
+                      <button
+                        type="button"
+                        onClick={() => setViewingMessage(null)}
+                        className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors"
+                      >
+                        إغلاق
+                      </button>
+                  </div>
               </div>
           </div>,
           document.body
@@ -902,6 +911,15 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
                              </div>
                          ))}
                       </div>
+                  </div>
+                  <div className="flex justify-end border-t border-slate-100 bg-white p-4">
+                      <button
+                        type="button"
+                        onClick={() => setViewingRecipients(null)}
+                        className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors"
+                      >
+                        إغلاق
+                      </button>
                   </div>
               </div>
           </div>,
