@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
 import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown, Lightbulb, Edit3 } from 'lucide-react';
 import SchoolTabs from '../wizard/SchoolTabs';
@@ -87,19 +88,40 @@ interface PeriodDropdownProps {
 
 const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange, max = 8 }) => {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateCoords = () => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setCoords({ top: r.bottom + 8, left: r.left, width: r.width });
+  };
+
   useEffect(() => {
     if (!open) return;
+    updateCoords();
     const onClick = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
+    const onScroll = () => updateCoords();
     document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [open]);
+
   const options = Array.from({ length: max }, (_, i) => i + 1);
   return (
-    <div className="relative w-full" ref={wrapRef}>
+    <div className="relative w-full">
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen(o => !o)}
         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-white hover:border-[#8779fb] text-slate-700 font-bold rounded-lg transition-all flex items-center justify-between gap-1 text-xs"
@@ -107,8 +129,12 @@ const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange, max = 
         <span className="truncate leading-tight">{value}</span>
         <ChevronDown size={13} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute z-40 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 animate-in slide-in-from-top-2">
+      {open && coords && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width, zIndex: 9999 }}
+          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 animate-in slide-in-from-top-2"
+        >
           <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
             {options.map(opt => (
               <button
@@ -128,7 +154,8 @@ const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange, max = 
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -732,9 +759,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
             * { box-sizing: border-box; }
-            @page { size: A4 portrait; margin: 12mm 12mm; }
-            html, body { width: 210mm; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; font-size: 12px; color: #1e293b; }
-            .page { min-height: calc(297mm - 24mm); display: flex; flex-direction: column; }
+            @page { size: A4 portrait; margin: 10mm 10mm; }
+            html, body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; font-size: 11.5px; color: #1e293b; }
+            body { padding: 6mm 8mm; }
+            .page { display: flex; flex-direction: column; min-height: calc(297mm - 32mm); }
             .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: start; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 14px; }
             .header-side { font-size: 11px; font-weight: 800; line-height: 1.65; color: #334155; }
             .header-center { text-align: center; }
@@ -748,7 +776,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             .table-wrap { border-radius: 16px; overflow: hidden; border: 1px solid ${rowBorder}; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; background: #fff; }
             thead th { background: ${headBg}; color: ${themeColor}; font-weight: 900; padding: 12px 10px; text-align: center; border-bottom: 1px solid ${rowBorder}; font-size: 12.5px; }
-            tbody td { padding: 11px 10px; text-align: center; vertical-align: middle; border-top: 1px solid ${rowBorder}; font-weight: 800; color: #334155; background: #fff; }
+            tbody td { padding: 9px 8px; text-align: center; vertical-align: middle; border-top: 1px solid ${rowBorder}; font-weight: 800; color: #334155; background: #fff; }
+            tbody tr { page-break-inside: avoid; }
             tbody tr:first-child td { border-top: none; }
             .num-cell { color: #94a3b8; font-weight: 900; }
             .time-cell { direction: ltr; font-family: 'Tajawal', sans-serif; color: #475569; font-weight: 700; }
@@ -1032,7 +1061,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                   )}
 
                                   <div className="mb-2 text-center">
-                                      <span className={`block font-black text-sm ${isActive ? 'text-[#655ac1]' : 'text-slate-400'}`}>
+                                      <span className={`block font-black text-sm ${isActive ? 'text-slate-700' : 'text-slate-400'}`}>
                                           {day.label}
                                       </span>
                                   </div>
@@ -1048,7 +1077,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                           </button>
                                           
                                           <div className="text-center w-8">
-                                              <span className="block text-lg font-black text-[#655ac1]">{periodCount}</span>
+                                              <span className="block text-lg font-black text-slate-700">{periodCount}</span>
                                           </div>
 
                                           <button 
@@ -1300,9 +1329,9 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                         </h1>
                         <p className="text-sm text-slate-500 font-bold group-hover:text-[#655ac1] transition-colors">
                             <span className="inline-flex items-center gap-2">
-                              {getSeasonIcon(16)}
-                              <span>{getSeasonTitle()}</span>
-                              <span className="text-slate-400">- انقر هنا لعرض التفاصيل</span>
+                              {getSeasonIcon(18)}
+                              <span className="text-base text-[#655ac1] font-black">{getSeasonTitle()}</span>
+                              <span className="text-slate-400">- {isScheduleExpanded ? 'انقر هنا لإخفاء التفاصيل' : 'انقر هنا لعرض التفاصيل'}</span>
                             </span>
                         </p>
                     </div>
