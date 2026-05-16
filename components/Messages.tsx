@@ -105,6 +105,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
         {activeTab === 'dashboard' && (
           <FintechDashboard
             subscription={subscription}
+            schoolInfo={schoolInfo}
             onNavigate={onNavigate}
           />
         )}
