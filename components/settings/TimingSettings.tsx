@@ -16,7 +16,7 @@ const getSeasonOptionIcon = (value: string, size = 16) => {
     case 'summer':
       return <Sun size={size} className="text-amber-500 shrink-0" />;
     case 'winter':
-      return <Snowflake size={size} className="text-[#217cb8] shrink-0" />;
+      return <Snowflake size={size} className="text-[#1c6a9e] shrink-0" />;
     case 'ramadan':
       return <Moon size={size} className="text-slate-400 shrink-0" />;
     default:
@@ -69,6 +69,61 @@ const SeasonDropdown: React.FC<{ value: string; onChange: (v: string) => void; }
                   value === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
                 }`}>
                   <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface PeriodDropdownProps {
+  value: number;
+  onChange: (value: number) => void;
+  max?: number;
+}
+
+const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange, max = 8 }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+  const options = Array.from({ length: max }, (_, i) => i + 1);
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 hover:bg-white hover:border-[#8779fb] text-slate-700 font-bold rounded-lg transition-all flex items-center justify-between gap-1 text-xs"
+      >
+        <span className="truncate leading-tight">{value}</span>
+        <ChevronDown size={13} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-40 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 animate-in slide-in-from-top-2">
+          <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+            {options.map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { onChange(opt); setOpen(false); }}
+                className={`w-full text-right px-2.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-between ${
+                  value === opt ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span>{opt}</span>
+                <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border-2 transition-all ${
+                  value === opt ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                }`}>
+                  <Check size={10} strokeWidth={3} />
                 </span>
               </button>
             ))}
@@ -194,10 +249,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   const getTheme = () => {
       switch(currentTiming.season) {
           case 'winter': return {
-              bg: 'bg-[#eaf6fd]', text: 'text-[#1e5777]', border: 'border-[#217cb8]/30',
-              rowHover: 'hover:bg-[#eaf6fd]', icon: 'text-[#217cb8]',
-              inputFocus: 'focus:border-[#217cb8]', secondary: 'bg-[#eaf6fd]',
-              noteTitle: 'text-[#217cb8]', noteIconBg: 'bg-[#217cb8]/10', notePlaceholder: 'placeholder:text-[#217cb8]/50'
+              bg: 'bg-[#eaf6fd]', text: 'text-[#1e5777]', border: 'border-[#1c6a9e]/30',
+              rowHover: 'hover:bg-[#eaf6fd]', icon: 'text-[#1c6a9e]',
+              inputFocus: 'focus:border-[#1c6a9e]', secondary: 'bg-[#eaf6fd]',
+              noteTitle: 'text-[#1c6a9e]', noteIconBg: 'bg-[#1c6a9e]/10', notePlaceholder: 'placeholder:text-[#1c6a9e]/50'
           };
           case 'ramadan': return {
               bg: 'bg-[#ebf9f2]', text: 'text-[#1d5b3a]', border: 'border-[#3bb273]/30',
@@ -221,11 +276,11 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           case 'winter':
               return {
                   head: 'bg-sky-50/80',
-                  text: 'text-[#1f7fb8]',
+                  text: 'text-[#175c8a]',
                   border: 'border-sky-100',
                   divide: 'divide-sky-100',
                   hover: '',
-                  focus: 'focus:border-[#1f7fb8]',
+                  focus: 'focus:border-[#175c8a]',
                   badge: 'bg-amber-50 text-amber-800 border-amber-200'
               };
           case 'ramadan':
@@ -643,8 +698,11 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       if (!printWindow) return;
 
       const title = currentTiming.season === 'summer' ? 'التوقيت الصيفي' : currentTiming.season === 'winter' ? 'التوقيت الشتوي' : 'توقيت رمضان';
-      const themeColor = currentTiming.season === 'summer' ? '#d97706' : currentTiming.season === 'winter' ? '#217cb8' : '#64748b';
+      const themeColor = currentTiming.season === 'summer' ? '#b45309' : currentTiming.season === 'winter' ? '#175c8a' : '#475569';
+      const themeAccent = currentTiming.season === 'summer' ? '#d97706' : currentTiming.season === 'winter' ? '#1c6a9e' : '#64748b';
       const bgColor = currentTiming.season === 'summer' ? '#fffbeb' : currentTiming.season === 'winter' ? '#eaf6fd' : '#f8fafc';
+      const headBg = currentTiming.season === 'summer' ? 'rgba(255,251,235,0.8)' : currentTiming.season === 'winter' ? 'rgba(234,246,253,0.8)' : 'rgba(248,250,252,0.9)';
+      const rowBorder = currentTiming.season === 'summer' ? '#fde68a' : currentTiming.season === 'winter' ? '#c8e2f3' : '#e2e8f0';
       const escapeHtml = (value: unknown) => String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -674,29 +732,36 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
             * { box-sizing: border-box; }
-            @page { size: A4 portrait; margin: 10mm 12mm; }
-            html, body { width: 210mm; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; font-size: 11px; }
-            .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: start; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }
+            @page { size: A4 portrait; margin: 12mm 12mm; }
+            html, body { width: 210mm; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; font-size: 12px; color: #1e293b; }
+            .page { min-height: calc(297mm - 24mm); display: flex; flex-direction: column; }
+            .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: start; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 14px; }
             .header-side { font-size: 11px; font-weight: 800; line-height: 1.65; color: #334155; }
             .header-center { text-align: center; }
             .header-left { text-align: left; }
-            .school-logo { width: 52px; height: 52px; object-fit: contain; margin-bottom: 4px; }
-            .logo-placeholder { width: 52px; height: 52px; border: 2px solid #cbd5e1; border-radius: 50%; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; font-weight: 900; }
-            h1 { margin: 0; font-size: 18px; font-weight: 900; color: #111827; }
-            .schedule-title { text-align: center; margin: 8px 0 12px; }
-            .schedule-title h2 { font-size: 18px; font-weight: 900; color: #111827; margin: 0 0 6px; }
-            .schedule-title .season-badge { display: inline-block; background: ${bgColor}; color: ${themeColor}; border: 1px solid ${themeColor}; border-radius: 8px; padding: 3px 12px; font-size: 11px; font-weight: 900; }
-            table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; margin-bottom: 18px; }
-            th, td { border: 1px solid #cbd5e1; padding: 7px 8px; text-align: center; vertical-align: middle; }
-            th { background: ${bgColor}; color: ${themeColor}; font-weight: 900; }
-            td { font-weight: 800; color: #334155; }
-            tbody tr:nth-child(even) td { background: #f8fafc; }
-            .time-cell { text-align: center; direction: ltr; font-family: sans-serif; }
-            .footer { display: flex; justify-content: flex-end; margin-top: 16px; }
-            .signature { text-align: center; }
-            .signature p { font-weight: bold; margin-bottom: 20px; color: #1e293b; font-size: 10px; }
-            .signature .line { width: 140px; border-bottom: 1.5px solid #cbd5e1; margin: 0 auto; }
-            .notes { background: ${bgColor}; padding: 6px 10px; border-radius: 5px; border: 1px solid ${themeColor}; margin-top: 8px; font-size: 10px; }
+            .school-logo { width: 58px; height: 58px; object-fit: contain; margin-bottom: 4px; }
+            .logo-placeholder { width: 58px; height: 58px; border: 2px solid #cbd5e1; border-radius: 50%; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; font-weight: 900; }
+            h1 { margin: 0; font-size: 19px; font-weight: 900; color: #111827; }
+            .schedule-title { text-align: center; margin: 10px 0 14px; }
+            .schedule-title h2 { font-size: 20px; font-weight: 900; color: #0f172a; margin: 0 0 8px; }
+            .schedule-title .season-badge { display: inline-block; background: ${bgColor}; color: ${themeAccent}; border: 1px solid ${themeAccent}; border-radius: 10px; padding: 4px 14px; font-size: 12px; font-weight: 900; }
+            .table-wrap { border-radius: 16px; overflow: hidden; border: 1px solid ${rowBorder}; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; background: #fff; }
+            thead th { background: ${headBg}; color: ${themeColor}; font-weight: 900; padding: 12px 10px; text-align: center; border-bottom: 1px solid ${rowBorder}; font-size: 12.5px; }
+            tbody td { padding: 11px 10px; text-align: center; vertical-align: middle; border-top: 1px solid ${rowBorder}; font-weight: 800; color: #334155; background: #fff; }
+            tbody tr:first-child td { border-top: none; }
+            .num-cell { color: #94a3b8; font-weight: 900; }
+            .time-cell { direction: ltr; font-family: 'Tajawal', sans-serif; color: #475569; font-weight: 700; }
+            .name-cell { text-align: right; color: #1e293b; font-weight: 900; padding-right: 14px; }
+            .notes { margin-top: 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid #cbd5e1; background: #fff; font-size: 11.5px; color: #475569; font-weight: 600; line-height: 1.7; white-space: pre-wrap; }
+            .notes-title { display: flex; align-items: center; gap: 8px; font-weight: 900; color: #64748b; margin-bottom: 6px; font-size: 12px; }
+            .notes-icon { width: 18px; height: 18px; border: 2px solid #94a3b8; color: #64748b; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; line-height: 1; }
+            .footer { margin-top: auto; padding-top: 28px; display: flex; justify-content: flex-start; }
+            .signature { text-align: center; min-width: 180px; }
+            .signature .role { font-weight: 900; color: #0f172a; font-size: 13px; margin: 0 0 22px; }
+            .signature .name { font-weight: 800; color: #1e293b; font-size: 12px; margin: 0 0 4px; min-height: 16px; }
+            .signature .line { width: 160px; border-bottom: 1.5px solid #94a3b8; margin: 4px auto 6px; }
+            .signature .sig-label { font-size: 11px; color: #64748b; font-weight: 800; margin: 0; }
             @media print {
                .no-print { display: none; }
                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -704,6 +769,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           </style>
         </head>
         <body>
+          <div class="page">
           <div class="official-header">
             <div class="header-side">
               <div>الإدارة العامة للتعليم</div>
@@ -728,46 +794,49 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             <span class="season-badge">${title}</span>
           </div>
 
-          <table>
-             <thead>
-                <tr>
-                   <th style="width: 55px;">م</th>
-                   <th>اسم الفعالية</th>
-                   <th style="width: 140px; text-align: center;">بداية الوقت</th>
-                   <th style="width: 140px; text-align: center;">نهاية الوقت</th>
-                   <th style="width: 100px; text-align: center;">المدة</th>
-                </tr>
-             </thead>
-             <tbody>
-                ${schedule.map((item, idx) => `
-                   ${!printOptions.showBreaks && item.type === 'break' ? '' :
-                     !printOptions.showPrayer && item.type === 'prayer' ? '' :
-                    `<tr>
-                      <td>${idx + 1}</td>
-                      <td>${escapeHtml(item.name)}</td>
-                      <td class="time-cell">${item.startTime}</td>
-                      <td class="time-cell">${item.endTime}</td>
-                      <td style="text-align: center;">${item.duration} دقيقة</td>
-                    </tr>`
-                   }
-                `).join('')}
-             </tbody>
-          </table>
+          <div class="table-wrap">
+            <table>
+               <thead>
+                  <tr>
+                     <th style="width: 8%;">م</th>
+                     <th style="width: 38%;">اسم الفعالية</th>
+                     <th style="width: 18%;">البداية</th>
+                     <th style="width: 18%;">النهاية</th>
+                     <th style="width: 18%;">المدة (د)</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  ${schedule.map((item, idx) => `
+                     ${!printOptions.showBreaks && item.type === 'break' ? '' :
+                       !printOptions.showPrayer && item.type === 'prayer' ? '' :
+                      `<tr>
+                        <td class="num-cell">${idx + 1}</td>
+                        <td class="name-cell">${escapeHtml(item.name)}</td>
+                        <td class="time-cell">${item.startTime}</td>
+                        <td class="time-cell">${item.endTime}</td>
+                        <td>${item.duration}</td>
+                      </tr>`
+                     }
+                  `).join('')}
+               </tbody>
+            </table>
+          </div>
 
           ${currentTiming.notes && printOptions.showNotes ? `
              <div class="notes">
-                <strong>ملاحظات:</strong>
-                <p>${escapeHtml(currentTiming.notes)}</p>
+                <div class="notes-title"><span class="notes-icon">!</span>الملاحظات</div>
+                <div>${escapeHtml(currentTiming.notes)}</div>
              </div>
           ` : ''}
 
           <div class="footer">
              <div class="signature">
-                <p>مدير المدرسة</p>
-                <p>${escapeHtml(schoolInfo.principal || '')}</p>
+                <p class="role">مدير المدرسة</p>
+                <p class="name">${escapeHtml(schoolInfo.principal || '')}</p>
                 <div class="line"></div>
-                <p style="margin-top:8px;font-size:11px;color:#94a3b8;">التوقيع</p>
+                <p class="sig-label">التوقيع</p>
              </div>
+          </div>
           </div>
         </body>
         </html>
@@ -794,7 +863,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   const getSeasonIcon = (size = 32) => {
       switch(currentTiming.season) {
           case 'summer': return <Sun size={size} className="text-amber-500" />;
-          case 'winter': return <Snowflake size={size} className="text-[#217cb8]" />;
+          case 'winter': return <Snowflake size={size} className="text-[#1c6a9e]" />;
           case 'ramadan': return <Moon size={size} className="text-slate-400" />;
           default: return <Clock size={size} className="text-slate-500" />;
       }
@@ -812,6 +881,18 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
             <CheckCircle size={20} />
             <span className="font-bold">تم حفظ التوقيت بنجاح</span>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Notice Toast */}
+      {scheduleNotice && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className={`px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 text-white font-bold ${
+            scheduleNotice.type === 'success' ? 'bg-emerald-500' : 'bg-amber-500'
+          }`}>
+            <CheckCircle size={20} />
+            <span>{scheduleNotice.message}</span>
           </div>
         </div>
       )}
@@ -992,7 +1073,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                    <div className="absolute bottom-4 right-4 bg-white text-[#655ac1] px-4 py-1 rounded-xl text-xs font-black shadow-sm flex items-center gap-2 border border-slate-200">
                       <span className="text-[#655ac1]">إجمالي الحصص في الأسبوع:</span>
                       <span className="text-xl text-[#655ac1]">{WeeklyTotal}</span>
-                      <span className="text-[10px] text-[#655ac1] opacity-75">حصة</span>
+                      <span className="text-[#655ac1]">حصة</span>
                    </div>
               </div>
               </div>
@@ -1094,9 +1175,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
                                                     <label className="text-[10px] font-bold text-slate-400 block mb-1">بعد الحصة</label>
-                                                    <select value={b.afterPeriod} onChange={(e) => { const nb = [...(currentTiming.breaks || [])]; nb[idx] = { ...nb[idx], afterPeriod: parseInt(e.target.value) }; updateTiming({ breaks: nb }); }} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 text-xs outline-none focus:border-[#8779fb] transition-all">
-                                                        {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
-                                                    </select>
+                                                    <PeriodDropdown value={b.afterPeriod} onChange={(v) => { const nb = [...(currentTiming.breaks || [])]; nb[idx] = { ...nb[idx], afterPeriod: v }; updateTiming({ breaks: nb }); }} />
                                                 </div>
                                                 <div>
                                                     <label className="text-[10px] font-bold text-slate-400 block mb-1">المدة (د)</label>
@@ -1182,9 +1261,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                               <div className="grid grid-cols-2 gap-2">
                                                   <div>
                                                       <label className="text-[10px] font-bold text-slate-400 block mb-1">بعد الحصة</label>
-                                                      <select value={p.afterPeriod} onChange={(e) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], afterPeriod: parseInt(e.target.value) }; updateTiming({ prayers: np }); }} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-[#8779fb] transition-all text-slate-700">
-                                                          {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}</option>)}
-                                                      </select>
+                                                      <PeriodDropdown value={p.afterPeriod} onChange={(v) => { const np = [...(currentTiming.prayers || [])]; np[idx] = { ...np[idx], afterPeriod: v }; updateTiming({ prayers: np }); }} />
                                                   </div>
                                                   <div>
                                                       <label className="text-[10px] font-bold text-slate-400 block mb-1">المدة (د)</label>
@@ -1247,15 +1324,6 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                      يمكنك تعديل أوقات البداية والنهاية ومسميات الفعاليات يدوياً من الجدول أدناه
                  </div>
                  <div className="flex items-center gap-2">
-                    {scheduleNotice && (
-                      <span className={`text-[11px] font-black border px-3 py-2 rounded-xl ${
-                        scheduleNotice.type === 'success'
-                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                          : 'text-amber-700 bg-amber-50 border-amber-200'
-                      }`}>
-                        {scheduleNotice.message}
-                      </span>
-                    )}
                     {hasUnsavedScheduleEdits && (
                       <span className="text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
                         تعديلات غير محفوظة
