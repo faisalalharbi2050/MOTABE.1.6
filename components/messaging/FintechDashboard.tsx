@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, MessageSquare, AlertCircle, Hourglass, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Activity, MessageSquare, ChevronRight, ChevronLeft, Send } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
 import { SchoolInfo, SubscriptionInfo } from '../../types';
 import { buildAcademicWeeks, getCurrentAcademicSemester, toLocalISODate } from '../../utils/academicCalendar';
@@ -54,7 +54,22 @@ const WA_ICON = (
 );
 
 const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscription, schoolInfo }) => {
-  const { stats } = useMessageArchive();
+  const { stats, messages } = useMessageArchive();
+
+  // Per-channel sent/failed counts derived from the archive (authoritative)
+  const channelTotals = useMemo(() => {
+    let waSent = 0, waFailed = 0, smsSent = 0, smsFailed = 0;
+    for (const m of messages) {
+      if (m.channel === 'whatsapp') {
+        if (m.status === 'sent') waSent++;
+        else if (m.status === 'failed') waFailed++;
+      } else if (m.channel === 'sms') {
+        if (m.status === 'sent') smsSent++;
+        else if (m.status === 'failed') smsFailed++;
+      }
+    }
+    return { waSent, waFailed, smsSent, smsFailed };
+  }, [messages]);
   const [calendarType, setCalendarType] = useState<CalendarType>(
     (schoolInfo?.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as CalendarType
   );
@@ -105,61 +120,37 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
   return (
     <div className="space-y-6 animate-fade-in">
 
-      {/* ── Top Stats Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-start">
-          <div>
-            <p className="text-xs font-bold text-slate-500 mb-1">المرسل عبر الواتساب</p>
-            <h2 className="text-2xl font-extrabold text-slate-800">{stats.whatsappSent.toLocaleString()}</h2>
-          </div>
-          <div className="p-2">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.066-.3-.15-1.265-.467-2.409-1.487-.883-.788-1.48-1.761-1.653-2.059-.173-.3-.018-.465.13-.615.136-.135.301-.345.45-.523.146-.181.194-.301.292-.502.097-.206.05-.386-.025-.534-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.572-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.09 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.36zm-5.496 7.618A9.973 9.973 0 017.1 20.676L3 22l1.353-3.95A9.977 9.977 0 012.002 12 10 10 0 1112.002 22z" fillRule="evenodd" clipRule="evenodd" />
-            </svg>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-start">
-          <div>
-            <p className="text-xs font-bold text-slate-500 mb-1">المرسل عبر النصية</p>
-            <h2 className="text-2xl font-extrabold text-slate-800">{stats.smsSent.toLocaleString()}</h2>
-          </div>
-          <div className="p-2"><MessageSquare className="text-[#007AFF]" size={28} /></div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-start">
-          <div>
-            <p className="text-xs font-bold text-slate-500 mb-1">الرسائل الفاشلة</p>
-            <h2 className="text-2xl font-extrabold text-slate-800">{stats.failedCount.toLocaleString()}</h2>
-          </div>
-          <div className="p-2"><AlertCircle className="text-rose-500" size={28} /></div>
-        </div>
-
-      </div>
-
-      {/* ── Balance + Chart ── */}
+      {/* ── Channels card + Chart ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Balance Card */}
+        {/* Unified Channels Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col self-start">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
-            <div className="p-2 bg-amber-50 text-amber-500 rounded-xl shrink-0">
-              <Hourglass size={20} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">رصيد الرسائل</h3>
-            </div>
+            <Send size={20} className="text-[#655ac1] shrink-0" />
+            <h3 className="text-sm font-bold text-slate-800">قنوات الرسائل</h3>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             {/* WhatsApp */}
             <div>
-              <div className="flex justify-between items-baseline text-xs font-bold text-slate-600 mb-2">
-                <span className="flex items-center gap-1.5">{WA_ICON} واتساب</span>
-                <span className="text-slate-500 font-medium">
-                  <span className="text-slate-800 font-extrabold tabular-nums">{waRemaining}</span> متبقي من {freeWaTotal}
-                </span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
+                {WA_ICON} واتساب
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
+                  <div className="text-[10px] font-bold text-[#655ac1] mb-0.5">المُرسلة</div>
+                  <div className="text-sm font-extrabold text-[#655ac1] tabular-nums">{channelTotals.waSent.toLocaleString()}</div>
+                </div>
+                <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
+                  <div className="text-[10px] font-bold text-rose-600 mb-0.5">الفاشلة</div>
+                  <div className="text-sm font-extrabold text-rose-600 tabular-nums">{channelTotals.waFailed.toLocaleString()}</div>
+                </div>
+                <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
+                  <div className="text-[10px] font-bold text-slate-500 mb-0.5">المتبقي</div>
+                  <div className="text-sm font-extrabold text-slate-800 tabular-nums">
+                    {waRemaining}<span className="text-slate-400 font-bold">/{freeWaTotal}</span>
+                  </div>
+                </div>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
@@ -171,13 +162,24 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
 
             {/* SMS */}
             <div>
-              <div className="flex justify-between items-baseline text-xs font-bold text-slate-600 mb-2">
-                <span className="flex items-center gap-1.5">
-                  <MessageSquare size={14} className="text-[#007AFF]" /> نصية SMS
-                </span>
-                <span className="text-slate-500 font-medium">
-                  <span className="text-slate-800 font-extrabold tabular-nums">{smsRemaining}</span> متبقي من {freeSmsTotal}
-                </span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
+                <MessageSquare size={14} className="text-[#007AFF]" /> نصية SMS
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
+                  <div className="text-[10px] font-bold text-[#655ac1] mb-0.5">المُرسلة</div>
+                  <div className="text-sm font-extrabold text-[#655ac1] tabular-nums">{channelTotals.smsSent.toLocaleString()}</div>
+                </div>
+                <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
+                  <div className="text-[10px] font-bold text-rose-600 mb-0.5">الفاشلة</div>
+                  <div className="text-sm font-extrabold text-rose-600 tabular-nums">{channelTotals.smsFailed.toLocaleString()}</div>
+                </div>
+                <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
+                  <div className="text-[10px] font-bold text-slate-500 mb-0.5">المتبقي</div>
+                  <div className="text-sm font-extrabold text-slate-800 tabular-nums">
+                    {smsRemaining}<span className="text-slate-400 font-bold">/{freeSmsTotal}</span>
+                  </div>
+                </div>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
@@ -200,7 +202,7 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
         <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
 
           {/* Card header */}
-          <div className="mb-5 space-y-3">
+          <div className="mb-5 pb-4 border-b border-slate-100 space-y-3">
 
             {/* Row 1: Title + Legend */}
             <div className="flex flex-wrap justify-between items-center gap-3">
