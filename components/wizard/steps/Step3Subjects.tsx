@@ -466,49 +466,41 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       />
 
       {/* Action Bar */}
-      <div className="flex flex-wrap items-center gap-4">
-           {/* Study Plans Button */}
-           <div className="relative">
-               <button 
-                 onClick={() => setShowPlanModal(true)}
-                 className="flex items-center gap-2 bg-[#655ac1] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-[#655ac1]/20 transition-all hover:scale-105 active:scale-95"
-               >
-                   <Layers size={20} />
-                   الخطط الدراسية
-               </button>
-           </div>
-
-           <button 
-             onClick={() => setShowManualModal(true)}
-            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+      <div className="flex flex-wrap items-center justify-start gap-2 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+          <button
+            onClick={() => setShowPlanModal(true)}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
           >
-              <Plus size={20} className="text-[#8779fb]" />
-              إضافة خطة مخصصة
+              <Layers size={18} />
+              <span>الخطط الدراسية الجاهزة</span>
           </button>
-      </div>
 
-      {/* Secondary Action Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200/60 flex flex-col lg:flex-row lg:items-center gap-4 transition-all">
-        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowManualModal(true)}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+          >
+              <Plus size={18} />
+              <span>إضافة خطة مخصصة</span>
+          </button>
+
           <button
             onClick={() => setShowAbbreviationsModal(true)}
             title="اختصارات المواد"
-            className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb]"
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
           >
-            <TypeIcon size={18} className="text-indigo-500" />
+            <TypeIcon size={18} />
             <span>اختصارات المواد</span>
           </button>
 
           {scheduleSettings && setScheduleSettings && (
             <button
               onClick={() => setShowConstraintsModal(true)}
-              className="flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] min-w-[145px]"
+              className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#655ac1] hover:text-[#655ac1] min-w-[145px]"
             >
-              <Ban size={18} className="text-rose-500" />
+              <Ban size={18} />
               <span>قيود المواد</span>
             </button>
           )}
-        </div>
       </div>
 
       {/* Custom Plans Render Area */}
