@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>معاينة شعار التحميل — متابع</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#655ac1;
+    --secondary:#8779fb;
+    --accent:#e5e1fe;
+    --bg:#fcfbff;
+    --ink:#2a2547;
+    --muted:#6b6691;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 20px;
+    font-family:'Tajawal',sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  h1{text-align:center; font-weight:900; margin:0 0 8px; font-size:28px}
+  .sub{text-align:center; color:var(--muted); margin-bottom:40px}
+  .grid{
+    max-width:1200px; margin:0 auto;
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+    gap:24px;
+  }
+  .card{
+    background:white; border-radius:20px; padding:28px 24px;
+    box-shadow:0 8px 30px rgba(101,90,193,.08);
+    border:1px solid #ece9fb;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .card h2{margin:0 0 6px; font-size:18px; font-weight:700; color:var(--primary)}
+  .card .desc{font-size:13px; color:var(--muted); text-align:center; margin-bottom:22px; min-height:36px}
+  .stage{
+    width:100%; min-height:220px;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#faf9ff,#f3f0ff);
+    border-radius:14px; padding:24px;
+  }
+
+  /* ============ Shared dots ============ */
+  .dots{display:flex; gap:10px; justify-content:center}
+  .dot{
+    width:13px; height:13px; border-radius:50%;
+    background:var(--primary);
+    animation:bounce 1.4s ease-in-out infinite;
+  }
+  .dot:nth-child(2){animation-delay:.2s; background:var(--secondary)}
+  .dot:nth-child(3){animation-delay:.4s; background:#a89dff}
+  @keyframes bounce{
+    0%,100%{transform:translateY(0); opacity:.45}
+    50%{transform:translateY(-14px); opacity:1}
+  }
+
+  /* ============ A) لوجو يتنفّس + نقاط أسفل ============ */
+  .stack{display:flex; flex-direction:column; align-items:center; gap:20px}
+  .logo-breathe{
+    width:90px; height:90px;
+    animation:breathe 2s ease-in-out infinite;
+  }
+  @keyframes breathe{
+    0%,100%{transform:scale(1); filter:drop-shadow(0 4px 10px rgba(101,90,193,.25))}
+    50%{transform:scale(1.08); filter:drop-shadow(0 8px 20px rgba(101,90,193,.45))}
+  }
+  .logo-breathe img{width:100%; height:100%; object-fit:contain}
+
+  /* لوجو يتلاشى ويظهر في نفس المكان (بدون أي حركة موضع/حجم) */
+  .logo-fade{
+    width:80px; height:80px;
+    animation:logoFade 4.5s ease-in-out infinite;
+  }
+  .logo-fade img{width:100%; height:100%; object-fit:contain}
+  @keyframes logoFade{
+    0%,100%{opacity:1}
+    50%{opacity:0}
+  }
+
+  /* ============ B) لوجو داخل دائرة وحولها هالة + نقاط ============ */
+  .halo-wrap{display:flex; flex-direction:column; align-items:center; gap:20px}
+  .halo{
+    width:110px; height:110px; border-radius:50%;
+    background:white; display:flex; align-items:center; justify-content:center;
+    position:relative;
+    box-shadow:0 8px 24px rgba(101,90,193,.18);
+  }
+  .halo::before, .halo::after{
+    content:''; position:absolute; inset:0; border-radius:50%;
+    border:2px solid var(--primary); opacity:0;
+    animation:ripple 2s ease-out infinite;
+  }
+  .halo::after{animation-delay:1s}
+  @keyframes ripple{
+    0%{transform:scale(.9); opacity:.6}
+    100%{transform:scale(1.5); opacity:0}
+  }
+  .halo img{width:65%; height:65%; object-fit:contain}
+
+  /* ============ C) نقاط تتحول إلى لوجو (الأكثر تفاعلية) ============ */
+  .morph-wrap{display:flex; flex-direction:column; align-items:center; gap:14px; height:130px; justify-content:center}
+  .morph-stage{
+    position:relative; width:120px; height:60px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .morph-dots{
+    display:flex; gap:10px; position:absolute;
+    animation:fadeDots 7s ease-in-out infinite;
+  }
+  .morph-dot{
+    width:13px; height:13px; border-radius:50%; background:var(--primary);
+    animation:bounce 1.4s ease-in-out infinite;
+  }
+  .morph-dot:nth-child(2){animation-delay:.2s; background:var(--secondary)}
+  .morph-dot:nth-child(3){animation-delay:.4s; background:#a89dff}
+  .morph-logo{
+    position:absolute; width:70px; height:70px;
+    opacity:0; transform:scale(.6);
+    animation:fadeLogo 7s ease-in-out infinite;
+  }
+  .morph-logo img{width:100%; height:100%; object-fit:contain}
+  /* النقاط: تبقى ظاهرة معظم الدورة (~70%)، تختفي قصيرًا أثناء ظهور اللوجو ثم تعود */
+  @keyframes fadeDots{
+    0%,65%{opacity:1; transform:scale(1)}
+    72%,82%{opacity:0; transform:scale(.85)}
+    90%,100%{opacity:1; transform:scale(1)}
+  }
+  /* اللوجو: ظهور قصير ~15% من الدورة، بدخول وخروج هادئين */
+  @keyframes fadeLogo{
+    0%,65%{opacity:0; transform:scale(.6)}
+    72%,82%{opacity:1; transform:scale(1)}
+    90%,100%{opacity:0; transform:scale(.6)}
+  }
+  .morph-label{font-size:12px; color:var(--muted)}
+
+  /* ============ D) لوجو ثابت + نقاط بجانبه (للأشرطة العلوية) ============ */
+  .inline-wrap{display:flex; align-items:center; gap:14px; background:white;
+    padding:14px 22px; border-radius:50px; box-shadow:0 4px 14px rgba(101,90,193,.12)}
+  .inline-logo{width:36px; height:36px}
+  .inline-logo img{width:100%; height:100%; object-fit:contain}
+  .inline-text{font-weight:700; color:var(--primary); font-size:14px}
+
+  .pick{text-align:center; margin-top:50px; padding:20px; color:var(--muted); font-size:14px; line-height:1.8}
+  .pick b{color:var(--primary)}
+</style>
+</head>
+<body>
+
+<h1>دمج اللوجو مع النقاط المتحركة</h1>
+<p class="sub">أربع طرق دمج — شاهدها واختر الأنسب</p>
+
+<div class="grid">
+
+  <!-- A -->
+  <div class="card">
+    <h2>أ. لوجو يتنفّس + النقاط أسفله</h2>
+    <p class="desc">اللوجو يكبر ويصغر بهدوء، والنقاط تقفز تحته — بسيط وأنيق</p>
+    <div class="stage">
+      <div class="stack">
+        <div class="logo-breathe"><img src="/logo.png" alt="متابع"/></div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="card">
+    <h2>ب. هالة دائرية حول اللوجو + النقاط</h2>
+    <p class="desc">حلقات تنبعث من اللوجو كأنه يبثّ نشاطًا — إحساس بالعمل الجاري</p>
+    <div class="stage">
+      <div class="halo-wrap">
+        <div class="halo"><img src="/logo.png" alt="متابع"/></div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="card">
+    <h2>ج. لوجو ثابت + نقاط متحركة ⭐</h2>
+    <p class="desc">اللوجو حاضر دائمًا كهوية، والنقاط أسفله تحمل إحساس النشاط — بسيط ومتزن</p>
+    <div class="stage">
+      <div class="stack">
+        <div class="logo-fade"><img src="/logo.png" alt="متابع"/></div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="card">
+    <h2>د. شريط أفقي مدمج (للأزرار/الإشعارات)</h2>
+    <p class="desc">لوجو صغير بجانب النقاط ونص — مناسب للعمليات السريعة داخل الأزرار</p>
+    <div class="stage">
+      <div class="inline-wrap">
+        <div class="inline-logo"><img src="/logo.png" alt="متابع"/></div>
+        <div class="inline-text">جاري التحميل</div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="pick">
+  توصيتي: <b>ج (نقاط ← لوجو)</b> للعمليات الطويلة كتوليد الجداول (تفاعلية وممتعة)،
+  و<b>د (الشريط الأفقي)</b> للأزرار والإشعارات الصغيرة. أيها تختار؟
+</p>
+
+</body>
+</html>

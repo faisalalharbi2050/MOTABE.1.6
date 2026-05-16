@@ -99,7 +99,7 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
 
   // ── Week period label ────────────────────────────────────────────────────
   const weekLabel = currentWeek
-    ? `الأسبوع ${currentWeek.number} • ${formatDatePart(currentWeek.start, calendarType)} — ${formatDatePart(currentWeek.end, calendarType)} ${formatYear(currentWeek.end, calendarType)}`
+    ? `${arabicDayFromISO(currentWeek.start)} ${formatDatePart(currentWeek.start, calendarType)} — ${arabicDayFromISO(currentWeek.end)} ${formatDatePart(currentWeek.end, calendarType)} ${formatYear(currentWeek.end, calendarType)}`
     : 'لم تُعرّف الأسابيع الدراسية بعد';
 
   return (
@@ -142,7 +142,7 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Balance Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col self-start">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
             <div className="p-2 bg-amber-50 text-amber-500 rounded-xl shrink-0">
               <Hourglass size={20} />
@@ -152,12 +152,14 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
             </div>
           </div>
 
-          <div className="flex flex-col justify-between flex-1 gap-4">
+          <div className="flex flex-col gap-4">
             {/* WhatsApp */}
             <div>
-              <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+              <div className="flex justify-between items-baseline text-xs font-bold text-slate-600 mb-2">
                 <span className="flex items-center gap-1.5">{WA_ICON} واتساب</span>
-                <span className="text-slate-600">{waUsed} مُرسلة من أصل {freeWaTotal}</span>
+                <span className="text-slate-500 font-medium">
+                  <span className="text-slate-800 font-extrabold tabular-nums">{waRemaining}</span> متبقي من {freeWaTotal}
+                </span>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
@@ -167,15 +169,15 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
               </div>
             </div>
 
-            <hr className="border-slate-100" />
-
             {/* SMS */}
             <div>
-              <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+              <div className="flex justify-between items-baseline text-xs font-bold text-slate-600 mb-2">
                 <span className="flex items-center gap-1.5">
                   <MessageSquare size={14} className="text-[#007AFF]" /> نصية SMS
                 </span>
-                <span className="text-slate-600">{smsUsed} مُرسلة من أصل {freeSmsTotal}</span>
+                <span className="text-slate-500 font-medium">
+                  <span className="text-slate-800 font-extrabold tabular-nums">{smsRemaining}</span> متبقي من {freeSmsTotal}
+                </span>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
@@ -198,15 +200,27 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
         <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
 
           {/* Card header */}
-          <div className="flex flex-wrap justify-between items-center gap-4 mb-5">
+          <div className="mb-5 space-y-3">
 
-            {/* Title + calendar toggle + week navigator */}
-            <div className="flex items-center gap-3 flex-wrap">
+            {/* Row 1: Title + Legend */}
+            <div className="flex flex-wrap justify-between items-center gap-3">
               <h3 className="text-sm font-bold text-[#1e293b] flex items-center gap-2">
                 <Activity className="text-[#8779fb]" size={20} />
                 الاستهلاك
               </h3>
 
+              <div className="flex gap-4 text-[11px] font-bold text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-sm bg-[#25D366]" /> واتساب
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-sm bg-[#007AFF]" /> نصية
+                </span>
+              </div>
+            </div>
+
+            {/* Row 2: Calendar toggle + Week navigator */}
+            <div className="flex items-center gap-3 flex-wrap">
               {/* Hijri / Gregorian toggle */}
               <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
                 {[
@@ -251,16 +265,6 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex gap-4 text-[11px] font-bold text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-sm bg-[#25D366]" /> واتساب
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-sm bg-[#007AFF]" /> نصية
-              </span>
-            </div>
-
           </div>
 
           {/* Bars */}
@@ -271,29 +275,29 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
               </div>
             )}
             {weeklyUsage.map((data, i) => (
-              <div key={data.date || i} className="flex flex-col items-center gap-3 flex-1 group">
-                <div className="w-full max-w-[5rem] relative flex items-end justify-center gap-1.5 h-52 bg-slate-50 rounded-t-xl p-1 border-x border-t border-slate-100/50">
+              <div key={data.date || i} className="flex flex-col items-center gap-2 flex-1">
+                <div className="w-full max-w-[5rem] relative flex items-end justify-center gap-1.5 h-52">
 
                   {/* SMS bar */}
-                  <div className="flex-1 w-full flex items-end justify-center h-full relative group/sms">
+                  <div className="flex-1 w-full flex flex-col items-center justify-end h-full">
+                    <span className="text-[10px] font-extrabold text-slate-600 mb-1 tabular-nums">
+                      {data.sms.toLocaleString()}
+                    </span>
                     <div
                       style={{ height: `${getPercentage(data.sms)}%` }}
-                      className="bg-[#007AFF] transition-all duration-500 rounded-t-lg w-full shadow-sm"
+                      className="bg-[#007AFF] transition-all duration-500 rounded-t-lg w-full"
                     />
-                    <div className="absolute -top-10 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover/sms:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-slate-700 pointer-events-none">
-                      {data.sms.toLocaleString()} نصية
-                    </div>
                   </div>
 
                   {/* WhatsApp bar */}
-                  <div className="flex-1 w-full flex items-end justify-center h-full relative group/wa">
+                  <div className="flex-1 w-full flex flex-col items-center justify-end h-full">
+                    <span className="text-[10px] font-extrabold text-slate-600 mb-1 tabular-nums">
+                      {data.wa.toLocaleString()}
+                    </span>
                     <div
                       style={{ height: `${getPercentage(data.wa)}%` }}
-                      className="bg-[#25D366] transition-all duration-500 rounded-t-lg w-full shadow-sm"
+                      className="bg-[#25D366] transition-all duration-500 rounded-t-lg w-full"
                     />
-                    <div className="absolute -top-10 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover/wa:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg border border-slate-700 pointer-events-none">
-                      {data.wa.toLocaleString()} واتساب
-                    </div>
                   </div>
 
                 </div>
