@@ -249,7 +249,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         onChange={handleChange}
                         placeholder="أدخل اسم المدرسة"
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -310,7 +310,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         onChange={handleChange}
                         placeholder="مثال: الرياض"
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
                 
@@ -322,7 +322,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         onChange={handleChange}
                         placeholder="المنطقة"
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
 
@@ -336,7 +336,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             onChange={handleChange}
                             placeholder="عنوان المدرسة"
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                     </div>
                 </div>
@@ -352,7 +352,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             onChange={handleChange}
                             placeholder="example@school.edu.sa"
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
                         />
                     </div>
@@ -369,7 +369,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             onChange={handleChange}
                             placeholder="05xxxxxxxx"
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             dir="ltr"
                         />
                     </div>
@@ -382,7 +382,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                         value={schoolInfo.principal}
                         onChange={handleChange}
                         disabled={!isEditMode}
-                        className="w-full p-3.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                         placeholder="الاسم الثلاثي"
                     />
                 </div>
@@ -396,7 +396,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             value={schoolInfo.principalMobile || ''}
                             onChange={handleChange}
                             disabled={!isEditMode}
-                            className="w-full p-3.5 pr-10 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full p-3.5 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                             placeholder="05xxxxxxxx"
                             dir="ltr"
                         />
@@ -607,7 +607,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                          onClick={(e) => e.stopPropagation()}
                          placeholder="أدخل اسم المدرسة"
                          disabled={!isEditMode}
-                         className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                    </div>
 
@@ -663,7 +663,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                          onChange={(e) => updateSharedSchool(school.id, 'educationAdministration', e.target.value)}
                          placeholder="مثال: الرياض"
                          disabled={!isEditMode}
-                         className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                       />
                    </div>
 
@@ -674,7 +674,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                           onChange={(e) => updateSharedSchool(school.id, 'region', e.target.value)}
                           placeholder="المنطقة"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                        />
                    </div>
 
@@ -685,7 +685,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                           onChange={(e) => updateSharedSchool(school.id, 'address', e.target.value)}
                           placeholder="عنوان المدرسة"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                        />
                    </div>
 
@@ -696,7 +696,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                           onChange={(e) => updateSharedSchool(school.id, 'email', e.target.value)}
                           placeholder="example@school.edu.sa"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           dir="ltr"
                        />
                    </div>
@@ -708,7 +708,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                           onChange={(e) => updateSharedSchool(school.id, 'phone', e.target.value)}
                           placeholder="05xxxxxxxx"
                           disabled={!isEditMode}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/10 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                           dir="ltr"
                        />
                    </div>
