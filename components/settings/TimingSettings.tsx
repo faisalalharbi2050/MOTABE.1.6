@@ -1347,12 +1347,12 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             {/* Collapsible Content */}
             <div className={`transition-all duration-500 overflow-hidden ${isScheduleExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
             
-             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                 <div className={`flex items-start gap-2 text-xs font-bold p-3 rounded-xl border w-fit ${scheduleTableTheme.badge}`}>
-                     <Lightbulb size={15} className="text-amber-600 shrink-0 mt-0.5" />
-                     يمكنك تعديل أوقات البداية والنهاية ومسميات الفعاليات يدوياً من الجدول أدناه
-                 </div>
-                 <div className="flex items-center gap-2">
+             <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+                 <div className="flex flex-wrap items-center gap-2 justify-end">
+                    <div className={`flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border ${scheduleTableTheme.badge}`}>
+                        <Lightbulb size={15} className="text-amber-600 shrink-0" />
+                        يمكنك تعديل أوقات البداية والنهاية ومسميات الفعاليات يدوياً من الجدول أدناه
+                    </div>
                     {hasUnsavedScheduleEdits && (
                       <span className="text-[11px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
                         تعديلات غير محفوظة
