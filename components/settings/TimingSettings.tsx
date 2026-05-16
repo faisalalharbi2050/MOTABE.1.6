@@ -16,7 +16,7 @@ const getSeasonOptionIcon = (value: string, size = 16) => {
     case 'summer':
       return <Sun size={size} className="text-amber-500 shrink-0" />;
     case 'winter':
-      return <Snowflake size={size} className="text-[#2a93d5] shrink-0" />;
+      return <Snowflake size={size} className="text-[#217cb8] shrink-0" />;
     case 'ramadan':
       return <Moon size={size} className="text-slate-400 shrink-0" />;
     default:
@@ -194,10 +194,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   const getTheme = () => {
       switch(currentTiming.season) {
           case 'winter': return {
-              bg: 'bg-[#eaf6fd]', text: 'text-[#1e5777]', border: 'border-[#2a93d5]/30',
-              rowHover: 'hover:bg-[#eaf6fd]', icon: 'text-[#2a93d5]',
-              inputFocus: 'focus:border-[#2a93d5]', secondary: 'bg-[#eaf6fd]',
-              noteTitle: 'text-[#2a93d5]', noteIconBg: 'bg-[#2a93d5]/10', notePlaceholder: 'placeholder:text-[#2a93d5]/50'
+              bg: 'bg-[#eaf6fd]', text: 'text-[#1e5777]', border: 'border-[#217cb8]/30',
+              rowHover: 'hover:bg-[#eaf6fd]', icon: 'text-[#217cb8]',
+              inputFocus: 'focus:border-[#217cb8]', secondary: 'bg-[#eaf6fd]',
+              noteTitle: 'text-[#217cb8]', noteIconBg: 'bg-[#217cb8]/10', notePlaceholder: 'placeholder:text-[#217cb8]/50'
           };
           case 'ramadan': return {
               bg: 'bg-[#ebf9f2]', text: 'text-[#1d5b3a]', border: 'border-[#3bb273]/30',
@@ -292,6 +292,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
 
   const handleSaveScheduleEdits = () => {
       if (!hasUnsavedScheduleEdits) {
+          setIsScheduleEditMode(false);
           showScheduleNotice('لا توجد تعديلات لحفظها', 'warning');
           return;
       }
@@ -571,6 +572,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
           name: 'فعالية جديدة',
           duration: newBreakDuration,
           afterPeriod: newAfterPeriod,
+          isActivity: true,
       };
 
       currentBreaks.splice(insertIndex, 0, newBreak);
@@ -641,7 +643,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
       if (!printWindow) return;
 
       const title = currentTiming.season === 'summer' ? 'التوقيت الصيفي' : currentTiming.season === 'winter' ? 'التوقيت الشتوي' : 'توقيت رمضان';
-      const themeColor = currentTiming.season === 'summer' ? '#d97706' : currentTiming.season === 'winter' ? '#2a93d5' : '#64748b';
+      const themeColor = currentTiming.season === 'summer' ? '#d97706' : currentTiming.season === 'winter' ? '#217cb8' : '#64748b';
       const bgColor = currentTiming.season === 'summer' ? '#fffbeb' : currentTiming.season === 'winter' ? '#eaf6fd' : '#f8fafc';
       const escapeHtml = (value: unknown) => String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -792,7 +794,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
   const getSeasonIcon = (size = 32) => {
       switch(currentTiming.season) {
           case 'summer': return <Sun size={size} className="text-amber-500" />;
-          case 'winter': return <Snowflake size={size} className="text-[#2a93d5]" />;
+          case 'winter': return <Snowflake size={size} className="text-[#217cb8]" />;
           case 'ramadan': return <Moon size={size} className="text-slate-400" />;
           default: return <Clock size={size} className="text-slate-500" />;
       }
@@ -1045,7 +1047,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                     <Utensils size={20} className="text-[#655ac1]" /> إعدادات الفسح
                                 </h3>
                                 <div className="text-[10px] bg-white border border-slate-200 text-[#655ac1] px-2 py-1 rounded-lg font-bold">
-                                    {currentTiming.breaks?.length || 0}
+                                    {(currentTiming.breaks || []).filter(b => !b.isActivity).length}
                                 </div>
                             </div>
                             <button 
@@ -1057,7 +1059,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                         </div>
                         
                         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                            {currentTiming.breaks?.map((b, idx) => (
+                            {currentTiming.breaks?.map((b, idx) => b.isActivity ? null : (
                                 <div key={b.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:border-[#8779fb]/50 transition-all">
                                     {confirmDeleteBreak === idx ? (
                                         <div className="p-4 bg-white">
@@ -1105,7 +1107,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                     )}
                                 </div>
                             ))}
-                            {(!currentTiming.breaks || currentTiming.breaks.length === 0) && (
+                            {(currentTiming.breaks || []).filter(b => !b.isActivity).length === 0 && (
                                 <div className="text-center p-4 text-slate-400 text-sm font-bold border-2 border-dashed border-slate-100 rounded-xl">
                                     لا توجد فسح مضافة
                                 </div>
@@ -1215,7 +1217,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
             >
                 <div className="flex items-center gap-4">
                     <div>
-                        <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                        <h1 className="text-lg font-black text-slate-800 flex items-center gap-3">
+                            <Calendar size={20} className="text-[#655ac1]" />
                             الجدول التفاعلي للتوقيت
                         </h1>
                         <p className="text-sm text-slate-500 font-bold group-hover:text-[#655ac1] transition-colors">
@@ -1272,7 +1275,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                         onClick={() => setIsScheduleEditMode(true)}
                         className="h-10 inline-flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:border-[#655ac1] text-sm font-bold text-slate-700 transition-all"
                       >
-                        <Edit3 size={16} className="text-[#655ac1]" /> تعديل
+                        <Edit3 size={16} className="text-slate-500" /> تعديل
                       </button>
                     )}
                  </div>

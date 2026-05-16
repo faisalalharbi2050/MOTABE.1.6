@@ -171,6 +171,7 @@ export interface BreakInfo {
   duration: number;
   afterPeriod: number;
   targetPhases?: Phase[];
+  isActivity?: boolean;
 }
 
 export interface PrayerInfo {
