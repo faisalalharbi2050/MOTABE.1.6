@@ -3,7 +3,7 @@ import { Phase, Subject, SchoolInfo, ScheduleSettingsData } from '../../../types
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import {
-  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, FileSliders, ClipboardCheck, Settings2
+  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, FileSliders, ClipboardCheck, Settings2, RotateCcw
 } from 'lucide-react';
 import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
@@ -200,6 +200,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       }
       const names = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس'];
       return `الصف ${names[grade - 1] || grade}`;
+  };
+
+  const getGradeDisplayName = (phase: Phase, grade: number) => {
+      if (phase === Phase.KINDERGARTEN) return getGradeName(phase, grade);
+      const base = getGradeName(phase, grade);
+      if (phase === Phase.ELEMENTARY) return `${base} الابتدائي`;
+      if (phase === Phase.MIDDLE) return `${base} المتوسط`;
+      if (phase === Phase.HIGH) return `${base} الثانوي`;
+      return base;
   };
 
   // --- Actions ---
@@ -511,6 +520,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [constraintCopyDone, setConstraintCopyDone] = useState(false);
   const [selectedManualGrade, setSelectedManualGrade] = useState<number>(1);
   const [deleteSubjectCandidate, setDeleteSubjectCandidate] = useState<string | null>(null);
+  const [excludedReadySubjects, setExcludedReadySubjects] = useState<Record<string, string[]>>({});
+  const [deleteUndoNotice, setDeleteUndoNotice] = useState<{ gradeKey: string; subjectId: string; name: string } | null>(null);
   const [showPrintChooser, setShowPrintChooser] = useState(false);
   const [selectedPrintKeys, setSelectedPrintKeys] = useState<string[]>([]);
   const [printScope, setPrintScope] = useState<'all' | 'selected' | null>(null);
@@ -744,6 +755,10 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const selectedApprovedSubjects = subjects.filter(subject => selectedApprovedIds.includes(subject.id));
   const selectedTemplateIds = new Set(selectedTemplateSubjects.map(subject => subject.id));
   const selectedExtraSubjects = selectedApprovedSubjects.filter(subject => !selectedTemplateIds.has(subject.id));
+  const excludedSelectedReadyIds = excludedReadySubjects[selectedGradeKey] || [];
+  const visibleSelectedApprovedSubjects = selectedApprovedSubjects.filter(subject => !excludedSelectedReadyIds.includes(subject.id));
+  const visibleSelectedTemplateSubjects = selectedTemplateSubjects.filter(subject => !excludedSelectedReadyIds.includes(subject.id));
+  const deletedSelectedReadySubjects = selectedTemplateSubjects.filter(subject => excludedSelectedReadyIds.includes(subject.id));
   const selectedDepartmentPlanKeys = selectedDepartment?.subDepartments?.length
     ? selectedDepartment.subDepartments.flatMap(sub => sub.plans.map(plan => plan.key))
     : selectedDepartment?.plans.map(plan => plan.key) || [];
@@ -759,9 +774,9 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const selectedPlanSubjects = planMode === 'custom'
     ? subjects.filter(subject => subject.customPlanName === activeCustomPlanName && ((subject as any).customPlanSchoolId || 'main') === activeSchoolId)
     : isSelectedPlanApproved
-      ? selectedApprovedSubjects
+      ? visibleSelectedApprovedSubjects
       : [
-        ...selectedTemplateSubjects.map(subject => ({
+        ...visibleSelectedTemplateSubjects.map(subject => ({
           ...subject,
           periodsPerClass: planPeriodOverrides[subject.id] ?? subject.periodsPerClass
         })),
@@ -783,7 +798,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
         const legacyKey = `${selectedPhase}-${grade}`;
         const subjectIds = gradeSubjectMap[gradeKey] || (activeSchoolId === 'main' ? gradeSubjectMap[legacyKey] : []) || [];
         const targetSubject = subjects.find(subject => subjectIds.includes(subject.id) && subject.name === constraintSubject.name);
-        return targetSubject ? { grade, label: getGradeName(selectedPhase, grade), subjectId: targetSubject.id } : null;
+        return targetSubject ? { grade, label: getGradeDisplayName(selectedPhase, grade), subjectId: targetSubject.id } : null;
       })
       .filter(Boolean) as Array<{ grade: number; label: string; subjectId: string }>;
   }, [constraintSubject, selectedStagePlanGrades, selectedGrade, activeSchoolId, selectedPhase, gradeSubjectMap, subjects]);
@@ -1082,13 +1097,47 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       setSubjects(prev => prev.filter(subject => subject.id !== subjectId));
       return;
     }
+    const subjectName = selectedPlanSubjects.find(subject => subject.id === subjectId)?.name
+      || selectedTemplateSubjects.find(subject => subject.id === subjectId)?.name
+      || subjects.find(subject => subject.id === subjectId)?.name
+      || 'المادة';
     setGradeSubjectMap(prev => ({
       ...prev,
       [selectedGradeKey]: (prev[selectedGradeKey] || []).filter(id => id !== subjectId)
     }));
     if (subjectId.startsWith('custom-')) {
       setSubjects(prev => prev.filter(subject => subject.id !== subjectId));
+      return;
     }
+    setExcludedReadySubjects(prev => ({
+      ...prev,
+      [selectedGradeKey]: [...new Set([...(prev[selectedGradeKey] || []), subjectId])]
+    }));
+    setDeleteUndoNotice({ gradeKey: selectedGradeKey, subjectId, name: subjectName });
+  };
+
+  const restoreReadySubject = (gradeKey: string, subjectId: string) => {
+    setExcludedReadySubjects(prev => ({
+      ...prev,
+      [gradeKey]: (prev[gradeKey] || []).filter(id => id !== subjectId)
+    }));
+    setGradeSubjectMap(prev => ({
+      ...prev,
+      [gradeKey]: [...new Set([...(prev[gradeKey] || []), subjectId])]
+    }));
+    setDeleteUndoNotice(null);
+  };
+
+  const restoreAllReadySubjects = () => {
+    const subjectIds = excludedReadySubjects[selectedGradeKey] || [];
+    setExcludedReadySubjects(prev => ({ ...prev, [selectedGradeKey]: [] }));
+    if (subjectIds.length > 0) {
+      setGradeSubjectMap(prev => ({
+        ...prev,
+        [selectedGradeKey]: [...new Set([...(prev[selectedGradeKey] || []), ...subjectIds])]
+      }));
+    }
+    setDeleteUndoNotice(null);
   };
 
   const handleDeleteCurrentCustomPlan = () => {
@@ -1184,7 +1233,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       <style>${printableTableStyles}</style>
       </head><body>
       <h2>${getPhaseLabel(selectedPhase)} - ${selectedDepartment?.name || ''}</h2>
-      ${buildPrintablePlanTable(planMode === 'custom' ? (activeCustomPlanName || 'خطة مخصصة') : `${getGradeName(selectedPhase, selectedGrade)} ${selectedPlanLabel ? `- ${selectedPlanLabel}` : ''}`, selectedPlanSubjects)}
+      ${buildPrintablePlanTable(planMode === 'custom' ? (activeCustomPlanName || 'خطة مخصصة') : `${getGradeDisplayName(selectedPhase, selectedGrade)} ${selectedPlanLabel ? `- ${selectedPlanLabel}` : ''}`, selectedPlanSubjects)}
       </body></html>
     `);
     printWindow.document.close();
@@ -1560,7 +1609,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   ? (activeCustomPlanName || 'خطة مخصصة')
                   : (
                     <>
-                      {getGradeName(selectedPhase, selectedGrade)}
+                      {getGradeDisplayName(selectedPhase, selectedGrade)}
                       {selectedPhase === Phase.HIGH && selectedPathLabel ? ` - ${selectedPathLabel.includes('مسار') ? selectedPathLabel : `مسار ${selectedPathLabel}`}` : ''}
                     </>
                   )}
@@ -1660,6 +1709,35 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 )}
               </table>
             </div>
+
+            {deletedSelectedReadySubjects.length > 0 && (
+              <div className="mx-5 mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-700">المواد المحذوفة</h3>
+                    <p className="text-xs font-bold text-slate-500 mt-1">يمكنك استعادة المواد المحذوفة من الخطة الجاهزة.</p>
+                  </div>
+                  <button
+                    onClick={restoreAllReadySubjects}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-[#655ac1] hover:border-[#655ac1]/50 hover:bg-[#655ac1]/5 transition-colors"
+                  >
+                    استعادة الكل
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {deletedSelectedReadySubjects.map(subject => (
+                    <button
+                      key={subject.id}
+                      onClick={() => restoreReadySubject(selectedGradeKey, subject.id)}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-slate-600 hover:text-[#655ac1] hover:border-[#655ac1]/50 transition-colors"
+                    >
+                      <RotateCcw size={13} />
+                      {subject.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
         )}
@@ -1816,6 +1894,31 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
         })}
       </div>
 
+      {deleteUndoNotice && (
+        <div className="fixed bottom-5 left-1/2 z-[9999] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl shadow-slate-900/10">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-black text-slate-800">تم حذف المادة</div>
+              <div className="mt-0.5 truncate text-xs font-bold text-slate-500">{deleteUndoNotice.name}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => restoreReadySubject(deleteUndoNotice.gradeKey, deleteUndoNotice.subjectId)}
+                className="rounded-xl bg-[#655ac1] px-3 py-2 text-xs font-black text-white hover:bg-[#5046a0] transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={() => setDeleteUndoNotice(null)}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-500 hover:bg-slate-50 transition-colors"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       {confirmAddCustomSubject && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
@@ -1826,7 +1929,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 <div>
                   <h2 className="text-xl font-black text-slate-800 mb-2">هل تريد إضافة مادة ؟</h2>
                   <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                    سيتم إضافة مادة جديدة إلى خطة {planMode === 'custom' ? (addSubjectTargetPlanName || activeCustomPlanName || 'مخصصة') : getGradeName(selectedPhase, selectedGrade)} ويمكنك التعديل مباشرة بعد الإضافة.
+                    سيتم إضافة مادة جديدة إلى خطة {planMode === 'custom' ? (addSubjectTargetPlanName || activeCustomPlanName || 'مخصصة') : getGradeDisplayName(selectedPhase, selectedGrade)} ويمكنك التعديل مباشرة بعد الإضافة.
                   </p>
                 </div>
               </div>
@@ -2009,7 +2112,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                           <tr>
                             <td className="px-4 py-3 text-sm font-black text-slate-800 align-middle">{constraintSubject.name}</td>
                             <td className="px-4 py-3 text-sm font-bold text-slate-600 align-middle">
-                              {isConstraintForCustomPlan ? constraintSubject.customPlanName : getGradeName(selectedPhase, selectedGrade)}
+                              {isConstraintForCustomPlan ? constraintSubject.customPlanName : getGradeDisplayName(selectedPhase, selectedGrade)}
                             </td>
                             <td className="px-4 py-3 text-center text-sm font-black text-slate-700 align-middle">{constraintSubject.periodsPerClass || 0} حصة / أسبوعيًا</td>
                             {!isConstraintForCustomPlan && (
