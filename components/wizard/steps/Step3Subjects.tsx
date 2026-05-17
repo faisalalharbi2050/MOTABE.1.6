@@ -2619,6 +2619,12 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
     value: subject.name,
     label: subject.name
   }));
+  const formatConstraintWarning = (message: string) => {
+    if (message.includes('التتابع مفعّل') && message.includes('فردي')) {
+      return 'عدد حصص هذه المادة فردي، لذلك لا يمكن تفعيل تتابع الحصص لها بشكل صحيح وقد لا يتم تطبيق التتابع كما تتوقع عند إنشاء الجدول.';
+    }
+    return message;
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -2750,7 +2756,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="rounded-xl border border-slate-300 bg-white px-4 py-3">
                           <div className="text-[10px] font-black text-slate-400 mb-1">ظهور المادة</div>
-                          <div className="text-lg font-black text-[#655ac1]">{formatRowsCount(selectedPlacements.length)}</div>
+                          <div className="text-sm font-black text-[#655ac1]">{formatRowsCount(selectedPlacements.length)}</div>
                         </div>
                         <div className="rounded-xl border border-slate-300 bg-white px-4 py-3">
                           <div className="text-[10px] font-black text-slate-400 mb-1">عدد الحصص</div>
@@ -2775,7 +2781,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                   <>
                     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
                         <div className="flex items-center gap-2 text-sm font-black text-slate-700">
-                            <Layers size={17} className="text-[#655ac1]" />
+                            <CheckCircle2 size={17} className="text-[#655ac1]" />
                             التطبيق على صفوف المرحلة
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2784,8 +2790,8 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                               onClick={() => { setApplyScope('all'); setSaved(false); }}
                               className={`rounded-xl border px-4 py-3 text-center font-black text-sm transition-all ${
                                 applyScope === 'all'
-                                  ? 'border-[#3b2f90] bg-[#3b2f90] text-white'
-                                  : 'border-slate-300 bg-white text-slate-500 hover:border-[#3b2f90]'
+                                  ? 'border-[#655ac1] bg-[#655ac1] text-white'
+                                  : 'border-slate-300 bg-white text-slate-500 hover:border-[#655ac1]'
                               }`}
                             >
                               جميع صفوف المرحلة
@@ -2795,8 +2801,8 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                               onClick={() => { setApplyScope('selected'); setSaved(false); }}
                               className={`rounded-xl border px-4 py-3 text-center font-black text-sm transition-all ${
                                 applyScope === 'selected'
-                                  ? 'border-[#3b2f90] bg-[#3b2f90] text-white'
-                                  : 'border-slate-300 bg-white text-slate-500 hover:border-[#3b2f90]'
+                                  ? 'border-[#655ac1] bg-[#655ac1] text-white'
+                                  : 'border-slate-300 bg-white text-slate-500 hover:border-[#655ac1]'
                               }`}
                             >
                               صفوف محددة
@@ -2910,7 +2916,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                             </div>
                             {warnings.map((warning, index) => (
                                 <div key={index} className="text-[11px] font-medium text-amber-700 leading-snug">
-                                    - {warning.message}
+                                    - {formatConstraintWarning(warning.message)}
                                 </div>
                             ))}
                         </div>
