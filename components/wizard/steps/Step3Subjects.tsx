@@ -3,7 +3,7 @@ import { Phase, Subject, SchoolInfo, ScheduleSettingsData } from '../../../types
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import {
-  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, ClipboardCheck, Settings2, RotateCcw
+  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, ClipboardCheck, Settings2, RotateCcw, Lightbulb
 } from 'lucide-react';
 import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
@@ -1515,38 +1515,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     </button>
                   )
                 )}
-                <button
-                  onClick={() => {
-                    if (planMode === 'custom') {
-                      handlePrintSelectedPlan();
-                      return;
-                    }
-                    setSelectedPrintKeys(selectedPlanKey ? [selectedPlanKey] : []);
-                    setPrintScope(null);
-                    setShowPrintChooser(true);
-                  }}
-                  disabled={selectedPlanSubjects.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all disabled:opacity-40"
-                >
-                  <Printer size={16} />
-                  <span>طباعة</span>
-                </button>
-                <button
-                  onClick={() => { setAddSubjectTargetPlanName(null); setConfirmAddCustomSubject(true); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
-                >
-                  <Plus size={16} />
-                  <span>إضافة مادة</span>
-                </button>
-                <button
-                  onClick={() => setShowConstraintsModal(true)}
-                  disabled={!setScheduleSettings || selectedPlanSubjects.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40"
-                  title="إدارة قيود المواد لكل مادة من نافذة واحدة"
-                >
-                  <Settings2 size={16} />
-                  <span>قيود المواد</span>
-                </button>
                 {planMode !== 'custom' && isSelectedStageApproved && (
                   <button
                     onClick={handleUnapproveSelectedPlan}
@@ -1598,35 +1566,67 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   </div>
                 )}
 
-                <div className="flex gap-2 flex-wrap">
-                  {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {
-                    const isActive = selectedDepartment?.subDepartments?.length
-                      ? selectedSubDepartmentId === group.id
-                      : group.plans.some(plan => plan.key === selectedPlanKey);
-                    return (
-                      <button
-                        key={group.id}
-                        onClick={() => {
-                          if (selectedDepartment?.subDepartments?.length) {
-                            setSelectedSubDepartmentId(group.id);
-                            const nextPlan = (planHasSemesterChoices
-                              ? group.plans.find(plan => getPlanSemester(plan) === selectedSemesterFilter)
-                              : group.plans[0]);
-                            setSelectedPlanKey(nextPlan?.key || '');
-                          } else {
-                            setSelectedPlanKey(group.plans[0]?.key || '');
-                          }
-                        }}
-                        className={`px-4 py-2.5 rounded-xl border text-xs font-black transition-all ${
-                          isActive
-                            ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
-                        }`}
-                      >
-                        {group.label}
-                      </button>
-                    );
-                  })}
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex gap-2 flex-wrap">
+                    {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {
+                      const isActive = selectedDepartment?.subDepartments?.length
+                        ? selectedSubDepartmentId === group.id
+                        : group.plans.some(plan => plan.key === selectedPlanKey);
+                      return (
+                        <button
+                          key={group.id}
+                          onClick={() => {
+                            if (selectedDepartment?.subDepartments?.length) {
+                              setSelectedSubDepartmentId(group.id);
+                              const nextPlan = (planHasSemesterChoices
+                                ? group.plans.find(plan => getPlanSemester(plan) === selectedSemesterFilter)
+                                : group.plans[0]);
+                              setSelectedPlanKey(nextPlan?.key || '');
+                            } else {
+                              setSelectedPlanKey(group.plans[0]?.key || '');
+                            }
+                          }}
+                          className={`px-4 py-2.5 rounded-xl border text-xs font-black transition-all ${
+                            isActive
+                              ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                          }`}
+                        >
+                          {group.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2 flex-wrap lg:justify-end">
+                    <button
+                      onClick={() => {
+                        setSelectedPrintKeys(selectedPlanKey ? [selectedPlanKey] : []);
+                        setPrintScope(null);
+                        setShowPrintChooser(true);
+                      }}
+                      disabled={selectedPlanSubjects.length === 0}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all disabled:opacity-40"
+                    >
+                      <Printer size={16} />
+                      <span>طباعة</span>
+                    </button>
+                    <button
+                      onClick={() => { setAddSubjectTargetPlanName(null); setConfirmAddCustomSubject(true); }}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
+                    >
+                      <Plus size={16} />
+                      <span>إضافة مادة</span>
+                    </button>
+                    <button
+                      onClick={() => setShowConstraintsModal(true)}
+                      disabled={!setScheduleSettings || selectedPlanSubjects.length === 0}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40"
+                      title="إدارة قيود المواد لكل مادة من نافذة واحدة"
+                    >
+                      <Settings2 size={16} />
+                      <span>قيود المواد</span>
+                    </button>
+                  </div>
                 </div>
 
                 {selectedDepartment?.subDepartments?.length && visiblePlanNavigation.length > 1 && (
@@ -2605,6 +2605,16 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
 
   const selectedSubjectExample = selectedPlacements[0] || null;
   const periodCounts = [...new Set(selectedPlacements.map(placement => placement.periodsPerClass))].filter(Boolean).sort((a, b) => a - b);
+  const formatRowsCount = (count: number) => {
+    if (count === 1) return 'صف واحد';
+    if (count === 2) return 'صفين';
+    if (count >= 3 && count <= 10) return `${count} صفوف`;
+    return `${count} صف`;
+  };
+  const formatLessonsCount = (count: number) => `${count} ${count === 1 ? 'حصة' : 'حصص'}`;
+  const formatPeriodCounts = (counts: number[]) => counts.length > 1
+    ? `${counts.join(' - ')} حصص`
+    : formatLessonsCount(counts[0] || 0);
   const subjectOptions = uniqueSubjects.map(subject => ({
     value: subject.name,
     label: subject.name
@@ -2696,8 +2706,9 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
         }))
       ]
     };
-    return validateAllConstraints(previewSettings, subjects, [], weekDays, periodsPerDay, schoolInfo.timing?.activeDays || [], 1)
+    const relatedWarnings = validateAllConstraints(previewSettings, subjects, [], weekDays, periodsPerDay, schoolInfo.timing?.activeDays || [], 1)
       .filter(w => w.relatedId && targetSubjectIds.includes(w.relatedId));
+    return Array.from(new Map(relatedWarnings.map(w => [w.message, w])).values());
   }, [selectedSubjectName, targetPlacements.map(placement => placement.subjectId).join('|'), draftConstraint, scheduleSettings, subjects, weekDays, periodsPerDay, schoolInfo]);
 
   if (!isOpen) return null;
@@ -2717,9 +2728,9 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                 </div>
                 <button
                   onClick={onClose}
-                  className="w-10 h-10 rounded-full border border-slate-300 bg-white hover:bg-slate-100 text-slate-400 transition-colors flex items-center justify-center"
+                  className="w-9 h-9 rounded-full border border-slate-300 bg-white hover:bg-slate-100 text-slate-400 transition-colors flex items-center justify-center"
                 >
-                    <X size={22} />
+                    <X size={18} />
                 </button>
             </div>
 
@@ -2737,24 +2748,25 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
 
                     {selectedSubjectExample && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                        <div className="rounded-xl border border-slate-300 bg-white px-4 py-3">
                           <div className="text-[10px] font-black text-slate-400 mb-1">ظهور المادة</div>
-                          <div className="text-lg font-black text-slate-700">{selectedPlacements.length} صف / خطة</div>
+                          <div className="text-lg font-black text-[#655ac1]">{formatRowsCount(selectedPlacements.length)}</div>
                         </div>
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                        <div className="rounded-xl border border-slate-300 bg-white px-4 py-3">
                           <div className="text-[10px] font-black text-slate-400 mb-1">عدد الحصص</div>
-                          <div className="text-sm font-black text-slate-700">{periodCounts.length > 1 ? periodCounts.join('، ') : (periodCounts[0] || 0)} حصة</div>
+                          <div className="text-sm font-black text-[#655ac1]">{formatPeriodCounts(periodCounts)}</div>
                         </div>
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                          <div className="text-[10px] font-black text-slate-400 mb-1">النطاق الحالي</div>
-                          <div className="text-sm font-black text-[#655ac1]">{targetPlacements.length} صف</div>
+                        <div className="rounded-xl border border-slate-300 bg-white px-4 py-3">
+                          <div className="text-[10px] font-black text-slate-400 mb-1">نطاق تطبيق القيود</div>
+                          <div className="text-sm font-black text-[#655ac1]">{formatRowsCount(targetPlacements.length)}</div>
                         </div>
                       </div>
                     )}
 
                     {periodCounts.length > 1 && (
-                      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-[11px] font-bold text-amber-700 leading-relaxed">
-                        توجد صفوف بعدد حصص مختلف لهذه المادة. يمكن تطبيق نفس القيود، لكن القيود الشديدة قد تقلل مرونة الجدولة.
+                      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-[11px] font-bold text-amber-700 leading-relaxed flex items-start gap-2">
+                        <Lightbulb size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                        <span>توجد صفوف بعدد حصص مختلفة لهذه المادة ، ويمكنك تطبيق نفس القيود لكن كثرة القيود قد يتعذر بسببها إنشاء الجدول</span>
                       </div>
                     )}
                 </div>
@@ -2764,32 +2776,30 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
                         <div className="flex items-center gap-2 text-sm font-black text-slate-700">
                             <Layers size={17} className="text-[#655ac1]" />
-                            نطاق التطبيق
+                            التطبيق على صفوف المرحلة
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button
                               type="button"
                               onClick={() => { setApplyScope('all'); setSaved(false); }}
-                              className={`rounded-xl border px-4 py-3 text-right transition-all ${
+                              className={`rounded-xl border px-4 py-3 text-center font-black text-sm transition-all ${
                                 applyScope === 'all'
-                                  ? 'border-[#655ac1] bg-[#655ac1]/5 text-[#655ac1]'
-                                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
+                                  ? 'border-[#3b2f90] bg-[#3b2f90] text-white'
+                                  : 'border-slate-300 bg-white text-slate-500 hover:border-[#3b2f90]'
                               }`}
                             >
-                              <span className="block text-sm font-black">كل الصفوف التي تحتوي هذه المادة</span>
-                              <span className="block text-[11px] font-bold text-slate-400 mt-1">تطبيق القيود على جميع الصفوف الظاهرة في هذا المسار.</span>
+                              جميع صفوف المرحلة
                             </button>
                             <button
                               type="button"
                               onClick={() => { setApplyScope('selected'); setSaved(false); }}
-                              className={`rounded-xl border px-4 py-3 text-right transition-all ${
+                              className={`rounded-xl border px-4 py-3 text-center font-black text-sm transition-all ${
                                 applyScope === 'selected'
-                                  ? 'border-[#655ac1] bg-[#655ac1]/5 text-[#655ac1]'
-                                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
+                                  ? 'border-[#3b2f90] bg-[#3b2f90] text-white'
+                                  : 'border-slate-300 bg-white text-slate-500 hover:border-[#3b2f90]'
                               }`}
                             >
-                              <span className="block text-sm font-black">صفوف محددة</span>
-                              <span className="block text-[11px] font-bold text-slate-400 mt-1">اختر الصفوف التي تريد تطبيق القيود عليها فقط.</span>
+                              صفوف محددة
                             </button>
                         </div>
 
@@ -2802,14 +2812,21 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                                   key={placement.key}
                                   type="button"
                                   onClick={() => togglePlacement(placement.key)}
-                                  className={`rounded-xl border px-3 py-2 text-right transition-all ${
+                                  className={`rounded-xl border px-3 py-2 text-right transition-all flex items-center justify-between gap-3 ${
                                     checked
-                                      ? 'bg-[#655ac1]/5 border-[#655ac1]/40 text-[#655ac1]'
-                                      : 'bg-white border-slate-200 text-slate-500 hover:border-[#655ac1]/30'
+                                      ? 'bg-white border-[#655ac1]/50 text-[#655ac1]'
+                                      : 'bg-white border-slate-300 text-slate-500 hover:border-[#655ac1]/40'
                                   }`}
                                 >
-                                  <span className="block text-xs font-black">{placement.label}</span>
-                                  <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{placement.periodsPerClass} حصة أسبوعيًا</span>
+                                  <span>
+                                    <span className="block text-xs font-black">{placement.label}</span>
+                                    <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{formatLessonsCount(placement.periodsPerClass)} أسبوعيًا</span>
+                                  </span>
+                                  <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                                    checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                  }`}>
+                                    <Check size={12} strokeWidth={3} />
+                                  </span>
                                 </button>
                               );
                             })}
@@ -2823,7 +2840,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                                 <Ban size={17} className="text-rose-500" />
                                 الحصص المستثناة
                             </div>
-                            <span className="text-[10px] font-bold bg-rose-50 text-rose-500 px-2.5 py-1 rounded-full border border-rose-100">يمنع الجدولة فيها</span>
+                            <span className="text-[10px] font-bold bg-white text-rose-500 px-2.5 py-1 rounded-full border border-slate-300">يمنع إسناد حصص المادة فيها</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {periods.map(period => {
@@ -2845,10 +2862,10 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                     <div className="bg-white rounded-2xl border border-amber-100 p-5 shadow-sm">
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <div className="flex items-center gap-2 text-sm font-black text-slate-700">
-                                <Star size={17} className="text-amber-500" />
+                                <Star size={17} className="text-emerald-500" />
                                 الحصص المفضلة
                             </div>
-                            <span className="text-[10px] font-bold bg-amber-50 text-amber-500 px-2.5 py-1 rounded-full border border-amber-100">أولوية للجدولة</span>
+                            <span className="text-[10px] font-bold bg-white text-emerald-600 px-2.5 py-1 rounded-full border border-slate-300">أولوية إسناد حصص المادة فيها</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {periods.map(period => {
@@ -2858,7 +2875,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                                   key={period}
                                   type="button"
                                   onClick={() => togglePeriod(period, 'preferredPeriods')}
-                                  className={`w-11 h-11 rounded-xl text-sm font-black border transition-all ${isOn ? 'bg-amber-400 border-amber-400 text-white shadow-md shadow-amber-200' : 'bg-white border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-600'}`}
+                                  className={`w-11 h-11 rounded-xl text-sm font-black border transition-all ${isOn ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-200 hover:text-emerald-600'}`}
                                 >
                                   {period}
                                 </button>
@@ -2922,7 +2939,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                     }`}
                 >
                     {saved ? <Check size={18} /> : <Save size={18} />}
-                    {saved ? 'تم الحفظ' : `حفظ على ${targetPlacements.length || 0} صف`}
+                    {saved ? 'تم الحفظ' : 'حفظ'}
                 </button>
             </div>
         </div>
