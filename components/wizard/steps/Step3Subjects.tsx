@@ -1684,7 +1684,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   : (
                     <>
                       {getGradeDisplayName(selectedPhase, selectedGrade)}
-                      {selectedPhase === Phase.HIGH && selectedPathLabel ? ` - ${selectedPathLabel.includes('مسار') ? selectedPathLabel : `مسار ${selectedPathLabel}`}` : ''}
+                      {selectedPhase === Phase.HIGH && selectedDepartment?.id === 'الثانوية_العامة' && selectedPathLabel ? ` - ${selectedPathLabel.includes('مسار') ? selectedPathLabel : `مسار ${selectedPathLabel}`}` : ''}
                     </>
                   )}
               </div>
