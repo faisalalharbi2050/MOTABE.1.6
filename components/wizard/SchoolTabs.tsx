@@ -1,6 +1,6 @@
 import React from 'react';
-import { SchoolInfo, SharedSchool, Phase } from '../../types';
-import { School, Building2 } from 'lucide-react';
+import { SchoolInfo, Phase } from '../../types';
+import { School, Building2, Check } from 'lucide-react';
 
 interface SchoolTabsProps {
   schoolInfo: SchoolInfo;
@@ -11,75 +11,101 @@ interface SchoolTabsProps {
 
 const SchoolTabs: React.FC<SchoolTabsProps> = ({ schoolInfo, activeSchoolId, onTabChange, children }) => {
   const sharedSchools = schoolInfo?.sharedSchools || [];
+  const tabBaseClass = 'group relative flex min-w-[240px] items-start gap-3 overflow-hidden rounded-xl border px-4 py-3 pr-5 text-right text-sm font-bold transition-all active:scale-[0.98]';
+  const inactiveTabClass = 'border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:border-[#c8bff8] hover:shadow-sm';
+  const activeTabClass = 'border-slate-300 bg-white text-slate-800 shadow-md shadow-[#655ac1]/10';
+  const chipBaseClass = 'rounded-md border px-2 py-0.5 text-[10px] font-black whitespace-nowrap';
+  const inactiveChipClass = 'border-slate-200 bg-white text-slate-500';
+  const activeChipClass = inactiveChipClass;
 
   // If no shared schools AND no children, don't render anything
   if ((!sharedSchools || sharedSchools.length === 0) && !children) {
     return null;
   }
 
+  const renderPhaseChips = (
+    phases: Phase[] | undefined,
+    otherPhase?: string,
+    isActive = false
+  ) => (
+    <div className="flex max-w-[210px] flex-wrap items-center gap-1.5">
+      {(phases || []).map(p => (
+        <span key={p} className={`${chipBaseClass} ${isActive ? activeChipClass : inactiveChipClass}`}>
+          {p === Phase.OTHER && otherPhase ? otherPhase : p}
+        </span>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-100/50 rounded-xl border border-slate-200">
+    <div className="mb-6 flex flex-wrap gap-3">
       <button
         onClick={() => onTabChange('main')}
-        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
-          activeSchoolId === 'main'
-            ? 'bg-white text-primary border-primary/20 shadow-sm ring-1 ring-primary/10'
-            : 'text-slate-500 hover:text-slate-700 hover:bg-white/50 border-transparent hover:border-slate-200'
-        }`}
+        className={`${tabBaseClass} ${activeSchoolId === 'main' ? activeTabClass : inactiveTabClass}`}
       >
-        <div className={`p-2 rounded-lg ${activeSchoolId === 'main' ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'}`}>
-           <School size={18} />
+        {activeSchoolId === 'main' && (
+          <>
+            <span className="absolute right-0 top-0 h-full w-1.5 bg-[#655ac1]" />
+            <span className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
+              <Check size={12} strokeWidth={3.5} className="text-white" />
+            </span>
+          </>
+        )}
+        <School
+          size={22}
+          strokeWidth={1.9}
+          className="mt-0.5 shrink-0 text-[#655ac1]"
+        />
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <span className="max-w-[190px] truncate text-sm font-black text-slate-800 group-hover:text-[#655ac1]">
+            {schoolInfo?.schoolName || 'المدرسة الرئيسية'}
+          </span>
+          <div className="flex max-w-[210px] flex-wrap items-center gap-1.5">
+            <span className={`${chipBaseClass} ${activeSchoolId === 'main' ? activeChipClass : inactiveChipClass}`}>
+              أساسية
+            </span>
+            {renderPhaseChips(schoolInfo?.phases, schoolInfo?.otherPhase, activeSchoolId === 'main')}
+          </div>
         </div>
-        <div className="flex flex-col items-start gap-0.5">
-            <span>{schoolInfo?.schoolName || 'المدرسة الرئيسية'}</span>
-            <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium opacity-80">
-                {(schoolInfo?.phases || []).map(p => (
-                    <span key={p} className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">
-                        {p === Phase.OTHER && schoolInfo?.otherPhase ? schoolInfo.otherPhase : p}
-                    </span>
-                ))}
-                {(schoolInfo?.departments || []).map(d => (
-                    <span key={d} className="bg-slate-50 px-1.5 py-0.5 rounded text-slate-400 border border-slate-100 whitespace-nowrap">
-                        {d.endsWith('-other') && schoolInfo?.otherDepartment ? schoolInfo.otherDepartment : d.split('-').pop()}
-                    </span>
-                ))}
-            </div>
-        </div>
-        {activeSchoolId === 'main' && <span className="w-2 h-2 rounded-full bg-emerald-500"></span>}
       </button>
 
-      {sharedSchools.map((school) => (
-        <button
-          key={school.id}
-          onClick={() => onTabChange(school.id)}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all border ${
-            activeSchoolId === school.id
-              ? 'bg-white text-[#655ac1] border-[#c8bff8] shadow-sm ring-1 ring-[#e5e1fe]'
-              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50 border-transparent hover:border-slate-200'
-          }`}
-        >
-          <div className={`p-2 rounded-lg ${activeSchoolId === school.id ? 'bg-[#e5e1fe] text-[#655ac1]' : 'bg-slate-100 text-slate-400'}`}>
-             <Building2 size={18} />
-          </div>
-          <div className="flex flex-col items-start gap-0.5">
-             <span>{school.name}</span>
-             <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium opacity-80">
-                {(school.phases || []).map(p => (
-                    <span key={p} className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">
-                        {p === Phase.OTHER && school.otherPhase ? school.otherPhase : p}
-                    </span>
-                ))}
-                {(school.departments || []).map(d => (
-                    <span key={d} className="bg-slate-50 px-1.5 py-0.5 rounded text-slate-400 border border-slate-100 whitespace-nowrap">
-                        {d.endsWith('-other') && school.otherDepartment ? school.otherDepartment : d.split('-').pop()}
-                    </span>
-                ))}
-             </div>
-          </div>
-          {activeSchoolId === school.id && <span className="w-2 h-2 rounded-full bg-[#8779fb]"></span>}
-        </button>
-      ))}
-      
+      {sharedSchools.map((school) => {
+        const isActive = activeSchoolId === school.id;
+
+        return (
+          <button
+            key={school.id}
+            onClick={() => onTabChange(school.id)}
+            className={`${tabBaseClass} ${isActive ? activeTabClass : inactiveTabClass}`}
+          >
+            {isActive && (
+              <>
+                <span className="absolute right-0 top-0 h-full w-1.5 bg-[#655ac1]" />
+                <span className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
+                  <Check size={12} strokeWidth={3.5} className="text-white" />
+                </span>
+              </>
+            )}
+            <Building2
+              size={22}
+              strokeWidth={1.9}
+              className="mt-0.5 shrink-0 text-[#655ac1]"
+            />
+            <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+              <span className="max-w-[190px] truncate text-sm font-black text-slate-800 group-hover:text-[#655ac1]">
+                {school.name}
+              </span>
+              <div className="flex max-w-[210px] flex-wrap items-center gap-1.5">
+                <span className={`${chipBaseClass} ${isActive ? activeChipClass : inactiveChipClass}`}>
+                  مشتركة
+                </span>
+                {renderPhaseChips(school.phases, school.otherPhase, isActive)}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+
       {children}
     </div>
   );
