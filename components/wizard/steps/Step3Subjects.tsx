@@ -643,25 +643,25 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       .replace(/ - ظپظ،/g, ' - فصل أول')
       .replace(/ - ظپظ¢/g, ' - فصل ثاني');
 
+  const stripSemesterLabel = (label: string) =>
+    label
+      .replace(/ - فصل أول/g, '')
+      .replace(/ - فصل ثاني/g, '')
+      .replace(/ - ف1/g, '')
+      .replace(/ - ف2/g, '')
+      .replace(/ - ف١/g, '')
+      .replace(/ - ف٢/g, '')
+      .replace(/ - ظپطµظ„ ط£ظˆظ„/g, '')
+      .replace(/ - ظپطµظ„ ط«ط§ظ†ظٹ/g, '')
+      .replace(/ - ظپظ،/g, '')
+      .replace(/ - ظپظ¢/g, '')
+      .trim();
+
   const planHasSemesterChoices = useMemo(() => {
     return gradePlanGroups.some(group => group.plans.some(plan => getPlanSemester(plan)));
   }, [gradePlanGroups]);
 
   const visiblePlanNavigation = useMemo(() => {
-    const stripSemesterLabel = (label: string) =>
-      label
-        .replace(/ - فصل أول/g, '')
-        .replace(/ - فصل ثاني/g, '')
-        .replace(/ - ف1/g, '')
-        .replace(/ - ف2/g, '')
-        .replace(/ - ف١/g, '')
-        .replace(/ - ف٢/g, '')
-        .replace(/ - ظپطµظ„ ط£ظˆظ„/g, '')
-        .replace(/ - ظپطµظ„ ط«ط§ظ†ظٹ/g, '')
-        .replace(/ - ظپظ،/g, '')
-        .replace(/ - ظپظ¢/g, '')
-        .trim();
-
     const selectedGroup = selectedDepartment?.subDepartments?.length
       ? gradePlanGroups.find(group => group.id === selectedSubDepartmentId) || gradePlanGroups[0]
       : null;
@@ -786,16 +786,32 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const isSelectedCustomPlanApproved = planMode === 'custom' && selectedPlanSubjects.length > 0 && selectedPlanSubjects.every(subject => (subject as any).customPlanApproved === true);
   const constraintSubject = selectedPlanSubjects.find(subject => subject.id === constraintSubjectId) || subjects.find(subject => subject.id === constraintSubjectId) || null;
   const constraintScopeSubjects = useMemo(() => {
+    const mapCurrentSubjects = (label: string) => selectedPlanSubjects.map(subject => ({
+      ...subject,
+      constraintScopeLabel: label,
+      constraintGrade: selectedGrade,
+      constraintSemester: null,
+      constraintPathLabel: ''
+    }));
+
     if (planMode === 'custom') {
-      return selectedPlanSubjects.map(subject => ({
-        ...subject,
-        constraintScopeLabel: subject.customPlanName || activeCustomPlanName || 'خطة مخصصة'
-      }));
+      return mapCurrentSubjects(activeCustomPlanName || 'خطة مخصصة');
+    }
+
+    if (selectedPhase === Phase.HIGH && selectedDepartment?.id === 'الثانوية_العامة') {
+      const currentPlanMeta = selectablePlans.find(plan => plan.key === selectedPlanKey);
+      const currentPathLabel = currentPlanMeta?.label ? stripSemesterLabel(currentPlanMeta.label) : '';
+      const currentLabel = currentPathLabel
+        ? `${getGradeDisplayName(selectedPhase, selectedGrade)} - ${currentPathLabel}`
+        : getGradeDisplayName(selectedPhase, selectedGrade);
+      return mapCurrentSubjects(currentLabel);
     }
 
     return selectedDepartmentPlanKeys.flatMap(planKey => {
       const planSubjects = DETAILED_TEMPLATES[planKey] || [];
       const planMeta = selectablePlans.find(plan => plan.key === planKey);
+      const planSemester = planMeta ? getPlanSemester(planMeta) : null;
+      const planPathLabel = stripSemesterLabel(planMeta?.label || '');
       const grade = inferGradeFromPlanKey(planKey, planMeta?.label);
       const gradeLabel = getGradeDisplayName(selectedPhase, grade);
       const approvedIds = getSchoolGradeSubjectIds(activeSchoolId, selectedPhase, grade);
@@ -809,7 +825,12 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
         return {
           ...subject,
-          constraintScopeLabel: gradeLabel
+          constraintScopeLabel: selectedPhase === Phase.HIGH && selectedDepartment?.id === 'الثانوية_العامة' && planPathLabel
+            ? `${gradeLabel} - ${planPathLabel}`
+            : gradeLabel,
+          constraintGrade: grade,
+          constraintSemester: planSemester,
+          constraintPathLabel: planPathLabel
         };
       });
     });
@@ -817,9 +838,13 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     planMode,
     selectedPlanSubjects,
     activeCustomPlanName,
+    selectedPlanKey,
+    selectedGrade,
     selectedDepartmentPlanKeys,
+    selectedDepartment,
     selectablePlans,
     selectedPhase,
+    selectedManualGrade,
     activeSchoolId,
     gradeSubjectMap,
     subjects,
@@ -2342,6 +2367,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           schoolInfo={schoolInfo}
           activeSchoolId={activeSchoolId}
           scopedSubjects={constraintScopeSubjects}
+          hideApplyScope={planMode === 'ready' && selectedPhase === Phase.HIGH && selectedDepartment?.id === 'الثانوية_العامة'}
         />
       )}
 
@@ -2550,11 +2576,17 @@ interface SubjectConstraintsModalProps {
   setScheduleSettings: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
   schoolInfo: SchoolInfo;
   activeSchoolId: string;
-  scopedSubjects: Array<Subject & { constraintScopeLabel?: string }>;
+  scopedSubjects: Array<Subject & {
+    constraintScopeLabel?: string;
+    constraintGrade?: number;
+    constraintSemester?: '1' | '2' | null;
+    constraintPathLabel?: string;
+  }>;
+  hideApplyScope?: boolean;
 }
 
 const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({ 
-  isOpen, onClose, subjects, scheduleSettings, setScheduleSettings, schoolInfo, scopedSubjects
+  isOpen, onClose, subjects, scheduleSettings, setScheduleSettings, schoolInfo, scopedSubjects, hideApplyScope = false
 }) => {
   const [selectedSubjectName, setSelectedSubjectName] = useState<string>('');
   const [applyScope, setApplyScope] = useState<'all' | 'selected'>('all');
@@ -2599,7 +2631,9 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
     [placements, selectedSubjectName]
   );
 
-  const targetPlacements = applyScope === 'all'
+  const targetPlacements = hideApplyScope
+    ? selectedPlacements.slice(0, 1)
+    : applyScope === 'all'
     ? selectedPlacements
     : selectedPlacements.filter(placement => selectedPlacementKeys.includes(placement.key));
 
@@ -2630,6 +2664,10 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
     if (!isOpen) return;
     if (!selectedSubjectName && uniqueSubjects.length > 0) {
       setSelectedSubjectName(uniqueSubjects[0].name);
+    }
+    if (uniqueSubjects.length === 0) {
+      setSelectedSubjectName('');
+      return;
     }
     if (selectedSubjectName && uniqueSubjects.length > 0 && !uniqueSubjects.some(subject => subject.name === selectedSubjectName)) {
       setSelectedSubjectName(uniqueSubjects[0].name);
@@ -2779,6 +2817,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
 
                 {selectedSubjectName ? (
                   <>
+                    {!hideApplyScope && (
                     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
                         <div className="flex items-center gap-2 text-sm font-black text-slate-700">
                             <CheckCircle2 size={17} className="text-[#655ac1]" />
@@ -2839,6 +2878,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                           </div>
                         )}
                     </div>
+                    )}
 
                     <div className="bg-white rounded-2xl border border-rose-100 p-5 shadow-sm">
                         <div className="flex items-center justify-between gap-3 mb-4">
