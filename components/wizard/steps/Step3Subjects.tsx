@@ -3,7 +3,7 @@ import { Phase, Subject, SchoolInfo, ScheduleSettingsData } from '../../../types
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import {
-  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, FileSliders, ClipboardCheck, Settings2, RotateCcw
+  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, ClipboardCheck, Settings2, RotateCcw
 } from 'lucide-react';
 import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
@@ -785,6 +785,46 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const selectedPlanTotal = selectedPlanSubjects.reduce((sum, subject) => sum + (subject.periodsPerClass || 0), 0);
   const isSelectedCustomPlanApproved = planMode === 'custom' && selectedPlanSubjects.length > 0 && selectedPlanSubjects.every(subject => (subject as any).customPlanApproved === true);
   const constraintSubject = selectedPlanSubjects.find(subject => subject.id === constraintSubjectId) || subjects.find(subject => subject.id === constraintSubjectId) || null;
+  const constraintScopeSubjects = useMemo(() => {
+    if (planMode === 'custom') {
+      return selectedPlanSubjects.map(subject => ({
+        ...subject,
+        constraintScopeLabel: subject.customPlanName || activeCustomPlanName || 'خطة مخصصة'
+      }));
+    }
+
+    return selectedDepartmentPlanKeys.flatMap(planKey => {
+      const planSubjects = DETAILED_TEMPLATES[planKey] || [];
+      const planMeta = selectablePlans.find(plan => plan.key === planKey);
+      const grade = inferGradeFromPlanKey(planKey, planMeta?.label);
+      const gradeLabel = getGradeDisplayName(selectedPhase, grade);
+      const approvedIds = getSchoolGradeSubjectIds(activeSchoolId, selectedPhase, grade);
+
+      return planSubjects.map(templateSubject => {
+        const approvedSubject = subjects.find(subject => approvedIds.includes(subject.id) && subject.name === templateSubject.name);
+        const subject = approvedSubject || {
+          ...templateSubject,
+          periodsPerClass: planPeriodOverrides[templateSubject.id] ?? templateSubject.periodsPerClass
+        };
+
+        return {
+          ...subject,
+          constraintScopeLabel: gradeLabel
+        };
+      });
+    });
+  }, [
+    planMode,
+    selectedPlanSubjects,
+    activeCustomPlanName,
+    selectedDepartmentPlanKeys,
+    selectablePlans,
+    selectedPhase,
+    activeSchoolId,
+    gradeSubjectMap,
+    subjects,
+    planPeriodOverrides
+  ]);
   const weekDays = schoolInfo.timing?.activeDays?.length || 5;
   const periodsPerDay = Math.max(...(Object.values(schoolInfo.timing?.periodCounts || { default: 7 }) as number[]));
   const periods = Array.from({ length: periodsPerDay }, (_, i) => i + 1);
@@ -1498,10 +1538,19 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   <Plus size={16} />
                   <span>إضافة مادة</span>
                 </button>
+                <button
+                  onClick={() => setShowConstraintsModal(true)}
+                  disabled={!setScheduleSettings || selectedPlanSubjects.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40"
+                  title="إدارة قيود المواد لكل مادة من نافذة واحدة"
+                >
+                  <Settings2 size={16} />
+                  <span>قيود المواد</span>
+                </button>
                 {planMode !== 'custom' && isSelectedStageApproved && (
                   <button
                     onClick={handleUnapproveSelectedPlan}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/20"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
                   >
                     <X size={16} />
                     <span>إلغاء الاعتماد</span>
@@ -1510,7 +1559,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 {planMode === 'custom' && isSelectedCustomPlanApproved && (
                   <button
                     onClick={handleUnapproveCustomPlan}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/20"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
                   >
                     <X size={16} />
                     <span>إلغاء الاعتماد</span>
@@ -1676,13 +1725,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                           <td className="px-3 py-3 text-center">
                             <div className="inline-flex items-center justify-center gap-1.5">
                               <button
-                                onClick={() => { setConstraintSubjectId(subject.id); setConstraintCopyGrades([]); }}
-                                className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-[#655ac1] hover:bg-[#ede9fe] hover:border-[#655ac1]/40 transition-colors"
-                                title="إعدادات المادة"
-                              >
-                                <Settings2 size={15} />
-                              </button>
-                              <button
                                 onClick={() => setDeleteSubjectCandidate(subject.id)}
                                 className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors"
                                 title="حذف من الصف"
@@ -1788,7 +1830,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   {isApproved && (
                     <button
                       onClick={() => handleUnapproveCustomPlanByName(planName)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-rose-500 text-white hover:bg-rose-600 shadow-md shadow-rose-500/20"
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
                     >
                       <X size={16} />
                       <span>إلغاء الاعتماد</span>
@@ -1856,14 +1898,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                           />
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <div className="inline-flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => { setConstraintSubjectId(subject.id); setConstraintCopyGrades([]); }}
-                              className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-[#655ac1] hover:bg-[#ede9fe] hover:border-[#655ac1]/40 transition-colors"
-                              title="إعدادات المادة"
-                            >
-                              <Settings2 size={15} />
-                            </button>
+                            <div className="inline-flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setDeleteSubjectCandidate(subject.id)}
                               className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors"
@@ -2305,6 +2340,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           scheduleSettings={scheduleSettings}
           setScheduleSettings={setScheduleSettings}
           schoolInfo={schoolInfo}
+          activeSchoolId={activeSchoolId}
+          scopedSubjects={constraintScopeSubjects}
         />
       )}
 
@@ -2512,309 +2549,365 @@ interface SubjectConstraintsModalProps {
   scheduleSettings: ScheduleSettingsData;
   setScheduleSettings: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
   schoolInfo: SchoolInfo;
+  activeSchoolId: string;
+  scopedSubjects: Array<Subject & { constraintScopeLabel?: string }>;
 }
 
 const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({ 
-  isOpen, onClose, subjects, gradeSubjectMap, scheduleSettings, setScheduleSettings, schoolInfo 
+  isOpen, onClose, subjects, scheduleSettings, setScheduleSettings, schoolInfo, scopedSubjects
 }) => {
-  const [selectedIdentifier, setSelectedIdentifier] = useState<string>(''); // combined key: "gradeKey|subjectId"
+  const [selectedSubjectName, setSelectedSubjectName] = useState<string>('');
+  const [applyScope, setApplyScope] = useState<'all' | 'selected'>('all');
+  const [selectedPlacementKeys, setSelectedPlacementKeys] = useState<string[]>([]);
+  const [draftConstraint, setDraftConstraint] = useState<SubjectConstraint>({
+    subjectId: '',
+    excludedPeriods: [],
+    preferredPeriods: [],
+    enableDoublePeriods: false
+  });
+  const [saved, setSaved] = useState(false);
 
-  if (!isOpen) return null;
-
-  // 1. Group Subjects by Name for Dropdown (Distinct Names only, from approved study plan)
-  const uniqueSubjects = useMemo(() => {
-    // Collect only subject IDs that appear in the approved gradeSubjectMap
-    const approvedIds = new Set<string>();
-    Object.values(gradeSubjectMap).forEach(ids => ids.forEach(id => approvedIds.add(id)));
-
-    const seen = new Set<string>();
-    const unique: { id: string; name: string; periodsPerClass: number }[] = [];
-
-    subjects
-      .filter(s => approvedIds.has(s.id))
-      .forEach(s => {
-        if (!seen.has(s.name)) {
-          seen.add(s.name);
-          unique.push({ id: s.id, name: s.name, periodsPerClass: s.periodsPerClass });
-        }
-      });
-
-    return unique.sort((a, b) => a.name.localeCompare(b.name));
-  }, [subjects, gradeSubjectMap]);
-
-
-  // Selected Subject Logic (By Name)
-  const selectedSubjectExample = useMemo(() => {
-    if (!selectedIdentifier) return null;
-    return subjects.find(s => s.name === selectedIdentifier) || null;
-  }, [selectedIdentifier, subjects]);
-
-  // Constraints Logic (Apply to ALL subjects with same name)
-  const constraints = scheduleSettings.subjectConstraints;
-  
-  // Get constraint from the *first* subject with this name (assuming uniformity)
-  // or find if any subject with this name has a constraint
-  const selectedConstraint = useMemo(() => {
-      if (!selectedIdentifier) return null;
-      // We look for a constraint matching ANY subject ID with this name.
-      // Since we want to apply to all, we essentially pick one to show.
-      // Better: find a constraint that matches one of the subjects.
-      const subjectsWithName = subjects.filter(s => s.name === selectedIdentifier);
-      const subjectIds = subjectsWithName.map(s => s.id);
-      
-      const found = constraints.find(c => subjectIds.includes(c.subjectId));
-      
-      // Default empty if none found
-      return found || { subjectId: subjectsWithName[0]?.id || '', excludedPeriods: [], preferredPeriods: [], enableDoublePeriods: false };
-  }, [selectedIdentifier, subjects, constraints]);
-
-
-  const updateConstraint = (updates: Partial<SubjectConstraint>) => {
-      if (!selectedIdentifier) return;
-      
-      const subjectsWithName = subjects.filter(s => s.name === selectedIdentifier);
-      const subjectIds = subjectsWithName.map(s => s.id);
-
-      setScheduleSettings(prev => {
-          const newConstraints = [...prev.subjectConstraints];
-          
-          subjectIds.forEach(id => {
-              const existingIndex = newConstraints.findIndex(c => c.subjectId === id);
-              if (existingIndex >= 0) {
-                  newConstraints[existingIndex] = { ...newConstraints[existingIndex], ...updates };
-              } else {
-                  newConstraints.push({ 
-                      subjectId: id, 
-                      excludedPeriods: [], 
-                      preferredPeriods: [], 
-                      enableDoublePeriods: false, 
-                      ...updates 
-                    });
-              }
-          });
-          
-          return { ...prev, subjectConstraints: newConstraints };
-      });
-  };
-
-  const togglePeriod = (period: number, field: 'excludedPeriods' | 'preferredPeriods') => {
-      if (!selectedIdentifier || !selectedConstraint) return;
-      const current = (selectedConstraint[field] || []) as number[];
-      const otherField = field === 'excludedPeriods' ? 'preferredPeriods' : 'excludedPeriods';
-      const otherList = (selectedConstraint[otherField] || []) as number[];
-
-      if (current.includes(period)) {
-          updateConstraint({ [field]: current.filter((p: number) => p !== period) });
-      } else {
-          updateConstraint({ [field]: [...current, period], [otherField]: otherList.filter((p: number) => p !== period) });
-      }
-  };
-
-  const toggleDoublePeriods = () => {
-      updateConstraint({ enableDoublePeriods: !selectedConstraint?.enableDoublePeriods });
-  };
-
-
-  // Periods Data
   const weekDays = schoolInfo.timing?.activeDays?.length || 5;
   const periodsPerDay = Math.max(...(Object.values(schoolInfo.timing?.periodCounts || { 'default': 7 }) as number[]));
   const periods = Array.from({ length: periodsPerDay }, (_, i) => i + 1);
 
-  // Warnings (Aggregate for all subjects with this name)
-  const warnings = useMemo(() => {
-     if (!selectedIdentifier || !scheduleSettings) return [];
-     const subjectsWithName = subjects.filter(s => s.name === selectedIdentifier);
-     const subjectIds = subjectsWithName.map(s => s.id);
-     
-     return validateAllConstraints(scheduleSettings, subjects, [], weekDays, periodsPerDay, schoolInfo.timing?.activeDays || [], 1)
-        .filter(w => w.relatedId && subjectIds.includes(w.relatedId));
-  }, [selectedIdentifier, scheduleSettings, subjects, weekDays, periodsPerDay, schoolInfo]);
+  const placements = useMemo(() => {
+    return scopedSubjects.map((subject, index) => ({
+      key: `${subject.constraintScopeLabel || 'scope'}|${subject.id}|${index}`,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      periodsPerClass: subject.periodsPerClass || 0,
+      label: subject.constraintScopeLabel || subject.customPlanName || 'الخطة الحالية'
+    })).sort((a, b) => a.subjectName.localeCompare(b.subjectName) || a.label.localeCompare(b.label));
+  }, [scopedSubjects]);
 
+  const uniqueSubjects = useMemo(() => {
+    const grouped = new Map<string, { name: string; count: number; totalPeriods: number }>();
+    placements.forEach(placement => {
+      const current = grouped.get(placement.subjectName) || { name: placement.subjectName, count: 0, totalPeriods: 0 };
+      grouped.set(placement.subjectName, {
+        ...current,
+        count: current.count + 1,
+        totalPeriods: current.totalPeriods + placement.periodsPerClass
+      });
+    });
+    return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [placements]);
+
+  const selectedPlacements = useMemo(
+    () => placements.filter(placement => placement.subjectName === selectedSubjectName),
+    [placements, selectedSubjectName]
+  );
+
+  const targetPlacements = applyScope === 'all'
+    ? selectedPlacements
+    : selectedPlacements.filter(placement => selectedPlacementKeys.includes(placement.key));
+
+  const selectedSubjectExample = selectedPlacements[0] || null;
+  const periodCounts = [...new Set(selectedPlacements.map(placement => placement.periodsPerClass))].filter(Boolean).sort((a, b) => a - b);
+  const subjectOptions = uniqueSubjects.map(subject => ({
+    value: subject.name,
+    label: subject.name
+  }));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!selectedSubjectName && uniqueSubjects.length > 0) {
+      setSelectedSubjectName(uniqueSubjects[0].name);
+    }
+    if (selectedSubjectName && uniqueSubjects.length > 0 && !uniqueSubjects.some(subject => subject.name === selectedSubjectName)) {
+      setSelectedSubjectName(uniqueSubjects[0].name);
+    }
+  }, [isOpen, selectedSubjectName, uniqueSubjects]);
+
+  useEffect(() => {
+    if (!selectedSubjectName || selectedPlacements.length === 0) return;
+    const subjectIds = selectedPlacements.map(placement => placement.subjectId);
+    const existing = scheduleSettings.subjectConstraints.find(item => subjectIds.includes(item.subjectId));
+    setDraftConstraint(existing
+      ? {
+        subjectId: existing.subjectId,
+        excludedPeriods: [...(existing.excludedPeriods || [])],
+        preferredPeriods: [...(existing.preferredPeriods || [])],
+        enableDoublePeriods: Boolean(existing.enableDoublePeriods)
+      }
+      : {
+        subjectId: selectedPlacements[0].subjectId,
+        excludedPeriods: [],
+        preferredPeriods: [],
+        enableDoublePeriods: false
+      }
+    );
+    setApplyScope('all');
+    setSelectedPlacementKeys(selectedPlacements.map(placement => placement.key));
+  }, [selectedSubjectName, selectedPlacements.map(placement => placement.key).join('|'), scheduleSettings.subjectConstraints]);
+
+  const togglePeriod = (period: number, field: 'excludedPeriods' | 'preferredPeriods') => {
+    const current = draftConstraint[field] || [];
+    const otherField = field === 'excludedPeriods' ? 'preferredPeriods' : 'excludedPeriods';
+    const otherList = draftConstraint[otherField] || [];
+    setDraftConstraint(prev => current.includes(period)
+      ? { ...prev, [field]: current.filter(item => item !== period) }
+      : { ...prev, [field]: [...current, period], [otherField]: otherList.filter(item => item !== period) }
+    );
+    setSaved(false);
+  };
+
+  const togglePlacement = (key: string) => {
+    setSelectedPlacementKeys(prev => prev.includes(key) ? prev.filter(item => item !== key) : [...prev, key]);
+    setSaved(false);
+  };
+
+  const handleSave = () => {
+    if (!selectedSubjectName || targetPlacements.length === 0) return;
+    const targetSubjectIds = [...new Set(targetPlacements.map(placement => placement.subjectId))];
+    setScheduleSettings(prev => {
+      const current = prev.subjectConstraints || [];
+      const next = [...current];
+      targetSubjectIds.forEach(subjectId => {
+        const index = next.findIndex(item => item.subjectId === subjectId);
+        const nextConstraint: SubjectConstraint = {
+          subjectId,
+          excludedPeriods: [...draftConstraint.excludedPeriods],
+          preferredPeriods: [...draftConstraint.preferredPeriods],
+          enableDoublePeriods: draftConstraint.enableDoublePeriods
+        };
+        if (index >= 0) next[index] = nextConstraint;
+        else next.push(nextConstraint);
+      });
+      return { ...prev, subjectConstraints: next };
+    });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1600);
+  };
+
+  const warnings = useMemo(() => {
+    if (!selectedSubjectName || targetPlacements.length === 0) return [];
+    const targetSubjectIds = targetPlacements.map(placement => placement.subjectId);
+    const previewSettings = {
+      ...scheduleSettings,
+      subjectConstraints: [
+        ...(scheduleSettings.subjectConstraints || []).filter(item => !targetSubjectIds.includes(item.subjectId)),
+        ...targetSubjectIds.map(subjectId => ({
+          subjectId,
+          excludedPeriods: draftConstraint.excludedPeriods,
+          preferredPeriods: draftConstraint.preferredPeriods,
+          enableDoublePeriods: draftConstraint.enableDoublePeriods
+        }))
+      ]
+    };
+    return validateAllConstraints(previewSettings, subjects, [], weekDays, periodsPerDay, schoolInfo.timing?.activeDays || [], 1)
+      .filter(w => w.relatedId && targetSubjectIds.includes(w.relatedId));
+  }, [selectedSubjectName, targetPlacements.map(placement => placement.subjectId).join('|'), draftConstraint, scheduleSettings, subjects, weekDays, periodsPerDay, schoolInfo]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-        <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <div>
-                    <h2 className="text-xl font-black text-slate-800">قيود المواد</h2>
-                    <p className="text-xs text-slate-400 font-bold mt-0.5">تخصيص الحصص المستثناة والمفضلة للمواد</p>
+        <div className="bg-slate-50 rounded-[2rem] w-full max-w-3xl max-h-[90vh] shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 flex items-center justify-center text-[#655ac1]">
+                        <Settings2 size={28} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800">قيود المواد</h2>
+                        <p className="text-xs text-slate-400 font-bold mt-0.5">اختر المواد ثم حدد قيودها ( استثناء حصص - تفضيل حصص - تتابع حصص ).</p>
+                    </div>
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="w-10 h-10 rounded-full border border-slate-300 bg-white hover:bg-slate-100 text-slate-400 transition-colors flex items-center justify-center"
                 >
                     <X size={22} />
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    
-                    {/* Left Column: Selection */}
-                    <div className="lg:col-span-4 space-y-6">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">اختر المادة</label>
-                            <div className="relative">
-                                <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                                <select 
-                                    value={selectedIdentifier}
-                                    onChange={(e) => setSelectedIdentifier(e.target.value)}
-                                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl px-4 py-3 pl-10 focus:outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-50 transition-all"
-                                >
-                                    <option value="">-- اختر مادة --</option>
-                                    {uniqueSubjects.map(sub => (
-                                        <option key={sub.id} value={sub.name}>
-                                            {sub.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <div>
+                        <label className="text-[11px] font-black text-slate-400 block mb-2">اختر المادة</label>
+                        <InlineSelect
+                          value={selectedSubjectName}
+                          onChange={value => { setSelectedSubjectName(value); setSaved(false); }}
+                          options={subjectOptions}
+                          placeholder="اختر مادة"
+                        />
+                    </div>
+
+                    {selectedSubjectExample && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                          <div className="text-[10px] font-black text-slate-400 mb-1">ظهور المادة</div>
+                          <div className="text-lg font-black text-slate-700">{selectedPlacements.length} صف / خطة</div>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                          <div className="text-[10px] font-black text-slate-400 mb-1">عدد الحصص</div>
+                          <div className="text-sm font-black text-slate-700">{periodCounts.length > 1 ? periodCounts.join('، ') : (periodCounts[0] || 0)} حصة</div>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                          <div className="text-[10px] font-black text-slate-400 mb-1">النطاق الحالي</div>
+                          <div className="text-sm font-black text-[#655ac1]">{targetPlacements.length} صف</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {periodCounts.length > 1 && (
+                      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-[11px] font-bold text-amber-700 leading-relaxed">
+                        توجد صفوف بعدد حصص مختلف لهذه المادة. يمكن تطبيق نفس القيود، لكن القيود الشديدة قد تقلل مرونة الجدولة.
+                      </div>
+                    )}
+                </div>
+
+                {selectedSubjectName ? (
+                  <>
+                    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                        <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                            <Layers size={17} className="text-[#655ac1]" />
+                            نطاق التطبيق
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => { setApplyScope('all'); setSaved(false); }}
+                              className={`rounded-xl border px-4 py-3 text-right transition-all ${
+                                applyScope === 'all'
+                                  ? 'border-[#655ac1] bg-[#655ac1]/5 text-[#655ac1]'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
+                              }`}
+                            >
+                              <span className="block text-sm font-black">كل الصفوف التي تحتوي هذه المادة</span>
+                              <span className="block text-[11px] font-bold text-slate-400 mt-1">تطبيق القيود على جميع الصفوف الظاهرة في هذا المسار.</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setApplyScope('selected'); setSaved(false); }}
+                              className={`rounded-xl border px-4 py-3 text-right transition-all ${
+                                applyScope === 'selected'
+                                  ? 'border-[#655ac1] bg-[#655ac1]/5 text-[#655ac1]'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
+                              }`}
+                            >
+                              <span className="block text-sm font-black">صفوف محددة</span>
+                              <span className="block text-[11px] font-bold text-slate-400 mt-1">اختر الصفوف التي تريد تطبيق القيود عليها فقط.</span>
+                            </button>
                         </div>
 
-                        {selectedSubjectExample && (
-                            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 mb-1">نصاب المادة (تقريبي)</div>
-                                    <div className="text-xl font-black text-slate-700 flex items-baseline gap-1">
-                                        {selectedSubjectExample.periodsPerClass}
-                                        <span className="text-xs font-bold text-slate-400">حصة / أسبوعياً</span>
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 mt-1">
-                                        * سيتم تطبيق القيود على جميع المواد المسماة ({selectedSubjectExample.name})
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold text-slate-400 mb-1">الحد اليومي</div>
-                                    <div className="text-base font-black text-slate-700">
-                                        {getMaxDailyPeriodsForSubject(selectedSubjectExample.periodsPerClass, weekDays)} حصة
-                                    </div>
-                                </div>
-                                <div className="pt-3 border-t border-slate-200">
-                                    <div className="text-[11px] font-bold text-slate-500 leading-relaxed">
-                                        {describeDistribution(selectedSubjectExample.periodsPerClass, weekDays)}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* Warnings List */}
-                        {warnings.length > 0 && (
-                            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 space-y-2">
-                                <div className="flex items-center gap-2 text-amber-600 font-bold text-xs mb-1">
-                                    <AlertTriangle size={14} /> تنبيهات
-                                </div>
-                                {warnings.map((w, idx) => (
-                                    <div key={idx} className="text-[11px] font-medium text-amber-700 leading-snug">
-                                        - {w.message}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                    </div>
-
-                    {/* Right Column: Settings */}
-                    <div className="lg:col-span-8">
-                        {!selectedIdentifier ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-3xl min-h-[300px]">
-                                <Ban size={48} className="mb-4 text-rose-400" />
-                                <p className="font-bold text-lg text-slate-400">اختر مادة أولاً</p>
-                                <p className="text-sm text-slate-400">لعرض وتعديل إعدادات القيود الخاصة بها</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                
-                                {/* Excluded Periods */}
-                                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                                     <div className="px-6 py-4 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
-                                         <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                                             <Ban size={18} className="text-rose-500" />
-                                             الحصص المستثناة
-                                         </h4>
-                                         <span className="text-[10px] font-bold bg-white text-rose-500 px-2.5 py-1 rounded-full border border-rose-100 shadow-sm">
-                                             يمنع الجدولة فيها
-                                         </span>
-                                     </div>
-                                     <div className="p-6">
-                                         <div className="flex flex-wrap gap-2">
-                                            {periods.map(p => {
-                                                const isExcluded = selectedConstraint?.excludedPeriods.includes(p);
-                                                return (
-                                                    <button 
-                                                        key={p} 
-                                                        onClick={() => togglePeriod(p, 'excludedPeriods')}
-                                                        className={`w-12 h-12 rounded-xl text-sm font-black transition-all duration-200 border-2 ${
-                                                            isExcluded 
-                                                              ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-200 scale-105' 
-                                                              : 'bg-white border-slate-100 text-slate-400 hover:border-rose-200 hover:text-rose-500'
-                                                        }`}
-                                                    >
-                                                        {p}
-                                                    </button>
-                                                );
-                                            })}
-                                         </div>
-                                     </div>
-                                </div>
-
-                                {/* Preferred Periods */}
-                                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                                     <div className="px-6 py-4 bg-amber-50/50 border-b border-amber-100 flex items-center justify-between">
-                                         <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                                             <Star size={18} className="text-amber-500" />
-                                             الحصص المفضلة
-                                         </h4>
-                                         <span className="text-[10px] font-bold bg-white text-amber-500 px-2.5 py-1 rounded-full border border-amber-100 shadow-sm">
-                                             أولوية للجدولة
-                                         </span>
-                                     </div>
-                                     <div className="p-6">
-                                         <div className="flex flex-wrap gap-2">
-                                            {periods.map(p => {
-                                                const isPreferred = selectedConstraint?.preferredPeriods.includes(p);
-                                                return (
-                                                    <button 
-                                                        key={p} 
-                                                        onClick={() => togglePeriod(p, 'preferredPeriods')}
-                                                        className={`w-12 h-12 rounded-xl text-sm font-black transition-all duration-200 border-2 ${
-                                                            isPreferred 
-                                                              ? 'bg-amber-400 border-amber-400 text-white shadow-lg shadow-amber-200 scale-105' 
-                                                              : 'bg-white border-slate-100 text-slate-400 hover:border-amber-200 hover:text-amber-500'
-                                                        }`}
-                                                    >
-                                                        {p}
-                                                    </button>
-                                                );
-                                            })}
-                                         </div>
-                                     </div>
-                                </div>
-
-                                {/* Double Periods */}
-                                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-3xl p-6 border border-indigo-100 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-1">
-                                            <Repeat size={18} className="text-indigo-500" />
-                                            تتابع الحصص
-                                        </h4>
-                                        <p className="text-sm text-slate-500">السماح بتدريس حصتين متتاليتين للمادة في نفس اليوم</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => toggleDoublePeriods()}
-                                        className={`w-16 h-9 rounded-full transition-all duration-300 relative shadow-inner ${selectedConstraint?.enableDoublePeriods ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                                    >
-                                        <div className={`absolute top-1 w-7 h-7 bg-white rounded-full shadow-md transition-all duration-300 ${selectedConstraint?.enableDoublePeriods ? 'right-1' : 'right-[calc(100%-2rem)]'}`} />
-                                    </button>
-                                </div>
-
-                            </div>
+                        {applyScope === 'selected' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {selectedPlacements.map(placement => {
+                              const checked = selectedPlacementKeys.includes(placement.key);
+                              return (
+                                <button
+                                  key={placement.key}
+                                  type="button"
+                                  onClick={() => togglePlacement(placement.key)}
+                                  className={`rounded-xl border px-3 py-2 text-right transition-all ${
+                                    checked
+                                      ? 'bg-[#655ac1]/5 border-[#655ac1]/40 text-[#655ac1]'
+                                      : 'bg-white border-slate-200 text-slate-500 hover:border-[#655ac1]/30'
+                                  }`}
+                                >
+                                  <span className="block text-xs font-black">{placement.label}</span>
+                                  <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{placement.periodsPerClass} حصة أسبوعيًا</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
                     </div>
-                </div>
+
+                    <div className="bg-white rounded-2xl border border-rose-100 p-5 shadow-sm">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                                <Ban size={17} className="text-rose-500" />
+                                الحصص المستثناة
+                            </div>
+                            <span className="text-[10px] font-bold bg-rose-50 text-rose-500 px-2.5 py-1 rounded-full border border-rose-100">يمنع الجدولة فيها</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {periods.map(period => {
+                              const isOn = draftConstraint.excludedPeriods.includes(period);
+                              return (
+                                <button
+                                  key={period}
+                                  type="button"
+                                  onClick={() => togglePeriod(period, 'excludedPeriods')}
+                                  className={`w-11 h-11 rounded-xl text-sm font-black border transition-all ${isOn ? 'bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-200' : 'bg-white border-slate-200 text-slate-400 hover:border-rose-200 hover:text-rose-500'}`}
+                                >
+                                  {period}
+                                </button>
+                              );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-amber-100 p-5 shadow-sm">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                                <Star size={17} className="text-amber-500" />
+                                الحصص المفضلة
+                            </div>
+                            <span className="text-[10px] font-bold bg-amber-50 text-amber-500 px-2.5 py-1 rounded-full border border-amber-100">أولوية للجدولة</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {periods.map(period => {
+                              const isOn = draftConstraint.preferredPeriods.includes(period);
+                              return (
+                                <button
+                                  key={period}
+                                  type="button"
+                                  onClick={() => togglePeriod(period, 'preferredPeriods')}
+                                  className={`w-11 h-11 rounded-xl text-sm font-black border transition-all ${isOn ? 'bg-amber-400 border-amber-400 text-white shadow-md shadow-amber-200' : 'bg-white border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-600'}`}
+                                >
+                                  {period}
+                                </button>
+                              );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-indigo-100 p-5 shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <div className="flex items-center gap-2 text-sm font-black text-slate-700">
+                                    <Repeat size={17} className="text-[#655ac1]" />
+                                    تتابع الحصص
+                                </div>
+                                <p className="text-xs font-bold text-slate-400 mt-1">السماح بتدريس حصتين متتاليتين للمادة في نفس اليوم</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setDraftConstraint(prev => ({ ...prev, enableDoublePeriods: !prev.enableDoublePeriods })); setSaved(false); }}
+                              className={`w-14 h-8 rounded-full transition-all relative shadow-inner ${draftConstraint.enableDoublePeriods ? 'bg-[#655ac1]' : 'bg-slate-200'}`}
+                            >
+                              <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all ${draftConstraint.enableDoublePeriods ? 'right-1' : 'right-[calc(100%-1.75rem)]'}`} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {warnings.length > 0 && (
+                        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 space-y-2">
+                            <div className="flex items-center gap-2 text-amber-600 font-bold text-xs mb-1">
+                                <AlertTriangle size={14} /> تنبيهات
+                            </div>
+                            {warnings.map((warning, index) => (
+                                <div key={index} className="text-[11px] font-medium text-amber-700 leading-snug">
+                                    - {warning.message}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center">
+                    <Ban size={42} className="mx-auto mb-3 text-slate-300" />
+                    <p className="font-black text-slate-500">اختر مادة أولاً</p>
+                  </div>
+                )}
             </div>
             
-            <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
+            <div className="p-5 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0">
                 <button
                     onClick={onClose}
                     className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
@@ -2822,11 +2915,14 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                     إغلاق
                 </button>
                 <button
-                    onClick={onClose}
-                    className="px-8 py-2.5 bg-[#655ac1] hover:bg-[#5a4eb3] text-white font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 flex items-center gap-2"
+                    onClick={handleSave}
+                    disabled={!selectedSubjectName || targetPlacements.length === 0}
+                    className={`px-8 py-2.5 text-white font-bold rounded-xl transition-all shadow-md flex items-center gap-2 disabled:bg-slate-300 disabled:shadow-none ${
+                      saved ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-[#655ac1] hover:bg-[#5a4eb3] shadow-[#655ac1]/20'
+                    }`}
                 >
-                    <Save size={18} />
-                    حفظ
+                    {saved ? <Check size={18} /> : <Save size={18} />}
+                    {saved ? 'تم الحفظ' : `حفظ على ${targetPlacements.length || 0} صف`}
                 </button>
             </div>
         </div>
