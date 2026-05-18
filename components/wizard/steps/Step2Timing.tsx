@@ -628,10 +628,10 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                                  <div className={`w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center transition-colors ${
                                       (currentTiming.sharedSchoolMode || 'unified') === 'unified'
-                                      ? 'bg-[#f0effb] text-[#4b3f9f]'
-                                      : 'bg-slate-100 text-slate-400 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'
+                                      ? 'text-[#4b3f9f]'
+                                      : 'text-slate-400 group-hover:text-[#655ac1]'
                                   }`}>
                                       <Link size={24} />
                                   </div>
@@ -659,10 +659,10 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                                  <div className={`w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center transition-colors ${
                                       currentTiming.sharedSchoolMode === 'separate'
-                                      ? 'bg-[#f0effb] text-[#4b3f9f]'
-                                      : 'bg-slate-100 text-slate-400 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'
+                                      ? 'text-[#4b3f9f]'
+                                      : 'text-slate-400 group-hover:text-[#655ac1]'
                                   }`}>
                                       <Split size={24} />
                                   </div>
