@@ -963,30 +963,28 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                   onClick={() => handleSharedModeChange('unified')}
                                   className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 group ${
                                       (currentTiming.sharedSchoolMode || 'unified') === 'unified'
-                                      ? 'bg-white border-[#655ac1] shadow-md'
+                                      ? 'bg-white border-slate-300 shadow-md'
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
                                   <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
                                       (currentTiming.sharedSchoolMode || 'unified') === 'unified'
-                                      ? 'bg-[#655ac1] text-white'
+                                      ? 'bg-[#f0effb] text-[#4b3f9f]'
                                       : 'bg-slate-100 text-slate-400 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'
                                   }`}>
                                       <Link size={24} />
                                   </div>
                                   <div>
-                                      <h4 className={`text-base font-black mb-1 ${
-                                          (currentTiming.sharedSchoolMode || 'unified') === 'unified' ? 'text-[#655ac1]' : 'text-slate-700'
-                                      }`}>
-                                          توقيت موحد للجميع
+                                      <h4 className="text-base font-black mb-1 text-slate-700">
+                                          توقيت موحد
                                       </h4>
                                       <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                                          جميع المدارس المشتركة تتبع نفس الجدول وتوقيت الحصص.
+                                          جميع المدارس المشتركة لها نفس توقيت الحصص والفسح
                                       </p>
                                   </div>
                                   {(currentTiming.sharedSchoolMode || 'unified') === 'unified' && (
-                                      <div className="absolute top-4 left-4 bg-[#655ac1] text-white rounded-full p-1">
-                                          <Check size={12} />
+                                      <div className="absolute left-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
+                                          <Check size={12} strokeWidth={3.5} className="text-white" />
                                       </div>
                                   )}
                               </div>
@@ -996,21 +994,19 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                   onClick={() => handleSharedModeChange('separate')}
                                   className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 group ${
                                       currentTiming.sharedSchoolMode === 'separate'
-                                      ? 'bg-white border-[#655ac1] shadow-md'
+                                      ? 'bg-white border-slate-300 shadow-md'
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
                                   <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
                                       currentTiming.sharedSchoolMode === 'separate'
-                                      ? 'bg-[#655ac1] text-white'
+                                      ? 'bg-[#f0effb] text-[#4b3f9f]'
                                       : 'bg-slate-100 text-slate-400 group-hover:bg-[#e5e1fe] group-hover:text-[#655ac1]'
                                   }`}>
                                       <Split size={24} />
                                   </div>
                                   <div>
-                                      <h4 className={`text-base font-black mb-1 ${
-                                          currentTiming.sharedSchoolMode === 'separate' ? 'text-[#655ac1]' : 'text-slate-700'
-                                      }`}>
+                                      <h4 className="text-base font-black mb-1 text-slate-700">
                                           توقيت مستقل لكل مدرسة
                                       </h4>
                                       <p className="text-xs text-slate-500 font-medium leading-relaxed">
@@ -1018,8 +1014,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                       </p>
                                   </div>
                                   {currentTiming.sharedSchoolMode === 'separate' && (
-                                      <div className="absolute top-4 left-4 bg-[#655ac1] text-white rounded-full p-1">
-                                          <Check size={12} />
+                                      <div className="absolute left-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
+                                          <Check size={12} strokeWidth={3.5} className="text-white" />
                                       </div>
                                   )}
                               </div>
