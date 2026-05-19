@@ -1095,7 +1095,73 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       {viewMode === 'classes' && (
         <>
 
-          {/* ── Bulk Action Bar ── */}
+          {/* ── Class Actions ── */}
+          <div dir="rtl" className="flex items-center gap-2 flex-wrap justify-start">
+            <button
+              dir="rtl"
+              onClick={openWizard}
+              disabled={allCurrentSchoolClasses.length > 0}
+              title={allCurrentSchoolClasses.length > 0 ? 'يجب حذف جميع الصفوف والفصول أولًا' : undefined}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                allCurrentSchoolClasses.length === 0
+                  ? 'bg-[#655ac1] border border-[#655ac1] text-white hover:bg-[#5046a0] shadow-md shadow-[#655ac1]/20'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 disabled:opacity-100 disabled:cursor-not-allowed'
+              }`}
+            >
+              <Plus size={16} className={allCurrentSchoolClasses.length === 0 ? 'text-white' : 'text-slate-400'} />
+              إنشاء الفصول
+            </button>
+            <button
+              dir="rtl"
+              onClick={() => setShowGlobalRenameModal(true)}
+              disabled={currentSchoolClasses.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Edit2 size={16} className="text-slate-400" /> تعديل مسمى كل الفصول
+            </button>
+            <button
+              dir="rtl"
+              onClick={() => setShowGlobalPeriodsModal(true)}
+              disabled={currentSchoolClasses.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
+            </button>
+            <button
+              dir="rtl"
+              onClick={() => {
+                if (!deleteSelectionMode) {
+                  setDeleteSelectionMode(true);
+                  setSelectedClasses(new Set());
+                  return;
+                }
+                if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
+              }}
+              disabled={currentSchoolClasses.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
+            </button>
+            <button
+              dir="rtl"
+              onClick={() => setShowDeleteAllConfirm(true)}
+              disabled={allCurrentSchoolClasses.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={16} className="text-rose-500" /> حذف الكل
+            </button>
+            {deleteSelectionMode && (
+            <button
+              dir="rtl"
+              onClick={() => { setDeleteSelectionMode(false); setSelectedClasses(new Set()); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all"
+            >
+              إلغاء التحديد
+            </button>
+            )}
+          </div>
+
+          {/* ── Classes Card ── */}
           <div dir="rtl" className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col items-stretch gap-3 transition-all">
             <div className="flex items-center gap-3 justify-start">
               <LayoutGrid size={24} className="text-[#655ac1]" />
@@ -1106,77 +1172,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-between pt-5">
-              <div className="flex items-center gap-2 flex-wrap justify-start">
-                <button
-                  dir="rtl"
-                  onClick={openWizard}
-                  disabled={allCurrentSchoolClasses.length > 0}
-                  title={allCurrentSchoolClasses.length > 0 ? 'يجب حذف جميع الصفوف والفصول أولًا' : undefined}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
-                    allCurrentSchoolClasses.length === 0
-                      ? 'bg-[#655ac1] border border-[#655ac1] text-white hover:bg-[#5046a0] shadow-md shadow-[#655ac1]/20'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 disabled:opacity-100 disabled:cursor-not-allowed'
-                  }`}
-                >
-                  <Plus size={16} className={allCurrentSchoolClasses.length === 0 ? 'text-white' : 'text-slate-400'} />
-                  إنشاء الفصول
-                </button>
-                <button
-                  dir="rtl"
-                  onClick={() => setShowGlobalRenameModal(true)}
-                  disabled={currentSchoolClasses.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Edit2 size={16} className="text-slate-400" /> تعديل مسمى كل الفصول
-                </button>
-                <button
-                  dir="rtl"
-                  onClick={() => setShowGlobalPeriodsModal(true)}
-                  disabled={currentSchoolClasses.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
-                </button>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <button
-                  dir="rtl"
-                  onClick={() => {
-                    if (!deleteSelectionMode) {
-                      setDeleteSelectionMode(true);
-                      setSelectedClasses(new Set());
-                      return;
-                    }
-                    if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
-                  }}
-                  disabled={currentSchoolClasses.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
-                </button>
-                <button
-                  dir="rtl"
-                  onClick={() => setShowDeleteAllConfirm(true)}
-                  disabled={allCurrentSchoolClasses.length === 0}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Trash2 size={16} className="text-rose-500" /> حذف الكل
-                </button>
-                {deleteSelectionMode && (
-                <button
-                  dir="rtl"
-                  onClick={() => { setDeleteSelectionMode(false); setSelectedClasses(new Set()); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all"
-                >
-                  إلغاء التحديد
-                </button>
-                )}
-              </div>
-            </div>
 
             {/* ── Grade Blocks ── */}
-            <div className="pt-6 mt-3 border-t border-slate-100">
+            <div className="pt-3">
               {currentSchoolClasses.length === 0 ? (
                 <div className="rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center space-y-4">
                   <LayoutGrid size={42} className="text-slate-300 mx-auto" />
