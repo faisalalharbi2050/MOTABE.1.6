@@ -447,16 +447,27 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     );
   }, [classes, activePhase, activeSchoolId]);
 
+  const getGradeSubjectKey = useCallback((grade: number) => `${activeSchoolId}-${activePhase}-${grade}`, [activeSchoolId, activePhase]);
+
+  const getGradeSubjectIds = useCallback((grade: number): string[] => {
+    const schoolKey = `${activeSchoolId}-${activePhase}-${grade}`;
+    if (gradeSubjectMap[schoolKey]) return gradeSubjectMap[schoolKey];
+    if (activeSchoolId === 'main') return gradeSubjectMap[`${activePhase}-${grade}`] || [];
+    return [];
+  }, [activeSchoolId, activePhase, gradeSubjectMap]);
+
   const approvedFacilitySubjects = useMemo(() => {
     const approvedIds = new Set<string>();
     currentSchoolClasses.forEach(cls => (cls.subjectIds || []).forEach(id => approvedIds.add(id)));
     Object.entries(gradeSubjectMap).forEach(([key, ids]) => {
-      if (key.startsWith(`${activePhase}-`)) ids.forEach(id => approvedIds.add(id));
+      const isCurrentSchoolKey = key.startsWith(`${activeSchoolId}-${activePhase}-`);
+      const isLegacyMainKey = activeSchoolId === 'main' && key.startsWith(`${activePhase}-`);
+      if (isCurrentSchoolKey || isLegacyMainKey) ids.forEach(id => approvedIds.add(id));
     });
     return subjects
       .filter(subject => !subject.isArchived && approvedIds.has(subject.id) && subject.phases.includes(activePhase))
       .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-  }, [activePhase, currentSchoolClasses, gradeSubjectMap, subjects]);
+  }, [activePhase, activeSchoolId, currentSchoolClasses, gradeSubjectMap, subjects]);
 
   const facilitySubjectOptions = useMemo<FacilityDropdownOption[]>(
     () => approvedFacilitySubjects
@@ -612,7 +623,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const handleManualAdd = useCallback((gradeOverride?: number) => {
     const targetGrade = gradeOverride ?? manualGrade;
     const nextSection = getNextSectionNumber(classes, activePhase, targetGrade, activeSchoolId);
-    const subjectIds = gradeSubjectMap[`${activePhase}-${targetGrade}`] || [];
+    const subjectIds = getGradeSubjectIds(targetGrade);
 
     // إذا وُجدت مدرسة مشتركة وأدخل المستخدم اسمًا مخصصًا نضيف البادئة إليه تلقائيًا
     // وإذا لم يدخل اسمًا نُنشئ اسمًا تلقائيًا بالبادئة
@@ -640,7 +651,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
     setClasses(prev => [...prev, newClass]);
     setManualCustomName('');
-  }, [classes, activePhase, manualGrade, activeSchoolId, manualCustomName, phaseSuffix, gradeSubjectMap, setClasses]);
+  }, [classes, activePhase, manualGrade, activeSchoolId, manualCustomName, phaseSuffix, getGradeSubjectIds, setClasses]);
 
   // ─── Edit & Delete Handlers ───
   const handleStartEdit = useCallback((c: ClassInfo) => {
@@ -768,8 +779,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   // ─── Subject Toggling ───
   const toggleSubjectForGrade = useCallback((grade: number, subId: string) => {
-    const key = `${activePhase}-${grade}`;
-    const current = gradeSubjectMap[key] || [];
+    const key = getGradeSubjectKey(grade);
+    const current = getGradeSubjectIds(grade);
     const updated = current.includes(subId) ? current.filter(id => id !== subId) : [...current, subId];
     setGradeSubjectMap(prev => ({ ...prev, [key]: updated }));
 
@@ -780,7 +791,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       }
       return c;
     }));
-  }, [activePhase, activeSchoolId, gradeSubjectMap, setGradeSubjectMap, setClasses]);
+  }, [activePhase, activeSchoolId, getGradeSubjectIds, getGradeSubjectKey, setGradeSubjectMap, setClasses]);
 
   // ─── Bulk Grade Handlers ───
   const handleBulkRename = useCallback((grade: number) => {
@@ -866,7 +877,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           grade: gradeNum,
           section: sNum,
           name,
-          subjectIds: gradeSubjectMap[gradeKey] || [],
+          subjectIds: getGradeSubjectIds(gradeNum),
           schoolId: activeSchoolId,
           sortOrder: sNum,
           createdAt: new Date().toISOString(),
@@ -881,7 +892,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setWizardOpen(false);
     const total = wizardGrades.length * wizardCount;
     setTimeout(() => showToast(`تم إنشاء ${wizardGrades.length} صفوف و${total} فصلاً بنجاح`), 200);
-  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, gradeSubjectMap, phaseSuffix, setClasses, showToast]);
+  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, phaseSuffix, setClasses, showToast]);
 
   // ─── Portal Dropdown Open ───
   const openPortalDropdown = useCallback((e: React.MouseEvent, classId: string) => {
@@ -2011,7 +2022,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               {(() => {
                 const activeSubjectIds: string[] = editingSubjectsGrade !== null
-                  ? (gradeSubjectMap[`${activePhase}-${editingSubjectsGrade}`] || [])
+                  ? getGradeSubjectIds(editingSubjectsGrade)
                   : (classes.find(c => c.id === editingSubjectsClassId)?.subjectIds || []);
 
                 const activeSubjects = subjects.filter(s => !s.isArchived && activeSubjectIds.includes(s.id));

@@ -61,16 +61,19 @@ export function generateClassroomsFromDistribution(
   for (let gradeIndex = 0; gradeIndex < distribution.length; gradeIndex++) {
     const grade = gradeIndex + 1;
     const count = distribution[gradeIndex];
-    const subjectIds = gradeSubjectMap[`${phase}-${grade}`] || [];
+    const activeSchoolId = schoolId || 'main';
+    const schoolKey = `${activeSchoolId}-${phase}-${grade}`;
+    const legacyKey = `${phase}-${grade}`;
+    const subjectIds = gradeSubjectMap[schoolKey] || (activeSchoolId === 'main' ? gradeSubjectMap[legacyKey] : undefined) || [];
 
     for (let section = 1; section <= count; section++) {
       classrooms.push({
-        id: `${schoolId || 'main'}-${phase}-${grade}-${section}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        id: `${activeSchoolId}-${phase}-${grade}-${section}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         phase,
         grade,
         section,
         subjectIds: [...subjectIds],
-        schoolId: schoolId || 'main',
+        schoolId: activeSchoolId,
         sortOrder: sortOrder++,
         isManuallyCreated: false,
         createdAt: new Date().toISOString(),
