@@ -7,7 +7,8 @@ import {
   Zap, ChevronUp, ChevronDown, ChevronRight, Pencil, Settings2, Printer, AlertTriangle,
   LayoutGrid, Hash, Check, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
-  MoreHorizontal, Edit2, MapPin, CircleHelp, Users
+  MoreHorizontal, Edit2, MapPin, CircleHelp, Monitor, Library, BookMarked, FileQuestion,
+  CircleAlert, Goal
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -48,6 +49,40 @@ type FacilityDropdownOption = {
   label: string;
   icon?: React.ComponentType<any>;
   disabled?: boolean;
+};
+
+type FacilityType = 'lab' | 'computer_lab' | 'gym' | 'playground' | 'library' | 'learning_resources' | 'other';
+
+const FACILITY_TYPES: FacilityType[] = ['lab', 'computer_lab', 'gym', 'playground', 'library', 'learning_resources', 'other'];
+const FACILITY_TYPE_LABELS: Record<FacilityType, string> = {
+  lab: 'مختبر',
+  computer_lab: 'معمل',
+  gym: 'صالة رياضية',
+  playground: 'ملعب',
+  library: 'مكتبة',
+  learning_resources: 'مصادر التعلم',
+  other: 'أخرى',
+};
+
+const isFacilityType = (type?: string) => !!type && FACILITY_TYPES.includes(type as FacilityType);
+
+const getFacilityIcon = (type?: string) => {
+  switch (type) {
+    case 'lab':
+      return FlaskConical;
+    case 'computer_lab':
+      return Monitor;
+    case 'gym':
+      return Dumbbell;
+    case 'playground':
+      return Goal;
+    case 'library':
+      return Library;
+    case 'learning_resources':
+      return BookMarked;
+    default:
+      return FileQuestion;
+  }
 };
 
 const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
@@ -305,7 +340,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [expandedGrades, setExpandedGrades] = useState<Set<number>>(new Set<number>());
   // Auto-expand when new grades appear
   const gradeNumbersKey = Object.keys(groupClassesByGrade(
-    classes.filter(c => c.phase === activePhase && (c.schoolId||'main') === activeSchoolId && !['lab','computer_lab','gym','playground','other'].includes(c.type||''))
+    classes.filter(c => c.phase === activePhase && (c.schoolId||'main') === activeSchoolId && !isFacilityType(c.type))
   )).join(',');
   useEffect(() => {
     const nums = gradeNumbersKey ? gradeNumbersKey.split(',').map(Number) : [];
@@ -339,7 +374,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   
   // Facilities
   const [facilityName, setFacilityName] = useState('');
-  const [facilityType, setFacilityType] = useState<'lab' | 'computer_lab' | 'gym' | 'playground' | 'other'>('lab');
+  const [facilityType, setFacilityType] = useState<FacilityType>('lab');
   const [facilityLinkedSubject, setFacilityLinkedSubject] = useState<string[]>([]); // Array of subject IDs for chips
   const [facilityOtherType, setFacilityOtherType] = useState('');
   const [facilityCapacity, setFacilityCapacity] = useState<number>(1); // 1, 2, or 3
@@ -396,7 +431,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         c.phase === activePhase &&
         (c.schoolId || 'main') === activeSchoolId &&
         c.grade !== 0 &&
-        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+        !isFacilityType(c.type)
       )
       .sort((a, b) => {
         if (a.grade !== b.grade) return a.grade - b.grade;
@@ -408,7 +443,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     return classes.filter(c =>
       c.phase === activePhase &&
       (c.schoolId || 'main') === activeSchoolId &&
-      (c.grade === 0 || ['lab','computer_lab','gym','playground','other'].includes(c.type || ''))
+      (c.grade === 0 || isFacilityType(c.type))
     );
   }, [classes, activePhase, activeSchoolId]);
 
@@ -546,7 +581,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           c.phase === activePhase &&
           (c.schoolId || 'main') === activeSchoolId &&
           c.grade !== 0 &&
-          !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+          !isFacilityType(c.type)
         )
       );
       return [...other, ...newClassrooms];
@@ -644,7 +679,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         c.phase === activePhase &&
         (c.schoolId || 'main') === activeSchoolId &&
         c.grade !== 0 &&
-        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+        !isFacilityType(c.type)
       )
     ));
     setSelectedClasses(new Set());
@@ -705,7 +740,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         c.phase === activePhase &&
         (c.schoolId || 'main') === activeSchoolId &&
         c.grade !== 0 &&
-        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+        !isFacilityType(c.type)
       ) {
         return { ...c, customPeriodCounts: { ...globalPeriodCounts } };
       }
@@ -721,7 +756,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         c.phase === activePhase &&
         (c.schoolId || 'main') === activeSchoolId &&
         c.grade !== 0 &&
-        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+        !isFacilityType(c.type)
       ) {
         const { customPeriodCounts, ...rest } = c;
         return rest;
@@ -839,7 +874,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       }
     });
     setClasses(prev => [
-      ...prev.filter(c => !(c.phase === activePhase && (c.schoolId||'main') === activeSchoolId && !['lab','computer_lab','gym','playground','other'].includes(c.type||''))),
+      ...prev.filter(c => !(c.phase === activePhase && (c.schoolId||'main') === activeSchoolId && !isFacilityType(c.type))),
       ...newClasses,
     ]);
     setGradeLabelMap(newLabelMap);
@@ -903,7 +938,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               {/* School Tabs */}
               <SchoolTabs
                  schoolInfo={schoolInfo}
-                 activeSchoolId={viewMode === 'classes' ? activeSchoolId : ''}
+                 activeSchoolId={activeSchoolId}
                  onTabChange={(id) => {
                    setActiveSchoolId(id);
                    setViewMode('classes');
@@ -1699,7 +1734,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                       <div className="flex items-center gap-2 mb-1">
-                          <Users size={15} className="text-[#655ac1]" />
+                          <CircleHelp size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">ما معنى السعة؟</span>
                       </div>
                       <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
@@ -1709,7 +1744,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           <BookOpen size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">ربط المادة</span>
                       </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">إلزامي، حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة أو فصل بالخطأ.</p>
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">إلزامي، حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
                   </div>
               </div>
 
@@ -1731,11 +1766,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                   if (facilityErrors.type) setFacilityErrors(prev => ({ ...prev, type: undefined }));
                               }}
                               options={[
-                                  { value: 'lab', label: 'معمل', icon: FlaskConical },
-                                  { value: 'computer_lab', label: 'مختبر حاسب', icon: Layers },
-                                  { value: 'gym', label: 'صالة رياضية', icon: Dumbbell },
-                                  { value: 'playground', label: 'ملعب', icon: MapPin },
-                                  { value: 'other', label: 'أخرى', icon: MoreHorizontal },
+                                  { value: 'lab', label: FACILITY_TYPE_LABELS.lab },
+                                  { value: 'computer_lab', label: FACILITY_TYPE_LABELS.computer_lab },
+                                  { value: 'gym', label: FACILITY_TYPE_LABELS.gym },
+                                  { value: 'playground', label: FACILITY_TYPE_LABELS.playground },
+                                  { value: 'library', label: FACILITY_TYPE_LABELS.library },
+                                  { value: 'learning_resources', label: FACILITY_TYPE_LABELS.learning_resources },
+                                  { value: 'other', label: FACILITY_TYPE_LABELS.other },
                               ]}
                           />
 
@@ -1813,9 +1850,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               }}
                           />
                           {facilityErrors.subjects && <p className="text-xs text-rose-500 mt-1">{facilityErrors.subjects}</p>}
-                          <p className="text-[11px] font-bold text-slate-400 mt-2 leading-relaxed">
-                              ربط المادة مطلوب حتى يطبق النظام قيد المرفق على الحصص الصحيحة فقط.
-                          </p>
+                          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                                  <CircleAlert size={15} />
+                              </span>
+                              <p className="text-[11px] font-black leading-relaxed">
+                                  ربط المادة مطلوب حتى يطبق النظام قيد المرفق بشكل صحيح
+                              </p>
+                          </div>
                       </div>
 
                       {facilitySuccess && (
@@ -1839,9 +1881,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                   setFacilityErrors({});
                                   setFacilitySuccess('');
 
-                                  const typeLabels: Record<string, string> = {
-                                      lab: 'معمل', computer_lab: 'مختبر حاسب',
-                                      gym: 'صالة رياضية', playground: 'ملعب', other: facilityOtherType || 'مرفق'
+                                  const typeLabels: Record<FacilityType, string> = {
+                                      ...FACILITY_TYPE_LABELS,
+                                      other: facilityOtherType || 'مرفق'
                                   };
                                   const existingOfType = classes.filter(c => c.type === facilityType && (c.schoolId || 'main') === activeSchoolId).length + 1;
                                   const autoName = facilityName.trim() || `${typeLabels[facilityType] || 'مرفق'} ${existingOfType}`;
@@ -1886,37 +1928,33 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           {currentSchoolFacilities.map(c => {
                               const linkedIds = c.linkedSubjectIds || (c.linkedSubjectId ? [c.linkedSubjectId] : []);
                               const linkedSubjects = subjects.filter(s => linkedIds.includes(s.id));
-                              const typeLabel =
-                                  c.type === 'lab' ? 'معمل' :
-                                  c.type === 'computer_lab' ? 'مختبر حاسب' :
-                                  c.type === 'gym' ? 'صالة رياضية' :
-                                  c.type === 'playground' ? 'ملعب' :
-                                  c.customType || 'أخرى';
+                              const typeLabel = c.type === 'other'
+                                  ? c.customType || FACILITY_TYPE_LABELS.other
+                                  : FACILITY_TYPE_LABELS[c.type as FacilityType] || c.customType || FACILITY_TYPE_LABELS.other;
+                              const FacilityIcon = getFacilityIcon(c.type);
                               return (
-                                  <div key={c.id} className="relative rounded-2xl border border-slate-100 bg-slate-50/70 p-4 transition-all hover:border-[#655ac1]/30 hover:bg-white">
+                                  <div key={c.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300">
                                       <button onClick={() => handleDeleteOne(c.id)} className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors">
                                           <Trash2 size={14} />
                                       </button>
 
                                       <div className="flex items-start gap-3 pl-8">
-                                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white border border-slate-200 text-[#655ac1]">
-                                              {c.type === 'gym' || c.type === 'playground' ? <Dumbbell size={19} /> :
-                                               c.type?.includes('lab') ? <Layers size={19} /> :
-                                               <LayoutGrid size={19} />}
+                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center text-[#655ac1]">
+                                              <FacilityIcon size={24} strokeWidth={2.2} />
                                           </div>
                                           <div className="min-w-0">
                                               <h5 className="font-black text-slate-800 truncate">{c.name}</h5>
                                               <p className="text-[11px] font-bold text-slate-400 mt-0.5">{typeLabel}</p>
                                               <div className="flex flex-wrap gap-2 mt-3">
-                                                  <span className="text-[10px] font-black px-2 py-1 bg-white text-[#655ac1] rounded-lg border border-[#e5e1fe]">
+                                                  <span className="text-xs font-black px-2.5 py-1.5 bg-white text-[#655ac1] rounded-lg border border-[#e5e1fe]">
                                                       السعة: {c.capacity || 1} فصل
                                                   </span>
                                                   {linkedSubjects.length === 0 && (
-                                                      <span className="text-[10px] font-bold px-2 py-1 bg-white text-slate-400 rounded-lg border border-slate-100">غير مرتبط بمادة</span>
+                                                      <span className="text-xs font-bold px-2.5 py-1.5 bg-white text-slate-400 rounded-lg border border-slate-100">غير مرتبط بمادة</span>
                                                   )}
                                                   {linkedSubjects.map(linkedSubject => (
-                                                      <span key={linkedSubject.id} className="text-[10px] font-bold px-2 py-1 bg-white text-emerald-600 rounded-lg border border-emerald-100 flex items-center gap-1">
-                                                          <BookOpen size={10} />
+                                                      <span key={linkedSubject.id} className="text-xs font-bold px-2.5 py-1.5 bg-white text-emerald-600 rounded-lg border border-emerald-100 flex items-center gap-1">
+                                                          <BookOpen size={12} />
                                                           {linkedSubject.name}
                                                       </span>
                                                   ))}
@@ -2322,7 +2360,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                            c.phase === activePhase &&
                            (c.schoolId || 'main') === activeSchoolId &&
                            c.grade !== 0 &&
-                           !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+                           !isFacilityType(c.type)
                          ) {
                            return { ...c, name: buildClassNameByMode(c, globalRenameMode) };
                          }

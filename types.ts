@@ -306,7 +306,7 @@ export interface ClassInfo {
   createdAt?: string; // ISO timestamp
   
   // Advanced Features
-  type?: 'class' | 'lab' | 'computer_lab' | 'gym' | 'playground' | 'other';
+  type?: 'class' | 'lab' | 'computer_lab' | 'gym' | 'playground' | 'library' | 'learning_resources' | 'other';
   customType?: string; // If 'other'
   isMerged?: boolean;
   mergedClassIds?: string[];
