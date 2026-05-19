@@ -153,7 +153,7 @@ const FacilitySingleSelectDropdown: React.FC<{
         onClick={() => setOpen(current => !current)}
         className={`w-full px-5 py-2.5 bg-white border-2 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${error ? 'border-rose-400' : 'border-slate-200'}`}
       >
-        <span className="truncate">{selected?.label || placeholder}</span>
+        <span className="truncate text-sm">{selected?.label || placeholder}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
@@ -205,14 +205,14 @@ const FacilitySubjectSelectDropdown: React.FC<{
 
   return (
     <div>
-      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <label className="block text-sm font-black text-slate-500 mb-2">{label}</label>
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(current => !current)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
       >
-        <span className="truncate">{selectedSummary || buttonLabel}</span>
+        <span className="truncate text-sm">{selectedSummary || buttonLabel}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && createPortal(
@@ -858,7 +858,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const toArabicNum = (n: number) => n.toLocaleString('ar-EG');
 
   const wizardPreviewNames = useMemo((): string[][] => {
-    const sfx = phaseSuffix ? ` - ${phaseSuffix}` : '';
+    const sfx = phaseSuffix && wizardTemplate !== 'custom' ? ` - ${phaseSuffix}` : '';
     return wizardGrades.map((grade, gi) =>
       Array.from({ length: wizardCount }, (_, si) => {
         const sNum = si + 1;
@@ -871,12 +871,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       })
     );
   },
-  [wizardGrades, wizardCount, wizardNaming, phaseSuffix]);
+  [wizardGrades, wizardCount, wizardNaming, phaseSuffix, wizardTemplate]);
 
   const handleWizardCreate = useCallback(() => {
     const newClasses: ClassInfo[] = [];
     const newLabelMap = { ...gradeLabelMap };
-    const sfx = phaseSuffix ? ` - ${phaseSuffix}` : '';
+    const sfx = phaseSuffix && wizardTemplate !== 'custom' ? ` - ${phaseSuffix}` : '';
     wizardGrades.forEach((grade, gi) => {
       const gradeNum = gi + 1;
       const gradeKey = `${activePhase}-${gradeNum}`;
@@ -911,7 +911,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setWizardOpen(false);
     const total = wizardGrades.length * wizardCount;
     setTimeout(() => showToast(`تم إنشاء ${wizardGrades.length} صفوف و${total} فصلاً بنجاح`), 200);
-  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, phaseSuffix, setClasses, showToast]);
+  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, phaseSuffix, wizardTemplate, setClasses, showToast]);
 
   // ─── Portal Dropdown Open ───
   const openPortalDropdown = useCallback((e: React.MouseEvent, classId: string) => {
@@ -1079,17 +1079,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 )}
               </div>
             </div>
-            <div className="flex justify-start">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <button
                 dir="rtl"
                 onClick={openWizard}
-                className="flex items-center gap-2 px-5 py-3 bg-[#4b3f9f] border border-[#4b3f9f] rounded-xl text-white hover:bg-[#3f3588] font-bold text-sm transition-all active:scale-95 shadow-md shadow-[#4b3f9f]/20"
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] border border-[#655ac1] rounded-xl text-white hover:bg-[#5046a0] font-bold text-sm transition-all active:scale-95 shadow-md shadow-[#655ac1]/20"
               >
                 <Plus size={16} className="text-white" />
                 إنشاء الفصول
               </button>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
               <button
                 dir="rtl"
                 onClick={() => setShowGlobalRenameModal(true)}
@@ -1145,7 +1143,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             <div className="pt-6 mt-3 border-t border-slate-100">
               {currentSchoolClasses.length === 0 ? (
                 <div className="rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center space-y-4">
-                  <LayoutGrid size={42} className="text-[#655ac1] mx-auto" />
+                  <LayoutGrid size={42} className="text-slate-300 mx-auto" />
                   <h3 className="text-lg font-black text-slate-800">لم يتم إنشاء الفصول بعد</h3>
                   <p className="text-sm text-slate-500 max-w-md mx-auto">
                     اضغط على زر إنشاء الفصول وأكمل الخطوات.
@@ -1753,37 +1751,25 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   <h4 className="font-black text-slate-800">إضافة وتخصيص المرافق المدرسية</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium text-right mb-5 leading-relaxed">
-                  أضف المرافق المدرسية المعامل والصالات والملاعب التي لا يمكن استخدامها إلا بعدد محدد من الفصول في نفس الحصة، حتى يراعي الجدول المدرسي سعة المرفق ويقلل التعارض عند البناء.
+                  أضف المرافق المدرسية المعامل والصالات والملاعب
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+              <div className="space-y-2 mb-5">
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <div className="flex items-center gap-2 mb-1">
-                          <CircleHelp size={15} className="text-[#655ac1]" />
-                          <span className="text-xs font-black text-[#655ac1]">متى أضيف مرفقاً؟</span>
-                      </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عند وجود معمل أو ملعب له سعة محدودة و لا يمكن استخدامه إلا بعدد محدد من الفصول في نفس الحصة مع ارتباطه بمادة محددة مثل : البدنية</p>
+                      <p className="text-xs font-black text-[#655ac1]">متى أضيف مرفقاً؟</p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">عند وجود معمل أو ملعب له سعة محدودة و لا يمكن استخدامه إلا بعدد محدد من الفصول في نفس الحصة مع ارتباطه بمادة محددة مثل : البدنية</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <div className="flex items-center gap-2 mb-1">
-                          <CircleHelp size={15} className="text-[#655ac1]" />
-                          <span className="text-xs font-black text-[#655ac1]">ما الهدف؟</span>
-                      </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">حتى يتم مراعاة سعة المرافق لتقليل التعارض قدر الإمكان عند إنشاء الجدول.</p>
+                      <p className="text-xs font-black text-[#655ac1]">ما الهدف؟</p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">حتى يتم مراعاة سعة المرافق لتقليل التعارض قدر الإمكان عند إنشاء الجدول.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <div className="flex items-center gap-2 mb-1">
-                          <CircleHelp size={15} className="text-[#655ac1]" />
-                          <span className="text-xs font-black text-[#655ac1]">ما معنى السعة؟</span>
-                      </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
+                      <p className="text-xs font-black text-[#655ac1]">ما معنى السعة؟</p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <div className="flex items-center gap-2 mb-1">
-                          <BookOpen size={15} className="text-[#655ac1]" />
-                          <span className="text-xs font-black text-[#655ac1]">لماذا أربط المادة؟</span>
-                      </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">لأنه إلزامي حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
+                      <p className="text-xs font-black text-[#655ac1]">لماذا أربط المادة؟</p>
+                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">لأنه إلزامي حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
                   </div>
               </div>
 
@@ -1972,7 +1958,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                           <div className="min-w-0">
                                               <h5 className="font-black text-slate-800 truncate">{c.name}</h5>
                                               <p className="text-[11px] font-bold text-slate-400 mt-0.5">{typeLabel}</p>
-                                              <div className="flex flex-nowrap items-center gap-2 mt-3 overflow-hidden">
+                                              <div className="flex flex-nowrap items-center gap-2 mt-3 overflow-x-auto pb-1 custom-scrollbar">
                                                   <span className="shrink-0 whitespace-nowrap text-xs font-black px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">
                                                       السعة: {c.capacity || 1} فصل
                                                   </span>
@@ -1980,9 +1966,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                                       <span className="min-w-0 whitespace-nowrap text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">غير مرتبط بمادة</span>
                                                   )}
                                                   {linkedSubjects.map(linkedSubject => (
-                                                      <span key={linkedSubject.id} className="min-w-0 whitespace-nowrap text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
+                                                      <span key={linkedSubject.id} className="shrink-0 whitespace-nowrap text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
                                                           <BookOpen size={12} className="shrink-0 text-slate-400" />
-                                                          <span className="truncate">{linkedSubject.name}</span>
+                                                          {linkedSubject.name}
                                                       </span>
                                                   ))}
                                               </div>
@@ -2722,7 +2708,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     {id:'elementary',label:'ابتدائية',desc:'6 صفوف: الأول ← السادس', code:'ب'},
                     {id:'middle',label:'متوسطة',desc:'3 صفوف: الأول ← الثالث المتوسط', code:'م'},
                     {id:'high',label:'ثانوية',desc:'3 صفوف: الأول ← الثالث الثانوي', code:'ث'},
-                    {id:'custom',label:'مخصص بالكامل',desc:'ابدأ بمستوى واحد وأضف ما تريد', code:'مخصص'},
+                    {id:'custom',label:'مخصص بالكامل',desc:'ابدأ بمستوى واحد وأضف ما تريد', code:''},
                   ] as {id:PhaseTemplateW;label:string;desc:string;code:string}[]).map(t => {
                     const active = wizardTemplate === t.id;
                     return (
@@ -2737,7 +2723,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         <div>
                           <p className="font-black text-base text-slate-800">{t.label}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
-                          <p className="mt-3 inline-flex rounded-lg bg-[#f8f7ff] px-3 py-1 text-xs font-black text-[#655ac1]">يرمز للمرحلة: {t.code}</p>
+                          {t.code && <p className="mt-3 text-xs font-black text-[#655ac1]">يرمز لها ({t.code})</p>}
                         </div>
                       </button>
                     );
