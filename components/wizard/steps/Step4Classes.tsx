@@ -1090,16 +1090,16 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-start pt-5">
-              <button
-                dir="rtl"
-                onClick={openWizard}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] border border-[#655ac1] rounded-xl text-white hover:bg-[#5046a0] font-bold text-sm transition-all active:scale-95 shadow-md shadow-[#655ac1]/20"
-              >
-                <Plus size={16} className="text-white" />
-                إنشاء الفصول
-              </button>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="flex items-center gap-2 flex-wrap justify-between pt-5">
+              <div className="flex items-center gap-2 flex-wrap justify-start">
+                <button
+                  dir="rtl"
+                  onClick={openWizard}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] border border-[#655ac1] rounded-xl text-white hover:bg-[#5046a0] font-bold text-sm transition-all active:scale-95 shadow-md shadow-[#655ac1]/20"
+                >
+                  <Plus size={16} className="text-white" />
+                  إنشاء الفصول
+                </button>
                 <button
                   dir="rtl"
                   onClick={() => setShowGlobalRenameModal(true)}
@@ -1116,6 +1116,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 >
                   <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
                 </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <button
                   dir="rtl"
                   onClick={() => {
