@@ -199,7 +199,7 @@ const FacilityMultiSelectDropdown: React.FC<{
               );
             })}
             {options.length === 0 && (
-              <p className="text-center text-xs text-slate-400 font-medium py-3">لا توجد مواد معتمدة متاحة</p>
+              <p className="text-center text-xs text-slate-400 font-medium py-3">لا توجد مواد معتمدة متاحة للربط</p>
             )}
           </div>
         </div>,
@@ -345,7 +345,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [facilityCapacity, setFacilityCapacity] = useState<number>(1); // 1, 2, or 3
   
   // Form validation and messages
-  const [facilityErrors, setFacilityErrors] = useState<{name?: string; type?: string; capacity?: string}>({});
+  const [facilityErrors, setFacilityErrors] = useState<{name?: string; type?: string; capacity?: string; subjects?: string}>({});
   const [facilitySuccess, setFacilitySuccess] = useState<string>('');
 
 
@@ -1695,7 +1695,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           <CircleHelp size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">متى أضيف مرفقاً؟</span>
                       </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">اختياري، عند وجود معمل أو صالة أو ملعب له سعة محدودة في الحصة الواحدة.</p>
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عند وجود معمل أو صالة أو ملعب له سعة محدودة في الحصة الواحدة ويرتبط بمادة محددة.</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                       <div className="flex items-center gap-2 mb-1">
@@ -1709,7 +1709,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           <BookOpen size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">ربط المادة</span>
                       </div>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">اختياري، ويفيد عند ربط المرفق بمواد محددة مثل الحاسب أو التربية البدنية.</p>
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">إلزامي، حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة أو فصل بالخطأ.</p>
                   </div>
               </div>
 
@@ -1800,7 +1800,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               </div>
                           )}
                           <FacilityMultiSelectDropdown
-                              label="ربط بمادة (اختياري)"
+                              label="ربط بمادة"
                               buttonLabel="اختر مادة لإضافتها"
                               options={facilitySubjectOptions}
                               selectedValues={facilityLinkedSubject}
@@ -1809,8 +1809,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                   setFacilityLinkedSubject(prev =>
                                       prev.includes(value) ? prev.filter(id => id !== value) : [...prev, value]
                                   );
+                                  if (facilityErrors.subjects) setFacilityErrors(prev => ({ ...prev, subjects: undefined }));
                               }}
                           />
+                          {facilityErrors.subjects && <p className="text-xs text-rose-500 mt-1">{facilityErrors.subjects}</p>}
+                          <p className="text-[11px] font-bold text-slate-400 mt-2 leading-relaxed">
+                              ربط المادة مطلوب حتى يطبق النظام قيد المرفق على الحصص الصحيحة فقط.
+                          </p>
                       </div>
 
                       {facilitySuccess && (
@@ -1822,9 +1827,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       <div className="flex justify-center mt-5">
                           <button
                               onClick={() => {
-                                  const errors: {name?: string; type?: string; capacity?: string} = {};
+                                  const errors: {name?: string; type?: string; capacity?: string; subjects?: string} = {};
                                   if (!facilityType) errors.type = 'يجب اختيار نوع المرفق';
                                   if (!facilityCapacity) errors.capacity = 'يجب اختيار السعة';
+                                  if (facilityLinkedSubject.length === 0) errors.subjects = 'يجب ربط المرفق بمادة واحدة على الأقل';
                                   if (Object.keys(errors).length > 0) {
                                       setFacilityErrors(errors);
                                       return;
@@ -1850,7 +1856,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                       type: facilityType,
                                       customType: facilityType === 'other' ? facilityOtherType : undefined,
                                       schoolId: activeSchoolId,
-                                      linkedSubjectIds: facilityLinkedSubject.length > 0 ? facilityLinkedSubject : undefined,
+                                      linkedSubjectIds: facilityLinkedSubject,
                                       capacity: facilityCapacity,
                                       createdAt: new Date().toISOString()
                                   } as ClassInfo]);
