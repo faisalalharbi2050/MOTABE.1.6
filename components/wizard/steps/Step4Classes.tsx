@@ -1090,7 +1090,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-between">
+            <div className="flex items-center gap-2 flex-wrap justify-start pt-5">
               <button
                 dir="rtl"
                 onClick={openWizard}
@@ -1782,7 +1782,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
                       <p className="text-sm font-black text-[#655ac1]">لماذا أربط المادة؟</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">لأنه إلزامي حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
                   </div>
               </div>
 
