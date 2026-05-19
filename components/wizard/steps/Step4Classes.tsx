@@ -2229,12 +2229,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-sm font-black text-slate-800 flex items-center justify-between">
-                    <span>فصول الصف</span>
-                    <span className="rounded-full bg-white border border-slate-200 px-3 py-1 text-xs text-[#655ac1]">{gradeClasses.length} فصل</span>
-                  </div>
                   <table className="w-full min-w-[760px] text-xs text-right">
-                    <thead className="bg-white border-b border-slate-100 text-[#655ac1]">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-[#655ac1]">
                       <tr>
                         <th className="px-3 py-2 font-black text-center w-20">الفصل</th>
                         <th className="px-3 py-2 font-black text-center w-48">اسم الفصل</th>
