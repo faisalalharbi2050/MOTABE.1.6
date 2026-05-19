@@ -2355,12 +2355,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               </div>
 
               <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800">
-                  معاينة الأسماء الجديدة
-                </div>
                 <div className="max-h-72 overflow-y-auto custom-scrollbar">
                   <table className="w-full min-w-[560px] text-right">
-                    <thead className="bg-white border-b border-slate-100">
+                    <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
                         <th className="px-4 py-3 text-sm font-black text-[#655ac1] text-center">الصف / المستوى</th>
                         <th className="px-4 py-3 text-sm font-black text-[#655ac1] text-center">المسمى الحالي</th>
