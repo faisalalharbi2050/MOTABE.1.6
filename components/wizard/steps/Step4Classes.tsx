@@ -340,6 +340,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [wizardGrades,    setWizardGrades]    = useState<WizardGradeW[]>([]);
   const [wizardCount,     setWizardCount]     = useState(1);
   const [wizardNaming,    setWizardNaming]    = useState<NamingModeW>('numbers');
+  const [wizardCustomClassNames, setWizardCustomClassNames] = useState<Record<string, string>>({});
 
   // ─── New: Grade Label Map (localStorage) ───
   const [gradeLabelMap, setGradeLabelMap] = useState<Record<string,string>>(() => {
@@ -845,22 +846,28 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setWizardTemplate('elementary');
     setWizardCount(1);
     setWizardNaming('numbers');
+    setWizardCustomClassNames({});
     setWizardGrades(GRADE_TEMPLATES_W.elementary.map((n,i) => ({ id:`wg-${i}`, name: n })));
     setWizardOpen(true);
   }, []);
 
   const selectWizardTemplate = useCallback((t: PhaseTemplateW) => {
     setWizardTemplate(t);
+    setWizardCustomClassNames({});
     const names = t === 'custom' ? ['المستوى الأول'] : (GRADE_TEMPLATES_W[t] || []);
     setWizardGrades(names.map((n,i) => ({ id:`wg-${i}-${Date.now()}`, name: n })));
   }, []);
 
   const toArabicNum = (n: number) => n.toLocaleString('ar-EG');
+  const getWizardCustomClassName = useCallback((grade: WizardGradeW, sectionIndex: number) =>
+    wizardCustomClassNames[`${grade.id}-${sectionIndex}`]?.trim() || `${grade.name} / ${toArabicNum(sectionIndex + 1)}`,
+  [wizardCustomClassNames]);
 
   const wizardPreviewNames = useMemo((): string[][] => {
     const sfx = phaseSuffix && wizardTemplate !== 'custom' ? ` - ${phaseSuffix}` : '';
     return wizardGrades.map((grade, gi) =>
       Array.from({ length: wizardCount }, (_, si) => {
+        if (wizardTemplate === 'custom') return getWizardCustomClassName(grade, si);
         const sNum = si + 1;
         switch (wizardNaming) {
           case 'numbers':     return `${toArabicNum(gi+1)} / ${toArabicNum(sNum)}${sfx}`;
@@ -871,7 +878,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       })
     );
   },
-  [wizardGrades, wizardCount, wizardNaming, phaseSuffix, wizardTemplate]);
+  [wizardGrades, wizardCount, wizardNaming, phaseSuffix, wizardTemplate, getWizardCustomClassName]);
 
   const handleWizardCreate = useCallback(() => {
     const newClasses: ClassInfo[] = [];
@@ -884,11 +891,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       for (let si = 0; si < wizardCount; si++) {
         const sNum = si + 1;
         let name: string;
-        switch (wizardNaming) {
-          case 'numbers':     name = `${toArabicNum(gradeNum)} / ${toArabicNum(sNum)}${sfx}`; break;
-          case 'name_number': name = `${grade.name} / ${toArabicNum(sNum)}${sfx}`; break;
-          case 'name_letter': name = `${grade.name} / ${ARABIC_LETTERS_W[si] || toArabicNum(sNum)}${sfx}`; break;
-          default:            name = `${toArabicNum(gradeNum)} / ${toArabicNum(sNum)}${sfx}`;
+        if (wizardTemplate === 'custom') {
+          name = getWizardCustomClassName(grade, si);
+        } else {
+          switch (wizardNaming) {
+            case 'numbers':     name = `${toArabicNum(gradeNum)} / ${toArabicNum(sNum)}${sfx}`; break;
+            case 'name_number': name = `${grade.name} / ${toArabicNum(sNum)}${sfx}`; break;
+            case 'name_letter': name = `${grade.name} / ${ARABIC_LETTERS_W[si] || toArabicNum(sNum)}${sfx}`; break;
+            default:            name = `${toArabicNum(gradeNum)} / ${toArabicNum(sNum)}${sfx}`;
+          }
         }
         newClasses.push({
           id: `${activeSchoolId}-${activePhase}-${gradeNum}-${sNum}-${Date.now()}-${si}`,
@@ -911,7 +922,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setWizardOpen(false);
     const total = wizardGrades.length * wizardCount;
     setTimeout(() => showToast(`تم إنشاء ${wizardGrades.length} صفوف و${total} فصلاً بنجاح`), 200);
-  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, phaseSuffix, wizardTemplate, setClasses, showToast]);
+  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, getWizardCustomClassName, phaseSuffix, wizardTemplate, setClasses, showToast]);
 
   // ─── Portal Dropdown Open ───
   const openPortalDropdown = useCallback((e: React.MouseEvent, classId: string) => {
@@ -1079,7 +1090,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="flex items-center gap-2 flex-wrap justify-between">
               <button
                 dir="rtl"
                 onClick={openWizard}
@@ -1088,38 +1099,39 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <Plus size={16} className="text-white" />
                 إنشاء الفصول
               </button>
-              <button
-                dir="rtl"
-                onClick={() => setShowGlobalRenameModal(true)}
-                disabled={currentSchoolClasses.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Edit2 size={16} className="text-slate-400" /> تعديل مسمى كل الفصول
-              </button>
-              <button
-                dir="rtl"
-                onClick={() => setShowGlobalPeriodsModal(true)}
-                disabled={currentSchoolClasses.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
-              </button>
-              <button
-                dir="rtl"
-                onClick={() => {
-                  if (!deleteSelectionMode) {
-                    setDeleteSelectionMode(true);
-                    setSelectedClasses(new Set());
-                    return;
-                  }
-                  if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
-                }}
-                disabled={currentSchoolClasses.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
-              </button>
-              {currentSchoolClasses.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <button
+                  dir="rtl"
+                  onClick={() => setShowGlobalRenameModal(true)}
+                  disabled={currentSchoolClasses.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Edit2 size={16} className="text-slate-400" /> تعديل مسمى كل الفصول
+                </button>
+                <button
+                  dir="rtl"
+                  onClick={() => setShowGlobalPeriodsModal(true)}
+                  disabled={currentSchoolClasses.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
+                </button>
+                <button
+                  dir="rtl"
+                  onClick={() => {
+                    if (!deleteSelectionMode) {
+                      setDeleteSelectionMode(true);
+                      setSelectedClasses(new Set());
+                      return;
+                    }
+                    if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
+                  }}
+                  disabled={currentSchoolClasses.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
+                </button>
+                {currentSchoolClasses.length > 0 && (
                 <button
                   dir="rtl"
                   onClick={() => setShowDeleteAllConfirm(true)}
@@ -1127,8 +1139,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 >
                   <Trash2 size={16} className="text-rose-500" /> حذف الكل
                 </button>
-              )}
-              {deleteSelectionMode && (
+                )}
+                {deleteSelectionMode && (
                 <button
                   dir="rtl"
                   onClick={() => { setDeleteSelectionMode(false); setSelectedClasses(new Set()); }}
@@ -1136,7 +1148,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 >
                   إلغاء التحديد
                 </button>
-              )}
+                )}
+              </div>
             </div>
 
             {/* ── Grade Blocks ── */}
@@ -1756,20 +1769,20 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
               <div className="space-y-2 mb-5">
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-black text-[#655ac1]">متى أضيف مرفقاً؟</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">عند وجود معمل أو ملعب له سعة محدودة و لا يمكن استخدامه إلا بعدد محدد من الفصول في نفس الحصة مع ارتباطه بمادة محددة مثل : البدنية</p>
+                      <p className="text-sm font-black text-[#655ac1]">متى أضيف مرفقاً؟</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">عند وجود معمل أو ملعب له سعة محدودة و لا يمكن استخدامه إلا بعدد محدد من الفصول في نفس الحصة مع ارتباطه بمادة محددة مثل : البدنية</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-black text-[#655ac1]">ما الهدف؟</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">حتى يتم مراعاة سعة المرافق لتقليل التعارض قدر الإمكان عند إنشاء الجدول.</p>
+                      <p className="text-sm font-black text-[#655ac1]">ما الهدف؟</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">حتى يتم مراعاة سعة المرافق لتقليل التعارض قدر الإمكان عند إنشاء الجدول.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-black text-[#655ac1]">ما معنى السعة؟</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
+                      <p className="text-sm font-black text-[#655ac1]">ما معنى السعة؟</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-black text-[#655ac1]">لماذا أربط المادة؟</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">لأنه إلزامي حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
+                      <p className="text-sm font-black text-[#655ac1]">لماذا أربط المادة؟</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">لأنه إلزامي حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
                   </div>
               </div>
 
@@ -1958,15 +1971,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                           <div className="min-w-0">
                                               <h5 className="font-black text-slate-800 truncate">{c.name}</h5>
                                               <p className="text-[11px] font-bold text-slate-400 mt-0.5">{typeLabel}</p>
-                                              <div className="flex flex-nowrap items-center gap-2 mt-3 overflow-x-auto pb-1 custom-scrollbar">
-                                                  <span className="shrink-0 whitespace-nowrap text-xs font-black px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">
+                                              <div className="flex flex-col items-start gap-2 mt-3">
+                                                  <span className="whitespace-nowrap text-xs font-black px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">
                                                       السعة: {c.capacity || 1} فصل
                                                   </span>
                                                   {linkedSubjects.length === 0 && (
-                                                      <span className="min-w-0 whitespace-nowrap text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">غير مرتبط بمادة</span>
+                                                      <span className="text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">غير مرتبط بمادة</span>
                                                   )}
                                                   {linkedSubjects.map(linkedSubject => (
-                                                      <span key={linkedSubject.id} className="shrink-0 whitespace-nowrap text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
+                                                      <span key={linkedSubject.id} className="max-w-full text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
                                                           <BookOpen size={12} className="shrink-0 text-slate-400" />
                                                           {linkedSubject.name}
                                                       </span>
@@ -2778,31 +2791,57 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   </div>
                 </div>
                 {/* Naming mode */}
-                <div>
-                  <p className="text-sm font-black text-slate-700 mb-3">طريقة التسمية</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {([
-                      {mode:'numbers',label:'أرقام',example:'١/١  ،  ١/٢'},
-                      {mode:'name_number',label:'اسم + رقم',example:'الأول / ١'},
-                      {mode:'name_letter',label:'اسم + حرف',example:'الأول / أ'},
-                    ] as {mode:NamingModeW;label:string;example:string}[]).map(n => {
-                      const active = wizardNaming === n.mode;
-                      return (
-                        <button key={n.mode} onClick={() => setWizardNaming(n.mode)}
-                          className="relative p-4 rounded-2xl border-2 text-center transition-all"
-                          style={{ borderColor:active?'#cbd5e1':'#e2e8f0', background:'white', boxShadow: active ? '0 8px 18px rgba(15, 23, 42, 0.08)' : undefined }}>
-                          {active && (
-                            <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
-                              <Check size={9} strokeWidth={3.5} className="text-white"/>
-                            </div>
-                          )}
-                          <p className="font-black text-sm text-slate-800">{n.label}</p>
-                          <p className="text-xs text-slate-400 mt-1 font-bold">{n.example}</p>
-                        </button>
-                      );
-                    })}
+                {wizardTemplate === 'custom' ? (
+                  <div>
+                    <p className="text-sm font-black text-slate-700 mb-3">تسمية الفصول يدوياً</p>
+                    <div className="space-y-3">
+                      {wizardGrades.map((grade, gi) => (
+                        <div key={grade.id} className="rounded-2xl border border-slate-200 bg-white p-3">
+                          <p className="text-sm font-black text-[#655ac1] mb-2">{grade.name}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {Array.from({ length: wizardCount }, (_, si) => {
+                              const key = `${grade.id}-${si}`;
+                              return (
+                                <input
+                                  key={key}
+                                  value={wizardCustomClassNames[key] ?? `${grade.name} / ${toArabicNum(si + 1)}`}
+                                  onChange={e => setWizardCustomClassNames(prev => ({ ...prev, [key]: e.target.value }))}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 outline-none transition-all focus:border-[#655ac1]"
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <p className="text-sm font-black text-slate-700 mb-3">طريقة التسمية</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {([
+                        {mode:'numbers',label:'أرقام',example:'١/١  ،  ١/٢'},
+                        {mode:'name_number',label:'اسم + رقم',example:'الأول / ١'},
+                        {mode:'name_letter',label:'اسم + حرف',example:'الأول / أ'},
+                      ] as {mode:NamingModeW;label:string;example:string}[]).map(n => {
+                        const active = wizardNaming === n.mode;
+                        return (
+                          <button key={n.mode} onClick={() => setWizardNaming(n.mode)}
+                            className="relative p-4 rounded-2xl border-2 text-center transition-all"
+                            style={{ borderColor:active?'#cbd5e1':'#e2e8f0', background:'white', boxShadow: active ? '0 8px 18px rgba(15, 23, 42, 0.08)' : undefined }}>
+                            {active && (
+                              <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
+                                <Check size={9} strokeWidth={3.5} className="text-white"/>
+                              </div>
+                            )}
+                            <p className="font-black text-sm text-slate-800">{n.label}</p>
+                            <p className="text-xs text-slate-400 mt-1 font-bold">{n.example}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {/* Preview */}
                 <div>
                   <p className="text-sm font-black text-slate-700 mb-3">معاينة</p>
