@@ -7,7 +7,7 @@ import {
   Zap, ChevronUp, ChevronDown, ChevronRight, Pencil, Settings2, Printer, AlertTriangle,
   LayoutGrid, Hash, Check, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
-  MoreHorizontal, Edit2, MapPin
+  MoreHorizontal, Edit2, MapPin, CircleHelp, Users
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -36,6 +36,177 @@ const PHASE_SUFFIX_MAP: Partial<Record<Phase, string>> = {
   [Phase.ELEMENTARY]: 'ب',
   [Phase.MIDDLE]:     'م',
   [Phase.HIGH]:       'ث',
+};
+
+const PLATFORM_PURPLE = '#655ac1';
+const PLATFORM_PURPLE_DARK = '#4b3f9f';
+const PLATFORM_PURPLE_SOFT = '#f8f7ff';
+const PLATFORM_PURPLE_BORDER = '#e5e1fe';
+
+type FacilityDropdownOption = {
+  value: string;
+  label: string;
+  icon?: React.ComponentType<any>;
+  disabled?: boolean;
+};
+
+const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const margin = 16;
+      const width = Math.min(430, Math.max(260, rect.width));
+      const safeWidth = Math.min(width, window.innerWidth - margin * 2);
+      setPosition({
+        top: rect.bottom + 10,
+        left: Math.min(Math.max(margin, rect.left), window.innerWidth - safeWidth - margin),
+        width: safeWidth,
+      });
+    };
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const inButton = triggerRef.current?.contains(target);
+      const inPanel = panelRef.current?.contains(target);
+      if (!inButton && !inPanel) onClose();
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open, onClose]);
+
+  return { triggerRef, panelRef, position };
+};
+
+const FacilitySingleSelectDropdown: React.FC<{
+  label: string;
+  value: string;
+  options: FacilityDropdownOption[];
+  placeholder: string;
+  onChange: (value: string) => void;
+  error?: string;
+}> = ({ label, value, options, placeholder, onChange, error }) => {
+  const [open, setOpen] = useState(false);
+  const { triggerRef, panelRef, position } = useFloatingDropdownPosition(open, () => setOpen(false));
+  const selected = options.find(option => option.value === value);
+
+  return (
+    <div>
+      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(current => !current)}
+        className={`w-full px-5 py-2.5 bg-white border-2 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${error ? 'border-rose-400' : 'border-slate-200'}`}
+      >
+        <span className="truncate">{selected?.label || placeholder}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{ top: position.top, left: position.left, width: position.width }}
+        >
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => { if (option.disabled) return; onChange(option.value); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  option.disabled ? 'text-slate-300 cursor-not-allowed bg-slate-50/70' :
+                  value === option.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
+                  {option.label}
+                </span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+const FacilityMultiSelectDropdown: React.FC<{
+  label: string;
+  buttonLabel: string;
+  options: FacilityDropdownOption[];
+  selectedValues: string[];
+  onToggle: (value: string) => void;
+  selectedSummary?: string;
+}> = ({ label, buttonLabel, options, selectedValues, onToggle, selectedSummary }) => {
+  const [open, setOpen] = useState(false);
+  const { triggerRef, panelRef, position } = useFloatingDropdownPosition(open, () => setOpen(false));
+
+  return (
+    <div>
+      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+      >
+        <span className="truncate">{selectedSummary || buttonLabel}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{ top: position.top, left: position.left, width: position.width }}
+        >
+          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(option => {
+              const isSelected = selectedValues.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onToggle(option.value)}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                    isSelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
+                    {option.label}
+                  </span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                </button>
+              );
+            })}
+            {options.length === 0 && (
+              <p className="text-center text-xs text-slate-400 font-medium py-3">لا توجد مواد معتمدة متاحة</p>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
 };
 
 interface Props {
@@ -95,7 +266,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   
   // Custom/Other Classes
   const [showGlobalRenameModal, setShowGlobalRenameModal] = useState(false);
+  const [globalRenameMode, setGlobalRenameMode] = useState<NamingModeW>('numbers');
   const [showGlobalPeriodsModal, setShowGlobalPeriodsModal] = useState(false);
+  const [globalPeriodCounts, setGlobalPeriodCounts] = useState<Record<string, number>>({});
+  const [deleteSelectionMode, setDeleteSelectionMode] = useState(false);
+  const [gradeActionsModal, setGradeActionsModal] = useState<number | null>(null);
 
   // ─── View Mode State (Refactored) ───
   type ViewMode = 'classes' | 'facilities';
@@ -217,12 +392,42 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   const currentSchoolClasses = useMemo(() => {
     return classes
-      .filter(c => c.phase === activePhase && (c.schoolId || 'main') === activeSchoolId)
+      .filter(c =>
+        c.phase === activePhase &&
+        (c.schoolId || 'main') === activeSchoolId &&
+        c.grade !== 0 &&
+        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+      )
       .sort((a, b) => {
         if (a.grade !== b.grade) return a.grade - b.grade;
         return (a.sortOrder ?? a.section) - (b.sortOrder ?? b.section);
       });
   }, [classes, activePhase, activeSchoolId]);
+
+  const currentSchoolFacilities = useMemo(() => {
+    return classes.filter(c =>
+      c.phase === activePhase &&
+      (c.schoolId || 'main') === activeSchoolId &&
+      (c.grade === 0 || ['lab','computer_lab','gym','playground','other'].includes(c.type || ''))
+    );
+  }, [classes, activePhase, activeSchoolId]);
+
+  const approvedFacilitySubjects = useMemo(() => {
+    const approvedIds = new Set<string>();
+    currentSchoolClasses.forEach(cls => (cls.subjectIds || []).forEach(id => approvedIds.add(id)));
+    Object.entries(gradeSubjectMap).forEach(([key, ids]) => {
+      if (key.startsWith(`${activePhase}-`)) ids.forEach(id => approvedIds.add(id));
+    });
+    return subjects
+      .filter(subject => !subject.isArchived && approvedIds.has(subject.id) && subject.phases.includes(activePhase))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  }, [activePhase, currentSchoolClasses, gradeSubjectMap, subjects]);
+
+  const facilitySubjectOptions = useMemo<FacilityDropdownOption[]>(
+    () => approvedFacilitySubjects
+      .map(subject => ({ value: subject.id, label: subject.name, icon: BookOpen })),
+    [approvedFacilitySubjects]
+  );
 
   const grouped = useMemo(() => groupClassesByGrade(currentSchoolClasses), [currentSchoolClasses]);
 
@@ -271,6 +476,38 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   }, [subjects, activePhase]);
 
   const getGradeLabel = (grade: number) => gradeDisplayNames[grade] || `الصف ${grade}`;
+  const getPhaseGradeSuffix = useCallback(() => {
+    if (activePhase === Phase.ELEMENTARY) return 'الابتدائي';
+    if (activePhase === Phase.MIDDLE) return 'المتوسط';
+    if (activePhase === Phase.HIGH) return 'الثانوي';
+    if (activePhase === Phase.KINDERGARTEN) return 'رياض الأطفال';
+    if (activePhase === Phase.OTHER) {
+      return activeSchoolId === 'main'
+        ? (schoolInfo.otherPhase || '')
+        : (schoolInfo.sharedSchools?.find(s => s.id === activeSchoolId)?.otherPhase || '');
+    }
+    return '';
+  }, [activePhase, activeSchoolId, schoolInfo]);
+
+  const withPhaseGradeSuffix = useCallback((label: string) => {
+    const suffix = getPhaseGradeSuffix();
+    if (!suffix) return label;
+    if (label.includes('ابتدائي') || label.includes('متوسط') || label.includes('ثانوي') || label.includes('رياض')) {
+      return label;
+    }
+    return `${label} ${suffix}`;
+  }, [getPhaseGradeSuffix]);
+
+  const ensureSharedPhaseSuffix = useCallback((value: string) => {
+    if (!phaseSuffix) return value;
+    const knownSuffixes = Object.values(PHASE_SUFFIX_MAP).filter(Boolean) as string[];
+    let next = value.trimEnd();
+    knownSuffixes.forEach(suffix => {
+      const token = ` - ${suffix}`;
+      if (next.endsWith(token)) next = next.slice(0, -token.length).trimEnd();
+    });
+    return `${next} - ${phaseSuffix}`;
+  }, [phaseSuffix]);
 
   // ─── Auto Generation Handlers ───
   const handleCalculateDistribution = useCallback(() => {
@@ -305,7 +542,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setClasses(prev => {
       // Remove existing classrooms for this phase/school
       const other = prev.filter(c =>
-        !(c.phase === activePhase && (c.schoolId || 'main') === activeSchoolId)
+        !(
+          c.phase === activePhase &&
+          (c.schoolId || 'main') === activeSchoolId &&
+          c.grade !== 0 &&
+          !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+        )
       );
       return [...other, ...newClassrooms];
     });
@@ -343,7 +585,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     if (phaseSuffix) {
       const base = manualCustomName.trim()
         || `${toArabicNum(targetGrade)} / ${toArabicNum(nextSection)}`;
-      autoName = `${base} ${phaseSuffix}`;
+      autoName = `${base} - ${phaseSuffix}`;
     } else {
       autoName = manualCustomName.trim() || undefined;
     }
@@ -393,14 +635,21 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setClasses(prev => prev.filter(c => !selectedClasses.has(c.id)));
     setSelectedClasses(new Set());
     setShowBulkDeleteConfirm(false);
+    setDeleteSelectionMode(false);
   }, [selectedClasses, setClasses]);
 
   const handleDeleteAll = useCallback(() => {
     setClasses(prev => prev.filter(c =>
-      !(c.phase === activePhase && (c.schoolId || 'main') === activeSchoolId)
+      !(
+        c.phase === activePhase &&
+        (c.schoolId || 'main') === activeSchoolId &&
+        c.grade !== 0 &&
+        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+      )
     ));
     setSelectedClasses(new Set());
     setShowDeleteAllConfirm(false);
+    setDeleteSelectionMode(false);
   }, [activePhase, activeSchoolId, setClasses]);
 
   const toggleSelect = useCallback((id: string) => {
@@ -449,6 +698,38 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     }));
     setCustomPeriodClassId(null);
   }, [setClasses]);
+
+  const handleApplyGlobalPeriods = useCallback(() => {
+    setClasses(prev => prev.map(c => {
+      if (
+        c.phase === activePhase &&
+        (c.schoolId || 'main') === activeSchoolId &&
+        c.grade !== 0 &&
+        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+      ) {
+        return { ...c, customPeriodCounts: { ...globalPeriodCounts } };
+      }
+      return c;
+    }));
+    setShowGlobalPeriodsModal(false);
+    setGlobalPeriodCounts({});
+  }, [activePhase, activeSchoolId, globalPeriodCounts, setClasses]);
+
+  const handleResetGlobalPeriods = useCallback(() => {
+    setClasses(prev => prev.map(c => {
+      if (
+        c.phase === activePhase &&
+        (c.schoolId || 'main') === activeSchoolId &&
+        c.grade !== 0 &&
+        !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+      ) {
+        const { customPeriodCounts, ...rest } = c;
+        return rest;
+      }
+      return c;
+    }));
+    setGlobalPeriodCounts({});
+  }, [activePhase, activeSchoolId, setClasses]);
 
   // ─── Subject Toggling ───
   const toggleSubjectForGrade = useCallback((grade: number, subId: string) => {
@@ -512,7 +793,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const toArabicNum = (n: number) => n.toLocaleString('ar-EG');
 
   const wizardPreviewNames = useMemo((): string[][] => {
-    const sfx = phaseSuffix ? ` ${phaseSuffix}` : '';
+    const sfx = phaseSuffix ? ` - ${phaseSuffix}` : '';
     return wizardGrades.map((grade, gi) =>
       Array.from({ length: wizardCount }, (_, si) => {
         const sNum = si + 1;
@@ -530,7 +811,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const handleWizardCreate = useCallback(() => {
     const newClasses: ClassInfo[] = [];
     const newLabelMap = { ...gradeLabelMap };
-    const sfx = phaseSuffix ? ` ${phaseSuffix}` : '';
+    const sfx = phaseSuffix ? ` - ${phaseSuffix}` : '';
     wizardGrades.forEach((grade, gi) => {
       const gradeNum = gi + 1;
       const gradeKey = `${activePhase}-${gradeNum}`;
@@ -580,9 +861,24 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   // ─── Grade display label (with gradeLabelMap override) ───
   const getGradeLabelEx = useCallback((grade: number) =>
-    gradeLabelMap[`${activePhase}-${grade}`] || getGradeLabel(grade),
-    [gradeLabelMap, activePhase, getGradeLabel]
+    withPhaseGradeSuffix(gradeLabelMap[`${activePhase}-${grade}`] || getGradeLabel(grade)),
+    [gradeLabelMap, activePhase, getGradeLabel, withPhaseGradeSuffix]
   );
+
+  const buildClassNameByMode = useCallback((cls: ClassInfo, mode: NamingModeW) => {
+    const sfx = phaseSuffix ? ` - ${phaseSuffix}` : '';
+    const gradeLabel = gradeLabelMap[`${activePhase}-${cls.grade}`] || getGradeLabel(cls.grade);
+    const section = cls.section;
+    switch (mode) {
+      case 'name_number':
+        return `${gradeLabel} / ${toArabicNum(section)}${sfx}`;
+      case 'name_letter':
+        return `${gradeLabel} / ${ARABIC_LETTERS_W[section - 1] || toArabicNum(section)}${sfx}`;
+      case 'numbers':
+      default:
+        return `${toArabicNum(cls.grade)} / ${toArabicNum(section)}${sfx}`;
+    }
+  }, [activePhase, getGradeLabel, gradeLabelMap, phaseSuffix]);
 
   // ══════════════════════════════════════════════════════
   //   R E N D E R
@@ -614,42 +910,64 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                  }}
               />
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                    <LayoutGrid size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400">عدد الصفوف / المستويات</p>
+                    <p className="text-2xl font-black text-slate-800 leading-tight">{Object.keys(grouped).length}</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                    <Hash size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400">إجمالي الفصول</p>
+                    <p className="text-2xl font-black text-slate-800 leading-tight">{currentSchoolClasses.length}</p>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400">المرافق المدرسية</p>
+                    <p className="text-2xl font-black text-slate-800 leading-tight">{currentSchoolFacilities.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div dir="rtl" className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-wrap items-center gap-2 justify-start">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => { setViewMode('classes'); openWizard(); }}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 ${
+                    onClick={() => setViewMode('classes')}
+                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
                         viewMode === 'classes'
-                        ? 'bg-[#655ac1] text-white shadow-lg shadow-[#655ac1]/20'
-                        : 'bg-white text-slate-700 border border-slate-200 hover:border-[#8779fb]'
+                        ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-[#655ac1]'
                     }`}
                   >
-                    <Plus size={20} className={viewMode === 'classes' ? 'text-white' : 'text-[#8779fb]'} />
-                    إنشاء الفصول
+                    <LayoutGrid size={16} className={viewMode === 'classes' ? 'text-white' : 'text-slate-500'} />
+                    الصفوف والفصول
                   </button>
 
                   <button
                     onClick={() => setViewMode('facilities')}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 ${
+                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
                         viewMode === 'facilities'
-                        ? 'bg-[#655ac1] text-white shadow-lg shadow-[#655ac1]/20'
-                        : 'bg-white text-slate-700 border border-slate-200 hover:border-[#8779fb]'
+                        ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-[#655ac1]'
                     }`}
                   >
-                    <MapPin size={20} className={viewMode === 'facilities' ? 'text-white' : 'text-[#8779fb]'} />
+                    <MapPin size={16} className={viewMode === 'facilities' ? 'text-white' : 'text-slate-400'} />
                     المرافق المدرسية
                   </button>
-
-                  
-
+                </div>
               </div>
           </div>
-
-          {viewMode === 'facilities' && (
-              <div className="bg-white border border-[#e5e1fe] p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                  <Info size={16} className="text-[#8779fb] shrink-0" />
-                  <p className="text-sm font-semibold text-slate-600 leading-relaxed">يمكنك تخصيص المرافق المضافة لمنع التعارض — مثلاً: صالتان رياضيتان تستوعبان فصلين فقط في نفس الوقت</p>
-              </div>
-          )}
 
           {/* Phase Selector (if multi-phase) */}
           {(() => {
@@ -685,81 +1003,89 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       {viewMode === 'classes' && (
         <>
 
-          {/* ── Stats Cards ── */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-              <LayoutGrid size={28} className="text-[#8779fb] flex-shrink-0" />
-              <div>
-                <p className="text-xs text-slate-400 font-bold">عدد الصفوف / المستويات</p>
-                <p className="text-3xl font-black text-slate-800">{Object.keys(grouped).length}</p>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4">
-              <Hash size={28} className="text-[#8779fb] flex-shrink-0" />
-              <div>
-                <p className="text-xs text-slate-400 font-bold">إجمالي الفصول</p>
-                <p className="text-3xl font-black text-slate-800">{currentSchoolClasses.length}</p>
-              </div>
-            </div>
-          </div>
-
           {/* ── Bulk Action Bar ── */}
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200/60 flex flex-wrap items-center justify-between gap-3 transition-all">
-            <div className="flex items-center gap-3">
-              <Settings2 size={20} className="text-[#655ac1]" />
+          <div dir="rtl" className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col items-stretch gap-3 transition-all">
+            <div className="flex items-center gap-3 justify-start">
+              <LayoutGrid size={24} className="text-[#655ac1]" />
               <div>
-                <span className="text-sm font-black text-slate-700">إجراءات الفصول</span>
+                <span className="text-lg font-black text-slate-800">الصفوف والفصول</span>
                 {selectedClasses.size > 0 && (
                   <span className="text-xs bg-[#e5e1fe] text-[#655ac1] px-2 py-0.5 rounded-lg font-black mr-2">{selectedClasses.size} محدد</span>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               <button
-                onClick={() => { if (selectedClasses.size > 0) setShowGlobalRenameModal(true); }}
-                disabled={selectedClasses.size === 0}
-                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                dir="rtl"
+                onClick={openWizard}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all active:scale-95"
               >
-                <Pencil size={15} className="text-indigo-500" /> تعديل المسمى
+                <Plus size={16} className="text-slate-400" />
+                إنشاء الفصول
               </button>
               <button
-                onClick={() => { if (selectedClasses.size > 0) setShowGlobalPeriodsModal(true); }}
-                disabled={selectedClasses.size === 0}
-                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-[#8779fb] disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                dir="rtl"
+                onClick={() => setShowGlobalRenameModal(true)}
+                disabled={currentSchoolClasses.length === 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Clock size={15} className="text-[#655ac1]" /> تخصيص الحصص
+                <Edit2 size={16} className="text-slate-400" /> تعديل مسمى الكل
               </button>
               <button
-                onClick={() => { if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true); }}
-                disabled={selectedClasses.size === 0}
-                className="flex items-center gap-2 bg-white hover:bg-rose-50 text-rose-500 border border-rose-200 px-4 py-2.5 rounded-xl font-bold transition-all hover:border-rose-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                dir="rtl"
+                onClick={() => setShowGlobalPeriodsModal(true)}
+                disabled={currentSchoolClasses.length === 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Trash2 size={15} /> حذف المحدد
+                <Settings2 size={16} className="text-slate-400" /> تخصيص حصص الكل
+              </button>
+              <button
+                dir="rtl"
+                onClick={() => {
+                  if (!deleteSelectionMode) {
+                    setDeleteSelectionMode(true);
+                    setSelectedClasses(new Set());
+                    return;
+                  }
+                  if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
+                }}
+                disabled={currentSchoolClasses.length === 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
               </button>
               {currentSchoolClasses.length > 0 && (
                 <button
+                  dir="rtl"
                   onClick={() => setShowDeleteAllConfirm(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-black rounded-xl border-2 border-rose-200 text-rose-500 hover:bg-rose-50 transition-all"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all"
                 >
-                  <Trash size={13} /> حذف الكل
+                  <Trash2 size={16} className="text-rose-500" /> حذف الكل
+                </button>
+              )}
+              {deleteSelectionMode && (
+                <button
+                  dir="rtl"
+                  onClick={() => { setDeleteSelectionMode(false); setSelectedClasses(new Set()); }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all"
+                >
+                  إلغاء التحديد
                 </button>
               )}
             </div>
-          </div>
 
-          {/* ── Bulk Delete Confirmation — modal rendered below ── */}
-
-          {/* ── Grade Blocks ── */}
-          {currentSchoolClasses.length === 0 ? (
-            <div className="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-16 text-center space-y-4">
-              <LayoutGrid size={48} className="text-[#8779fb] mx-auto" />
-              <h3 className="text-lg font-black text-slate-800">لم يتم إنشاء الفصول بعد</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                اضغط على زر إنشاء الفصول وأكمل الخطوات.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
+            {/* ── Grade Blocks ── */}
+            <div className="pt-6 mt-3 border-t border-slate-100">
+              {currentSchoolClasses.length === 0 ? (
+                <div className="rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center space-y-4">
+                  <LayoutGrid size={42} className="text-[#655ac1] mx-auto" />
+                  <h3 className="text-lg font-black text-slate-800">لم يتم إنشاء الفصول بعد</h3>
+                  <p className="text-sm text-slate-500 max-w-md mx-auto">
+                    اضغط على زر إنشاء الفصول وأكمل الخطوات.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {Object.keys(grouped).map(Number).sort((a,b) => a-b).map(grade => {
                 const gradeClasses = grouped[grade];
                 const isExpanded   = expandedGrades.has(grade);
@@ -767,132 +1093,112 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 const allSelected  = gradeClasses.length > 0 && gradeClasses.every(c => selectedClasses.has(c.id));
                 const someSelected = gradeClasses.some(c => selectedClasses.has(c.id));
                 return (
-                  <div key={grade} className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                  <div key={grade} className="rounded-2xl overflow-hidden border border-slate-200 bg-white transition-all flex flex-col">
                     {/* Grade header */}
                     <div
-                      className="flex items-center justify-between px-5 py-4 cursor-pointer select-none bg-white border-b border-slate-100"
-                      onClick={() => setExpandedGrades(prev => {
-                        const n = new Set(prev);
-                        n.has(grade) ? n.delete(grade) : n.add(grade);
-                        return n;
-                      })}
+                      className="flex items-center justify-between px-5 py-4 select-none bg-white border-b border-slate-100"
                     >
                       <div className="flex items-center gap-3">
-                        {/* Grade-level checkbox */}
-                        <div
-                          onClick={e => {
-                            e.stopPropagation();
-                            const n = new Set(selectedClasses);
-                            if (allSelected) gradeClasses.forEach(c => n.delete(c.id));
-                            else             gradeClasses.forEach(c => n.add(c.id));
-                            setSelectedClasses(n);
-                          }}
-                          className="w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
-                          style={{
-                            background:  (allSelected || someSelected) ? '#8779fb' : 'transparent',
-                            borderColor: '#8779fb',
-                          }}
-                        >
-                          {(allSelected || someSelected) && <Check size={12} className="text-white" />}
-                        </div>
-                        <span
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                          style={{ background: '#e5e1fe', color: '#8779fb' }}
-                        >
+                        {deleteSelectionMode && (
+                          <div
+                            onClick={e => {
+                              e.stopPropagation();
+                              const n = new Set(selectedClasses);
+                              if (allSelected) gradeClasses.forEach(c => n.delete(c.id));
+                              else             gradeClasses.forEach(c => n.add(c.id));
+                              setSelectedClasses(n);
+                            }}
+                            className="w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
+                            style={{
+                              background:  'white',
+                              borderColor: (allSelected || someSelected) ? '#655ac1' : '#cbd5e1',
+                              color: (allSelected || someSelected) ? '#655ac1' : 'transparent',
+                            }}
+                          >
+                            {(allSelected || someSelected) && <Check size={12} strokeWidth={3} />}
+                          </div>
+                        )}
+                        <span className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1] bg-white font-black text-sm flex-shrink-0 border border-slate-300">
                           {grade}
                         </span>
                         <div>
-                          <span className="text-[#4338ca] font-black text-sm">{gradeLabel}</span>
-                          <span className="text-[#8779fb] text-xs font-bold mr-2">({gradeClasses.length} فصل)</span>
+                          <span className="block text-slate-800 font-black text-sm">{gradeLabel}</span>
+                          <span className="block text-slate-400 text-xs font-bold mt-1">{gradeClasses.length} فصل</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {/* Add class */}
                         <button
-                          onClick={e => { e.stopPropagation(); handleManualAdd(grade); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-[#655ac1] text-xs font-bold rounded-lg border border-[#8779fb]/30 hover:bg-[#8779fb]/10 transition-all"
+                          onClick={e => { e.stopPropagation(); setGradeActionsModal(grade); }}
+                          className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/40 transition-all"
+                          title="إدارة الصف"
                         >
-                          <Plus size={14} /> إضافة فصل
+                          <MoreHorizontal size={18} />
                         </button>
-                        <div className="text-[#655ac1]">
-                          {isExpanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
-                        </div>
                       </div>
                     </div>
 
                     {/* Grade content */}
-                    {isExpanded && (
-                      <div className="bg-white">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-slate-50 bg-slate-50/50">
-                              <th className="w-10 py-2 px-4"/>
-                              <th className="py-2 px-4 text-right text-xs text-slate-400 font-bold">اسم الفصل</th>
-                              <th className="w-12 py-2 px-4"/>
-                            </tr>
-                          </thead>
-                          <tbody>
+                      <div className="bg-white p-4 flex-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                             {gradeClasses.map(cls => {
                               const isSelected = selectedClasses.has(cls.id);
                               const displayName = cls.name || getClassroomDisplayName(cls);
                               return (
-                                <tr
+                                <div
                                   key={cls.id}
-                                  className={`border-b border-slate-50 last:border-0 transition-colors ${isSelected ? 'bg-purple-50/60' : 'hover:bg-slate-50/70'}`}
+                                  className={`group rounded-lg px-2.5 py-2 min-h-[38px] flex items-center gap-2.5 transition-all ${
+                                    isSelected
+                                      ? 'bg-[#f8f7ff] text-[#655ac1]'
+                                      : 'bg-transparent hover:bg-slate-50'
+                                  }`}
                                 >
-                                  <td className="py-3 px-4">
+                                  {deleteSelectionMode && (
                                     <div
                                       onClick={() => toggleSelect(cls.id)}
-                                      className="w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all"
+                                      className="w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all shrink-0"
                                       style={{
-                                        background:  isSelected ? '#8779fb' : 'transparent',
-                                        borderColor: isSelected ? '#8779fb' : '#cbd5e1',
+                                        background:  'white',
+                                        borderColor: isSelected ? '#655ac1' : '#cbd5e1',
+                                        color: isSelected ? '#655ac1' : 'transparent',
                                       }}
                                     >
-                                      {isSelected && <Check size={10} className="text-white"/>}
+                                      {isSelected && <Check size={10} strokeWidth={3}/>}
                                     </div>
-                                  </td>
-                                  <td className="py-3 px-4">
+                                  )}
+                                  <div className="min-w-0 flex-1">
                                     {editingClassId === cls.id ? (
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 min-w-0">
                                         <input
                                           type="text"
                                           value={editName}
                                           onChange={e => setEditName(e.target.value)}
-                                          className="w-full max-w-[180px] p-2 bg-white border border-[#8779fb] rounded-lg text-xs font-black outline-none"
+                                          className="w-full min-w-0 p-2 bg-white border border-[#8779fb] rounded-lg text-xs font-black outline-none"
                                           autoFocus
                                           onKeyDown={e => {
                                             if (e.key === 'Enter') handleSaveEdit();
                                             if (e.key === 'Escape') { setEditingClassId(null); setEditName(''); }
                                           }}
                                         />
-                                        <button onClick={handleSaveEdit} className="p-2 bg-[#8779fb] text-white rounded-lg text-[10px] font-bold">حفظ</button>
+                                        <button onClick={handleSaveEdit} className="px-2 py-2 bg-[#8779fb] text-white rounded-lg text-[10px] font-bold shrink-0">حفظ</button>
                                       </div>
                                     ) : (
-                                      <span className="text-sm font-bold text-slate-700">{displayName}</span>
+                                      <span className="block text-sm font-black text-[#655ac1] truncate">{displayName}</span>
                                     )}
-                                  </td>
-                                  <td className="py-3 px-4 text-left">
-                                    <button
-                                      onClick={e => openPortalDropdown(e, cls.id)}
-                                      title="إجراءات"
-                                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb]"
-                                    >
-                                      <Edit2 size={14}/>
-                                    </button>
-                                  </td>
-                                </tr>
+                                  </div>
+                                </div>
                               );
                             })}
-                          </tbody>
-                        </table>
+                        </div>
                       </div>
-                    )}
                   </div>
                 );
               })}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* ── Bulk Delete Confirmation — modal rendered below ── */}
 
 
       {/* ══════ OLD Approved Classrooms Display — hidden ══════ */}
@@ -1373,281 +1679,257 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     
     {/* ══════ Facilities View ══════ */}
   {viewMode === 'facilities' && (
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center gap-3 mb-6">
-              <div className="text-[#655ac1] shrink-0">
-                  <MapPin size={20} />
+      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-start gap-3 mb-2">
+                  <MapPin size={20} className="text-[#655ac1]" />
+                  <h4 className="font-black text-slate-800">إضافة وتخصيص المرافق المدرسية</h4>
               </div>
-              <div>
-                  <h3 className="text-lg font-black text-slate-800">المرافق المدرسية</h3>
-                  <p className="text-sm text-slate-400">معامل، مختبراʡ صالات رياضيɡ وغيرها</p>
-              </div>
-          </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5 leading-relaxed">
+                  أضف المعامل والصالات والملاعب التي لا يمكن استخدامها إلا بعدد محدد من الفصول في نفس الحصة، حتى يراعي الجدول المدرسي سعة المرفق ويقلل التعارض عند البناء.
+              </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-              {/* Form */}
-              <div className="md:col-span-4 space-y-6">
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4 sticky top-4">
-                      <h4 className="font-bold text-slate-700 mb-2">إضافة مرفق جديد</h4>
-                      
-                      {/* Type */}
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">نوع المرفق</label>
-                          <select
-                              value={facilityType}
-                              onChange={e => {
-                                  setFacilityType(e.target.value as any);
-                                  if (facilityErrors.type) {
-                                      setFacilityErrors(prev => ({ ...prev, type: undefined }));
-                                  }
-                              }}
-                              className={`w-full px-4 py-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all ${
-                                  facilityErrors.type ? 'border-rose-400' : 'border-slate-200'
-                              }`}
-                          >
-                              <option value="">-- اختر النوع --</option>
-                              <option value="lab">معمل</option>
-                              <option value="computer_lab">مختبر</option>
-                              <option value="gym">صالة رياضية</option>
-                              <option value="playground">ملعب</option>
-                              <option value="other">أخرى</option>
-                          </select>
-                          {facilityErrors.type && (
-                              <p className="text-xs text-rose-500 mt-1">{facilityErrors.type}</p>
-                          )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <div className="flex items-center gap-2 mb-1">
+                          <CircleHelp size={15} className="text-[#655ac1]" />
+                          <span className="text-xs font-black text-slate-700">متى أضيف مرفقاً؟</span>
                       </div>
-                      
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">اختياري، عند وجود معمل أو صالة أو ملعب له سعة محدودة في الحصة الواحدة.</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <div className="flex items-center gap-2 mb-1">
+                          <Users size={15} className="text-[#655ac1]" />
+                          <span className="text-xs font-black text-slate-700">ما معنى السعة؟</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <div className="flex items-center gap-2 mb-1">
+                          <BookOpen size={15} className="text-[#655ac1]" />
+                          <span className="text-xs font-black text-slate-700">ربط المادة</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">اختياري، ويفيد عند ربط المرفق بمواد محددة مثل الحاسب أو التربية البدنية.</p>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                  <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-4">
+                      <h4 className="font-black text-slate-800 text-sm mb-4 flex items-center gap-2">
+                          <Plus size={16} className="text-[#655ac1]" />
+                          إضافة مرفق جديد
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <FacilitySingleSelectDropdown
+                              label="نوع المرفق"
+                              value={facilityType}
+                              placeholder="اختر النوع"
+                              error={facilityErrors.type}
+                              onChange={value => {
+                                  setFacilityType(value as any);
+                                  if (facilityErrors.type) setFacilityErrors(prev => ({ ...prev, type: undefined }));
+                              }}
+                              options={[
+                                  { value: 'lab', label: 'معمل', icon: FlaskConical },
+                                  { value: 'computer_lab', label: 'مختبر حاسب', icon: Layers },
+                                  { value: 'gym', label: 'صالة رياضية', icon: Dumbbell },
+                                  { value: 'playground', label: 'ملعب', icon: MapPin },
+                                  { value: 'other', label: 'أخرى', icon: MoreHorizontal },
+                              ]}
+                          />
+
+                          <div>
+                              <label className="block text-xs font-black text-slate-500 mb-2">اسم مخصص <span className="font-bold text-slate-400">(اختياري)</span></label>
+                              <input
+                                  type="text"
+                                  value={facilityName}
+                                  onChange={e => setFacilityName(e.target.value)}
+                                  placeholder="مثال: معمل العلوم 1"
+                                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
+                              />
+                          </div>
+                      </div>
+
                       {facilityType === 'other' && (
-                          <div className="animate-in slide-in-from-top-2">
-                              <label className="block text-xs font-bold text-slate-500 mb-2">تحديد النوع</label>
+                          <div className="mt-3 animate-in slide-in-from-top-2">
+                              <label className="block text-xs font-black text-slate-500 mb-2">تحديد النوع</label>
                               <input
                                   type="text"
                                   value={facilityOtherType}
                                   onChange={e => setFacilityOtherType(e.target.value)}
-                                  placeholder="مثال: مكتبɡ مسرح..."
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
+                                  placeholder="مثال: مسرح، قاعة مصادر"
+                                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
                               />
                           </div>
                       )}
 
-                      {/* Name (optional) */}
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">
-                              اسم مخصص <span className="font-normal text-slate-400">(اختياري)</span>
-                          </label>
-                          <input
-                              type="text"
-                              value={facilityName}
-                              onChange={e => setFacilityName(e.target.value)}
-                              placeholder="اتركه فارغاً للاسم التلقائي"
-                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
-                          />
-                      </div>
-
-                      {/* Capacity */}
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">كم فصلاً يمكنه استيعابهم في نفس الوقʿ</label>
-                          <div className="flex gap-2">
+                      <div className="mt-4">
+                          <label className="block text-xs font-black text-slate-500 mb-2">كم فصلاً يمكن استيعابهم في نفس الحصة</label>
+                          <div className="grid grid-cols-4 gap-2">
                               {[1, 2, 3, 4].map(n => (
                                   <button
                                       key={n}
                                       onClick={() => {
                                           setFacilityCapacity(n);
-                                          if (facilityErrors.capacity) {
-                                              setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
-                                          }
+                                          if (facilityErrors.capacity) setFacilityErrors(prev => ({ ...prev, capacity: undefined }));
                                       }}
-                                      className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                                          facilityCapacity === n
-                                              ? 'bg-white text-[#655ac1] border-[#655ac1]'
-                                              : 'bg-white border-slate-200 text-slate-700 hover:border-[#8779fb]'
-                                      }`}
+                                      className={`py-2.5 px-3 rounded-xl font-black text-sm transition-all border ${facilityCapacity === n ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/50'}`}
                                   >
                                       {n}
                                   </button>
                               ))}
                           </div>
+                          {facilityErrors.capacity && <p className="text-xs text-rose-500 mt-1">{facilityErrors.capacity}</p>}
+                      </div>
 
-                          {facilityErrors.capacity && (
-                              <p className="text-xs text-rose-500 mt-1">{facilityErrors.capacity}</p>
+                      <div className="mt-4">
+                          {facilityLinkedSubject.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                  {facilityLinkedSubject.map(subjectId => {
+                                      const subject = subjects.find(s => s.id === subjectId);
+                                      return subject ? (
+                                          <span key={subjectId} className="inline-flex items-center gap-1 px-3 py-1 bg-[#f8f7ff] text-[#655ac1] rounded-full text-xs font-bold border border-[#e5e1fe]">
+                                              {subject.name}
+                                              <button onClick={() => setFacilityLinkedSubject(prev => prev.filter(id => id !== subjectId))} className="hover:text-[#5046a0]">
+                                                  <X size={12} />
+                                              </button>
+                                          </span>
+                                      ) : null;
+                                  })}
+                              </div>
                           )}
-                      </div>
-
-                      {/* Linked Subjects - Optional */}
-                      <div>
-                          <label className="block text-xs font-bold text-slate-500 mb-2">
-                              ربط بمادة
-                              <span className="text-xs text-slate-400 mr-2">(اختياري)</span>
-                          </label>
-                          <div className="flex flex-wrap gap-2 mb-2">
-                              {facilityLinkedSubject.map(subjectId => {
-                                  const subject = subjects.find(s => s.id === subjectId);
-                                  return subject ? (
-                                      <span
-                                          key={subjectId}
-                                          className="inline-flex items-center gap-1 px-3 py-1 bg-[#e5e1fe] text-[#655ac1] rounded-full text-xs font-bold"
-                                      >
-                                          {subject.name}
-                                          <button
-                                              onClick={() => setFacilityLinkedSubject(prev => prev.filter(id => id !== subjectId))}
-                                              className="hover:text-[#5046a0]"
-                                          >
-                                              <X size={12} />
-                                          </button>
-                                      </span>
-                                  ) : null;
-                              })}
-                          </div>
-                          <select
-                              value=""
-                              onChange={e => {
-                                  if (e.target.value && !facilityLinkedSubject.includes(e.target.value)) {
-                                      setFacilityLinkedSubject(prev => [...prev, e.target.value]);
-                                  }
+                          <FacilityMultiSelectDropdown
+                              label="ربط بمادة (اختياري)"
+                              buttonLabel="اختر مادة لإضافتها"
+                              options={facilitySubjectOptions}
+                              selectedValues={facilityLinkedSubject}
+                              selectedSummary={facilityLinkedSubject.length > 0 ? `${facilityLinkedSubject.length} مواد مرتبطة` : undefined}
+                              onToggle={value => {
+                                  setFacilityLinkedSubject(prev =>
+                                      prev.includes(value) ? prev.filter(id => id !== value) : [...prev, value]
+                                  );
                               }}
-                              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold focus:border-[#655ac1] outline-none transition-all"
-                          >
-                              <option value="">-- اختر مادة لإضافتها --</option>
-                              {subjects
-                                  .filter(s => s.phases.includes(activePhase) && !facilityLinkedSubject.includes(s.id))
-                                  .map(s => (
-                                      <option key={s.id} value={s.id}>{s.name}</option>
-                                  ))}
-                          </select>
+                          />
                       </div>
 
-                      {/* Success Message */}
                       {facilitySuccess && (
-                          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                               <p className="text-sm font-bold text-emerald-700">{facilitySuccess}</p>
                           </div>
                       )}
 
-                      <button
-                          onClick={() => {
-                              // Validation
-                              const errors: {name?: string; type?: string; capacity?: string} = {};
+                      <div className="flex justify-center mt-5">
+                          <button
+                              onClick={() => {
+                                  const errors: {name?: string; type?: string; capacity?: string} = {};
+                                  if (!facilityType) errors.type = 'يجب اختيار نوع المرفق';
+                                  if (!facilityCapacity) errors.capacity = 'يجب اختيار السعة';
+                                  if (Object.keys(errors).length > 0) {
+                                      setFacilityErrors(errors);
+                                      return;
+                                  }
 
-                              if (!facilityType) {
-                                  errors.type = 'يجب اختيار نوع المرفق';
-                              }
-                              
-                              if (!facilityCapacity) {
-                                  errors.capacity = 'يجب اختيار السعة';
-                              }
-                              
-                              if (Object.keys(errors).length > 0) {
-                                  setFacilityErrors(errors);
-                                  return;
-                              }
-                              
-                              // Clear errors and success message
-                              setFacilityErrors({});
-                              setFacilitySuccess('');
-                              
-                              // Auto-generate name from type if not provided
-                              const typeLabels: Record<string, string> = {
-                                  lab: 'معمل', computer_lab: 'مختبر حاسب',
-                                  gym: 'صالة رياضية', playground: 'ملعب', other: facilityOtherType || 'مرفق'
-                              };
-                              const existingOfType = classes.filter(c => c.type === facilityType && (c.schoolId || 'main') === activeSchoolId).length + 1;
-                              const autoName = facilityName.trim() || `${typeLabels[facilityType] || 'مرفق'} ${existingOfType}`;
+                                  setFacilityErrors({});
+                                  setFacilitySuccess('');
 
-                              // Save facility
-                              setClasses(prev => [...prev, {
-                                  id: crypto.randomUUID(),
-                                  phase: activePhase,
-                                  grade: 0,
-                                  section: 0,
-                                  name: autoName,
-                                  isManuallyCreated: true,
-                                  type: facilityType,
-                                  customType: facilityType === 'other' ? facilityOtherType : undefined,
-                                  schoolId: activeSchoolId,
-                                  linkedSubjectIds: facilityLinkedSubject.length > 0 ? facilityLinkedSubject : undefined,
-                                  capacity: facilityCapacity,
-                                  createdAt: new Date().toISOString()
-                              } as ClassInfo]);
-                              
-                              // Reset form
-                              setFacilityName('');
-                              setFacilityType('lab');
-                              setFacilityLinkedSubject([]);
-                              setFacilityOtherType('');
-                              setFacilityCapacity(1);
-                              
-                              // Show success message
-                              setFacilitySuccess('تم حفظ المرفق');
-                              
-                              // Hide success message after 3 seconds
-                              setTimeout(() => setFacilitySuccess(''), 3000);
-                          }}
-                          className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#8779fb] transition-all flex items-center justify-center gap-2"
-                      >
-                          <Plus size={18} /> إضافة المرفق
-                      </button>
+                                  const typeLabels: Record<string, string> = {
+                                      lab: 'معمل', computer_lab: 'مختبر حاسب',
+                                      gym: 'صالة رياضية', playground: 'ملعب', other: facilityOtherType || 'مرفق'
+                                  };
+                                  const existingOfType = classes.filter(c => c.type === facilityType && (c.schoolId || 'main') === activeSchoolId).length + 1;
+                                  const autoName = facilityName.trim() || `${typeLabels[facilityType] || 'مرفق'} ${existingOfType}`;
+
+                                  setClasses(prev => [...prev, {
+                                      id: crypto.randomUUID(),
+                                      phase: activePhase,
+                                      grade: 0,
+                                      section: 0,
+                                      name: autoName,
+                                      isManuallyCreated: true,
+                                      type: facilityType,
+                                      customType: facilityType === 'other' ? facilityOtherType : undefined,
+                                      schoolId: activeSchoolId,
+                                      linkedSubjectIds: facilityLinkedSubject.length > 0 ? facilityLinkedSubject : undefined,
+                                      capacity: facilityCapacity,
+                                      createdAt: new Date().toISOString()
+                                  } as ClassInfo]);
+
+                                  setFacilityName('');
+                                  setFacilityType('lab');
+                                  setFacilityLinkedSubject([]);
+                                  setFacilityOtherType('');
+                                  setFacilityCapacity(1);
+                                  setFacilitySuccess('تم حفظ المرفق');
+                                  setTimeout(() => setFacilitySuccess(''), 3000);
+                              }}
+                              className="inline-flex min-w-[160px] items-center justify-center gap-2 px-8 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black transition-all shadow-md shadow-[#655ac1]/20"
+                          >
+                              <Plus size={16} /> إضافة المرفق
+                          </button>
+                      </div>
                   </div>
-              </div>
 
-               {/* List */}
-               <div className="md:col-span-8">
-                   <div className="bg-slate-50 rounded-2xl border border-slate-100 p-6 min-h-[400px]">
-                       <h4 className="font-bold text-slate-700 mb-4 flex items-center justify-between">
-                          <span>المرافق المدرسية ({classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).length})</span>
-                       </h4>
-                       
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                           {classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).map(c => {
-                              const linkedSubject = subjects.find(s => s.id === c.linkedSubjectId);
+                  <div className="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-4 min-h-[360px]">
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                          <h4 className="font-black text-slate-800 text-sm">المرافق المضافة</h4>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-[#655ac1]">{currentSchoolFacilities.length} مرفق</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {currentSchoolFacilities.map(c => {
+                              const linkedIds = c.linkedSubjectIds || (c.linkedSubjectId ? [c.linkedSubjectId] : []);
+                              const linkedSubjects = subjects.filter(s => linkedIds.includes(s.id));
+                              const typeLabel =
+                                  c.type === 'lab' ? 'معمل' :
+                                  c.type === 'computer_lab' ? 'مختبر حاسب' :
+                                  c.type === 'gym' ? 'صالة رياضية' :
+                                  c.type === 'playground' ? 'ملعب' :
+                                  c.customType || 'أخرى';
                               return (
-                                  <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:shadow-md transition-all group relative">
-                                       <button onClick={() => handleDeleteOne(c.id)} className="absolute top-3 left-3 text-slate-300 hover:text-rose-500 transition-colors">
-                                          <Trash size={16} />
+                                  <div key={c.id} className="relative rounded-2xl border border-slate-100 bg-slate-50/70 p-4 transition-all hover:border-[#655ac1]/30 hover:bg-white">
+                                      <button onClick={() => handleDeleteOne(c.id)} className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors">
+                                          <Trash2 size={14} />
                                       </button>
-                                      
-                                      <div className="flex items-start gap-3">
-                                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                              c.type === 'gym' || c.type === 'playground' ? 'bg-orange-50 text-orange-600' :
-                                              c.type?.includes('lab') ? 'bg-cyan-50 text-cyan-600' :
-                                              'bg-slate-100 text-slate-600'
-                                          }`}>
-                                              {c.type === 'gym' || c.type === 'playground' ? <Dumbbell size={20} /> :
-                                               c.type?.includes('lab') ? <Layers size={20} /> :
-                                               <LayoutGrid size={20} />}
+
+                                      <div className="flex items-start gap-3 pl-8">
+                                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white border border-slate-200 text-[#655ac1]">
+                                              {c.type === 'gym' || c.type === 'playground' ? <Dumbbell size={19} /> :
+                                               c.type?.includes('lab') ? <Layers size={19} /> :
+                                               <LayoutGrid size={19} />}
                                           </div>
-                                          
-                                          <div>
-                                              <h5 className="font-bold text-slate-800">{c.name}</h5>
-                                              <div className="flex flex-wrap gap-2 mt-2">
-                                                  <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-500 rounded-lg">
-                                                      {c.type === 'lab' ? 'معمل' :
-                                                       c.type === 'computer_lab' ? 'معمل حاسب' :
-                                                       c.type === 'gym' ? 'صالة رياضية' :
-                                                       c.type === 'playground' ? 'ملعب' :
-                                                       c.customType || 'أخرى'}
+                                          <div className="min-w-0">
+                                              <h5 className="font-black text-slate-800 truncate">{c.name}</h5>
+                                              <p className="text-[11px] font-bold text-slate-400 mt-0.5">{typeLabel}</p>
+                                              <div className="flex flex-wrap gap-2 mt-3">
+                                                  <span className="text-[10px] font-black px-2 py-1 bg-white text-[#655ac1] rounded-lg border border-[#e5e1fe]">
+                                                      السعة: {c.capacity || 1} فصل
                                                   </span>
-                                                  
-                                                  {linkedSubject && (
-                                                      <span className="text-[10px] font-bold px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg flex items-center gap-1">
+                                                  {linkedSubjects.length === 0 && (
+                                                      <span className="text-[10px] font-bold px-2 py-1 bg-white text-slate-400 rounded-lg border border-slate-100">غير مرتبط بمادة</span>
+                                                  )}
+                                                  {linkedSubjects.map(linkedSubject => (
+                                                      <span key={linkedSubject.id} className="text-[10px] font-bold px-2 py-1 bg-white text-emerald-600 rounded-lg border border-emerald-100 flex items-center gap-1">
                                                           <BookOpen size={10} />
                                                           {linkedSubject.name}
                                                       </span>
-                                                  )}
+                                                  ))}
                                               </div>
                                           </div>
                                       </div>
                                   </div>
                               );
-                           })}
-                           {classes.filter(c => ['lab', 'computer_lab', 'gym', 'playground', 'other'].includes(c.type || '') && (c.schoolId || 'main') === activeSchoolId).length === 0 && (
-                            <div className="col-span-full py-12 text-center text-slate-400">
-                                <MapPin size={40} className="mx-auto mb-3 opacity-20" />
-                                <p>لا توجد مرافق مدرسية مضافة</p>
-                            </div>
-                           )}
-                       </div>
-                   </div>
-               </div>
+                          })}
+                          {currentSchoolFacilities.length === 0 && (
+                              <div className="col-span-full py-14 text-center text-slate-400">
+                                  <MapPin size={40} className="mx-auto mb-3 opacity-25" />
+                                  <p className="text-sm font-bold">لا توجد مرافق مدرسية مضافة</p>
+                                  <p className="text-xs mt-1">ابدأ بإضافة المعامل أو الصالات المؤثرة على بناء الجدول.</p>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+              </div>
           </div>
       </div>
   )}
@@ -1822,254 +2104,336 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         </div>
       )}
 
+      {/* ══════ Grade Actions Modal ══════ */}
+      {gradeActionsModal !== null && (() => {
+        const gradeClasses = grouped[gradeActionsModal] || [];
+        return createPortal((
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => setGradeActionsModal(null)}>
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <Settings2 size={22} className="text-[#655ac1]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-800">{getGradeLabelEx(gradeActionsModal)}</h3>
+                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">إضافة الفصول وعدد الحصص لفصول الصف.</p>
+                  </div>
+                </div>
+                <button onClick={() => setGradeActionsModal(null)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-4 overflow-y-auto space-y-3">
+                <div className="flex items-center justify-end">
+                  <button
+                    onClick={() => handleManualAdd(gradeActionsModal)}
+                    className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl border border-[#655ac1] bg-[#655ac1] hover:bg-[#4b3f9f] px-3 py-2 text-xs font-black text-white transition-all"
+                  >
+                    <Plus size={14} /> إضافة فصل
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-sm font-black text-slate-800 flex items-center justify-between">
+                    <span>فصول الصف</span>
+                    <span className="rounded-full bg-white border border-slate-200 px-3 py-1 text-xs text-[#655ac1]">{gradeClasses.length} فصل</span>
+                  </div>
+                  <table className="w-full min-w-[760px] text-xs text-right">
+                    <thead className="bg-white border-b border-slate-100 text-[#655ac1]">
+                      <tr>
+                        <th className="px-3 py-2 font-black text-center w-20">الفصل</th>
+                        <th className="px-3 py-2 font-black text-center w-48">اسم الفصل</th>
+                        <th className="px-3 py-2 font-black text-center">الأيام والحصص</th>
+                        <th className="px-3 py-2 font-black text-center w-24">الإجراء</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {gradeClasses.map(cls => (
+                        <tr key={cls.id} className="hover:bg-slate-50">
+                          <td className="px-3 py-3 font-black text-[#655ac1] text-center">{cls.section}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="inline-flex min-h-[34px] w-full items-center justify-center rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
+                              {cls.name || getClassroomDisplayName(cls)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5">
+                              {activeDays.map(day => {
+                                const defaultCount = currentTiming?.periodCounts?.[day] ?? 7;
+                                const count = cls.customPeriodCounts?.[day] ?? defaultCount;
+                                const isCustom = cls.customPeriodCounts?.[day] !== undefined && cls.customPeriodCounts?.[day] !== defaultCount;
+                                return (
+                                  <div key={day} className={`rounded-lg border px-2 py-1.5 text-center ${isCustom ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-50'}`}>
+                                    <p className="text-[9px] font-black text-slate-500 mb-1 truncate">{dayLabels[day.toLowerCase()] || day}</p>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button onClick={() => handleCustomPeriodChange(cls.id, day, Math.max(0, count - 1))} className="w-5 h-5 rounded-md border border-slate-200 text-slate-400 hover:text-rose-500 leading-none">-</button>
+                                      <span className="w-5 text-center text-xs font-black text-[#655ac1]">{count}</span>
+                                      <button onClick={() => handleCustomPeriodChange(cls.id, day, Math.min(12, count + 1))} className="w-5 h-5 rounded-md border border-slate-200 text-slate-400 hover:text-[#655ac1] leading-none">+</button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <button
+                              onClick={() => setDeleteConfirmClassId(cls.id)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 bg-white text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-all"
+                              title="حذف الفصل"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setGradeActionsModal(null)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  إغلاق
+                </button>
+                <button
+                  onClick={() => setGradeActionsModal(null)}
+                  className="px-6 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] text-white hover:bg-[#5046a0] transition-all"
+                >
+                  حفظ
+                </button>
+              </div>
+            </div>
+          </div>
+        ), document.body);
+      })()}
+
       {/* ══════ Global Rename Modal ══════ */}
-      {showGlobalRenameModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      {showGlobalRenameModal && createPortal((
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => setShowGlobalRenameModal(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="flex justify-between items-center p-8 pb-4 border-b border-slate-50">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-[#f8f7ff] rounded-2xl flex items-center justify-center border border-[#e5e1fe] text-[#655ac1]">
-                  <Pencil size={28} />
+                <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                  <Edit2 size={18} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-800">تعديل مسميات الفصول</h3>
-                  <p className="text-slate-500 font-medium mt-1">تعديل أسماء جميع الفصول في المدرسة دفعة واحدة</p>
+                  <h3 className="text-base font-black text-slate-800">تعديل مسمى الكل</h3>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">تغيير طريقة تسمية جميع الفصول.</p>
                 </div>
               </div>
               <button 
-                onClick={() => { setShowGlobalRenameModal(false); setTempClassNames({}); }}
-                className="p-3 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-colors"
+                onClick={() => setShowGlobalRenameModal(false)}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
               >
-                <X size={24} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Modal Content - List of Classes Grouped by Grade */}
-            <div className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar">
-              <div className="space-y-8">
-                {Object.entries(groupClassesByGrade(currentSchoolClasses)).map(([gradeStr, classes]) => ({ grade: Number(gradeStr), classes })).map((group) => (
-                  <div key={group.grade} className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                    <h4 className="text-lg font-black text-slate-700 mb-4 flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-400 border border-slate-200 shadow-sm text-sm">{group.classes.length}</span>
-                      {getGradeLabel(group.grade)}
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {group.classes.sort((a,b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(cls => (
-                        <div key={cls.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
-                           <div className="flex-1">
-                             <label className="text-[10px] font-bold text-slate-400 mb-1 block">اسم الفصل</label>
-                             <input
-                               type="text"
-                               value={tempClassNames[cls.id] ?? cls.name}
-                               onChange={(e) => setTempClassNames(prev => ({ ...prev, [cls.id]: e.target.value }))}
-                               className="w-full font-bold text-slate-800 border-b border-slate-200 focus:border-[#655ac1] outline-none py-1 bg-transparent transition-colors"
-                               placeholder="اسم الفصل"
-                             />
-                           </div>
-                           <div className="text-xs font-black text-slate-300">#{cls.section}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {([
+                  { mode: 'numbers', label: 'أرقام', example: '١ / ١' },
+                  { mode: 'name_number', label: 'اسم الصف + رقم', example: `${gradeLabelMap[`${activePhase}-1`] || getGradeLabel(1)} / ١` },
+                  { mode: 'name_letter', label: 'اسم الصف + حرف', example: `${gradeLabelMap[`${activePhase}-1`] || getGradeLabel(1)} / أ` },
+                ] as { mode: NamingModeW; label: string; example: string }[]).map(option => {
+                  const active = globalRenameMode === option.mode;
+                  return (
+                    <button
+                      key={option.mode}
+                      onClick={() => setGlobalRenameMode(option.mode)}
+                      className={`relative rounded-2xl border-2 bg-white p-4 text-center transition-all ${active ? 'border-[#655ac1] shadow-sm' : 'border-slate-200 hover:border-[#655ac1]/40'}`}
+                    >
+                      {active && (
+                        <span className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#655ac1] text-white">
+                          <Check size={11} strokeWidth={3.5} />
+                        </span>
+                      )}
+                      <p className="text-sm font-black text-slate-800">{option.label}</p>
+                      <p className="mt-1 text-xs font-bold text-[#655ac1]">{option.example}{phaseSuffix ? ` - ${phaseSuffix}` : ''}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="border-b border-slate-100 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800">
+                  معاينة الأسماء الجديدة
+                </div>
+                <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                  <table className="w-full min-w-[560px] text-right">
+                    <thead className="bg-white border-b border-slate-100">
+                      <tr>
+                        <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">الصف / المستوى</th>
+                        <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">المسمى الحالي</th>
+                        <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">المسمى الجديد</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {currentSchoolClasses
+                        .sort((a, b) => a.grade - b.grade || (a.sortOrder ?? a.section) - (b.sortOrder ?? b.section))
+                        .map((cls, index, sortedClasses) => {
+                          const previous = sortedClasses[index - 1];
+                          const startsNewGrade = !previous || previous.grade !== cls.grade;
+                          return (
+                            <tr key={cls.id} className={`hover:bg-slate-50/70 transition-colors ${startsNewGrade && index > 0 ? 'border-t-4 border-slate-100' : ''}`}>
+                              <td className="px-4 py-3 text-center align-middle">
+                                <span className="text-[#655ac1] text-[11px] font-black">{getGradeLabelEx(cls.grade)}</span>
+                              </td>
+                              <td className="px-4 py-3 text-xs font-bold text-slate-600 text-center align-middle">{cls.name || getClassroomDisplayName(cls)}</td>
+                              <td className="px-4 py-3 text-xs font-black text-slate-800 text-center align-middle">{buildClassNameByMode(cls, globalRenameMode)}</td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
             
             {/* Footer */}
-            <div className="p-6 bg-[#f8f7ff] border-t border-[#e5e1fe] flex justify-between items-center">
-                <div className="flex items-center gap-2 text-[#655ac1] text-sm font-bold">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
+                <div className="flex items-center gap-2 text-slate-500 text-xs font-bold">
                     <Info size={16} />
-                    <span>تأكد من عدم تكرار الأسماء داخل نفس الصف الدراسي.</span>
+                    <span>سيتم تطبيق طريقة التسمية المختارة على جميع الفصول المضافة.</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => { setShowGlobalRenameModal(false); setTempClassNames({}); }}
-                    className="px-6 py-3 bg-transparent text-slate-500 font-bold hover:text-slate-700 transition-colors"
+                    onClick={() => setShowGlobalRenameModal(false)}
+                    className="px-5 py-2.5 bg-white border border-slate-200 text-slate-500 font-bold hover:text-slate-700 rounded-xl transition-colors"
                   >
-                    إلغاء الأمر
+                    إغلاق
                   </button>
                   <button 
                     onClick={() => {
-                       // Apply changes
                        setClasses(prev => prev.map(c => {
-                         if (tempClassNames[c.id]) {
-                           return { ...c, name: tempClassNames[c.id] };
+                         if (
+                           c.phase === activePhase &&
+                           (c.schoolId || 'main') === activeSchoolId &&
+                           c.grade !== 0 &&
+                           !['lab','computer_lab','gym','playground','other'].includes(c.type || '')
+                         ) {
+                           return { ...c, name: buildClassNameByMode(c, globalRenameMode) };
                          }
                          return c;
                        }));
                        setShowGlobalRenameModal(false);
-                       setTempClassNames({});
                     }}
-                    className="px-8 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-200"
+                    className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"
                   >
-                    حفظ التغييرات
+                    حفظ
                   </button>
                 </div>
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* ══════ Global Periods Modal ══════ */}
-      {showGlobalPeriodsModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      {showGlobalPeriodsModal && createPortal((
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => { setShowGlobalPeriodsModal(false); setGlobalPeriodCounts({}); }}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="flex justify-between items-center p-8 pb-4 border-b border-slate-50">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-[#f8f7ff] rounded-2xl flex items-center justify-center border border-[#e5e1fe] text-[#655ac1]">
-                  <Clock size={28} />
+                <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                  <Settings2 size={22} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-800">تخصيص الحصص للكل</h3>
-                  <p className="text-slate-500 font-medium mt-1">تعديل عدد الحصص اليومية لجميع الفصول دفعة واحدة</p>
+                  <h3 className="text-base font-black text-slate-800">تخصيص حصص الكل</h3>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">تعديل عدد الحصص اليومية لجميع الفصول المضافة.</p>
                 </div>
               </div>
               <button 
-                onClick={() => setShowGlobalPeriodsModal(false)}
-                className="p-3 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-colors"
+                onClick={() => { setShowGlobalPeriodsModal(false); setGlobalPeriodCounts({}); }}
+                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
               >
-                <X size={24} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Modal Content - List of Classes Grouped by Grade */}
-            <div className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar">
-              <div className="space-y-8">
-                {Object.entries(groupClassesByGrade(currentSchoolClasses)).map(([gradeStr, classes]) => ({ grade: Number(gradeStr), classes })).map((group) => (
-                  <div key={group.grade} className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-black text-slate-700 flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-slate-400 border border-slate-200 shadow-sm text-sm">{group.classes.length}</span>
-                        {getGradeLabel(group.grade)}
-                      </h4>
-                      
-                      {/* Bulk Actions for Grade */}
-                      <button 
-                        onClick={() => {
-                           // Apply to all classes in this grade - Reset to default
-                           setClasses(prev => prev.map(c => {
-                             if (c.grade === group.grade && (c.schoolId || 'main') === activeSchoolId) {
-                               const { customPeriodCounts, ...rest } = c;
-                               return rest;
-                             }
-                             return c;
-                           }));
-                        }}
-                        className="text-xs font-bold text-slate-400 hover:text-[#655ac1] flex items-center gap-1 transition-colors px-3 py-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200"
-                      >
-                         <RotateCcw size={12} /> إعادة تعيين للكل في هذا الصف
-                      </button>
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <div className="grid grid-cols-1 gap-2">
+                {activeDays.map(day => {
+                  const defaultCount = currentTiming?.periodCounts?.[day as any] ?? 7;
+                  const count = globalPeriodCounts[day] ?? defaultCount;
+                  return (
+                    <div key={day} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-black text-slate-700">{dayLabels[day.toLowerCase()] || day}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setGlobalPeriodCounts(prev => ({ ...prev, [day]: Math.max(1, count - 1) }))}
+                            className="h-7 w-7 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-rose-500 hover:border-rose-200 transition-all"
+                          >
+                            -
+                          </button>
+                          <span className="w-7 text-center text-base font-black text-[#655ac1]">{count}</span>
+                          <button
+                            onClick={() => setGlobalPeriodCounts(prev => ({ ...prev, [day]: Math.min(12, count + 1) }))}
+                            className="h-7 w-7 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1]/40 transition-all"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                      {group.classes.sort((a,b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(cls => {
-                         const hasCustom = !!cls.customPeriodCounts;
-                         
-                         return (
-                            <div key={cls.id} className={`p-4 rounded-xl border transition-all ${hasCustom ? 'bg-white border-[#e5e1fe] shadow-sm' : 'bg-white/50 border-slate-200'}`}>
-                               <div className="flex flex-col xl:flex-row items-center gap-4">
-                                  <div className="w-full xl:w-48 flex items-center justify-between xl:justify-start gap-3">
-                                     <span className="font-bold text-slate-700">{cls.name}</span>
-                                     {hasCustom && <span className="text-[9px] bg-[#e5e1fe] text-[#655ac1] px-2 py-0.5 rounded font-bold">مخصص</span>}
-                                  </div>
-                                  
-                                  <div className="flex-1 grid grid-cols-5 gap-2 w-full">
-                                     {activeDays.map(day => {
-                                        const defaultCount = currentTiming?.periodCounts?.[day as any] ?? 7;
-                                        const customCount = cls.customPeriodCounts?.[day as any];
-                                        const count = customCount ?? defaultCount;
-                                        const isCustomDay = customCount !== undefined && customCount !== defaultCount;
-                                        
-                                        return (
-                                           <div key={day} className={`flex flex-col items-center gap-1 p-2 rounded-lg border ${isCustomDay ? 'bg-[#f8f7ff] border-[#655ac1]' : 'bg-slate-50 border-slate-100'}`}>
-                                              <span className="text-[9px] font-bold text-slate-400 mb-1">{(dayLabels as any)[day]}</span>
-                                              <div className="flex items-center gap-2">
-                                                 <button 
-                                                   onClick={() => {
-                                                      const newCount = Math.max(1, count - 1);
-                                                      handleCustomPeriodChange(cls.id, day as any, newCount);
-                                                   }}
-                                                   className="w-6 h-6 flex items-center justify-center bg-white rounded-md text-slate-400 hover:text-rose-500 border border-slate-200 hover:border-rose-200 transition-colors"
-                                                 >
-                                                   -
-                                                 </button>
-                                                 <span className={`text-sm font-black w-4 text-center ${isCustomDay ? 'text-[#655ac1]' : 'text-slate-600'}`}>{count}</span>
-                                                 <button 
-                                                   onClick={() => {
-                                                      const newCount = Math.min(12, count + 1);
-                                                      handleCustomPeriodChange(cls.id, day as any, newCount);
-                                                   }}
-                                                   className="w-6 h-6 flex items-center justify-center bg-white rounded-md text-slate-400 hover:text-[#655ac1] border border-slate-200 hover:border-[#e5e1fe] transition-colors"
-                                                 >
-                                                   +
-                                                 </button>
-                                              </div>
-                                           </div>
-                                        );
-                                     })}
-                                  </div>
-                               </div>
-                            </div>
-                         );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             
             {/* Footer */}
-            <div className="p-6 bg-[#f8f7ff] border-t border-[#e5e1fe] flex justify-between items-center">
-                <div className="flex items-center gap-2 text-[#655ac1] text-sm font-bold">
-                    <Info size={16} />
-                    <span>التغييرات تُحفظ مباشرة. استخدم "إعادة تعيين" للعودة للإعدادات الافتراضية.</span>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3 justify-end items-center">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => { setShowGlobalPeriodsModal(false); setGlobalPeriodCounts({}); }}
+                    className="px-5 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    إغلاق
+                  </button>
+                  <button 
+                    onClick={handleApplyGlobalPeriods}
+                    className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"
+                  >
+                    حفظ
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setShowGlobalPeriodsModal(false)}
-                  className="px-8 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-200"
-                >
-                  إغلاق
-                </button>
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
     {/* ═══ Delete All Confirmation Modal ═══ */}
     {showDeleteAllConfirm && (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-          <div className="bg-gradient-to-br from-rose-50 to-orange-50 px-8 pt-8 pb-6 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md mb-4">
-              <AlertTriangle size={32} className="text-orange-500" />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="p-6 flex items-start gap-3">
+            <Trash2 size={28} className="text-rose-500 mt-0.5" />
+            <div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">حذف الكل</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                سيتم حذف كل الصفوف والفصول المضافة في هذه المرحلة. هل تريد المتابعة؟
+              </p>
             </div>
-            <h3 className="text-xl font-black text-slate-800 mb-2">حذف جميع الفصول</h3>
-            <p className="text-sm font-bold text-slate-500 leading-relaxed">
-              سيتم حذف جميع فصول مرحلة{' '}
-              <span className="text-orange-600 font-black">{activePhase}</span>{' '}
-              لمدرسة{' '}
-              <span className="text-slate-800 font-black">
-                "{activeSchoolId === 'main' ? schoolInfo.schoolName : schoolInfo.sharedSchools?.find(s => s.id === activeSchoolId)?.name}"
-              </span>.
-              <br />
-              <span className="text-rose-600">لا يمكن التراجع عن هذا الإجراء.</span>
-            </p>
           </div>
-          <div className="px-8 py-6 flex gap-3 justify-center">
+          <div className="p-6 pt-0 flex gap-3">
             <button
               onClick={() => setShowDeleteAllConfirm(false)}
-              className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all"
+              className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
             >
               إلغاء
             </button>
             <button
               onClick={() => { handleDeleteAll(); setShowDeleteAllConfirm(false); }}
-              className="flex-1 px-6 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
             >
-              <Trash size={16} /> نعم، احذف الكل
+              حذف
             </button>
           </div>
         </div>
@@ -2078,33 +2442,29 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
     {/* ═══ Bulk Delete Confirmation Modal ═══ */}
     {showBulkDeleteConfirm && (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-          <div className="bg-gradient-to-br from-rose-50 to-pink-50 px-8 pt-8 pb-6 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md mb-4">
-              <Trash2 size={32} className="text-rose-500" />
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="p-6 flex items-start gap-3">
+            <Trash2 size={28} className="text-rose-500 mt-0.5" />
+            <div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">حذف المحدد</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                سيتم حذف {selectedClasses.size} فصل محدد. هل تريد المتابعة؟
+              </p>
             </div>
-            <h3 className="text-xl font-black text-slate-800 mb-2">حذف الفصول المحددة</h3>
-            <p className="text-sm font-bold text-slate-500 leading-relaxed">
-              سيتم حذف{' '}
-              <span className="text-rose-600 font-black">{selectedClasses.size} فصل</span>{' '}
-              محدد.
-              <br />
-              <span className="text-rose-600">لا يمكن التراجع عن هذا الإجراء.</span>
-            </p>
           </div>
-          <div className="px-8 py-6 flex gap-3 justify-center">
+          <div className="p-6 pt-0 flex gap-3">
             <button
               onClick={() => setShowBulkDeleteConfirm(false)}
-              className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all"
+              className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
             >
               إلغاء
             </button>
             <button
               onClick={handleBulkDelete}
-              className="flex-1 px-6 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
             >
-              <Trash2 size={16} /> نعم، احذف
+              حذف
             </button>
           </div>
         </div>
@@ -2232,10 +2592,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 {([{n:1,label:'نوع المرحلة'},{n:2,label:'الصفوف'},{n:3,label:'الفصول والتسمية'}] as {n:1|2|3;label:string}[]).map(({n,label},idx) => (
                   <React.Fragment key={n}>
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all"
-                      style={{ background: wizardStep>=n ? '#8779fb' : '#f1f5f9', color: wizardStep>=n ? 'white' : '#94a3b8' }}>
+                      style={{ background: wizardStep>=n ? PLATFORM_PURPLE : '#f1f5f9', color: wizardStep>=n ? 'white' : '#94a3b8' }}>
                       {wizardStep>n ? <Check size={13}/> : n}
                     </div>
-                    {idx<2 && <div className="w-8 h-0.5 rounded-full" style={{ background: wizardStep>n ? '#8779fb' : '#e2e8f0' }}/>}
+                    {idx<2 && <div className="w-8 h-0.5 rounded-full" style={{ background: wizardStep>n ? PLATFORM_PURPLE : '#e2e8f0' }}/>}
                   </React.Fragment>
                 ))}
                 <span className="text-xs text-slate-400 font-bold mr-2">
@@ -2243,7 +2603,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 </span>
               </div>
             </div>
-            <button onClick={() => setWizardOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400"><X size={18}/></button>
+            <button onClick={() => setWizardOpen(false)} className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 transition-all"><X size={18}/></button>
           </div>
 
           {/* Body */}
@@ -2263,13 +2623,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     return (
                       <button key={t.id} onClick={() => selectWizardTemplate(t.id)}
                         className="relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 text-center transition-all"
-                        style={{ borderColor: active?'#8779fb':'#e2e8f0', background: 'white' }}>
+                        style={{ borderColor: active?'#cbd5e1':'#e2e8f0', background: 'white', boxShadow: active ? '0 8px 18px rgba(15, 23, 42, 0.08)' : undefined }}>
                         {active && (
-                          <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-[#8779fb] flex items-center justify-center">
-                            <Check size={11} className="text-white"/>
+                          <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
+                            <Check size={11} strokeWidth={3.5} className="text-white"/>
                           </div>
                         )}
-                        <LayoutGrid size={26} className="text-[#8779fb]"/>
                         <div>
                           <p className="font-black text-base text-slate-800">{t.label}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
@@ -2288,9 +2647,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <div className="space-y-2">
                   {wizardGrades.map((grade, i) => (
                     <div key={grade.id} className="flex items-center gap-3 bg-slate-50 px-4 py-3 rounded-xl">
-                      <span className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black text-white flex-shrink-0 bg-[#8779fb]">{i+1}</span>
+                      <span className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black text-white flex-shrink-0 bg-[#655ac1]">{i+1}</span>
                       <input
-                        className="flex-1 bg-transparent border-b border-slate-200 focus:border-[#8779fb] focus:outline-none text-sm font-bold text-slate-700 pb-1 transition-all"
+                        className="flex-1 bg-transparent border-b border-slate-200 focus:border-[#655ac1] focus:outline-none text-sm font-bold text-slate-700 pb-1 transition-all"
                         value={grade.name}
                         onChange={e => { const u=[...wizardGrades]; u[i]={...grade,name:e.target.value}; setWizardGrades(u); }}
                       />
@@ -2303,7 +2662,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 </div>
                 <button onClick={() => setWizardGrades([...wizardGrades,{id:`wg-${Date.now()}`,name:`المستوى ${wizardGrades.length+1}`}])}
                   className="mt-4 flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl border-2 border-dashed transition-all hover:opacity-80"
-                  style={{ borderColor:'#8779fb', color:'#8779fb' }}>
+                  style={{ borderColor:PLATFORM_PURPLE, color:PLATFORM_PURPLE }}>
                   <Plus size={16}/> إضافة صف / مستوى
                 </button>
               </div>
@@ -2317,11 +2676,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   <p className="text-sm font-black text-slate-700 mb-4">عدد الفصول لكل صف</p>
                   <div className="flex items-center gap-5">
                     <button onClick={() => setWizardCount(c=>Math.max(1,c-1))} disabled={wizardCount<=1}
-                      className="w-11 h-11 rounded-xl border-2 border-slate-200 flex items-center justify-center text-slate-500 hover:border-rose-300 hover:text-rose-500 font-bold text-2xl transition-all disabled:opacity-40">−</button>
-                    <span className="text-4xl font-black w-14 text-center text-[#8779fb]">{wizardCount}</span>
+                      className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 hover:border-rose-200 hover:text-rose-500 font-bold text-lg transition-all disabled:opacity-40">−</button>
+                    <span className="text-3xl font-black w-12 text-center text-[#655ac1]">{wizardCount}</span>
                     <button onClick={() => setWizardCount(c=>Math.min(30,c+1))} disabled={wizardCount>=30}
-                      className="w-11 h-11 rounded-xl border-2 border-slate-200 flex items-center justify-center text-slate-500 font-bold text-2xl transition-all disabled:opacity-40"
-                      onMouseEnter={e=>{e.currentTarget.style.borderColor='#8779fb';e.currentTarget.style.color='#8779fb';}}
+                      className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 font-bold text-lg transition-all disabled:opacity-40"
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=PLATFORM_PURPLE;e.currentTarget.style.color=PLATFORM_PURPLE;}}
                       onMouseLeave={e=>{e.currentTarget.style.borderColor='';e.currentTarget.style.color='';}}>+</button>
                     <span className="text-xs text-slate-400 font-bold">الحد الأقصى 30</span>
                   </div>
@@ -2339,10 +2698,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       return (
                         <button key={n.mode} onClick={() => setWizardNaming(n.mode)}
                           className="relative p-4 rounded-2xl border-2 text-center transition-all"
-                          style={{ borderColor:active?'#8779fb':'#e2e8f0', background:'white' }}>
+                          style={{ borderColor:active?'#cbd5e1':'#e2e8f0', background:'white', boxShadow: active ? '0 8px 18px rgba(15, 23, 42, 0.08)' : undefined }}>
                           {active && (
-                            <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-[#8779fb] flex items-center justify-center">
-                              <Check size={9} className="text-white"/>
+                            <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
+                              <Check size={9} strokeWidth={3.5} className="text-white"/>
                             </div>
                           )}
                           <p className="font-black text-sm text-slate-800">{n.label}</p>
@@ -2358,10 +2717,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-52 overflow-y-auto custom-scrollbar space-y-4">
                     {wizardPreviewNames.map((gradeNames, gi) => (
                       <div key={gi}>
-                        <p className="text-xs font-black mb-2 text-[#8779fb]">{wizardGrades[gi]?.name}</p>
+                        <p className="text-sm font-black mb-2 text-[#655ac1]">{wizardGrades[gi]?.name}</p>
                         <div className="flex flex-wrap gap-2">
                           {gradeNames.map((name, si) => (
-                            <span key={si} dir="rtl" className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600">{name}</span>
+                            <span key={si} dir="rtl" className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-black text-[#655ac1]">{name}</span>
                           ))}
                         </div>
                       </div>
@@ -2373,23 +2732,27 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-slate-100 flex gap-3">
+          <div className="p-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <button onClick={() => setWizardOpen(false)}
+              className="px-6 py-3 rounded-xl font-black text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">إغلاق</button>
+            <div className="flex items-center gap-3">
             {wizardStep > 1 && (
               <button onClick={() => setWizardStep(s=>(s-1) as 1|2|3)}
-                className="px-6 py-3 rounded-xl font-black text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">رجوع</button>
+                className="px-6 py-3 rounded-xl font-black text-sm bg-white border-2 border-slate-200 text-slate-600 hover:border-slate-300 transition-all">رجوع</button>
             )}
             {wizardStep < 3 ? (
               <button onClick={() => setWizardStep(s=>(s+1) as 1|2|3)}
                 disabled={wizardStep===2 && wizardGrades.length===0}
-                className="flex-1 py-3 rounded-xl font-black text-white text-sm disabled:opacity-50 transition-all"
-                style={{ background:'#8779fb' }}>التالي</button>
+                className="px-8 py-3 rounded-xl font-black text-white text-sm disabled:opacity-50 transition-all"
+                style={{ background:PLATFORM_PURPLE }}>التالي</button>
             ) : (
               <button onClick={handleWizardCreate}
-                className="flex-1 py-3 rounded-xl font-black text-white text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                style={{ background:'#8779fb' }}>
+                className="px-8 py-3 rounded-xl font-black text-white text-sm transition-all hover:opacity-90 flex items-center justify-center gap-2"
+                style={{ background:PLATFORM_PURPLE }}>
                 <CheckCircle2 size={18}/> إنشاء الفصول
               </button>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -2414,32 +2777,29 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       const targetClass = classes.find(c => c.id === deleteConfirmClassId);
       const displayName = targetClass ? getClassroomDisplayName(targetClass) : '';
       return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-            <div className="bg-gradient-to-br from-rose-50 to-pink-50 px-8 pt-8 pb-6 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md mb-4">
-                <Trash2 size={30} className="text-rose-500" />
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 flex items-start gap-3">
+              <Trash2 size={28} className="text-rose-500 mt-0.5" />
+              <div>
+                <h2 className="text-xl font-black text-slate-800 mb-2">حذف الفصل</h2>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  سيتم حذف فصل <span className="text-slate-800 font-black" dir="ltr">"{displayName}"</span>. هل تريد المتابعة؟
+                </p>
               </div>
-              <h3 className="text-xl font-black text-slate-800 mb-2">حذف الفصل</h3>
-              <p className="text-sm font-bold text-slate-500 leading-relaxed">
-                هل أنت متأكد من حذف فصل{' '}
-                <span className="text-slate-800 font-black" dir="ltr">"{displayName}"</span>؟
-                <br />
-                <span className="text-rose-500">خطوة غير قابلة للتراجع.</span>
-              </p>
             </div>
-            <div className="px-8 py-6 flex gap-3 justify-center">
+            <div className="p-6 pt-0 flex gap-3">
               <button
                 onClick={() => setDeleteConfirmClassId(null)}
-                className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all"
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
               >
                 إلغاء
               </button>
               <button
                 onClick={() => { handleDeleteOne(deleteConfirmClassId); setDeleteConfirmClassId(null); }}
-                className="flex-1 px-6 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
               >
-                <Trash2 size={16} /> نعم، احذف
+                حذف
               </button>
             </div>
           </div>
