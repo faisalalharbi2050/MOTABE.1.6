@@ -56,7 +56,7 @@ type FacilityType = 'lab' | 'computer_lab' | 'gym' | 'playground' | 'library' | 
 const FACILITY_TYPES: FacilityType[] = ['lab', 'computer_lab', 'gym', 'playground', 'library', 'learning_resources', 'other'];
 const FACILITY_TYPE_LABELS: Record<FacilityType, string> = {
   lab: 'مختبر',
-  computer_lab: 'معمل',
+  computer_lab: 'معمل حاسب',
   gym: 'صالة رياضية',
   playground: 'ملعب',
   library: 'مكتبة',
@@ -297,6 +297,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [facilityDeleteConfirmId, setFacilityDeleteConfirmId] = useState<string | null>(null);
   const [editingSubjectsGrade, setEditingSubjectsGrade] = useState<number | null>(null);
   const [editingSubjectsClassId, setEditingSubjectsClassId] = useState<string | null>(null);
   const [editingSubjectPeriodId, setEditingSubjectPeriodId] = useState<string | null>(null);
@@ -484,7 +485,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   const facilitySubjectOptions = useMemo<FacilityDropdownOption[]>(
     () => getUniqueSubjectsByName(approvedFacilitySubjects)
-      .map(subject => ({ value: subject.id, label: subject.name, icon: BookOpen })),
+      .map(subject => ({ value: subject.id, label: subject.name })),
     [approvedFacilitySubjects]
   );
 
@@ -1082,7 +1083,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               <button
                 dir="rtl"
                 onClick={openWizard}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all active:scale-95"
+                className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-xs transition-all active:scale-95"
               >
                 <Plus size={16} className="text-slate-400" />
                 إنشاء الفصول
@@ -1091,7 +1092,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 dir="rtl"
                 onClick={() => setShowGlobalRenameModal(true)}
                 disabled={currentSchoolClasses.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Edit2 size={16} className="text-slate-400" /> تعديل مسمى الكل
               </button>
@@ -1099,7 +1100,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 dir="rtl"
                 onClick={() => setShowGlobalPeriodsModal(true)}
                 disabled={currentSchoolClasses.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Settings2 size={16} className="text-slate-400" /> تخصيص حصص الكل
               </button>
@@ -1114,7 +1115,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
                 }}
                 disabled={currentSchoolClasses.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
               </button>
@@ -1122,7 +1123,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <button
                   dir="rtl"
                   onClick={() => setShowDeleteAllConfirm(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all"
+                  className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs transition-all"
                 >
                   <Trash2 size={16} className="text-rose-500" /> حذف الكل
                 </button>
@@ -1305,7 +1306,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                      onClick={() => setShowGlobalRenameModal(true)}
-                     className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all shadow-sm"
+                     className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all shadow-sm"
                   >
                      <Pencil size={15} /> تعديل مسمى الكل
                   </button>
@@ -1321,13 +1322,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <div className="flex items-center gap-2">
                   <button
                      onClick={handlePrint}
-                     className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all shadow-sm"
+                     className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all shadow-sm"
                   >
                      <Printer size={15} className="text-[#655ac1]" /> طباعة الفصول
                   </button>
                   <button
                      onClick={() => setShowDeleteAllConfirm(true)}
-                     className="flex items-center gap-2 px-4 py-2.5 bg-white border border-rose-200 text-rose-500 rounded-xl text-xs font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                     className="flex items-center gap-2 px-3.5 py-2 bg-white border border-rose-200 text-rose-500 rounded-xl text-xs font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm"
                   >
                      <Trash size={15} /> حذف الكل
                   </button>
@@ -1754,21 +1755,21 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div className="rounded-2xl border border-slate-200 bg-transparent px-4 py-3">
                       <div className="flex items-center gap-2 mb-1">
                           <CircleHelp size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">متى أضيف مرفقاً؟</span>
                       </div>
                       <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عند وجود معمل أو صالة أو ملعب له سعة محدودة في الحصة الواحدة ويرتبط بمادة محددة.</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div className="rounded-2xl border border-slate-200 bg-transparent px-4 py-3">
                       <div className="flex items-center gap-2 mb-1">
                           <CircleHelp size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">ما معنى السعة؟</span>
                       </div>
                       <p className="text-[11px] font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div className="rounded-2xl border border-slate-200 bg-transparent px-4 py-3">
                       <div className="flex items-center gap-2 mb-1">
                           <BookOpen size={15} className="text-[#655ac1]" />
                           <span className="text-xs font-black text-slate-700">ربط المادة</span>
@@ -1850,16 +1851,6 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       </div>
 
                       <div className="mt-4">
-                          {selectedFacilitySubjectName && (
-                              <div className="flex flex-wrap gap-2 mb-2">
-                                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#f8f7ff] text-[#655ac1] rounded-full text-xs font-bold border border-[#e5e1fe]">
-                                      {selectedFacilitySubjectName}
-                                      <button onClick={() => setFacilityLinkedSubject([])} className="hover:text-[#5046a0]">
-                                          <X size={12} />
-                                      </button>
-                                  </span>
-                              </div>
-                          )}
                           <FacilitySubjectSelectDropdown
                               label="ربط بمادة"
                               buttonLabel="اختر مادة لإضافتها"
@@ -1961,8 +1952,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               const FacilityIcon = getFacilityIcon(c.type);
                               return (
                                   <div key={c.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300">
-                                      <button onClick={() => handleDeleteOne(c.id)} className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors">
-                                          <Trash2 size={14} />
+                                      <button onClick={() => setFacilityDeleteConfirmId(c.id)} className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl text-rose-500 hover:text-rose-600 transition-colors">
+                                          <Trash2 size={16} />
                                       </button>
 
                                       <div className="flex items-start gap-3 pl-8">
@@ -1972,16 +1963,16 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                           <div className="min-w-0">
                                               <h5 className="font-black text-slate-800 truncate">{c.name}</h5>
                                               <p className="text-[11px] font-bold text-slate-400 mt-0.5">{typeLabel}</p>
-                                              <div className="flex flex-col items-start gap-2 mt-3">
-                                                  <span className="text-xs font-black px-2.5 py-1.5 bg-white text-[#655ac1] rounded-lg border border-[#e5e1fe]">
+                                              <div className="flex flex-wrap items-center gap-2 mt-3">
+                                                  <span className="text-xs font-black px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">
                                                       السعة: {c.capacity || 1} فصل
                                                   </span>
                                                   {linkedSubjects.length === 0 && (
-                                                      <span className="text-xs font-bold px-2.5 py-1.5 bg-white text-slate-400 rounded-lg border border-slate-100">غير مرتبط بمادة</span>
+                                                      <span className="text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200">غير مرتبط بمادة</span>
                                                   )}
                                                   {linkedSubjects.map(linkedSubject => (
-                                                      <span key={linkedSubject.id} className="text-xs font-bold px-2.5 py-1.5 bg-white text-emerald-600 rounded-lg border border-emerald-100 flex items-center gap-1">
-                                                          <BookOpen size={12} />
+                                                      <span key={linkedSubject.id} className="text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
+                                                          <BookOpen size={12} className="text-slate-400" />
                                                           {linkedSubject.name}
                                                       </span>
                                                   ))}
@@ -2511,6 +2502,40 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       </div>
     )}
 
+    {/* ═══ Facility Delete Confirmation Modal ═══ */}
+    {facilityDeleteConfirmId && (() => {
+      const targetFacility = classes.find(c => c.id === facilityDeleteConfirmId);
+      return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 flex items-start gap-3">
+              <Trash2 size={28} className="text-rose-500 mt-0.5" />
+              <div>
+                <h2 className="text-xl font-black text-slate-800 mb-2">حذف المرفق</h2>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  سيتم حذف مرفق <span className="text-slate-800 font-black">"{targetFacility?.name || 'المرفق'}"</span>. هل تريد المتابعة؟
+                </p>
+              </div>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setFacilityDeleteConfirmId(null)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { handleDeleteOne(facilityDeleteConfirmId); setFacilityDeleteConfirmId(null); }}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+
     {/* ═══ Bulk Delete Confirmation Modal ═══ */}
     {showBulkDeleteConfirm && (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
@@ -2805,7 +2830,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           {/* Footer */}
           <div className="p-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
             <button onClick={() => setWizardOpen(false)}
-              className="px-6 py-3 rounded-xl font-black text-sm bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">إغلاق</button>
+              className="px-6 py-3 rounded-xl font-black text-sm bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">إغلاق</button>
             <div className="flex items-center gap-3">
             {wizardStep > 1 && (
               <button onClick={() => setWizardStep(s=>(s-1) as 1|2|3)}
