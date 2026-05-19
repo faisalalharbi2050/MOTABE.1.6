@@ -454,6 +454,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       });
   }, [classes, activePhase, activeSchoolId]);
 
+  const allCurrentSchoolClasses = useMemo(() => {
+    return classes.filter(c =>
+      (c.schoolId || 'main') === activeSchoolId &&
+      c.grade !== 0 &&
+      !isFacilityType(c.type)
+    );
+  }, [classes, activeSchoolId]);
+
   const currentSchoolFacilities = useMemo(() => {
     return classes.filter(c =>
       c.phase === activePhase &&
@@ -707,7 +715,6 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const handleDeleteAll = useCallback(() => {
     setClasses(prev => prev.filter(c =>
       !(
-        c.phase === activePhase &&
         (c.schoolId || 'main') === activeSchoolId &&
         c.grade !== 0 &&
         !isFacilityType(c.type)
@@ -716,7 +723,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setSelectedClasses(new Set());
     setShowDeleteAllConfirm(false);
     setDeleteSelectionMode(false);
-  }, [activePhase, activeSchoolId, setClasses]);
+  }, [activeSchoolId, setClasses]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedClasses(prev => {
@@ -842,6 +849,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   // ─── Wizard Helpers ───
   const openWizard = useCallback(() => {
+    if (allCurrentSchoolClasses.length > 0) {
+      showToast('يجب حذف جميع الصفوف والفصول التي تم إنشاؤها قبل إنشاء مرحلة جديدة');
+      return;
+    }
     setWizardStep(1);
     setWizardTemplate('elementary');
     setWizardCount(1);
@@ -849,7 +860,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setWizardCustomClassNames({});
     setWizardGrades(GRADE_TEMPLATES_W.elementary.map((n,i) => ({ id:`wg-${i}`, name: n })));
     setWizardOpen(true);
-  }, []);
+  }, [allCurrentSchoolClasses.length, showToast]);
 
   const selectWizardTemplate = useCallback((t: PhaseTemplateW) => {
     setWizardTemplate(t);
@@ -881,6 +892,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   [wizardGrades, wizardCount, wizardNaming, phaseSuffix, wizardTemplate, getWizardCustomClassName]);
 
   const handleWizardCreate = useCallback(() => {
+    if (allCurrentSchoolClasses.length > 0) {
+      showToast('يجب حذف جميع الصفوف والفصول التي تم إنشاؤها قبل إنشاء مرحلة جديدة');
+      setWizardOpen(false);
+      return;
+    }
     const newClasses: ClassInfo[] = [];
     const newLabelMap = { ...gradeLabelMap };
     const sfx = phaseSuffix && wizardTemplate !== 'custom' ? ` - ${phaseSuffix}` : '';
@@ -922,7 +938,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setWizardOpen(false);
     const total = wizardGrades.length * wizardCount;
     setTimeout(() => showToast(`تم إنشاء ${wizardGrades.length} صفوف و${total} فصلاً بنجاح`), 200);
-  }, [wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, getWizardCustomClassName, phaseSuffix, wizardTemplate, setClasses, showToast]);
+  }, [allCurrentSchoolClasses.length, wizardGrades, wizardCount, wizardNaming, activePhase, activeSchoolId, gradeLabelMap, getGradeSubjectIds, getWizardCustomClassName, phaseSuffix, wizardTemplate, setClasses, showToast]);
 
   // ─── Portal Dropdown Open ───
   const openPortalDropdown = useCallback((e: React.MouseEvent, classId: string) => {
@@ -1095,9 +1111,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <button
                   dir="rtl"
                   onClick={openWizard}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] border border-[#655ac1] rounded-xl text-white hover:bg-[#5046a0] font-bold text-sm transition-all active:scale-95 shadow-md shadow-[#655ac1]/20"
+                  disabled={allCurrentSchoolClasses.length > 0}
+                  title={allCurrentSchoolClasses.length > 0 ? 'يجب حذف جميع الصفوف والفصول أولًا' : undefined}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                    allCurrentSchoolClasses.length === 0
+                      ? 'bg-[#655ac1] border border-[#655ac1] text-white hover:bg-[#5046a0] shadow-md shadow-[#655ac1]/20'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 disabled:opacity-100 disabled:cursor-not-allowed'
+                  }`}
                 >
-                  <Plus size={16} className="text-white" />
+                  <Plus size={16} className={allCurrentSchoolClasses.length === 0 ? 'text-white' : 'text-slate-400'} />
                   إنشاء الفصول
                 </button>
                 <button
@@ -1133,15 +1155,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 >
                   <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
                 </button>
-                {currentSchoolClasses.length > 0 && (
                 <button
                   dir="rtl"
                   onClick={() => setShowDeleteAllConfirm(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all"
+                  disabled={allCurrentSchoolClasses.length === 0}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={16} className="text-rose-500" /> حذف الكل
                 </button>
-                )}
                 {deleteSelectionMode && (
                 <button
                   dir="rtl"
@@ -2490,7 +2511,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             <div>
               <h2 className="text-xl font-black text-slate-800 mb-2">حذف الكل</h2>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                سيتم حذف كل الصفوف والفصول المضافة في هذه المرحلة. هل تريد المتابعة؟
+                سيتم حذف كل الصفوف والفصول المضافة في هذه المدرسة. هل تريد المتابعة؟
               </p>
             </div>
           </div>
