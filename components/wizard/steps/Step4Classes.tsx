@@ -85,6 +85,16 @@ const getFacilityIcon = (type?: string) => {
   }
 };
 
+const getUniqueSubjectsByName = (subjectList: Subject[]) => {
+  const seen = new Set<string>();
+  return subjectList.filter(subject => {
+    const key = subject.name.trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -182,14 +192,14 @@ const FacilitySingleSelectDropdown: React.FC<{
   );
 };
 
-const FacilityMultiSelectDropdown: React.FC<{
+const FacilitySubjectSelectDropdown: React.FC<{
   label: string;
   buttonLabel: string;
   options: FacilityDropdownOption[];
-  selectedValues: string[];
-  onToggle: (value: string) => void;
+  selectedValue: string;
+  onSelect: (value: string) => void;
   selectedSummary?: string;
-}> = ({ label, buttonLabel, options, selectedValues, onToggle, selectedSummary }) => {
+}> = ({ label, buttonLabel, options, selectedValue, onSelect, selectedSummary }) => {
   const [open, setOpen] = useState(false);
   const { triggerRef, panelRef, position } = useFloatingDropdownPosition(open, () => setOpen(false));
 
@@ -213,12 +223,15 @@ const FacilityMultiSelectDropdown: React.FC<{
         >
           <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {options.map(option => {
-              const isSelected = selectedValues.includes(option.value);
+              const isSelected = selectedValue === option.value;
               return (
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => onToggle(option.value)}
+                  onClick={() => {
+                    onSelect(option.value);
+                    setOpen(false);
+                  }}
                   className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
                     isSelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                   }`}
@@ -470,10 +483,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   }, [activePhase, activeSchoolId, currentSchoolClasses, gradeSubjectMap, subjects]);
 
   const facilitySubjectOptions = useMemo<FacilityDropdownOption[]>(
-    () => approvedFacilitySubjects
+    () => getUniqueSubjectsByName(approvedFacilitySubjects)
       .map(subject => ({ value: subject.id, label: subject.name, icon: BookOpen })),
     [approvedFacilitySubjects]
   );
+
+  const selectedFacilitySubjectName = useMemo(() => {
+    const selected = subjects.find(subject => facilityLinkedSubject.includes(subject.id));
+    return selected?.name || '';
+  }, [facilityLinkedSubject, subjects]);
 
   const grouped = useMemo(() => groupClassesByGrade(currentSchoolClasses), [currentSchoolClasses]);
 
@@ -1832,31 +1850,29 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       </div>
 
                       <div className="mt-4">
-                          {facilityLinkedSubject.length > 0 && (
+                          {selectedFacilitySubjectName && (
                               <div className="flex flex-wrap gap-2 mb-2">
-                                  {facilityLinkedSubject.map(subjectId => {
-                                      const subject = subjects.find(s => s.id === subjectId);
-                                      return subject ? (
-                                          <span key={subjectId} className="inline-flex items-center gap-1 px-3 py-1 bg-[#f8f7ff] text-[#655ac1] rounded-full text-xs font-bold border border-[#e5e1fe]">
-                                              {subject.name}
-                                              <button onClick={() => setFacilityLinkedSubject(prev => prev.filter(id => id !== subjectId))} className="hover:text-[#5046a0]">
-                                                  <X size={12} />
-                                              </button>
-                                          </span>
-                                      ) : null;
-                                  })}
+                                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#f8f7ff] text-[#655ac1] rounded-full text-xs font-bold border border-[#e5e1fe]">
+                                      {selectedFacilitySubjectName}
+                                      <button onClick={() => setFacilityLinkedSubject([])} className="hover:text-[#5046a0]">
+                                          <X size={12} />
+                                      </button>
+                                  </span>
                               </div>
                           )}
-                          <FacilityMultiSelectDropdown
+                          <FacilitySubjectSelectDropdown
                               label="ربط بمادة"
                               buttonLabel="اختر مادة لإضافتها"
                               options={facilitySubjectOptions}
-                              selectedValues={facilityLinkedSubject}
-                              selectedSummary={facilityLinkedSubject.length > 0 ? `${facilityLinkedSubject.length} مواد مرتبطة` : undefined}
-                              onToggle={value => {
-                                  setFacilityLinkedSubject(prev =>
-                                      prev.includes(value) ? prev.filter(id => id !== value) : [...prev, value]
-                                  );
+                              selectedValue={facilitySubjectOptions.find(option => option.label === selectedFacilitySubjectName)?.value || ''}
+                              selectedSummary={selectedFacilitySubjectName || undefined}
+                              onSelect={value => {
+                                  const selectedSubject = approvedFacilitySubjects.find(subject => subject.id === value);
+                                  const selectedName = selectedSubject?.name || '';
+                                  const linkedIds = approvedFacilitySubjects
+                                      .filter(subject => subject.name === selectedName)
+                                      .map(subject => subject.id);
+                                  setFacilityLinkedSubject(linkedIds);
                                   if (facilityErrors.subjects) setFacilityErrors(prev => ({ ...prev, subjects: undefined }));
                               }}
                           />
@@ -1938,7 +1954,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {currentSchoolFacilities.map(c => {
                               const linkedIds = c.linkedSubjectIds || (c.linkedSubjectId ? [c.linkedSubjectId] : []);
-                              const linkedSubjects = subjects.filter(s => linkedIds.includes(s.id));
+                              const linkedSubjects = getUniqueSubjectsByName(subjects.filter(s => linkedIds.includes(s.id)));
                               const typeLabel = c.type === 'other'
                                   ? c.customType || FACILITY_TYPE_LABELS.other
                                   : FACILITY_TYPE_LABELS[c.type as FacilityType] || c.customType || FACILITY_TYPE_LABELS.other;
@@ -1956,7 +1972,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                           <div className="min-w-0">
                                               <h5 className="font-black text-slate-800 truncate">{c.name}</h5>
                                               <p className="text-[11px] font-bold text-slate-400 mt-0.5">{typeLabel}</p>
-                                              <div className="flex flex-wrap gap-2 mt-3">
+                                              <div className="flex flex-col items-start gap-2 mt-3">
                                                   <span className="text-xs font-black px-2.5 py-1.5 bg-white text-[#655ac1] rounded-lg border border-[#e5e1fe]">
                                                       السعة: {c.capacity || 1} فصل
                                                   </span>
