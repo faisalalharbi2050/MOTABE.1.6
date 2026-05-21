@@ -2769,7 +2769,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     return (
                       <button key={t.id} onClick={() => selectWizardTemplate(t.id)}
                         className="relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 text-center transition-all"
-                        style={{ borderColor: active?'#cbd5e1':'#e2e8f0', background: 'white', boxShadow: active ? '0 8px 18px rgba(15, 23, 42, 0.08)' : undefined }}>
+                        style={{ borderColor: active?'#655ac1':'#e2e8f0', background: 'white', boxShadow: active ? '0 8px 18px rgba(101, 90, 193, 0.18)' : undefined }}>
                         {active && (
                           <div className="absolute top-3 left-3 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
                             <Check size={12} strokeWidth={3}/>
@@ -2870,7 +2870,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         return (
                           <button key={n.mode} onClick={() => setWizardNaming(n.mode)}
                             className="relative p-4 rounded-2xl border-2 text-center transition-all"
-                            style={{ borderColor:active?'#cbd5e1':'#e2e8f0', background:'white', boxShadow: active ? '0 8px 18px rgba(15, 23, 42, 0.08)' : undefined }}>
+                            style={{ borderColor:active?'#655ac1':'#e2e8f0', background:'white', boxShadow: active ? '0 8px 18px rgba(101, 90, 193, 0.18)' : undefined }}>
                             {active && (
                               <div className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
                                 <Check size={12} strokeWidth={3}/>
