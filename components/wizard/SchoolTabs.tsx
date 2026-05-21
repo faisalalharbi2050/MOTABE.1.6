@@ -81,8 +81,8 @@ const SchoolTabs: React.FC<SchoolTabsProps> = ({ schoolInfo, activeSchoolId, onT
             {isActive && (
               <>
                 <span className="absolute right-0 top-0 h-full w-1.5 bg-[#655ac1]" />
-                <span className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
-                  <Check size={12} strokeWidth={3.5} className="text-white" />
+                <span className="absolute left-3 top-3 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
+                  <Check size={12} strokeWidth={3} />
                 </span>
               </>
             )}
