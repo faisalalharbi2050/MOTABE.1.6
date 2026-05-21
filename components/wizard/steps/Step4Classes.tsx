@@ -1175,7 +1175,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               <div>
                 <span className="text-lg font-black text-slate-800">الصفوف والفصول</span>
                 {selectedClasses.size > 0 && (
-                  <span className="text-xs bg-[#e5e1fe] text-[#655ac1] px-2 py-0.5 rounded-lg font-black mr-2">{selectedClasses.size} محدد</span>
+                  <span className="text-xs bg-white border border-slate-300 text-[#655ac1] px-2 py-0.5 rounded-lg font-black mr-2">{selectedClasses.size} محدد</span>
                 )}
               </div>
             </div>
