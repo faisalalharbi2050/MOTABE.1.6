@@ -275,7 +275,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                             className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed
                               ${isEditMode ? 'active:scale-95' : ''}
                               ${isSelected
-                                ? 'border-[#8779fb] bg-white text-slate-500 shadow-md shadow-[#8779fb]/10'
+                                ? 'border-slate-300 bg-white text-slate-500 shadow-md'
                                 : 'border-slate-200 bg-white text-slate-500 hover:border-[#8779fb]/40 hover:text-[#8779fb] hover:bg-[#8779fb]/5'
                               }`}
                           >
@@ -630,7 +630,7 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                               className={`px-5 py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-200 select-none flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed
                                 ${isEditMode ? 'active:scale-95' : ''}
                                 ${isSelected
-                                  ? 'border-[#8779fb] bg-white text-slate-500 shadow-md shadow-[#8779fb]/10'
+                                  ? 'border-slate-300 bg-white text-slate-500 shadow-md'
                                   : 'border-slate-200 bg-white text-slate-500 hover:border-[#8779fb]/40 hover:text-[#8779fb] hover:bg-[#8779fb]/5'
                                 }`}
                             >
