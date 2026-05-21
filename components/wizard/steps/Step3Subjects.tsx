@@ -2474,21 +2474,23 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       {unapproveTarget && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <X size={32} className="text-rose-500" />
+            <div className="p-6">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 flex items-center justify-center shrink-0 text-rose-500">
+                  <X size={26} />
+                </div>
+                <h2 className="text-lg font-black text-slate-800 leading-tight pt-1.5">إلغاء اعتماد الخطة</h2>
               </div>
-              <h2 className="text-xl font-black text-slate-800 mb-2">إلغاء اعتماد الخطة</h2>
               <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                هل أنت متأكد من إلغاء اعتماد هذه الخطة؟ سيتم حذف جميع المواد المرتبطة بها ولا يمكن التراجع عن هذا الإجراء.
+                هل أنت متأكد من إلغاء اعتماد هذه الخطة؟ لا يمكن التراجع عن هذا الإجراء.
               </p>
             </div>
             <div className="p-6 pt-0 flex gap-3">
               <button
                 onClick={() => setUnapproveTarget(null)}
-                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
               >
-                تراجع
+                إلغاء
               </button>
               <button
                 onClick={() => {
