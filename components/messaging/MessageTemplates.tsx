@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Plus, Edit3, Trash2, LayoutTemplate, CheckCircle2, AlertTriangle, X, ChevronDown, Check } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
@@ -74,9 +74,9 @@ const SelectDropdown: React.FC<{
               >
                 <span>{option.label}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === option.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}

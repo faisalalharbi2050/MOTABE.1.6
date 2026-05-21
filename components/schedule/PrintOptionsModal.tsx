@@ -333,9 +333,9 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                                         className="sr-only" />
                                                     <span className="text-xs font-normal text-slate-700 flex-1">{t.name}</span>
                                                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                                        checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                                        checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                                                     }`}>
-                                                        <Check size={12} strokeWidth={3} />
+                                                        <Check size={12} strokeWidth={3.5} />
                                                     </span>
                                                 </label>
                                             );
@@ -372,9 +372,9 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                                         className="sr-only" />
                                                     <span className="text-xs font-normal text-slate-700 flex-1">{c.name || `${c.grade}/${c.section}`}</span>
                                                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                                        checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                                        checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                                                     }`}>
-                                                        <Check size={12} strokeWidth={3} />
+                                                        <Check size={12} strokeWidth={3.5} />
                                                     </span>
                                                 </label>
                                             );
@@ -464,9 +464,9 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                             <div className="text-[10px] font-normal opacity-55">{item.sub}</div>
                                         </div>
                                         <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                            item.val ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                            item.val ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                                         }`}>
-                                            <Check size={12} strokeWidth={3} />
+                                            <Check size={12} strokeWidth={3.5} />
                                         </span>
                                     </button>
                                 ))}
@@ -494,9 +494,9 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                             <span className="shrink-0" style={{ color: layoutMode===opt.id?'#655ac1':'#94a3b8' }}>{opt.icon}</span>
                                             <span className="flex-1 text-right font-medium text-xs">{opt.label}</span>
                                             <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                                layoutMode === opt.id ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                                layoutMode === opt.id ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                                             }`}>
-                                                <Check size={12} strokeWidth={3} />
+                                                <Check size={12} strokeWidth={3.5} />
                                             </span>
                                         </button>
                                     ))}

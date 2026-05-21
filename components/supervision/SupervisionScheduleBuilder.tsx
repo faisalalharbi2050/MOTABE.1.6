@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import {
   Calendar, MapPin, Plus, X, Copy, Trash2, RotateCcw,
   ChevronDown, Check, AlertTriangle, Search, Shield,
@@ -675,7 +675,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-right hover:bg-slate-50 transition-colors"
                     >
                       <span className={`text-xs font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                      <div className={`mr-auto w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                      <div className={`mr-auto w-4 h-4 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
                         {isSel && <Check size={10} />}
                       </div>
                     </button>
@@ -760,9 +760,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       >
                         <span>{opt.label}</span>
                         <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          showFollowUpSupervisor === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                          showFollowUpSupervisor === opt.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                         }`}>
-                          {showFollowUpSupervisor === opt.value && <Check size={10} strokeWidth={3} />}
+                          {showFollowUpSupervisor === opt.value && <Check size={10} strokeWidth={3.5} />}
                         </span>
                       </button>
                     ))}
@@ -886,9 +886,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     >
                       <span className="text-sm font-bold text-slate-700">{type.name}</span>
                       <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                        selected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                        selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                       }`}>
-                        {selected && <Check size={14} strokeWidth={3} />}
+                        {selected && <Check size={14} strokeWidth={3.5} />}
                       </span>
                     </button>
                   );
@@ -931,7 +931,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
                           >
                             <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                            <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                            <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
                               {isSel && <Check size={12} />}
                             </div>
                           </button>
@@ -1054,9 +1054,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors"
                         >
                           <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                            selected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                            selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                           }`}>
-                            {selected && <Check size={13} strokeWidth={3} />}
+                            {selected && <Check size={13} strokeWidth={3.5} />}
                           </span>
                           <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug">{staff.name}</span>
                           <span className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">
@@ -1106,7 +1106,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
                               >
                                 <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                                <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300'}`}>
+                                <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
                                   {isSel && <Check size={12} />}
                                 </div>
                               </button>

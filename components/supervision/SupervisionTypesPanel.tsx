@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Check, Lightbulb, ListTree, Plus, Trash2, X } from 'lucide-react';
 import { SupervisionType } from '../../types';
 
@@ -35,7 +35,7 @@ const RoundCheck: React.FC<{ checked: boolean; disabled?: boolean }> = ({ checke
   <span
     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
       checked
-        ? 'bg-white border-[#655ac1] text-[#655ac1]'
+        ? 'bg-[#655ac1] border-[#655ac1] text-white'
         : disabled
           ? 'bg-slate-100 border-slate-200 text-slate-300'
           : 'bg-white border-slate-300 text-transparent'

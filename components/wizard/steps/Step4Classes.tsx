@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Phase, ClassInfo, Subject, SchoolInfo, EntityType } from '../../../types';
 import { PHASE_CONFIG } from '../../../constants';
@@ -186,8 +186,8 @@ const FacilitySingleSelectDropdown: React.FC<{
                   {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
                   {option.label}
                 </span>
-                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                  <Check size={12} strokeWidth={3} />
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${value === option.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -247,8 +247,8 @@ const FacilitySubjectSelectDropdown: React.FC<{
                     {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
                     {option.label}
                   </span>
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                    <Check size={12} strokeWidth={3} />
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
                   </span>
                 </button>
               );
@@ -1206,7 +1206,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     >
                       <div className="flex items-center gap-3">
                         {deleteSelectionMode && (
-                          <div
+                          <span
                             onClick={e => {
                               e.stopPropagation();
                               const n = new Set(selectedClasses);
@@ -1214,15 +1214,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               else             gradeClasses.forEach(c => n.add(c.id));
                               setSelectedClasses(n);
                             }}
-                            className="w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
-                            style={{
-                              background:  'white',
-                              borderColor: (allSelected || someSelected) ? '#f43f5e' : '#cbd5e1',
-                              color: (allSelected || someSelected) ? '#f43f5e' : 'transparent',
-                            }}
+                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer transition-all flex-shrink-0 ${
+                              (allSelected || someSelected)
+                                ? 'bg-rose-500 text-white'
+                                : 'bg-white border-2 border-slate-300 text-transparent'
+                            }`}
                           >
-                            {(allSelected || someSelected) && <Check size={12} strokeWidth={3} />}
-                          </div>
+                            {(allSelected || someSelected) && <Check size={12} strokeWidth={3.5} />}
+                          </span>
                         )}
                         <span className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1] bg-white font-black text-sm flex-shrink-0 border border-slate-300">
                           {grade}
@@ -1259,17 +1258,16 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                   }`}
                                 >
                                   {deleteSelectionMode && (
-                                    <div
+                                    <span
                                       onClick={() => toggleSelect(cls.id)}
-                                      className="w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all shrink-0"
-                                      style={{
-                                        background:  'white',
-                                        borderColor: isSelected ? '#f43f5e' : '#cbd5e1',
-                                        color: isSelected ? '#f43f5e' : 'transparent',
-                                      }}
+                                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer transition-all shrink-0 ${
+                                        isSelected
+                                          ? 'bg-rose-500 text-white'
+                                          : 'bg-white border-2 border-slate-300 text-transparent'
+                                      }`}
                                     >
-                                      {isSelected && <Check size={10} strokeWidth={3}/>}
-                                    </div>
+                                      {isSelected && <Check size={12} strokeWidth={3.5}/>}
+                                    </span>
                                   )}
                                   <div className="min-w-0 flex-1">
                                     {editingClassId === cls.id ? (

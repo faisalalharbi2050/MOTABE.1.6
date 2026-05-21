@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { SchoolInfo, Phase, SharedSchool, EntityType } from '../../../types';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import { School, Building2, Plus, Trash2, MapPin, Phone, Mail, CheckCircle2, Upload, X, Check, ChevronDown } from 'lucide-react';
@@ -51,9 +51,9 @@ const EntityTypeDropdown: React.FC<EntityTypeDropdownProps> = ({ value, onChange
               >
                 <span>{opt}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === opt ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === opt ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -111,9 +111,9 @@ const SimpleDropdown: React.FC<SimpleDropdownProps> = ({ value, onChange, option
               >
                 <span>{opt}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === opt ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === opt ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}

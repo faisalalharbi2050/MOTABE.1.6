@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
 import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
@@ -145,6 +145,10 @@ export default function TeacherConstraintsModal({
   const [showCopy, setShowCopy] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
+  const [copyConfirm, setCopyConfirm] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<'all' | 'has' | 'none' | 'excluded'>('all');
+  const [collapsedSpecs, setCollapsedSpecs] = useState<Set<string>>(new Set());
 
   // Copy Options
   const [copyOpts, setCopyOpts] = useState({
@@ -307,7 +311,20 @@ export default function TeacherConstraintsModal({
     const sName = specializations.find(s => s.id === t.specializationId)?.name
       || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name || '';
     const term = search.toLowerCase();
-    return t.name.toLowerCase().includes(term) || sName.toLowerCase().includes(term);
+    const matchesSearch = t.name.toLowerCase().includes(term) || sName.toLowerCase().includes(term);
+    if (!matchesSearch) return false;
+    const hasC = constraints.some(c => c.teacherId === t.id && (
+      (c.maxConsecutive !== undefined && c.maxConsecutive !== 2) ||
+      (c.excludedSlots && Object.values(c.excludedSlots).some(arr => arr && arr.length > 0)) ||
+      c.maxFirstPeriods !== undefined ||
+      c.maxLastPeriods !== undefined ||
+      (c.earlyExit && Object.keys(c.earlyExit).length > 0)
+    ));
+    const isExcluded = (t.quotaLimit || 0) === 0;
+    if (quickFilter === 'has') return hasC && !isExcluded;
+    if (quickFilter === 'none') return !hasC && !isExcluded;
+    if (quickFilter === 'excluded') return isExcluded;
+    return true;
   }).sort((a, b) => {
     if (sortBy === 'alpha') return a.name.localeCompare(b.name, 'ar');
     const iA = specOrder.indexOf(a.specializationId ?? '');
@@ -367,11 +384,11 @@ export default function TeacherConstraintsModal({
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="w-full pr-9 pl-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1]/40 transition-all" />
               </div>
               <div className="flex gap-1.5">
-                <button onClick={() => setSortBy('spec')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='spec'?'bg-white border-slate-300 text-[#4b3f9f]':'bg-white border-slate-300 text-slate-500 hover:text-[#655ac1]'}`}>التخصص</button>
-                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='alpha'?'bg-white border-slate-300 text-[#4b3f9f]':'bg-white border-slate-300 text-slate-500 hover:text-[#655ac1]'}`}>أبجدي</button>
+                <button onClick={() => setSortBy('spec')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='spec'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>التخصص</button>
+                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='alpha'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>أبجدي</button>
                 {sortBy === 'spec' && (
                   <button onClick={() => setShowSpecPanel(!showSpecPanel)}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${showSpecPanel ? 'bg-white border-slate-300 text-[#4b3f9f]' : 'bg-white border-slate-300 text-slate-500 hover:text-[#655ac1]'}`}>
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${showSpecPanel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>
                     <GripVertical size={13} />
                     ترتيب
                   </button>
@@ -401,8 +418,8 @@ export default function TeacherConstraintsModal({
                               setSpecOrder(newOrder);
                             }
                           }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1] mr-1">
-                            <Check size={12} strokeWidth={3} />
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white mr-1">
+                            <Check size={12} strokeWidth={3.5} />
                           </span>
                         </div>
                       </div>
@@ -411,32 +428,112 @@ export default function TeacherConstraintsModal({
                 </div>
               )}
             </div>
+            {/* Quick Filters */}
+            <div className="px-3 pt-2.5 pb-1 flex gap-1 flex-wrap">
+              {(() => {
+                const counts = teachers.reduce((acc, t) => {
+                  const isExcluded = (t.quotaLimit || 0) === 0;
+                  const hasC = constraints.some(c => c.teacherId === t.id && (
+                    (c.maxConsecutive !== undefined && c.maxConsecutive !== 2) ||
+                    (c.excludedSlots && Object.values(c.excludedSlots).some(arr => arr && arr.length > 0)) ||
+                    c.maxFirstPeriods !== undefined ||
+                    c.maxLastPeriods !== undefined ||
+                    (c.earlyExit && Object.keys(c.earlyExit).length > 0)
+                  ));
+                  acc.all++;
+                  if (isExcluded) acc.excluded++;
+                  else if (hasC) acc.has++;
+                  else acc.none++;
+                  return acc;
+                }, { all: 0, has: 0, none: 0, excluded: 0 });
+                const chips: { k: typeof quickFilter; l: string; n: number }[] = [
+                  { k: 'all', l: 'الكل', n: counts.all },
+                  { k: 'has', l: 'بقيود', n: counts.has },
+                  { k: 'none', l: 'بدون', n: counts.none },
+                  { k: 'excluded', l: 'مستبعد', n: counts.excluded },
+                ];
+                return chips.map(c => {
+                  const on = quickFilter === c.k;
+                  return (
+                    <button key={c.k} onClick={() => setQuickFilter(c.k)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border transition-all ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>
+                      <span>{c.l}</span>
+                      <span className={`px-1.5 rounded-full text-[9px] ${on ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{c.n}</span>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+
             {/* List */}
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {filteredTeachers.map(t => {
-                const isSel = selId === t.id;
-                const spName = specializations.find(s => s.id === t.specializationId)?.name
-                  || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name
-                  || '';
-                const hasC = constraints.some(c => c.teacherId === t.id);
-                return (
-                  <button key={t.id} onClick={() => setSelId(t.id)}
-                    className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-all ${isSel ? 'bg-white border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-sm font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                      <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>
+              {(() => {
+                if (filteredTeachers.length === 0) {
+                  return <div className="text-center py-8 text-xs font-bold text-slate-400">لا يوجد معلمين</div>;
+                }
+                const renderTeacher = (t: Teacher) => {
+                  const isSel = selId === t.id;
+                  const spName = specializations.find(s => s.id === t.specializationId)?.name
+                    || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name
+                    || '';
+                  const hasC = constraints.some(c => c.teacherId === t.id);
+                  return (
+                    <button key={t.id} onClick={() => setSelId(t.id)}
+                      className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-all ${isSel ? 'bg-white border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                        {sortBy === 'alpha' && <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
+                      </div>
+                      {isSel ? (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
+                          <Check size={12} strokeWidth={3.5} />
+                        </span>
+                      ) : (
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${hasC ? 'bg-[#655ac1]/40' : 'hidden'}`} />
+                      )}
+                    </button>
+                  );
+                };
+
+                if (sortBy !== 'spec') {
+                  return filteredTeachers.map(renderTeacher);
+                }
+
+                // Group by specialization
+                const groups: { sid: string; name: string; teachers: Teacher[] }[] = [];
+                filteredTeachers.forEach(t => {
+                  const sid = t.specializationId || '__none__';
+                  const name = specializations.find(s => s.id === sid)?.name
+                    || INITIAL_SPECIALIZATIONS.find(s => s.id === sid)?.name
+                    || 'بدون تخصص';
+                  let g = groups.find(x => x.sid === sid);
+                  if (!g) { g = { sid, name, teachers: [] }; groups.push(g); }
+                  g.teachers.push(t);
+                });
+
+                return groups.map(g => {
+                  const collapsed = collapsedSpecs.has(g.sid);
+                  return (
+                    <div key={g.sid} className="space-y-1">
+                      <button
+                        onClick={() => {
+                          const next = new Set(collapsedSpecs);
+                          if (collapsed) next.delete(g.sid); else next.add(g.sid);
+                          setCollapsedSpecs(next);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-all"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ChevronDown size={13} className={`text-slate-500 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                          <span className="text-[11px] font-black text-slate-700">{g.name}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-white text-[10px] font-black text-[#655ac1] border border-slate-200">{g.teachers.length}</span>
+                      </button>
+                      {!collapsed && <div className="space-y-1 pr-1">{g.teachers.map(renderTeacher)}</div>}
                     </div>
-                    {isSel ? (
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1] shrink-0">
-                        <Check size={12} strokeWidth={3} />
-                      </span>
-                    ) : (
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${hasC ? 'bg-[#655ac1]/40' : 'hidden'}`} />
-                    )}
-                  </button>
-                );
-              })}
-              {filteredTeachers.length === 0 && <div className="text-center py-8 text-xs text-slate-400">لا يوجد معلمين</div>}
+                  );
+                });
+              })()}
             </div>
           </div>
           )}
@@ -1217,133 +1314,206 @@ export default function TeacherConstraintsModal({
 
       {/* ── Quick Copy Modal ── */}
       {showCopyModal && selTeacher && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowCopyModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3" style={{ direction: 'rtl' }} onClick={() => { if (!copyConfirm && !copySuccess) { setShowCopyModal(false); setCopyConfirm(false); } }}>
+          <div className="bg-slate-50 w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white">
+            <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><Copy size={18} /></div>
+                <div className="w-11 h-11 rounded-2xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center"><Copy size={22} /></div>
                 <div>
-                  <h3 className="font-black text-slate-800 text-sm">نسخ القيود لمعلم آخر</h3>
-                  <p className="text-[10px] text-slate-400 mt-0.5">نسخ قيود <span className="font-bold text-[#8779fb]">{selTeacher.name}</span> إلى معلمين آخرين</p>
+                  <h3 className="text-lg font-black text-slate-800">نسخ القيود لمعلم آخر</h3>
+                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">نسخ قيود <span className="font-black text-[#655ac1]">{selTeacher.name}</span> إلى معلمين آخرين</p>
                 </div>
               </div>
-              <button onClick={() => setShowCopyModal(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all"><X size={18} /></button>
+              <button onClick={() => setShowCopyModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
             </div>
 
             <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* Copy Options */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-slate-700 text-sm">خيارات النسخ</h4>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-700 hover:text-slate-900">
-                    <input type="checkbox"
-                      checked={copyOpts.consecutive && copyOpts.excluded && copyOpts.firstLast && copyOpts.earlyEntry}
-                      onChange={e => { const v = e.target.checked; setCopyOpts({ consecutive: v, excluded: v, firstLast: v, earlyEntry: v }); }}
-                      className="accent-[#8779fb] w-4 h-4 rounded" />
-                    <span>تحديد الكل</span>
-                  </label>
+
+              {/* ── خيارات النسخ ── */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-5 rounded-full bg-[#655ac1]" />
+                    <h4 className="text-sm font-black text-slate-700">خيارات النسخ</h4>
+                  </div>
+                  {(() => {
+                    const allOn = copyOpts.consecutive && copyOpts.excluded && copyOpts.firstLast && copyOpts.earlyEntry;
+                    return (
+                      <button
+                        onClick={() => { const v = !allOn; setCopyOpts({ consecutive: v, excluded: v, firstLast: v, earlyEntry: v }); }}
+                        className={`text-[11px] font-black px-3 py-1.5 rounded-lg border transition-all ${allOn ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}
+                      >
+                        {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
+                      </button>
+                    );
+                  })()}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { k: 'consecutive', l: 'تتابع الحصص' },
-                    { k: 'excluded', l: 'استثناء الحصص' },
-                    { k: 'firstLast', l: 'أولى / أخيرة' },
-                    { k: 'earlyEntry', l: 'خروج مبكر' },
-                  ].map(opt => (
-                    <label key={opt.k} className="flex items-center gap-2.5 bg-white px-4 py-3 rounded-xl border border-slate-200 cursor-pointer hover:border-slate-300 hover:bg-slate-50 transition-colors select-none">
-                      <input type="checkbox" checked={copyOpts[opt.k as keyof typeof copyOpts]}
-                        onChange={e => setCopyOpts({ ...copyOpts, [opt.k]: e.target.checked })} className="accent-[#8779fb] w-4 h-4 rounded shrink-0" />
-                      <span className="text-xs font-bold text-slate-600">{opt.l}</span>
-                    </label>
-                  ))}
+                    { k: 'consecutive', l: 'تتابع الحصص', I: Sliders },
+                    { k: 'excluded', l: 'استثناء الحصص', I: Ban },
+                    { k: 'firstLast', l: 'أولى / أخيرة', I: ArrowRightFromLine },
+                    { k: 'earlyEntry', l: 'خروج مبكر', I: Clock },
+                  ].map(opt => {
+                    const on = copyOpts[opt.k as keyof typeof copyOpts];
+                    const Icon = opt.I;
+                    return (
+                      <button
+                        type="button"
+                        key={opt.k}
+                        onClick={() => setCopyOpts({ ...copyOpts, [opt.k]: !on })}
+                        className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border-2 transition-all text-right ${on ? 'bg-white border-slate-300 shadow-md' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                      >
+                        {on ? (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
+                        )}
+                        <Icon size={13} className={on ? 'text-[#655ac1]' : 'text-slate-400'} />
+                        <span className={`text-xs font-bold ${on ? 'text-slate-700' : 'text-slate-500'}`}>{opt.l}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Teacher Selection */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+              {/* ── تحديد المعلمين ── */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="font-bold text-slate-700 text-sm">تحديد المعلمين</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
-                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">{copyTargets.length} محددين</span>
-                    <button
-                      onClick={() => {
-                        const allIds = filteredTeachers.filter(t => t.id !== selId).map(t => t.id);
-                        if (copyTargets.length === allIds.length) setCopyTargets([]);
-                        else setCopyTargets(allIds);
-                      }}
-                      className="text-xs font-bold text-slate-600 hover:text-[#655ac1] px-2.5 py-1 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all"
-                    >
-                      {copyTargets.length === filteredTeachers.filter(t => t.id !== selId).length ? 'إلغاء الكل' : 'تحديد الكل'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Search */}
-                <div className="relative">
-                  <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={copySearch}
-                    onChange={e => setCopySearch(e.target.value)}
-                    placeholder="بحث عن معلم..."
-                    className="w-full pr-8 pl-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-slate-400 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Teachers List */}
-              <div className="max-h-52 overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1 bg-slate-50/50">
-                {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).map(t => (
-                  <label key={t.id} className="flex items-center gap-3 p-2.5 hover:bg-white border border-transparent hover:border-slate-100 rounded-xl cursor-pointer transition-all">
-                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${copyTargets.includes(t.id) ? 'bg-[#8779fb] border-[#8779fb]' : 'bg-white border-slate-300'}`}>
-                      {copyTargets.includes(t.id) && <Check size={14} className="text-white" strokeWidth={3} />}
+                    <div className="w-1 h-5 rounded-full bg-[#655ac1]" />
+                    <div>
+                      <h4 className="text-sm font-black text-slate-700">تحديد المعلمين</h4>
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
                     </div>
-                    <span className="text-xs font-bold text-slate-700">{t.name}</span>
-                    <input type="checkbox" className="hidden" checked={copyTargets.includes(t.id)} onChange={e => {
-                      if (e.target.checked) setCopyTargets([...copyTargets, t.id]);
-                      else setCopyTargets(copyTargets.filter(id => id !== t.id));
-                    }} />
-                  </label>
-                ))}
-                {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).length === 0 && (
-                  <div className="text-center py-4 text-xs text-slate-400">
-                    {copySearch ? 'لا توجد نتائج مطابقة للبحث' : 'لا يوجد معلمين آخرين للنسخ إليهم'}
                   </div>
-                )}
+                  <span className="px-2.5 py-1 bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black rounded-full">{copyTargets.length} محدد</span>
+                </div>
+
+                {/* Search + select all */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={copySearch}
+                      onChange={e => setCopySearch(e.target.value)}
+                      placeholder="بحث عن معلم..."
+                      className="w-full pr-8 pl-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1]/40 transition-all"
+                    />
+                  </div>
+                  {(() => {
+                    const allIds = filteredTeachers.filter(t => t.id !== selId).map(t => t.id);
+                    const allOn = allIds.length > 0 && copyTargets.length === allIds.length;
+                    return (
+                      <button
+                        onClick={() => allOn ? setCopyTargets([]) : setCopyTargets(allIds)}
+                        className={`text-[11px] font-black px-3 py-2 rounded-xl border transition-all ${allOn ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}
+                      >
+                        {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                {/* Teachers List */}
+                <div className="max-h-52 overflow-y-auto rounded-xl space-y-1">
+                  {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).map(t => {
+                    const on = copyTargets.includes(t.id);
+                    const spName = specializations.find(s => s.id === t.specializationId)?.name
+                      || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name || '';
+                    return (
+                      <button
+                        type="button"
+                        key={t.id}
+                        onClick={() => on ? setCopyTargets(copyTargets.filter(id => id !== t.id)) : setCopyTargets([...copyTargets, t.id])}
+                        className={`w-full text-right p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${on ? 'bg-white border-slate-300 shadow-md' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}
+                      >
+                        {on ? (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm font-black truncate ${on ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                          {spName && <div className="text-[10px] font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).length === 0 && (
+                    <div className="text-center py-6 text-xs font-bold text-slate-400">
+                      {copySearch ? 'لا توجد نتائج مطابقة للبحث' : 'لا يوجد معلمين آخرين للنسخ إليهم'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
-              <button
-                disabled={copyTargets.length === 0}
-                onClick={() => {
-                  if (copyTargets.length === 0) return;
-                  if (!confirm(`هل أنت متأكد من نسخ القيود المحددة إلى ${copyTargets.length} معلم؟`)) return;
-                  const src = getC(selId!);
-                  const nc = [...constraints];
-                  copyTargets.forEach(tid => {
-                    const idx = nc.findIndex(c => c.teacherId === tid);
-                    const existing: TeacherConstraint = idx >= 0 ? nc[idx] : { teacherId: tid, maxConsecutive: 2, excludedSlots: {} };
-                    const n = { ...existing };
-                    if (copyOpts.consecutive) n.maxConsecutive = src.maxConsecutive;
-                    if (copyOpts.excluded) n.excludedSlots = src.excludedSlots;
-                    if (copyOpts.firstLast) { n.maxFirstPeriods = src.maxFirstPeriods; n.maxLastPeriods = src.maxLastPeriods; }
-                    if (copyOpts.earlyEntry) { n.earlyExit = src.earlyExit; n.earlyExitMode = src.earlyExitMode; }
-                    if (idx >= 0) nc[idx] = n; else nc.push(n);
-                  });
-                  onChangeConstraints(nc);
-                  setCopyTargets([]);
-                  setShowCopyModal(false);
-                  alert('تم نسخ القيود بنجاح');
-                }}
-                className="w-full py-3 bg-[#8779fb] text-white rounded-xl text-sm font-bold hover:bg-[#655ac1] shadow-lg shadow-[#c8c1fd] disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2"
-              >
-                <Copy size={16} /> تطبيق النسخ على {copyTargets.length > 0 ? `${copyTargets.length} معلم` : 'المحدد'}
-              </button>
+            <div className="px-5 py-4 bg-white border-t border-slate-100">
+              {copySuccess ? (
+                <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-black">
+                  <CheckCircle2 size={18} />
+                  <span>تم نسخ القيود بنجاح إلى {copyTargets.length} معلم</span>
+                </div>
+              ) : copyConfirm ? (
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                    <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-[11px] font-bold text-amber-700 leading-relaxed">
+                      ستُستبدل القيود المحددة لـ <span className="font-black">{copyTargets.length} معلم</span> بقيود <span className="font-black">{selTeacher.name}</span>. هل أنت متأكد؟
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCopyConfirm(false)}
+                      className="flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl text-xs font-black hover:bg-slate-50 transition-all"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={() => {
+                        const src = getC(selId!);
+                        const nc = [...constraints];
+                        copyTargets.forEach(tid => {
+                          const idx = nc.findIndex(c => c.teacherId === tid);
+                          const existing: TeacherConstraint = idx >= 0 ? nc[idx] : { teacherId: tid, maxConsecutive: 2, excludedSlots: {} };
+                          const n = { ...existing };
+                          if (copyOpts.consecutive) n.maxConsecutive = src.maxConsecutive;
+                          if (copyOpts.excluded) n.excludedSlots = src.excludedSlots;
+                          if (copyOpts.firstLast) { n.maxFirstPeriods = src.maxFirstPeriods; n.maxLastPeriods = src.maxLastPeriods; }
+                          if (copyOpts.earlyEntry) { n.earlyExit = src.earlyExit; n.earlyExitMode = src.earlyExitMode; }
+                          if (idx >= 0) nc[idx] = n; else nc.push(n);
+                        });
+                        onChangeConstraints(nc);
+                        setCopyConfirm(false);
+                        setCopySuccess(true);
+                        setTimeout(() => {
+                          setCopySuccess(false);
+                          setCopyTargets([]);
+                          setShowCopyModal(false);
+                        }, 1400);
+                      }}
+                      className="flex-[2] py-2.5 bg-[#655ac1] text-white rounded-xl text-xs font-black hover:bg-[#4b3f9f] transition-all flex items-center justify-center gap-2"
+                    >
+                      <Check size={14} strokeWidth={3} /> تأكيد النسخ
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  disabled={copyTargets.length === 0}
+                  onClick={() => setCopyConfirm(true)}
+                  className="w-full py-3 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#4b3f9f] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                >
+                  <Copy size={16} /> تطبيق النسخ {copyTargets.length > 0 ? `على ${copyTargets.length} معلم` : ''}
+                </button>
+              )}
             </div>
           </div>
         </div>

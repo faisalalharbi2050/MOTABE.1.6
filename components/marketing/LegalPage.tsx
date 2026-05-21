@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   ChevronDown,
   Check,
@@ -588,11 +588,11 @@ const ContactForm: React.FC = () => {
                       <span
                         className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                           form.type === option.value
-                            ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                            ? 'bg-[#655ac1] border-[#655ac1] text-white'
                             : 'bg-white border-slate-300 text-transparent'
                         }`}
                       >
-                        <Check size={12} strokeWidth={3} />
+                        <Check size={12} strokeWidth={3.5} />
                       </span>
                     </button>
                   ))}

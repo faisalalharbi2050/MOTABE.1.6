@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Teacher, Specialization, SchoolInfo, ScheduleSettingsData, ClassInfo } from '../../../types';
 import { BookOpen, Plus, X, Upload, Trash2, Edit, Edit2, Edit3, Pen, Pencil, Check, ChevronDown, ChevronUp, Search, Printer, List, User, UserPlus, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle, Settings2 } from 'lucide-react';
@@ -70,8 +70,8 @@ const TeacherSelectDropdown: React.FC<{
                   className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
                 >
                   <span>{opt.name}</span>
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                    <Check size={12} strokeWidth={3} />
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
                   </span>
                 </button>
               );
@@ -1196,9 +1196,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                       >
                         <span>{getSpecializationName(id)}</span>
                         <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                          selected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                          selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                         }`}>
-                          <Check size={12} strokeWidth={3} />
+                          <Check size={12} strokeWidth={3.5} />
                         </span>
                       </button>
                     );
@@ -1647,8 +1647,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'all' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <span>طباعة الكل</span>
-                <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'all' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent'}`}>
-                  <Check size={12} strokeWidth={3} />
+                <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'all' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
               <button
@@ -1656,8 +1656,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'spec' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <span>طباعة تخصص محدد</span>
-                <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'spec' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent'}`}>
-                  <Check size={12} strokeWidth={3} />
+                <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'spec' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
               {printScope === 'spec' && (
@@ -1970,8 +1970,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-black text-slate-700"
                >
                   <span>اختيار كل معلمي التخصص</span>
-                 <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${allSelected ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent'}`}>
-                   <Check size={12} strokeWidth={3} />
+                 <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${allSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                   <Check size={12} strokeWidth={3.5} />
                  </span>
                </button>
                <div className="max-h-72 overflow-y-auto custom-scrollbar border border-slate-100 rounded-2xl p-2 space-y-1">

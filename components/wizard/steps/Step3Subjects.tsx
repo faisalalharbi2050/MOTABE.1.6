@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Phase, Subject, SchoolInfo, ScheduleSettingsData } from '../../../types';
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
@@ -56,9 +56,9 @@ const InlineSelect: React.FC<{
               >
                 <span>{option.label}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === option.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -1515,8 +1515,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 {planMode === 'custom' && selectedPlanSubjects.length > 0 && (
                   isSelectedCustomPlanApproved ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                        <Check size={12} strokeWidth={3} />
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
+                        <Check size={12} strokeWidth={3.5} />
                       </span>
                       <span>خطة معتمدة</span>
                     </div>
@@ -1534,8 +1534,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   isSelectedStageApproved ? (
                     <>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                          <Check size={12} strokeWidth={3} />
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
+                          <Check size={12} strokeWidth={3.5} />
                         </span>
                         <span>خطة معتمدة</span>
                       </div>
@@ -1835,8 +1835,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 <div className="flex flex-wrap gap-2">
                   {isApproved ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                        <Check size={12} strokeWidth={3} />
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
+                        <Check size={12} strokeWidth={3.5} />
                       </span>
                       <span>خطة معتمدة</span>
                     </div>
@@ -2124,8 +2124,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-3 text-right hover:bg-slate-50 transition-all"
                   >
                     <span className="font-bold text-sm text-slate-700">{plan.label}</span>
-                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${checked && printScope === 'selected' ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'border-slate-300 bg-white text-transparent'}`}>
-                      <Check size={13} strokeWidth={3} />
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${checked && printScope === 'selected' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                      <Check size={13} strokeWidth={3.5} />
                     </span>
                   </button>
                 );
@@ -2310,9 +2310,9 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                               >
                                 <span>{target.label}</span>
                                 <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border-2 transition-all ${
-                                  checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                                  checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                                 }`}>
-                                  <Check size={10} strokeWidth={3} />
+                                  <Check size={10} strokeWidth={3.5} />
                                 </span>
                               </button>
                             );
@@ -2907,21 +2907,21 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                                   key={placement.key}
                                   type="button"
                                   onClick={() => togglePlacement(placement.key)}
-                                  className={`rounded-xl border px-3 py-2 text-right transition-all flex items-center justify-between gap-3 ${
+                                  className={`rounded-xl border-2 px-3 py-2 text-right transition-all duration-200 flex items-center justify-between gap-3 select-none ${
                                     checked
-                                      ? 'bg-white border-[#655ac1]/50 text-[#655ac1]'
-                                      : 'bg-white border-slate-300 text-slate-500 hover:border-[#655ac1]/40'
+                                      ? 'bg-white border-slate-300 text-slate-700 shadow-md'
+                                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                                   }`}
                                 >
                                   <span>
                                     <span className="block text-xs font-black">{placement.label}</span>
                                     <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{formatLessonsCount(placement.periodsPerClass)} أسبوعيًا</span>
                                   </span>
-                                  <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                                    checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
-                                  }`}>
-                                    <Check size={12} strokeWidth={3} />
-                                  </span>
+                                  {checked && (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
+                                      <Check size={12} strokeWidth={3.5} />
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   Check,
@@ -728,9 +728,9 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                         <p className="text-xs text-slate-500 font-medium mt-0.5">{option.subtitle}</p>
                       </div>
                       <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                        checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                       }`}>
-                        <Check size={12} strokeWidth={3} />
+                        <Check size={12} strokeWidth={3.5} />
                       </span>
                     </label>
                     );
@@ -777,9 +777,9 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
                       )}
                     </div>
                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                      checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                     }`}>
-                      <Check size={12} strokeWidth={3} />
+                      <Check size={12} strokeWidth={3.5} />
                     </span>
                   </label>
                   );

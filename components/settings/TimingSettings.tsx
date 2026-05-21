@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
 import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown, Lightbulb, Edit3 } from 'lucide-react';
@@ -67,9 +67,9 @@ const SeasonDropdown: React.FC<{ value: string; onChange: (v: string) => void; }
                   <span>{opt.label}</span>
                 </span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === opt.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === opt.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -147,9 +147,9 @@ const PeriodDropdown: React.FC<PeriodDropdownProps> = ({ value, onChange, max = 
               >
                 <span>{opt}</span>
                 <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full border-2 transition-all ${
-                  value === opt ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === opt ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={10} strokeWidth={3} />
+                  <Check size={10} strokeWidth={3.5} />
                 </span>
               </button>
             ))}

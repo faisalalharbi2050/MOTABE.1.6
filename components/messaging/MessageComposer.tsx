@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import {
   Send, Users, AlertCircle, AlertTriangle, Paperclip, CheckCircle2, Check,
@@ -127,9 +127,9 @@ const RecipientSelectDropdown: React.FC<{
               >
                 <span>{option.label}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === option.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -565,10 +565,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleClassSelection(classId); }}
                   className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                    allSelected || someSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+                    allSelected || someSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
                   }`}
                 >
-                  <Check size={12} strokeWidth={3} className={someSelected && !allSelected ? 'opacity-50' : ''} />
+                  <Check size={12} strokeWidth={3.5} className={someSelected && !allSelected ? 'opacity-50' : ''} />
                 </button>
                 <span className={`font-bold select-none ${allSelected || someSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>فصل {className}</span>
               </div>
@@ -596,9 +596,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                         : <div className="text-xs text-rose-500">لا يوجد رقم</div>}
                     </div>
                     <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                      selectedIds.has(item.id) ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+                      selectedIds.has(item.id) ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
                     }`}>
-                      <Check size={12} strokeWidth={3} />
+                      <Check size={12} strokeWidth={3.5} />
                     </span>
                   </div>
                 ))}
@@ -629,9 +629,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               </div>
             </div>
             <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-              selectedIds.has(item.id) ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
+              selectedIds.has(item.id) ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
             }`}>
-              <Check size={12} strokeWidth={3} />
+              <Check size={12} strokeWidth={3.5} />
             </span>
           </div>
         ))}

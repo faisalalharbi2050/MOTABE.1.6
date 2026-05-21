@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
@@ -137,9 +137,9 @@ const SingleSelectDropdown: React.FC<{
                   {option.label}
                 </span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === option.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -211,9 +211,9 @@ const MultiSelectDropdown: React.FC<{
                     {option.label}
                   </span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                    isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                    isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                   }`}>
-                    <Check size={12} strokeWidth={3} />
+                    <Check size={12} strokeWidth={3.5} />
                   </span>
                 </button>
               );

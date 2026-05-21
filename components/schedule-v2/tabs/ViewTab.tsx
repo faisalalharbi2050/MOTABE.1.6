@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
@@ -332,10 +332,10 @@ const SingleSelectDropdown: React.FC<{
                 </span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                   value === option.value
-                    ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                    ? 'bg-[#655ac1] border-[#655ac1] text-white'
                     : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -449,10 +449,10 @@ const MultiSelectDropdown: React.FC<{
                   </span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
                     isSelected
-                      ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                      ? 'bg-[#655ac1] border-[#655ac1] text-white'
                       : 'bg-white border-slate-300 text-transparent'
                   }`}>
-                    <Check size={12} strokeWidth={3} />
+                    <Check size={12} strokeWidth={3.5} />
                   </span>
                 </button>
               );

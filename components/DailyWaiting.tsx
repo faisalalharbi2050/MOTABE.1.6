@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
@@ -376,9 +376,9 @@ const WaitingSingleSelect: React.FC<{
               >
                 <span>{option.label}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                  value === option.value ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                  value === option.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                 }`}>
-                  <Check size={12} strokeWidth={3} />
+                  <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
             ))}
@@ -456,8 +456,8 @@ const WaitingRecipientsMultiSelect: React.FC<{
                     <span className="block text-[13px] font-black truncate">{row.asgn.substituteTeacherName}</span>
                     <span className="block text-[10px] font-bold text-slate-400 truncate">الحصة {row.asgn.periodNumber} - {row.asgn.className}</span>
                   </span>
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 transition-all ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                    <Check size={12} strokeWidth={3} />
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 transition-all ${checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
                   </span>
                 </button>
               );
@@ -3211,8 +3211,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               {getArabicDayFromDate(w.start)} {formatDateLabel(w.start)} → {getArabicDayFromDate(w.end)} {formatDateLabel(w.end)}
                             </span>
                           </span>
-                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${isSelected ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                            <Check size={12} strokeWidth={3} />
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                            <Check size={12} strokeWidth={3.5} />
                           </span>
                         </button>
                       );
@@ -7123,8 +7123,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               <span className="block text-xs font-black truncate">{row.asgn.substituteTeacherName}</span>
                               <span className="block text-[10px] font-bold text-slate-400 truncate">الحصة {row.asgn.periodNumber} - {row.asgn.className}</span>
                             </span>
-                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
-                              <Check size={12} strokeWidth={3} />
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3.5} />
                             </span>
                           </button>
                         );
@@ -7382,8 +7382,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => setSendSelectedIds(prev => { const n = new Set(prev); n.has(row.key) ? n.delete(row.key) : n.add(row.key); return n; })}
-                                  className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${checked ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]'}`}
-                                ><Check size={11} strokeWidth={3} /></button>
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]'}`}
+                                ><Check size={11} strokeWidth={3.5} /></button>
                               </td>
                               <td className="px-3 py-3 text-slate-400 font-bold text-xs text-center">{idx + 1}</td>
                               <td className="px-3 py-3"><span className="font-bold text-slate-800 text-sm">{asgn.substituteTeacherName}</span></td>
@@ -7737,9 +7737,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                           >
                             <span>{s.name}</span>
                             <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                              rptSelectedIds.has(s.id) ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-300 text-transparent'
+                              rptSelectedIds.has(s.id) ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                             }`}>
-                              <Check size={12} strokeWidth={3} />
+                              <Check size={12} strokeWidth={3.5} />
                             </span>
                           </button>
                         ))}

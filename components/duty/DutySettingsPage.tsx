@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Users, Settings, Bell, Check,
   ArrowLeft, CalendarDays, Edit3, Lightbulb
@@ -206,7 +206,7 @@ const DutySettingsPage: React.FC<Props> = ({
                               <span>الأسبوع {w}</span>
                               <span className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors ${
                                 isOn
-                                  ? 'bg-white border-[#655ac1] text-[#655ac1]'
+                                  ? 'bg-[#655ac1] border-[#655ac1] text-white'
                                   : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
                               }`}>
                                 <Check size={12} strokeWidth={3.5} />
