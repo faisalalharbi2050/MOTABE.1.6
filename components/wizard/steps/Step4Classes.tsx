@@ -1449,8 +1449,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <label className="cursor-pointer" onClick={() => selectAllInGrade(grade)}>
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${allSelected ? 'bg-white border-rose-500 text-rose-500' : 'border-slate-300 text-transparent hover:border-rose-300'}`}>
-                                    {allSelected && <Check size={12} strokeWidth={3} />}
+                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${allSelected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent hover:border-rose-300'}`}>
+                                    {allSelected && <Check size={12} strokeWidth={3.5} />}
                                   </div>
                                 </label>
                                 <div className="w-9 h-9 bg-[#e5e1fe] rounded-lg flex items-center justify-center text-[#655ac1] font-black text-sm">
@@ -1616,8 +1616,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         return (
                           <tr key={c.id} className={`group border-b border-slate-50 last:border-0 hover:bg-[#f8f7ff]/50 transition-colors ${isSelected ? 'bg-[#e5e1fe]/10' : ''}`}>
                             <td className="px-6 py-4">
-                              <div onClick={() => toggleSelect(c.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'bg-white border-rose-500 text-rose-500' : 'border-slate-200 text-transparent group-hover:border-rose-300'}`}>
-                                {isSelected && <Check size={12} strokeWidth={3} />}
+                              <div onClick={() => toggleSelect(c.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-200 text-transparent group-hover:border-rose-300'}`}>
+                                {isSelected && <Check size={12} strokeWidth={3.5} />}
                               </div>
                             </td>
                             <td className="px-6 py-4">

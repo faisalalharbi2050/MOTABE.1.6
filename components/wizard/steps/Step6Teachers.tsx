@@ -1235,15 +1235,18 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                      {/* Section Header */}
                      <div className="bg-white px-6 py-4 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-slate-50/50 to-white print:bg-slate-100 print:from-slate-100 print:to-slate-100 print:border-slate-800 print:py-2">
                         <div className="flex items-center gap-3">
-                            {teacherDeleteSelectionMode && (
-                              <button
-                                type="button"
-                                onClick={() => setDeleteSelectedSpecIds(prev => prev.includes(specId) ? prev.filter(id => id !== specId) : [...prev, specId])}
-                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${deleteSelectedSpecIds.includes(specId) ? 'border-rose-500 text-rose-500 bg-white' : 'border-slate-300 text-transparent hover:border-rose-300'}`}
-                              >
-                                <Check size={12} strokeWidth={3} />
-                              </button>
-                            )}
+                            {teacherDeleteSelectionMode && (() => {
+                              const on = deleteSelectedSpecIds.includes(specId);
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteSelectedSpecIds(prev => prev.includes(specId) ? prev.filter(id => id !== specId) : [...prev, specId])}
+                                  className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'}`}
+                                >
+                                  {on && <Check size={12} strokeWidth={3.5} />}
+                                </button>
+                              );
+                            })()}
                             <div className="w-1.5 h-6 bg-[#655ac1] rounded-full print:bg-slate-900" />
                             <h4 className="font-black text-slate-800 text-lg print:text-base">
                                 {getSpecializationName(specId)} 
@@ -1323,15 +1326,18 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                 />
                                             ) : (
                                                 <div className="flex items-center gap-2">
-                                                    {teacherDeleteSelectionMode && (
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => setDeleteSelectedTeacherIds(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])}
-                                                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${deleteSelectedTeacherIds.includes(t.id) ? 'border-rose-500 text-rose-500 bg-white' : 'border-slate-300 text-transparent hover:border-rose-300'}`}
-                                                      >
-                                                        <Check size={12} strokeWidth={3} />
-                                                      </button>
-                                                    )}
+                                                    {teacherDeleteSelectionMode && (() => {
+                                                      const on = deleteSelectedTeacherIds.includes(t.id);
+                                                      return (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => setDeleteSelectedTeacherIds(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])}
+                                                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'}`}
+                                                        >
+                                                          {on && <Check size={12} strokeWidth={3.5} />}
+                                                        </button>
+                                                      );
+                                                    })()}
                                                     <span className="text-sm group-hover:text-[#655ac1] transition-colors print:text-black">{t.name}</span>
                                                 </div>
                                             )}
@@ -1710,8 +1716,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${selected ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
                       >
                         <span>{getSpecializationName(id)}</span>
-                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'border-rose-500 text-rose-500' : 'border-slate-300 text-transparent'}`}>
-                          <Check size={12} strokeWidth={3} />
+                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                          <Check size={12} strokeWidth={3.5} />
                         </span>
                       </button>
                     );
@@ -1730,8 +1736,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${selected ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
                       >
                         <span>{t.name}</span>
-                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'border-rose-500 text-rose-500' : 'border-slate-300 text-transparent'}`}>
-                          <Check size={12} strokeWidth={3} />
+                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                          <Check size={12} strokeWidth={3.5} />
                         </span>
                       </button>
                     );
@@ -1987,8 +1993,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${selected ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
                      >
                        <span>{t.name}</span>
-                       <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'border-rose-500 text-rose-500' : 'border-slate-300 text-transparent'}`}>
-                         <Check size={12} strokeWidth={3} />
+                       <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                         <Check size={12} strokeWidth={3.5} />
                        </span>
                      </button>
                    );
