@@ -347,13 +347,13 @@ export default function TeacherConstraintsModal({
         {/* --- Header --- */}
         <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-[#e5e1fe] rounded-2xl flex items-center justify-center text-[#655ac1]"><Sliders size={22} /></div>
+            <div className="w-11 h-11 flex items-center justify-center text-[#655ac1]"><Sliders size={26} /></div>
             <div>
               <h2 className="text-lg font-black text-slate-800">قيود المعلمون</h2>
-              <p className="text-[11px] text-slate-400 font-bold">إدارة القيود والتفضيلات الفردية للمعلمين</p>
+              <p className="text-[11px] text-slate-400 font-bold">إدارة قيود المعلمون الاستثناءات والتفضيلات</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all"><X size={22} /></button>
+          <button onClick={onClose} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
         </div>
 
         <div className="flex-1 flex overflow-hidden">
@@ -361,46 +361,49 @@ export default function TeacherConstraintsModal({
           {!singleTeacherMode && (
           <div className="w-72 bg-white border-l border-slate-100 flex flex-col shrink-0">
             {/* Search & Sort */}
-            <div className="p-3 border-b border-slate-100 space-y-2">
+            <div className="p-3 border-b border-slate-100 space-y-2.5">
               <div className="relative">
                 <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="w-full pr-9 pl-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="w-full pr-9 pl-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1]/40 transition-all" />
               </div>
               <div className="flex gap-1.5">
-                <button onClick={() => setSortBy('spec')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${sortBy==='spec'?'bg-[#655ac1] text-white':'bg-slate-100 text-slate-500'}`}>التخصص</button>
-                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${sortBy==='alpha'?'bg-[#655ac1] text-white':'bg-slate-100 text-slate-500'}`}>أبجدي</button>
+                <button onClick={() => setSortBy('spec')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='spec'?'bg-white border-slate-300 text-[#4b3f9f]':'bg-white border-slate-300 text-slate-500 hover:text-[#655ac1]'}`}>التخصص</button>
+                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='alpha'?'bg-white border-slate-300 text-[#4b3f9f]':'bg-white border-slate-300 text-slate-500 hover:text-[#655ac1]'}`}>أبجدي</button>
                 {sortBy === 'spec' && (
                   <button onClick={() => setShowSpecPanel(!showSpecPanel)}
-                    className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${showSpecPanel ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    <GripVertical size={12} />
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${showSpecPanel ? 'bg-white border-slate-300 text-[#4b3f9f]' : 'bg-white border-slate-300 text-slate-500 hover:text-[#655ac1]'}`}>
+                    <GripVertical size={13} />
                     ترتيب
                   </button>
                 )}
               </div>
-              {/* Spec Sorting Panel */}
+              {/* Spec Sorting Dropdown - entity-dropdown style */}
               {showSpecPanel && sortBy === 'spec' && (
-                <div className="bg-slate-50 rounded-xl border border-slate-200 p-2 max-h-44 overflow-y-auto space-y-1">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-2.5 max-h-72 overflow-y-auto custom-scrollbar space-y-1 animate-in slide-in-from-top-2">
                   {specOrder.map((sid, idx) => {
                     const sp = specializations.find(s => s.id === sid) || INITIAL_SPECIALIZATIONS.find(s => s.id === sid);
                     if (!sp) return null;
                     return (
-                      <div key={sid} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-slate-100">
-                        <span className="flex-1 text-[10px] font-bold text-slate-600 truncate">{sp.name}</span>
-                        <div className="flex gap-1">
+                      <div key={sid} className="w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#f0edff]">
+                        <span className="truncate">{sp.name}</span>
+                        <div className="flex items-center gap-1">
                           <button onClick={() => {
                             const newOrder = [...specOrder];
                             if (idx > 0) {
                               [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
                               setSpecOrder(newOrder);
                             }
-                          }} disabled={idx === 0} className="text-slate-300 hover:text-[#655ac1] disabled:opacity-30"><ChevronUp size={12} /></button>
+                          }} disabled={idx === 0} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronUp size={13} /></button>
                           <button onClick={() => {
                             const newOrder = [...specOrder];
                             if (idx < specOrder.length - 1) {
                               [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
                               setSpecOrder(newOrder);
                             }
-                          }} disabled={idx === specOrder.length - 1} className="text-slate-300 hover:text-[#655ac1] disabled:opacity-30"><ChevronDown size={12} /></button>
+                          }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1] mr-1">
+                            <Check size={12} strokeWidth={3} />
+                          </span>
                         </div>
                       </div>
                     );
@@ -418,12 +421,18 @@ export default function TeacherConstraintsModal({
                 const hasC = constraints.some(c => c.teacherId === t.id);
                 return (
                   <button key={t.id} onClick={() => setSelId(t.id)}
-                    className={`w-full text-right p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${isSel ? 'bg-white border-[#655ac1] shadow-sm shadow-[#655ac1]/10' : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200'}`}>
+                    className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-all ${isSel ? 'bg-white border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
                     <div className="flex-1 min-w-0">
-                      <div className={`text-xs font-bold truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                      <div className={`text-[10px] truncate ${isSel ? 'text-[#655ac1]/60' : 'text-slate-400'}`}>{spName}</div>
+                      <div className={`text-sm font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                      <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>
                     </div>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${isSel ? 'bg-emerald-500' : hasC ? 'bg-[#655ac1]/40' : 'hidden'}`} />
+                    {isSel ? (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1] shrink-0">
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    ) : (
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${hasC ? 'bg-[#655ac1]/40' : 'hidden'}`} />
+                    )}
                   </button>
                 );
               })}
@@ -446,9 +455,9 @@ export default function TeacherConstraintsModal({
                   <div className="flex items-center gap-4">
                     <div>
                       <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
-                      <div className="flex gap-2 mt-1">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600">نصاب: {selTeacher.quotaLimit}</span>
+                      <div className="flex gap-2 mt-2">
+                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-300 text-slate-600">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
+                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-300 text-[#655ac1]">نصاب: {selTeacher.quotaLimit}</span>
                       </div>
                     </div>
                   </div>
@@ -1184,6 +1193,25 @@ export default function TeacherConstraintsModal({
         </div>
 
         {/* Copy Modal - Added Select All */}
+
+        {/* --- Footer --- */}
+        <div className="bg-white px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"
+          >
+            إغلاق
+          </button>
+          <button
+            onClick={onClose}
+            className="px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all flex items-center gap-2"
+          >
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+              <Check size={13} strokeWidth={3.2} className="text-white" />
+            </span>
+            حفظ
+          </button>
+        </div>
 
       </div>
 
