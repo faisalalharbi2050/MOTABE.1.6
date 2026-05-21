@@ -1027,7 +1027,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             <button
               dir="rtl"
               onClick={() => fileInputRef.current?.click()}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
             >
               <Upload size={16} className="text-slate-400 group-hover:text-white transition-colors" />
               {loading ? 'جاري الاستيراد...' : 'استيراد من Excel'}
@@ -1035,7 +1035,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             <button
               dir="rtl"
               onClick={openAddModal}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
             >
               <UserPlus size={17} className="text-slate-400 group-hover:text-white transition-colors" />
               إضافة معلم
@@ -1044,7 +1044,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               dir="rtl"
               onClick={() => openTeacherConstraints()}
               disabled={currentSchoolTeachers.length === 0}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Sliders size={16} className="text-slate-400 group-hover:text-white transition-colors" />
               قيود المعلمون
@@ -1059,7 +1059,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 setShowCopyModal(true);
               }}
               disabled={currentSchoolTeachers.length === 0}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Copy size={16} className="text-slate-400 group-hover:text-white transition-colors" />
               نسخ النصاب
@@ -1078,7 +1078,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
                 isBulkEdit
                   ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
               }`}
             >
               {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />}
@@ -1091,7 +1091,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                   try { setTeachers(JSON.parse(teachersSnapshot.current)); } catch {}
                   setIsBulkEdit(false);
                 }}
-                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all"
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
               >
                 إلغاء
               </button>
@@ -1100,7 +1100,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               dir="rtl"
               onClick={() => { setPrintScope('all'); setPrintSpecId(getUsedSpecializationIds()[0] || ''); setShowPrintModal(true); }}
               disabled={filteredTeachers.length === 0}
-              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               title="طباعة القائمة الحالية"
             >
               <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
@@ -1125,7 +1125,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                   setDeleteSelectedSpecIds([]);
                   setDeleteSelectedTeacherIds([]);
                 }}
-                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#4b3f9f] hover:border-[#4b3f9f] hover:text-white font-bold text-sm transition-all"
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
               >
                 إلغاء
               </button>
