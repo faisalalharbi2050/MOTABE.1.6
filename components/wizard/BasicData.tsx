@@ -1,7 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { SchoolInfo, Subject, ClassInfo, EntityType } from '../../types';
-import { CheckCircle, Save, Pencil, AlertCircle, XCircle } from 'lucide-react';
+import { CheckCircle, Check, Pencil, AlertCircle, XCircle } from 'lucide-react';
 import Step1General from './steps/Step1General';
+
+const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
+  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
+    <Check size={13} strokeWidth={3.2} className="text-white" />
+  </span>
+);
 
 interface BasicDataProps {
   schoolInfo: SchoolInfo;
@@ -127,7 +133,7 @@ const BasicData: React.FC<BasicDataProps> = ({
                   onClick={handleSave}
                   className="flex items-center gap-2 px-8 py-3 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448b0] transition-colors shadow-lg shadow-[#655ac1]/20 active:scale-95"
                 >
-                  <Save size={18} />
+                  <SaveCheckIcon />
                   حفظ
                 </button>
               ) : (

@@ -1264,8 +1264,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                       className="w-4 h-4 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all shrink-0"
                                       style={{
                                         background:  'white',
-                                        borderColor: isSelected ? '#655ac1' : '#cbd5e1',
-                                        color: isSelected ? '#655ac1' : 'transparent',
+                                        borderColor: isSelected ? '#f43f5e' : '#cbd5e1',
+                                        color: isSelected ? '#f43f5e' : 'transparent',
                                       }}
                                     >
                                       {isSelected && <Check size={10} strokeWidth={3}/>}

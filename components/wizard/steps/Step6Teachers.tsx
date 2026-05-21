@@ -1041,7 +1041,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-[#655ac1]/50'
             }`}
           >
-            {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Pencil size={15} className="text-slate-400" />}
+            {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400" />}
             {isBulkEdit ? 'حفظ' : 'تعديل الكل'}
           </button>
 
@@ -1114,7 +1114,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
           </div>
         )}
 
-        <div className="relative z-[70] bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-3 justify-between overflow-visible">
+        <div dir="rtl" className="relative z-[70] bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-3 justify-between overflow-visible">
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
             <button
               dir="rtl"
@@ -1209,7 +1209,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         <div className="hidden print:table-header-group">
           <div className="print:table-row">
             <div className="print:table-cell" style={{ padding: 0 }}>
-              <PrintHeader schoolInfo={schoolInfo} title="بيان المعلمين" />
+              <PrintHeader schoolInfo={schoolInfo} title="بيان بأسماء المعلمين" />
             </div>
           </div>
         </div>
@@ -1264,9 +1264,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                 <tr className="bg-slate-50/80 border-b border-slate-100 print:bg-white print:border-slate-800">
                                    <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:w-8 print:text-xs">م</th>
                                    <th className="px-3 py-4 w-[22%] text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">اسم المعلم</th>
-                                   <th className="px-3 py-4 w-[15%] text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">اختصار الاسم</th>
-                                   <th className="px-3 py-4 w-[14%] text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">التخصص</th>
-                                   <th className="px-3 py-4 w-[14%] text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">رقم الجوال</th>
+                                   <th className="px-3 py-4 w-[15%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">اختصار الاسم</th>
+                                   <th className="px-3 py-4 w-[14%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">التخصص</th>
+                                   <th className="px-3 py-4 w-[14%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">رقم الجوال</th>
                                    <th className="px-3 py-4 w-28 text-center text-xs font-black text-[#655ac1] whitespace-nowrap print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">نصاب الحصص</th>
                                    <th className="px-3 py-4 w-28 text-center text-xs font-black text-[#655ac1] whitespace-nowrap print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">نصاب الانتظار</th>
                                    <th className="px-3 py-4 w-24 text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:p-1 print:text-xs">المجموع</th>
