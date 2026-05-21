@@ -267,17 +267,18 @@ export interface TeacherConstraintMap {
   excludedSlots?: Record<string, number[]>;
   firstLastLessons?: { maxFirst?: number; maxLast?: number };
   earlyExit?: Record<string, number>;
-  meetings?: string[];
   presenceDays?: Record<string, string[]>; // { [schoolId]: ['sun','mon',...] }
 }
 
 export interface Teacher {
   id: string;
   name: string;
+  shortName?: string;
   specializationId: string;
   assignedSubjectId: string;
   quotaLimit: number; // نصاب الحصص
   waitingQuota?: number; // نصاب الانتظار
+  missingFields?: string[];
   phone: string;
   targetPhase?: Phase;
   sortIndex?: number;
@@ -488,14 +489,6 @@ export interface TeacherConstraint {
   presenceDays?: Record<string, string[]>;
 }
 
-export interface SpecializedMeeting {
-  id: string;
-  specializationId: string;
-  day: string;                      // اليوم
-  period: number;                   // رقم الحصة
-  teacherIds: string[];             // المعلمون المشاركون
-}
-
 export interface SubstitutionConfig {
   method: 'auto' | 'fixed' | 'manual';
   maxTotalQuota: number;            // الحد الأقصى للنصاب (أساسي + انتظار) - default: 24
@@ -524,7 +517,6 @@ export interface SavedSchedule {
 export interface ScheduleSettingsData {
   subjectConstraints: SubjectConstraint[];
   teacherConstraints: TeacherConstraint[];
-  meetings: SpecializedMeeting[];
   substitution: SubstitutionConfig;
   timetable?: TimetableData;
   auditLogs?: AuditLogEntry[];

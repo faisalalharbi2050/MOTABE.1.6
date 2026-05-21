@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Teacher, Specialization, TeacherConstraint, SpecializedMeeting, ClassInfo } from '../../types';
-import { Users, Plus, X, Shield, Calendar, AlertTriangle, Ban, ChevronDown, Check, Copy, Clock, ArrowRightFromLine, ArrowLeftFromLine, Sliders, Repeat, Sparkles, BarChart3, Edit3, Search, Filter } from 'lucide-react';
+import { Teacher, Specialization, TeacherConstraint, ClassInfo } from '../../types';
+import { Users, X, Shield, AlertTriangle, Ban, ChevronDown, Check, Copy, Clock, ArrowRightFromLine, ArrowLeftFromLine, Sliders, Repeat, Sparkles, BarChart3, Edit3, Search, Filter } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 
 const DAYS_DEFAULT = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
@@ -9,18 +9,16 @@ interface Props {
   teachers: Teacher[];
   specializations: Specialization[];
   constraints: TeacherConstraint[];
-  meetings: SpecializedMeeting[];
   activeDays: string[];
   periodsPerDay: number;
   warnings: ValidationWarning[];
   classes: ClassInfo[];
   onChangeConstraints: (c: TeacherConstraint[]) => void;
-  onChangeMeetings: (m: SpecializedMeeting[]) => void;
 }
 
 export default function TeacherSettingsTab({
-  teachers, specializations, constraints, meetings, activeDays, periodsPerDay,
-  warnings, classes, onChangeConstraints, onChangeMeetings
+  teachers, specializations, constraints, activeDays, periodsPerDay,
+  warnings, classes, onChangeConstraints
 }: Props) {
   const getDayName = (d: string) => {
     switch(d?.toLowerCase()) {
@@ -37,8 +35,6 @@ export default function TeacherSettingsTab({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'alphabetical' | 'specialization'>('alphabetical');
-  const [showAddMeeting, setShowAddMeeting] = useState(false);
-  const [meetingForm, setMeetingForm] = useState({ specId: '', day: DAYS_DEFAULT[0], period: 1 });
   
   // Copy Modal State
   const [showCopyModal, setShowCopyModal] = useState(false);
@@ -173,17 +169,6 @@ export default function TeacherSettingsTab({
       
       const newEarlyExit = { [targetDay]: period || periodsPerDay - 1 }; 
       updateConstraint(teacherId, { earlyExit: newEarlyExit });
-  };
-
-  const addMeeting = () => {
-    if (!meetingForm.specId) return;
-    const specTeachers = teachers.filter(t => t.specializationId === meetingForm.specId);
-    onChangeMeetings([...meetings, {
-      id: `meeting-${Date.now()}`, specializationId: meetingForm.specId,
-      day: meetingForm.day, period: meetingForm.period, teacherIds: specTeachers.map(t => t.id)
-    }]);
-    setShowAddMeeting(false);
-    setMeetingForm({ specId: '', day: DAYS_DEFAULT[0], period: 1 });
   };
 
   // Bulk Edit First/Last State
@@ -780,87 +765,6 @@ export default function TeacherSettingsTab({
                            </div>
                        </div>
 
-                       {/* ─── الاجتماعات التخصصية ─── */}
-                       <div className="mt-8 bg-white rounded-[1.5rem] border border-slate-100 shadow-sm overflow-hidden">
-                          <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-[#f8f7ff]">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center text-[#655ac1] shadow-sm">
-                                <Calendar size={20} />
-                              </div>
-                              <div>
-                                <h3 className="font-black text-slate-800 text-sm">الاجتماعات التخصصية</h3>
-                                <p className="text-[10px] text-slate-500 font-bold">يُرمز بـ "ج" في الجدول</p>
-                              </div>
-                            </div>
-                            {!showAddMeeting && (
-                              <button onClick={() => setShowAddMeeting(true)}
-                                className="flex items-center gap-2 text-xs font-bold bg-[#655ac1] text-white px-5 py-2.5 rounded-xl shadow-lg shadow-[#655ac1]/20 active:scale-95 transition-all">
-                                <Plus size={14} /> اجتماع جديد
-                              </button>
-                            )}
-                          </div>
-
-                          {showAddMeeting && (
-                            <div className="px-6 py-5 bg-[#f8f7ff] border-b border-slate-100">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <select value={meetingForm.specId} onChange={e => setMeetingForm(f => ({ ...f, specId: e.target.value }))}
-                                  className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-[#8779fb]/20 font-bold text-slate-600">
-                                  <option value="">اختر التخصص...</option>
-                                  {specializations.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                                <select value={meetingForm.day} onChange={e => setMeetingForm(f => ({ ...f, day: e.target.value }))}
-                                  className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-[#8779fb]/20 font-bold text-slate-600">
-                                  {days.map(d => (
-                                    <option key={d} value={d}>
-                                        {getDayName(d)}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select value={meetingForm.period} onChange={e => setMeetingForm(f => ({ ...f, period: Number(e.target.value) }))}
-                                  className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-[#8779fb]/20 font-bold text-slate-600">
-                                  {periods.map(p => <option key={p} value={p}>الحصة {p}</option>)}
-                                </select>
-                              </div>
-                              <div className="flex gap-2">
-                                <button onClick={addMeeting} disabled={!meetingForm.specId}
-                                  className="px-6 py-2 bg-[#655ac1] text-white rounded-xl text-xs font-bold disabled:opacity-40 shadow-md">إضافة</button>
-                                <button onClick={() => setShowAddMeeting(false)} className="px-5 py-2 text-slate-500 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all">إلغاء</button>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="p-4">
-                            {meetings.length === 0 && !showAddMeeting ? (
-                              <div className="text-center py-10 text-slate-300">
-                                <Calendar size={40} className="mx-auto mb-3 opacity-20" />
-                                <p className="font-bold text-xs">لا توجد اجتماعات تخصصية</p>
-                              </div>
-                            ) : (
-                              <div className="space-y-3">
-                                {meetings.map(m => {
-                                  const spec = specializations.find(s => s.id === m.specializationId);
-                                  
-                                  return (
-                                    <div key={m.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 hover:shadow-md transition-all group">
-                                      <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-[#e5e1fe] text-[#655ac1] rounded-xl flex items-center justify-center font-black text-sm shadow-sm">ج</div>
-                                        <div>
-                                          <span className="font-bold text-slate-700 text-sm block mb-0.5">{spec?.name || 'تخصص'}</span>
-                                          <span className="text-xs text-slate-400 font-medium">{getDayName(m.day)} — الحصة {m.period}</span>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-[10px] bg-[#f8f7ff] text-[#655ac1] px-3 py-1 rounded-full font-bold border border-[#e5e1fe]">{m.teacherIds.length} معلم</span>
-                                        <button onClick={() => onChangeMeetings(meetings.filter(x => x.id !== m.id))}
-                                          className="w-8 h-8 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl flex items-center justify-center transition-all"><X size={16} /></button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                       </div>
                     </div>
                 </div>
 

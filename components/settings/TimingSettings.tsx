@@ -1138,7 +1138,9 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                              </div>
                              <div className="pt-8">
                                 <button onClick={handleSave} className="w-full flex items-center justify-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
-                                    <Save size={20} />
+                                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                                      <Check size={13} strokeWidth={3.2} className="text-white" />
+                                    </span>
                                     حفظ التوقيت
                                 </button>
                              </div>
@@ -1360,7 +1362,10 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                         onClick={handleSaveScheduleEdits}
                         className="h-10 inline-flex items-center gap-2 px-4 rounded-xl bg-[#655ac1] hover:bg-[#52499d] text-white text-sm font-bold shadow-sm transition-all"
                       >
-                        <Save size={16} /> حفظ التعديل
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                          <Check size={13} strokeWidth={3.2} className="text-white" />
+                        </span>
+                        حفظ التعديل
                       </button>
                     ) : (
                       <button

@@ -2379,7 +2379,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           subjectAbbreviations: {},
           subjectConstraints: [],
           teacherConstraints: [],
-          meetings: [],
           substitution: {
             method: 'auto',
             maxTotalQuota: 24,
@@ -2984,7 +2983,9 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                       saved ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-[#655ac1] hover:bg-[#5a4eb3] shadow-[#655ac1]/20'
                     }`}
                 >
-                    {saved ? <Check size={18} /> : <Save size={18} />}
+                    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${saved ? 'bg-emerald-600' : 'bg-[#655ac1]'}`}>
+                      <Check size={13} strokeWidth={3.2} className="text-white" />
+                    </span>
                     {saved ? 'تم الحفظ' : 'حفظ'}
                 </button>
             </div>

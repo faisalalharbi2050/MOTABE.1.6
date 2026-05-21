@@ -290,7 +290,6 @@ const App: React.FC = () => {
   const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData>(() => initialAppData?.scheduleSettings ?? {
     subjectConstraints: [],
     teacherConstraints: [],
-    meetings: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual' | 'schedule_v2' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
@@ -381,7 +380,6 @@ const App: React.FC = () => {
       setScheduleSettings(storedData.scheduleSettings ?? {
         subjectConstraints: [],
         teacherConstraints: [],
-        meetings: [],
         substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
       });
       setSubscription(storedData.subscription ?? createDefaultSubscription());

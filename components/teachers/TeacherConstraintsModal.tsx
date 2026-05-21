@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Teacher, Specialization, TeacherConstraint, SpecializedMeeting, ClassInfo, Phase } from '../../types';
-import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Plus, Repeat, GripVertical, ChevronUp, ChevronDown, Calendar, Sparkles, Check, CheckCircle2, RotateCcw, MapPin } from 'lucide-react';
+import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
+import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -19,10 +19,10 @@ function getDayLabel(d: string): string {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  initialTeacherId?: string | null;
   teachers?: Teacher[];
   specializations?: Specialization[];
   constraints?: TeacherConstraint[];
-  meetings?: SpecializedMeeting[];
   activeDays?: string[];
   periodsPerDay?: number;
   periodCounts?: Record<string, number>; // عدد الحصص لكل يوم على حدة
@@ -31,14 +31,13 @@ interface Props {
   mainSchoolName?: string;
   schoolPhasesMap?: Record<string, Phase[]>; // schoolId => phases
   onChangeConstraints: (c: TeacherConstraint[]) => void;
-  onChangeMeetings: (m: SpecializedMeeting[]) => void;
 }
 
 export default function TeacherConstraintsModal({
-  isOpen, onClose,
-  teachers = [], specializations = [], constraints = [], meetings = [], activeDays = [], periodsPerDay = 7,
+  isOpen, onClose, initialTeacherId = null,
+  teachers = [], specializations = [], constraints = [], activeDays = [], periodsPerDay = 7,
   periodCounts = {},
-  warnings = [], classes = [], mainSchoolName = 'المدرسة الرئيسية', schoolPhasesMap = {}, onChangeConstraints, onChangeMeetings
+  warnings = [], classes = [], mainSchoolName = 'المدرسة الرئيسية', schoolPhasesMap = {}, onChangeConstraints
 }: Props) {
 
   // --- Safe Locals ---
@@ -112,6 +111,10 @@ export default function TeacherConstraintsModal({
   const [selId, setSelId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'spec' | 'alpha'>('spec');
+
+  useEffect(() => {
+    if (isOpen && initialTeacherId) setSelId(initialTeacherId);
+  }, [isOpen, initialTeacherId]);
   // Only include specialization IDs that are actually used by teachers
   const usedSpecIds = useMemo(() => {
     const ids = Array.from(new Set(teachers.map(t => t.specializationId).filter(Boolean))) as string[];
@@ -142,10 +145,6 @@ export default function TeacherConstraintsModal({
   const [showCopy, setShowCopy] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
-  
-  // Meeting Form & Smart Distribution
-  const [mForm, setMForm] = useState({ specId: '', day: DAYS_AR_DEFAULT[0], period: 1 });
-  const [distributeModal, setDistributeModal] = useState<{ teachers: string[], specId: string, day: string, period: number } | null>(null);
 
   // Copy Options
   const [copyOpts, setCopyOpts] = useState({
@@ -322,6 +321,7 @@ export default function TeacherConstraintsModal({
   const selTeacher = teachers.find(t => t.id === selId);
   const sc = selId ? getC(selId) : null;
   const selWarnings = selId ? warnings.filter(w => w.relatedId === selId) : [];
+  const singleTeacherMode = Boolean(initialTeacherId);
 
   // --- Render Helpers ---
   const renderSectionHeader = (key: string, bg: string, border: string, iconBg: string, iconCol: string, Icon: React.ElementType, title: string, subtitle: string) => (
@@ -342,7 +342,7 @@ export default function TeacherConstraintsModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3" style={{ direction: 'rtl' }}>
-      <div className="bg-slate-50 w-full max-w-6xl h-[92vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+      <div className={`bg-slate-50 w-full ${singleTeacherMode ? 'max-w-3xl' : 'max-w-6xl'} h-[92vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-200`}>
 
         {/* --- Header --- */}
         <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -358,6 +358,7 @@ export default function TeacherConstraintsModal({
 
         <div className="flex-1 flex overflow-hidden">
           {/* --- Sidebar --- */}
+          {!singleTeacherMode && (
           <div className="w-72 bg-white border-l border-slate-100 flex flex-col shrink-0">
             {/* Search & Sort */}
             <div className="p-3 border-b border-slate-100 space-y-2">
@@ -429,6 +430,7 @@ export default function TeacherConstraintsModal({
               {filteredTeachers.length === 0 && <div className="text-center py-8 text-xs text-slate-400">لا يوجد معلمين</div>}
             </div>
           </div>
+          )}
 
           {/* --- Main Content --- */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -1315,115 +1317,6 @@ export default function TeacherConstraintsModal({
                 <Copy size={16} /> تطبيق النسخ على {copyTargets.length > 0 ? `${copyTargets.length} معلم` : 'المحدد'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Smart Distribution Modal */}
-      {distributeModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-             <div className="p-5 border-b border-slate-100 bg-violet-50/50 flex justify-between items-center">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-white text-violet-600 flex items-center justify-center shadow-sm">
-                   <Sparkles size={20} />
-                 </div>
-                 <div>
-                   <h3 className="font-black text-slate-800">توزيع ذكي للمعلمين</h3>
-                   <p className="text-xs font-bold text-slate-500">عدد المعلمين كبير ({distributeModal.teachers.length})، اختر طريقة التوزيع</p>
-                 </div>
-               </div>
-               <button onClick={() => setDistributeModal(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-             </div>
-             
-             <div className="p-5 space-y-3">
-               {/* Option 1: All in One */}
-               <button onClick={() => {
-                   const newMeeting: SpecializedMeeting = {
-                      id: `m-${Date.now()}`, 
-                      specializationId: distributeModal.specId, 
-                      day: distributeModal.day, 
-                      period: distributeModal.period, 
-                      teacherIds: distributeModal.teachers 
-                   };
-                   onChangeMeetings([...meetings, newMeeting]);
-                   setDistributeModal(null);
-               }} className="w-full text-right p-4 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group">
-                  <div className="font-bold text-slate-700 group-hover:text-violet-700">جمع الجميع في يوم واحد</div>
-                  <div className="text-xs text-slate-400 mt-1">إضافة {distributeModal.teachers.length} معلم في {distributeModal.day} - الحصة {distributeModal.period}</div>
-               </button>
-
-               {/* Option 2: Split 2 Days */}
-               {(activeDays?.length ?? 0) >= 2 && (
-                 <button onClick={() => {
-                     const half = Math.ceil(distributeModal.teachers.length / 2);
-                     const g1 = distributeModal.teachers.slice(0, half);
-                     const g2 = distributeModal.teachers.slice(half);
-                     
-                     // Find next day from activeDays
-                     const d1 = distributeModal.day;
-                     // Note: activeDays might be undefined, fallback to DAYS_AR_DEFAULT
-                     const daysList = activeDays && activeDays.length > 0 ? activeDays : DAYS_AR_DEFAULT;
-                     
-                     // Find index using localized display comparison is risky if activeDays are keys
-                     // Assuming activeDays contains 'Sunday', 'Monday', etc... 
-                     // But getDayLabel implies keys might be English or Arabic.
-                     // The component uses 'days' helper which comes from props or fallback.
-                     // Let's use the 'days' variable defined in the component logic (line ~35)
-                     // But wait, 'days' variable is internal to component scope and not available here?
-                     // Ah, I am inside the component function scope. Yes.
-                     // I'll assume 'days' (lines 35-45) is accessible.
-                     // Since I am appending JSX, I need to make sure I am inside the function scope.
-                     // Yes, I am replacing the closing brace of return.
-                     
-                     // Re-reading file structure:
-                     // The 'days' const is defined at top of component.
-                     // It is accessible.
-                     
-                     const idx = days.indexOf(d1);
-                     const nextIdx = idx === -1 ? 1 : (idx + 1) % days.length;
-                     const d2 = days[nextIdx];
-
-                     const m1 = { id: `m-${Date.now()}-1`, specializationId: distributeModal.specId, day: d1, period: distributeModal.period, teacherIds: g1 };
-                     const m2 = { id: `m-${Date.now()}-2`, specializationId: distributeModal.specId, day: d2, period: distributeModal.period, teacherIds: g2 };
-                     
-                     onChangeMeetings([...meetings, m1, m2]);
-                     setDistributeModal(null);
-                 }} className="w-full text-right p-4 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group">
-                    <div className="flex items-center justify-between">
-                       <div className="font-bold text-slate-700 group-hover:text-emerald-700">توزيع على يومين (50/50)</div>
-                       <span className="text-[10px] font-black px-2 py-1 bg-emerald-100 text-emerald-600 rounded-lg">موصى به</span>
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">يوم {getDayLabel(distributeModal.day)} ({Math.ceil(distributeModal.teachers.length/2)}) + اليوم التالي ({Math.floor(distributeModal.teachers.length/2)})</div>
-                 </button>
-               )}
-
-               {/* Option 3: Split 3 Days */}
-               {(activeDays?.length ?? 0) >= 3 && distributeModal.teachers.length > 8 && (
-                 <button onClick={() => {
-                     const third = Math.ceil(distributeModal.teachers.length / 3);
-                     const g1 = distributeModal.teachers.slice(0, third);
-                     const g2 = distributeModal.teachers.slice(third, third*2);
-                     const g3 = distributeModal.teachers.slice(third*2);
-                     
-                     const d1 = distributeModal.day;
-                     // Reuse 'days' scope variable
-                     const idx = days.indexOf(d1);
-                     const d2 = days[(idx + 1) % days.length];
-                     const d3 = days[(idx + 2) % days.length];
-
-                     const m1 = { id: `m-${Date.now()}-1`, specializationId: distributeModal.specId, day: d1, period: distributeModal.period, teacherIds: g1 };
-                     const m2 = { id: `m-${Date.now()}-2`, specializationId: distributeModal.specId, day: d2, period: distributeModal.period, teacherIds: g2 };
-                     const m3 = { id: `m-${Date.now()}-3`, specializationId: distributeModal.specId, day: d3, period: distributeModal.period, teacherIds: g3 };
-                     
-                     onChangeMeetings([...meetings, m1, m2, m3]);
-                     setDistributeModal(null);
-                 }} className="w-full text-right p-4 rounded-xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50 transition-all group">
-                    <div className="font-bold text-slate-700 group-hover:text-sky-700">توزيع على 3 أيام</div>
-                    <div className="text-xs text-slate-400 mt-1">توزيع {distributeModal.teachers.length} معلم على 3 أيام متتالية</div>
-                 </button>
-               )}
-             </div>
           </div>
         </div>
       )}

@@ -628,7 +628,6 @@ const SubjectDatabase: React.FC<Props> = ({ subjects, setSubjects, specializatio
           subjectAbbreviations: {},
           subjectConstraints: [],
           teacherConstraints: [],
-          meetings: [],
           substitution: {
             method: 'auto',
             maxTotalQuota: 24,

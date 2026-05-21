@@ -346,26 +346,6 @@ export function validateAllConstraints(
     }
   }
 
-  // 4. Meeting conflicts
-  const meetingsBySlot = new Map<string, string[]>();
-  for (const m of settings.meetings) {
-    const key = `${m.day}-${m.period}`;
-    const existing = meetingsBySlot.get(key) || [];
-    existing.push(m.specializationId);
-    meetingsBySlot.set(key, existing);
-  }
-  for (const [slot, specs] of meetingsBySlot) {
-    if (specs.length > 1) {
-      const [day, period] = slot.split('-');
-      warnings.push({
-        id: `meeting-conflict-${slot}`, level: 'warning',
-        message: `أكثر من اجتماع في نفس الوقت: ${getDayArabic(day)} - الحصة ${period}`,
-        suggestion: 'انقل أحد الاجتماعات',
-        type: 'general'
-      });
-    }
-  }
-
   // 5. Substitution balance
   if (settings.substitution.method === 'fixed' && settings.substitution.fixedPerPeriod) {
     const totalGaps = teachers.reduce((s, t) => s + Math.max(0, settings.substitution.maxTotalQuota - (t.quotaLimit || 0)), 0);

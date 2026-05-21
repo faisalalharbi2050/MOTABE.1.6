@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Specialization, Subject, Phase, SchoolInfo, ScheduleSettingsData } from '../types';
-import { Tag, BookOpen, Trash2, Edit3, RotateCcw, Archive, CheckCircle2, X, Archive as ArchiveIcon, ChevronDown, ChevronUp, Layers, GraduationCap, School, Building, TypeIcon } from 'lucide-react';
+import { Tag, BookOpen, Trash2, Edit3, RotateCcw, Archive, CheckCircle2, X, Archive as ArchiveIcon, ChevronDown, ChevronUp, Layers, GraduationCap, School, Building, TypeIcon, Check } from 'lucide-react';
 import SubjectAbbreviationsModal from './schedule/SubjectAbbreviationsModal';
 
 interface Props {
@@ -209,7 +209,12 @@ const SubjectSetup: React.FC<Props> = ({ specializations, setSpecializations, su
                     )}
                  </div>
                  <div className="flex gap-3">
-                    <button type="submit" className="flex-1 bg-primary text-white py-3.5 rounded-2xl font-black text-sm hover:bg-secondary shadow-lg shadow-primary/10 transition-all active:scale-95">حفظ</button>
+                    <button type="submit" className="flex-1 bg-primary text-white py-3.5 rounded-2xl font-black text-sm hover:bg-secondary shadow-lg shadow-primary/10 transition-all active:scale-95 inline-flex items-center justify-center gap-2">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-primary">
+                        <Check size={13} strokeWidth={3.2} className="text-white" />
+                      </span>
+                      حفظ
+                    </button>
                     <button type="button" onClick={() => setEditingSub(null)} className="px-8 bg-slate-100 text-slate-500 py-3.5 rounded-2xl font-black text-sm hover:bg-slate-200 transition-all">إلغاء</button>
                  </div>
               </form>
@@ -225,7 +230,6 @@ const SubjectSetup: React.FC<Props> = ({ specializations, setSpecializations, su
           subjectAbbreviations: {},
           subjectConstraints: [],
           teacherConstraints: [],
-          meetings: [],
           substitution: {
             method: 'auto',
             maxTotalQuota: 24,

@@ -7,8 +7,9 @@ export interface TeacherData {
   name: string;
   mobile: string;
   specialization: string;
-  weeklyQuota: number;
-  waitingQuota: number;
+  weeklyQuota?: number;
+  waitingQuota?: number;
+  missingFields?: string[];
   isAdmin: boolean;
   adminRole?: string;
   sortIndex: number;
@@ -65,18 +66,26 @@ export const parseTeachersExcel = (file: File): Promise<TeacherData[]> => {
            const name = row['الاسم'] || row['Name'] || row['اسم المعلم'] || '';
            const specializationStr = row['التخصص'] || row['Specialization'] || '';
            const mobile = row['الجوال'] || row['Mobile'] || row['رقم الجوال'] || '';
-           const quota = row['نصاب الحصص'] || row['Quota'] || 24;
+           const quotaRaw = row['نصاب الحصص'] ?? row['Quota'] ?? row['النصاب'] ?? row['نصاب المعلم'];
+           const waitingRaw = row['نصاب الانتظار'] ?? row['WaitingQuota'] ?? row['انتظار'];
            const idNumber = row['رقم الهوية'] || row['رقم السجل المدني'] || row['idNumber'] || null;
 
            if (!name) return null; // Skip invalid rows
+
+           const missingFields: string[] = [];
+           if (!specializationStr) missingFields.push('التخصص');
+           if (!mobile) missingFields.push('الجوال');
+           if (quotaRaw === undefined || quotaRaw === null || quotaRaw === '') missingFields.push('نصاب الحصص');
+           if (waitingRaw === undefined || waitingRaw === null || waitingRaw === '') missingFields.push('نصاب الانتظار');
 
            return {
              id: `t-${index}-${Date.now()}`,
              name,
              mobile: String(mobile || ''),
              specialization: normalizeSpecialization(specializationStr),
-             weeklyQuota: Number(quota) || 24,
-             waitingQuota: 0,
+             weeklyQuota: quotaRaw === undefined || quotaRaw === null || quotaRaw === '' ? 0 : Number(quotaRaw) || 0,
+             waitingQuota: waitingRaw === undefined || waitingRaw === null || waitingRaw === '' ? 0 : Number(waitingRaw) || 0,
+             missingFields,
              isAdmin: false,
              sortIndex: index,
              idNumber: idNumber ? String(idNumber).trim() : null,

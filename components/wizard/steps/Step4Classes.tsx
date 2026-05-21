@@ -5,7 +5,7 @@ import { PHASE_CONFIG } from '../../../constants';
 import {
   GraduationCap, Trash2, CheckCircle2, BookPlus, X, School, PlusCircle,
   Zap, ChevronUp, ChevronDown, ChevronRight, Pencil, Settings2, Printer, AlertTriangle,
-  LayoutGrid, Hash, Check, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
+  LayoutGrid, Hash, Check, CheckSquare, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
   MoreHorizontal, Edit2, MapPin, CircleHelp, Monitor, Library, BookMarked, FileQuestion,
   CircleAlert, Goal
@@ -22,6 +22,13 @@ import {
 import SchoolTabs from '../SchoolTabs';
 
 // ─── Wizard Constants ──────────────────────────────────────────────────────────
+
+const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
+  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
+    <Check size={13} strokeWidth={3.2} className="text-white" />
+  </span>
+);
+
 const ARABIC_LETTERS_W = ['أ','ب','ج','د','هـ','و','ز','ح','ط','ي','ك','ل','م','ن','س','ع','ف','ص','ق','ر'];
 const GRADE_TEMPLATES_W: Record<string, string[]> = {
   elementary: ['الأول','الثاني','الثالث','الرابع','الخامس','السادس'],
@@ -1032,11 +1039,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 </div>
               </div>
 
-              <div dir="rtl" className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-wrap items-center gap-2 justify-start">
+              <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2 justify-start">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => setViewMode('classes')}
-                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all active:scale-95 ${
                         viewMode === 'classes'
                         ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
                         : 'bg-white text-slate-700 border-slate-200 hover:border-[#655ac1]'
@@ -1048,7 +1055,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
                   <button
                     onClick={() => setViewMode('facilities')}
-                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
+                    className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all active:scale-95 ${
                         viewMode === 'facilities'
                         ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm'
                         : 'bg-white text-slate-700 border-slate-200 hover:border-[#655ac1]'
@@ -1140,7 +1147,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               disabled={currentSchoolClasses.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Trash2 size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
+              <CheckSquare size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
             </button>
             <button
               dir="rtl"
@@ -1210,8 +1217,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                             className="w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0"
                             style={{
                               background:  'white',
-                              borderColor: (allSelected || someSelected) ? '#655ac1' : '#cbd5e1',
-                              color: (allSelected || someSelected) ? '#655ac1' : 'transparent',
+                              borderColor: (allSelected || someSelected) ? '#f43f5e' : '#cbd5e1',
+                              color: (allSelected || someSelected) ? '#f43f5e' : 'transparent',
                             }}
                           >
                             {(allSelected || someSelected) && <Check size={12} strokeWidth={3} />}
@@ -1247,7 +1254,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                   key={cls.id}
                                   className={`group rounded-lg px-2.5 py-2 min-h-[38px] flex items-center gap-2.5 transition-all ${
                                     isSelected
-                                      ? 'bg-[#f8f7ff] text-[#655ac1]'
+                                      ? 'bg-rose-50 text-rose-600'
                                       : 'bg-transparent hover:bg-slate-50'
                                   }`}
                                 >
@@ -1278,7 +1285,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                             if (e.key === 'Escape') { setEditingClassId(null); setEditName(''); }
                                           }}
                                         />
-                                        <button onClick={handleSaveEdit} className="px-2 py-2 bg-[#8779fb] text-white rounded-lg text-[10px] font-bold shrink-0">حفظ</button>
+                                        <button onClick={handleSaveEdit} className="px-2 py-2 bg-[#8779fb] text-white rounded-lg text-[10px] font-bold shrink-0 inline-flex items-center justify-center gap-1.5">
+                                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-[#8779fb]">
+                                            <Check size={10} strokeWidth={3.2} className="text-white" />
+                                          </span>
+                                          حفظ
+                                        </button>
                                       </div>
                                     ) : (
                                       <span className="block text-sm font-black text-[#655ac1] truncate">{displayName}</span>
@@ -1439,8 +1451,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <label className="cursor-pointer" onClick={() => selectAllInGrade(grade)}>
-                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${allSelected ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300 hover:border-[#655ac1]'}`}>
-                                    {allSelected && <Check size={12} className="text-white" />}
+                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${allSelected ? 'bg-white border-rose-500 text-rose-500' : 'border-slate-300 text-transparent hover:border-rose-300'}`}>
+                                    {allSelected && <Check size={12} strokeWidth={3} />}
                                   </div>
                                 </label>
                                 <div className="w-9 h-9 bg-[#e5e1fe] rounded-lg flex items-center justify-center text-[#655ac1] font-black text-sm">
@@ -1534,8 +1546,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                  <div className="mt-6 flex justify-end">
                                    <button
                                      onClick={() => handleBulkRename(grade)}
-                                     className="px-8 py-2.5 bg-[#655ac1] text-white rounded-xl text-xs font-black hover:bg-[#5046a0] transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                                     className="px-8 py-2.5 bg-[#655ac1] text-white rounded-xl text-xs font-black hover:bg-[#5046a0] transition-all shadow-lg shadow-indigo-200 active:scale-95 inline-flex items-center justify-center gap-2"
                                    >
+                                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                                       <Check size={13} strokeWidth={3.2} className="text-white" />
+                                     </span>
                                      حفظ التعديلات
                                    </button>
                                  </div>
@@ -1603,8 +1618,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         return (
                           <tr key={c.id} className={`group border-b border-slate-50 last:border-0 hover:bg-[#f8f7ff]/50 transition-colors ${isSelected ? 'bg-[#e5e1fe]/10' : ''}`}>
                             <td className="px-6 py-4">
-                              <div onClick={() => toggleSelect(c.id)} className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-200 group-hover:border-[#8779fb]'}`}>
-                                {isSelected && <Check size={12} className="text-white" />}
+                              <div onClick={() => toggleSelect(c.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'bg-white border-rose-500 text-rose-500' : 'border-slate-200 text-transparent group-hover:border-rose-300'}`}>
+                                {isSelected && <Check size={12} strokeWidth={3} />}
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -1621,7 +1636,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                         if (e.key === 'Escape') { setEditingClassId(null); setEditName(''); }
                                       }}
                                     />
-                                    <button onClick={handleSaveEdit} className="p-2 bg-[#655ac1] text-white rounded-lg hover:bg-indigo-700 font-bold text-[10px]">حفظ</button>
+                                    <button onClick={handleSaveEdit} className="p-2 bg-[#655ac1] text-white rounded-lg hover:bg-indigo-700 font-bold text-[10px] inline-flex items-center justify-center gap-1.5">
+                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                                        <Check size={10} strokeWidth={3.2} className="text-white" />
+                                      </span>
+                                      حفظ
+                                    </button>
                                  </div>
                                ) : (
                                  <div className="flex items-center gap-2">
@@ -2289,8 +2309,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 </button>
                 <button
                   onClick={() => setGradeActionsModal(null)}
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] text-white hover:bg-[#5046a0] transition-all"
+                  className="px-6 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] text-white hover:bg-[#5046a0] transition-all inline-flex items-center justify-center gap-2"
                 >
+                  <SaveCheckIcon />
                   حفظ
                 </button>
               </div>
@@ -2408,8 +2429,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                        }));
                        setShowGlobalRenameModal(false);
                     }}
-                    className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"
+                    className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2"
                   >
+                    <SaveCheckIcon />
                     حفظ
                   </button>
                 </div>
@@ -2483,8 +2505,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   </button>
                   <button 
                     onClick={handleApplyGlobalPeriods}
-                    className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"
+                    className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2"
                   >
+                    <SaveCheckIcon />
                     حفظ
                   </button>
                 </div>
@@ -2688,7 +2711,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               </div>
             </div>
             <div className="p-4 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setCustomPeriodClassId(null)} className="flex-1 py-3 rounded-xl font-black text-white text-sm bg-[#8779fb]">حفظ</button>
+              <button onClick={() => setCustomPeriodClassId(null)} className="flex-1 py-3 rounded-xl font-black text-white text-sm bg-[#8779fb] inline-flex items-center justify-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#8779fb]">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
+                حفظ
+              </button>
               <button onClick={() => { handleResetCustomPeriods(customPeriodClassId); }} className="px-4 py-3 rounded-xl font-black text-slate-500 text-sm bg-slate-100 text-xs">إعادة تعيين</button>
             </div>
           </div>

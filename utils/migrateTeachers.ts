@@ -148,7 +148,6 @@ export const NEW_TEACHER_TEMPLATE = {
     excludedSlots:      undefined,  // موجود مسبقاً
     firstLastLessons:   undefined,  // موجود مسبقاً
     earlyExit:          undefined,  // موجود مسبقاً
-    meetings:           undefined,  // موجود مسبقاً
     presenceDays:       {},         // جديد — لـ isShared = true فقط
   },
 };

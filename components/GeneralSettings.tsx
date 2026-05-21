@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { SchoolInfo, Phase } from '../types';
-import { Settings, Save, School, ShieldCheck, Building2, Plus, Trash2, Users, RefreshCcw, AlertCircle } from 'lucide-react';
+import { Settings, School, ShieldCheck, Building2, Plus, Trash2, Users, RefreshCcw, AlertCircle, Check } from 'lucide-react';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -137,36 +137,6 @@ const GeneralSettings: React.FC<Props> = ({ schoolInfo, setSchoolInfo, onResetAl
            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <InputGroup label="اسم وكيل الشؤون التعليمية" name="educationalAgent" value={schoolInfo.educationalAgent} onChange={handleChange} />
               <InputGroup label="اسم مدير المدرسة" name="principal" value={schoolInfo.principal} onChange={handleChange} />
-           </div>
-        </section>
-
-        {/* Save Button - Positioned here as requested */}
-        <div className="flex justify-end pt-4 border-t border-slate-50">
-           <button className="w-full md:w-auto bg-primary text-white px-8 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-secondary shadow-lg shadow-indigo-100 transition-all active:scale-95">
-              <Save size={20} />
-              حفظ الإعدادات
-           </button>
-        </div>
-
-        {/* Data Management Section - Moved to the bottom as requested */}
-        <section className="pt-6 border-t border-slate-100">
-           <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4 text-right">
-                 <div className="p-2.5 bg-slate-200 text-slate-500 rounded-xl">
-                    <AlertCircle size={20} />
-                 </div>
-                 <div>
-                    <h4 className="font-bold text-slate-700 text-sm">إدارة البيانات</h4>
-                    <p className="text-[10px] text-slate-400">يتم الاحتفاظ بالبيانات تلقائياً لضمان استمرارية العمل.</p>
-                 </div>
-              </div>
-              <button 
-                onClick={onResetAll}
-                className="flex items-center gap-2 px-5 py-2.5 bg-rose-500 text-white rounded-xl font-black text-xs hover:bg-rose-600 transition-all shadow-md shadow-rose-200 active:scale-95"
-              >
-                <RefreshCcw size={14} />
-                مسح كافة البيانات والبدء من جديد
-              </button>
            </div>
         </section>
 
