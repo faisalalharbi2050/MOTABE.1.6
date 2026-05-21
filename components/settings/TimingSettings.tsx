@@ -983,8 +983,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                       </p>
                                   </div>
                                   {(currentTiming.sharedSchoolMode || 'unified') === 'unified' && (
-                                      <div className="absolute left-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
-                                          <Check size={12} strokeWidth={3.5} className="text-white" />
+                                      <div className="absolute left-4 top-4 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
+                                          <Check size={12} strokeWidth={3} />
                                       </div>
                                   )}
                               </div>
@@ -1014,8 +1014,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                       </p>
                                   </div>
                                   {currentTiming.sharedSchoolMode === 'separate' && (
-                                      <div className="absolute left-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
-                                          <Check size={12} strokeWidth={3.5} className="text-white" />
+                                      <div className="absolute left-4 top-4 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
+                                          <Check size={12} strokeWidth={3} />
                                       </div>
                                   )}
                               </div>
@@ -1051,8 +1051,8 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                               >
                                   {/* Selection Checkmark Background */}
                                   {isActive && (
-                                    <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
-                                       <Check size={12} strokeWidth={3.5} className="text-white" />
+                                    <div className="absolute top-3 left-3 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
+                                       <Check size={12} strokeWidth={3} />
                                     </div>
                                   )}
 
