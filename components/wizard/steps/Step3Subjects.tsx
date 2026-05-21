@@ -90,6 +90,13 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [showAbbreviationsModal, setShowAbbreviationsModal] = useState(false);
   const [deleteCustomPlanName, setDeleteCustomPlanName] = useState<string | null>(null);
   const [deleteCustomSubjectId, setDeleteCustomSubjectId] = useState<string | null>(null);
+  // Unapprove confirmation
+  const [unapproveTarget, setUnapproveTarget] = useState<
+    | { kind: 'stage' }
+    | { kind: 'customActive' }
+    | { kind: 'customByName'; planName: string }
+    | null
+  >(null);
   
   // Grade Details Modal State
   const [viewingGradeDetails, setViewingGradeDetails] = useState<{
@@ -1546,7 +1553,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 )}
                 {planMode !== 'custom' && isSelectedStageApproved && (
                   <button
-                    onClick={handleUnapproveSelectedPlan}
+                    onClick={() => setUnapproveTarget({ kind: 'stage' })}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
                   >
                     <X size={16} />
@@ -1555,7 +1562,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 )}
                 {planMode === 'custom' && isSelectedCustomPlanApproved && (
                   <button
-                    onClick={handleUnapproveCustomPlan}
+                    onClick={() => setUnapproveTarget({ kind: 'customActive' })}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
                   >
                     <X size={16} />
@@ -1860,7 +1867,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   </button>
                   {isApproved && (
                     <button
-                      onClick={() => handleUnapproveCustomPlanByName(planName)}
+                      onClick={() => setUnapproveTarget({ kind: 'customByName', planName })}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
                     >
                       <X size={16} />
@@ -2457,6 +2464,42 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
               >
                 تأكيد الحذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unapprove Plan Confirmation Modal */}
+      {unapproveTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <X size={32} className="text-rose-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">إلغاء اعتماد الخطة</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                هل أنت متأكد من إلغاء اعتماد هذه الخطة؟ سيتم حذف جميع المواد المرتبطة بها ولا يمكن التراجع عن هذا الإجراء.
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setUnapproveTarget(null)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
+              <button
+                onClick={() => {
+                  if (unapproveTarget.kind === 'stage') handleUnapproveSelectedPlan();
+                  else if (unapproveTarget.kind === 'customActive') handleUnapproveCustomPlan();
+                  else if (unapproveTarget.kind === 'customByName') handleUnapproveCustomPlanByName(unapproveTarget.planName);
+                  setUnapproveTarget(null);
+                }}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                تأكيد الإلغاء
               </button>
             </div>
           </div>

@@ -1021,120 +1021,122 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
           ))}
         </div>
 
-        <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2">
-          <button
-            dir="rtl"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
-          >
-            <Upload size={16} className="text-slate-400" />
-            {loading ? 'جاري الاستيراد...' : 'استيراد من Excel'}
-          </button>
+        <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 space-y-2">
+          {/* Top row — primary actions, right-aligned */}
+          <div className="flex flex-wrap items-center gap-2 justify-start">
+            <button
+              dir="rtl"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
+            >
+              <Upload size={16} className="text-slate-400" />
+              {loading ? 'جاري الاستيراد...' : 'استيراد من Excel'}
+            </button>
+            <button
+              dir="rtl"
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
+            >
+              <UserPlus size={17} className="text-slate-400" />
+              إضافة معلم
+            </button>
+          </div>
 
-          <button
-            dir="rtl"
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
-          >
-            <UserPlus size={17} className="text-slate-400" />
-            إضافة معلم
-          </button>
-        </div>
-
-        {/* Secondary action bar — smaller, lighter visual weight */}
-        <div dir="rtl" className="bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-1.5">
-          <button
-            dir="rtl"
-            onClick={() => openTeacherConstraints()}
-            disabled={currentSchoolTeachers.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Sliders size={14} className="text-slate-400" />
-            قيود المعلمون
-          </button>
-          <button
-            dir="rtl"
-            onClick={() => {
-              setSourceTeacher(null);
-              setCopyTargetMode('specs');
-              setCopyTargetSpecIds([]);
-              setSelectedTargets([]);
-              setShowCopyModal(true);
-            }}
-            disabled={currentSchoolTeachers.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Copy size={14} className="text-slate-400" />
-            نسخ النصاب
-          </button>
-          <button
-            dir="rtl"
-            onClick={handleBulkEditToggle}
-            disabled={currentSchoolTeachers.length === 0}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
-              isBulkEdit
-                ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/20'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-[#655ac1]/50'
-            }`}
-          >
-            {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={13} className="text-slate-400" />}
-            {isBulkEdit ? 'حفظ' : 'تعديل الكل'}
-          </button>
-          {isBulkEdit && (
+          {/* Bottom row — secondary actions, left-aligned */}
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <button
+              dir="rtl"
+              onClick={() => openTeacherConstraints()}
+              disabled={currentSchoolTeachers.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Sliders size={16} className="text-slate-400" />
+              قيود المعلمون
+            </button>
             <button
               dir="rtl"
               onClick={() => {
-                try { setTeachers(JSON.parse(teachersSnapshot.current)); } catch {}
-                setIsBulkEdit(false);
+                setSourceTeacher(null);
+                setCopyTargetMode('specs');
+                setCopyTargetSpecIds([]);
+                setSelectedTargets([]);
+                setShowCopyModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-xs transition-all"
+              disabled={currentSchoolTeachers.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              إلغاء
+              <Copy size={16} className="text-slate-400" />
+              نسخ النصاب
             </button>
-          )}
-          <button
-            dir="rtl"
-            onClick={() => { setPrintScope('all'); setPrintSpecId(getUsedSpecializationIds()[0] || ''); setShowPrintModal(true); }}
-            disabled={filteredTeachers.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            title="طباعة القائمة الحالية"
-          >
-            <Printer size={14} className="text-slate-400" />
-            طباعة
-          </button>
-          <button
-            dir="rtl"
-            onClick={handleInlineDeleteSelected}
-            disabled={currentSchoolTeachers.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <CheckSquare size={14} className="text-rose-500" />
-            {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : 'تأكيد حذف المحدد') : 'حذف محدد'}
-          </button>
-          {teacherDeleteSelectionMode && (
             <button
-              data-cancel-teacher-delete-selection
               dir="rtl"
-              onClick={() => {
-                setTeacherDeleteSelectionMode(false);
-                setShowDeleteSelectedConfirm(false);
-                setDeleteSelectedSpecIds([]);
-                setDeleteSelectedTeacherIds([]);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-xs transition-all"
+              onClick={handleBulkEditToggle}
+              disabled={currentSchoolTeachers.length === 0}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
+                isBulkEdit
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-[#655ac1]/50'
+              }`}
             >
-              إلغاء
+              {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400" />}
+              {isBulkEdit ? 'حفظ' : 'تعديل الكل'}
             </button>
-          )}
-          <button
-            dir="rtl"
-            onClick={handleDeleteAll}
-            disabled={teachers.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Trash2 size={14} className="text-rose-500" />
-            حذف الكل
-          </button>
+            {isBulkEdit && (
+              <button
+                dir="rtl"
+                onClick={() => {
+                  try { setTeachers(JSON.parse(teachersSnapshot.current)); } catch {}
+                  setIsBulkEdit(false);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all"
+              >
+                إلغاء
+              </button>
+            )}
+            <button
+              dir="rtl"
+              onClick={() => { setPrintScope('all'); setPrintSpecId(getUsedSpecializationIds()[0] || ''); setShowPrintModal(true); }}
+              disabled={filteredTeachers.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              title="طباعة القائمة الحالية"
+            >
+              <Printer size={16} className="text-slate-400" />
+              طباعة
+            </button>
+            <button
+              dir="rtl"
+              onClick={handleInlineDeleteSelected}
+              disabled={currentSchoolTeachers.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <CheckSquare size={16} className="text-rose-500" />
+              {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : 'تأكيد حذف المحدد') : 'حذف محدد'}
+            </button>
+            {teacherDeleteSelectionMode && (
+              <button
+                data-cancel-teacher-delete-selection
+                dir="rtl"
+                onClick={() => {
+                  setTeacherDeleteSelectionMode(false);
+                  setShowDeleteSelectedConfirm(false);
+                  setDeleteSelectedSpecIds([]);
+                  setDeleteSelectedTeacherIds([]);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all"
+              >
+                إلغاء
+              </button>
+            )}
+            <button
+              dir="rtl"
+              onClick={handleDeleteAll}
+              disabled={teachers.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={16} className="text-rose-500" />
+              حذف الكل
+            </button>
+          </div>
         </div>
 
         {showDeleteSelectedConfirm && teacherDeleteSelectionMode && (
@@ -1150,7 +1152,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="بحث باسم المعلم أو الاختصار أو التخصص..."
-              className="w-full pr-12 pl-4 py-3 bg-white border border-slate-300 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 transition-all text-slate-600 placeholder:text-slate-400"
+              className="w-full pr-12 pl-4 py-3 bg-slate-100 border border-slate-300 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 transition-all text-slate-600 placeholder:text-slate-400"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
