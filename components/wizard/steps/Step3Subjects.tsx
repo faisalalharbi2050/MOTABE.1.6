@@ -1508,9 +1508,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 {planMode === 'custom' && selectedPlanSubjects.length > 0 && (
                   isSelectedCustomPlanApproved ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                        <Check size={12} strokeWidth={3} />
-                      </span>
+                      <Check size={16} />
                       <span>خطة معتمدة</span>
                     </div>
                   ) : (
@@ -1527,9 +1525,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   isSelectedStageApproved ? (
                     <>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                          <Check size={12} strokeWidth={3} />
-                        </span>
+                        <Check size={16} />
                         <span>خطة معتمدة</span>
                       </div>
                     </>
@@ -1828,9 +1824,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 <div className="flex flex-wrap gap-2">
                   {isApproved ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                        <Check size={12} strokeWidth={3} />
-                      </span>
+                      <Check size={16} />
                       <span>خطة معتمدة</span>
                     </div>
                   ) : (

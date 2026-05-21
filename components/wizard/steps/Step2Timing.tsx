@@ -644,8 +644,8 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
                                       </p>
                                   </div>
                                   {(currentTiming.sharedSchoolMode || 'unified') === 'unified' && (
-                                      <div className="absolute left-4 top-4 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                                          <Check size={12} strokeWidth={3} />
+                                      <div className="absolute left-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
+                                          <Check size={12} strokeWidth={3.5} className="text-white" />
                                       </div>
                                   )}
                               </div>
@@ -675,8 +675,8 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
                                       </p>
                                   </div>
                                   {currentTiming.sharedSchoolMode === 'separate' && (
-                                      <div className="absolute left-4 top-4 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                                          <Check size={12} strokeWidth={3} />
+                                      <div className="absolute left-4 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] shadow-sm shadow-[#655ac1]/30">
+                                          <Check size={12} strokeWidth={3.5} className="text-white" />
                                       </div>
                                   )}
                               </div>
@@ -723,8 +723,8 @@ const Step2Timing: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) => {
                               >
                                   {/* Selection Checkmark Background */}
                                   {isActive && (
-                                    <div className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                                       <Check size={12} strokeWidth={3} />
+                                    <div className="absolute -top-3 -left-3 w-10 h-10 bg-[#e5e1fe] rounded-full flex items-center justify-center">
+                                       <Check size={14} className="text-[#655ac1] mt-2 ml-2" />
                                     </div>
                                   )}
 

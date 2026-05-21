@@ -2358,8 +2358,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       className={`relative rounded-2xl border-2 bg-white p-4 text-center transition-all ${active ? 'border-[#655ac1] shadow-sm' : 'border-slate-200 hover:border-[#655ac1]/40'}`}
                     >
                       {active && (
-                        <span className="absolute left-3 top-3 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                          <Check size={12} strokeWidth={3} />
+                        <span className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#655ac1] text-white">
+                          <Check size={11} strokeWidth={3.5} />
                         </span>
                       )}
                       <p className="text-sm font-black text-slate-800">{option.label}</p>
@@ -2771,8 +2771,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         className="relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 text-center transition-all"
                         style={{ borderColor: active?'#655ac1':'#e2e8f0', background: 'white', boxShadow: active ? '0 8px 18px rgba(101, 90, 193, 0.18)' : undefined }}>
                         {active && (
-                          <div className="absolute top-3 left-3 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                            <Check size={12} strokeWidth={3}/>
+                          <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
+                            <Check size={11} strokeWidth={3.5} className="text-white"/>
                           </div>
                         )}
                         <div>
@@ -2872,8 +2872,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                             className="relative p-4 rounded-2xl border-2 text-center transition-all"
                             style={{ borderColor:active?'#655ac1':'#e2e8f0', background:'white', boxShadow: active ? '0 8px 18px rgba(101, 90, 193, 0.18)' : undefined }}>
                             {active && (
-                              <div className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1]">
-                                <Check size={12} strokeWidth={3}/>
+                              <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30">
+                                <Check size={9} strokeWidth={3.5} className="text-white"/>
                               </div>
                             )}
                             <p className="font-black text-sm text-slate-800">{n.label}</p>
