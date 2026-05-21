@@ -963,7 +963,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                   onClick={() => handleSharedModeChange('unified')}
                                   className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 group ${
                                       (currentTiming.sharedSchoolMode || 'unified') === 'unified'
-                                      ? 'bg-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                                      ? 'bg-white border-slate-300 shadow-md'
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
@@ -994,7 +994,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                   onClick={() => handleSharedModeChange('separate')}
                                   className={`relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 flex items-center gap-4 group ${
                                       currentTiming.sharedSchoolMode === 'separate'
-                                      ? 'bg-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                                      ? 'bg-white border-slate-300 shadow-md'
                                       : 'bg-white border-slate-100 hover:border-[#655ac1]/30 hover:bg-slate-50'
                                   }`}
                               >
@@ -1045,7 +1045,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                                 onClick={() => toggleDay(day.id)}
                                 className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 cursor-pointer relative overflow-hidden group ${
                                     isActive
-                                    ? 'bg-white border-[#c8bff8] shadow-sm shadow-[#655ac1]/10 scale-105 z-10'
+                                    ? 'bg-white border-slate-200 shadow-md scale-105 z-10'
                                     : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white'
                                 }`}
                               >
