@@ -2355,7 +2355,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     <button
                       key={option.mode}
                       onClick={() => setGlobalRenameMode(option.mode)}
-                      className={`relative rounded-2xl border-2 bg-white p-4 text-center transition-all ${active ? 'border-[#655ac1] shadow-sm' : 'border-slate-200 hover:border-[#655ac1]/40'}`}
+                      className={`relative rounded-2xl border-2 bg-white p-4 text-center transition-all ${active ? 'border-slate-300 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}
                     >
                       {active && (
                         <span className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#655ac1] text-white">
