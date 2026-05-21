@@ -280,7 +280,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                               }`}
                           >
                             {isSelected && (
-                              <Check size={18} strokeWidth={3.5} className="text-[#655ac1] shrink-0" />
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1] shrink-0">
+                                <Check size={12} strokeWidth={3} />
+                              </span>
                             )}
                             {p}
                           </button>
@@ -633,7 +635,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
                                 }`}
                             >
                               {isSelected && (
-                                <Check size={18} strokeWidth={3.5} className="text-[#655ac1] shrink-0" />
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-white border-[#655ac1] text-[#655ac1] shrink-0">
+                                <Check size={12} strokeWidth={3} />
+                              </span>
                               )}
                               {p}
                             </button>
