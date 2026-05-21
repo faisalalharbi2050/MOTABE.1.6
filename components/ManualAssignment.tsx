@@ -1223,8 +1223,8 @@ const ManualAssignment: React.FC<Props> = ({
                                         <div className="flex items-center gap-1.5">
                                             <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</h4>
                                             {isSelected && (
-                                                <span className="w-4 h-4 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center shrink-0">
-                                                    <Check size={9} className="text-[#655ac1]" strokeWidth={3}/>
+                                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] border-[#655ac1] text-white shrink-0">
+                                                    <Check size={12} strokeWidth={3.5} />
                                                 </span>
                                             )}
                                             {t.isShared && (() => {

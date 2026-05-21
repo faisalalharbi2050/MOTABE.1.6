@@ -1113,7 +1113,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <CheckSquare size={16} className="text-rose-500" />
-              {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : 'تأكيد حذف المحدد') : 'حذف محدد'}
+              {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'تأكيد' : 'تأكيد الحذف') : 'حذف محدد'}
             </button>
             {teacherDeleteSelectionMode && (
               <button
@@ -1236,11 +1236,20 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                      <div className="bg-white px-6 py-4 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-slate-50/50 to-white print:bg-slate-100 print:from-slate-100 print:to-slate-100 print:border-slate-800 print:py-2">
                         <div className="flex items-center gap-3">
                             {teacherDeleteSelectionMode && (() => {
+                              const groupTeacherIds = group.map(t => t.id);
                               const on = deleteSelectedSpecIds.includes(specId);
                               return (
                                 <button
                                   type="button"
-                                  onClick={() => setDeleteSelectedSpecIds(prev => prev.includes(specId) ? prev.filter(id => id !== specId) : [...prev, specId])}
+                                  onClick={() => {
+                                    if (on) {
+                                      setDeleteSelectedSpecIds(prev => prev.filter(id => id !== specId));
+                                      setDeleteSelectedTeacherIds(prev => prev.filter(id => !groupTeacherIds.includes(id)));
+                                    } else {
+                                      setDeleteSelectedSpecIds(prev => [...prev, specId]);
+                                      setDeleteSelectedTeacherIds(prev => Array.from(new Set([...prev, ...groupTeacherIds])));
+                                    }
+                                  }}
                                   className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'}`}
                                 >
                                   {on && <Check size={12} strokeWidth={3.5} />}
