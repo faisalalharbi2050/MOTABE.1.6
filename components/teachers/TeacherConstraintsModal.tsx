@@ -418,7 +418,7 @@ export default function TeacherConstraintsModal({
                     if (!sp) return null;
                     const specCount = teachers.filter(t => t.specializationId === sid).length;
                     return (
-                      <div key={sid} className="group w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#655ac1] hover:text-white transition-colors">
+                      <div key={sid} className="group w-full text-right px-3 py-2 text-[12px] font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#655ac1] hover:text-white transition-colors">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-transparent border border-slate-300 text-[#655ac1] text-xs font-black shrink-0 group-hover:bg-white group-hover:border-white">
                             {specCount}
@@ -463,8 +463,8 @@ export default function TeacherConstraintsModal({
                     <button key={t.id} onClick={() => setSelId(isSel ? null : t.id)}
                       className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-all ${isSel ? 'bg-white border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
                       <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                        {sortBy === 'alpha' && <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
+                        <div className={`text-[13px] font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                        {sortBy === 'alpha' && <div className="text-[11px] font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
                       </div>
                       {isSel && (
                         <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
@@ -492,7 +492,7 @@ export default function TeacherConstraintsModal({
                 });
 
                 return groups.map(g => {
-                  const collapsed = collapsedSpecs.has(g.sid);
+                  const collapsed = search.trim() ? false : collapsedSpecs.has(g.sid);
                   return (
                     <div key={g.sid} className="space-y-1">
                       <button

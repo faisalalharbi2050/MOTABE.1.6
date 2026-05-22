@@ -96,6 +96,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const [filterSpecializations, setFilterSpecializations] = useState<string[]>([]);
   const [isSpecDropdownOpen, setIsSpecDropdownOpen] = useState(false);
   const specDropdownRef = useRef<HTMLDivElement>(null);
+  const specDropdownPanelRef = useRef<HTMLDivElement>(null);
+  const specDropdownBtnRef = useRef<HTMLButtonElement>(null);
+  const [specDropdownPos, setSpecDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -887,7 +890,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       if (printMenuRef.current && !printMenuRef.current.contains(event.target as Node)) {
         setPrintMenuOpen(false);
       }
-      if (specDropdownRef.current && !specDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement | null;
+      if (target && !target.closest('[data-spec-filter-anchor]') && !target.closest('[data-spec-filter-panel]')) {
         setIsSpecDropdownOpen(false);
       }
     }
@@ -1176,9 +1180,16 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             )}
           </div>
 
-          <div className="w-full lg:w-64 shrink-0 relative z-[90]" ref={specDropdownRef}>
+          <div data-spec-filter-anchor className="w-full lg:w-64 shrink-0 relative z-[90]" ref={specDropdownRef}>
             <button
-              onClick={() => setIsSpecDropdownOpen(!isSpecDropdownOpen)}
+              ref={specDropdownBtnRef}
+              onClick={() => {
+                if (!isSpecDropdownOpen && specDropdownBtnRef.current) {
+                  const r = specDropdownBtnRef.current.getBoundingClientRect();
+                  setSpecDropdownPos({ top: r.bottom + 8, left: r.left, width: Math.max(r.width, 240) });
+                }
+                setIsSpecDropdownOpen(!isSpecDropdownOpen);
+              }}
               className={`w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${isSpecDropdownOpen ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
             >
               <span className="truncate">
@@ -1191,8 +1202,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${isSpecDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {isSpecDropdownOpen && (
-              <div className="absolute z-[9999] top-full mt-2 right-0 left-0 min-w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+            {isSpecDropdownOpen && specDropdownPos && ReactDOM.createPortal(
+              <div
+                data-spec-filter-panel
+                ref={specDropdownPanelRef}
+                dir="rtl"
+                style={{ position: 'fixed', top: specDropdownPos.top, left: specDropdownPos.left, width: specDropdownPos.width, zIndex: 99999 }}
+                className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5"
+              >
                 <div className="overflow-y-auto custom-scrollbar space-y-1 max-h-72 pr-1">
                   {getUsedSpecializationIds().map(id => {
                     const selected = filterSpecializations.includes(id);
@@ -1216,7 +1233,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     );
                   })}
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
@@ -1484,15 +1502,15 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
          {filteredTeachers.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center print:hidden">
                 {currentSchoolTeachers.length === 0
-                    ? <Users size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
-                    : <Search size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
+                    ? <Users size={36} className="mx-auto mb-5 text-slate-400" strokeWidth={1.6} />
+                    : <Search size={36} className="mx-auto mb-5 text-slate-400" strokeWidth={1.6} />
                 }
                 <p className="text-slate-600 font-black text-lg mb-1">
                     {currentSchoolTeachers.length === 0 ? 'لا يوجد معلمون بعد' : 'لا يوجد معلمون يطابقون البحث'}
                 </p>
                 <p className="text-slate-400 text-sm">
                     {currentSchoolTeachers.length === 0
-                        ? <>استخدم زر <span className="font-bold" style={{ color: '#655ac1' }}>إضافة معلم</span> أو <span className="font-bold" style={{ color: '#655ac1' }}>استيراد من Excel</span> للبدء</>
+                        ? <>للبدء استخدم زر <span className="font-bold" style={{ color: '#655ac1' }}>استيراد من Excel</span> أو <span className="font-bold" style={{ color: '#655ac1' }}>إضافة معلم</span></>
                         : 'جرب البحث باسم آخر أو تغيير التخصص'}
                 </p>
             </div>
