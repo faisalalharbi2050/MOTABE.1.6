@@ -1647,8 +1647,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
       {showPrintModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
-          <div className="bg-white rounded-[2rem] w-full max-w-md max-h-[92vh] shadow-2xl overflow-visible animate-in zoom-in-95 duration-200 flex flex-col">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div>
                 <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                   <Printer size={22} className="text-[#655ac1]" />
@@ -1656,11 +1656,11 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 </h3>
                 <p className="text-xs text-slate-400 font-bold mt-1">اختر نطاق الطباعة المطلوب.</p>
               </div>
-              <button onClick={() => setShowPrintModal(false)} className="p-2 border border-slate-200 rounded-full text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setShowPrintModal(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-6 space-y-4 overflow-visible flex-1">
+            <div className="px-6 py-5 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
               <button
                 onClick={() => setPrintScope('all')}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'all' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
@@ -1680,22 +1680,37 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 </span>
               </button>
               {printScope === 'spec' && (
-                <TeacherSelectDropdown
-                  value={printSpecId}
-                  options={getUsedSpecializationIds().map(id => ({ id, name: getSpecializationName(id) }))}
-                  onChange={setPrintSpecId}
-                  placeholder="اختر التخصص"
-                />
+                <div className="pt-1">
+                  <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر التخصص</p>
+                  <div className="space-y-2 max-h-[42vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {getUsedSpecializationIds().map(id => {
+                      const on = printSpecId === id;
+                      return (
+                        <button
+                          type="button"
+                          key={id}
+                          onClick={() => setPrintSpecId(id)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-[#655ac1]' : 'border-slate-100 hover:border-[#655ac1]/40'}`}
+                        >
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-2 border-slate-300 text-transparent'}`}>
+                            {on && <Check size={12} strokeWidth={3.5} />}
+                          </span>
+                          <span className="text-sm font-bold text-slate-700">{getSpecializationName(id)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
-            <div className="p-6 pt-0 flex gap-3">
-              <button onClick={() => setShowPrintModal(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50">
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+              <button onClick={() => setShowPrintModal(false)} className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors">
                 إلغاء
               </button>
               <button
                 onClick={executePrint}
                 disabled={printScope === 'spec' && !printSpecId}
-                className="flex-1 px-4 py-3 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 طباعة
               </button>
