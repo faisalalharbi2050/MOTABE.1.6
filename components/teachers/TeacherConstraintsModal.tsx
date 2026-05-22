@@ -150,6 +150,14 @@ export default function TeacherConstraintsModal({
   const [quickFilter, setQuickFilter] = useState<'all' | 'has' | 'none' | 'excluded'>('all');
   const [collapsedSpecs, setCollapsedSpecs] = useState<Set<string>>(new Set());
 
+  // Auto-collapse all specialization groups when the modal opens
+  useEffect(() => {
+    if (isOpen && sortBy === 'spec') {
+      setCollapsedSpecs(new Set(usedSpecIds.concat(['__none__'])));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, sortBy]);
+
   // Copy Options
   const [copyOpts, setCopyOpts] = useState({
     consecutive: true,
@@ -385,7 +393,6 @@ export default function TeacherConstraintsModal({
               </div>
               <div className="flex gap-1.5">
                 <button onClick={() => setSortBy('spec')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='spec'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>التخصص</button>
-                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='alpha'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>أبجدي</button>
                 {sortBy === 'spec' && (
                   <button onClick={() => setShowSpecPanel(!showSpecPanel)}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${showSpecPanel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>
@@ -393,6 +400,7 @@ export default function TeacherConstraintsModal({
                     ترتيب
                   </button>
                 )}
+                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='alpha'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>أبجدي</button>
               </div>
               {/* Spec Sorting Dropdown - entity-dropdown style */}
               {showSpecPanel && sortBy === 'spec' && (
@@ -400,9 +408,15 @@ export default function TeacherConstraintsModal({
                   {specOrder.map((sid, idx) => {
                     const sp = specializations.find(s => s.id === sid) || INITIAL_SPECIALIZATIONS.find(s => s.id === sid);
                     if (!sp) return null;
+                    const specCount = teachers.filter(t => t.specializationId === sid).length;
                     return (
-                      <div key={sid} className="w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#f0edff]">
-                        <span className="truncate">{sp.name}</span>
+                      <div key={sid} className="group w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#f0edff] transition-colors">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-slate-100 text-[#655ac1] text-xs font-black shrink-0">
+                            {specCount}
+                          </span>
+                          <span className="truncate">{sp.name}</span>
+                        </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => {
                             const newOrder = [...specOrder];
@@ -410,17 +424,14 @@ export default function TeacherConstraintsModal({
                               [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
                               setSpecOrder(newOrder);
                             }
-                          }} disabled={idx === 0} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronUp size={13} /></button>
+                          }} disabled={idx === 0} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronUp size={13} /></button>
                           <button onClick={() => {
                             const newOrder = [...specOrder];
                             if (idx < specOrder.length - 1) {
                               [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
                               setSpecOrder(newOrder);
                             }
-                          }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white mr-1">
-                            <Check size={12} strokeWidth={3.5} />
-                          </span>
+                          }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
                         </div>
                       </div>
                     );
@@ -428,43 +439,6 @@ export default function TeacherConstraintsModal({
                 </div>
               )}
             </div>
-            {/* Quick Filters */}
-            <div className="px-3 pt-2.5 pb-1 flex gap-1 flex-wrap">
-              {(() => {
-                const counts = teachers.reduce((acc, t) => {
-                  const isExcluded = (t.quotaLimit || 0) === 0;
-                  const hasC = constraints.some(c => c.teacherId === t.id && (
-                    (c.maxConsecutive !== undefined && c.maxConsecutive !== 2) ||
-                    (c.excludedSlots && Object.values(c.excludedSlots).some(arr => arr && arr.length > 0)) ||
-                    c.maxFirstPeriods !== undefined ||
-                    c.maxLastPeriods !== undefined ||
-                    (c.earlyExit && Object.keys(c.earlyExit).length > 0)
-                  ));
-                  acc.all++;
-                  if (isExcluded) acc.excluded++;
-                  else if (hasC) acc.has++;
-                  else acc.none++;
-                  return acc;
-                }, { all: 0, has: 0, none: 0, excluded: 0 });
-                const chips: { k: typeof quickFilter; l: string; n: number }[] = [
-                  { k: 'all', l: 'الكل', n: counts.all },
-                  { k: 'has', l: 'بقيود', n: counts.has },
-                  { k: 'none', l: 'بدون', n: counts.none },
-                  { k: 'excluded', l: 'مستبعد', n: counts.excluded },
-                ];
-                return chips.map(c => {
-                  const on = quickFilter === c.k;
-                  return (
-                    <button key={c.k} onClick={() => setQuickFilter(c.k)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black border transition-all ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>
-                      <span>{c.l}</span>
-                      <span className={`px-1.5 rounded-full text-[9px] ${on ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{c.n}</span>
-                    </button>
-                  );
-                });
-              })()}
-            </div>
-
             {/* List */}
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {(() => {
@@ -478,18 +452,16 @@ export default function TeacherConstraintsModal({
                     || '';
                   const hasC = constraints.some(c => c.teacherId === t.id);
                   return (
-                    <button key={t.id} onClick={() => setSelId(t.id)}
+                    <button key={t.id} onClick={() => setSelId(isSel ? null : t.id)}
                       className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-all ${isSel ? 'bg-white border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
                       <div className="flex-1 min-w-0">
                         <div className={`text-sm font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
                         {sortBy === 'alpha' && <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
                       </div>
-                      {isSel ? (
+                      {isSel && (
                         <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
                           <Check size={12} strokeWidth={3.5} />
                         </span>
-                      ) : (
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${hasC ? 'bg-[#655ac1]/40' : 'hidden'}`} />
                       )}
                     </button>
                   );
@@ -521,13 +493,13 @@ export default function TeacherConstraintsModal({
                           if (collapsed) next.delete(g.sid); else next.add(g.sid);
                           setCollapsedSpecs(next);
                         }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-all"
+                        className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <ChevronDown size={13} className={`text-slate-500 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
-                          <span className="text-[11px] font-black text-slate-700">{g.name}</span>
+                          <ChevronDown size={15} className={`text-slate-500 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                          <span className="text-sm font-black text-slate-700">{g.name}</span>
                         </div>
-                        <span className="px-2 py-0.5 rounded-full bg-white text-[10px] font-black text-[#655ac1] border border-slate-200">{g.teachers.length}</span>
+                        <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full bg-white text-sm font-black text-[#655ac1] border border-slate-200">{g.teachers.length}</span>
                       </button>
                       {!collapsed && <div className="space-y-1 pr-1">{g.teachers.map(renderTeacher)}</div>}
                     </div>
@@ -548,25 +520,12 @@ export default function TeacherConstraintsModal({
             ) : (
               <div className="space-y-4 pb-10">
                 {/* Info Card */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
-                      <div className="flex gap-2 mt-2">
-                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-300 text-slate-600">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
-                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-300 text-[#655ac1]">نصاب: {selTeacher.quotaLimit}</span>
-                      </div>
-                    </div>
+                <div className="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
+                  <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
+                  <div className="flex gap-2 mt-2">
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-600">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-600">نصاب الحصص: {selTeacher.quotaLimit}</span>
                   </div>
-                  {/* Quick Copy Button */}
-                  <button
-                    onClick={() => setShowCopyModal(true)}
-                    title="نسخ القيود لمعلم آخر"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border bg-white text-slate-700 border-[#8779fb] hover:bg-violet-50 transition-all"
-                  >
-                    <Copy size={14} />
-                    <span>نسخ القيود لمعلم آخر</span>
-                  </button>
                 </div>
 
                 {/* Warnings */}
@@ -1284,6 +1243,18 @@ export default function TeacherConstraintsModal({
                   </>
                 )}
 
+                {/* Copy constraints button — placed after all sections */}
+                <div className="flex justify-start">
+                  <button
+                    dir="rtl"
+                    onClick={() => setShowCopyModal(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] border border-[#655ac1] rounded-xl text-white hover:bg-[#655ac1] font-bold text-sm transition-all"
+                  >
+                    <Copy size={16} />
+                    نسخ القيود لمعلم آخر
+                  </button>
+                </div>
+
               </div>
             )}
           </div>
@@ -1319,10 +1290,10 @@ export default function TeacherConstraintsModal({
             {/* Header */}
             <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center"><Copy size={22} /></div>
+                <div className="w-11 h-11 flex items-center justify-center text-[#655ac1]"><Copy size={22} /></div>
                 <div>
                   <h3 className="text-lg font-black text-slate-800">نسخ القيود لمعلم آخر</h3>
-                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">نسخ قيود <span className="font-black text-[#655ac1]">{selTeacher.name}</span> إلى معلمين آخرين</p>
+                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">نسخ قيود <span className="font-black text-[#655ac1]">{selTeacher.name}</span> إلى معلم أو معلمين آخرين</p>
                 </div>
               </div>
               <button onClick={() => setShowCopyModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
@@ -1342,7 +1313,7 @@ export default function TeacherConstraintsModal({
                     return (
                       <button
                         onClick={() => { const v = !allOn; setCopyOpts({ consecutive: v, excluded: v, firstLast: v, earlyEntry: v }); }}
-                        className={`text-[11px] font-black px-3 py-1.5 rounded-lg border transition-all ${allOn ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}
+                        className={`text-[11px] font-black px-3 py-1.5 rounded-lg border transition-all ${allOn ? 'bg-rose-500 border-rose-500 text-white hover:bg-rose-500' : 'bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#655ac1]'}`}
                       >
                         {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
                       </button>
@@ -1351,13 +1322,12 @@ export default function TeacherConstraintsModal({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { k: 'consecutive', l: 'تتابع الحصص', I: Sliders },
-                    { k: 'excluded', l: 'استثناء الحصص', I: Ban },
-                    { k: 'firstLast', l: 'أولى / أخيرة', I: ArrowRightFromLine },
-                    { k: 'earlyEntry', l: 'خروج مبكر', I: Clock },
+                    { k: 'consecutive', l: 'تتابع الحصص' },
+                    { k: 'excluded', l: 'استثناء الحصص' },
+                    { k: 'firstLast', l: 'أولى / أخيرة' },
+                    { k: 'earlyEntry', l: 'خروج مبكر' },
                   ].map(opt => {
                     const on = copyOpts[opt.k as keyof typeof copyOpts];
-                    const Icon = opt.I;
                     return (
                       <button
                         type="button"
@@ -1372,7 +1342,6 @@ export default function TeacherConstraintsModal({
                         ) : (
                           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
                         )}
-                        <Icon size={13} className={on ? 'text-[#655ac1]' : 'text-slate-400'} />
                         <span className={`text-xs font-bold ${on ? 'text-slate-700' : 'text-slate-500'}`}>{opt.l}</span>
                       </button>
                     );
@@ -1390,7 +1359,7 @@ export default function TeacherConstraintsModal({
                       <p className="text-[10px] text-slate-400 font-bold mt-0.5">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black rounded-full">{copyTargets.length} محدد</span>
+                  <span className="px-2.5 py-1 bg-white border border-slate-300 text-[#655ac1] text-[10px] font-black rounded-full">{copyTargets.length} محدد</span>
                 </div>
 
                 {/* Search + select all */}
@@ -1439,8 +1408,8 @@ export default function TeacherConstraintsModal({
                           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className={`text-sm font-black truncate ${on ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                          {spName && <div className="text-[10px] font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
+                          <div className={`text-xs font-black truncate ${on ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                          {spName && <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
                         </div>
                       </button>
                     );
@@ -1506,13 +1475,21 @@ export default function TeacherConstraintsModal({
                   </div>
                 </div>
               ) : (
-                <button
-                  disabled={copyTargets.length === 0}
-                  onClick={() => setCopyConfirm(true)}
-                  className="w-full py-3 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#4b3f9f] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                >
-                  <Copy size={16} /> تطبيق النسخ {copyTargets.length > 0 ? `على ${copyTargets.length} معلم` : ''}
-                </button>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setShowCopyModal(false)}
+                    className="px-5 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl text-sm font-black hover:bg-slate-50 transition-all"
+                  >
+                    إغلاق
+                  </button>
+                  <button
+                    disabled={copyTargets.length === 0}
+                    onClick={() => setCopyConfirm(true)}
+                    className="px-5 py-2.5 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#655ac1] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                  >
+                    <Copy size={16} /> تطبيق النسخ {copyTargets.length > 0 ? `على ${copyTargets.length} معلم` : ''}
+                  </button>
+                </div>
               )}
             </div>
           </div>
