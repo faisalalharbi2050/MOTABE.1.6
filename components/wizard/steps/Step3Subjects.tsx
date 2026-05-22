@@ -513,7 +513,35 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
      }).filter(Boolean) as { key: string; label: string }[];
  };
 
-  const [selectedPhase, setSelectedPhase] = useState<Phase>(currentPhases[0] || Phase.ELEMENTARY);
+  // مجموعة المراحل المعتمدة فعلياً (لها مواد مسندة) للمدرسة النشطة
+  // — نفلتر فقط على المفاتيح التي تحوي مادة واحدة على الأقل موجودة في subjects
+  const approvedPhasesSet = useMemo(() => {
+    const set = new Set<Phase>();
+    const validSubjectIds = new Set(subjects.map(s => s.id));
+    Object.entries(gradeSubjectMap).forEach(([key, ids]) => {
+      if (!Array.isArray(ids) || ids.length === 0) return;
+      // المفتاح يُعدّ معتمداً فقط إذا كان فيه معرّف مادة واحدة موجودة فعلاً
+      const hasRealSubject = ids.some(id => validSubjectIds.has(id));
+      if (!hasRealSubject) return;
+      const newFmt = key.match(/^([^-]+)-([^-]+)-(\d+)$/);
+      if (newFmt && newFmt[1] === activeSchoolId) {
+        set.add(newFmt[2] as Phase);
+      } else if (activeSchoolId === 'main') {
+        const legacyFmt = key.match(/^([^-]+)-(\d+)$/);
+        if (legacyFmt) set.add(legacyFmt[1] as Phase);
+      }
+    });
+    return set;
+  }, [gradeSubjectMap, activeSchoolId, subjects]);
+
+  // قيمة أولية للمرحلة: أول مرحلة معتمدة، وإلا فارغ
+  const computeInitialPhase = (): Phase | '' => {
+    const order = [Phase.ELEMENTARY, Phase.MIDDLE, Phase.HIGH, Phase.KINDERGARTEN];
+    for (const p of order) if (approvedPhasesSet.has(p)) return p;
+    return '';
+  };
+
+  const [selectedPhase, setSelectedPhase] = useState<Phase | ''>(computeInitialPhase);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [selectedSubDepartmentId, setSelectedSubDepartmentId] = useState<string>('');
   const [selectedPlanKey, setSelectedPlanKey] = useState<string>('');
@@ -559,7 +587,9 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   }, [selectedCategory]);
 
   const selectedDepartment = useMemo(() => {
-    return availableDepartments.find(dept => dept.id === selectedDepartmentId) || availableDepartments[0];
+    // إذا لم يختر المستخدم قسماً، لا نُرجع قسماً افتراضياً (يظهر placeholder)
+    if (!selectedDepartmentId) return undefined;
+    return availableDepartments.find(dept => dept.id === selectedDepartmentId);
   }, [availableDepartments, selectedDepartmentId]);
 
   const phaseOptions = useMemo(() => (
@@ -690,10 +720,19 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   }, [gradePlanGroups, planHasSemesterChoices, selectedSemesterFilter]);
 
   useEffect(() => {
+    // لا نُجبر اختيار مرحلة افتراضياً — نسمح بالحالة الفارغة عند عدم وجود خطة معتمدة
+    if (selectedPhase === '') return;
     if (!planCategories.some(category => category.phase === selectedPhase)) {
-      setSelectedPhase((planCategories[0]?.phase as Phase) || Phase.ELEMENTARY);
+      setSelectedPhase('');
     }
   }, [planCategories, selectedPhase]);
+
+  // عند تغيير المدرسة النشطة، أعِد حساب المرحلة الافتراضية من المعتمد
+  useEffect(() => {
+    setSelectedPhase(computeInitialPhase());
+    setSelectedDepartmentId('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSchoolId]);
 
   useEffect(() => {
     const grades = getGradesForPhase(selectedPhase);
@@ -708,11 +747,18 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
   useEffect(() => {
     if (!selectedCategory) return;
+    // لا نختار قسماً/مساراً تلقائياً إلا إذا كانت المرحلة معتمدة (لها خطة)
+    if (!selectedPhase || !approvedPhasesSet.has(selectedPhase as Phase)) {
+      if (selectedDepartmentId && !availableDepartments.some(dept => dept.id === selectedDepartmentId)) {
+        setSelectedDepartmentId('');
+      }
+      return;
+    }
     const firstDepartment = availableDepartments[0];
     if (!selectedDepartmentId || !availableDepartments.some(dept => dept.id === selectedDepartmentId)) {
       setSelectedDepartmentId(firstDepartment?.id || '');
     }
-  }, [selectedCategory, selectedDepartmentId, availableDepartments]);
+  }, [selectedCategory, selectedDepartmentId, availableDepartments, selectedPhase, approvedPhasesSet]);
 
   useEffect(() => {
     if (!selectedDepartment) return;
@@ -1439,11 +1485,11 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-black text-slate-400 block mb-2">المرحلة</label>
-                <InlineSelect value={selectedPhase} onChange={value => setSelectedPhase(value as Phase)} options={phaseOptions} />
+                <InlineSelect value={selectedPhase} onChange={value => setSelectedPhase(value as Phase)} options={phaseOptions} placeholder="اختر المرحلة" />
               </div>
               <div>
                 <label className="text-[11px] font-black text-slate-400 block mb-2">القسم / المسار</label>
-                <InlineSelect value={selectedDepartment?.id || ''} onChange={setSelectedDepartmentId} options={departmentOptions} />
+                <InlineSelect value={selectedDepartment?.id || ''} onChange={setSelectedDepartmentId} options={departmentOptions} placeholder="اختر القسم / المسار" />
               </div>
             </div>
           </div>
@@ -1497,7 +1543,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           </div>
         )}
 
-        {planMode === 'ready' && (
+        {planMode === 'ready' && (!selectedPhase || !selectedDepartment) && (
+          <div className="bg-white rounded-[2rem] border border-dashed border-slate-200 shadow-sm p-10 text-center">
+            <Route size={32} className="text-slate-300 mx-auto mb-3" />
+            <p className="text-sm font-black text-slate-600">اختر المرحلة والقسم / المسار لعرض الخطة</p>
+            <p className="text-xs font-bold text-slate-400 mt-1">سيتم عرض المواد بعد اختيار المرحلة والقسم.</p>
+          </div>
+        )}
+
+        {planMode === 'ready' && selectedPhase && selectedDepartment && (
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="min-w-0">
@@ -1505,7 +1559,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   <span className="text-sm font-black text-[#655ac1]">{activeSchoolName || 'المدرسة'}</span>
                   {planMode === 'ready' && (
                     <span className="text-[11px] font-bold bg-white border border-slate-300 text-slate-500 rounded-lg px-2.5 py-1">
-                      {getPhaseLabel(selectedPhase)} - {selectedDepartment?.name || 'عام'}
+                      {getPhaseLabel(selectedPhase as Phase)} - {selectedDepartment?.name || 'عام'}
                     </span>
                   )}
                 </div>
@@ -1707,7 +1761,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   <tr className="bg-slate-50/80 border-b border-slate-100">
                     <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-14 text-center">م</th>
                     <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-[38%]">المادة</th>
-                    <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-[24%]">اختصار المادة</th>
+                    <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-[24%]">الاسم المختصر</th>
                     <th className="px-3 py-4 text-sm font-black text-[#655ac1] text-center w-32">عدد الحصص</th>
                     <th className="px-3 py-4 text-sm font-black text-[#655ac1] text-center w-28">الإجراءات</th>
                   </tr>
@@ -1895,7 +1949,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     <tr className="bg-slate-50/80 border-b border-slate-100">
                       <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-14 text-center">م</th>
                       <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-[38%]">المادة</th>
-                      <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-[24%]">اختصار المادة</th>
+                      <th className="px-3 py-4 text-sm font-black text-[#655ac1] w-[24%]">الاسم المختصر</th>
                       <th className="px-3 py-4 text-sm font-black text-[#655ac1] text-center w-32">عدد الحصص</th>
                       <th className="px-3 py-4 text-sm font-black text-[#655ac1] text-center w-28">الإجراءات</th>
                     </tr>

@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Teacher, Specialization, SchoolInfo, ScheduleSettingsData, ClassInfo } from '../../../types';
-import { BookOpen, Plus, X, Upload, Trash2, Edit, Edit2, Edit3, Pen, Pencil, Check, ChevronDown, ChevronUp, Search, Printer, List, User, UserPlus, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle, Settings2 } from 'lucide-react';
+import { BookOpen, Plus, X, Upload, Trash2, Edit, Edit2, Edit3, Pen, Pencil, Check, ChevronDown, ChevronUp, Search, Printer, List, User, UserPlus, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle, Settings2, Link2, Unlink } from 'lucide-react';
 import { INITIAL_SPECIALIZATIONS } from '../../../constants';
 import { parseTeachersExcel, TeacherData } from '../../../utils/excelTeachers';
 import SchoolTabs from '../SchoolTabs';
@@ -33,7 +33,8 @@ const TeacherSelectDropdown: React.FC<{
   options: DropdownOption[];
   onChange: (value: string) => void;
   placeholder?: string;
-}> = ({ value, options, onChange, placeholder = 'اختر' }) => {
+  compact?: boolean;
+}> = ({ value, options, onChange, placeholder = 'اختر', compact = false }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const selected = options.find(o => o.id === value);
@@ -47,18 +48,21 @@ const TeacherSelectDropdown: React.FC<{
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
+  const btnSize = compact ? 'px-3 py-2 text-xs' : 'px-5 py-3.5 text-[13px]';
+  const chevSize = compact ? 14 : 16;
+
   return (
     <div className="relative w-full" ref={wrapRef}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`w-full px-5 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
+        className={`w-full ${btnSize} bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
       >
-        <span className="truncate text-[13px] leading-tight">{selected?.name || placeholder}</span>
-        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="truncate leading-tight">{selected?.name || placeholder}</span>
+        <ChevronDown size={chevSize} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute z-50 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+        <div className={`absolute z-50 top-full mt-2 right-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 ${compact ? 'min-w-[14rem]' : 'left-0'}`}>
           <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {options.map(opt => {
               const active = opt.id === value;
@@ -67,9 +71,9 @@ const TeacherSelectDropdown: React.FC<{
                   key={opt.id}
                   type="button"
                   onClick={() => { onChange(opt.id); setOpen(false); }}
-                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
                 >
-                  <span>{opt.name}</span>
+                  <span className="whitespace-nowrap">{opt.name}</span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                     <Check size={12} strokeWidth={3.5} />
                   </span>
@@ -106,7 +110,6 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   
   // Bulk Edit Logic
   const [isBulkEdit, setIsBulkEdit] = useState(false);
-  const [editingSpecId, setEditingSpecId] = useState<string | null>(null);
   const teachersSnapshot = useRef<string>("");
 
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
@@ -296,7 +299,6 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
           }
           // Entering Edit Mode: Snapshot current state
           teachersSnapshot.current = JSON.stringify(teachers);
-          setEditingSpecId(null);
           setIsBulkEdit(true);
       } else {
           // Exiting Edit Mode: Save and Check changes
@@ -309,7 +311,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
-      if (isBulkEdit || editingSpecId) return; // Disable DnD during edit
+      if (isBulkEdit) return; // Disable DnD during edit
       setDraggedTeacherId(id);
       e.dataTransfer.effectAllowed = 'move';
   };
@@ -1239,7 +1241,6 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       <div className="space-y-6 print:space-y-4">
         {specsToRender.map(specId => {
             const group = groupedTeachers[specId];
-            const isGroupEdit = editingSpecId === specId;
             return (
                 <div key={specId} data-spec-id={specId} className="teacher-spec-card bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print:shadow-none print:border-2 print:border-slate-800 print:rounded-none print:break-inside-avoid">
                      {/* Section Header */}
@@ -1273,10 +1274,6 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                             </h4>
                         </div>
                         <div className="flex items-center gap-1 print:hidden">
-                            <button onClick={() => setEditingSpecId(prev => prev === specId ? null : specId)} className={`px-3 py-2 rounded-xl text-xs font-black border transition-all inline-flex items-center gap-2 ${isGroupEdit ? 'border-emerald-500 text-white bg-emerald-500 shadow-sm shadow-emerald-500/20' : 'border-slate-200 text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-white'}`}>
-                              {isGroupEdit && <SaveCheckIcon className="bg-emerald-500" />}
-                              {isGroupEdit ? 'حفظ' : 'تعديل معلمي التخصص'}
-                            </button>
                             <div className="relative group/up">
                                 <button onClick={() => moveSection(specId, 'up')} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 text-slate-400 hover:text-[#655ac1] transition-all"><ArrowUp size={16}/></button>
                                 <span className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2.5 py-1 bg-white border border-slate-300 text-[#655ac1] text-[10px] font-bold rounded-lg whitespace-nowrap opacity-0 group-hover/up:opacity-100 transition-opacity pointer-events-none z-[100]">للأعلى</span>
@@ -1294,8 +1291,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                 <tr className="bg-slate-50/80 border-b border-slate-100 print:bg-white print:border-slate-800">
                                    <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:w-8 print:text-xs">م</th>
                                    <th className="px-3 py-4 w-[22%] text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">اسم المعلم</th>
-                                   <th className="px-3 py-4 w-[15%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">اختصار الاسم</th>
                                    <th className="px-3 py-4 w-[14%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">التخصص</th>
+                                   <th className="px-3 py-4 w-[15%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">الاسم المختصر</th>
                                    <th className="px-3 py-4 w-[14%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">رقم الجوال</th>
                                    <th className="px-3 py-4 w-28 text-center text-xs font-black text-[#655ac1] whitespace-nowrap print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">نصاب الحصص</th>
                                    <th className="px-3 py-4 w-28 text-center text-xs font-black text-[#655ac1] whitespace-nowrap print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">نصاب الانتظار</th>
@@ -1310,7 +1307,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                     const totalQuota = quota.total;
                                     const overallTotal = getTeacherOverallQuotaTotal(t);
                                     const hasQuotaWarning = totalQuota > 24 || overallTotal > 24;
-                                    const editRows = isBulkEdit || isGroupEdit || editingTeacherId === t.id;
+                                    const editRows = isBulkEdit || editingTeacherId === t.id;
                                     return (
                                     <tr 
                                         key={t.id} 
@@ -1363,6 +1360,18 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                         </td>
                                         <td className="px-3 py-3 align-middle text-center print:border-l print:border-slate-300 print:p-1 print:text-xs print:whitespace-nowrap">
                                             {editRows ? (
+                                                <TeacherSelectDropdown
+                                                    compact
+                                                    value={t.specializationId}
+                                                    options={specializationOptions.map(s => ({ id: s.id, name: s.name }))}
+                                                    onChange={(value) => setTeachers(prev => prev.map(pt => pt.id === t.id ? { ...pt, specializationId: value } : pt))}
+                                                />
+                                            ) : (
+                                                <span className="inline-flex min-h-8 items-center justify-center text-xs font-black text-slate-600 print:text-black">{getSpecializationName(t.specializationId)}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-3 align-middle text-center print:border-l print:border-slate-300 print:p-1 print:text-xs print:whitespace-nowrap">
+                                            {editRows ? (
                                                 <input
                                                     value={t.shortName ?? buildTeacherShortName(t.name)}
                                                     onChange={e => setTeachers(prev => prev.map(pt => pt.id === t.id ? { ...pt, shortName: e.target.value } : pt))}
@@ -1370,20 +1379,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                     maxLength={15}
                                                 />
                                             ) : (
-                                                <span className="inline-flex min-h-8 items-center justify-center text-xs font-black text-[#655ac1] print:text-black">{getTeacherShortName(t) || '-'}</span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-3 align-middle text-center print:border-l print:border-slate-300 print:p-1 print:text-xs print:whitespace-nowrap">
-                                            {editRows ? (
-                                                <select
-                                                    value={t.specializationId}
-                                                    onChange={e => setTeachers(prev => prev.map(pt => pt.id === t.id ? { ...pt, specializationId: e.target.value } : pt))}
-                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:border-[#655ac1]"
-                                                >
-                                                    {specializationOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                                </select>
-                                            ) : (
-                                                <span className="inline-flex min-h-8 items-center justify-center text-xs font-black text-slate-600 print:text-black">{getSpecializationName(t.specializationId)}</span>
+                                                <span className="inline-flex min-h-8 items-center justify-center text-xs font-black text-slate-900 print:text-black">{getTeacherShortName(t) || '-'}</span>
                                             )}
                                         </td>
                                         <td className="px-3 py-3 align-middle text-center print:border-l print:border-slate-300 print:p-1 print:text-xs print:whitespace-nowrap">
@@ -1418,7 +1414,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                     className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-[#655ac1] text-center mx-auto"
                                                 />
                                             ) : (
-                                                <span className="inline-flex w-8 h-8 items-center justify-center rounded-full border border-slate-200 text-sm font-black text-[#655ac1] print:text-black">
+                                                <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-[#655ac1] print:text-black">
                                                     {quota.lessons}
                                                 </span>
                                             )}
@@ -1441,16 +1437,16 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                             return updated;
                                                         }));
                                                     }}
-                                                    className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-[#655ac1] text-center mx-auto"
+                                                    className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-teal-600 focus:outline-none focus:border-teal-500 text-center mx-auto"
                                                 />
                                             ) : (
-                                                <span className="inline-flex w-8 h-8 items-center justify-center rounded-full border border-slate-200 text-sm font-black text-[#655ac1] print:text-black">
+                                                <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-teal-600 print:text-black">
                                                     {quota.waiting}
                                                 </span>
                                             )}
                                         </td>
                                          <td className="px-3 py-3 text-center print:p-2">
-                                            <span className={`inline-flex w-8 h-8 items-center justify-center rounded-full border text-sm font-black print:bg-transparent print:text-black print:p-0 ${hasQuotaWarning ? 'border-rose-300 text-rose-600' : 'border-slate-200 text-slate-800'}`}>
+                                            <span className={`inline-flex w-8 h-8 items-center justify-center rounded-full border text-sm font-black print:bg-transparent print:text-black print:p-0 print:border-slate-300 ${hasQuotaWarning ? 'border-rose-300 bg-rose-50 text-rose-600' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
                                                 {totalQuota}
                                             </span>
                                             {overallTotal > 24 && overallTotal !== totalQuota && (
@@ -1536,17 +1532,6 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-2">اختصار الاسم</label>
-                        <input
-                            value={currentTeacher.shortName ?? buildTeacherShortName(currentTeacher.name)}
-                            onChange={e => setCurrentTeacher({...currentTeacher, shortName: e.target.value})}
-                            placeholder="مثال: محمد أحمد"
-                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
-                        />
-                        <p className="mt-2 text-[11px] font-bold text-slate-400">ينشأ تلقائياً من الاسم الأول والأخير ويمكن تعديله لاستخدامه لاحقاً في الجداول.</p>
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2">
                             <label className="block text-xs font-bold text-slate-500 mb-2">التخصص</label>
@@ -1565,7 +1550,20 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                 />
                             )}
                         </div>
-                        
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-2">الاسم المختصر</label>
+                        <input
+                            value={currentTeacher.shortName ?? buildTeacherShortName(currentTeacher.name)}
+                            onChange={e => setCurrentTeacher({...currentTeacher, shortName: e.target.value})}
+                            placeholder="مثال: محمد أحمد"
+                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
+                        />
+                        <p className="mt-2 text-[11px] font-bold text-slate-400">ينشأ تلقائياً من الاسم الأول والأخير ويمكن تعديله لاستخدامه لاحقاً في الجداول.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2">
                             <label className="block text-xs font-bold text-slate-500 mb-2">رقم الجوال</label>
                             <input 
@@ -1591,7 +1589,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
                      <div className="grid grid-cols-2 gap-6 pt-4 border-t border-slate-100">
                         <div>
-                            <label className="block text-xs font-bold text-[#655ac1] mb-2 text-center">نصاب الحصص <span className="text-rose-500">*</span></label>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 text-center">نصاب الحصص <span className="text-rose-500">*</span></label>
                             <div className="relative">
                                 <input 
                                     type="number" 
@@ -1603,14 +1601,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-[#655ac1] mb-2 text-center">نصاب الانتظار <span className="text-rose-500">*</span></label>
+                            <label className="block text-xs font-bold text-slate-500 mb-2 text-center">نصاب الانتظار <span className="text-rose-500">*</span></label>
                             <div className="relative">
-                                <input 
-                                    type="number" 
-                                    value={currentTeacher.waitingQuota || 0} 
-                                    onChange={e => setCurrentTeacher({...currentTeacher, waitingQuota: Number(e.target.value)})} 
+                                <input
+                                    type="number"
+                                    value={currentTeacher.waitingQuota || 0}
+                                    onChange={e => setCurrentTeacher({...currentTeacher, waitingQuota: Number(e.target.value)})}
                                     required
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xl font-black text-center focus:border-[#655ac1] transition-all text-[#655ac1]" 
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xl font-black text-center focus:border-teal-500 focus:ring-4 focus:ring-teal-100 transition-all text-teal-600"
                                 />
                             </div>
                         </div>
@@ -1820,17 +1818,21 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                             <label className="block text-xs font-black text-slate-600 mb-3">ماذا تريد أن تنسخ؟</label>
                             <div className="flex flex-wrap gap-2">
                               {[
-                                { key: 'basic', label: `نصاب الحصص (${getSchoolQuota(sourceTeacher).lessons})` },
-                                { key: 'waiting', label: `نصاب الانتظار (${getSchoolQuota(sourceTeacher).waiting})` },
+                                { key: 'basic', label: `نصاب الحصص (${getSchoolQuota(sourceTeacher).lessons})`, color: 'purple' as const },
+                                { key: 'waiting', label: `نصاب الانتظار (${getSchoolQuota(sourceTeacher).waiting})`, color: 'teal' as const },
                               ].map(item => {
                                 const active = copyOptions[item.key as 'basic' | 'waiting'];
+                                const activeBtn = item.color === 'teal'
+                                  ? 'bg-white border-teal-500 text-teal-600'
+                                  : 'bg-white border-[#655ac1] text-[#655ac1]';
+                                const activeRing = item.color === 'teal' ? 'border-teal-500' : 'border-[#655ac1]';
                                 return (
                                   <button
                                     key={item.key}
                                     onClick={() => setCopyOptions(prev => ({ ...prev, [item.key]: !active }))}
-                                    className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-all flex items-center gap-2 ${active ? 'bg-white border-[#655ac1] text-[#655ac1]' : 'bg-white border-slate-200 text-slate-500'}`}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-all flex items-center gap-2 ${active ? activeBtn : 'bg-white border-slate-200 text-slate-500'}`}
                                   >
-                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${active ? 'border-[#655ac1]' : 'border-slate-300'}`}>
+                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${active ? activeRing : 'border-slate-300'}`}>
                                       {active && <Check size={12} strokeWidth={3} />}
                                     </span>
                                     {item.label}
@@ -1905,7 +1907,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                 <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                                                      <span title="النصاب الحالي">{getSchoolQuota(t).lessons}</span>
                                                      <span className="text-slate-300">|</span>
-                                                     <span title="نصاب الانتظار الحالي" className="text-orange-400">{getSchoolQuota(t).waiting}</span>
+                                                     <span title="نصاب الانتظار الحالي" className="text-teal-600">{getSchoolQuota(t).waiting}</span>
                                                 </div>
                                             </div>
                                         ))
@@ -2261,12 +2263,24 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                  {availableSchools.length === 0 ? (
                    <p className="text-sm text-slate-400 bg-slate-50 p-3 rounded-xl">المعلم مرتبط بجميع المدارس المتاحة بالفعل.</p>
                  ) : (
-                    <TeacherSelectDropdown
-                      value={linkSchoolSelectedId}
-                      options={availableSchools}
-                      onChange={(value) => { setLinkSchoolSelectedId(value); setLinkSchoolDuplicate(''); setLinkSchoolLessons(0); setLinkSchoolWaiting(0); }}
-                      placeholder="اختر المدرسة"
-                    />
+                    <div className="space-y-2">
+                      {availableSchools.map(s => {
+                        const on = linkSchoolSelectedId === s.id;
+                        return (
+                          <button
+                            type="button"
+                            key={s.id}
+                            onClick={() => { setLinkSchoolSelectedId(s.id); setLinkSchoolDuplicate(''); setLinkSchoolLessons(0); setLinkSchoolWaiting(0); }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-[#655ac1]' : 'border-slate-100 hover:border-[#655ac1]/40'}`}
+                          >
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-2 border-slate-300 text-transparent'}`}>
+                              {on && <Check size={12} strokeWidth={3.5} />}
+                            </span>
+                            <span className="text-sm font-bold text-slate-700">{s.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                  )}
                </div>
 
@@ -2375,7 +2389,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                              value={linkSchoolWaiting}
                              onChange={e => setLinkSchoolWaiting(Math.max(0, Number(e.target.value)))}
                              min={0} max={availableQuota}
-                             className={`w-full p-3 bg-slate-50 border rounded-xl outline-none text-sm font-bold text-center text-[#655ac1] focus:ring-4 transition-all ${isOverQuota ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-[#655ac1] focus:ring-[#e5e1fe]'}`}
+                             className={`w-full p-3 bg-slate-50 border rounded-xl outline-none text-sm font-bold text-center text-teal-600 focus:ring-4 transition-all ${isOverQuota ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-teal-500 focus:ring-teal-100'}`}
                            />
                          </div>
                        </div>
@@ -2432,12 +2446,22 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
              <div className="p-6 space-y-4">
                 <p className="text-sm font-black text-slate-700">فك الارتباط عن أي مدرسة؟</p>
                <div className="space-y-2">
-                 {schools.map(s => (
-                   <label key={s.schoolId} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${unlinkSchoolSelectedId === s.schoolId ? 'border-rose-300 bg-rose-50' : 'border-slate-100 hover:border-rose-200 hover:bg-rose-50/40'}`}>
-                     <input type="radio" name="unlinkSchool" value={s.schoolId} checked={unlinkSchoolSelectedId === s.schoolId} onChange={() => setUnlinkSchoolSelectedId(s.schoolId)} className="accent-rose-500" />
-                     <span className="text-sm font-bold text-slate-700">{s.schoolName}</span>
-                   </label>
-                 ))}
+                 {schools.map(s => {
+                   const on = unlinkSchoolSelectedId === s.schoolId;
+                   return (
+                     <button
+                       type="button"
+                       key={s.schoolId}
+                       onClick={() => setUnlinkSchoolSelectedId(s.schoolId)}
+                       className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-rose-300' : 'border-slate-100 hover:border-rose-200'}`}
+                     >
+                       <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent'}`}>
+                         {on && <Check size={12} strokeWidth={3.5} />}
+                       </span>
+                       <span className="text-sm font-bold text-slate-700">{s.schoolName}</span>
+                     </button>
+                   );
+                 })}
                </div>
                {/* تحذير */}
                <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
@@ -2481,60 +2505,96 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         onChangeConstraints={c => setScheduleSettings && setScheduleSettings(prev => ({ ...prev, teacherConstraints: c }))}
      />
 
-     {/* â•گâ•گâ•گâ•گâ•گâ•گ Action Dropdown Portal â•گâ•گâ•گâ•گâ•گâ•گ */}
+     {/* ══════ Action Dropdown Portal ══════ */}
      {actionDropdown && ReactDOM.createPortal(
-        <div
-            className="fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 w-56"
-            style={{ top: actionDropdown.top, left: actionDropdown.left, minWidth: 210 }}
-            onClick={e => e.stopPropagation()}
-        >
-            <button
-                onClick={() => {
-                    const t = teachers.find(x => x.id === actionDropdown.teacherId);
-                    if (t) { setEditingTeacherId(t.id); setEditingSpecId(null); setIsBulkEdit(false); setActionDropdown(null); }
-                }}
-                className="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-white hover:text-[#655ac1] hover:ring-1 hover:ring-[#655ac1]/30 rounded-xl font-bold transition-colors"
-            >
-                تعديل
-            </button>
+        (() => {
+          const targetTeacher = teachers.find(x => x.id === actionDropdown.teacherId);
+          const hasShared = !!(schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0);
 
-            <button
-                onClick={() => {
-                    const t = teachers.find(x => x.id === actionDropdown.teacherId);
-                    if (t) { openCopyModal(t); setActionDropdown(null); }
-                }}
-                className="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-white hover:text-[#655ac1] hover:ring-1 hover:ring-[#655ac1]/30 rounded-xl font-bold transition-colors"
-            >
-                نسخ النصاب
-            </button>
+          const itemBase = "group w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-xl font-bold transition-colors flex items-center gap-3";
+          const iconWrap = "w-7 h-7 text-slate-500 flex items-center justify-center shrink-0";
+          const labelCls = "flex-1 group-hover:text-[#655ac1] transition-colors";
+          const circleCls = "w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-[#655ac1] group-hover:bg-[#655ac1] flex items-center justify-center transition-all shrink-0";
+          const tickCls = "text-transparent group-hover:text-white transition-colors";
 
-            <button
-                onClick={() => { openTeacherConstraints(actionDropdown.teacherId); setActionDropdown(null); }}
-                className="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-white hover:text-[#655ac1] hover:ring-1 hover:ring-[#655ac1]/30 rounded-xl font-bold transition-colors"
-            >
-                قيود المعلم
-            </button>
+          // أيقونات مطابقة لنوافذ الربط/فك الربط
+          const LinkIconInline = (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          );
+          const UnlinkIconInline = (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              <line x1="2" y1="2" x2="22" y2="22"/>
+            </svg>
+          );
 
-            {/* ربط بمدرسة أخرى - يظهر فقط إذا وجدت مدارس مشتركة والمعلم غير مشترك */}
-            {schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0 && !teachers.find(x => x.id === actionDropdown.teacherId)?.isShared && (
+          return (
+            <div
+                className="fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 w-60"
+                style={{ top: actionDropdown.top, left: actionDropdown.left, minWidth: 220 }}
+                onClick={e => e.stopPropagation()}
+            >
                 <button
-                    onClick={() => { openLinkSchoolModal(actionDropdown.teacherId); setActionDropdown(null); }}
-                    className="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-white hover:text-[#655ac1] hover:ring-1 hover:ring-[#655ac1]/30 rounded-xl font-bold transition-colors"
+                    onClick={() => {
+                        if (targetTeacher) { setEditingTeacherId(targetTeacher.id); setIsBulkEdit(false); setActionDropdown(null); }
+                    }}
+                    className={itemBase}
                 >
-                    ربط بمدرسة أخرى
+                    <span className={iconWrap}><Edit2 size={14} /></span>
+                    <span className={labelCls}>تعديل</span>
+                    <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
                 </button>
-            )}
 
-            {/* إلغاء الربط - يظهر فقط إذا المعلم مشترك */}
-            {teachers.find(x => x.id === actionDropdown.teacherId)?.isShared && (
                 <button
-                    onClick={() => { openUnlinkSchoolModal(actionDropdown.teacherId); setActionDropdown(null); }}
-                    className="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-white hover:text-[#655ac1] hover:ring-1 hover:ring-[#655ac1]/30 rounded-xl font-bold transition-colors"
+                    onClick={() => {
+                        if (targetTeacher) { openCopyModal(targetTeacher); setActionDropdown(null); }
+                    }}
+                    className={itemBase}
                 >
-                    إلغاء الربط
+                    <span className={iconWrap}><Copy size={14} /></span>
+                    <span className={labelCls}>نسخ النصاب</span>
+                    <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
                 </button>
-            )}
-        </div>,
+
+                <button
+                    onClick={() => { openTeacherConstraints(actionDropdown.teacherId); setActionDropdown(null); }}
+                    className={itemBase}
+                >
+                    <span className={iconWrap}><Sliders size={14} /></span>
+                    <span className={labelCls}>قيود المعلم</span>
+                    <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
+                </button>
+
+                {/* ربط بمدرسة أخرى - يظهر فقط إذا وجدت مدارس مشتركة والمعلم غير مشترك */}
+                {hasShared && !targetTeacher?.isShared && (
+                    <button
+                        onClick={() => { openLinkSchoolModal(actionDropdown.teacherId); setActionDropdown(null); }}
+                        className={itemBase}
+                    >
+                        <span className={iconWrap}>{LinkIconInline}</span>
+                        <span className={labelCls}>ربط بمدرسة أخرى</span>
+                        <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
+                    </button>
+                )}
+
+                {/* إلغاء الربط - يظهر فقط إذا المعلم مشترك */}
+                {targetTeacher?.isShared && (
+                    <button
+                        onClick={() => { openUnlinkSchoolModal(actionDropdown.teacherId); setActionDropdown(null); }}
+                        className={itemBase}
+                    >
+                        <span className={iconWrap}>{UnlinkIconInline}</span>
+                        <span className={labelCls}>إلغاء الربط</span>
+                        <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
+                    </button>
+                )}
+            </div>
+          );
+        })(),
         document.body
      )}
     </div>
