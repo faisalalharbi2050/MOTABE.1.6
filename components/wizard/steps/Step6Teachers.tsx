@@ -150,8 +150,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   // Copy Quota Modal State
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copyMode, setCopyMode] = useState<'teacher' | 'manual'>('teacher');
   const [sourceTeacher, setSourceTeacher] = useState<Teacher | null>(null);
   const [copyOptions, setCopyOptions] = useState({ basic: true, waiting: true });
+  const [manualQuotaValues, setManualQuotaValues] = useState({ basic: 0, waiting: 0 });
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [copyTargetMode, setCopyTargetMode] = useState<'teachers' | 'specs' | 'all'>('teachers');
   const [copyTargetSpecIds, setCopyTargetSpecIds] = useState<string[]>([]);
@@ -570,7 +572,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   };
 
   const openCopyModal = (teacher: Teacher) => {
+      const quota = getSchoolQuota(teacher);
+      setCopyMode('teacher');
       setSourceTeacher(teacher);
+      setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
       setSelectedTargets([]);
       setCopyTargetMode('teachers');
       setCopyTargetSpecIds([]);
@@ -580,7 +585,11 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   };
 
   const openCopyModalForSpec = (specId: string) => {
-      setSourceTeacher(currentSchoolTeachers.find(t => t.specializationId === specId) || null);
+      const teacher = currentSchoolTeachers.find(t => t.specializationId === specId) || null;
+      const quota = teacher ? getSchoolQuota(teacher) : { lessons: 0, waiting: 0 };
+      setCopyMode('teacher');
+      setSourceTeacher(teacher);
+      setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
       setSelectedTargets([]);
       setCopyTargetMode('specs');
       setCopyTargetSpecIds([specId]);
@@ -704,34 +713,36 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   }, [actionDropdown]);
 
   const executeCopyQuota = () => {
-      if (!sourceTeacher) return;
+      if (copyMode === 'teacher' && !sourceTeacher) return;
       const targetIds = copyTargetMode === 'all'
-          ? currentSchoolTeachers.filter(t => t.id !== sourceTeacher.id).map(t => t.id)
+          ? currentSchoolTeachers.filter(t => copyMode === 'manual' || t.id !== sourceTeacher?.id).map(t => t.id)
           : copyTargetMode === 'specs'
-              ? currentSchoolTeachers.filter(t => t.id !== sourceTeacher.id && copyTargetSpecIds.includes(t.specializationId)).map(t => t.id)
+              ? currentSchoolTeachers.filter(t => (copyMode === 'manual' || t.id !== sourceTeacher?.id) && copyTargetSpecIds.includes(t.specializationId)).map(t => t.id)
               : selectedTargets;
       if (targetIds.length === 0) {
-          showToast('اختر هدفاً واحداً على الأقل لنسخ النصاب', 'warning');
+          showToast('اختر هدفاً واحداً على الأقل لتطبيق النصاب', 'warning');
           return;
       }
       
       setTeachers(prev => prev.map(t => {
           if (targetIds.includes(t.id)) {
-              const sourceQuota = getSchoolQuota(sourceTeacher);
+              const sourceQuota = sourceTeacher ? getSchoolQuota(sourceTeacher) : null;
+              const nextLessons = copyMode === 'manual' ? manualQuotaValues.basic : sourceQuota?.lessons ?? 0;
+              const nextWaiting = copyMode === 'manual' ? manualQuotaValues.waiting : sourceQuota?.waiting ?? 0;
               if ((t.isShared || t.schools?.length) && t.schools?.some(s => s.schoolId === activeSchoolId)) {
                   return {
                       ...t,
                       schools: t.schools.map(s => s.schoolId === activeSchoolId ? {
                           ...s,
-                          lessons: copyOptions.basic ? sourceQuota.lessons : s.lessons,
-                          waiting: copyOptions.waiting ? sourceQuota.waiting : s.waiting,
+                          lessons: copyOptions.basic ? nextLessons : s.lessons,
+                          waiting: copyOptions.waiting ? nextWaiting : s.waiting,
                       } : s),
                   };
               }
               return {
                   ...t,
-                  quotaLimit: copyOptions.basic ? sourceQuota.lessons : t.quotaLimit,
-                  waitingQuota: copyOptions.waiting ? sourceQuota.waiting : t.waitingQuota
+                  quotaLimit: copyOptions.basic ? nextLessons : t.quotaLimit,
+                  waitingQuota: copyOptions.waiting ? nextWaiting : t.waitingQuota
               };
           }
           return t;
@@ -936,13 +947,26 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   const availableTargets = currentSchoolTeachers.filter(t => {
       const term = copySearchTerm.toLowerCase().trim();
-      return t.id !== sourceTeacher?.id && (
+      return (copyMode === 'manual' || t.id !== sourceTeacher?.id) && (
           !term
           || t.name.toLowerCase().includes(term)
           || getTeacherShortName(t).toLowerCase().includes(term)
           || getSpecializationName(t.specializationId).toLowerCase().includes(term)
       );
   });
+
+  const copyTargetCount = copyTargetMode === 'all'
+      ? currentSchoolTeachers.filter(t => copyMode === 'manual' || t.id !== sourceTeacher?.id).length
+      : copyTargetMode === 'specs'
+          ? currentSchoolTeachers.filter(t => (copyMode === 'manual' || t.id !== sourceTeacher?.id) && copyTargetSpecIds.includes(t.specializationId)).length
+          : selectedTargets.length;
+
+  const copyActionDisabled =
+      (copyMode === 'teacher' && !sourceTeacher)
+      || (!copyOptions.basic && !copyOptions.waiting)
+      || copyTargetCount === 0
+      || (copyTargetMode === 'teachers' && selectedTargets.length === 0)
+      || (copyTargetMode === 'specs' && copyTargetSpecIds.length === 0);
 
   return (
     <>
@@ -1058,17 +1082,21 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             <button
               dir="rtl"
               onClick={() => {
+                setCopyMode('teacher');
                 setSourceTeacher(null);
                 setCopyTargetMode('specs');
                 setCopyTargetSpecIds([]);
                 setSelectedTargets([]);
+                setCopyOptions({ basic: true, waiting: true });
+                setManualQuotaValues({ basic: 0, waiting: 0 });
+                setCopySearchTerm("");
                 setShowCopyModal(true);
               }}
               disabled={currentSchoolTeachers.length === 0}
               className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Copy size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-              نسخ النصاب
+              تطبيق النصاب
             </button>
           </div>
 
@@ -1455,16 +1483,16 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                             return updated;
                                                         }));
                                                     }}
-                                                    className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-teal-600 focus:outline-none focus:border-teal-500 text-center mx-auto"
+                                                    className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-[#655ac1] focus:outline-none focus:border-[#655ac1] text-center mx-auto"
                                                 />
                                             ) : (
-                                                <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-teal-600 print:text-black">
+                                                <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-[#655ac1] print:text-black">
                                                     {quota.waiting}
                                                 </span>
                                             )}
                                         </td>
                                          <td className="px-3 py-3 text-center print:p-2">
-                                            <span className={`inline-flex w-8 h-8 items-center justify-center rounded-full border text-sm font-black print:bg-transparent print:text-black print:p-0 print:border-slate-300 ${hasQuotaWarning ? 'border-rose-300 bg-rose-50 text-rose-600' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                                            <span className={`inline-flex w-8 h-8 items-center justify-center rounded-full border text-sm font-black print:bg-transparent print:text-black print:p-0 print:border-slate-300 ${hasQuotaWarning ? 'border-rose-300 bg-rose-50 text-rose-600' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                                                 {totalQuota}
                                             </span>
                                             {overallTotal > 24 && overallTotal !== totalQuota && (
@@ -1626,7 +1654,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                     value={currentTeacher.waitingQuota || 0}
                                     onChange={e => setCurrentTeacher({...currentTeacher, waitingQuota: Number(e.target.value)})}
                                     required
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xl font-black text-center focus:border-teal-500 focus:ring-4 focus:ring-teal-100 transition-all text-teal-600"
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xl font-black text-center focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all text-[#655ac1]"
                                 />
                             </div>
                         </div>
@@ -1812,31 +1840,62 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         </div>
       )}
 
-      {/* â•گâ•گâ•گâ•گâ•گâ•گ Copy Quota Modal (Hidden in Print) â•گâ•گâ•گâ•گâ•گâ•گ */}
+      {/* Copy Quota Modal (Hidden in Print) */}
       {showCopyModal && (
            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
-                <div className="bg-white rounded-[2rem] w-full max-w-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                <div className="bg-white rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
                      {/* Header */}
                      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <div>
                              <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                                 <Copy size={24} className="text-[#655ac1]" />
-                                نسخ النصاب
+                                تطبيق النصاب
                              </h3>
-                              <p className="text-xs text-slate-500 mt-1">اختر المصدر، ثم نوع النصاب، ثم الهدف</p>
+                              <p className="text-xs text-slate-500 mt-1">انسخ من معلم أو حدّد نصابًا مباشرًا، ثم اختر نوع النصاب والهدف</p>
                         </div>
-                        <button onClick={() => setShowCopyModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
+                        <button onClick={() => setShowCopyModal(false)} className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all">
                             <X size={20} />
                         </button>
                      </div>
 
                      {/* Content */}
-                     <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-5">
+                     <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-5">
+                          <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                            {[
+                              { id: 'teacher' as const, label: 'نسخ من معلم' },
+                              { id: 'manual' as const, label: 'تحديد نصاب' },
+                            ].map(item => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  setCopyMode(item.id);
+                                  if (item.id === 'manual') setSourceTeacher(null);
+                                  setSelectedTargets([]);
+                                  setCopyTargetSpecIds([]);
+                                }}
+                                className={`py-2.5 rounded-lg border text-sm font-black transition-all ${
+                                  copyMode === item.id
+                                    ? 'bg-white text-slate-900 shadow-sm border-slate-200'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {copyMode === 'teacher' ? (
                           <div>
                             <label className="block text-xs font-black text-slate-600 mb-2">المعلم المصدر</label>
                             <select
                               value={sourceTeacher?.id || ''}
-                              onChange={e => setSourceTeacher(currentSchoolTeachers.find(t => t.id === e.target.value) || null)}
+                              onChange={e => {
+                                const teacher = currentSchoolTeachers.find(t => t.id === e.target.value) || null;
+                                const quota = teacher ? getSchoolQuota(teacher) : { lessons: 0, waiting: 0 };
+                                setSourceTeacher(teacher);
+                                setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
+                              }}
                               className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1]"
                             >
                               <option value="">اختر المعلم المصدر...</option>
@@ -1845,28 +1904,50 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                               ))}
                             </select>
                           </div>
+                          ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 mb-2">نصاب الحصص</label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={24}
+                                value={manualQuotaValues.basic}
+                                onChange={e => setManualQuotaValues(prev => ({ ...prev, basic: Math.max(0, Number(e.target.value)) }))}
+                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 mb-2">نصاب الانتظار</label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={24}
+                                value={manualQuotaValues.waiting}
+                                onChange={e => setManualQuotaValues(prev => ({ ...prev, waiting: Math.max(0, Number(e.target.value)) }))}
+                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
+                              />
+                            </div>
+                          </div>
+                          )}
 
-                          {sourceTeacher && (
-                          <div className="bg-[#f8f7ff] p-4 rounded-xl border border-[#e5e1fe]">
-                            <label className="block text-xs font-black text-slate-600 mb-3">ماذا تريد أن تنسخ؟</label>
+                          {(copyMode === 'manual' || sourceTeacher) && (
+                          <div className="bg-white p-4 rounded-xl border border-slate-200">
+                            <label className="block text-xs font-black text-slate-600 mb-3">ماذا تريد تطبيقه؟</label>
                             <div className="flex flex-wrap gap-2">
                               {[
-                                { key: 'basic', label: `نصاب الحصص (${getSchoolQuota(sourceTeacher).lessons})`, color: 'purple' as const },
-                                { key: 'waiting', label: `نصاب الانتظار (${getSchoolQuota(sourceTeacher).waiting})`, color: 'teal' as const },
+                                { key: 'basic', label: `نصاب الحصص (${copyMode === 'manual' ? manualQuotaValues.basic : getSchoolQuota(sourceTeacher!).lessons})` },
+                                { key: 'waiting', label: `نصاب الانتظار (${copyMode === 'manual' ? manualQuotaValues.waiting : getSchoolQuota(sourceTeacher!).waiting})` },
                               ].map(item => {
                                 const active = copyOptions[item.key as 'basic' | 'waiting'];
-                                const activeBtn = item.color === 'teal'
-                                  ? 'bg-white border-teal-500 text-teal-600'
-                                  : 'bg-white border-[#655ac1] text-[#655ac1]';
-                                const activeRing = item.color === 'teal' ? 'border-teal-500' : 'border-[#655ac1]';
                                 return (
                                   <button
                                     key={item.key}
                                     onClick={() => setCopyOptions(prev => ({ ...prev, [item.key]: !active }))}
-                                    className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-all flex items-center gap-2 ${active ? activeBtn : 'bg-white border-slate-200 text-slate-500'}`}
+                                    className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-all flex items-center gap-2 bg-white ${active ? 'border-[#5448a8] text-[#5448a8]' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                                   >
-                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${active ? activeRing : 'border-slate-300'}`}>
-                                      {active && <Check size={12} strokeWidth={3} />}
+                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                      <Check size={12} strokeWidth={3.5} />
                                     </span>
                                     {item.label}
                                   </button>
@@ -1876,8 +1957,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                           </div>
                           )}
 
-                          {sourceTeacher && (
-                          <div className="flex flex-col gap-3 overflow-hidden">
+                          {(copyMode === 'manual' || sourceTeacher) && (
+                          <div className="flex flex-col gap-3">
                                <label className="text-xs font-black text-slate-600">اختر الهدف</label>
                                <div className="grid grid-cols-3 gap-2">
                                  {[
@@ -1888,7 +1969,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                    <button
                                      key={item.id}
                                      onClick={() => setCopyTargetMode(item.id as 'teachers' | 'specs' | 'all')}
-                                     className={`py-2.5 rounded-xl border text-sm font-black transition-all ${copyTargetMode === item.id ? 'border-[#655ac1] text-[#655ac1] bg-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                     className={`py-2.5 rounded-xl border text-sm font-black transition-all bg-white ${copyTargetMode === item.id ? 'border-[#5448a8] text-[#5448a8] shadow-sm' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                                    >
                                      {item.label}
                                    </button>
@@ -1898,8 +1979,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                {copyTargetMode === 'teachers' && (
                                <>
                                  <div className="flex justify-end gap-3">
-                                   <button onClick={() => setSelectedTargets(availableTargets.map(t => t.id))} className="text-[10px] font-bold text-[#655ac1] hover:underline">تحديد الكل</button>
-                                   <button onClick={() => setSelectedTargets([])} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 hover:underline">إلغاء التحديد</button>
+                                   <button onClick={() => setSelectedTargets(availableTargets.map(t => t.id))} className={`px-3 py-1.5 rounded-lg border bg-white text-[10px] font-bold transition-colors ${availableTargets.length > 0 && selectedTargets.length === availableTargets.length ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1]'}`}>تحديد الكل</button>
+                                   <button onClick={() => setSelectedTargets([])} className={`px-3 py-1.5 rounded-lg border bg-white text-[10px] font-bold transition-colors ${selectedTargets.length === 0 ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1]'}`}>إلغاء التحديد</button>
                                  </div>
                                  <div className="relative">
                                     <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"/>
@@ -1911,7 +1992,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                     />
                                  </div>
 
-                                 <div className="max-h-56 overflow-y-auto custom-scrollbar border border-slate-100 rounded-xl p-2 space-y-1">
+                                 <div className="max-h-72 overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl p-2 space-y-1">
                                     {availableTargets.length === 0 ? (
                                         <div className="text-center py-8 text-slate-400 text-sm">لا يوجد معلمون آخرون</div>
                                     ) : (
@@ -1924,12 +2005,12 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                 }}
                                                 className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all border ${
                                                     selectedTargets.includes(t.id) 
-                                                    ? 'bg-[#f0fdf6] border-emerald-200 shadow-sm' 
+                                                    ? 'bg-white border-[#655ac1] shadow-sm' 
                                                     : 'bg-white border-transparent hover:bg-slate-50'
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${ selectedTargets.includes(t.id) ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300' }`}>
+                                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${ selectedTargets.includes(t.id) ? 'bg-[#655ac1] border-[#655ac1]' : 'bg-white border-slate-300' }`}>
                                                         {selectedTargets.includes(t.id) && <Check size={14} className="text-white"/>}
                                                     </div>
                                                     <div>
@@ -1940,7 +2021,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                 <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                                                      <span title="النصاب الحالي">{getSchoolQuota(t).lessons}</span>
                                                      <span className="text-slate-300">|</span>
-                                                     <span title="نصاب الانتظار الحالي" className="text-teal-600">{getSchoolQuota(t).waiting}</span>
+                                                     <span title="نصاب الانتظار الحالي" className="text-[#655ac1]">{getSchoolQuota(t).waiting}</span>
                                                 </div>
                                             </div>
                                         ))
@@ -1950,18 +2031,18 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                )}
 
                                {copyTargetMode === 'specs' && (
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto custom-scrollbar border border-slate-100 rounded-xl p-2">
+                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl p-2">
                                    {getUsedSpecializationIds().map(id => {
                                      const selected = copyTargetSpecIds.includes(id);
                                      return (
                                        <button
                                          key={id}
                                          onClick={() => setCopyTargetSpecIds(prev => selected ? prev.filter(x => x !== id) : [...prev, id])}
-                                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-bold transition-all ${selected ? 'border-[#655ac1] text-[#655ac1] bg-white' : 'border-slate-100 text-slate-600 hover:bg-slate-50'}`}
+                                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-bold transition-all bg-white ${selected ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
                                        >
                                          <span>{getSpecializationName(id)}</span>
-                                         <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'border-[#655ac1]' : 'border-slate-300 text-transparent'}`}>
-                                           <Check size={12} strokeWidth={3} />
+                                         <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                           <Check size={12} strokeWidth={3.5} />
                                          </span>
                                        </button>
                                      );
@@ -1970,8 +2051,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                )}
 
                                {copyTargetMode === 'all' && (
-                                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">
-                                    سيتم تطبيق النصاب على جميع المعلمين عدا المعلم المصدر.
+                                 <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">
+                                    سيتم تطبيق النصاب على جميع المعلمين{copyMode === 'teacher' ? ' عدا المعلم المصدر' : ''}.
                                  </div>
                                )}
                           </div>
@@ -1979,26 +2060,29 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                      </div>
 
                      {/* Footer */}
-                     <div className="p-6 bg-slate-50 flex gap-3 border-t border-slate-100">
+                     <div className="p-6 bg-white flex gap-3 border-t border-slate-100">
                          <div className="flex-1 flex items-center gap-2 text-xs font-bold text-slate-500">
                              <span>تم تحديد:</span>
                              <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">
-                               {sourceTeacher ? (
-                                 copyTargetMode === 'all'
-                                   ? currentSchoolTeachers.filter(t => t.id !== sourceTeacher.id).length
-                                   : copyTargetMode === 'specs'
-                                     ? currentSchoolTeachers.filter(t => t.id !== sourceTeacher.id && copyTargetSpecIds.includes(t.specializationId)).length
-                                     : selectedTargets.length
-                               ) : 0}
+                               {copyTargetCount}
                              </span>
                              <span>معلم</span>
+                             {copyTargetCount > 0 && copyOptions.basic && copyOptions.waiting && (copyMode === 'manual' ? manualQuotaValues.basic + manualQuotaValues.waiting : sourceTeacher ? getSchoolQuota(sourceTeacher).total : 0) > 24 && (
+                               <span className="mr-2 text-amber-700">الإجمالي يتجاوز 24</span>
+                             )}
                          </div>
+                         <button
+                             onClick={() => setShowCopyModal(false)}
+                             className="px-6 py-3 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                         >
+                             إغلاق
+                         </button>
                          <button 
                              onClick={executeCopyQuota}
-                             disabled={!sourceTeacher || (!copyOptions.basic && !copyOptions.waiting) || (copyTargetMode === 'teachers' && selectedTargets.length === 0) || (copyTargetMode === 'specs' && copyTargetSpecIds.length === 0)}
+                             disabled={copyActionDisabled}
                              className="px-6 py-3 bg-[#655ac1] text-white font-bold rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                          >
-                             تطبيق النسخ
+                             تطبيق النصاب
                          </button>
                      </div>
                 </div>
@@ -2422,7 +2506,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                              value={linkSchoolWaiting}
                              onChange={e => setLinkSchoolWaiting(Math.max(0, Number(e.target.value)))}
                              min={0} max={availableQuota}
-                             className={`w-full p-3 bg-slate-50 border rounded-xl outline-none text-sm font-bold text-center text-teal-600 focus:ring-4 transition-all ${isOverQuota ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-teal-500 focus:ring-teal-100'}`}
+                             className={`w-full p-3 bg-slate-50 border rounded-xl outline-none text-sm font-bold text-center text-[#655ac1] focus:ring-4 transition-all ${isOverQuota ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-200 focus:border-[#655ac1] focus:ring-[#e5e1fe]'}`}
                            />
                          </div>
                        </div>
@@ -2589,7 +2673,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     className={itemBase}
                 >
                     <span className={iconWrap}><Copy size={14} /></span>
-                    <span className={labelCls}>نسخ النصاب</span>
+                    <span className={labelCls}>تطبيق النصاب</span>
                     <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
                 </button>
 
