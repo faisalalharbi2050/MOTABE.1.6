@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Calendar,
   CalendarDays,
@@ -17,6 +17,8 @@ import { validateAllConstraints, ValidationWarning } from '../../../utils/schedu
 import { generateSchedule } from '../../../utils/scheduleGenerator';
 import ConflictModal from '../../schedule/ConflictModal';
 import LoadingLogo from '../../ui/LoadingLogo';
+import PresenceDaysWarningModal from '../PresenceDaysWarningModal';
+import TeacherConstraintsModal from '../../teachers/TeacherConstraintsModal';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -51,6 +53,22 @@ const CreateTab: React.FC<Props> = ({
   const [missingDataAlert, setMissingDataAlert] = useState<{ title: string; message: string } | null>(null);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showPresenceWarning, setShowPresenceWarning] = useState(false);
+  const [constraintsTargetTeacherId, setConstraintsTargetTeacherId] = useState<string | null>(null);
+
+  // Shared teachers that still need presenceDays defined for at least one non-main school
+  const sharedTeachersMissingPresence = useMemo(() => {
+    const tcList = scheduleSettings.teacherConstraints || [];
+    return teachers.filter(t => {
+      if (!t.isShared) return false;
+      const teacherSchools = t.schools ?? [];
+      const nonMain = teacherSchools.filter(s => s.schoolId !== 'main');
+      if (nonMain.length === 0) return false;
+      const tc = tcList.find(c => c.teacherId === t.id);
+      const pd = tc?.presenceDays || {};
+      return nonMain.some(s => !pd[s.schoolId] || pd[s.schoolId].length === 0);
+    });
+  }, [teachers, scheduleSettings.teacherConstraints]);
 
   const generationMode = scheduleSettings.generationMode;
   const isModeLocked = !!scheduleSettings.generationModeLocked && !!generationMode;
@@ -100,6 +118,16 @@ const CreateTab: React.FC<Props> = ({
     else startGeneration();
   };
 
+  // Returns true if the presence warning was opened (caller should NOT proceed yet)
+  const checkPresenceBeforeGenerate = (): boolean => {
+    const effectiveMode = generationMode || 'unified';
+    if (effectiveMode !== 'unified') return false;
+    if (!hasSharedSchools) return false;
+    if (sharedTeachersMissingPresence.length === 0) return false;
+    setShowPresenceWarning(true);
+    return true;
+  };
+
   const handleContinueWithBypass = (bypass: boolean) => {
     setIsBypassingConflicts(bypass);
     setShowConflictReport(false);
@@ -116,6 +144,23 @@ const CreateTab: React.FC<Props> = ({
         const periodsPerDay = Math.max(...(Object.values(timing.periodCounts || {}) as number[]));
         let finalTimetable: Record<string, any> = {};
 
+        // Sync presenceDays from teacherConstraints into each shared teacher's
+        // constraints field — the generator reads `teacher.constraints.presenceDays`,
+        // but the constraints modal writes into `teacherConstraints[].presenceDays`.
+        const tcList = scheduleSettings.teacherConstraints || [];
+        const teachersWithSyncedPresence = teachers.map(t => {
+          if (!t.isShared) return t;
+          const tc = tcList.find(c => c.teacherId === t.id);
+          if (!tc?.presenceDays) return t;
+          return {
+            ...t,
+            constraints: {
+              ...(t.constraints || {}),
+              presenceDays: tc.presenceDays,
+            },
+          };
+        });
+
         const effectiveMode = generationMode || 'unified';
         if (hasSharedSchools && effectiveMode === 'separate') {
           const schoolIds = ['main', ...(schoolInfo.sharedSchools || []).map(s => s.id)];
@@ -124,7 +169,7 @@ const CreateTab: React.FC<Props> = ({
             const sid = schoolIds[i];
             const schoolClasses = classes.filter(c => c.schoolId === sid || (!c.schoolId && sid === 'main'));
             const tt = await generateSchedule(
-              teachers, subjects, schoolClasses, scheduleSettings,
+              teachersWithSyncedPresence, subjects, schoolClasses, scheduleSettings,
               { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length },
               () => {},
               assignments, isBypassingConflicts,
@@ -135,7 +180,7 @@ const CreateTab: React.FC<Props> = ({
           finalTimetable = accumulated;
         } else {
           finalTimetable = await generateSchedule(
-            teachers, subjects, classes, scheduleSettings,
+            teachersWithSyncedPresence, subjects, classes, scheduleSettings,
             { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length },
             () => {},
             assignments, isBypassingConflicts, undefined
@@ -345,6 +390,7 @@ const CreateTab: React.FC<Props> = ({
                     showToast('اختر آلية إنشاء الجدول للمدرستين قبل المتابعة', 'info');
                     return;
                   }
+                  if (checkPresenceBeforeGenerate()) return;
                   handleValidation();
                 }}
                 className="flex-1 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all"
@@ -370,6 +416,50 @@ const CreateTab: React.FC<Props> = ({
           <LoadingLogo size="lg" />
           <p className="text-base font-bold text-[#655ac1]">جاري إنشاء جدول الحصص...</p>
         </div>
+      )}
+
+      <PresenceDaysWarningModal
+        isOpen={showPresenceWarning}
+        teachers={sharedTeachersMissingPresence}
+        teacherConstraints={scheduleSettings.teacherConstraints || []}
+        schoolInfo={schoolInfo}
+        onAdjustTeacher={(tid) => setConstraintsTargetTeacherId(tid)}
+        onContinueAnyway={() => {
+          setShowPresenceWarning(false);
+          handleValidation();
+        }}
+        onCancel={() => setShowPresenceWarning(false)}
+      />
+
+      {constraintsTargetTeacherId && (
+        <TeacherConstraintsModal
+          isOpen={!!constraintsTargetTeacherId}
+          onClose={() => {
+            setConstraintsTargetTeacherId(null);
+            // If user resolved all teachers while inside the inner modal,
+            // close the warning and proceed automatically with generation.
+            if (sharedTeachersMissingPresence.length === 0 && showPresenceWarning) {
+              setShowPresenceWarning(false);
+              showToast('تم ضبط أيام التواجد لجميع المعلمين', 'success');
+              setTimeout(() => handleValidation(), 300);
+            }
+          }}
+          initialTeacherId={constraintsTargetTeacherId}
+          initialOpenSection="c7"
+          teachers={teachers}
+          specializations={specializations}
+          constraints={scheduleSettings.teacherConstraints || []}
+          activeDays={schoolInfo.timing?.activeDays || ['sunday','monday','tuesday','wednesday','thursday']}
+          periodsPerDay={Math.max(7, ...(Object.values(schoolInfo.timing?.periodCounts || {}) as number[]))}
+          periodCounts={schoolInfo.timing?.periodCounts || {}}
+          classes={classes}
+          mainSchoolName={schoolInfo.schoolName || 'المدرسة الرئيسية'}
+          schoolPhasesMap={{
+            'main': schoolInfo.phases || [],
+            ...Object.fromEntries((schoolInfo.sharedSchools || []).map(s => [s.id, s.phases || []]))
+          }}
+          onChangeConstraints={c => setScheduleSettings(prev => ({ ...prev, teacherConstraints: c }))}
+        />
       )}
     </div>
   );

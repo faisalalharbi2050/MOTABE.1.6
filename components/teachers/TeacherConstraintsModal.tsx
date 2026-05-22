@@ -20,6 +20,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialTeacherId?: string | null;
+  initialOpenSection?: 'c1' | 'c2' | 'c4' | 'c5' | 'c6' | 'c7' | null;
   teachers?: Teacher[];
   specializations?: Specialization[];
   constraints?: TeacherConstraint[];
@@ -34,7 +35,7 @@ interface Props {
 }
 
 export default function TeacherConstraintsModal({
-  isOpen, onClose, initialTeacherId = null,
+  isOpen, onClose, initialTeacherId = null, initialOpenSection = null,
   teachers = [], specializations = [], constraints = [], activeDays = [], periodsPerDay = 7,
   periodCounts = {},
   warnings = [], classes = [], mainSchoolName = 'المدرسة الرئيسية', schoolPhasesMap = {}, onChangeConstraints
@@ -169,6 +170,13 @@ export default function TeacherConstraintsModal({
   
   // Sections Expansions
   const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c4: false, c5: false, c6: false, c7: false });
+
+  // Sync open sections when initialOpenSection prop changes (e.g. when modal is reopened with a different target)
+  useEffect(() => {
+    if (isOpen && initialOpenSection) {
+      setOpen(prev => ({ ...prev, [initialOpenSection]: true }));
+    }
+  }, [isOpen, initialOpenSection]);
 
   // --- التوزيع التلقائي الفوري (Reactive Engine) ---
   // يُشغَّل فور فتح النافذة أو تغيّر الفصول / الأيام / المعلمين
