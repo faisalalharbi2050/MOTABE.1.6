@@ -410,9 +410,9 @@ export default function TeacherConstraintsModal({
                     if (!sp) return null;
                     const specCount = teachers.filter(t => t.specializationId === sid).length;
                     return (
-                      <div key={sid} className="group w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#f0edff] transition-colors">
+                      <div key={sid} className="group w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#655ac1] hover:text-white transition-colors">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-slate-100 text-[#655ac1] text-xs font-black shrink-0">
+                          <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-transparent border border-slate-300 text-[#655ac1] text-xs font-black shrink-0 group-hover:bg-white group-hover:border-white">
                             {specCount}
                           </span>
                           <span className="truncate">{sp.name}</span>
@@ -424,14 +424,14 @@ export default function TeacherConstraintsModal({
                               [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
                               setSpecOrder(newOrder);
                             }
-                          }} disabled={idx === 0} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronUp size={13} /></button>
+                          }} disabled={idx === 0} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 group-hover:border-white group-hover:text-white hover:!bg-white hover:!text-[#655ac1] hover:!border-white disabled:opacity-30 transition-all"><ChevronUp size={13} /></button>
                           <button onClick={() => {
                             const newOrder = [...specOrder];
                             if (idx < specOrder.length - 1) {
                               [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
                               setSpecOrder(newOrder);
                             }
-                          }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 hover:border-[#655ac1] disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
+                          }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 group-hover:border-white group-hover:text-white hover:!bg-white hover:!text-[#655ac1] hover:!border-white disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
                         </div>
                       </div>
                     );
@@ -523,8 +523,8 @@ export default function TeacherConstraintsModal({
                 <div className="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
                   <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
                   <div className="flex gap-2 mt-2">
-                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-600">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
-                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-600">نصاب الحصص: {selTeacher.quotaLimit}</span>
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">نصاب الحصص: {selTeacher.quotaLimit}</span>
                   </div>
                 </div>
 
