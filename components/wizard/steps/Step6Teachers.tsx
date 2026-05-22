@@ -1406,15 +1406,13 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                         const val = Number(e.target.value);
                                                         setTeachers(prev => prev.map(pt => {
                                                             if (pt.id !== t.id) return pt;
-                                                            if (pt.isShared && pt.schools) {
-                                                                return {
-                                                                    ...pt,
-                                                                    schools: pt.schools.map(s =>
-                                                                        s.schoolId === activeSchoolId ? { ...s, lessons: val } : s
-                                                                    ),
-                                                                };
+                                                            const updated: Teacher = { ...pt, quotaLimit: val };
+                                                            if (pt.schools?.length) {
+                                                                updated.schools = pt.schools.map(s =>
+                                                                    s.schoolId === activeSchoolId ? { ...s, lessons: val } : s
+                                                                );
                                                             }
-                                                            return { ...pt, quotaLimit: val };
+                                                            return updated;
                                                         }));
                                                     }}
                                                     className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-[#655ac1] text-center mx-auto"
@@ -1434,15 +1432,13 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                         const val = Number(e.target.value);
                                                         setTeachers(prev => prev.map(pt => {
                                                             if (pt.id !== t.id) return pt;
-                                                            if (pt.isShared && pt.schools) {
-                                                                return {
-                                                                    ...pt,
-                                                                    schools: pt.schools.map(s =>
-                                                                        s.schoolId === activeSchoolId ? { ...s, waiting: val } : s
-                                                                    ),
-                                                                };
+                                                            const updated: Teacher = { ...pt, waitingQuota: val };
+                                                            if (pt.schools?.length) {
+                                                                updated.schools = pt.schools.map(s =>
+                                                                    s.schoolId === activeSchoolId ? { ...s, waiting: val } : s
+                                                                );
                                                             }
-                                                            return { ...pt, waitingQuota: val };
+                                                            return updated;
                                                         }));
                                                     }}
                                                     className="w-16 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-slate-800 focus:outline-none focus:border-[#655ac1] text-center mx-auto"
