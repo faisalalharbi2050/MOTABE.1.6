@@ -496,10 +496,10 @@ export default function TeacherConstraintsModal({
                         className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-all"
                       >
                         <div className="flex items-center gap-2">
-                          <ChevronDown size={15} className={`text-slate-500 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
                           <span className="text-sm font-black text-slate-700">{g.name}</span>
+                          <ChevronDown size={15} className={`text-slate-500 transition-transform ${collapsed ? 'rotate-90' : ''}`} />
                         </div>
-                        <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full bg-white text-sm font-black text-[#655ac1] border border-slate-200">{g.teachers.length}</span>
+                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-white text-xs font-black text-[#655ac1] border border-slate-200">{g.teachers.length}</span>
                       </button>
                       {!collapsed && <div className="space-y-1 pr-1">{g.teachers.map(renderTeacher)}</div>}
                     </div>
