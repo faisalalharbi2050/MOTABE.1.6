@@ -1,6 +1,6 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
-import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
+import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -20,7 +20,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialTeacherId?: string | null;
-  initialOpenSection?: 'c1' | 'c2' | 'c4' | 'c5' | 'c6' | 'c7' | null;
+  initialOpenSection?: 'c1' | 'c2' | 'c5' | 'c6' | 'c7' | null;
   teachers?: Teacher[];
   specializations?: Specialization[];
   constraints?: TeacherConstraint[];
@@ -61,52 +61,6 @@ export default function TeacherConstraintsModal({
     });
     return result;
   }, [days, periodCounts, safePeriodsCount]);
-
-  // --- Engine: حساب الاحتياج الكلي وتوزيع الحصص ---
-  const periodEngine = useMemo(() => {
-    const numClasses = classes.length;
-    const numDays = days.length || 1;
-    const totalNeeded = numClasses * numDays;
-
-    const qualifiedTeachers = teachers.filter(t => (t.quotaLimit || 0) > 0);
-    const numQualified = qualifiedTeachers.length;
-
-    // الحد الأدنى من المعلمين المطلوبين = عدد الفصول
-    // (كل يوم تُفتح numClasses حصة أولى في آنٍ واحد)
-    const minTeachersNeeded = numClasses;
-    const distributionFeasible = numQualified >= minTeachersNeeded;
-
-    // النصيب العادل مقيَّد بأيام العمل (لا يمكن أن يتجاوز عدد الأيام)
-    const rawShare = numQualified > 0 ? Math.ceil(totalNeeded / numQualified) : 0;
-    const teacherShare = Math.min(rawShare, numDays);
-
-    const totalFirst = qualifiedTeachers.reduce((sum, t) => {
-      const c = constraints.find(x => x.teacherId === t.id);
-      return sum + (c?.maxFirstPeriods ?? 0);
-    }, 0);
-    const totalLast = qualifiedTeachers.reduce((sum, t) => {
-      const c = constraints.find(x => x.teacherId === t.id);
-      return sum + (c?.maxLastPeriods ?? 0);
-    }, 0);
-
-    const firstDeficit = Math.max(0, totalNeeded - totalFirst);
-    const lastDeficit = Math.max(0, totalNeeded - totalLast);
-    const firstSurplus = Math.max(0, totalFirst - totalNeeded);
-    const lastSurplus = Math.max(0, totalLast - totalNeeded);
-
-    const firstCoverage = totalNeeded > 0 ? Math.min(100, Math.round((totalFirst / totalNeeded) * 100)) : 0;
-    const lastCoverage = totalNeeded > 0 ? Math.min(100, Math.round((totalLast / totalNeeded) * 100)) : 0;
-
-    return {
-      numClasses, numDays, totalNeeded,
-      numQualified, teacherShare,
-      minTeachersNeeded, distributionFeasible,
-      totalFirst, totalLast,
-      firstDeficit, lastDeficit,
-      firstSurplus, lastSurplus,
-      firstCoverage, lastCoverage,
-    };
-  }, [classes, days, teachers, constraints]);
 
   // --- State ---
   const [selId, setSelId] = useState<string | null>(null);
@@ -163,13 +117,12 @@ export default function TeacherConstraintsModal({
   const [copyOpts, setCopyOpts] = useState({
     consecutive: true,
     excluded: true,
-    firstLast: true,
     earlyEntry: true,
   });
   const [copySearch, setCopySearch] = useState('');
   
   // Sections Expansions
-  const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c4: false, c5: false, c6: false, c7: false });
+  const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c5: false, c6: false, c7: false });
 
   // Generic sidebar apply-mode (multi-select against the right sidebar)
   const [applyMode, setApplyMode] = useState<null | 'consec' | 'excluded'>(null);
@@ -183,42 +136,6 @@ export default function TeacherConstraintsModal({
       setOpen(prev => ({ ...prev, [initialOpenSection]: true }));
     }
   }, [isOpen, initialOpenSection]);
-
-  // --- التوزيع التلقائي الفوري (Reactive Engine) ---
-  // يُشغَّل فور فتح النافذة أو تغيّر الفصول / الأيام / المعلمين
-  const prevKeyRef = useRef<string>('');
-  useEffect(() => {
-    if (!isOpen) return;
-    const { teacherShare, numClasses, numDays, numQualified } = periodEngine;
-    // مفتاح يتغيّر فقط عند تغيّر المدخلات الجوهرية
-    const key = `${numClasses}|${numDays}|${numQualified}|${teacherShare}`;
-    if (key === prevKeyRef.current) return; // لم تتغيّر المدخلات — لا إعادة توزيع
-    prevKeyRef.current = key;
-    if (numClasses === 0 || numQualified === 0) return;
-
-    const nc = [...constraints];
-    let changed = false;
-
-    teachers.forEach(t => {
-      const isExcluded = (t.quotaLimit || 0) === 0;
-      const share = isExcluded ? 0 : teacherShare;
-      const idx = nc.findIndex(c => c.teacherId === t.id);
-      if (idx >= 0) {
-        if (nc[idx].maxFirstPeriods !== share || nc[idx].maxLastPeriods !== share) {
-          nc[idx] = { ...nc[idx], maxFirstPeriods: share === 0 ? undefined : share, maxLastPeriods: share === 0 ? undefined : share };
-          changed = true;
-        }
-      } else {
-        nc.push({ teacherId: t.id, maxConsecutive: 2, excludedSlots: {},
-          maxFirstPeriods: share === 0 ? undefined : share,
-          maxLastPeriods:  share === 0 ? undefined : share });
-        changed = true;
-      }
-    });
-
-    if (changed) onChangeConstraints(nc);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, periodEngine.teacherShare, periodEngine.numClasses, periodEngine.numDays, periodEngine.numQualified]);
 
   // Early Return
   if (!isOpen) return null;
@@ -284,85 +201,6 @@ export default function TeacherConstraintsModal({
     setApplySelection([]);
   };
 
-  // --- Engine: التوزيع التلقائي الكامل (زر التوزيع التلقائي) ---
-  const autoDistributeFirstLast = () => {
-    const { totalNeeded, numDays } = periodEngine;
-    const qualifiedTeachers = teachers.filter(t => (t.quotaLimit || 0) > 0);
-    if (qualifiedTeachers.length === 0) return;
-
-    const share = Math.min(Math.ceil(totalNeeded / qualifiedTeachers.length), numDays);
-    const nc = [...constraints];
-
-    qualifiedTeachers.forEach(t => {
-      const idx = nc.findIndex(c => c.teacherId === t.id);
-      if (idx >= 0) {
-        nc[idx] = { ...nc[idx], maxFirstPeriods: share, maxLastPeriods: share };
-      } else {
-        nc.push({ teacherId: t.id, maxConsecutive: 2, excludedSlots: {}, maxFirstPeriods: share, maxLastPeriods: share });
-      }
-    });
-
-    teachers.filter(t => (t.quotaLimit || 0) === 0).forEach(t => {
-      const idx = nc.findIndex(c => c.teacherId === t.id);
-      if (idx >= 0) {
-        nc[idx] = { ...nc[idx], maxFirstPeriods: undefined, maxLastPeriods: undefined };
-      }
-    });
-
-    onChangeConstraints(nc);
-  };
-
-  // --- Engine: تحديث يدوي فقط للمعلم المحدد — بدون إعادة توزيع على الآخرين ---
-  // شريط التغطية والنقص/الفائض يعملان تلقائياً لإظهار الوضع الحالي
-  const updCFirstLast = (tid: string, type: 'first' | 'last', val: number | undefined) => {
-    const nc = constraints.map(c =>
-      c.teacherId === tid
-        ? { ...c, ...(type === 'first' ? { maxFirstPeriods: val } : { maxLastPeriods: val }) }
-        : { ...c }
-    );
-    if (!nc.find(c => c.teacherId === tid)) {
-      nc.push({ teacherId: tid, maxConsecutive: 2, excludedSlots: {},
-        ...(type === 'first' ? { maxFirstPeriods: val } : { maxLastPeriods: val }) });
-    }
-    onChangeConstraints(nc);
-  };
-
-  // --- Engine: حساب إتاحة المعلم للحصص الطرفية ---
-  const getTeacherPeriodAvailability = (tid: string) => {
-    const teacher = teachers.find(t => t.id === tid);
-    if (!teacher) return { firstAvailDays: 0, lastAvailDays: 0, lastAvailByDay: {} as Record<string, number | null>, excluded: false };
-
-    if ((teacher.quotaLimit || 0) === 0) {
-      return { firstAvailDays: 0, lastAvailDays: 0, lastAvailByDay: {} as Record<string, number | null>, excluded: true };
-    }
-
-    const c = getC(tid);
-    let firstAvailDays = 0;
-    let lastAvailDays = 0;
-    const lastAvailByDay: Record<string, number | null> = {};
-
-    days.forEach(d => {
-      const excluded = c.excludedSlots?.[d] || [];
-
-      // الحصة الأولى (حصة رقم 1)
-      if (!excluded.includes(1)) firstAvailDays++;
-
-      // الحصة الأخيرة الديناميكية لهذا اليوم
-      const lastP = dayLastPeriods[d] ?? safePeriodsCount;
-      let foundLast: number | null = null;
-      for (let p = lastP; p >= 1; p--) {
-        if (!excluded.includes(p)) {
-          foundLast = p;
-          lastAvailDays++;
-          break;
-        }
-      }
-      lastAvailByDay[d] = foundLast;
-    });
-
-    return { firstAvailDays, lastAvailDays, lastAvailByDay, excluded: false };
-  };
-
   // --- Stats ---
   const stats = (() => {
     try {
@@ -387,8 +225,6 @@ export default function TeacherConstraintsModal({
     const hasC = constraints.some(c => c.teacherId === t.id && (
       (c.maxConsecutive !== undefined && c.maxConsecutive !== 2) ||
       (c.excludedSlots && Object.values(c.excludedSlots).some(arr => arr && arr.length > 0)) ||
-      c.maxFirstPeriods !== undefined ||
-      c.maxLastPeriods !== undefined ||
       (c.earlyExit && Object.keys(c.earlyExit).length > 0)
     ));
     const isExcluded = (t.quotaLimit || 0) === 0;
@@ -996,320 +832,6 @@ export default function TeacherConstraintsModal({
                   );
                 })()}
 
-                {/* 4. First/Last */}
-                <div className="space-y-2">
-                  {renderSectionHeader('c4', 'bg-violet-50', 'border-violet-200', 'bg-violet-100', 'text-violet-600', ArrowRightFromLine, 'الحصص الأولى والأخيرة', 'تخصيص توزيع عدد الحصص الأولى والأخيرة')}
-                  {open.c4 && (
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-
-                      {/* ── شرح آلية النظام ── */}
-                      <div className="px-5 pt-4 pb-4 border-b border-slate-100 bg-slate-50/60 space-y-3">
-                        <div className="flex items-start gap-2.5">
-                          <div className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0 mt-0.5 font-black text-[10px]">١</div>
-                          <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                            <span className="font-black text-slate-700">التوزيع التلقائي:</span> يقوم النظام آلياً بحساب <span className="text-[#655ac1] font-black">عدد الفصول × عدد الأيام</span> = عدد الحصص الأولى والأخيرة المطلوبɡ ثم يوزعها بالتساوي على جميع المعلمين.
-                          </p>
-                        </div>
-                        <div className="flex items-start gap-2.5">
-                          <div className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0 mt-0.5 font-black text-[10px]">٢</div>
-                          <div className="space-y-1.5">
-                            <p className="text-xs text-slate-700 font-black">التخصيص اليدوي:</p>
-                            <ul className="space-y-1">
-                              <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
-                                <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
-                                يمكنك تعديل نصيب أي معلم يدوياً من الجدول أدناه، وسيتكيّف النظام تلقائياً مع تعديلاتك.
-                              </li>
-                              <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
-                                <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
-                                تتبّع شريط التغطية أدناه لمعرفة حالة التوزيڡ وفي حال وجود نقص سيظهر لك تنبيه تلقائي.
-                              </li>
-                              <li className="flex items-start gap-1.5 text-xs text-slate-600 font-medium leading-relaxed">
-                                <span className="mt-1.5 w-1 h-1 rounded-full bg-[#655ac1] shrink-0"></span>
-                                إذا رغبت في العودة للتوزيع العادل التلقائي استخدم <span className="font-black text-[#655ac1]">زر إعادة التوزيع التلقائي بالأسفل</span>.
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ── لوحة الاحتياج والتوزيع ── */}
-                      <div className="p-5 border-b border-slate-100 space-y-4">
-
-                        {/* إحصاءات: فصول × أيام = مطلوب + معلمون + نصيب */}
-                        <div className="grid grid-cols-6 gap-2">
-                          {[
-                            { value: periodEngine.numClasses,    label: 'فصل' },
-                            { value: periodEngine.numDays,       label: 'يوم دراسي' },
-                            { value: periodEngine.totalNeeded,   label: 'حصة مطلوبة' },
-                            { value: periodEngine.numQualified,  label: 'عدد المعلمين' },
-                            { value: periodEngine.teacherShare,  label: 'نصيب المعلم أولى' },
-                            { value: periodEngine.teacherShare,  label: 'نصيب المعلم أخيرة' },
-                          ].map(({ value, label }) => (
-                            <div key={label} className="flex flex-col items-center justify-center gap-1 py-3 bg-white border border-slate-200 rounded-xl shadow-sm shadow-slate-100">
-                              <span className="text-2xl font-black text-[#655ac1]">{value}</span>
-                              <span className="text-[10px] font-bold text-slate-400">{label}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* شريطا تغطية */}
-                        <div className="space-y-2.5">
-                          {/* الأولى */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5">
-                                <ArrowRightFromLine size={12} className="text-slate-400" />
-                                <span className="text-[10px] font-black text-slate-600">الحصص الأولى</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-slate-600">{periodEngine.totalFirst} / {periodEngine.totalNeeded}</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                                  periodEngine.firstDeficit > 0
-                                    ? 'bg-rose-50 text-rose-500'
-                                    : periodEngine.firstSurplus > 0
-                                    ? 'bg-violet-50 text-[#655ac1]'
-                                    : 'bg-emerald-50 text-emerald-600'
-                                }`}>
-                                  {periodEngine.firstDeficit > 0 ? `نقص ${periodEngine.firstDeficit}` : periodEngine.firstSurplus > 0 ? `+${periodEngine.firstSurplus}` : '✓ مكتمل'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${periodEngine.firstCoverage >= 100 ? 'bg-[#655ac1]' : periodEngine.firstCoverage >= 70 ? 'bg-amber-400' : 'bg-rose-400'}`}
-                                style={{ width: `${Math.min(100, periodEngine.firstCoverage)}%` }}
-                              />
-                            </div>
-                          </div>
-                          {/* الأخيرة */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5">
-                                <ArrowLeftFromLine size={12} className="text-slate-400" />
-                                <span className="text-[10px] font-black text-slate-600">الحصص الأخيرة</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-slate-600">{periodEngine.totalLast} / {periodEngine.totalNeeded}</span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                                  periodEngine.lastDeficit > 0
-                                    ? 'bg-rose-50 text-rose-500'
-                                    : periodEngine.lastSurplus > 0
-                                    ? 'bg-violet-50 text-[#655ac1]'
-                                    : 'bg-emerald-50 text-emerald-600'
-                                }`}>
-                                  {periodEngine.lastDeficit > 0 ? `نقص ${periodEngine.lastDeficit}` : periodEngine.lastSurplus > 0 ? `+${periodEngine.lastSurplus}` : '✓ مكتمل'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${periodEngine.lastCoverage >= 100 ? 'bg-[#655ac1]' : periodEngine.lastCoverage >= 70 ? 'bg-amber-400' : 'bg-rose-400'}`}
-                                style={{ width: `${Math.min(100, periodEngine.lastCoverage)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* زر إعادة التوزيع الافتراضي */}
-                        <button
-                          onClick={autoDistributeFirstLast}
-                          disabled={periodEngine.numClasses === 0 || periodEngine.numQualified === 0}
-                          className="w-full flex items-center justify-center gap-2 py-2 border border-[#655ac1]/40 bg-[#e5e1fe]/40 hover:bg-[#e5e1fe] hover:border-[#655ac1] active:scale-[0.98] text-[#655ac1] text-[11px] font-black rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <RotateCcw size={13} />
-                          إعادة التوزيع التلقائي
-                        </button>
-                      </div>
-
-                      {/* ── تنبيه استحالة التوزيع ── */}
-                      {!periodEngine.distributionFeasible && periodEngine.numClasses > 0 && (
-                        <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-100 space-y-1">
-                          <div className="flex items-start gap-2 text-amber-700 text-[10px] font-bold">
-                            <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                            <span>التوزيع العادل غير ممكن حالياً — تحتاج على الأقل <span className="font-black">{periodEngine.minTeachersNeeded} معلمًا</span> بنصاب رسمي لتغطية {periodEngine.numClasses} فصلاً. المعلمون الحاليون: {periodEngine.numQualified}.</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── تنبيه النقص ── */}
-                      {(periodEngine.firstDeficit > 0 || periodEngine.lastDeficit > 0) && (
-                        <div className="px-5 py-2.5 bg-rose-50 border-b border-rose-100 space-y-1">
-                          {periodEngine.firstDeficit > 0 && (
-                            <div className="flex items-start gap-2 text-rose-600 text-[10px] font-bold">
-                              <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                              <span>التوزيع الحالي للحصص الأولى غير كافٍ لتغطية كافة الفصول (نقص {periodEngine.firstDeficit} حصة).</span>
-                            </div>
-                          )}
-                          {periodEngine.lastDeficit > 0 && (
-                            <div className="flex items-start gap-2 text-rose-600 text-[10px] font-bold">
-                              <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                              <span>التوزيع الحالي للحصص الأخيرة غير كافٍ لتغطية كافة الفصول (نقص {periodEngine.lastDeficit} حصة).</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* ── إعدادات المعلم ── */}
-                      <div className="p-5 space-y-4">
-                        {(() => {
-                          const isExcluded = (selTeacher.quotaLimit || 0) === 0;
-                          return (
-                            <>
-                              {/* مستبعد تلقائياً */}
-                              {isExcluded && (
-                                <div className="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                                  <Ban size={15} className="text-slate-400 shrink-0" />
-                                  <div>
-                                    <div className="text-xs font-black text-slate-600">مستبعد تلقائياً</div>
-                                    <div className="text-[10px] text-slate-400 mt-0.5">نصاب هذا المعلم (0) — تم استبعاده من توزيع الحصص الطرفية.</div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* عنوان قسم التخصيص */}
-                              <div className="flex items-center gap-2 pt-1">
-                                <div className="w-1 h-5 rounded-full bg-[#655ac1]" />
-                                <h4 className="text-sm font-black text-slate-700">تخصيص الحصص الأولى والأخيرة</h4>
-                              </div>
-
-                              {/* حقلا التخصيص */}
-                              <div className="grid md:grid-cols-2 gap-4">
-
-                                {/* الحصص الأولى */}
-                                {(() => {
-                                  const curFirst = isExcluded ? 0 : (sc?.maxFirstPeriods ?? 0);
-                                  const maxOpts = days.length; // الحد الأقصى = أيام الأسبوع
-                                  const diffFirst = curFirst - periodEngine.teacherShare;
-                                  return (
-                                    <div className={`p-4 border rounded-2xl transition-all ${
-                                      isExcluded ? 'opacity-50 pointer-events-none bg-slate-50 border-slate-200'
-                                      : curFirst === 0 ? 'bg-slate-50/40 border-dashed border-slate-300'
-                                      : 'bg-slate-50/40 border-slate-200 hover:bg-white hover:shadow-sm hover:border-violet-200'
-                                    }`}>
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                          <ArrowRightFromLine size={14} className={curFirst === 0 && !isExcluded ? 'text-slate-300' : 'text-[#655ac1]'} />
-                                          <label className="text-sm font-black text-slate-700">الحصص الأولى</label>
-                                          {curFirst === 0 && !isExcluded && (
-                                            <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">معفي</span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                          {!isExcluded && periodEngine.teacherShare > 0 && (
-                                            <span className="px-2 py-0.5 bg-[#e5e1fe] text-[#655ac1] text-[9px] font-black rounded-full">
-                                              مقترح: {periodEngine.teacherShare}
-                                            </span>
-                                          )}
-                                          <span className="text-[9px] text-slate-400 font-bold">أسبوعياً</span>
-                                        </div>
-                                      </div>
-                                      <div className="relative">
-                                        <select
-                                          value={curFirst}
-                                          disabled={isExcluded}
-                                          onChange={e => {
-                                            const val = Number(e.target.value);
-                                            updCFirstLast(selTeacher.id, 'first', val === 0 ? undefined : val);
-                                          }}
-                                          className={`w-full p-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] outline-none transition-all appearance-none disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                                            curFirst === 0 && !isExcluded ? 'border-slate-200 text-slate-400 italic' : 'border-slate-200'
-                                          }`}>
-                                          <option value={0}>{isExcluded ? 'مستبعد' : '-- غير مفعل (معفي) --'}</option>
-                                          {!isExcluded && Array.from({ length: maxOpts }, (_, i) => i + 1).map(n => (
-                                            <option key={n} value={n}>
-                                              {n} {n === 1 ? 'حصة' : 'حصص'}{n === periodEngine.teacherShare ? ' ← مقترح' : ''}
-                                            </option>
-                                          ))}
-                                        </select>
-                                        <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                      </div>
-                                      {!isExcluded && curFirst === 0 && (
-                                        <p className="text-[10px] mt-2 font-bold text-slate-400">ℹ️ سيتم توزيع نصيبه من الحصص الأولى على بقية المعلمين تلقائياً.</p>
-                                      )}
-                                      {!isExcluded && curFirst > 0 && periodEngine.teacherShare > 0 && (
-                                        <p className={`text-[10px] mt-2 font-bold flex items-center gap-1 ${diffFirst === 0 ? 'text-emerald-500' : diffFirst > 0 ? 'text-amber-500' : 'text-rose-500'}`}>
-                                          {diffFirst === 0 ? '✓ يساوي النصيب العادل' : diffFirst > 0 ? `▲ أعلى من المقترح بـ ${diffFirst} حصة` : `▼ أقل من المقترح بـ ${Math.abs(diffFirst)} حصة`}
-                                        </p>
-                                      )}
-                                      {isExcluded && (
-                                        <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">مستبعد لعدم وجود نصاب تدريسي.</p>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-
-                                {/* الحصص الأخيرة */}
-                                {(() => {
-                                  const curLast = isExcluded ? 0 : (sc?.maxLastPeriods ?? 0);
-                                  const maxOpts = days.length; // الحد الأقصى = أيام الأسبوع
-                                  const diffLast = curLast - periodEngine.teacherShare;
-                                  return (
-                                    <div className={`p-4 border rounded-2xl transition-all ${
-                                      isExcluded ? 'opacity-50 pointer-events-none bg-slate-50 border-slate-200'
-                                      : curLast === 0 ? 'bg-slate-50/40 border-dashed border-slate-300'
-                                      : 'bg-slate-50/40 border-slate-200 hover:bg-white hover:shadow-sm hover:border-violet-200'
-                                    }`}>
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                          <ArrowLeftFromLine size={14} className={curLast === 0 && !isExcluded ? 'text-slate-300' : 'text-[#655ac1]'} />
-                                          <label className="text-sm font-black text-slate-700">الحصص الأخيرة</label>
-                                          {curLast === 0 && !isExcluded && (
-                                            <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">معفي</span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                          {!isExcluded && periodEngine.teacherShare > 0 && (
-                                            <span className="px-2 py-0.5 bg-[#e5e1fe] text-[#655ac1] text-[9px] font-black rounded-full">
-                                              مقترح: {periodEngine.teacherShare}
-                                            </span>
-                                          )}
-                                          <span className="text-[9px] text-slate-400 font-bold">أسبوعياً</span>
-                                        </div>
-                                      </div>
-                                      <div className="relative">
-                                        <select
-                                          value={curLast}
-                                          disabled={isExcluded}
-                                          onChange={e => {
-                                            const val = Number(e.target.value);
-                                            updCFirstLast(selTeacher.id, 'last', val === 0 ? undefined : val);
-                                          }}
-                                          className={`w-full p-3 bg-white border rounded-xl text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] outline-none transition-all appearance-none disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${
-                                            curLast === 0 && !isExcluded ? 'border-slate-200 text-slate-400 italic' : 'border-slate-200'
-                                          }`}>
-                                          <option value={0}>{isExcluded ? 'مستبعد' : '-- غير مفعل (معفي) --'}</option>
-                                          {!isExcluded && Array.from({ length: maxOpts }, (_, i) => i + 1).map(n => (
-                                            <option key={n} value={n}>
-                                              {n} {n === 1 ? 'حصة' : 'حصص'}{n === periodEngine.teacherShare ? ' ← مقترح' : ''}
-                                            </option>
-                                          ))}
-                                        </select>
-                                        <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                      </div>
-                                      {!isExcluded && curLast === 0 && (
-                                        <p className="text-[10px] mt-2 font-bold text-slate-400">ℹ️ سيتم توزيع نصيبه من الحصص الأخيرة على بقية المعلمين تلقائياً.</p>
-                                      )}
-                                      {!isExcluded && curLast > 0 && periodEngine.teacherShare > 0 && (
-                                        <p className={`text-[10px] mt-2 font-bold flex items-center gap-1 ${diffLast === 0 ? 'text-emerald-500' : diffLast > 0 ? 'text-amber-500' : 'text-rose-500'}`}>
-                                          {diffLast === 0 ? '✓ يساوي النصيب العادل' : diffLast > 0 ? `▲ أعلى من المقترح بـ ${diffLast} حصة` : `▼ أقل من المقترح بـ ${Math.abs(diffLast)} حصة`}
-                                        </p>
-                                      )}
-                                      {isExcluded && (
-                                        <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">مستبعد لعدم وجود نصاب تدريسي.</p>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* 5. Early Exit - Improved Design */}
                 <div className="space-y-2">
                   {renderSectionHeader('c5', 'bg-violet-50', 'border-violet-200', 'bg-violet-100', 'text-violet-600', Clock, 'الخروج المبكر', 'إنهاء الدوام مبكراً')}
@@ -1638,10 +1160,10 @@ export default function TeacherConstraintsModal({
                     <h4 className="text-sm font-black text-slate-700">خيارات النسخ</h4>
                   </div>
                   {(() => {
-                    const allOn = copyOpts.consecutive && copyOpts.excluded && copyOpts.firstLast && copyOpts.earlyEntry;
+                    const allOn = copyOpts.consecutive && copyOpts.excluded && copyOpts.earlyEntry;
                     return (
                       <button
-                        onClick={() => { const v = !allOn; setCopyOpts({ consecutive: v, excluded: v, firstLast: v, earlyEntry: v }); }}
+                        onClick={() => { const v = !allOn; setCopyOpts({ consecutive: v, excluded: v, earlyEntry: v }); }}
                         className={`text-[11px] font-black px-3 py-1.5 rounded-lg border transition-all ${allOn ? 'bg-rose-500 border-rose-500 text-white hover:bg-rose-500' : 'bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#655ac1]'}`}
                       >
                         {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
@@ -1653,7 +1175,6 @@ export default function TeacherConstraintsModal({
                   {[
                     { k: 'consecutive', l: 'تتابع الحصص' },
                     { k: 'excluded', l: 'الحصص المستثناة' },
-                    { k: 'firstLast', l: 'أولى / أخيرة' },
                     { k: 'earlyEntry', l: 'خروج مبكر' },
                   ].map(opt => {
                     const on = copyOpts[opt.k as keyof typeof copyOpts];
@@ -1784,7 +1305,6 @@ export default function TeacherConstraintsModal({
                           const n = { ...existing };
                           if (copyOpts.consecutive) n.maxConsecutive = src.maxConsecutive;
                           if (copyOpts.excluded) n.excludedSlots = src.excludedSlots;
-                          if (copyOpts.firstLast) { n.maxFirstPeriods = src.maxFirstPeriods; n.maxLastPeriods = src.maxLastPeriods; }
                           if (copyOpts.earlyEntry) { n.earlyExit = src.earlyExit; n.earlyExitMode = src.earlyExitMode; }
                           if (idx >= 0) nc[idx] = n; else nc.push(n);
                         });
@@ -1828,3 +1348,5 @@ export default function TeacherConstraintsModal({
     </div>
   );
 }
+
+
