@@ -2562,20 +2562,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     : 'bg-[#655ac1]/10 text-[#655ac1] border border-[#655ac1]/30';
                 const ex = item.existing;
                 const rowSpec = item.row.specialization || 'أخرى';
-                const exSpec = ex.specializationId || 'أخرى';
-                const specDiff = rowSpec !== exSpec;
                 const rowPhone = item.row.mobile || '';
-                const exPhone = ex.phone || '';
-                const phoneDiff = (rowPhone || exPhone) && rowPhone !== exPhone;
                 const rowQ = item.row.weeklyQuota ?? 0;
-                const exQ = ex.quotaLimit ?? 0;
-                const quotaDiff = rowQ !== exQ;
                 const rowW = item.row.waitingQuota ?? 0;
-                const exW = ex.waitingQuota ?? 0;
-                const waitDiff = rowW !== exW;
                 const rowId = item.row.idNumber || '';
-                const exId = ex.idNumber || '';
-                const idDiff = (rowId || exId) && rowId !== exId;
                 return (
                   <div key={idx} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
                     {/* Top: badge + name input */}
@@ -2596,44 +2586,34 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                       </div>
                     </div>
 
-                    {/* Inline comparison chips */}
+                    {/* Inline data chips — single value per chip, no colored background */}
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${specDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-white">
                         <span className="text-slate-500">التخصص:</span>
                         <span className="text-[#655ac1]">{getSpecializationName(rowSpec)}</span>
-                        {specDiff && <span className="text-slate-300">←</span>}
-                        {specDiff && <span className="text-slate-500">{getSpecializationName(exSpec)}</span>}
                       </span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${quotaDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-white">
                         <span className="text-slate-500">الحصص:</span>
                         <span className="text-[#655ac1]">{rowQ}</span>
-                        {quotaDiff && <span className="text-slate-300">←</span>}
-                        {quotaDiff && <span className="text-slate-500">{exQ}</span>}
                       </span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${waitDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-white">
                         <span className="text-slate-500">الانتظار:</span>
                         <span className="text-[#655ac1]">{rowW}</span>
-                        {waitDiff && <span className="text-slate-300">←</span>}
-                        {waitDiff && <span className="text-slate-500">{exW}</span>}
                       </span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${phoneDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-white">
                         <span className="text-slate-500">الجوال:</span>
                         <span className="text-[#655ac1]" dir="ltr">{rowPhone || '—'}</span>
-                        {phoneDiff && <span className="text-slate-300">←</span>}
-                        {phoneDiff && <span className="text-slate-500" dir="ltr">{exPhone || '—'}</span>}
                       </span>
-                      {(rowId || exId) && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${idDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                      {rowId && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 bg-white">
                           <span className="text-slate-500">الهوية:</span>
-                          <span className="text-[#655ac1]" dir="ltr">{rowId || '—'}</span>
-                          {idDiff && <span className="text-slate-300">←</span>}
-                          {idDiff && <span className="text-slate-500" dir="ltr">{exId || '—'}</span>}
+                          <span className="text-[#655ac1]" dir="ltr">{rowId}</span>
                         </span>
                       )}
                     </div>
 
-                    {/* Choices */}
-                    <div className="flex gap-2">
+                    {/* Choices — separated with a clear visual gap */}
+                    <div className="flex gap-2 pt-3 mt-1 border-t border-slate-100">
                       <button
                         onClick={() => updateItem(idx, { choice: 'link' })}
                         className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
@@ -2673,15 +2653,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             </div>
 
             {/* Footer */}
-            <div className="p-5 border-t border-slate-100 bg-white flex items-center gap-3 shrink-0">
-              <div className="flex-1 flex items-center gap-2 text-xs font-bold text-slate-500 flex-wrap">
-                <span>ربط</span>
-                <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">{counts.link}</span>
-                <span>إضافة</span>
-                <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">{counts.add_new}</span>
-                <span>تخطٍّ</span>
-                <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">{counts.skip}</span>
-              </div>
+            <div className="p-5 border-t border-slate-100 bg-white flex items-center justify-end gap-3 shrink-0">
               <button
                 onClick={closeReview}
                 className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm"
