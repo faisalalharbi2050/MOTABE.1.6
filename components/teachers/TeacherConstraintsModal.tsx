@@ -951,7 +951,7 @@ export default function TeacherConstraintsModal({
                       </button>
                       {open.c5 && (
                         <div className="px-5 pb-5 pt-1 space-y-5 border-t border-slate-100">
-                          <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="pt-3 flex flex-wrap gap-2">
                             {[
                               { mode: 'auto' as const, title: 'توزيع آلي' },
                               { mode: 'manual' as const, title: 'تحديد يدوي' },
@@ -966,14 +966,13 @@ export default function TeacherConstraintsModal({
                                     const nextDay = item.mode === 'auto' ? (days[0] || '') : (selectedDay || days[0] || '');
                                     updC(selTeacher.id, { earlyExitMode: item.mode, earlyExit: currentPeriod ? { [nextDay]: currentPeriod } : {} });
                                   }}
-                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${
-                                    active ? 'border-[#5448a8] text-[#5448a8] bg-white shadow-sm' : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50 hover:border-[#655ac1]/40'
+                                  className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all ${
+                                    active
+                                      ? 'bg-[#5448a8] border-[#5448a8] text-white shadow-md shadow-[#5448a8]/15'
+                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
                                   }`}
                                 >
-                                  <span>{item.title}</span>
-                                  <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-all ${active ? 'bg-[#5448a8] border-[#5448a8] text-white' : 'border-slate-300 text-transparent'}`}>
-                                    <Check size={12} strokeWidth={3.5} />
-                                  </span>
+                                  {item.title}
                                 </button>
                               );
                             })}
@@ -983,39 +982,45 @@ export default function TeacherConstraintsModal({
                             {mode === 'manual' && (
                               <div>
                                 <label className="text-xs font-black text-slate-600 block mb-2">اليوم المطلوب</label>
-                                <select
-                                  value={selectedDay}
-                                  onChange={e => {
-                                    const day = e.target.value;
-                                    if (!day) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                    updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: { [day]: selectedPeriod || Math.max(1, safePeriodsCount - 1) } });
-                                  }}
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
-                                >
-                                  <option value="">اختر اليوم</option>
-                                  {days.map(day => <option key={day} value={day}>{getDayLabel(day)}</option>)}
-                                </select>
+                                <div className="relative">
+                                  <select
+                                    value={selectedDay}
+                                    onChange={e => {
+                                      const day = e.target.value;
+                                      if (!day) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                      updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: { [day]: selectedPeriod || Math.max(1, safePeriodsCount - 1) } });
+                                    }}
+                                    className="w-full px-5 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 outline-none focus:ring-2 focus:ring-[#8779fb]/20 focus:border-[#655ac1]/40 transition-all appearance-none"
+                                  >
+                                    <option value="">اختر اليوم</option>
+                                    {days.map(day => <option key={day} value={day}>{getDayLabel(day)}</option>)}
+                                  </select>
+                                  <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#655ac1] pointer-events-none" />
+                                </div>
                               </div>
                             )}
 
                             <div className={mode === 'manual' ? '' : 'md:col-span-2'}>
                               <label className="text-xs font-black text-slate-600 block mb-2">الخروج بعد الحصة</label>
-                              <select
-                                value={selectedPeriod || ''}
-                                onChange={e => {
-                                  const period = Number(e.target.value);
-                                  if (!period) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                  const targetDay = selectedDay || days[0] || '';
-                                  updC(selTeacher.id, { earlyExitMode: mode, earlyExit: { [targetDay]: period } });
-                                }}
-                                disabled={mode === 'manual' && !selectedDay}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all disabled:bg-slate-50 disabled:text-slate-400"
-                              >
-                                <option value="">اختر رقم الحصة</option>
-                                {periods.slice(0, -1).map(period => (
-                                  <option key={period} value={period}>الحصة {period}</option>
-                                ))}
-                              </select>
+                              <div className="relative">
+                                <select
+                                  value={selectedPeriod || ''}
+                                  onChange={e => {
+                                    const period = Number(e.target.value);
+                                    if (!period) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                    const targetDay = selectedDay || days[0] || '';
+                                    updC(selTeacher.id, { earlyExitMode: mode, earlyExit: { [targetDay]: period } });
+                                  }}
+                                  disabled={mode === 'manual' && !selectedDay}
+                                  className="w-full px-5 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 outline-none focus:ring-2 focus:ring-[#8779fb]/20 focus:border-[#655ac1]/40 transition-all appearance-none disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:border-slate-200"
+                                >
+                                  <option value="">اختر رقم الحصة</option>
+                                  {periods.slice(0, -1).map(period => (
+                                    <option key={period} value={period}>الحصة {period}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#655ac1] pointer-events-none" />
+                              </div>
                             </div>
                           </div>
 
