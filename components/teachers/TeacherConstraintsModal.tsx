@@ -51,13 +51,22 @@ const ConstraintSelectDropdown: React.FC<{
       {open && !disabled && (
         <div className="absolute z-50 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
           <div className="max-h-56 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {value && (
+              <button
+                type="button"
+                onClick={() => { onChange(''); setOpen(false); }}
+                className="w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors text-slate-500 hover:bg-slate-50"
+              >
+                بدون اختيار
+              </button>
+            )}
             {options.map(opt => {
               const active = opt.id === value;
               return (
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => { onChange(opt.id); setOpen(false); }}
+                  onClick={() => { onChange(active ? '' : opt.id); setOpen(false); }}
                   className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
                 >
                   <span className="whitespace-nowrap">{opt.name}</span>
@@ -176,6 +185,7 @@ export default function TeacherConstraintsModal({
   const [consecApplyDone, setConsecApplyDone] = useState<{ count: number; value: number } | null>(null);
   const [excludedApplyDone, setExcludedApplyDone] = useState<{ count: number } | null>(null);
   const [earlyApplyDone, setEarlyApplyDone] = useState<{ applied: number; adjusted: number; skipped: number } | null>(null);
+  const [earlyDraftDay, setEarlyDraftDay] = useState<Record<string, string>>({});
 
   // Sync open sections when initialOpenSection prop changes (e.g. when modal is reopened with a different target)
   useEffect(() => {
@@ -974,21 +984,22 @@ export default function TeacherConstraintsModal({
 
                 {/* 5. Early Exit — unified card */}
                 {(() => {
-                  const mode = (sc?.earlyExitMode || 'manual') as 'manual' | 'auto';
-                  const selectedDay = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : '';
+                  const mode = sc?.earlyExitMode as 'manual' | 'auto' | undefined;
+                  const selectedDay = (sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : '') || earlyDraftDay[selTeacher.id] || '';
                   const selectedPeriod = sc?.earlyExit ? Object.values(sc.earlyExit)[0] || 0 : 0;
-                  const earlyResult = evaluateEarlyExit(selTeacher, mode, selectedDay, selectedPeriod);
+                  const evalMode = mode || 'manual';
+                  const earlyResult = evaluateEarlyExit(selTeacher, evalMode, selectedDay, selectedPeriod);
                   const summaryTeachers = applyMode === 'early' && applySelection.length > 0
                     ? teachers.filter(t => applySelection.includes(t.id))
                     : [selTeacher];
                   const earlySummary = summaryTeachers.reduce((acc, teacher) => {
-                    const result = evaluateEarlyExit(teacher, mode, selectedDay, selectedPeriod);
+                    const result = evaluateEarlyExit(teacher, evalMode, selectedDay, selectedPeriod);
                     if (result.status === 'ok') acc.ok++;
                     else if (result.status === 'adjust') acc.adjust++;
                     else if (result.status === 'impossible') acc.impossible++;
                     return acc;
                   }, { ok: 0, adjust: 0, impossible: 0 });
-                  const hasSelection = selectedPeriod > 0 && (mode === 'auto' || !!selectedDay);
+                  const hasSelection = !!mode && selectedPeriod > 0 && (mode === 'auto' || !!selectedDay);
                   const isEarlyApplyMode = applyMode === 'early';
 
                   return (
@@ -1021,9 +1032,12 @@ export default function TeacherConstraintsModal({
                                   key={item.mode}
                                   type="button"
                                   onClick={() => {
-                                    const currentPeriod = selectedPeriod || Math.max(1, safePeriodsCount - 1);
-                                    const nextDay = item.mode === 'auto' ? (days[0] || '') : (selectedDay || days[0] || '');
-                                    updC(selTeacher.id, { earlyExitMode: item.mode, earlyExit: currentPeriod ? { [nextDay]: currentPeriod } : {} });
+                                    if (active) {
+                                      setEarlyDraftDay(prev => ({ ...prev, [selTeacher.id]: '' }));
+                                      updC(selTeacher.id, { earlyExitMode: undefined, earlyExit: {} });
+                                      return;
+                                    }
+                                    updC(selTeacher.id, { earlyExitMode: item.mode, earlyExit: {} });
                                   }}
                                   className={`inline-flex items-center justify-center px-4 py-2 rounded-xl border font-bold text-xs transition-all ${
                                     active
@@ -1046,13 +1060,15 @@ export default function TeacherConstraintsModal({
                                   placeholder="اختر اليوم"
                                   options={days.map(day => ({ id: day, name: getDayLabel(day) }))}
                                   onChange={day => {
+                                    setEarlyDraftDay(prev => ({ ...prev, [selTeacher.id]: day }));
                                     if (!day) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                    updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: { [day]: selectedPeriod || Math.max(1, safePeriodsCount - 1) } });
+                                    updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: selectedPeriod ? { [day]: selectedPeriod } : {} });
                                   }}
                                 />
                               </div>
                             )}
 
+                            {mode ? (
                             <div className={mode === 'manual' ? '' : 'md:col-span-2'}>
                               <label className="text-xs font-black text-slate-600 block mb-2">الخروج بعد الحصة</label>
                               <ConstraintSelectDropdown
@@ -1068,6 +1084,11 @@ export default function TeacherConstraintsModal({
                                 }}
                               />
                             </div>
+                            ) : (
+                              <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                                اختر طريقة الخروج المبكر عند الحاجة، أو اتركها بدون اختيار.
+                              </div>
+                            )}
                           </div>
 
                           {hasSelection && (
