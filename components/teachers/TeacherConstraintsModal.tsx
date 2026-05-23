@@ -630,9 +630,10 @@ export default function TeacherConstraintsModal({
                 {/* Info Card */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
                   <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
-                  <div className="flex gap-2 mt-2">
-                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">{specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">التخصص: {specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
                     <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">نصاب الحصص: {selTeacher.quotaLimit}</span>
+                    <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">نصاب الانتظار: {selTeacher.waitingQuota ?? 0}</span>
                   </div>
                 </div>
 

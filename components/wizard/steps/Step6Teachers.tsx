@@ -87,6 +87,241 @@ const TeacherSelectDropdown: React.FC<{
   );
 };
 
+// Shared row renderer: black name, gray-bg spec chip, gray-bordered quota chips with purple label + gray numbers
+const renderTeacherRow = (
+  t: Teacher,
+  getSpecializationName: (id: string) => string,
+  getSchoolQuota: (t: Teacher) => { lessons: number; waiting: number; total: number }
+) => {
+  const q = getSchoolQuota(t);
+  return (
+    <div className="flex-1 flex items-center gap-2 text-sm min-w-0 flex-wrap px-1">
+      <span className="text-slate-900 font-bold truncate">{t.name}</span>
+      <span className="text-[11px] font-bold text-slate-500 px-2 py-0.5 rounded-md bg-slate-100">{getSpecializationName(t.specializationId)}</span>
+      <span className="inline-block w-3" aria-hidden="true" />
+      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md border border-slate-200 text-[#655ac1]">
+        الحصص {q.lessons}
+      </span>
+      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md border border-slate-200 text-[#655ac1]">
+        الانتظار {q.waiting}
+      </span>
+    </div>
+  );
+};
+
+// Compute dropdown placement (flip up if not enough space below)
+const computeDropdownPos = (btn: HTMLElement, panelHeight = 320, minWidth = 360) => {
+  const r = btn.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - r.bottom;
+  const spaceAbove = r.top;
+  const placeAbove = spaceBelow < panelHeight + 16 && spaceAbove > spaceBelow;
+  const width = Math.max(r.width, minWidth);
+  const maxH = Math.max(180, (placeAbove ? spaceAbove : spaceBelow) - 16);
+  const top = placeAbove ? Math.max(8, r.top - Math.min(maxH, panelHeight) - 8) : r.bottom + 8;
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+  return { top, left, width, maxH, placeAbove };
+};
+
+const SourceTeacherDropdown: React.FC<{
+  teachers: Teacher[];
+  value: string;
+  onChange: (id: string) => void;
+  getSpecializationName: (id: string) => string;
+  getSchoolQuota: (t: Teacher) => { lessons: number; waiting: number; total: number };
+}> = ({ teachers, value, onChange, getSpecializationName, getSchoolQuota }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
+  const selected = teachers.find(t => t.id === value);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      const tgt = e.target as Node;
+      if (wrapRef.current && !wrapRef.current.contains(tgt)) {
+        const panel = document.querySelector('[data-source-teacher-panel]');
+        if (!panel || !panel.contains(tgt)) setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  useEffect(() => {
+    if (open && btnRef.current) {
+      setPos(computeDropdownPos(btnRef.current, 360, 380));
+    }
+  }, [open]);
+  const term = search.toLowerCase().trim();
+  const filtered = teachers.filter(t =>
+    !term ||
+    t.name.toLowerCase().includes(term) ||
+    getSpecializationName(t.specializationId).toLowerCase().includes(term)
+  );
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 text-sm ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
+      >
+        <span className="truncate text-right">
+          {selected ? `${selected.name} - ${getSpecializationName(selected.specializationId)}` : 'اختر المعلم...'}
+        </span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && pos && ReactDOM.createPortal(
+        <div
+          data-source-teacher-panel
+          dir="rtl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH, zIndex: 99999 }}
+          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 flex flex-col"
+        >
+          <div className="relative mb-2 shrink-0">
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="بحث..."
+              className="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#655ac1]/40"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1 min-h-0">
+            {filtered.length === 0 ? (
+              <div className="text-center py-6 text-xs font-bold text-slate-400">لا توجد نتائج</div>
+            ) : filtered.map(t => {
+              const active = t.id === value;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { onChange(active ? '' : t.id); setOpen(false); }}
+                  className="w-full flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  {renderTeacherRow(t, getSpecializationName, getSchoolQuota)}
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+const TargetTeachersDropdown: React.FC<{
+  teachers: Teacher[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  getSpecializationName: (id: string) => string;
+  getSchoolQuota: (t: Teacher) => { lessons: number; waiting: number; total: number };
+  search: string;
+  setSearch: (v: string) => void;
+}> = ({ teachers, selected, onChange, getSpecializationName, getSchoolQuota, search, setSearch }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      const tgt = e.target as Node;
+      if (wrapRef.current && !wrapRef.current.contains(tgt)) {
+        const panel = document.querySelector('[data-target-teachers-panel]');
+        if (!panel || !panel.contains(tgt)) setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  useEffect(() => {
+    if (open && btnRef.current) {
+      setPos(computeDropdownPos(btnRef.current, 380, 380));
+    }
+  }, [open]);
+  const term = search.toLowerCase().trim();
+  const filtered = teachers.filter(t =>
+    !term ||
+    t.name.toLowerCase().includes(term) ||
+    getSpecializationName(t.specializationId).toLowerCase().includes(term)
+  );
+  const allSelected = filtered.length > 0 && filtered.every(t => selected.includes(t.id));
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+  };
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 text-sm ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
+      >
+        <span className="truncate text-right">
+          {selected.length === 0 ? 'اختر المعلمين...' : `تم تحديد (${selected.length})`}
+        </span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && pos && ReactDOM.createPortal(
+        <div
+          data-target-teachers-panel
+          dir="rtl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH, zIndex: 99999 }}
+          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 flex flex-col"
+        >
+          <div className="relative mb-2 shrink-0">
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="بحث..."
+              className="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#655ac1]/40"
+            />
+          </div>
+          <div className="flex justify-end mb-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (allSelected) onChange(selected.filter(id => !filtered.some(t => t.id === id)));
+                else onChange(Array.from(new Set([...selected, ...filtered.map(t => t.id)])));
+              }}
+              className={`px-3 py-1 rounded-lg border text-[10px] font-black transition-colors ${allSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1]'}`}
+            >
+              {allSelected ? 'إلغاء الكل' : 'تحديد الكل'}
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1 min-h-0">
+            {filtered.length === 0 ? (
+              <div className="text-center py-6 text-xs font-bold text-slate-400">لا توجد نتائج</div>
+            ) : filtered.map(t => {
+              const active = selected.includes(t.id);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => toggle(t.id)}
+                  className="w-full flex items-center justify-between gap-2 p-1.5 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  {renderTeacherRow(t, getSpecializationName, getSchoolQuota)}
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
 const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, specializations = [], schoolInfo, scheduleSettings, setScheduleSettings, classes }) => {
   // State
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
@@ -1843,27 +2078,27 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       {/* Copy Quota Modal (Hidden in Print) */}
       {showCopyModal && (
            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
-                <div className="bg-white rounded-[2rem] w-full max-w-5xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+                <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[88vh]">
                      {/* Header */}
-                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                     <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <div>
-                             <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                                <Copy size={24} className="text-[#655ac1]" />
+                             <h3 className="font-black text-base text-slate-800 flex items-center gap-2">
+                                <Copy size={20} className="text-[#655ac1]" />
                                 تطبيق النصاب
                              </h3>
-                              <p className="text-xs text-slate-500 mt-1">انسخ من معلم أو حدّد نصابًا مباشرًا، ثم اختر نوع النصاب والهدف</p>
+                              <p className="text-xs text-slate-500 mt-1">انسخ نصاب الحصص أو الانتظار من معلم وطبقه على معلم أو مجموعة معلمين أو حدّد النصاب مباشرةً.</p>
                         </div>
-                        <button onClick={() => setShowCopyModal(false)} className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all">
-                            <X size={20} />
+                        <button onClick={() => setShowCopyModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all">
+                            <X size={18} />
                         </button>
                      </div>
 
                      {/* Content */}
-                     <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-5">
-                          <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                     <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+                          <div className="flex flex-wrap gap-2">
                             {[
                               { id: 'teacher' as const, label: 'نسخ من معلم' },
-                              { id: 'manual' as const, label: 'تحديد نصاب' },
+                              { id: 'manual' as const, label: 'تحديد النصاب' },
                             ].map(item => (
                               <button
                                 key={item.id}
@@ -1874,10 +2109,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                   setSelectedTargets([]);
                                   setCopyTargetSpecIds([]);
                                 }}
-                                className={`py-2.5 rounded-lg border text-sm font-black transition-all ${
+                                className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
                                   copyMode === item.id
-                                    ? 'bg-white text-slate-900 shadow-sm border-slate-200'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                                    ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
                                 }`}
                               >
                                 {item.label}
@@ -1887,69 +2122,78 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
                           {copyMode === 'teacher' ? (
                           <div>
-                            <label className="block text-xs font-black text-slate-600 mb-2">المعلم المصدر</label>
-                            <select
+                            <label className="block text-xs font-black text-slate-600 mb-2">اختر المعلم</label>
+                            <SourceTeacherDropdown
+                              teachers={currentSchoolTeachers}
                               value={sourceTeacher?.id || ''}
-                              onChange={e => {
-                                const teacher = currentSchoolTeachers.find(t => t.id === e.target.value) || null;
+                              getSpecializationName={getSpecializationName}
+                              getSchoolQuota={getSchoolQuota}
+                              onChange={(id) => {
+                                const teacher = currentSchoolTeachers.find(t => t.id === id) || null;
                                 const quota = teacher ? getSchoolQuota(teacher) : { lessons: 0, waiting: 0 };
                                 setSourceTeacher(teacher);
                                 setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
                               }}
-                              className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1]"
-                            >
-                              <option value="">اختر المعلم المصدر...</option>
-                              {currentSchoolTeachers.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} - {getSpecializationName(t.specializationId)}</option>
-                              ))}
-                            </select>
+                            />
                           </div>
                           ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-black text-slate-600 mb-2">نصاب الحصص</label>
-                              <input
-                                type="number"
-                                min={0}
-                                max={24}
-                                value={manualQuotaValues.basic}
-                                onChange={e => setManualQuotaValues(prev => ({ ...prev, basic: Math.max(0, Number(e.target.value)) }))}
-                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
-                              />
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-black text-slate-600 mb-2">نصاب الحصص</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={24}
+                                  value={manualQuotaValues.basic}
+                                  onChange={e => setManualQuotaValues(prev => ({ ...prev, basic: Math.max(0, Number(e.target.value)) }))}
+                                  className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-black text-slate-600 mb-2">نصاب الانتظار</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={24}
+                                  value={manualQuotaValues.waiting}
+                                  onChange={e => setManualQuotaValues(prev => ({ ...prev, waiting: Math.max(0, Number(e.target.value)) }))}
+                                  className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="block text-xs font-black text-slate-600 mb-2">نصاب الانتظار</label>
-                              <input
-                                type="number"
-                                min={0}
-                                max={24}
-                                value={manualQuotaValues.waiting}
-                                onChange={e => setManualQuotaValues(prev => ({ ...prev, waiting: Math.max(0, Number(e.target.value)) }))}
-                                className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
-                              />
-                            </div>
+                            {(manualQuotaValues.basic + manualQuotaValues.waiting) > 24 && (
+                              <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                                <div className="w-7 h-7 shrink-0 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center">
+                                  <AlertTriangle size={13} className="text-amber-600" />
+                                </div>
+                                <p className="text-xs font-bold text-amber-800 leading-snug">
+                                  مجموع نصاب الحصص ونصاب الانتظار <span className="font-black text-amber-900">({manualQuotaValues.basic + manualQuotaValues.waiting})</span> يتجاوز 24 حصة في الأسبوع.
+                                </p>
+                              </div>
+                            )}
                           </div>
                           )}
 
                           {(copyMode === 'manual' || sourceTeacher) && (
-                          <div className="bg-white p-4 rounded-xl border border-slate-200">
-                            <label className="block text-xs font-black text-slate-600 mb-3">ماذا تريد تطبيقه؟</label>
+                          <div className="bg-white p-3 rounded-xl border border-slate-200">
+                            <label className="block text-xs font-black text-slate-600 mb-2">اختر النصاب</label>
                             <div className="flex flex-wrap gap-2">
                               {[
-                                { key: 'basic', label: `نصاب الحصص (${copyMode === 'manual' ? manualQuotaValues.basic : getSchoolQuota(sourceTeacher!).lessons})` },
-                                { key: 'waiting', label: `نصاب الانتظار (${copyMode === 'manual' ? manualQuotaValues.waiting : getSchoolQuota(sourceTeacher!).waiting})` },
+                                { key: 'basic', label: 'نصاب الحصص', value: copyMode === 'manual' ? manualQuotaValues.basic : getSchoolQuota(sourceTeacher!).lessons },
+                                { key: 'waiting', label: 'نصاب الانتظار', value: copyMode === 'manual' ? manualQuotaValues.waiting : getSchoolQuota(sourceTeacher!).waiting },
                               ].map(item => {
                                 const active = copyOptions[item.key as 'basic' | 'waiting'];
                                 return (
                                   <button
                                     key={item.key}
                                     onClick={() => setCopyOptions(prev => ({ ...prev, [item.key]: !active }))}
-                                    className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-all flex items-center gap-2 bg-white ${active ? 'border-[#5448a8] text-[#5448a8]' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-white border-slate-200 hover:border-slate-300 ${active ? 'text-[#655ac1]' : 'text-slate-500'}`}
                                   >
-                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                    <span>{item.label} <span className={active ? 'text-[#655ac1]' : 'text-slate-400'}>({item.value})</span></span>
+                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                                       <Check size={12} strokeWidth={3.5} />
                                     </span>
-                                    {item.label}
                                   </button>
                                 );
                               })}
@@ -1959,8 +2203,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
                           {(copyMode === 'manual' || sourceTeacher) && (
                           <div className="flex flex-col gap-3">
-                               <label className="text-xs font-black text-slate-600">اختر الهدف</label>
-                               <div className="grid grid-cols-3 gap-2">
+                               <label className="text-xs font-black text-slate-600">حدد الهدف</label>
+                               <div className="flex flex-wrap gap-2">
                                  {[
                                    { id: 'teachers', label: 'معلمون' },
                                    { id: 'specs', label: 'تخصصات' },
@@ -1969,7 +2213,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                    <button
                                      key={item.id}
                                      onClick={() => setCopyTargetMode(item.id as 'teachers' | 'specs' | 'all')}
-                                     className={`py-2.5 rounded-xl border text-sm font-black transition-all bg-white ${copyTargetMode === item.id ? 'border-[#5448a8] text-[#5448a8] shadow-sm' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                                     className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${copyTargetMode === item.id ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20' : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'}`}
                                    >
                                      {item.label}
                                    </button>
@@ -1977,57 +2221,15 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                </div>
                                
                                {copyTargetMode === 'teachers' && (
-                               <>
-                                 <div className="flex justify-end gap-3">
-                                   <button onClick={() => setSelectedTargets(availableTargets.map(t => t.id))} className={`px-3 py-1.5 rounded-lg border bg-white text-[10px] font-bold transition-colors ${availableTargets.length > 0 && selectedTargets.length === availableTargets.length ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1]'}`}>تحديد الكل</button>
-                                   <button onClick={() => setSelectedTargets([])} className={`px-3 py-1.5 rounded-lg border bg-white text-[10px] font-bold transition-colors ${selectedTargets.length === 0 ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-500 hover:border-[#655ac1] hover:text-[#655ac1]'}`}>إلغاء التحديد</button>
-                                 </div>
-                                 <div className="relative">
-                                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                    <input 
-                                        value={copySearchTerm}
-                                        onChange={e => setCopySearchTerm(e.target.value)}
-                                        placeholder="بحث في القائمة..."
-                                        className="w-full pr-9 pl-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#655ac1]"
-                                    />
-                                 </div>
-
-                                 <div className="max-h-72 overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl p-2 space-y-1">
-                                    {availableTargets.length === 0 ? (
-                                        <div className="text-center py-8 text-slate-400 text-sm">لا يوجد معلمون آخرون</div>
-                                    ) : (
-                                        availableTargets.map(t => (
-                                            <div 
-                                                key={t.id}
-                                                onClick={() => {
-                                                    if(selectedTargets.includes(t.id)) setSelectedTargets(prev => prev.filter(id => id !== t.id));
-                                                    else setSelectedTargets(prev => [...prev, t.id]);
-                                                }}
-                                                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all border ${
-                                                    selectedTargets.includes(t.id) 
-                                                    ? 'bg-white border-[#655ac1] shadow-sm' 
-                                                    : 'bg-white border-transparent hover:bg-slate-50'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${ selectedTargets.includes(t.id) ? 'bg-[#655ac1] border-[#655ac1]' : 'bg-white border-slate-300' }`}>
-                                                        {selectedTargets.includes(t.id) && <Check size={14} className="text-white"/>}
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-sm font-bold text-slate-800">{t.name}</div>
-                                                        <div className="text-[10px] text-slate-500">{getSpecializationName(t.specializationId)}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-                                                     <span title="النصاب الحالي">{getSchoolQuota(t).lessons}</span>
-                                                     <span className="text-slate-300">|</span>
-                                                     <span title="نصاب الانتظار الحالي" className="text-[#655ac1]">{getSchoolQuota(t).waiting}</span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                 </div>
-                               </>
+                                 <TargetTeachersDropdown
+                                   teachers={availableTargets}
+                                   selected={selectedTargets}
+                                   onChange={setSelectedTargets}
+                                   getSpecializationName={getSpecializationName}
+                                   getSchoolQuota={getSchoolQuota}
+                                   search={copySearchTerm}
+                                   setSearch={setCopySearchTerm}
+                                 />
                                )}
 
                                {copyTargetMode === 'specs' && (
@@ -2038,7 +2240,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                        <button
                                          key={id}
                                          onClick={() => setCopyTargetSpecIds(prev => selected ? prev.filter(x => x !== id) : [...prev, id])}
-                                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-bold transition-all bg-white ${selected ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-bold transition-all bg-white border-slate-200 hover:border-slate-300 ${selected ? 'text-[#655ac1]' : 'text-slate-600'}`}
                                        >
                                          <span>{getSpecializationName(id)}</span>
                                          <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
@@ -2051,8 +2253,18 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                )}
 
                                {copyTargetMode === 'all' && (
-                                 <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600">
-                                    سيتم تطبيق النصاب على جميع المعلمين{copyMode === 'teacher' ? ' عدا المعلم المصدر' : ''}.
+                                 <div className="space-y-2">
+                                   <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                                     <div className="w-7 h-7 shrink-0 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center">
+                                       <AlertTriangle size={13} className="text-amber-600" />
+                                     </div>
+                                     <p className="text-xs font-bold text-amber-800 leading-snug">
+                                       سيتم تطبيق نصاب المعلم المحدد على جميع المعلمين
+                                     </p>
+                                   </div>
+                                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-600">
+                                     تم تحديد (<span className="text-[#655ac1]">{copyTargetCount}</span>) معلم
+                                   </div>
                                  </div>
                                )}
                           </div>
