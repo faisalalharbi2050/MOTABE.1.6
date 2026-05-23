@@ -322,6 +322,22 @@ const TargetTeachersDropdown: React.FC<{
   );
 };
 
+// Normalize Arabic names so common variants compare as equal
+const normalizeArabicName = (raw: string): string => {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .replace(/[ً-ٰٟ]/g, '')   // remove tashkeel/diacritics
+    .replace(/ـ/g, '')                         // remove tatweel
+    .replace(/[إأآا]/g, 'ا')                  // unify alef variants
+    .replace(/ة/g, 'ه')                       // ta marbuta -> ha
+    .replace(/ى/g, 'ي')                       // alef maqsura -> ya
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+};
+
 const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, specializations = [], schoolInfo, scheduleSettings, setScheduleSettings, classes }) => {
   // State
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
@@ -427,6 +443,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
     choice: 'link' | 'add_new' | 'skip';
   }[]>([]);
   const [importDirectTeachers, setImportDirectTeachers] = useState<Teacher[]>([]);
+  const [importReviewSearch, setImportReviewSearch] = useState('');
 
   // Link School Modal State
   const [showLinkSchoolModal, setShowLinkSchoolModal]   = useState(false);
@@ -648,9 +665,12 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
           directTeachers.push(buildT(row));
           continue;
         }
-        const exactMatch   = teachers.find(t => t.name.trim() === row.name.trim());
+        const rowNorm = normalizeArabicName(row.name);
+        const exactMatch   = teachers.find(t => normalizeArabicName(t.name) === rowNorm);
         const partialMatch = !exactMatch && teachers.find(t => {
-          const ex = t.name.trim().split(' '), inc = row.name.trim().split(' ');
+          const ex = normalizeArabicName(t.name).split(' ').filter(Boolean);
+          const inc = rowNorm.split(' ').filter(Boolean);
+          if (ex.length === 0 || inc.length === 0) return false;
           return ex[0] === inc[0] && ex[ex.length - 1] === inc[inc.length - 1];
         });
         const matched = exactMatch || partialMatch;
@@ -2425,134 +2445,265 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
          </div>
        </div>
      )}
-      {/* Import Review Modal */}
-      {showImportReviewModal && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
-          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+      {/* Import Review Modal — redesigned */}
+      {showImportReviewModal && (() => {
+        const activeSchoolName = activeSchoolId === 'main'
+          ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
+          : schoolInfo.sharedSchools?.find(s => s.id === activeSchoolId)?.name || activeSchoolId;
+        const counts = importReviewItems.reduce(
+          (acc, it) => { acc[it.choice] = (acc[it.choice] || 0) + 1; return acc; },
+          { link: 0, add_new: 0, skip: 0 } as Record<'link'|'add_new'|'skip', number>
+        );
+        const term = importReviewSearch.trim().toLowerCase();
+        const filteredItems = !term ? importReviewItems : importReviewItems.filter(it =>
+          it.row.name.toLowerCase().includes(term) ||
+          it.existing.name.toLowerCase().includes(term)
+        );
+        const updateItem = (idx: number, patch: Partial<typeof importReviewItems[number]>) =>
+          setImportReviewItems(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+        const closeReview = () => {
+          setShowImportReviewModal(false);
+          setShowSelectAllConfirm(false);
+          setImportReviewSearch('');
+        };
+        return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[88vh]">
 
-      {/* Header */}
-           <div className="p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
-             <div className="flex justify-between items-start">
-               <div>
-                 <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                   <AlertCircle size={22} className="text-amber-500" />
-                    وجدنا معلمين مشابهين - راجع قبل الإضافة
-                 </h3>
-                 <p className="text-xs text-slate-400 font-bold mt-0.5">
-                    وجدنا {importReviewItems.length} معلماً في الملف يشبه معلماً موجوداً - ماذا تريد أن تفعل بكل واحد؟
-                 </p>
-               </div>
-               <button onClick={() => { setShowImportReviewModal(false); setShowSelectAllConfirm(false); }} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all shrink-0">
-                 <X size={20} />
-               </button>
-             </div>
-             {!showSelectAllConfirm ? (
-               <button
-                 onClick={() => setShowSelectAllConfirm(true)}
-                 className="mt-3 w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-black text-slate-600 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
-               >
-                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  اعتبرهم جميعاً أشخاصاً مختلفين
-               </button>
-             ) : (
-               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-black text-amber-800 text-center">سيتم اعتبار الجميع أشخاصاً مختلفين وإضافتهم كمعلمين جدد - هل أنت متأكد؟</p>
-                 <div className="flex gap-2">
-                   <button
-                     onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); setShowSelectAllConfirm(false); }}
-                     className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-black transition-all"
-                   >
+            {/* Header — matches apply-quota modal style */}
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+              <div>
+                <h3 className="font-black text-base text-slate-800 flex items-center gap-2">
+                  <AlertCircle size={20} className="text-[#655ac1]" />
+                  مراجعة المعلمين قبل الإضافة
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {importReviewItems.length} معلم/ة مطابق(ة) لمعلمين موجودين — حدّد الإجراء المناسب لكل واحد.
+                </p>
+              </div>
+              <button onClick={closeReview} className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Summary + search + bulk actions */}
+            <div className="px-5 py-3 border-b border-slate-100 space-y-3 shrink-0">
+              {activeSchoolId !== 'main' && (
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-600 px-3 py-2 rounded-xl border border-slate-200 bg-white">
+                  <Link2 size={14} className="text-[#655ac1]" />
+                  <span>سيتم الربط/الإضافة في مدرسة <span className="text-[#655ac1] font-black">{activeSchoolName}</span></span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-black px-2.5 py-1 rounded-md border border-slate-200 text-[#655ac1]">
+                  سيُربط <span className="text-slate-700">{counts.link}</span>
+                </span>
+                <span className="text-[11px] font-black px-2.5 py-1 rounded-md border border-slate-200 text-[#655ac1]">
+                  سيُضاف <span className="text-slate-700">{counts.add_new}</span>
+                </span>
+                <span className="text-[11px] font-black px-2.5 py-1 rounded-md border border-slate-200 text-[#655ac1]">
+                  سيُتخطى <span className="text-slate-700">{counts.skip}</span>
+                </span>
+                <div className="flex-1" />
+                {!showSelectAllConfirm ? (
+                  <button
+                    onClick={() => setShowSelectAllConfirm(true)}
+                    className="px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]"
+                  >
+                    اعتبرهم جميعاً أشخاصاً مختلفين
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-500">تأكيد؟</span>
+                    <button
+                      onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); setShowSelectAllConfirm(false); }}
+                      className="px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#5448a8]"
+                    >
                       نعم، تابع
-                   </button>
-                   <button
-                     onClick={() => setShowSelectAllConfirm(false)}
-                     className="flex-1 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-black transition-all"
-                   >
-                     إلغاء
-                   </button>
-                 </div>
-               </div>
-             )}
-           </div>
+                    </button>
+                    <button
+                      onClick={() => setShowSelectAllConfirm(false)}
+                      className="px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={importReviewSearch}
+                  onChange={e => setImportReviewSearch(e.target.value)}
+                  placeholder="بحث في القائمة..."
+                  className="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#655ac1]/40"
+                />
+              </div>
+            </div>
 
-           {/* List */}
-           <div className="overflow-y-auto flex-1 p-4 space-y-3">
-             {importReviewItems.map((item, idx) => {
-               const isId      = item.matchType === 'id';
-               const isPartial = item.matchType === 'partial_name';
-               return (
-                 <div key={idx} className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-3">
-                   {/* Badge + names */}
-                   <div className="flex items-start gap-3">
-                     <span className={`shrink-0 text-[10px] font-black px-2 py-1 rounded-full ${
-                       isId      ? 'bg-emerald-100 text-emerald-700' :
-                       isPartial ? 'bg-amber-100 text-amber-700' :
-                                   'bg-blue-100 text-blue-700'
-                     }`}>
-                       {isId ? 'نفس رقم الهوية' : isPartial ? 'الاسم مشابه - تحقق' : 'نفس الاسم تماماً'}
-                     </span>
-                     <div className="flex-1 min-w-0">
-                       <p className="text-sm font-black text-slate-800 truncate">{item.row.name}</p>
-                       <p className="text-xs text-slate-400 font-bold mt-0.5">
-                         المعلم في الملف يشبه: <span className="text-slate-600">{item.existing.name}</span> في {item.existingSchoolName}
-                       </p>
-                        {isPartial && <p className="text-[11px] text-amber-600 font-bold mt-1">تشابه في الاسم الأول والأخير فقط - تحقق بعناية</p>}
-                     </div>
-                   </div>
-                   {/* Choice buttons */}
-                   <div className="flex gap-2">
-                     <button
-                       onClick={() => setImportReviewItems(prev => prev.map((it, i) => i === idx ? { ...it, choice: 'link' } : it))}
-                       className={`flex-1 py-2 rounded-xl text-xs font-black border transition-all ${
-                         item.choice === 'link'
-                           ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
-                           : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/40'
-                       }`}
-                     >
-                       نعم، نفس المعلم
-                     </button>
-                     {isId ? (
-                       <button
-                         onClick={() => setImportReviewItems(prev => prev.map((it, i) => i === idx ? { ...it, choice: 'skip' } : it))}
-                         className={`flex-1 py-2 rounded-xl text-xs font-black border transition-all ${
-                           item.choice === 'skip'
-                             ? 'bg-slate-700 text-white border-slate-700'
-                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                         }`}
-                       >
-                         تخطي
-                       </button>
-                     ) : (
-                       <button
-                         onClick={() => setImportReviewItems(prev => prev.map((it, i) => i === idx ? { ...it, choice: 'add_new' } : it))}
-                         className={`flex-1 py-2 rounded-xl text-xs font-black border transition-all ${
-                           item.choice === 'add_new'
-                             ? 'bg-slate-700 text-white border-slate-700'
-                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                         }`}
-                       >
-                          لا، شخص مختلف
-                       </button>
-                     )}
-                   </div>
-                 </div>
-               );
-             })}
-           </div>
+            {/* List */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-3 custom-scrollbar">
+              {filteredItems.length === 0 ? (
+                <div className="text-center py-10 text-xs font-bold text-slate-400">لا توجد نتائج</div>
+              ) : filteredItems.map((item) => {
+                const idx = importReviewItems.indexOf(item);
+                const isId = item.matchType === 'id';
+                const isPartial = item.matchType === 'partial_name';
+                const badgeText = isId ? 'نفس رقم الهوية' : isPartial ? 'اسم مشابه' : 'نفس الاسم';
+                const badgeClass = isId
+                  ? 'bg-[#655ac1]/10 text-[#655ac1]'
+                  : isPartial
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                    : 'bg-slate-100 text-slate-600';
+                const ex = item.existing;
+                const rowSpec = item.row.specialization || 'أخرى';
+                const exSpec = ex.specializationId || 'أخرى';
+                const specDiff = rowSpec !== exSpec;
+                const rowPhone = item.row.mobile || '';
+                const exPhone = ex.phone || '';
+                const phoneDiff = (rowPhone || exPhone) && rowPhone !== exPhone;
+                const rowQ = item.row.weeklyQuota ?? 0;
+                const exQ = ex.quotaLimit ?? 0;
+                const quotaDiff = rowQ !== exQ;
+                const rowW = item.row.waitingQuota ?? 0;
+                const exW = ex.waitingQuota ?? 0;
+                const waitDiff = rowW !== exW;
+                const rowId = item.row.idNumber || '';
+                const exId = ex.idNumber || '';
+                const idDiff = (rowId || exId) && rowId !== exId;
+                return (
+                  <div key={idx} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
+                    {/* Top: badge + name input */}
+                    <div className="flex items-start gap-3">
+                      <span className={`shrink-0 text-[10px] font-black px-2.5 py-1 rounded-md ${badgeClass}`}>
+                        {badgeText}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          value={item.row.name}
+                          onChange={e => updateItem(idx, { row: { ...item.row, name: e.target.value } })}
+                          className="w-full text-sm font-black text-slate-800 bg-transparent border-0 outline-none focus:bg-slate-50 focus:px-2 focus:py-1 focus:rounded-lg transition-all"
+                          title="اسم المعلم/ة من ملف الإكسل (قابل للتعديل)"
+                        />
+                        <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate">
+                          مطابق لـ <span className="text-slate-800 font-black">{ex.name}</span> في {item.existingSchoolName}
+                        </p>
+                      </div>
+                    </div>
 
-           {/* Footer */}
-           <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex items-center gap-3 shrink-0">
-             <div className="flex-1" />
-             <button onClick={() => { setShowImportReviewModal(false); setShowSelectAllConfirm(false); }} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
-               إلغاء
-             </button>
-             <button onClick={confirmImportReview} className="px-6 py-2.5 bg-[#655ac1] text-white rounded-xl text-sm font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all">
+                    {/* Comparison row: spec / quota / waiting / phone / id */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] font-bold">
+                      <div className={`px-2.5 py-1.5 rounded-md border ${specDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <div className="text-slate-400 text-[10px] mb-0.5">التخصص</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#655ac1]">{getSpecializationName(rowSpec)}</span>
+                          {specDiff && <span className="text-slate-300">←</span>}
+                          {specDiff && <span className="text-slate-500">{getSpecializationName(exSpec)}</span>}
+                        </div>
+                      </div>
+                      <div className={`px-2.5 py-1.5 rounded-md border ${quotaDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <div className="text-slate-400 text-[10px] mb-0.5">نصاب الحصص</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#655ac1]">{rowQ}</span>
+                          {quotaDiff && <span className="text-slate-300">←</span>}
+                          {quotaDiff && <span className="text-slate-500">{exQ}</span>}
+                        </div>
+                      </div>
+                      <div className={`px-2.5 py-1.5 rounded-md border ${waitDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <div className="text-slate-400 text-[10px] mb-0.5">نصاب الانتظار</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#655ac1]">{rowW}</span>
+                          {waitDiff && <span className="text-slate-300">←</span>}
+                          {waitDiff && <span className="text-slate-500">{exW}</span>}
+                        </div>
+                      </div>
+                      <div className={`px-2.5 py-1.5 rounded-md border ${phoneDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <div className="text-slate-400 text-[10px] mb-0.5">الجوال</div>
+                        <div className="flex items-center gap-1.5" dir="ltr">
+                          <span className="text-[#655ac1]">{rowPhone || '—'}</span>
+                          {phoneDiff && <span className="text-slate-300">←</span>}
+                          {phoneDiff && <span className="text-slate-500">{exPhone || '—'}</span>}
+                        </div>
+                      </div>
+                      {(rowId || exId) && (
+                        <div className={`px-2.5 py-1.5 rounded-md border col-span-2 sm:col-span-1 ${idDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                          <div className="text-slate-400 text-[10px] mb-0.5">رقم الهوية</div>
+                          <div className="flex items-center gap-1.5" dir="ltr">
+                            <span className="text-[#655ac1]">{rowId || '—'}</span>
+                            {idDiff && <span className="text-slate-300">←</span>}
+                            {idDiff && <span className="text-slate-500">{exId || '—'}</span>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Choices */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateItem(idx, { choice: 'link' })}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                          item.choice === 'link'
+                            ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                        }`}
+                      >
+                        اربط (نفس المعلم)
+                      </button>
+                      {!isId && (
+                        <button
+                          onClick={() => updateItem(idx, { choice: 'add_new' })}
+                          className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            item.choice === 'add_new'
+                              ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                          }`}
+                        >
+                          أضف كجديد
+                        </button>
+                      )}
+                      <button
+                        onClick={() => updateItem(idx, { choice: 'skip' })}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
+                          item.choice === 'skip'
+                            ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                        }`}
+                      >
+                        تخطٍّ
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-slate-100 bg-white flex items-center gap-3 shrink-0">
+              <div className="flex-1 flex items-center gap-2 text-xs font-bold text-slate-500 flex-wrap">
+                <span>ربط</span>
+                <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">{counts.link}</span>
+                <span>إضافة</span>
+                <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">{counts.add_new}</span>
+                <span>تخطٍّ</span>
+                <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">{counts.skip}</span>
+              </div>
+              <button
+                onClick={closeReview}
+                className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { setImportReviewSearch(''); confirmImportReview(); }}
+                className="px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all text-sm"
+              >
                 تأكيد وإضافة
-             </button>
-           </div>
-         </div>
-       </div>
-     )}
+              </button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
 
      {/* â•گâ•گâ•گâ•گâ•گâ•گ Link School Modal â•گâ•گâ•گâ•گâ•گâ•گ */}
      {showLinkSchoolModal && linkSchoolTeacherId && (() => {
