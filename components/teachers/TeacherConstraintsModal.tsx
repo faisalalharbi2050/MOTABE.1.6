@@ -1269,16 +1269,18 @@ export default function TeacherConstraintsModal({
                                             <button
                                               type="button"
                                               onClick={() => applyPresence(school.schoolId, day)}
-                                              className={`w-full h-8 rounded-xl border text-[11px] font-black transition-all ${
+                                              className={`w-full h-8 rounded-xl text-[11px] font-black transition-all flex items-center justify-center ${
                                                 selected
-                                                  ? 'bg-white border-slate-200 text-white shadow-sm'
-                                                  : 'bg-white border-slate-200 text-slate-400 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
+                                                  ? 'bg-white text-white'
+                                                  : 'bg-white text-slate-400 hover:bg-slate-50'
                                               }`}
                                             >
-                                              {selected && (
+                                              {selected ? (
                                                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1] mx-auto">
                                                   <Check size={13} strokeWidth={3.2} className="text-white" />
                                                 </span>
+                                              ) : (
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-300 bg-white mx-auto" />
                                               )}
                                             </button>
                                           </div>
