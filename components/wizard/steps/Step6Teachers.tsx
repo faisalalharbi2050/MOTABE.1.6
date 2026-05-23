@@ -2486,58 +2486,63 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               </button>
             </div>
 
-            {/* Summary + search + bulk actions */}
+            {/* School-context alert + grouped toolbar */}
             <div className="px-5 py-3 border-b border-slate-100 space-y-3 shrink-0">
               {activeSchoolId !== 'main' && (
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-600 px-3 py-2 rounded-xl border border-slate-200 bg-white">
-                  <Link2 size={14} className="text-[#655ac1]" />
-                  <span>سيتم الربط/الإضافة في مدرسة <span className="text-[#655ac1] font-black">{activeSchoolName}</span></span>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#655ac1]/20 bg-[#655ac1]/5">
+                  <Info size={18} className="text-[#655ac1] shrink-0" />
+                  <p className="text-sm font-bold text-slate-700 leading-snug">
+                    سيتم الربط أو الإضافة في مدرسة <span className="text-[#655ac1] font-black">{activeSchoolName}</span>
+                  </p>
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-black px-2.5 py-1 rounded-md border border-slate-200 text-[#655ac1]">
-                  سيُربط <span className="text-slate-700">{counts.link}</span>
-                </span>
-                <span className="text-[11px] font-black px-2.5 py-1 rounded-md border border-slate-200 text-[#655ac1]">
-                  سيُضاف <span className="text-slate-700">{counts.add_new}</span>
-                </span>
-                <span className="text-[11px] font-black px-2.5 py-1 rounded-md border border-slate-200 text-[#655ac1]">
-                  سيُتخطى <span className="text-slate-700">{counts.skip}</span>
-                </span>
-                <div className="flex-1" />
-                {!showSelectAllConfirm ? (
-                  <button
-                    onClick={() => setShowSelectAllConfirm(true)}
-                    className="px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]"
-                  >
-                    اعتبرهم جميعاً أشخاصاً مختلفين
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500">تأكيد؟</span>
-                    <button
-                      onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); setShowSelectAllConfirm(false); }}
-                      className="px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#5448a8]"
-                    >
-                      نعم، تابع
-                    </button>
-                    <button
-                      onClick={() => setShowSelectAllConfirm(false)}
-                      className="px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                    >
-                      إلغاء
-                    </button>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-black px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[#655ac1]">
+                    سيُربط <span className="text-slate-700 mr-1">{counts.link}</span>
+                  </span>
+                  <span className="text-xs font-black px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[#655ac1]">
+                    سيُضاف <span className="text-slate-700 mr-1">{counts.add_new}</span>
+                  </span>
+                  <span className="text-xs font-black px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[#655ac1]">
+                    سيُتخطى <span className="text-slate-700 mr-1">{counts.skip}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={importReviewSearch}
+                      onChange={e => setImportReviewSearch(e.target.value)}
+                      placeholder="بحث في القائمة..."
+                      className="w-full pr-9 pl-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#655ac1]/40"
+                    />
                   </div>
-                )}
-              </div>
-              <div className="relative">
-                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={importReviewSearch}
-                  onChange={e => setImportReviewSearch(e.target.value)}
-                  placeholder="بحث في القائمة..."
-                  className="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#655ac1]/40"
-                />
+                  {!showSelectAllConfirm ? (
+                    <button
+                      onClick={() => setShowSelectAllConfirm(true)}
+                      className="shrink-0 px-3 py-2 rounded-xl border text-[11px] font-bold transition-all bg-white border-slate-200 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white"
+                    >
+                      اعتبرهم جميعاً أشخاصاً مختلفين
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-bold text-slate-500">تأكيد؟</span>
+                      <button
+                        onClick={() => { setImportReviewItems(prev => prev.map(i => ({ ...i, choice: i.matchType === 'id' ? 'skip' : 'add_new' }))); setShowSelectAllConfirm(false); }}
+                        className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#5448a8]"
+                      >
+                        نعم، تابع
+                      </button>
+                      <button
+                        onClick={() => setShowSelectAllConfirm(false)}
+                        className="px-3 py-2 rounded-xl border text-[11px] font-bold transition-all bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -2551,10 +2556,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 const isPartial = item.matchType === 'partial_name';
                 const badgeText = isId ? 'نفس رقم الهوية' : isPartial ? 'اسم مشابه' : 'نفس الاسم';
                 const badgeClass = isId
-                  ? 'bg-[#655ac1]/10 text-[#655ac1]'
+                  ? 'bg-[#655ac1] text-white'
                   : isPartial
                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                    : 'bg-slate-100 text-slate-600';
+                    : 'bg-[#655ac1]/10 text-[#655ac1] border border-[#655ac1]/30';
                 const ex = item.existing;
                 const rowSpec = item.row.specialization || 'أخرى';
                 const exSpec = ex.specializationId || 'أخرى';
@@ -2586,54 +2591,44 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                           title="اسم المعلم/ة من ملف الإكسل (قابل للتعديل)"
                         />
                         <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate">
-                          مطابق لـ <span className="text-slate-800 font-black">{ex.name}</span> في {item.existingSchoolName}
+                          مطابق لـ <span className="text-[#655ac1] font-black">{ex.name}</span> في {item.existingSchoolName}
                         </p>
                       </div>
                     </div>
 
-                    {/* Comparison row: spec / quota / waiting / phone / id */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] font-bold">
-                      <div className={`px-2.5 py-1.5 rounded-md border ${specDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-                        <div className="text-slate-400 text-[10px] mb-0.5">التخصص</div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#655ac1]">{getSpecializationName(rowSpec)}</span>
-                          {specDiff && <span className="text-slate-300">←</span>}
-                          {specDiff && <span className="text-slate-500">{getSpecializationName(exSpec)}</span>}
-                        </div>
-                      </div>
-                      <div className={`px-2.5 py-1.5 rounded-md border ${quotaDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-                        <div className="text-slate-400 text-[10px] mb-0.5">نصاب الحصص</div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#655ac1]">{rowQ}</span>
-                          {quotaDiff && <span className="text-slate-300">←</span>}
-                          {quotaDiff && <span className="text-slate-500">{exQ}</span>}
-                        </div>
-                      </div>
-                      <div className={`px-2.5 py-1.5 rounded-md border ${waitDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-                        <div className="text-slate-400 text-[10px] mb-0.5">نصاب الانتظار</div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#655ac1]">{rowW}</span>
-                          {waitDiff && <span className="text-slate-300">←</span>}
-                          {waitDiff && <span className="text-slate-500">{exW}</span>}
-                        </div>
-                      </div>
-                      <div className={`px-2.5 py-1.5 rounded-md border ${phoneDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-                        <div className="text-slate-400 text-[10px] mb-0.5">الجوال</div>
-                        <div className="flex items-center gap-1.5" dir="ltr">
-                          <span className="text-[#655ac1]">{rowPhone || '—'}</span>
-                          {phoneDiff && <span className="text-slate-300">←</span>}
-                          {phoneDiff && <span className="text-slate-500">{exPhone || '—'}</span>}
-                        </div>
-                      </div>
+                    {/* Inline comparison chips */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${specDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <span className="text-slate-500">التخصص:</span>
+                        <span className="text-[#655ac1]">{getSpecializationName(rowSpec)}</span>
+                        {specDiff && <span className="text-slate-300">←</span>}
+                        {specDiff && <span className="text-slate-500">{getSpecializationName(exSpec)}</span>}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${quotaDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <span className="text-slate-500">الحصص:</span>
+                        <span className="text-[#655ac1]">{rowQ}</span>
+                        {quotaDiff && <span className="text-slate-300">←</span>}
+                        {quotaDiff && <span className="text-slate-500">{exQ}</span>}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${waitDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <span className="text-slate-500">الانتظار:</span>
+                        <span className="text-[#655ac1]">{rowW}</span>
+                        {waitDiff && <span className="text-slate-300">←</span>}
+                        {waitDiff && <span className="text-slate-500">{exW}</span>}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${phoneDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                        <span className="text-slate-500">الجوال:</span>
+                        <span className="text-[#655ac1]" dir="ltr">{rowPhone || '—'}</span>
+                        {phoneDiff && <span className="text-slate-300">←</span>}
+                        {phoneDiff && <span className="text-slate-500" dir="ltr">{exPhone || '—'}</span>}
+                      </span>
                       {(rowId || exId) && (
-                        <div className={`px-2.5 py-1.5 rounded-md border col-span-2 sm:col-span-1 ${idDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-                          <div className="text-slate-400 text-[10px] mb-0.5">رقم الهوية</div>
-                          <div className="flex items-center gap-1.5" dir="ltr">
-                            <span className="text-[#655ac1]">{rowId || '—'}</span>
-                            {idDiff && <span className="text-slate-300">←</span>}
-                            {idDiff && <span className="text-slate-500">{exId || '—'}</span>}
-                          </div>
-                        </div>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border ${idDiff ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                          <span className="text-slate-500">الهوية:</span>
+                          <span className="text-[#655ac1]" dir="ltr">{rowId || '—'}</span>
+                          {idDiff && <span className="text-slate-300">←</span>}
+                          {idDiff && <span className="text-slate-500" dir="ltr">{exId || '—'}</span>}
+                        </span>
                       )}
                     </div>
 
