@@ -687,7 +687,7 @@ export default function TeacherConstraintsModal({
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-black text-slate-800">تتابع الحصص</div>
-                            <div className="text-[10px] text-slate-500 font-bold">الحد الأقصى للحصص المتتالية</div>
+                            <div className="text-[10px] text-slate-500 font-bold">الحد الأدنى والأقصى للحصص المتتابعة</div>
                           </div>
                         </div>
                         <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c1 ? 'rotate-180' : ''}`} />
@@ -815,7 +815,7 @@ export default function TeacherConstraintsModal({
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-black text-slate-800">الحصص المستثناة</div>
-                            <div className="text-[10px] text-slate-500 font-bold">حدد الحصص التي لا ترغب أن تُسند لهذا المعلم عند إنشاء الجدول</div>
+                            <div className="text-[10px] text-slate-500 font-bold">الحصص التي لا تُسند لمعلم/ة</div>
                           </div>
                         </div>
                         <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c2 ? 'rotate-180' : ''}`} />
@@ -857,7 +857,7 @@ export default function TeacherConstraintsModal({
                             <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800">
                               <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                               <span className="leading-relaxed">
-                                كثرة الحصص المستثناة قد تقلل فرص إنشاء جدول مكتمل لهذا المعلم. المتاح الآن {availableSlots} حصة مقابل نصاب {quota}.
+                                كثرة الحصص المستثناة قد تقلل فرص إنشاء جدول مكتمل لهذا المعلم.
                               </span>
                             </div>
                           )}
@@ -944,7 +944,7 @@ export default function TeacherConstraintsModal({
                                               }`}
                                               title={isEx ? 'مستثنى من الإسناد' : 'متاح للإسناد'}
                                             >
-                                              {isEx ? <X size={12} strokeWidth={3.5} /> : <Check size={12} strokeWidth={3.5} />}
+                                              {isEx ? <X size={11} strokeWidth={3.5} /> : <Check size={11} strokeWidth={3.5} />}
                                             </button>
                                           ) : (
                                             <span className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50 text-slate-300 inline-flex items-center justify-center text-xs font-black">-</span>
