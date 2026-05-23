@@ -3,12 +3,10 @@ import ReactDOM from 'react-dom';
 import * as XLSX from 'xlsx';
 import { Admin, SchoolInfo } from '../../../types';
 import {
-  Plus, X, UserCog, Edit, Edit2, Trash2, Printer, ChevronDown,
-  Check, Save, AlertTriangle, Users, Upload, Search, UserPlus,
-  CheckCircle2
+  X, UserCog, Edit2, Trash2, Printer, ChevronDown,
+  Check, AlertTriangle, Users, Upload, Search, UserPlus,
+  CheckCircle2, CheckSquare, ArrowUp, ArrowDown, Plus
 } from 'lucide-react';
-import { Button } from '../../ui/Button';
-import { Badge } from '../../ui/Badge';
 import PrintHeader from '../../ui/PrintHeader';
 
 interface Step7Props {
@@ -37,6 +35,19 @@ const AGENT_TYPES = [
   'وكيل الشؤون المدرسية',
 ];
 
+const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
+  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
+    <Check size={13} strokeWidth={3.2} className="text-white" />
+  </span>
+);
+
+const MultiAddIcon = ({ className = "text-slate-400" }: { className?: string }) => (
+  <span className={`relative inline-flex h-5 w-5 items-center justify-center ${className}`}>
+    <Users size={17} />
+    <Plus size={9} strokeWidth={3.2} className="absolute -right-1 -top-1" />
+  </span>
+);
+
 // ─── AgentTypeSelector ──────────────────────────────────────────
 interface AgentTypeSelectorProps {
   admin: Admin;
@@ -44,49 +55,121 @@ interface AgentTypeSelectorProps {
 }
 
 const AgentTypeSelector: React.FC<AgentTypeSelectorProps> = ({ admin, onToggle }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  return (
+    <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2">
+      {AGENT_TYPES.map(type => {
+        const sel = admin.agentType?.includes(type);
+        return (
+          <button
+            type="button"
+            key={type}
+            onClick={() => onToggle(admin.id, type)}
+            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-black transition-all ${
+              sel ? 'border-slate-200 text-[#655ac1] bg-white' : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-white'
+            }`}
+          >
+            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+              sel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent bg-white'
+            }`}>
+              {sel && <Check size={9} className="text-white" strokeWidth={3} />}
+            </span>
+            {type}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const RoleSelectDropdown: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  compact?: boolean;
+  emptyLabel?: string;
+}> = ({ value, onChange, placeholder = 'اختر الدور', compact = false, emptyLabel }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setIsOpen(false);
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
 
-  const selectedCount = admin.agentType?.length || 0;
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const panelHeight = 300;
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const placeAbove = spaceBelow < panelHeight + 16 && spaceAbove > spaceBelow;
+    const maxH = Math.max(180, (placeAbove ? spaceAbove : spaceBelow) - 16);
+    setPos({
+      top: placeAbove ? Math.max(8, r.top - Math.min(maxH, panelHeight) - 8) : r.bottom + 8,
+      left: Math.max(8, Math.min(r.left, window.innerWidth - Math.max(r.width, compact ? 224 : r.width) - 8)),
+      width: Math.max(r.width, compact ? 224 : r.width),
+      maxH,
+    });
+  }, [open, compact]);
+
+  const btnSize = compact ? 'px-3 py-2 text-xs' : 'px-5 py-3.5 text-[13px]';
 
   return (
-    <div className="relative" ref={wrapperRef}>
+    <div className="relative w-full" ref={wrapRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full p-2 border rounded-lg text-sm flex justify-between items-center ${
-          selectedCount > 0 ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500'
-        }`}
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`w-full ${btnSize} bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
       >
-        <span className="truncate">{selectedCount === 0 ? 'اختر الصفة' : `${selectedCount} محدد`}</span>
-        <ChevronDown size={14} />
+        <span className="truncate leading-tight">{value || placeholder}</span>
+        <ChevronDown size={compact ? 14 : 16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {isOpen && (
-        <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-100 z-50 p-2 space-y-1">
-          {AGENT_TYPES.map(type => (
-            <div
-              key={type}
-              onClick={() => onToggle(admin.id, type)}
-              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer text-xs font-bold transition-colors ${
-                admin.agentType?.includes(type) ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'
-              }`}
-            >
-              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                admin.agentType?.includes(type) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'
-              }`}>
-                {admin.agentType?.includes(type) && <Check size={10} className="text-white" />}
-              </div>
-              {type}
-            </div>
-          ))}
-        </div>
+      {open && pos && ReactDOM.createPortal(
+        <div
+          dir="rtl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH, zIndex: 99999 }}
+          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5"
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="overflow-y-auto custom-scrollbar space-y-1 pr-1" style={{ maxHeight: pos.maxH - 20 }}>
+            {emptyLabel && (
+              <button
+                type="button"
+                onClick={() => { onChange(''); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${!value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+              >
+                <span className="whitespace-nowrap">{emptyLabel}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${!value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
+                </span>
+              </button>
+            )}
+            {ROLES.map(role => {
+              const active = role === value;
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => { onChange(role); setOpen(false); }}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                >
+                  <span className="whitespace-nowrap">{role}</span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -98,8 +181,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
   // ── Search & Filter ─────────────────────────────────────────
   const [searchTerm, setSearchTerm]             = useState('');
   const [filterRole, setFilterRole]             = useState('');
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
   // ── Single Add Modal ─────────────────────────────────────────
   const [showAddSingle, setShowAddSingle]       = useState(false);
@@ -118,8 +199,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
     { id: string; name: string; role: string; phone: string; agentType: string[] }[]
   >([]);
   const [bulkAssignRole, setBulkAssignRole]         = useState('');
-  const [isBulkRoleDropdownOpen, setIsBulkRoleDropdownOpen] = useState(false);
-  const bulkRoleDropdownRef = useRef<HTMLDivElement>(null);
 
   // ── Per-row Edit ─────────────────────────────────────────────
   const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
@@ -138,6 +217,17 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
   // ── Delete Modals ────────────────────────────────────────────
   const [adminToDelete, setAdminToDelete]       = useState<string | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [adminDeleteSelectionMode, setAdminDeleteSelectionMode] = useState(false);
+  const [selectedAdminIds, setSelectedAdminIds] = useState<string[]>([]);
+  const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = useState(false);
+
+  // ── Print ────────────────────────────────────────────────────
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printScope, setPrintScope] = useState<'all' | 'role'>('all');
+  const [printRole, setPrintRole] = useState('');
+
+  // ── Role cards order ─────────────────────────────────────────
+  const [roleOrder, setRoleOrder] = useState<string[]>(ROLES);
 
   // ── Excel ────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -148,18 +238,6 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
-
-  // ─── Close on outside click ───────────────────────────────────
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (roleDropdownRef.current && !roleDropdownRef.current.contains(e.target as Node))
-        setIsRoleDropdownOpen(false);
-      if (bulkRoleDropdownRef.current && !bulkRoleDropdownRef.current.contains(e.target as Node))
-        setIsBulkRoleDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   useEffect(() => {
     if (!actionDropdown) return;
@@ -175,6 +253,31 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
     const matchRole   = !filterRole || a.role === filterRole;
     return matchSearch && matchRole;
   });
+
+  const usedRoles = roleOrder.filter(role => filteredAdmins.some(a => a.role === role));
+  const uncategorizedAdmins = filteredAdmins.filter(a => !a.role || !ROLES.includes(a.role));
+  const rolesToRender = [
+    ...usedRoles,
+    ...(uncategorizedAdmins.length > 0 ? ['غير محدد'] : []),
+  ];
+  const usedRoleCount = new Set(admins.map(a => a.role).filter(Boolean)).size;
+  const missingDataCount = admins.filter(a => !a.name?.trim() || !a.role?.trim() || !a.phone?.trim()).length;
+
+  const getAdminsByRole = (role: string) =>
+    role === 'غير محدد'
+      ? uncategorizedAdmins
+      : filteredAdmins.filter(a => a.role === role);
+
+  const moveRole = (role: string, direction: 'up' | 'down') => {
+    setRoleOrder(prev => {
+      const index = prev.indexOf(role);
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (index < 0 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
 
   // ─── Single Add ───────────────────────────────────────────────
   const handleAddSingle = () => {
@@ -196,7 +299,8 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
   // ─── Bulk Entry ───────────────────────────────────────────────
   const startBulkEntry = () => {
-    const rows = Array.from({ length: bulkCount }, (_, i) => ({
+    const safeBulkCount = Math.max(2, bulkCount);
+    const rows = Array.from({ length: safeBulkCount }, (_, i) => ({
       id: `admin-bulk-${Date.now()}-${i}`,
       name: '',
       role: '',
@@ -293,14 +397,93 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
     setAdmins([]);
     setShowDeleteAllConfirm(false);
     setIsEditAll(false);
+    setAdminDeleteSelectionMode(false);
+    setSelectedAdminIds([]);
+    setShowDeleteSelectedConfirm(false);
     showToast('تم حذف جميع الإداريين');
+  };
+
+  const handleInlineDeleteSelected = () => {
+    if (!adminDeleteSelectionMode) {
+      setAdminDeleteSelectionMode(true);
+      setShowDeleteSelectedConfirm(false);
+      setSelectedAdminIds([]);
+      if (isEditAll) {
+        setIsEditAll(false);
+        setHasChanges(false);
+      }
+      return;
+    }
+
+    if (selectedAdminIds.length === 0) {
+      setAdminDeleteSelectionMode(false);
+      setShowDeleteSelectedConfirm(false);
+      return;
+    }
+
+    if (showDeleteSelectedConfirm) {
+      confirmDeleteSelected();
+      return;
+    }
+
+    setShowDeleteSelectedConfirm(true);
+  };
+
+  const confirmDeleteSelected = () => {
+    const ids = new Set(selectedAdminIds);
+    setAdmins(prev => prev.filter(a => !ids.has(a.id)));
+    showToast(`تم حذف ${selectedAdminIds.length} إداري`);
+    setAdminDeleteSelectionMode(false);
+    setSelectedAdminIds([]);
+    setShowDeleteSelectedConfirm(false);
+  };
+
+  const toggleAdminSelection = (adminId: string) => {
+    setSelectedAdminIds(prev =>
+      prev.includes(adminId) ? prev.filter(id => id !== adminId) : [...prev, adminId]
+    );
+    setShowDeleteSelectedConfirm(false);
+  };
+
+  const toggleRoleSelection = (roleAdmins: Admin[]) => {
+    const ids = roleAdmins.map(a => a.id);
+    const allSelected = ids.length > 0 && ids.every(id => selectedAdminIds.includes(id));
+    setSelectedAdminIds(prev =>
+      allSelected
+        ? prev.filter(id => !ids.includes(id))
+        : Array.from(new Set([...prev, ...ids]))
+    );
+    setShowDeleteSelectedConfirm(false);
+  };
+
+  const executePrint = () => {
+    setShowPrintModal(false);
+    const styleId = 'print-admin-role-override';
+    document.getElementById(styleId)?.remove();
+
+    if (printScope === 'role' && printRole) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        @media print {
+          [data-admin-role-card] { display: none !important; }
+          [data-admin-role-card="${printRole}"] { display: block !important; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    setTimeout(() => {
+      window.print();
+      document.getElementById(styleId)?.remove();
+    }, 80);
   };
 
   // ─── Action Dropdown ─────────────────────────────────────────
   const openActionDropdown = (e: React.MouseEvent, adminId: string) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const w = 168, h = 108;
+    const w = 220, h = 120;
     let left = rect.right - w;
     if (left < 8) left = rect.left;
     if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
@@ -320,6 +503,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
         const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
         const base = admins.length > 0 ? Math.max(...admins.map(a => a.sortIndex || 0)) : 0;
         const imported: Admin[] = [];
+        let invalidRoleCount = 0;
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i];
           if (!row?.[0]) continue;
@@ -327,10 +511,12 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
           const role  = String(row[1] || '').trim();
           const phone = String(row[2] || '').trim();
           if (!name) continue;
+          const validRole = ROLES.includes(role);
+          if (role && !validRole) invalidRoleCount++;
           imported.push({
             id: `admin-import-${Date.now()}-${i}`,
             name,
-            role: ROLES.includes(role) ? role : '',
+            role: validRole ? role : '',
             phone,
             waitingQuota: 0,
             sortIndex: base + imported.length + 1,
@@ -339,7 +525,12 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
         }
         if (imported.length > 0) {
           setAdmins(prev => [...prev, ...imported]);
-          showToast(`تم استيراد ${imported.length} إداري بنجاح`);
+          showToast(
+            invalidRoleCount > 0
+              ? `تم استيراد ${imported.length} إداري، وتم تجاهل ${invalidRoleCount} دور غير مطابق`
+              : `تم استيراد ${imported.length} إداري بنجاح`,
+            invalidRoleCount > 0 ? 'error' : 'success'
+          );
         } else {
           showToast('لم يتم العثور على بيانات صالحة', 'error');
         }
@@ -395,6 +586,26 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
         <PrintHeader schoolInfo={schoolInfo} title="قائمة الكادر الإداري" />
       </div>
 
+      {!isBulkEntryMode && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden">
+          {[
+            { label: 'إجمالي الإداريين', value: admins.length, icon: Users },
+            { label: 'عدد الأدوار المضافة', value: usedRoleCount, icon: UserCog },
+            { label: 'بيانات ناقصة', value: missingDataCount, icon: AlertTriangle },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
+              <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                <Icon size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-400">{label}</p>
+                <p className="text-2xl font-black text-slate-800 leading-tight">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Bulk Entry Mode ───────────────────────────────────── */}
       {isBulkEntryMode && (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl animate-in slide-in-from-bottom-4 duration-500 print:hidden">
@@ -409,52 +620,20 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
           <div className="p-4 bg-white border-b border-slate-200 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 shrink-0">
               <UserCog size={18} className="text-[#655ac1]" />
-              <span className="text-sm font-black text-[#655ac1]">تعيين الدور لجميع الإداريين دفعة واحدة</span>
+              <span className="text-sm font-black text-slate-800">تعيين الدور لجميع الإداريين دفعة واحدة</span>
             </div>
             <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
-            {/* Bulk Role Dropdown */}
-            <div className="relative" ref={bulkRoleDropdownRef}>
-              <button
-                onClick={() => setIsBulkRoleDropdownOpen(p => !p)}
-                className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-bold transition-all min-w-[160px] ${
-                  bulkAssignRole
-                    ? 'border-[#655ac1] bg-white text-[#655ac1]'
-                    : 'border-slate-200 bg-white text-slate-600'
-                }`}
-              >
-                <span className="flex-1 text-right">{bulkAssignRole || 'اختر الدور للجميع'}</span>
-                {bulkAssignRole && (
-                  <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
-                    <Check size={9} className="text-white" strokeWidth={3} />
-                  </div>
-                )}
-                <ChevronDown size={13} className={`shrink-0 transition-transform ${isBulkRoleDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isBulkRoleDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] min-w-[180px] py-1.5 max-h-64 overflow-y-auto">
-                  {ROLES.map(role => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        setBulkAssignRole(role);
-                        setBulkAdmins(prev => prev.map(a => ({ ...a, role, agentType: [] })));
-                        setIsBulkRoleDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                        bulkAssignRole === role ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                        bulkAssignRole === role ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                      }`}>
-                        {bulkAssignRole === role && <Check size={11} className="text-white" />}
-                      </div>
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="w-full sm:w-56">
+              <RoleSelectDropdown
+                compact
+                value={bulkAssignRole}
+                placeholder="اختر الدور للجميع"
+                onChange={role => {
+                  setBulkAssignRole(role);
+                  setBulkAdmins(prev => prev.map(a => ({ ...a, role, agentType: [] })));
+                }}
+              />
             </div>
 
             {/* Save / Cancel */}
@@ -476,88 +655,91 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
           {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="sticky top-0 z-10 bg-white shadow-sm">
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm font-black">
-                  <th className="p-4 text-center w-14">م</th>
-                  <th className="p-4 text-right min-w-[200px]">اسم الإداري <span className="text-rose-500">*</span></th>
-                  <th className="p-4 text-right w-44">الدور الوظيفي</th>
-                  <th className="p-4 text-center w-44">رقم الجوال</th>
-                  <th className="p-4 text-center w-14" />
+            <table className="w-full text-right">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-100">
+                  <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1]">م</th>
+                  <th className="px-3 py-4 text-xs font-black text-[#655ac1]">اسم الإداري <span className="text-rose-500">*</span></th>
+                  <th className="px-3 py-4 w-[32%] text-center text-xs font-black text-[#655ac1]">الدور الوظيفي</th>
+                  <th className="px-3 py-4 w-[22%] text-center text-xs font-black text-[#655ac1]">رقم الجوال</th>
+                  <th className="px-3 py-4 w-16 text-center text-xs font-black text-[#655ac1]" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-50">
                 {bulkAdmins.map((admin, index) => (
-                  <tr key={admin.id} className="group hover:bg-indigo-50/10 transition-colors">
-                    <td className="p-3 text-center text-slate-400 font-bold text-xs">{index + 1}</td>
-                    <td className="p-3">
+                  <tr key={admin.id} className="group hover:bg-[#e5e1fe]/10 transition-colors">
+                    <td className="px-3 py-3 text-center">
+                      <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
                       <input
                         type="text"
                         placeholder="اسم الإداري"
                         value={admin.name}
                         onChange={e => setBulkAdmins(prev => prev.map((a, i) => i === index ? { ...a, name: e.target.value } : a))}
-                        className={`w-full p-3 bg-slate-50 border-2 rounded-xl outline-none text-sm font-bold transition-all focus:bg-white ${
-                          admin.name.trim() ? 'border-transparent focus:border-[#655ac1]' : 'border-slate-200 focus:border-rose-400'
+                        className={`w-full bg-transparent border-0 focus:ring-0 outline-none font-bold text-sm text-slate-800 py-1 ${
+                          admin.name.trim() ? '' : 'placeholder:text-rose-300'
                         }`}
                       />
                     </td>
-                    <td className="p-3">
+                    <td className="px-3 py-3 align-middle text-center">
                       <div className="space-y-2">
-                        <select
+                        <RoleSelectDropdown
+                          compact
                           value={admin.role}
-                          onChange={e => setBulkAdmins(prev => prev.map((a, i) =>
-                            i === index ? { ...a, role: e.target.value, agentType: [] } : a
+                          onChange={role => setBulkAdmins(prev => prev.map((a, i) =>
+                            i === index ? { ...a, role, agentType: [] } : a
                           ))}
-                          className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1]"
-                        >
-                          <option value="">-- اختر الدور --</option>
-                          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
+                        />
                         {admin.role === 'وكيل' && (
-                          <div className="flex flex-col gap-1 bg-indigo-50/60 border border-indigo-100 rounded-xl p-2">
+                          <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2">
                             {AGENT_TYPES.map(type => {
                               const sel = (admin.agentType || []).includes(type);
                               return (
-                                <div
+                                <button
+                                  type="button"
                                   key={type}
                                   onClick={() => setBulkAdmins(prev => prev.map((a, i) => {
                                     if (i !== index) return a;
                                     const cur = a.agentType || [];
                                     return { ...a, agentType: cur.includes(type) ? cur.filter(t => t !== type) : [...cur, type] };
                                   }))}
-                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs font-bold transition-colors ${
-                                    sel ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-white text-slate-500'
+                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-black transition-all ${
+                                    sel ? 'border-slate-200 text-[#655ac1] bg-white' : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-white'
                                   }`}
                                 >
-                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
-                                    sel ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'
+                                  <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                    sel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent bg-white'
                                   }`}>
                                     {sel && <Check size={9} className="text-white" strokeWidth={3} />}
-                                  </div>
+                                  </span>
                                   {type}
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="p-3">
+                    <td className="px-3 py-3 align-middle text-center">
                       <input
                         type="tel"
                         dir="ltr"
                         placeholder="05xxxxxxxx"
                         value={admin.phone}
                         onChange={e => setBulkAdmins(prev => prev.map((a, i) => i === index ? { ...a, phone: e.target.value } : a))}
-                        className="w-full p-3 bg-slate-50 border border-transparent rounded-xl outline-none text-sm font-bold text-center group-hover:bg-white group-hover:border-slate-200 focus:!border-[#655ac1] focus:!bg-white transition-all"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:border-[#655ac1] text-center dir-ltr"
                       />
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="px-3 py-3 text-center">
                       <button
                         onClick={() => setBulkAdmins(prev => prev.filter((_, i) => i !== index))}
-                        className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                        className="w-7 h-7 inline-flex items-center justify-center rounded-full bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm shadow-rose-500/20"
+                        title="حذف السطر"
                       >
-                        <X size={16} />
+                        <X size={14} />
                       </button>
                     </td>
                   </tr>
@@ -566,7 +748,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
             </table>
 
             {/* Add Row */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/30 text-center rounded-b-[2rem]">
+            <div className="p-4 border-t border-slate-100 bg-slate-50/30 rounded-b-[2rem] flex justify-start">
               <button
                 onClick={() => setBulkAdmins(prev => [...prev, {
                   id: `admin-bulk-${Date.now()}-${Math.random().toString(36).substring(2,7)}`,
@@ -574,7 +756,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                 }])}
                 className="px-4 py-2 bg-white border border-dashed border-slate-300 rounded-xl text-slate-500 text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
               >
-                + إضافة سطر جديد
+                + إضافة جديد
               </button>
             </div>
           </div>
@@ -584,90 +766,129 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
       {/* ── Action Bar ────────────────────────────────────────── */}
       {!isBulkEntryMode && (
         <div className="print:hidden">
-          <div className="bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl px-4 py-3 flex flex-wrap items-center gap-2 shadow-sm">
-
-            {/* Primary actions — inside the bar */}
-            <button
-              onClick={() => setShowAddSingle(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold shadow-md shadow-[#655ac1]/20 hover:bg-[#5448a8] transition-all hover:scale-105 active:scale-95"
-            >
-              <Plus size={18} />
-              إضافة إداري
-            </button>
-
-            <button
-              onClick={() => setShowBulkCountModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#9d8fe8] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-            >
-              <Users size={18} className="text-[#9d8fe8]" />
-              إضافة عدة إداريين
-            </button>
-
+          <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2 justify-between">
             <input type="file" ref={fileInputRef} hidden accept=".xlsx,.xls" onChange={handleFileUpload} />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-            >
-              <Upload size={18} className="text-[#8779fb]" />
-              استيراد من Excel
-            </button>
-
-            <div className="flex-1" />
-
-            {/* Edit state indicators */}
-            {isEditAll && hasChanges && (
-              <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 animate-in fade-in">
-                <AlertTriangle size={12} />
-                يوجد تعديلات غير محفوظة
-              </div>
-            )}
-            {isEditAll && (
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={cancelEditAll}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all hover:scale-105 active:scale-95"
+                dir="rtl"
+                onClick={() => fileInputRef.current?.click()}
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
               >
-                <X size={16} />
-                إلغاء
+                <Upload size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                استيراد من Excel
               </button>
-            )}
+              <button
+                dir="rtl"
+                onClick={() => setShowAddSingle(true)}
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+              >
+                <UserPlus size={17} className="text-slate-400 group-hover:text-white transition-colors" />
+                إضافة إداري
+              </button>
+              <button
+                dir="rtl"
+                onClick={() => setShowBulkCountModal(true)}
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+              >
+                <MultiAddIcon className="text-slate-400 group-hover:text-white transition-colors" />
+                إضافة عدة إداريين
+              </button>
+            </div>
 
-            {/* Edit All */}
-            <button
-              onClick={handleEditAllToggle}
-              disabled={admins.length === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105 active:scale-95 border ${
-                isEditAll
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20 hover:bg-emerald-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1] disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
-            >
-              {isEditAll ? <Save size={16} /> : <Edit size={16} className="text-[#8779fb]" />}
-              {isEditAll ? 'حفظ التعديلات' : 'تعديل الكل'}
-            </button>
+            <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />
 
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-            >
-              <Printer size={16} className="text-[#8779fb]" />
-              طباعة
-            </button>
-
-            <button
-              onClick={() => setShowDeleteAllConfirm(true)}
-              disabled={admins.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-rose-500 border border-rose-100 rounded-xl text-sm font-bold hover:bg-rose-500 hover:text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Trash2 size={16} />
-              حذف الكل
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {!adminDeleteSelectionMode && (
+                <>
+                  <button
+                    dir="rtl"
+                    onClick={handleEditAllToggle}
+                    disabled={admins.length === 0}
+                    className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isEditAll
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                    }`}
+                  >
+                    {isEditAll ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />}
+                    {isEditAll ? 'حفظ' : 'تعديل الكل'}
+                  </button>
+                  {isEditAll && (
+                    <button
+                      dir="rtl"
+                      onClick={cancelEditAll}
+                      className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+                    >
+                      إلغاء
+                    </button>
+                  )}
+                  <button
+                    dir="rtl"
+                    onClick={() => { setPrintScope('all'); setPrintRole(rolesToRender[0] || ''); setShowPrintModal(true); }}
+                    disabled={admins.length === 0}
+                    className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                    طباعة
+                  </button>
+                </>
+              )}
+              <button
+                dir="rtl"
+                onClick={handleInlineDeleteSelected}
+                disabled={admins.length === 0}
+                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
+                  adminDeleteSelectionMode
+                    ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
+                }`}
+              >
+                <CheckSquare size={16} className={adminDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
+                {adminDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : `تأكيد الحذف (${selectedAdminIds.length})`) : 'حذف محدد'}
+              </button>
+              {adminDeleteSelectionMode && (
+                <button
+                  dir="rtl"
+                  onClick={() => {
+                    setAdminDeleteSelectionMode(false);
+                    setShowDeleteSelectedConfirm(false);
+                    setSelectedAdminIds([]);
+                  }}
+                  className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+                >
+                  إلغاء
+                </button>
+              )}
+              {!adminDeleteSelectionMode && (
+                <button
+                  dir="rtl"
+                  onClick={() => setShowDeleteAllConfirm(true)}
+                  disabled={admins.length === 0}
+                  className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 size={16} className="text-rose-500" />
+                  حذف الكل
+                </button>
+              )}
+            </div>
           </div>
+          {isEditAll && hasChanges && (
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-2xl border border-amber-100 animate-in fade-in">
+              <AlertTriangle size={12} />
+              يوجد تعديلات غير محفوظة
+            </div>
+          )}
+          {showDeleteSelectedConfirm && adminDeleteSelectionMode && (
+            <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-700 text-center">
+              هل أنت متأكد من حذف الإداريين المحددين؟ اضغط نعم، احذف المحدد للتأكيد.
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Search + Filter + Stats ────────────────────────────── */}
       {!isBulkEntryMode && admins.length > 0 && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col-reverse lg:flex-row items-center gap-4 justify-between print:hidden">
+        <div dir="rtl" className="relative z-[70] bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-3 overflow-visible print:hidden">
 
           {/* Search & Filter */}
           <div className="flex flex-col lg:flex-row items-center gap-3 flex-1 w-full">
@@ -686,67 +907,212 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
               )}
             </div>
 
-            {/* Role Filter Dropdown */}
-            <div className="w-full lg:w-52 shrink-0 relative" ref={roleDropdownRef}>
-              <button
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className={`w-full px-4 py-3 bg-slate-50 border-0 rounded-xl outline-none text-sm font-bold text-slate-600 flex justify-between items-center ${isRoleDropdownOpen ? 'ring-2 ring-[#8779fb]/20' : ''}`}
+            <div className="w-full lg:w-64 shrink-0">
+              <RoleSelectDropdown
+                value={filterRole}
+                onChange={setFilterRole}
+                placeholder="كل الأدوار"
+                emptyLabel="كل الأدوار"
+              />
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── Admin Role Cards ──────────────────────────────────── */}
+      {!isBulkEntryMode && admins.length > 0 && rolesToRender.length > 0 && (
+        <div className="space-y-6 print:space-y-4">
+          {rolesToRender.map((role, roleIndex) => {
+            const group = getAdminsByRole(role);
+            const allSelected = group.length > 0 && group.every(a => selectedAdminIds.includes(a.id));
+
+            return (
+              <div
+                key={role}
+                data-admin-role-card={role}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden print:shadow-none print:border-2 print:border-slate-800 print:rounded-none print:break-inside-avoid"
               >
-                <span className="truncate">{filterRole || 'كل الأدوار'}</span>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isRoleDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isRoleDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] w-full overflow-hidden">
-                  <div className="px-4 pt-3 pb-2 border-b border-slate-100 flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-700">تصفية بالدور</span>
-                    {filterRole && (
-                      <button onClick={() => { setFilterRole(''); setIsRoleDropdownOpen(false); }} className="text-xs text-[#655ac1] font-black hover:bg-[#f0eeff] px-2 py-0.5 rounded-lg">
-                        إعادة ضبط
+                <div className="bg-white px-6 py-4 border-b border-slate-50 flex justify-between items-center bg-gradient-to-r from-slate-50/50 to-white print:bg-slate-100 print:from-slate-100 print:to-slate-100 print:border-slate-800 print:py-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {adminDeleteSelectionMode && (
+                      <button
+                        type="button"
+                        onClick={() => toggleRoleSelection(group)}
+                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 print:hidden ${
+                          allSelected ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'
+                        }`}
+                        title="تحديد الفئة"
+                      >
+                        {allSelected && <Check size={12} strokeWidth={3.5} />}
                       </button>
                     )}
+                    <div className="w-1.5 h-6 bg-[#655ac1] rounded-full print:bg-slate-900" />
+                    <h4 className="font-black text-slate-800 text-lg print:text-base truncate">
+                      {role}
+                      <span className="mr-2 px-2.5 py-0.5 bg-slate-100 text-[#655ac1] rounded-full text-sm font-black print:border print:border-slate-400 print:text-slate-900">
+                        {group.length}
+                      </span>
+                    </h4>
                   </div>
-                  <div className="overflow-y-auto max-h-56 p-2 space-y-0.5">
-                    {ROLES.map(role => {
-                      const count = admins.filter(a => a.role === role).length;
-                      if (count === 0) return null;
-                      return (
-                        <button
-                          key={role}
-                          onClick={() => { setFilterRole(role); setIsRoleDropdownOpen(false); }}
-                          className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors text-right ${
-                            filterRole === role ? 'bg-[#e5e1fe] text-[#655ac1]' : 'hover:bg-slate-50 text-slate-600'
-                          }`}
-                        >
-                          <span>{role}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-black ${filterRole === role ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-center gap-1 print:hidden">
+                    <button
+                      onClick={() => moveRole(role, 'up')}
+                      disabled={role === 'غير محدد' || roleIndex === 0}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="رفع الفئة"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      onClick={() => moveRole(role, 'down')}
+                      disabled={role === 'غير محدد' || roleIndex === rolesToRender.length - 1}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="خفض الفئة"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div className="w-px h-8 bg-slate-200 hidden lg:block mx-2" />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-100 print:bg-white print:border-slate-800">
+                        <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:w-8 print:text-xs">م</th>
+                        <th className="px-3 py-4 text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">اسم الإداري</th>
+                        <th className="px-3 py-4 w-[32%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">الدور الوظيفي</th>
+                        <th className="px-3 py-4 w-[22%] text-center text-xs font-black text-[#655ac1] print:text-slate-900 print:border-l print:border-slate-300 print:p-1 print:text-xs">رقم الجوال</th>
+                        <th className="px-3 py-4 w-24 text-center text-xs font-black text-[#655ac1] print:hidden">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 print:divide-slate-300">
+                      {group.map((admin, idx) => {
+                        const editing = isRowEditing(admin.id);
+                        const selected = selectedAdminIds.includes(admin.id);
 
-          {/* Stats */}
-          <div className="flex items-center gap-4 px-6 py-3 bg-white rounded-2xl border-2 border-[#655ac1]/20 hover:border-[#655ac1]/40 transition-all shrink-0 cursor-default">
-            <div className="p-2 bg-slate-100 rounded-xl">
-              <Users size={22} className="text-[#655ac1]" />
-            </div>
-            <div className="flex flex-col justify-center">
-              <span className="text-xs font-bold text-slate-400 leading-tight">إجمالي الإداريين</span>
-              <span className="text-2xl font-black text-[#655ac1] leading-none mt-0.5">
-                {filterRole || searchTerm ? `${filteredAdmins.length} / ${admins.length}` : admins.length}
-              </span>
-            </div>
-          </div>
+                        return (
+                          <tr
+                            key={admin.id}
+                            className="transition-colors group print:break-inside-avoid hover:bg-[#e5e1fe]/10 print:hover:bg-transparent"
+                          >
+                            <td className="px-3 py-3 text-center relative print:border-l print:border-slate-300 print:p-2">
+                              <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto print:bg-transparent print:text-slate-900 print:w-auto print:h-auto">
+                                {idx + 1}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 font-bold text-slate-700 align-middle print:border-l print:border-slate-300 print:p-1 print:text-black print:text-xs print:whitespace-nowrap">
+                              {editing ? (
+                                <input
+                                  value={admin.name}
+                                  onChange={e => updateAdmin(admin.id, 'name', e.target.value)}
+                                  className="w-full bg-transparent border-0 focus:ring-0 outline-none font-bold text-sm text-slate-800 py-1"
+                                  placeholder="اسم الإداري"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  {adminDeleteSelectionMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleAdminSelection(admin.id)}
+                                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 print:hidden ${
+                                        selected ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'
+                                      }`}
+                                    >
+                                      {selected && <Check size={12} strokeWidth={3.5} />}
+                                    </button>
+                                  )}
+                                  <span className="text-sm group-hover:text-[#655ac1] transition-colors print:text-black">{admin.name || '-'}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 align-middle text-center print:border-l print:border-slate-300 print:p-1 print:text-xs print:whitespace-nowrap">
+                              {editing ? (
+                                <div className="space-y-2">
+                                  <RoleSelectDropdown
+                                    compact
+                                    value={admin.role}
+                                    onChange={value => {
+                                      updateAdmin(admin.id, 'role', value);
+                                      if (value !== 'وكيل') updateAdmin(admin.id, 'agentType', []);
+                                    }}
+                                  />
+                                  {admin.role === 'وكيل' && (
+                                    <AgentTypeSelector admin={admin} onToggle={toggleAgentType} />
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-0.5 items-center">
+                                  {admin.role === 'وكيل' && admin.agentType && admin.agentType.length > 0 ? (
+                                    admin.agentType.map(t => (
+                                      <span key={t} className="text-xs font-black text-[#655ac1] print:text-black">
+                                        وكيل - {t.replace('وكيل ', '')}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className={`inline-flex min-h-8 items-center justify-center text-xs font-black print:text-black ${
+                                      admin.role ? 'text-slate-600' : 'text-amber-600'
+                                    }`}>
+                                      {admin.role || 'لم يُحدد'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 align-middle text-center print:border-l print:border-slate-300 print:p-1 print:text-xs print:whitespace-nowrap">
+                              {editing ? (
+                                <input
+                                  value={admin.phone}
+                                  onChange={e => updateAdmin(admin.id, 'phone', e.target.value)}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:border-[#655ac1] text-center dir-ltr"
+                                  placeholder="05xxxxxxxx"
+                                />
+                              ) : (
+                                <span className="inline-flex min-h-8 items-center justify-center px-2 text-xs font-bold text-slate-500 font-mono print:text-black" dir="ltr">{admin.phone || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center print:hidden">
+                              {editingAdminId === admin.id ? (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button onClick={saveRowEdit} className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all" title="حفظ">
+                                    <SaveCheckIcon className="bg-emerald-500 h-4 w-4" />
+                                  </button>
+                                  <button onClick={cancelRowEdit} className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all" title="إلغاء">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : !isEditAll && !adminDeleteSelectionMode && (
+                                <button
+                                  onClick={() => startRowEdit(admin)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#655ac1] mx-auto"
+                                  title="تعديل"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!isBulkEntryMode && admins.length > 0 && filteredAdmins.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-center print:hidden">
+          <Search size={36} className="mx-auto mb-5 text-slate-400" strokeWidth={1.6} />
+          <p className="text-slate-600 font-black text-lg mb-1">لا يوجد إداريون يطابقون البحث</p>
+          <p className="text-slate-400 text-sm">جرب البحث باسم آخر أو تغيير الدور</p>
         </div>
       )}
 
       {/* ── Admins Table ──────────────────────────────────────── */}
-      {!isBulkEntryMode && admins.length > 0 && (
+      {false && !isBulkEntryMode && admins.length > 0 && (
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-[#655ac1]/5 overflow-hidden print:shadow-none print:border-2 print:border-slate-800 print:rounded-none">
           <div className="bg-white px-6 py-4 border-b border-slate-50 flex items-center bg-gradient-to-r from-slate-50/50 to-white print:bg-slate-100 print:border-slate-800">
             <div className="flex items-center gap-3">
@@ -905,7 +1271,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
       {/* ── Empty State (no admins at all) ───────────────────── */}
       {!isBulkEntryMode && admins.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center print:hidden">
-          <UserCog size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
+          <UserCog size={48} className="mx-auto mb-5 text-slate-400" strokeWidth={1.6} />
           <p className="text-slate-600 font-black text-lg mb-1">لا يوجد إداريون بعد</p>
           <p className="text-slate-400 text-sm">
             استخدم زر{' '}
@@ -913,7 +1279,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
             {' '}أو{' '}
             <span className="font-bold" style={{ color: '#655ac1' }}>إضافة إداري</span>
             {' '}أو{' '}
-            <span className="font-bold" style={{ color: '#655ac1' }}>إضافة عدة إداريين</span>
+            <span className="font-bold" style={{ color: '#655ac1' }}>عدة إداريين</span>
             {' '}للبدء
           </p>
         </div>
@@ -923,60 +1289,71 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
       {/* Action Dropdown */}
       {actionDropdown && ReactDOM.createPortal(
-        <div
-          style={{ position: 'fixed', top: actionDropdown.top, left: actionDropdown.left, zIndex: 99999, width: 168 }}
-          className="bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-          onClick={e => e.stopPropagation()}
-        >
-          <button
-            onClick={() => {
-              const admin = admins.find(a => a.id === actionDropdown.adminId);
-              if (admin) startRowEdit(admin);
-              setActionDropdown(null);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-[#e5e1fe]/50 hover:text-[#655ac1] transition-colors"
-          >
-            <Edit size={15} className="text-[#8779fb]" />
-            تعديل
-          </button>
-          <div className="h-px bg-slate-100 mx-3" />
-          <button
-            onClick={() => { setAdminToDelete(actionDropdown.adminId); setActionDropdown(null); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors"
-          >
-            <Trash2 size={15} />
-            حذف
-          </button>
-        </div>,
+        (() => {
+          const itemBase = "group w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-xl font-bold transition-colors flex items-center gap-3";
+          const iconWrap = "w-7 h-7 text-slate-500 flex items-center justify-center shrink-0";
+          const labelCls = "flex-1 group-hover:text-[#655ac1] transition-colors";
+          const circleCls = "w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-[#655ac1] group-hover:bg-[#655ac1] flex items-center justify-center transition-all shrink-0";
+          const tickCls = "text-transparent group-hover:text-white transition-colors";
+          return (
+            <div
+              style={{ position: 'fixed', top: actionDropdown.top, left: actionDropdown.left, zIndex: 99999, minWidth: 220 }}
+              className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 w-60 animate-in fade-in zoom-in-95 duration-150"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => {
+                  const admin = admins.find(a => a.id === actionDropdown.adminId);
+                  if (admin) startRowEdit(admin);
+                  setActionDropdown(null);
+                }}
+                className={itemBase}
+              >
+                <span className={iconWrap}><Edit2 size={14} /></span>
+                <span className={labelCls}>تعديل</span>
+                <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
+              </button>
+              <button
+                onClick={() => { setAdminToDelete(actionDropdown.adminId); setActionDropdown(null); }}
+                className={`${itemBase} text-rose-600 hover:bg-rose-50`}
+              >
+                <span className="w-7 h-7 text-rose-500 flex items-center justify-center shrink-0"><Trash2 size={14} /></span>
+                <span className="flex-1 transition-colors">حذف</span>
+                <span className="w-4 h-4 rounded-full border-2 border-rose-300 group-hover:border-rose-500 group-hover:bg-rose-500 flex items-center justify-center transition-all shrink-0">
+                  <Check size={10} strokeWidth={3.5} className="text-transparent group-hover:text-white transition-colors" />
+                </span>
+              </button>
+            </div>
+          );
+        })(),
         document.body
       )}
 
       {/* Delete Single Modal */}
       {adminToDelete && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 flex flex-col items-center gap-4 text-center">
-              <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center">
-                <Trash2 size={28} className="text-rose-500" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={32} className="text-rose-500" />
               </div>
-              <div>
-                <h3 className="font-black text-lg text-slate-800">تأكيد الحذف</h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  هل أنت متأكد من حذف
-                  {adminToDeleteName
-                    ? <span className="font-black text-slate-700"> "{adminToDeleteName}" </span>
-                    : ' هذا الإداري '}؟
-                </p>
-                <p className="text-xs text-rose-400 mt-1">لا يمكن التراجع عن هذا الإجراء</p>
-              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد حذف الإداري</h2>
+              <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                هل أنت متأكد من رغبتك في حذف {adminToDeleteName ? <span className="font-black text-slate-700">{adminToDeleteName}</span> : 'هذا الإداري'}؟ لا يمكن التراجع عن هذا الإجراء.
+              </p>
             </div>
-            <div className="px-6 pb-6 flex gap-2">
-              <Button variant="outline" onClick={() => setAdminToDelete(null)} className="flex-1">إلغاء</Button>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setAdminToDelete(null)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                تراجع
+              </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all"
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
               >
-                <Trash2 size={16} /> حذف
+                نعم، احذف الإداري
               </button>
             </div>
           </div>
@@ -985,27 +1362,104 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
       {/* Delete All Modal */}
       {showDeleteAllConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 flex flex-col items-center gap-4 text-center">
-              <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center">
-                <AlertTriangle size={28} className="text-rose-500" />
-              </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 flex items-start gap-3">
+              <Trash2 size={28} className="text-rose-500 mt-0.5" />
               <div>
-                <h3 className="font-black text-lg text-slate-800">حذف جميع الإداريين</h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  سيتم حذف <span className="font-black text-slate-700">{admins.length} إداري</span> بشكل نهائي
+                <h2 className="text-xl font-black text-slate-800 mb-2">حذف الكل</h2>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  سيتم حذف جميع الإداريين. هل تريد المتابعة؟
                 </p>
-                <p className="text-xs text-rose-400 mt-1">لا يمكن التراجع عن هذا الإجراء</p>
               </div>
             </div>
-            <div className="px-6 pb-6 flex gap-2">
-              <Button variant="outline" onClick={() => setShowDeleteAllConfirm(false)} className="flex-1">إلغاء</Button>
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowDeleteAllConfirm(false)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
               <button
                 onClick={confirmDeleteAll}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all"
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
               >
-                <Trash2 size={16} /> حذف الكل
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div>
+                <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                  <Printer size={22} className="text-[#655ac1]" />
+                  طباعة الإداريين
+                </h3>
+                <p className="text-xs text-slate-400 font-bold mt-1">اختر نطاق الطباعة المطلوب.</p>
+              </div>
+              <button onClick={() => setShowPrintModal(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
+              <button
+                onClick={() => setPrintScope('all')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'all' ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+              >
+                <span>طباعة الكل</span>
+                <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'all' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
+                </span>
+              </button>
+              <button
+                onClick={() => setPrintScope('role')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'role' ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+              >
+                <span>طباعة دور محدد</span>
+                <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'role' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
+                </span>
+              </button>
+              {printScope === 'role' && (
+                <div className="pt-1">
+                  <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الدور</p>
+                  <div className="space-y-2 max-h-[42vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {rolesToRender.map(role => {
+                      const on = printRole === role;
+                      return (
+                        <button
+                          type="button"
+                          key={role}
+                          onClick={() => setPrintRole(role)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-slate-200 text-[#655ac1]' : 'border-slate-100 hover:border-slate-300'}`}
+                        >
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-2 border-slate-300 text-transparent'}`}>
+                            {on && <Check size={12} strokeWidth={3.5} />}
+                          </span>
+                          <span className="text-sm font-bold text-slate-700">{role}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+              <button onClick={() => setShowPrintModal(false)} className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors">
+                إلغاء
+              </button>
+              <button
+                onClick={executePrint}
+                disabled={printScope === 'role' && !printRole}
+                className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                طباعة
               </button>
             </div>
           </div>
@@ -1014,43 +1468,44 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
       {/* Bulk Count Modal */}
       {showBulkCountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                <UserPlus size={20} className="text-[#655ac1]" /> إضافة عدة إداريين
+                <MultiAddIcon className="text-[#655ac1]" />
+                إضافة عدة إداريين
               </h3>
-              <button onClick={() => setShowBulkCountModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all">
-                <X size={20} />
+              <button onClick={() => setShowBulkCountModal(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                <X size={18} />
               </button>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-500 font-medium mb-5">حدد عدد الإداريين المتوقع إضافتهم وسيتم إنشاء جدول لتعبئة بياناتهم.</p>
+              <p className="text-sm text-slate-500 font-bold mb-5">حدد عدد الإداريين المتوقع إضافتهم</p>
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-6">
                 <span className="text-sm font-bold text-slate-500 shrink-0">عدد الإداريين:</span>
                 <input
                   type="number"
-                  min="1"
+                  min="2"
                   max="100"
                   value={bulkCount}
-                  onChange={e => setBulkCount(parseInt(e.target.value) || 1)}
-                  className="flex-1 p-2 bg-white border border-slate-200 rounded-xl font-bold text-center outline-none focus:border-[#9d8fe8] text-sm"
+                  onChange={e => setBulkCount(Math.max(2, parseInt(e.target.value) || 2))}
+                  className="flex-1 p-2 bg-white border border-slate-200 rounded-xl font-black text-center outline-none focus:border-[#9d8fe8] text-sm text-[#655ac1]"
                   autoFocus
                 />
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={startBulkEntry}
-                  disabled={!bulkCount || bulkCount < 1}
-                  className="flex-1 py-3 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <CheckCircle2 size={16} /> إضافة
-                </button>
-                <button
                   onClick={() => setShowBulkCountModal(false)}
                   className="flex-1 py-3 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
                 >
                   إلغاء
+                </button>
+                <button
+                  onClick={startBulkEntry}
+                  disabled={!bulkCount || bulkCount < 2}
+                  className="flex-1 py-3 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={16} /> إضافة
                 </button>
               </div>
             </div>
@@ -1062,17 +1517,17 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
       {showAddSingle && (
         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                 <UserPlus size={24} className="text-[#655ac1]" /> إضافة إداري جديد
               </h3>
-              <button onClick={() => setShowAddSingle(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-all">
-                <X size={20} />
+              <button onClick={() => setShowAddSingle(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                <X size={18} />
               </button>
             </div>
 
             <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-2">اسم الإداري <span className="text-rose-500">*</span></label>
                   <input
@@ -1095,45 +1550,42 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#655ac1]/10 transition-all"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-xs font-bold text-slate-500 mb-2">الدور الوظيفي</label>
-                  <select
+                  <RoleSelectDropdown
                     value={singleRole}
-                    onChange={e => { setSingleRole(e.target.value); setSingleAgentTypes([]); }}
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] transition-all"
-                  >
-                    <option value="">-- اختر الدور --</option>
-                    {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                    onChange={value => { setSingleRole(value); setSingleAgentTypes([]); }}
+                  />
                 </div>
 
                 {/* Agent type selector — shown only when role is وكيل */}
                 {singleRole === 'وكيل' && (
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="block text-xs font-bold text-slate-500 mb-2">
                       صفة الوكيل
                       <span className="text-slate-400 font-medium mr-1">(يمكن اختيار أكثر من صفة)</span>
                     </label>
-                    <div className="flex flex-col gap-2 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3">
+                    <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-100 rounded-xl p-2">
                       {AGENT_TYPES.map(type => {
                         const selected = singleAgentTypes.includes(type);
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={type}
                             onClick={() => setSingleAgentTypes(prev =>
                               prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
                             )}
-                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer text-sm font-bold transition-colors ${
-                              selected ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-white text-slate-600'
+                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-black transition-all ${
+                              selected ? 'border-slate-200 text-[#655ac1] bg-white' : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-white'
                             }`}
                           >
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
-                              selected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'
+                            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                              selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent bg-white'
                             }`}>
                               {selected && <Check size={11} className="text-white" strokeWidth={3} />}
-                            </div>
+                            </span>
                             {type}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -1143,17 +1595,17 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
               <div className="mt-8 flex gap-3">
                 <button
+                  onClick={() => setShowAddSingle(false)}
+                  className="flex-1 py-4 bg-white text-slate-400 border border-slate-200 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all"
+                >
+                  إلغاء
+                </button>
+                <button
                   onClick={handleAddSingle}
                   disabled={!singleName.trim()}
                   className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 size={18} /> حفظ
-                </button>
-                <button
-                  onClick={() => setShowAddSingle(false)}
-                  className="flex-1 py-4 bg-white text-slate-400 border border-slate-200 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all"
-                >
-                  إلغاء
                 </button>
               </div>
             </div>
