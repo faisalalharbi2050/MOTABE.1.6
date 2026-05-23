@@ -700,7 +700,7 @@ export default function TeacherConstraintsModal({
                                     isAct ? `${c.border} shadow-md ${c.ring}` : 'border-slate-200 hover:border-slate-300'
                                   }`}
                                 >
-                                  <span className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-black transition-colors ${
+                                  <span className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black transition-colors ${
                                     isAct ? `${c.dot} text-white` : 'bg-slate-100 text-slate-400'
                                   }`}>
                                     {num}
@@ -930,7 +930,7 @@ export default function TeacherConstraintsModal({
                                               }`}
                                               title={isEx ? 'مستثنى من الإسناد' : 'متاح للإسناد'}
                                             >
-                                              {isEx ? <X size={11} strokeWidth={3.5} /> : <Check size={11} strokeWidth={3.5} />}
+                                              {isEx ? <X size={10} strokeWidth={3.5} /> : <Check size={10} strokeWidth={3.5} />}
                                             </button>
                                           ) : (
                                             <span className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50 text-slate-300 inline-flex items-center justify-center text-xs font-black">-</span>
