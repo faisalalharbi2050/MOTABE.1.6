@@ -1260,7 +1260,7 @@ export default function TeacherConstraintsModal({
                                     >
                                       <div className="px-3 py-3 border-l border-slate-200 flex flex-col justify-center">
                                         <span className="text-xs font-black text-slate-800 truncate">{school.schoolName}</span>
-                                        <span className="text-xs font-black text-[#655ac1] mt-0.5">{isMainSchool ? 'الرئيسية' : 'المشتركة'}</span>
+                                        <span className="text-[11px] font-black text-[#655ac1] mt-0.5">{isMainSchool ? 'الرئيسية' : 'المشتركة'}</span>
                                       </div>
                                       {days.map(day => {
                                         const selected = effectiveDays.includes(day);
