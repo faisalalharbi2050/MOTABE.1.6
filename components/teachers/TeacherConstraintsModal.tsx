@@ -1271,7 +1271,7 @@ export default function TeacherConstraintsModal({
                                               onClick={() => applyPresence(school.schoolId, day)}
                                               className={`w-full h-8 rounded-xl border text-[11px] font-black transition-all ${
                                                 selected
-                                                  ? 'bg-white border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/10'
+                                                  ? 'bg-white border-slate-200 text-white shadow-sm'
                                                   : 'bg-white border-slate-200 text-slate-400 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
                                               }`}
                                             >
