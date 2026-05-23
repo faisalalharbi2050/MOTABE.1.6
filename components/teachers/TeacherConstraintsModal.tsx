@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
 import { Users, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
@@ -14,6 +14,65 @@ function getDayLabel(d: string): string {
   };
   return map[d.toLowerCase()] ?? d;
 }
+
+type ConstraintDropdownOption = { id: string; name: string };
+
+const ConstraintSelectDropdown: React.FC<{
+  value?: string;
+  options: ConstraintDropdownOption[];
+  onChange: (value: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+}> = ({ value, options, onChange, placeholder, disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const selected = options.find(o => o.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(o => !o)}
+        className={`w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 text-sm disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed disabled:hover:border-slate-200 ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
+      >
+        <span className="truncate leading-tight">{selected?.name || placeholder}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && !disabled && (
+        <div className="absolute z-50 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+          <div className="max-h-56 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(opt => {
+              const active = opt.id === value;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => { onChange(opt.id); setOpen(false); }}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                >
+                  <span className="whitespace-nowrap">{opt.name}</span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- Component ---
 interface Props {
@@ -966,7 +1025,7 @@ export default function TeacherConstraintsModal({
                                     const nextDay = item.mode === 'auto' ? (days[0] || '') : (selectedDay || days[0] || '');
                                     updC(selTeacher.id, { earlyExitMode: item.mode, earlyExit: currentPeriod ? { [nextDay]: currentPeriod } : {} });
                                   }}
-                                  className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all ${
+                                  className={`inline-flex items-center justify-center px-4 py-2 rounded-xl border font-bold text-xs transition-all ${
                                     active
                                       ? 'bg-[#5448a8] border-[#5448a8] text-white shadow-md shadow-[#5448a8]/15'
                                       : 'bg-white border-slate-200 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
@@ -978,49 +1037,36 @@ export default function TeacherConstraintsModal({
                             })}
                           </div>
 
-                          <div className="bg-white rounded-2xl p-4 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-white rounded-2xl p-3 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-3">
                             {mode === 'manual' && (
                               <div>
                                 <label className="text-xs font-black text-slate-600 block mb-2">اليوم المطلوب</label>
-                                <div className="relative">
-                                  <select
-                                    value={selectedDay}
-                                    onChange={e => {
-                                      const day = e.target.value;
-                                      if (!day) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                      updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: { [day]: selectedPeriod || Math.max(1, safePeriodsCount - 1) } });
-                                    }}
-                                    className="w-full px-5 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 outline-none focus:ring-2 focus:ring-[#8779fb]/20 focus:border-[#655ac1]/40 transition-all appearance-none"
-                                  >
-                                    <option value="">اختر اليوم</option>
-                                    {days.map(day => <option key={day} value={day}>{getDayLabel(day)}</option>)}
-                                  </select>
-                                  <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#655ac1] pointer-events-none" />
-                                </div>
+                                <ConstraintSelectDropdown
+                                  value={selectedDay}
+                                  placeholder="اختر اليوم"
+                                  options={days.map(day => ({ id: day, name: getDayLabel(day) }))}
+                                  onChange={day => {
+                                    if (!day) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                    updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: { [day]: selectedPeriod || Math.max(1, safePeriodsCount - 1) } });
+                                  }}
+                                />
                               </div>
                             )}
 
                             <div className={mode === 'manual' ? '' : 'md:col-span-2'}>
                               <label className="text-xs font-black text-slate-600 block mb-2">الخروج بعد الحصة</label>
-                              <div className="relative">
-                                <select
-                                  value={selectedPeriod || ''}
-                                  onChange={e => {
-                                    const period = Number(e.target.value);
-                                    if (!period) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                    const targetDay = selectedDay || days[0] || '';
-                                    updC(selTeacher.id, { earlyExitMode: mode, earlyExit: { [targetDay]: period } });
-                                  }}
-                                  disabled={mode === 'manual' && !selectedDay}
-                                  className="w-full px-5 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 outline-none focus:ring-2 focus:ring-[#8779fb]/20 focus:border-[#655ac1]/40 transition-all appearance-none disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:border-slate-200"
-                                >
-                                  <option value="">اختر رقم الحصة</option>
-                                  {periods.slice(0, -1).map(period => (
-                                    <option key={period} value={period}>الحصة {period}</option>
-                                  ))}
-                                </select>
-                                <ChevronDown size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#655ac1] pointer-events-none" />
-                              </div>
+                              <ConstraintSelectDropdown
+                                value={selectedPeriod ? String(selectedPeriod) : ''}
+                                placeholder="اختر رقم الحصة"
+                                disabled={mode === 'manual' && !selectedDay}
+                                options={periods.slice(0, -1).map(period => ({ id: String(period), name: `الحصة ${period}` }))}
+                                onChange={value => {
+                                  const period = Number(value);
+                                  if (!period) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                  const targetDay = selectedDay || days[0] || '';
+                                  updC(selTeacher.id, { earlyExitMode: mode, earlyExit: { [targetDay]: period } });
+                                }}
+                              />
                             </div>
                           </div>
 
