@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
-import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin } from 'lucide-react';
+import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, ArrowRightFromLine, ArrowLeftFromLine, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -171,6 +171,12 @@ export default function TeacherConstraintsModal({
   // Sections Expansions
   const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c4: false, c5: false, c6: false, c7: false });
 
+  // Generic sidebar apply-mode (multi-select against the right sidebar)
+  const [applyMode, setApplyMode] = useState<null | 'consec' | 'excluded'>(null);
+  const [applySelection, setApplySelection] = useState<string[]>([]);
+  const [consecApplyDone, setConsecApplyDone] = useState<{ count: number; value: number } | null>(null);
+  const [excludedApplyDone, setExcludedApplyDone] = useState<{ count: number } | null>(null);
+
   // Sync open sections when initialOpenSection prop changes (e.g. when modal is reopened with a different target)
   useEffect(() => {
     if (isOpen && initialOpenSection) {
@@ -227,6 +233,55 @@ export default function TeacherConstraintsModal({
       ? constraints.map(c => c.teacherId === tid ? { ...c, ...upd } : c)
       : [...constraints, { teacherId: tid, maxConsecutive: 2, excludedSlots: {}, ...upd }];
     onChangeConstraints(newConstraints);
+  };
+
+  // --- Apply max-consecutive value to a selected group of teachers ---
+  const applyConsecutiveToSelection = (value: number, ids: string[]) => {
+    if (ids.length === 0) return;
+    const next = [...constraints];
+    ids.forEach(tid => {
+      const idx = next.findIndex(c => c.teacherId === tid);
+      if (idx >= 0) {
+        next[idx] = { ...next[idx], maxConsecutive: value };
+      } else {
+        next.push({ teacherId: tid, maxConsecutive: value, excludedSlots: {} });
+      }
+    });
+    onChangeConstraints(next);
+    setApplyMode(null);
+    setApplySelection([]);
+    setConsecApplyDone({ count: ids.length, value });
+    setTimeout(() => setConsecApplyDone(null), 2400);
+  };
+
+  const applyExcludedSlotsToSelection = (excludedSlots: Record<string, number[]>, ids: string[]) => {
+    if (ids.length === 0) return;
+    const next = [...constraints];
+    ids.forEach(tid => {
+      const idx = next.findIndex(c => c.teacherId === tid);
+      const clonedSlots = Object.fromEntries(
+        Object.entries(excludedSlots || {}).map(([day, slots]) => [day, [...(slots || [])]])
+      ) as Record<string, number[]>;
+      if (idx >= 0) {
+        next[idx] = { ...next[idx], excludedSlots: clonedSlots };
+      } else {
+        next.push({ teacherId: tid, maxConsecutive: 2, excludedSlots: clonedSlots });
+      }
+    });
+    onChangeConstraints(next);
+    setApplyMode(null);
+    setApplySelection([]);
+    setExcludedApplyDone({ count: ids.length });
+    setTimeout(() => setExcludedApplyDone(null), 2400);
+  };
+
+  const toggleApplyTarget = (id: string) => {
+    setApplySelection(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const exitApplyMode = () => {
+    setApplyMode(null);
+    setApplySelection([]);
   };
 
   // --- Engine: التوزيع التلقائي الكامل (زر التوزيع التلقائي) ---
@@ -393,6 +448,50 @@ export default function TeacherConstraintsModal({
           {/* --- Sidebar --- */}
           {!singleTeacherMode && (
           <div className="w-72 bg-white border-l border-slate-100 flex flex-col shrink-0">
+            {/* Apply-mode banner — gray frame, gray text, purple buttons */}
+            {applyMode && (() => {
+              const ids = filteredTeachers.map(t => t.id);
+              const allOn = ids.length > 0 && ids.every(id => applySelection.includes(id));
+              const toggleSelectAll = () => {
+                if (allOn) {
+                  setApplySelection(prev => prev.filter(id => !ids.includes(id)));
+                } else {
+                  setApplySelection(prev => Array.from(new Set([...prev, ...ids])));
+                }
+              };
+              const runApply = () => {
+                if (applyMode === 'consec') applyConsecutiveToSelection(sc?.maxConsecutive ?? 2, applySelection);
+                if (applyMode === 'excluded') applyExcludedSlotsToSelection(sc?.excludedSlots || {}, applySelection);
+              };
+              return (
+                <div className="bg-slate-50 border-b border-slate-200 px-3 py-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-slate-600 truncate">وضع التحديد للتطبيق</span>
+                    <button onClick={exitApplyMode} className="w-6 h-6 rounded-full border border-slate-300 bg-white flex items-center justify-center hover:bg-slate-100 hover:border-slate-400 text-slate-500 shrink-0 transition-all" title="إلغاء التطبيق">
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500">
+                    محدد: <span className="font-black text-[#655ac1]">{applySelection.length}</span> من {filteredTeachers.length}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex-1 px-2 py-1.5 rounded-md bg-white border border-[#655ac1]/40 text-[#655ac1] text-[10px] font-black hover:bg-[#655ac1]/5 transition-all"
+                    >
+                      {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
+                    </button>
+                    <button
+                      onClick={runApply}
+                      disabled={applySelection.length === 0}
+                      className="flex-1 px-2 py-1.5 rounded-md bg-[#655ac1] text-white text-[10px] font-black hover:bg-[#574bb1] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      تطبيق على ({applySelection.length})
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
             {/* Search & Sort */}
             <div className="p-3 border-b border-slate-100 space-y-2.5">
               <div className="relative">
@@ -454,10 +553,25 @@ export default function TeacherConstraintsModal({
                   return <div className="text-center py-8 text-xs font-bold text-slate-400">لا يوجد معلمين</div>;
                 }
                 const renderTeacher = (t: Teacher) => {
-                  const isSel = selId === t.id;
                   const spName = specializations.find(s => s.id === t.specializationId)?.name
                     || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name
                     || '';
+                  if (applyMode) {
+                    const checked = applySelection.includes(t.id);
+                    return (
+                      <button key={t.id} type="button" onClick={() => toggleApplyTarget(t.id)}
+                        className="w-full text-right p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 flex items-center gap-3 transition-all">
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-[13px] font-black truncate transition-colors ${checked ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
+                          {sortBy === 'alpha' && <div className="text-[11px] font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
+                        </div>
+                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300 bg-white'}`}>
+                          {checked && <Check size={12} className="text-white" strokeWidth={3.5} />}
+                        </span>
+                      </button>
+                    );
+                  }
+                  const isSel = selId === t.id;
                   const hasC = constraints.some(c => c.teacherId === t.id);
                   return (
                     <button key={t.id} onClick={() => setSelId(isSel ? null : t.id)}
@@ -492,7 +606,7 @@ export default function TeacherConstraintsModal({
                 });
 
                 return groups.map(g => {
-                  const collapsed = search.trim() ? false : collapsedSpecs.has(g.sid);
+                  const collapsed = (search.trim() || applyMode) ? false : collapsedSpecs.has(g.sid);
                   return (
                     <div key={g.sid} className="space-y-1">
                       <button
@@ -547,133 +661,340 @@ export default function TeacherConstraintsModal({
                   </div>
                 ))}
 
-                {/* 1. Consecutive Periods - Smaller, Pattern N+0, Default 2 */}
-                <div className="space-y-2">
-                  {renderSectionHeader('c1', 'bg-violet-50', 'border-violet-200', 'bg-violet-100', 'text-violet-600', Sliders, 'تتابع الحصص', 'الحد الأقصى للحصص المتتالية')}
-                  {open.c1 && (
-                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                      <div className="flex flex-wrap gap-2 px-4">
-                        {[1, 2, 3, 4, 5].map(n => {
-                          const isAct = (sc?.maxConsecutive ?? 2) === n;
-                          return (
-                            <button key={n} onClick={() => updC(selTeacher.id, { maxConsecutive: n })}
-                              className={`w-14 h-12 rounded-xl border-2 flex items-center justify-center transition-all ${isAct ? 'border-violet-500 bg-white shadow-sm shadow-violet-100' : 'border-slate-100 hover:border-violet-200 bg-white'}`}>
-                              <span className={`text-base font-black ${isAct ? 'text-violet-600' : 'text-slate-400'}`}>{n}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* 1. Consecutive Periods — unified card */}
+                {(() => {
+                  const n = sc?.maxConsecutive ?? 2;
+                  const palette: Record<number, { border: string; text: string; dot: string; ring: string }> = {
+                    1: { border: 'border-emerald-600', text: 'text-emerald-700', dot: 'bg-emerald-600', ring: 'shadow-emerald-200' },
+                    2: { border: 'border-emerald-300', text: 'text-emerald-500', dot: 'bg-emerald-400', ring: 'shadow-emerald-100' },
+                    3: { border: 'border-amber-400',   text: 'text-amber-600',   dot: 'bg-amber-500',   ring: 'shadow-amber-100' },
+                    4: { border: 'border-orange-400',  text: 'text-orange-600',  dot: 'bg-orange-500',  ring: 'shadow-orange-100' },
+                    5: { border: 'border-rose-400',    text: 'text-rose-600',    dot: 'bg-rose-500',    ring: 'shadow-rose-100' },
+                  };
+                  const cur = palette[n] || palette[2];
+                  const isConsecApplyMode = applyMode === 'consec';
 
-                {/* 2. Excluded Slots */}
-                <div className="space-y-2">
-                  {renderSectionHeader('c2', 'bg-rose-50', 'border-rose-200', 'bg-rose-100', 'text-rose-600', Ban, 'استثناء الحصص', 'منع إسناد حصص معينة')}
-                  {open.c2 && (
-                    <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm overflow-x-auto">
-
-                      {/* توجيه سريع */}
-                      <div className="flex flex-wrap gap-2 mb-4 min-w-[520px]">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg flex-1">
-                          <div className="w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center shrink-0">
-                            <span className="text-white font-black text-[9px]">١</span>
+                  return (
+                    <div className={`bg-white rounded-2xl border transition-all ${open.c1 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
+                      {/* Header — toggles open/close */}
+                      <button
+                        onClick={() => setOpen(prev => ({ ...prev, c1: !prev.c1 }))}
+                        className="w-full flex items-center justify-between p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1]">
+                            <Rows3 size={22} />
                           </div>
-                          <span className="text-[10px] font-bold text-rose-700">انقر على <span className="font-black underline decoration-rose-400">رقم الحصة</span> لإغلاق تلك الحصة في جميع الأيام</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-lg flex-1">
-                          <div className="w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center shrink-0">
-                            <span className="text-white font-black text-[9px]">٢</span>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-slate-800">تتابع الحصص</div>
+                            <div className="text-[10px] text-slate-500 font-bold">الحد الأقصى للحصص المتتالية</div>
                           </div>
-                          <span className="text-[10px] font-bold text-rose-700">انقر على <span className="font-black underline decoration-rose-400">اسم اليوم</span> لإغلاق جميع حصصه دفعةً واحدة</span>
                         </div>
-                      </div>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c1 ? 'rotate-180' : ''}`} />
+                      </button>
 
-                      <div className="min-w-[520px]">
-                        <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
+                      {/* Body */}
+                      {open.c1 && (
+                        <div className="px-5 pb-5 pt-1 space-y-5 border-t border-slate-100">
+                          {/* Helper text */}
+                          <p className="text-[12px] font-bold text-slate-500 leading-relaxed pt-3">
+                            الحد الأعلى لعدد الحصص التي يؤديها المعلم/ة متتالية :
+                          </p>
 
-                          {/* Header - Period Numbers */}
-                          <div className="flex bg-slate-50 border-b-2 border-slate-200">
-                            <div className="w-20 shrink-0 border-r-2 border-slate-200 px-2 py-2 flex items-center justify-center">
-                              <span className="text-[8px] font-black text-slate-400 tracking-wider">اليوم / الحصة</span>
-                            </div>
-                            {periods.map((p, pi) => {
-                              const allBlocked = days.every(d => (sc?.excludedSlots?.[d] || []).includes(p));
+                          {/* Buttons row — numbers only, no labels, no badge */}
+                          <div className="flex flex-wrap gap-3 justify-center">
+                            {[1, 2, 3, 4, 5].map(num => {
+                              const isAct = n === num;
+                              const c = palette[num];
                               return (
-                                <div key={p} className={`flex-1 flex justify-center items-center py-2 ${pi < periods.length - 1 ? 'border-r border-slate-200' : ''}`}>
-                                  <button onClick={() => {
-                                    const c = getC(selTeacher.id);
-                                    const currentSlots = c.excludedSlots || {};
-                                    const isAllBlocked = days.every(d => (currentSlots[d] || []).includes(p));
-                                    const newSlots = { ...currentSlots };
-                                    days.forEach(d => {
-                                      const daySlots = newSlots[d] || [];
-                                      if (isAllBlocked) newSlots[d] = daySlots.filter(x => x !== p);
-                                      else if (!daySlots.includes(p)) newSlots[d] = [...daySlots, p];
-                                    });
-                                    updC(selTeacher.id, { excludedSlots: newSlots });
-                                  }} className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs transition-all
-                                    ${allBlocked
-                                      ? 'bg-rose-500 text-white border-2 border-rose-500'
-                                      : 'bg-white border-2 border-slate-300 text-slate-600 hover:border-rose-400 hover:text-rose-500 hover:bg-rose-50'
-                                    }`}>
-                                    {p}
-                                  </button>
-                                </div>
+                                <button
+                                  key={num}
+                                  onClick={() => updC(selTeacher.id, { maxConsecutive: num })}
+                                  className={`relative flex items-center justify-center w-16 h-16 rounded-2xl border-2 bg-white transition-all hover:-translate-y-0.5 ${
+                                    isAct ? `${c.border} shadow-md ${c.ring}` : 'border-slate-200 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <span className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-black transition-colors ${
+                                    isAct ? `${c.dot} text-white` : 'bg-slate-100 text-slate-400'
+                                  }`}>
+                                    {num}
+                                  </span>
+                                </button>
                               );
                             })}
                           </div>
 
-                          {/* Body - Days */}
-                          {days.map((d, di) => (
-                            <div key={d} className={`flex ${di < days.length - 1 ? 'border-b border-slate-200' : ''}`}>
-                              <button onClick={() => {
-                                const c = getC(selTeacher.id);
-                                const current = c.excludedSlots?.[d] || [];
-                                const newSlots = { ...(c.excludedSlots || {}) };
-                                newSlots[d] = current.length === safePeriodsCount ? [] : [...periods];
-                                updC(selTeacher.id, { excludedSlots: newSlots });
-                              }} className="w-20 shrink-0 border-r-2 border-slate-200 px-2 py-2 text-center text-[10px] font-black text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors">
-                                {getDayLabel(d)}
+                          {/* Visual preview — single-line: title · blocks · rest · text */}
+                          <div className="rounded-2xl p-4 border border-slate-200 bg-white">
+                            <div dir="rtl" className="flex items-center gap-3 flex-wrap">
+                              <span className="text-[11px] font-black text-slate-600 shrink-0">توضيح التتابع :</span>
+                              <div className="flex items-center gap-1.5">
+                                {Array.from({ length: n }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black text-white shadow-sm ${cur.dot}`}
+                                    title={`حصة متتالية ${i + 1}`}
+                                  >
+                                    {i + 1}
+                                  </div>
+                                ))}
+                              </div>
+                              <span className="text-[10px] font-black text-slate-300 shrink-0">←</span>
+                              <div className="flex items-center px-3 py-2 rounded-lg bg-slate-50 border border-dashed border-slate-300 shrink-0">
+                                <span className="text-[10px] font-black text-slate-500">راحة</span>
+                              </div>
+                              <span className={`text-[11px] font-black mr-auto ${cur.text}`}>
+                                {n === 1 ? 'حصة واحدة' : n === 2 ? 'حصتان' : `${n} حصص`} ثم راحة
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Apply — actions live in the right sidebar */}
+                          <div className="pt-3 border-t border-slate-100">
+                            {consecApplyDone ? (
+                              <div className="flex justify-start">
+                                <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
+                                  <CheckCircle2 size={14} />
+                                  تم تطبيق ({consecApplyDone.value}) على {consecApplyDone.count} معلم
+                                </span>
+                              </div>
+                            ) : isConsecApplyMode ? (
+                              <div className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border bg-amber-50 text-amber-800 border-amber-200">
+                                <Lightbulb size={15} className="text-amber-600 shrink-0" />
+                                <span className="leading-relaxed">
+                                  اختر المعلمين من القائمة اليمنى ثم اضغط <span className="font-black">تطبيق على</span>
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 text-right">
+                                <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+                                  يمكنك تطبيق هذا الإعداد على مجموعة من المعلمين
+                                </p>
+                                <div className="flex justify-start">
+                                  <button
+                                    onClick={() => { setApplyMode('consec'); setApplySelection([]); }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#574bb1] text-white text-xs font-black shadow transition-all"
+                                  >
+                                    <Users size={14} />
+                                    تطبيق على
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 2. Excluded Slots — unified card */}
+                {(() => {
+                  const excludedSlots = sc?.excludedSlots || {};
+                  const totalOfficialSlots = days.reduce((sum, d) => sum + (dayLastPeriods[d] ?? safePeriodsCount), 0);
+                  const excludedCount = days.reduce((sum, d) => {
+                    const max = dayLastPeriods[d] ?? safePeriodsCount;
+                    return sum + (excludedSlots[d] || []).filter(p => p >= 1 && p <= max).length;
+                  }, 0);
+                  const availableSlots = Math.max(0, totalOfficialSlots - excludedCount);
+                  const quota = selTeacher.quotaLimit || 0;
+                  const hasPressure = excludedCount > 0 && (availableSlots < quota || excludedCount / Math.max(1, totalOfficialSlots) >= 0.35);
+                  const isExcludedApplyMode = applyMode === 'excluded';
+
+                  const resetExcludedSlots = () => updC(selTeacher.id, { excludedSlots: {} });
+
+                  return (
+                    <div className={`bg-white rounded-2xl border transition-all ${open.c2 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
+                      <button
+                        onClick={() => setOpen(prev => ({ ...prev, c2: !prev.c2 }))}
+                        className="w-full flex items-center justify-between p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1]">
+                            <Ban size={20} />
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-slate-800">الحصص المستثناة</div>
+                            <div className="text-[10px] text-slate-500 font-bold">حدد الحصص التي لا ترغب أن تُسند لهذا المعلم عند إنشاء الجدول</div>
+                          </div>
+                        </div>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c2 ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {open.c2 && (
+                        <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-100">
+                          <div className="pt-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2 text-xs font-black">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-500">
+                                <span className="w-4 h-4 rounded-full bg-emerald-500 border border-emerald-500 text-white inline-flex items-center justify-center"><Check size={10} strokeWidth={3.5} /></span>
+                                متاح
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-500">
+                                <span className="w-4 h-4 rounded-full bg-rose-500 border border-rose-500 text-white inline-flex items-center justify-center"><X size={10} strokeWidth={3.5} /></span>
+                                مستثنى
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black">
+                                إجمالي المستثنى: <span className="text-[#655ac1]">{excludedCount}</span>
+                              </span>
+                              <button
+                                onClick={resetExcludedSlots}
+                                disabled={excludedCount === 0}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black hover:border-[#5448a8] hover:text-[#5448a8] hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              >
+                                <RotateCcw size={14} />
+                                إعادة التعيين
                               </button>
+                            </div>
+                          </div>
 
-                              {periods.map((p, pi) => {
-                                const isEx = (sc?.excludedSlots?.[d] || []).includes(p);
-                                const isEarly = (sc?.earlyExit?.[d] !== undefined) && p > sc.earlyExit[d];
+                          <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+                            انقر على رقم الحصة لإغلاقها في كل الأيام، أو على اسم اليوم لإغلاق كل حصصه.
+                          </p>
 
+                          {hasPressure && (
+                            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800">
+                              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                              <span className="leading-relaxed">
+                                كثرة الحصص المستثناة قد تقلل فرص إنشاء جدول مكتمل لهذا المعلم. المتاح الآن {availableSlots} حصة مقابل نصاب {quota}.
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="overflow-x-auto custom-scrollbar">
+                            <div className="min-w-[560px] border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                              <div className="flex bg-slate-50 border-b border-slate-200">
+                                <div className="w-24 shrink-0 border-l border-slate-200 px-2 py-2 flex items-center justify-center">
+                                  <span className="text-[9px] font-black text-slate-400">اليوم / الحصة</span>
+                                </div>
+                                {periods.map((p, pi) => {
+                                  const validDays = days.filter(d => p <= (dayLastPeriods[d] ?? safePeriodsCount));
+                                  const allBlocked = validDays.length > 0 && validDays.every(d => (excludedSlots[d] || []).includes(p));
+                                  return (
+                                    <div key={p} className={`flex-1 min-w-[52px] flex justify-center items-center py-2 ${pi < periods.length - 1 ? 'border-l border-slate-200' : ''}`}>
+                                      <button
+                                        onClick={() => {
+                                          const c = getC(selTeacher.id);
+                                          const currentSlots = c.excludedSlots || {};
+                                          const isAllBlocked = validDays.length > 0 && validDays.every(d => (currentSlots[d] || []).includes(p));
+                                          const newSlots = { ...currentSlots };
+                                          validDays.forEach(d => {
+                                            const daySlots = newSlots[d] || [];
+                                            newSlots[d] = isAllBlocked ? daySlots.filter(x => x !== p) : Array.from(new Set([...daySlots, p]));
+                                          });
+                                          updC(selTeacher.id, { excludedSlots: newSlots });
+                                        }}
+                                        disabled={validDays.length === 0}
+                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-black text-xs transition-all ${
+                                          validDays.length === 0
+                                            ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
+                                            : allBlocked
+                                              ? 'bg-rose-500 border-rose-500 text-white'
+                                              : 'bg-white border-slate-300 text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1]'
+                                        }`}
+                                      >
+                                        {p}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {days.map((d, di) => {
+                                const dayCount = dayLastPeriods[d] ?? safePeriodsCount;
+                                const dayPeriods = periods.filter(p => p <= dayCount);
+                                const dayExcluded = (excludedSlots[d] || []).filter(p => p <= dayCount);
+                                const fullDayBlocked = dayPeriods.length > 0 && dayPeriods.every(p => dayExcluded.includes(p));
                                 return (
-                                  <div key={p} className={`flex-1 flex justify-center items-center py-1.5 ${pi < periods.length - 1 ? 'border-r border-slate-200' : ''} ${isEx ? 'bg-rose-50/60' : ''}`}>
+                                  <div key={d} className={`flex ${di < days.length - 1 ? 'border-b border-slate-200' : ''}`}>
                                     <button
                                       onClick={() => {
-                                        if (isEarly) return;
                                         const c = getC(selTeacher.id);
-                                        const cur = c.excludedSlots?.[d] || [];
+                                        const current = c.excludedSlots?.[d] || [];
                                         const newSlots = { ...(c.excludedSlots || {}) };
-                                        newSlots[d] = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p];
+                                        newSlots[d] = fullDayBlocked ? [] : [...dayPeriods];
                                         updC(selTeacher.id, { excludedSlots: newSlots });
                                       }}
-                                      disabled={isEarly}
-                                      className={`w-8 h-7 rounded-lg flex items-center justify-center transition-all duration-200
-                                        ${isEarly
-                                          ? 'opacity-25 cursor-not-allowed bg-slate-100 border-2 border-slate-200'
-                                          : isEx
-                                            ? 'bg-rose-100 border-2 border-rose-400 text-rose-500 hover:bg-rose-200 shadow-sm shadow-rose-100'
-                                            : 'bg-emerald-50 border-2 border-emerald-300 text-emerald-500 hover:bg-emerald-100 shadow-sm shadow-emerald-100'
-                                        }`}>
-                                      {isEarly && <span className="text-slate-300 font-bold text-xs">—</span>}
-                                      {!isEarly && isEx && <X size={12} strokeWidth={3} />}
-                                      {!isEarly && !isEx && <Check size={12} strokeWidth={3} />}
+                                      className={`w-24 shrink-0 border-l border-slate-200 px-2 py-2 text-center text-xs font-black transition-colors ${
+                                        fullDayBlocked ? 'text-rose-600 bg-rose-50 hover:bg-slate-100 hover:text-[#655ac1]' : 'text-slate-600 hover:bg-slate-100 hover:text-[#655ac1]'
+                                      }`}
+                                    >
+                                      {getDayLabel(d)}
                                     </button>
+
+                                    {periods.map((p, pi) => {
+                                      const isValid = p <= dayCount;
+                                      const isEx = isValid && (excludedSlots[d] || []).includes(p);
+                                      return (
+                                        <div key={p} className={`flex-1 min-w-[52px] flex justify-center items-center py-2 ${pi < periods.length - 1 ? 'border-l border-slate-200' : ''}`}>
+                                          {isValid ? (
+                                            <button
+                                              onClick={() => {
+                                                const c = getC(selTeacher.id);
+                                                const cur = c.excludedSlots?.[d] || [];
+                                                const newSlots = { ...(c.excludedSlots || {}) };
+                                                newSlots[d] = cur.includes(p) ? cur.filter(x => x !== p) : Array.from(new Set([...cur, p]));
+                                                updC(selTeacher.id, { excludedSlots: newSlots });
+                                              }}
+                                              className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                isEx
+                                                  ? 'bg-rose-500 border-rose-500 text-white hover:bg-rose-600'
+                                                  : 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
+                                              }`}
+                                              title={isEx ? 'مستثنى من الإسناد' : 'متاح للإسناد'}
+                                            >
+                                              {isEx ? <X size={12} strokeWidth={3.5} /> : <Check size={12} strokeWidth={3.5} />}
+                                            </button>
+                                          ) : (
+                                            <span className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50 text-slate-300 inline-flex items-center justify-center text-xs font-black">-</span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 );
                               })}
                             </div>
-                          ))}
+                          </div>
+
+                          <div className="pt-3 border-t border-slate-100">
+                            {excludedApplyDone ? (
+                              <div className="flex justify-start">
+                                <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
+                                  <CheckCircle2 size={14} />
+                                  تم تطبيق الحصص المستثناة على {excludedApplyDone.count} معلم
+                                </span>
+                              </div>
+                            ) : isExcludedApplyMode ? (
+                              <div className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border bg-amber-50 text-amber-800 border-amber-200">
+                                <Lightbulb size={15} className="text-amber-600 shrink-0" />
+                                <span className="leading-relaxed">
+                                  اختر المعلمين من القائمة اليمنى ثم اضغط <span className="font-black">تطبيق على</span>
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 text-right">
+                                <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+                                  يمكنك تطبيق الحصص المستثناة نفسها على مجموعة من المعلمين
+                                </p>
+                                <div className="flex justify-start">
+                                  <button
+                                    onClick={() => { setApplyMode('excluded'); setApplySelection([]); }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#574bb1] text-white text-xs font-black shadow transition-all"
+                                  >
+                                    <Users size={14} />
+                                    تطبيق على
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* 4. First/Last */}
                 <div className="space-y-2">
@@ -1331,7 +1652,7 @@ export default function TeacherConstraintsModal({
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { k: 'consecutive', l: 'تتابع الحصص' },
-                    { k: 'excluded', l: 'استثناء الحصص' },
+                    { k: 'excluded', l: 'الحصص المستثناة' },
                     { k: 'firstLast', l: 'أولى / أخيرة' },
                     { k: 'earlyEntry', l: 'خروج مبكر' },
                   ].map(opt => {
