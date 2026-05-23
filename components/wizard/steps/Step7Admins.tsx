@@ -7,7 +7,6 @@ import {
   Check, AlertTriangle, Users, Upload, Search, UserPlus,
   CheckCircle2, CheckSquare, ArrowUp, ArrowDown, Plus
 } from 'lucide-react';
-import PrintHeader from '../../ui/PrintHeader';
 
 interface Step7Props {
   admins: Admin[];
@@ -49,6 +48,41 @@ const MultiAddIcon = ({ className = "text-slate-400" }: { className?: string }) 
 );
 
 // ─── AgentTypeSelector ──────────────────────────────────────────
+const AdminsPrintHeader: React.FC<{ schoolInfo: SchoolInfo }> = ({ schoolInfo }) => {
+  const currentSemester =
+    schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId) ??
+    schoolInfo.semesters?.[0];
+
+  return (
+    <div className="admins-print-header hidden print:block" dir="rtl">
+      <div className="admins-print-header-wrapper">
+        <div className="admins-print-header-right">
+          <p>المملكة العربية السعودية</p>
+          <p>وزارة التعليم</p>
+          <p>{schoolInfo.region || 'إدارة التعليم بالمنطقة'}</p>
+          <p>مدرسة {schoolInfo.schoolName || '..........'}</p>
+          <p>الفصل الدراسي: {currentSemester?.name || ''}</p>
+        </div>
+
+        <div className="admins-print-header-center">
+          {schoolInfo.logo ? (
+            <img src={schoolInfo.logo} alt="شعار المدرسة" />
+          ) : (
+            <div className="admins-print-logo-placeholder">شعار</div>
+          )}
+        </div>
+
+        <div className="admins-print-header-left">
+          <p>التاريخ: {new Date().toLocaleDateString('ar-SA')}</p>
+          <p>العام الدراسي: {schoolInfo.academicYear || ''}</p>
+        </div>
+      </div>
+
+      <h1>بيان بأسماء الإداريين</h1>
+    </div>
+  );
+};
+
 interface AgentTypeSelectorProps {
   admin: Admin;
   onToggle: (adminId: string, type: string) => void;
@@ -461,17 +495,154 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
     const styleId = 'print-admin-role-override';
     document.getElementById(styleId)?.remove();
 
-    if (printScope === 'role' && printRole) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.textContent = `
-        @media print {
-          [data-admin-role-card] { display: none !important; }
-          [data-admin-role-card="${printRole}"] { display: block !important; }
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      @media print {
+        @page { size: A4 portrait; margin: 10mm; }
+        body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          background: #ffffff !important;
         }
-      `;
-      document.head.appendChild(style);
-    }
+
+        .admins-print-header {
+          display: block !important;
+          margin-bottom: 14px !important;
+          font-family: 'Tajawal', 'Arial', sans-serif !important;
+          color: #1e293b !important;
+        }
+
+        .admins-print-header-wrapper {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: flex-start !important;
+          border-bottom: 2px solid #1e293b !important;
+          padding-bottom: 14px !important;
+          margin-bottom: 8px !important;
+        }
+
+        .admins-print-header-right,
+        .admins-print-header-left {
+          width: 33% !important;
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          line-height: 1.8 !important;
+          color: #1e293b !important;
+        }
+
+        .admins-print-header-right { text-align: right !important; }
+        .admins-print-header-left { text-align: left !important; }
+
+        .admins-print-header-center {
+          width: 33% !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+        }
+
+        .admins-print-header-center img {
+          width: 56px !important;
+          height: 56px !important;
+          object-fit: contain !important;
+        }
+
+        .admins-print-logo-placeholder {
+          width: 56px !important;
+          height: 56px !important;
+          border: 2px solid #cbd5e1 !important;
+          border-radius: 50% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-size: 9px !important;
+          color: #94a3b8 !important;
+        }
+
+        .admins-print-header h1 {
+          margin: 8px 0 14px !important;
+          text-align: center !important;
+          color: #1e293b !important;
+          font-size: 18px !important;
+          font-weight: 900 !important;
+        }
+
+        [data-admin-role-card] {
+          display: block !important;
+          margin-bottom: 14px !important;
+          overflow: hidden !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 16px !important;
+          box-shadow: none !important;
+          background: #ffffff !important;
+        }
+
+        ${printScope === 'role' && printRole ? `
+        [data-admin-role-card] { display: none !important; }
+        [data-admin-role-card="${printRole}"] { display: block !important; }
+        ` : ''}
+
+        [data-admin-role-card] > div:first-child {
+          background: linear-gradient(to left, rgba(248, 250, 252, 0.55), #ffffff) !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+          padding: 12px 16px !important;
+        }
+
+        [data-admin-role-card] h4 {
+          color: #1e293b !important;
+          font-size: 15px !important;
+          font-weight: 900 !important;
+        }
+
+        [data-admin-role-card] table {
+          width: 100% !important;
+          border-collapse: separate !important;
+          border-spacing: 0 !important;
+          table-layout: fixed !important;
+          font-size: 12px !important;
+        }
+
+        [data-admin-role-card] thead tr {
+          background: rgba(248, 250, 252, 0.8) !important;
+          border-bottom: 1px solid #e2e8f0 !important;
+        }
+
+        [data-admin-role-card] th {
+          padding: 10px !important;
+          color: #655ac1 !important;
+          font-size: 12px !important;
+          font-weight: 900 !important;
+          border-left: 1px solid #e2e8f0 !important;
+          background: rgba(248, 250, 252, 0.8) !important;
+        }
+
+        [data-admin-role-card] td {
+          padding: 9px 10px !important;
+          color: #334155 !important;
+          font-size: 12px !important;
+          font-weight: 700 !important;
+          border-left: 1px solid #f1f5f9 !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+          background: #ffffff !important;
+        }
+
+        [data-admin-role-card] th:last-child,
+        [data-admin-role-card] td:last-child {
+          border-left: 0 !important;
+        }
+
+        [data-admin-role-card] tbody tr:last-child td {
+          border-bottom: 0 !important;
+        }
+
+        [data-admin-role-card] tbody tr:nth-child(even) td {
+          background: #f8fafc !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
 
     setTimeout(() => {
       window.print();
@@ -583,7 +754,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
       {/* ── Print Header ──────────────────────────────────────── */}
       <div className="hidden print:block mb-4">
-        <PrintHeader schoolInfo={schoolInfo} title="قائمة الكادر الإداري" />
+        <AdminsPrintHeader schoolInfo={schoolInfo} />
       </div>
 
       {!isBulkEntryMode && (
