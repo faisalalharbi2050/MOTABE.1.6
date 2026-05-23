@@ -294,7 +294,7 @@ export async function generateSchedule(
                     const currentClassObj = classes.find(c => c.id === classId);
                     const currentSchoolId = currentClassObj?.schoolId || 'main';
                     const allowedDays = t.constraints.presenceDays[currentSchoolId];
-                    if (allowedDays && allowedDays.length > 0) {
+                    if (allowedDays !== undefined) {
                         if (!allowedDays.includes(day)) {
                             if (slotIndex === 0) console.log(`   -> REJECTED: Shared teacher ${t.name} not allowed on ${day} for school ${currentSchoolId}`);
                             return false;

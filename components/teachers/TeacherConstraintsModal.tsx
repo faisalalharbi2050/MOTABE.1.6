@@ -1160,162 +1160,144 @@ export default function TeacherConstraintsModal({
                     </div>
                   );
                 })()}
-                {/* ══════════════════════════════════════════════════════════════
-                    القيد السابع — تخصيص أيام التواجد (للمعلم المشترك فقط)
-                    ══════════════════════════════════════════════════════════════ */}
                 {selTeacher?.isShared && (selTeacher.schools?.length ?? 0) > 0 && (
-                  <>
-                    {/* فاصل بصري */}
-                    <div className="flex items-center gap-3 px-1">
-                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                    </div>
+                  <div className={`bg-white rounded-2xl border transition-all ${open.c7 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
+                    <button
+                      onClick={() => setOpen(prev => ({ ...prev, c7: !prev.c7 }))}
+                      className="w-full flex items-center justify-between p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1]">
+                          <MapPin size={21} />
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-black text-slate-800">أيام التواجد</div>
+                          <div className="text-[10px] text-slate-500 font-bold">تحديد الأيام التي يتواجد فيها المعلم/ة في كل مدرسة</div>
+                        </div>
+                      </div>
+                      <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c7 ? 'rotate-180' : ''}`} />
+                    </button>
 
-                    <div className="space-y-2">
-                      {renderSectionHeader('c7', 'bg-teal-50', 'border-teal-200', 'bg-teal-100', 'text-teal-600', MapPin, 'تخصيص أيام تواجد المعلم', 'أيام وجود المعلم المشترك في كل مدرسة')}
-
-                      {open.c7 && (() => {
+                    {open.c7 && (() => {
                         const rawSchools = selTeacher.schools ?? [];
-                        // المدرسة الرئيسية تظهر دائماً أولاً باسمها الفعلي من schoolInfo
                         const hasMain = rawSchools.some(s => s.schoolId === 'main');
                         const schools = hasMain
                           ? rawSchools.map(s => s.schoolId === 'main' ? { ...s, schoolName: mainSchoolName } : s)
                           : [{ schoolId: 'main', schoolName: mainSchoolName, subjects: [], classes: [] }, ...rawSchools];
                         const presenceDays = sc?.presenceDays ?? {};
-                        // المدرسة الرئيسية: جميع الأيام محددة تلقائياً إذا لم يُعدَّل
-                        const mainEffectiveDays = presenceDays['main'] ?? days;
-
-                        /** الأيام الفعلية لمدرسة (محفوظة أو تلقائية) */
-                        const getEffective = (schoolId: string, schoolIdx: number): string[] => {
-                          if (presenceDays[schoolId] !== undefined) return presenceDays[schoolId];
-                          // المدرسة الرئيسية: جميع الأيام افتراضياً
-                          if (schoolId === 'main') return days;
-                          // المدارس الأخرى: بدون تفعيل حتى يحددها المستخدم
-                          return [];
+                        const hasPresence = Object.keys(presenceDays).some(id => (presenceDays[id] || []).length > 0);
+                        const selectedByOthers = (schoolId: string) => new Set(
+                          schools
+                            .filter(s => s.schoolId !== schoolId)
+                            .flatMap(s => presenceDays[s.schoolId] || [])
+                        );
+                        const getEffectiveDays = (schoolId: string) => {
+                          if (!hasPresence) return schoolId === 'main' ? days : [];
+                          if (schoolId === 'main') {
+                            return days.filter(day => !selectedByOthers('main').has(day));
+                          }
+                          return presenceDays[schoolId] || [];
                         };
 
+                        const applyPresence = (schoolId: string, day: string) => {
+                          const currentForSchool = getEffectiveDays(schoolId);
+                          const removing = currentForSchool.includes(day);
+                          const next: Record<string, string[]> = {};
+                          schools.forEach(s => {
+                            if (s.schoolId === 'main') return;
+                            const current = presenceDays[s.schoolId] || [];
+                            next[s.schoolId] = s.schoolId === schoolId
+                              ? (removing ? current.filter(d => d !== day) : Array.from(new Set([...current, day])))
+                              : current.filter(d => d !== day);
+                          });
+                          next.main = days.filter(d => !schools.some(s => s.schoolId !== 'main' && (next[s.schoolId] || []).includes(d)));
+                          const cleaned = Object.fromEntries(
+                            Object.entries(next).filter(([, value]) => value.length > 0)
+                          ) as Record<string, string[]>;
+                          updC(selId!, { presenceDays: cleaned });
+                        };
+
+                        const resetPresence = () => updC(selId!, { presenceDays: {} });
+
                         return (
-                          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                            {schools.map((school, idx) => {
-                              const savedDays  = presenceDays[school.schoolId]; // undefined = auto
-                              const isMainSchool = school.schoolId === 'main';
-                              const isAutoMode = isMainSchool ? savedDays === undefined : false;
-                              const displayDays = isAutoMode ? getEffective(school.schoolId, idx) : (savedDays ?? []);
+                          <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-100">
+                            <div className="pt-3 flex items-center justify-between gap-3">
+                              <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+                                اختر الأيام التي يتواجد فيها المعلم/ة في كل مدرسة.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={resetPresence}
+                                disabled={!hasPresence}
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black hover:bg-[#5448a8] hover:border-[#5448a8] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-300 disabled:hover:text-slate-500 transition-all"
+                              >
+                                <RotateCcw size={14} />
+                                إعادة التعيين
+                              </button>
+                            </div>
 
-                              // كشف التعارض: أيام هذه المدرسة تظهر في مدرسة أخرى أيضاً
-                              const otherEffective = schools.flatMap((s, si) =>
-                                si !== idx ? getEffective(s.schoolId, si) : []
-                              );
-                              const conflicts = displayDays.filter(d => otherEffective.includes(d));
-
-                              const toggleDay = (day: string) => {
-                                const current = isAutoMode
-                                  ? getEffective(school.schoolId, idx)
-                                  : (savedDays ?? []);
-                                const newDays = current.includes(day)
-                                  ? current.filter(d => d !== day)
-                                  : [...current, day];
-                                // clicking in auto mode switches to manual automatically
-                                updC(selId!, { presenceDays: { ...presenceDays, [school.schoolId]: newDays } });
-                              };
-
-                              const resetToAuto = () => {
-                                const pd = { ...presenceDays };
-                                delete pd[school.schoolId];
-                                updC(selId!, { presenceDays: pd });
-                              };
-
-                              return (
-                                <div
-                                  key={school.schoolId}
-                                  className={`p-4 rounded-2xl border transition-colors ${
-                                    conflicts.length > 0
-                                      ? 'border-rose-300 bg-rose-50/40'
-                                      : idx === 0
-                                        ? 'border-slate-200 bg-white'
-                                        : 'border-dashed border-slate-200 bg-slate-50/40'
-                                  }`}
-                                >
-                                  {/* اسم المدرسة + badge */}
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="text-sm font-black text-slate-800">{school.schoolName}</p>
-                                      {(schoolPhasesMap[school.schoolId] ?? []).map(ph => (
-                                        <span key={ph} className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">{ph}</span>
-                                      ))}
+                            <div className="overflow-x-auto custom-scrollbar">
+                              <div className="min-w-[620px] rounded-2xl border border-slate-200 overflow-hidden bg-white">
+                                <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `160px repeat(${days.length}, minmax(72px, 1fr)) 72px` }}>
+                                  <div className="px-3 py-2 text-[10px] font-black text-slate-400 border-l border-slate-200">المدرسة</div>
+                                  {days.map(day => (
+                                    <div key={day} className="px-2 py-2 text-center text-[10px] font-black text-slate-500 border-l border-slate-200">
+                                      {getDayLabel(day)}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      {isAutoMode && (
-                                        <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-                                          جميع الأيام (افتراضي)
-                                        </span>
-                                      )}
-                                      {!isAutoMode && isMainSchool && (
-                                        <button
-                                          onClick={resetToAuto}
-                                          className="text-[10px] font-bold text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors"
-                                        >
-                                          إعادة تلقائي
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* أزرار الأيام */}
-                                  <div className="flex flex-wrap gap-2">
-                                    {days.map(day => {
-                                      const isSelected  = displayDays.includes(day);
-                                      const isConflict  = conflicts.includes(day) && isSelected;
-                                      return (
-                                        <button
-                                          key={day}
-                                          type="button"
-                                          onClick={() => toggleDay(day)}
-                                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-bold transition-all ${
-                                            isConflict  ? 'bg-white border-rose-400 text-rose-600 shadow-sm' :
-                                            isSelected  ? 'bg-white border-[#655ac1] text-[#655ac1] shadow-sm shadow-[#655ac1]/10' :
-                                            isAutoMode  ? 'bg-white text-teal-600 border-teal-200 opacity-80' :
-                                                          'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
-                                          }`}
-                                        >
-                                          {isConflict  && <AlertTriangle size={11} />}
-                                          {isSelected && !isConflict && <Check size={11} strokeWidth={3} />}
-                                          {getDayLabel(day)}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-
-                                  {/* تحذيرات التعارض */}
-                                  {conflicts.map(cd => (
-                                    <p key={cd} className="text-[11px] text-rose-600 font-bold mt-2 flex items-center gap-1">
-                                      <AlertTriangle size={11} />
-                                      يوم {getDayLabel(cd)} محدد في مدرستين في نفس الوقت
-                                    </p>
                                   ))}
-
-                                  {/* تلميح للمدرسة الثانية عند عدم تحديد المدرسة الأولى بعد */}
-                                  {isAutoMode && displayDays.length === 0 && (
-                                    <p className="text-[10px] text-slate-400 font-bold mt-2">
-                                      حدّد أيام المدرسة الأولى أولاً لتُحسَب الأيام هنا تلقائياً
-                                    </p>
-                                  )}
+                                  <div className="px-2 py-2 text-center text-[10px] font-black text-slate-400">الأيام</div>
                                 </div>
-                              );
-                            })}
 
-                            {/* ── تأثير القيد على الخوارزمية ──────────────────────────────────
-                                عند إنشاء الجدول، إذا كان presenceDays غير فارغ:
-                                لا تُسند للمعلم أي حصة في مدرسة في يوم
-                                غير مدرج في presenceDays[schoolId] لتلك المدرسة.
-                                ─────────────────────────────────────────────────────────────── */}
-                            <div className="p-3 bg-teal-50/60 border border-teal-100 rounded-xl text-[10px] text-slate-500 font-bold leading-relaxed">
-                              💡 حدّد في أي أيام يكون المعلم موجوداً في كل مدرسة. لن يُضاف له أي درس في يوم غير محدد لتلك المدرسة.
+                                {schools.map((school, idx) => {
+                                  const effectiveDays = getEffectiveDays(school.schoolId);
+                                  const isMainSchool = school.schoolId === 'main';
+                                  return (
+                                    <div
+                                      key={school.schoolId}
+                                      className={`grid ${idx < schools.length - 1 ? 'border-b border-slate-200' : ''}`}
+                                      style={{ gridTemplateColumns: `160px repeat(${days.length}, minmax(72px, 1fr)) 72px` }}
+                                    >
+                                      <div className="px-3 py-3 border-l border-slate-200 flex flex-col justify-center">
+                                        <span className="text-xs font-black text-slate-800 truncate">{school.schoolName}</span>
+                                        <span className="text-xs font-black text-[#655ac1] mt-0.5">{isMainSchool ? 'الرئيسية' : 'المشتركة'}</span>
+                                      </div>
+                                      {days.map(day => {
+                                        const selected = effectiveDays.includes(day);
+                                        return (
+                                          <div key={day} className="px-2 py-2 border-l border-slate-200 flex items-center justify-center">
+                                            <button
+                                              type="button"
+                                              onClick={() => applyPresence(school.schoolId, day)}
+                                              className={`w-full h-8 rounded-xl border text-[11px] font-black transition-all ${
+                                                selected
+                                                  ? 'bg-[#5448a8] border-[#5448a8] text-white shadow-sm'
+                                                  : 'bg-white border-slate-200 text-slate-400 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
+                                              }`}
+                                            >
+                                              {selected && <Check size={13} strokeWidth={3.5} className="mx-auto" />}
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                      <div className="px-2 py-2 flex items-center justify-center">
+                                        <span className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-[11px] font-black text-[#655ac1]">
+                                          {effectiveDays.length}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-bold leading-relaxed flex items-start gap-2">
+                              <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                              <span>كلما قلّت أيام تواجد المعلم/ة في مدرسة، قد يصعب توزيع حصصه فيها. حاول ترك أيام كافية لكل مدرسة.</span>
                             </div>
                           </div>
                         );
-                      })()}
-                    </div>
-                  </>
+                    })()}
+                  </div>
                 )}
 
               </div>
