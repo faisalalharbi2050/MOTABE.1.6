@@ -1218,6 +1218,7 @@ export default function TeacherConstraintsModal({
                         };
 
                         const resetPresence = () => updC(selId!, { presenceDays: {} });
+                        const hasSharedSchoolWithoutDays = schools.some(s => s.schoolId !== 'main' && getEffectiveDays(s.schoolId).length === 0);
 
                         return (
                           <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-100">
@@ -1229,7 +1230,7 @@ export default function TeacherConstraintsModal({
                                 type="button"
                                 onClick={resetPresence}
                                 disabled={!hasPresence}
-                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black hover:bg-[#5448a8] hover:border-[#5448a8] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-300 disabled:hover:text-slate-500 transition-all"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black hover:border-[#5448a8] hover:text-[#5448a8] hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-300 disabled:hover:text-slate-500 transition-all"
                               >
                                 <RotateCcw size={14} />
                                 إعادة التعيين
@@ -1270,11 +1271,15 @@ export default function TeacherConstraintsModal({
                                               onClick={() => applyPresence(school.schoolId, day)}
                                               className={`w-full h-8 rounded-xl border text-[11px] font-black transition-all ${
                                                 selected
-                                                  ? 'bg-[#5448a8] border-[#5448a8] text-white shadow-sm'
+                                                  ? 'bg-white border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/10'
                                                   : 'bg-white border-slate-200 text-slate-400 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
                                               }`}
                                             >
-                                              {selected && <Check size={13} strokeWidth={3.5} className="mx-auto" />}
+                                              {selected && (
+                                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1] mx-auto">
+                                                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                                                </span>
+                                              )}
                                             </button>
                                           </div>
                                         );
@@ -1290,10 +1295,12 @@ export default function TeacherConstraintsModal({
                               </div>
                             </div>
 
-                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-bold leading-relaxed flex items-start gap-2">
-                              <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                              <span>كلما قلّت أيام تواجد المعلم/ة في مدرسة، قد يصعب توزيع حصصه فيها. حاول ترك أيام كافية لكل مدرسة.</span>
-                            </div>
+                            {hasSharedSchoolWithoutDays && (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-bold leading-relaxed flex items-start gap-2">
+                                <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                                <span>حاول إسناد أيام كافية للمعلم في كل مدرسة حتى يمكن إسناد حصصه بشكل صحيح.</span>
+                              </div>
+                            )}
                           </div>
                         );
                     })()}
