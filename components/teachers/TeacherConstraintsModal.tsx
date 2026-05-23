@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
-import { Users, Search, AlertTriangle, X, Copy, Sliders, Ban, Clock, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
+import { Users, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -97,11 +97,6 @@ export default function TeacherConstraintsModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usedSpecIds]);
   const [showSpecPanel, setShowSpecPanel] = useState(false);
-  const [showCopy, setShowCopy] = useState(false);
-  const [showCopyModal, setShowCopyModal] = useState(false);
-  const [copyTargets, setCopyTargets] = useState<string[]>([]);
-  const [copyConfirm, setCopyConfirm] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
   const [quickFilter, setQuickFilter] = useState<'all' | 'has' | 'none' | 'excluded'>('all');
   const [collapsedSpecs, setCollapsedSpecs] = useState<Set<string>>(new Set());
 
@@ -113,22 +108,15 @@ export default function TeacherConstraintsModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, sortBy]);
 
-  // Copy Options
-  const [copyOpts, setCopyOpts] = useState({
-    consecutive: true,
-    excluded: true,
-    earlyEntry: true,
-  });
-  const [copySearch, setCopySearch] = useState('');
-  
   // Sections Expansions
   const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c5: false, c6: false, c7: false });
 
   // Generic sidebar apply-mode (multi-select against the right sidebar)
-  const [applyMode, setApplyMode] = useState<null | 'consec' | 'excluded'>(null);
+  const [applyMode, setApplyMode] = useState<null | 'consec' | 'excluded' | 'early'>(null);
   const [applySelection, setApplySelection] = useState<string[]>([]);
   const [consecApplyDone, setConsecApplyDone] = useState<{ count: number; value: number } | null>(null);
   const [excludedApplyDone, setExcludedApplyDone] = useState<{ count: number } | null>(null);
+  const [earlyApplyDone, setEarlyApplyDone] = useState<{ applied: number; adjusted: number; skipped: number } | null>(null);
 
   // Sync open sections when initialOpenSection prop changes (e.g. when modal is reopened with a different target)
   useEffect(() => {
@@ -190,6 +178,93 @@ export default function TeacherConstraintsModal({
     setApplySelection([]);
     setExcludedApplyDone({ count: ids.length });
     setTimeout(() => setExcludedApplyDone(null), 2400);
+  };
+
+  const getTeacherAvailableSlots = (
+    teacherId: string,
+    override?: { day: string; period: number }
+  ) => {
+    const c = getC(teacherId);
+    return days.reduce((sum, day) => {
+      const dayCount = dayLastPeriods[day] ?? safePeriodsCount;
+      const end = override?.day === day ? Math.min(dayCount, override.period) : dayCount;
+      const excluded = new Set((c.excludedSlots?.[day] || []).filter(p => p >= 1 && p <= end));
+      return sum + Math.max(0, end - excluded.size);
+    }, 0);
+  };
+
+  const evaluateEarlyExit = (
+    teacher: Teacher,
+    mode: 'manual' | 'auto',
+    day: string,
+    requestedPeriod: number
+  ): { status: 'empty' | 'ok' | 'adjust' | 'impossible'; suggestedDay?: string; suggestedPeriod?: number } => {
+    if (!requestedPeriod || (mode === 'manual' && !day)) return { status: 'empty' };
+    const quota = teacher.quotaLimit || 0;
+    const candidateDays = mode === 'manual' ? [day] : days;
+
+    const works = (candidateDay: string, period: number) => {
+      const dayCount = dayLastPeriods[candidateDay] ?? safePeriodsCount;
+      if (period >= dayCount) return false;
+      return getTeacherAvailableSlots(teacher.id, { day: candidateDay, period }) >= quota;
+    };
+
+    for (const candidateDay of candidateDays) {
+      if (works(candidateDay, requestedPeriod)) {
+        return { status: 'ok', suggestedDay: candidateDay, suggestedPeriod: requestedPeriod };
+      }
+    }
+
+    const maxCandidate = Math.max(...candidateDays.map(d => Math.max(1, (dayLastPeriods[d] ?? safePeriodsCount) - 1)));
+    for (let period = requestedPeriod + 1; period <= maxCandidate; period++) {
+      for (const candidateDay of candidateDays) {
+        if (works(candidateDay, period)) {
+          return { status: 'adjust', suggestedDay: candidateDay, suggestedPeriod: period };
+        }
+      }
+    }
+
+    return { status: 'impossible' };
+  };
+
+  const applyEarlyExitToSelection = (
+    mode: 'manual' | 'auto',
+    day: string,
+    period: number,
+    ids: string[]
+  ) => {
+    if (ids.length === 0 || !period || (mode === 'manual' && !day)) return;
+    const next = [...constraints];
+    let applied = 0;
+    let adjusted = 0;
+    let skipped = 0;
+
+    ids.forEach(tid => {
+      const teacher = teachers.find(t => t.id === tid);
+      if (!teacher) return;
+      const result = evaluateEarlyExit(teacher, mode, day, period);
+      if (result.status === 'impossible' || result.status === 'empty' || !result.suggestedPeriod) {
+        skipped++;
+        return;
+      }
+      const targetDay = mode === 'auto' ? (result.suggestedDay || days[0]) : day;
+      const idx = next.findIndex(c => c.teacherId === tid);
+      const updated = {
+        ...(idx >= 0 ? next[idx] : { teacherId: tid, maxConsecutive: 2, excludedSlots: {} }),
+        earlyExitMode: mode,
+        earlyExit: { [targetDay]: result.suggestedPeriod },
+      } as TeacherConstraint;
+      if (idx >= 0) next[idx] = updated;
+      else next.push(updated);
+      applied++;
+      if (result.status === 'adjust') adjusted++;
+    });
+
+    onChangeConstraints(next);
+    setApplyMode(null);
+    setApplySelection([]);
+    setEarlyApplyDone({ applied, adjusted, skipped });
+    setTimeout(() => setEarlyApplyDone(null), 3200);
   };
 
   const toggleApplyTarget = (id: string) => {
@@ -298,6 +373,12 @@ export default function TeacherConstraintsModal({
               const runApply = () => {
                 if (applyMode === 'consec') applyConsecutiveToSelection(sc?.maxConsecutive ?? 2, applySelection);
                 if (applyMode === 'excluded') applyExcludedSlotsToSelection(sc?.excludedSlots || {}, applySelection);
+                if (applyMode === 'early') {
+                  const mode = (sc?.earlyExitMode || 'manual') as 'manual' | 'auto';
+                  const day = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : '';
+                  const period = sc?.earlyExit ? Object.values(sc.earlyExit)[0] || 0 : 0;
+                  applyEarlyExitToSelection(mode, day, period, applySelection);
+                }
               };
               return (
                 <div className="bg-slate-50 border-b border-slate-200 px-3 py-3 space-y-2">
@@ -832,110 +913,181 @@ export default function TeacherConstraintsModal({
                   );
                 })()}
 
-                {/* 5. Early Exit - Improved Design */}
-                <div className="space-y-2">
-                  {renderSectionHeader('c5', 'bg-violet-50', 'border-violet-200', 'bg-violet-100', 'text-violet-600', Clock, 'الخروج المبكر', 'إنهاء الدوام مبكراً')}
-                  {open.c5 && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+                {/* 5. Early Exit — unified card */}
+                {(() => {
+                  const mode = (sc?.earlyExitMode || 'manual') as 'manual' | 'auto';
+                  const selectedDay = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : '';
+                  const selectedPeriod = sc?.earlyExit ? Object.values(sc.earlyExit)[0] || 0 : 0;
+                  const earlyResult = evaluateEarlyExit(selTeacher, mode, selectedDay, selectedPeriod);
+                  const summaryTeachers = applyMode === 'early' && applySelection.length > 0
+                    ? teachers.filter(t => applySelection.includes(t.id))
+                    : [selTeacher];
+                  const earlySummary = summaryTeachers.reduce((acc, teacher) => {
+                    const result = evaluateEarlyExit(teacher, mode, selectedDay, selectedPeriod);
+                    if (result.status === 'ok') acc.ok++;
+                    else if (result.status === 'adjust') acc.adjust++;
+                    else if (result.status === 'impossible') acc.impossible++;
+                    return acc;
+                  }, { ok: 0, adjust: 0, impossible: 0 });
+                  const hasSelection = selectedPeriod > 0 && (mode === 'auto' || !!selectedDay);
+                  const isEarlyApplyMode = applyMode === 'early';
 
-                      {/* اختيار الوضع */}
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          {
-                            mode: 'manual',
-                            title: 'تحديد يدوي',
-                            desc: 'أنت تختار اليوم والحصة التي ينهي فيها المعلم دوامه مبكراً',
-                          },
-                          {
-                            mode: 'auto',
-                            title: 'تحديد تلقائي',
-                            desc: 'النظام يُحدد يوم الخروج تلقائياً بناءً على الجدول الدراسي',
-                          },
-                        ].map(({ mode, title, desc }) => {
-                          const isSel = (sc?.earlyExitMode || 'manual') === mode;
-                          return (
-                            <button key={mode}
-                              onClick={() => updC(selTeacher.id, { earlyExitMode: mode as any })}
-                              className={`text-right p-4 rounded-2xl border-2 transition-all duration-200 ${
-                                isSel
-                                  ? 'border-slate-400 bg-white shadow-sm shadow-slate-200'
-                                  : 'border-slate-200 bg-white hover:border-slate-300'
-                              }`}>
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'border-slate-600 bg-slate-600' : 'border-slate-300'}`}>
-                                  {isSel && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                </div>
-                                <span className={`text-sm font-black transition-colors ${isSel ? 'text-slate-700' : 'text-slate-500'}`}>{title}</span>
-                              </div>
-                              <p className="text-[10px] font-medium text-slate-400 leading-relaxed pr-5">{desc}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* الإعدادات */}
-                      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                        {(sc?.earlyExitMode || 'manual') === 'manual' && (
-                          <div className="flex-1">
-                            <label className="text-xs font-black text-slate-600 block mb-2">اليوم المطلوب</label>
-                            <p className="text-[10px] text-slate-400 font-medium mb-2">اختر اليوم الذي يخرج فيه المعلم مبكراً</p>
-                            <div className="relative">
-                              <select
-                                value={sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : ''}
-                                onChange={e => {
-                                  const d = e.target.value;
-                                  if (!d) { updC(selTeacher.id, { earlyExit: {} }); return; }
-                                  const oldP = sc?.earlyExit ? Object.values(sc.earlyExit)[0] : (safePeriodsCount - 1);
-                                  updC(selTeacher.id, { earlyExit: { [d]: oldP || (safePeriodsCount - 1) } });
-                                }}
-                                className="w-full p-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold focus:border-slate-400 focus:ring-4 focus:ring-slate-50 outline-none appearance-none transition-all">
-                                <option value="">— اختر اليوم —</option>
-                                {days.map(d => <option key={d} value={d}>{getDayLabel(d)}</option>)}
-                              </select>
-                              <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                            </div>
+                  return (
+                    <div className={`bg-white rounded-2xl border transition-all ${open.c5 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
+                      <button
+                        onClick={() => setOpen(prev => ({ ...prev, c5: !prev.c5 }))}
+                        className="w-full flex items-center justify-between p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1]">
+                            <Clock size={21} />
                           </div>
-                        )}
-
-                        <div className="flex-1">
-                          <label className="text-xs font-black text-slate-600 block mb-2">الخروج بعد الحصة</label>
-                          <p className="text-[10px] text-slate-400 font-medium mb-2">رقم الحصة الأخيرة التي يُدرّسها المعلم</p>
-                          <div className="relative">
-                            <select
-                              value={sc?.earlyExit ? Object.values(sc.earlyExit)[0] || '' : ''}
-                              onChange={e => {
-                                const v = Number(e.target.value);
-                                const mode = sc?.earlyExitMode || 'manual';
-                                const day = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] : (mode === 'auto' ? days[0] : '');
-                                if (!day && mode === 'manual') return;
-                                const targetDay = day || days[0];
-
-                                // Conflict Check
-                                const p = v;
-                                const maxTotal = p + (days.length - 1) * safePeriodsCount;
-                                if (maxTotal < selTeacher.quotaLimit) {
-                                  alert('تنبيه: هذا التوقيت يتعارض مع نصاب المعلم!');
-                                }
-
-                                updC(selTeacher.id, { earlyExit: { [targetDay]: v } });
-                              }}
-                              className="w-full p-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold focus:border-slate-400 focus:ring-4 focus:ring-slate-50 outline-none appearance-none transition-all">
-                              <option value="">— اختر رقم الحصة —</option>
-                              {periods.slice(0, -1).map(p => (
-                                <option key={p} value={p}>الحصة {p}{p === 1 ? ' (الأولى)' : p === 2 ? ' (الثانية)' : p === 3 ? ' (الثالثة)' : p === 4 ? ' (الرابعة)' : p === 5 ? ' (الخامسة)' : p === 6 ? ' (السادسة)' : ''}</option>
-                              ))}
-                            </select>
-                            <ChevronDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <div className="text-right">
+                            <div className="text-sm font-black text-slate-800">الخروج المبكر</div>
+                            <div className="text-[10px] text-slate-500 font-bold">منح المعلم/ة يومًا ينتهي فيه/ا جدوله مبكرًا قدر الإمكان</div>
                           </div>
                         </div>
-                      </div>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c5 ? 'rotate-180' : ''}`} />
+                      </button>
+                      {open.c5 && (
+                        <div className="px-5 pb-5 pt-1 space-y-5 border-t border-slate-100">
+                          <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {[
+                              { mode: 'auto' as const, title: 'توزيع آلي' },
+                              { mode: 'manual' as const, title: 'تحديد يدوي' },
+                            ].map(item => {
+                              const active = mode === item.mode;
+                              return (
+                                <button
+                                  key={item.mode}
+                                  type="button"
+                                  onClick={() => {
+                                    const currentPeriod = selectedPeriod || Math.max(1, safePeriodsCount - 1);
+                                    const nextDay = item.mode === 'auto' ? (days[0] || '') : (selectedDay || days[0] || '');
+                                    updC(selTeacher.id, { earlyExitMode: item.mode, earlyExit: currentPeriod ? { [nextDay]: currentPeriod } : {} });
+                                  }}
+                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${
+                                    active ? 'border-[#5448a8] text-[#5448a8] bg-white shadow-sm' : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50 hover:border-[#655ac1]/40'
+                                  }`}
+                                >
+                                  <span>{item.title}</span>
+                                  <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-all ${active ? 'bg-[#5448a8] border-[#5448a8] text-white' : 'border-slate-300 text-transparent'}`}>
+                                    <Check size={12} strokeWidth={3.5} />
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
 
+                          <div className="bg-white rounded-2xl p-4 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {mode === 'manual' && (
+                              <div>
+                                <label className="text-xs font-black text-slate-600 block mb-2">اليوم المطلوب</label>
+                                <select
+                                  value={selectedDay}
+                                  onChange={e => {
+                                    const day = e.target.value;
+                                    if (!day) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                    updC(selTeacher.id, { earlyExitMode: 'manual', earlyExit: { [day]: selectedPeriod || Math.max(1, safePeriodsCount - 1) } });
+                                  }}
+                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all"
+                                >
+                                  <option value="">اختر اليوم</option>
+                                  {days.map(day => <option key={day} value={day}>{getDayLabel(day)}</option>)}
+                                </select>
+                              </div>
+                            )}
+
+                            <div className={mode === 'manual' ? '' : 'md:col-span-2'}>
+                              <label className="text-xs font-black text-slate-600 block mb-2">الخروج بعد الحصة</label>
+                              <select
+                                value={selectedPeriod || ''}
+                                onChange={e => {
+                                  const period = Number(e.target.value);
+                                  if (!period) { updC(selTeacher.id, { earlyExit: {} }); return; }
+                                  const targetDay = selectedDay || days[0] || '';
+                                  updC(selTeacher.id, { earlyExitMode: mode, earlyExit: { [targetDay]: period } });
+                                }}
+                                disabled={mode === 'manual' && !selectedDay}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1] focus:ring-4 focus:ring-[#e5e1fe] transition-all disabled:bg-slate-50 disabled:text-slate-400"
+                              >
+                                <option value="">اختر رقم الحصة</option>
+                                {periods.slice(0, -1).map(period => (
+                                  <option key={period} value={period}>الحصة {period}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {hasSelection && (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                  <div className="text-lg font-black text-emerald-600">{earlySummary.ok}</div>
+                                  <div className="text-[10px] font-bold text-slate-500">قابل للتطبيق</div>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                  <div className="text-lg font-black text-amber-600">{earlySummary.adjust}</div>
+                                  <div className="text-[10px] font-bold text-slate-500">يحتاج تعديل</div>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                  <div className="text-lg font-black text-rose-600">{earlySummary.impossible}</div>
+                                  <div className="text-[10px] font-bold text-slate-500">غير ممكن</div>
+                                </div>
+                              </div>
+
+                              {earlyResult.status === 'adjust' && earlyResult.suggestedPeriod && (
+                                <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800">
+                                  <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                                  <span className="leading-relaxed">لا يمكن تحقيق الخروج بعد الحصة {selectedPeriod}. أقرب خيار ممكن: بعد الحصة {earlyResult.suggestedPeriod}.</span>
+                                </div>
+                              )}
+                              {earlySummary.adjust > 0 && (
+                                <div className="text-[11px] font-bold text-slate-500 leading-relaxed">سيتم اعتماد أقرب حصة ممكنة لمن يحتاج تعديلًا عند التطبيق على المجموعة.</div>
+                              )}
+                              {earlyResult.status === 'impossible' && (
+                                <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700">
+                                  <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                                  <span className="leading-relaxed">لا يمكن تطبيق الخروج المبكر لهذا المعلم بهذه القيود. يمكن استثناؤه من الخروج المبكر.</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="pt-3 border-t border-slate-100">
+                            {earlyApplyDone ? (
+                              <div className="flex justify-start">
+                                <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
+                                  <CheckCircle2 size={14} />
+                                  تم التطبيق على {earlyApplyDone.applied} معلم، وتعديل {earlyApplyDone.adjusted}، واستثناء {earlyApplyDone.skipped}
+                                </span>
+                              </div>
+                            ) : isEarlyApplyMode ? (
+                              <div className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border bg-amber-50 text-amber-800 border-amber-200">
+                                <Lightbulb size={15} className="text-amber-600 shrink-0" />
+                                <span className="leading-relaxed">اختر المعلمين من القائمة اليمنى ثم اضغط <span className="font-black">تطبيق على</span></span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 text-right">
+                                <p className="text-[11px] font-bold text-slate-500 leading-relaxed">يمكنك تطبيق إعداد الخروج المبكر على مجموعة من المعلمين</p>
+                                <div className="flex justify-start">
+                                  <button
+                                    onClick={() => { setApplyMode('early'); setApplySelection([]); }}
+                                    disabled={!hasSelection}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#574bb1] text-white text-xs font-black shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    <Users size={14} />
+                                    تطبيق على
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-
-
-
+                  );
+                })()}
                 {/* ══════════════════════════════════════════════════════════════
                     القيد السابع — تخصيص أيام التواجد (للمعلم المشترك فقط)
                     ══════════════════════════════════════════════════════════════ */}
@@ -1094,24 +1246,10 @@ export default function TeacherConstraintsModal({
                   </>
                 )}
 
-                {/* Copy constraints button — placed after all sections */}
-                <div className="flex justify-start">
-                  <button
-                    dir="rtl"
-                    onClick={() => setShowCopyModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-[#655ac1] border border-[#655ac1] rounded-xl text-white hover:bg-[#655ac1] font-bold text-sm transition-all"
-                  >
-                    <Copy size={16} />
-                    نسخ القيود لمعلم آخر
-                  </button>
-                </div>
-
               </div>
             )}
           </div>
         </div>
-
-        {/* Copy Modal - Added Select All */}
 
         {/* --- Footer --- */}
         <div className="bg-white px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
@@ -1133,217 +1271,6 @@ export default function TeacherConstraintsModal({
         </div>
 
       </div>
-
-      {/* ── Quick Copy Modal ── */}
-      {showCopyModal && selTeacher && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3" style={{ direction: 'rtl' }} onClick={() => { if (!copyConfirm && !copySuccess) { setShowCopyModal(false); setCopyConfirm(false); } }}>
-          <div className="bg-slate-50 w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 flex items-center justify-center text-[#655ac1]"><Copy size={22} /></div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-800">نسخ القيود لمعلم آخر</h3>
-                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">نسخ قيود <span className="font-black text-[#655ac1]">{selTeacher.name}</span> إلى معلم أو معلمين آخرين</p>
-                </div>
-              </div>
-              <button onClick={() => setShowCopyModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
-            </div>
-
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-
-              {/* ── خيارات النسخ ── */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-5 rounded-full bg-[#655ac1]" />
-                    <h4 className="text-sm font-black text-slate-700">خيارات النسخ</h4>
-                  </div>
-                  {(() => {
-                    const allOn = copyOpts.consecutive && copyOpts.excluded && copyOpts.earlyEntry;
-                    return (
-                      <button
-                        onClick={() => { const v = !allOn; setCopyOpts({ consecutive: v, excluded: v, earlyEntry: v }); }}
-                        className={`text-[11px] font-black px-3 py-1.5 rounded-lg border transition-all ${allOn ? 'bg-rose-500 border-rose-500 text-white hover:bg-rose-500' : 'bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#655ac1]'}`}
-                      >
-                        {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
-                      </button>
-                    );
-                  })()}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { k: 'consecutive', l: 'تتابع الحصص' },
-                    { k: 'excluded', l: 'الحصص المستثناة' },
-                    { k: 'earlyEntry', l: 'خروج مبكر' },
-                  ].map(opt => {
-                    const on = copyOpts[opt.k as keyof typeof copyOpts];
-                    return (
-                      <button
-                        type="button"
-                        key={opt.k}
-                        onClick={() => setCopyOpts({ ...copyOpts, [opt.k]: !on })}
-                        className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border-2 transition-all text-right ${on ? 'bg-white border-slate-300 shadow-md' : 'bg-white border-slate-200 hover:border-slate-300'}`}
-                      >
-                        {on ? (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
-                            <Check size={12} strokeWidth={3.5} />
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
-                        )}
-                        <span className={`text-xs font-bold ${on ? 'text-slate-700' : 'text-slate-500'}`}>{opt.l}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── تحديد المعلمين ── */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-5 rounded-full bg-[#655ac1]" />
-                    <div>
-                      <h4 className="text-sm font-black text-slate-700">تحديد المعلمين</h4>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">اختر المعلمين المراد تطبيق نفس القيود عليهم</p>
-                    </div>
-                  </div>
-                  <span className="px-2.5 py-1 bg-white border border-slate-300 text-[#655ac1] text-[10px] font-black rounded-full">{copyTargets.length} محدد</span>
-                </div>
-
-                {/* Search + select all */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={copySearch}
-                      onChange={e => setCopySearch(e.target.value)}
-                      placeholder="بحث عن معلم..."
-                      className="w-full pr-8 pl-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1]/40 transition-all"
-                    />
-                  </div>
-                  {(() => {
-                    const allIds = filteredTeachers.filter(t => t.id !== selId).map(t => t.id);
-                    const allOn = allIds.length > 0 && copyTargets.length === allIds.length;
-                    return (
-                      <button
-                        onClick={() => allOn ? setCopyTargets([]) : setCopyTargets(allIds)}
-                        className={`text-[11px] font-black px-3 py-2 rounded-xl border transition-all ${allOn ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}
-                      >
-                        {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
-                      </button>
-                    );
-                  })()}
-                </div>
-
-                {/* Teachers List */}
-                <div className="max-h-52 overflow-y-auto rounded-xl space-y-1">
-                  {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).map(t => {
-                    const on = copyTargets.includes(t.id);
-                    const spName = specializations.find(s => s.id === t.specializationId)?.name
-                      || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name || '';
-                    return (
-                      <button
-                        type="button"
-                        key={t.id}
-                        onClick={() => on ? setCopyTargets(copyTargets.filter(id => id !== t.id)) : setCopyTargets([...copyTargets, t.id])}
-                        className={`w-full text-right p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${on ? 'bg-white border-slate-300 shadow-md' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}
-                      >
-                        {on ? (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
-                            <Check size={12} strokeWidth={3.5} />
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 border-slate-300 shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className={`text-xs font-black truncate ${on ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                          {spName && <div className="text-xs font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {filteredTeachers.filter(t => t.id !== selId && t.name.toLowerCase().includes(copySearch.toLowerCase())).length === 0 && (
-                    <div className="text-center py-6 text-xs font-bold text-slate-400">
-                      {copySearch ? 'لا توجد نتائج مطابقة للبحث' : 'لا يوجد معلمين آخرين للنسخ إليهم'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-4 bg-white border-t border-slate-100">
-              {copySuccess ? (
-                <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm font-black">
-                  <CheckCircle2 size={18} />
-                  <span>تم نسخ القيود بنجاح إلى {copyTargets.length} معلم</span>
-                </div>
-              ) : copyConfirm ? (
-                <div className="space-y-2.5">
-                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-                    <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-[11px] font-bold text-amber-700 leading-relaxed">
-                      ستُستبدل القيود المحددة لـ <span className="font-black">{copyTargets.length} معلم</span> بقيود <span className="font-black">{selTeacher.name}</span>. هل أنت متأكد؟
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCopyConfirm(false)}
-                      className="flex-1 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl text-xs font-black hover:bg-slate-50 transition-all"
-                    >
-                      إلغاء
-                    </button>
-                    <button
-                      onClick={() => {
-                        const src = getC(selId!);
-                        const nc = [...constraints];
-                        copyTargets.forEach(tid => {
-                          const idx = nc.findIndex(c => c.teacherId === tid);
-                          const existing: TeacherConstraint = idx >= 0 ? nc[idx] : { teacherId: tid, maxConsecutive: 2, excludedSlots: {} };
-                          const n = { ...existing };
-                          if (copyOpts.consecutive) n.maxConsecutive = src.maxConsecutive;
-                          if (copyOpts.excluded) n.excludedSlots = src.excludedSlots;
-                          if (copyOpts.earlyEntry) { n.earlyExit = src.earlyExit; n.earlyExitMode = src.earlyExitMode; }
-                          if (idx >= 0) nc[idx] = n; else nc.push(n);
-                        });
-                        onChangeConstraints(nc);
-                        setCopyConfirm(false);
-                        setCopySuccess(true);
-                        setTimeout(() => {
-                          setCopySuccess(false);
-                          setCopyTargets([]);
-                          setShowCopyModal(false);
-                        }, 1400);
-                      }}
-                      className="flex-[2] py-2.5 bg-[#655ac1] text-white rounded-xl text-xs font-black hover:bg-[#4b3f9f] transition-all flex items-center justify-center gap-2"
-                    >
-                      <Check size={14} strokeWidth={3} /> تأكيد النسخ
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => setShowCopyModal(false)}
-                    className="px-5 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl text-sm font-black hover:bg-slate-50 transition-all"
-                  >
-                    إغلاق
-                  </button>
-                  <button
-                    disabled={copyTargets.length === 0}
-                    onClick={() => setCopyConfirm(true)}
-                    className="px-5 py-2.5 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#655ac1] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                  >
-                    <Copy size={16} /> تطبيق النسخ {copyTargets.length > 0 ? `على ${copyTargets.length} معلم` : ''}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
