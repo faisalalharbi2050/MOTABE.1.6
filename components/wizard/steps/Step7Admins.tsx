@@ -44,7 +44,7 @@ const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) =
 const MultiAddIcon = ({ className = "text-slate-400" }: { className?: string }) => (
   <span className={`relative inline-flex h-5 w-5 items-center justify-center ${className}`}>
     <Users size={17} />
-    <Plus size={9} strokeWidth={3.2} className="absolute -right-1 -top-1" />
+    <Plus size={9} strokeWidth={3.2} className="absolute -right-1 top-1" />
   </span>
 );
 
