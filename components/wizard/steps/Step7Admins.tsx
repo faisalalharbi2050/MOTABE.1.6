@@ -807,19 +807,19 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
               />
             </div>
 
-            {/* Save / Cancel */}
+            {/* Cancel / Save (right→left: cancel then save — matches Step5 bulk students) */}
             <div className="flex items-center gap-2 mr-auto">
-              <button
-                onClick={saveBulkAdmins}
-                className="px-5 py-2 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 flex items-center gap-2"
-              >
-                <CheckCircle2 size={15} /> حفظ ({bulkAdmins.filter(a => a.name.trim()).length})
-              </button>
               <button
                 onClick={() => { setIsBulkEntryMode(false); setBulkAdmins([]); setBulkAssignRole(''); }}
                 className="px-5 py-2 bg-white text-slate-400 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
               >
                 إلغاء
+              </button>
+              <button
+                onClick={saveBulkAdmins}
+                className="px-5 py-2 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 flex items-center gap-2"
+              >
+                <CheckCircle2 size={15} /> حفظ ({bulkAdmins.filter(a => a.name.trim()).length})
               </button>
             </div>
           </div>

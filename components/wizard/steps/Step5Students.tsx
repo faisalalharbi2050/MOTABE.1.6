@@ -12,6 +12,7 @@ import {
   parseStudentExcel,
   printStudentList,
   getStudentStats,
+  normalizeArabic,
 } from '../../../utils/studentUtils';
 import LoadingLogo, { useMinLoadingTime } from '../../ui/LoadingLogo';
 import SchoolTabs from '../SchoolTabs';
@@ -23,6 +24,122 @@ interface Step5Props {
   schoolInfo: SchoolInfo;
 }
 
+// ─── MultiAdd Icon (matches Step7 Admins) ────────────────────
+const MultiAddIcon: React.FC<{ className?: string }> = ({ className = 'text-slate-400' }) => (
+  <span className={`relative inline-flex h-5 w-5 items-center justify-center ${className}`}>
+    <Users size={17} />
+    <Plus size={9} strokeWidth={3.2} className="absolute -right-1 top-1" />
+  </span>
+);
+
+// ─── Reusable Dropdown (matches EntityTypeDropdown style from Step1 General) ─────
+interface DropdownOption { value: string; label: string; }
+interface StudentDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: DropdownOption[];
+  placeholder?: string;
+  emptyLabel?: string;
+  disabled?: boolean;
+  compact?: boolean;
+}
+const StudentDropdown: React.FC<StudentDropdownProps> = ({
+  value, onChange, options, placeholder = 'اختر', emptyLabel, disabled, compact,
+}) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const panelH = 300;
+    const below = window.innerHeight - r.bottom;
+    const above = r.top;
+    const placeAbove = below < panelH + 16 && above > below;
+    const maxH = Math.max(180, (placeAbove ? above : below) - 16);
+    setPos({
+      top: placeAbove ? Math.max(8, r.top - Math.min(maxH, panelH) - 8) : r.bottom + 8,
+      left: Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)),
+      width: r.width,
+      maxH,
+    });
+  }, [open]);
+
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+
+  const selectedLabel = options.find(o => o.value === value)?.label;
+  const btnSize = compact ? 'px-3 py-2 text-xs' : 'px-5 py-3.5 text-[13px]';
+
+  return (
+    <div className="relative w-full" ref={wrapRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(o => !o)}
+        className={`w-full ${btnSize} bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
+      >
+        <span className="truncate leading-tight">{selectedLabel || placeholder}</span>
+        <ChevronDown size={compact ? 14 : 16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && pos && ReactDOM.createPortal(
+        <div
+          dir="rtl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH, zIndex: 99999 }}
+          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5"
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="overflow-y-auto custom-scrollbar space-y-1 pr-1" style={{ maxHeight: pos.maxH - 20 }}>
+            {emptyLabel && (
+              <button
+                type="button"
+                onClick={() => { onChange(''); setOpen(false); }}
+                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${!value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+              >
+                <span className="whitespace-nowrap">{emptyLabel}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${!value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
+                </span>
+              </button>
+            )}
+            {options.length === 0 && !emptyLabel && (
+              <div className="px-3 py-6 text-center text-xs text-slate-400 font-bold">لا توجد خيارات متاحة</div>
+            )}
+            {options.map(opt => {
+              const active = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                >
+                  <span className="whitespace-nowrap">{opt.label}</span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
 // ─── Memoized Student Row ─────────────────────────────────────
 // Defined outside the parent so React.memo works across renders.
 // Only re-renders when its own props change — prevents all rows from
@@ -32,6 +149,7 @@ interface StudentRowProps {
   idx: number;
   isSelected: boolean;
   isEditing: boolean;
+  selectionMode: boolean;
   editName: string;
   editPhone: string;
   editClassId: string;
@@ -47,26 +165,29 @@ interface StudentRowProps {
 }
 
 const StudentRow = React.memo<StudentRowProps>(function StudentRow({
-  student, idx, isSelected, isEditing,
+  student, idx, isSelected, isEditing, selectionMode,
   editName, editPhone, editClassId, gradeClasses, getClassName,
   onToggleSelect, onSetEditName, onSetEditPhone, onSetEditClassId,
   onSaveEdit, onCancelEdit, onOpenDropdown,
 }) {
+  const showCheckbox = selectionMode || isSelected;
   return (
     <tr className={`transition-colors group ${
-      isSelected ? 'bg-[#e5e1fe]/20' : isEditing ? 'bg-[#f5f3ff]' : 'hover:bg-[#e5e1fe]/10'
+      isSelected ? 'bg-[#e5e1fe]/20' : isEditing ? 'bg-[#f5f3ff]' : selectionMode ? 'hover:bg-rose-50/30' : 'hover:bg-[#e5e1fe]/10'
     }`}>
       <td className="p-4 text-center relative">
         <div className="flex items-center justify-center gap-1">
           <div
             onClick={() => onToggleSelect(student.id)}
-            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all absolute right-3 opacity-0 group-hover:opacity-100 ${
-              isSelected ? 'opacity-100 bg-[#655ac1] border-[#655ac1]' : 'border-slate-200 hover:border-[#655ac1]'
+            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all absolute right-3 ${
+              showCheckbox ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            } ${
+              isSelected ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300 hover:border-[#655ac1]'
             }`}
           >
             {isSelected && <Check size={11} className="text-white" />}
           </div>
-          <span className={`text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full transition-opacity ${isSelected ? 'opacity-0' : 'group-hover:opacity-0'}`}>
+          <span className={`text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full transition-opacity ${showCheckbox ? 'opacity-0' : 'group-hover:opacity-0'}`}>
             {idx + 1}
           </span>
         </div>
@@ -188,9 +309,18 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
   // ─── Selection State ───
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  // ─── Bulk Edit Modal State ───
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditScope, setBulkEditScope] = useState<'selected' | 'grade' | 'class'>('selected');
+  const [bulkEditScopeGrade, setBulkEditScopeGrade] = useState<number | ''>('');
+  const [bulkEditScopeClassId, setBulkEditScopeClassId] = useState('');
+  const [bulkEditTargetClassId, setBulkEditTargetClassId] = useState('');
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [gradeDeleteTarget, setGradeDeleteTarget] = useState<{ grade: number; classId?: string; className?: string } | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [showMissingDataModal, setShowMissingDataModal] = useState(false);
 
 
@@ -264,7 +394,11 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     let result = schoolStudents;
 
     if (searchText) {
-      result = result.filter(s => s.name.includes(searchText));
+      const q = normalizeArabic(searchText.toLowerCase().trim());
+      result = result.filter(s =>
+        normalizeArabic(s.name).toLowerCase().includes(q) ||
+        (s.parentPhone || '').includes(searchText.trim())
+      );
     }
     if (filterGrades.length > 0) {
       result = result.filter(s => filterGrades.includes(s.grade));
@@ -500,6 +634,35 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     setGradeDeleteTarget(null);
   }, [gradeDeleteTarget, schoolStudents, activeSchoolId, setStudents, showToast]);
 
+  // ─── Bulk Edit Handler (move scope → target class) ───
+  const handleBulkEditApply = useCallback(() => {
+    if (!bulkEditTargetClassId) return;
+    const targetClass = classes.find(c => c.id === bulkEditTargetClassId);
+    if (!targetClass) return;
+
+    let affected: string[] = [];
+    if (bulkEditScope === 'selected') {
+      affected = Array.from(selectedStudents);
+    } else if (bulkEditScope === 'grade' && bulkEditScopeGrade !== '') {
+      affected = schoolStudents.filter(s => s.grade === bulkEditScopeGrade).map(s => s.id);
+    } else if (bulkEditScope === 'class' && bulkEditScopeClassId) {
+      affected = schoolStudents.filter(s => s.classId === bulkEditScopeClassId).map(s => s.id);
+    }
+
+    if (affected.length === 0) {
+      showToast('لا يوجد طلاب مطابقون للنطاق المحدد', 'error');
+      return;
+    }
+
+    const affectedSet = new Set(affected);
+    setStudents(prev => prev.map(s =>
+      affectedSet.has(s.id) ? { ...s, classId: targetClass.id, grade: targetClass.grade } : s
+    ));
+    setShowBulkEditModal(false);
+    if (bulkEditScope === 'selected') { setSelectedStudents(new Set()); setSelectionMode(false); }
+    showToast(`تم نقل ${affected.length} طالب إلى ${targetClass.name || `${targetClass.grade}/${targetClass.section}`}`);
+  }, [bulkEditScope, bulkEditScopeGrade, bulkEditScopeClassId, bulkEditTargetClassId, selectedStudents, schoolStudents, classes, setStudents, showToast]);
+
   const handleDeleteAll = useCallback(() => {
     setStudents(prev => prev.filter(s => (s.schoolId || 'main') !== activeSchoolId));
     setSelectedStudents(new Set());
@@ -574,6 +737,15 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
 
+      {/* ══════ Import Loading Overlay (Portal — matches Step6 Teachers) ══════ */}
+      {showImportLoader && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري استيراد الطلاب...</p>
+        </div>,
+        document.body
+      )}
+
       {/* ══════ Toast Notification ══════ */}
       {toast && (
         <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 ${
@@ -639,155 +811,107 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         );
       })()}
 
-      {/* ══════ Manual Bulk Entry Mode ══════ */}
+      {/* ══════ Stats Cards (Total / Classes Used / Missing Data — last one clickable) ══════ */}
+      {!isBulkEntryMode && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 print:hidden">
+          {[
+            { label: 'إجمالي الطلاب', value: schoolStudents.length, icon: Users, clickable: false },
+            { label: 'عدد الفصول المستخدمة', value: stats.classMap.size, icon: BookOpen, clickable: false },
+            { label: 'بيانات ناقصة', value: studentsWithMissingData.length, icon: AlertTriangle, clickable: true },
+          ].map(({ label, value, icon: Icon, clickable }) => {
+            const interactive = clickable && value > 0;
+            const Wrapper: any = interactive ? 'button' : 'div';
+            return (
+              <Wrapper
+                key={label}
+                {...(interactive ? { onClick: () => setShowMissingDataModal(true), title: 'انقر لعرض وتعديل البيانات الناقصة' } : {})}
+                className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 text-right ${
+                  interactive ? 'cursor-pointer hover:border-[#655ac1]/40 hover:shadow-md transition-all' : ''
+                }`}
+              >
+                <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-slate-400">{label}</p>
+                  <p className="text-2xl font-black text-slate-800 leading-tight">{value}</p>
+                </div>
+                {interactive && (
+                  <span className="mr-auto text-[10px] font-black text-[#655ac1] bg-[#e5e1fe] px-2 py-1 rounded-full">انقر للتعديل</span>
+                )}
+              </Wrapper>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ══════ Manual Bulk Entry Mode (matches Step7 Admins layout) ══════ */}
       {isBulkEntryMode && (() => {
         const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
         const defaultGrade = availableGrades[0] ?? 1;
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
+        const allClassOptions: DropdownOption[] = schoolClasses.map(c => ({
+          value: c.id,
+          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
+        }));
+
         return (
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl animate-in slide-in-from-bottom-4 duration-500">
-              <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50 rounded-t-[2rem]">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-[2rem]">
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                      <UserPlus size={20} className="text-[#655ac1]" /> إضافة عدة طلاب
+                      <MultiAddIcon className="text-[#655ac1]" /> إضافة عدة طلاب
                   </h3>
               </div>
 
-               {/* Batch Assignment Controls + Save/Cancel */}
-               <div className="p-4 bg-white border-b border-slate-200 flex flex-wrap items-center gap-3">
+              {/* Batch Assignment + Save/Cancel */}
+              <div className="p-4 bg-white border-b border-slate-200 flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 shrink-0">
-                      <GraduationCap size={20} className="text-[#655ac1]" />
-                      <span className="text-sm font-black text-[#655ac1]">تعيين الصف والفصل لجميع الطلاب دفعة واحدة</span>
+                      <GraduationCap size={18} className="text-[#655ac1]" />
+                      <span className="text-sm font-black text-slate-800">تعيين الصف والفصل لجميع الطلاب دفعة واحدة</span>
                   </div>
-                  <div className="w-px h-6 bg-slate-200"></div>
+                  <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
-                  {/* Grade custom dropdown — portal to escape transform stacking context */}
-                  <div className="relative" ref={bulkGradeBtnRef}>
-                      <button
-                          onClick={(e) => {
-                              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                              setBulkGradeDropdownPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-                              setBulkGradeDropdownOpen(prev => !prev);
-                              setBulkClassDropdownOpen(false);
+                  <div className="w-full sm:w-44">
+                      <StudentDropdown
+                          compact
+                          value={bulkSelectedGrade === '' ? '' : String(bulkSelectedGrade)}
+                          onChange={v => {
+                              const g = v ? parseInt(v) : '' as ('' | number);
+                              setBulkSelectedGrade(g);
+                              setBulkSelectedClassId('');
+                              if (g !== '') setBulkStudents(prev => prev.map(s => ({ ...s, grade: g as number, classId: '' })));
                           }}
-                          className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[150px] ${
-                              bulkSelectedGrade !== ''
-                                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
-                                  : 'border-slate-200 bg-white text-slate-600'
-                          }`}
-                      >
-                          <span className="flex-1 text-right">
-                              {bulkSelectedGrade !== '' ? `الصف ${bulkSelectedGrade}` : 'اختر الصف للجميع'}
-                          </span>
-                          {bulkSelectedGrade !== '' && (
-                              <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
-                                  <Check size={9} className="text-white" strokeWidth={3} />
-                              </div>
-                          )}
-                          <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${bulkGradeDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {bulkGradeDropdownOpen && bulkGradeDropdownPos && ReactDOM.createPortal(
-                          <div
-                              ref={bulkGradeDropdownRef}
-                              style={{ position: 'fixed', top: bulkGradeDropdownPos.top, right: bulkGradeDropdownPos.right }}
-                              className="bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] min-w-[160px] py-1.5 animate-in fade-in zoom-in-95 duration-100"
-                          >
-                              {availableGrades.map(g => (
-                                  <button
-                                      key={g}
-                                      onClick={() => {
-                                          setBulkSelectedGrade(g);
-                                          setBulkSelectedClassId('');
-                                          setBulkStudents(prev => prev.map(s => ({ ...s, grade: g, classId: '' })));
-                                          setBulkGradeDropdownOpen(false);
-                                      }}
-                                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                                          bulkSelectedGrade === g ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                                      }`}
-                                  >
-                                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                          bulkSelectedGrade === g ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                      }`}>
-                                          {bulkSelectedGrade === g && <Check size={11} className="text-white" />}
-                                      </div>
-                                      الصف {g}
-                                  </button>
-                              ))}
-                          </div>,
-                          document.body
-                      )}
+                          options={gradeOptions}
+                          placeholder="اختر الصف للجميع"
+                      />
                   </div>
 
-                  {/* Class custom dropdown — portal to escape transform stacking context */}
-                  <div className="relative" ref={bulkClassBtnRef}>
-                      <button
-                          onClick={(e) => {
-                              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                              setBulkClassDropdownPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-                              setBulkClassDropdownOpen(prev => !prev);
-                              setBulkGradeDropdownOpen(false);
+                  <div className="w-full sm:w-52">
+                      <StudentDropdown
+                          compact
+                          value={bulkSelectedClassId}
+                          onChange={v => {
+                              setBulkSelectedClassId(v);
+                              const cls = schoolClasses.find(c => c.id === v);
+                              if (cls) {
+                                  setBulkSelectedGrade(cls.grade);
+                                  setBulkStudents(prev => prev.map(s => ({ ...s, classId: cls.id, grade: cls.grade })));
+                              }
                           }}
-                          className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[160px] ${
-                              bulkSelectedClassId !== ''
-                                  ? 'border-[#655ac1] bg-white text-[#655ac1]'
-                                  : 'border-slate-200 bg-white text-slate-600'
-                          }`}
-                      >
-                          <span className="flex-1 text-right">
-                              {bulkSelectedClassId !== ''
-                                  ? (schoolClasses.find(c => c.id === bulkSelectedClassId)?.name || bulkSelectedClassId)
-                                  : 'اختر الفصل للجميع'}
-                          </span>
-                          {bulkSelectedClassId !== '' && (
-                              <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
-                                  <Check size={9} className="text-white" strokeWidth={3} />
-                              </div>
-                          )}
-                          <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${bulkClassDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {bulkClassDropdownOpen && bulkClassDropdownPos && ReactDOM.createPortal(
-                          <div
-                              ref={bulkClassDropdownRef}
-                              style={{ position: 'fixed', top: bulkClassDropdownPos.top, right: bulkClassDropdownPos.right }}
-                              className="bg-white rounded-2xl shadow-2xl border border-slate-100 z-[9999] min-w-[180px] py-1.5 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100"
-                          >
-                              {availableGrades.map(g => {
-                                  const gradeClasses = schoolClasses.filter(c => c.grade === g);
-                                  if (gradeClasses.length === 0) return null;
-                                  return (
-                                      <React.Fragment key={g}>
-                                          <div className="px-4 py-1 text-[11px] font-black text-slate-400 bg-slate-50/70 uppercase tracking-wide">
-                                              الصف {g}
-                                          </div>
-                                          {gradeClasses.map(cls => (
-                                              <button
-                                                  key={cls.id}
-                                                  onClick={() => {
-                                                      setBulkSelectedClassId(cls.id);
-                                                      setBulkSelectedGrade(cls.grade);
-                                                      setBulkStudents(prev => prev.map(s => ({ ...s, classId: cls.id, grade: cls.grade })));
-                                                      setBulkClassDropdownOpen(false);
-                                                  }}
-                                                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                                                      bulkSelectedClassId === cls.id ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                                                  }`}
-                                              >
-                                                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                                      bulkSelectedClassId === cls.id ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                                  }`}>
-                                                      {bulkSelectedClassId === cls.id && <Check size={11} className="text-white" />}
-                                                  </div>
-                                                  {cls.name || `${cls.grade}/${cls.section}`}
-                                              </button>
-                                          ))}
-                                      </React.Fragment>
-                                  );
-                              })}
-                          </div>,
-                          document.body
-                      )}
+                          options={allClassOptions}
+                          placeholder="اختر الفصل للجميع"
+                      />
                   </div>
 
                   {/* Save / Cancel */}
                   <div className="flex items-center gap-2 mr-auto">
+                      <button
+                          onClick={() => { setIsBulkEntryMode(false); setBulkStudents([]); setBulkSelectedGrade(''); setBulkSelectedClassId(''); }}
+                          className="px-5 py-2 bg-white text-slate-400 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                      >
+                          إلغاء
+                      </button>
                       <button
                           onClick={() => {
                              const validStudents = bulkStudents.filter(s => s.name.trim().length > 0);
@@ -803,107 +927,97 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           }}
                           className="px-5 py-2 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 flex items-center gap-2"
                       >
-                          <CheckCircle2 size={15} /> حفظ الطلاب ({bulkStudents.filter(s => s.name.trim()).length})
-                      </button>
-                      <button
-                          onClick={() => { setIsBulkEntryMode(false); setBulkSelectedGrade(''); setBulkSelectedClassId(''); }}
-                          className="px-5 py-2 bg-white text-slate-400 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
-                      >
-                          إلغاء
+                          <CheckCircle2 size={15} /> حفظ ({bulkStudents.filter(s => s.name.trim()).length})
                       </button>
                   </div>
-               </div>
+              </div>
 
-              <div className="p-0 custom-scrollbar">
-                  <table className="w-full">
-                      <thead className="sticky top-0 z-10 bg-white shadow-sm">
-                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-500">
-                              <th className="p-4 text-center w-16">م</th>
-                              <th className="p-4 text-right min-w-[200px]">اسم الطالب <span className="text-rose-500">*</span></th>
-                              <th className="p-4 text-center w-40">الصف <span className="text-rose-500">*</span></th>
-                              <th className="p-4 text-center w-48">الفصل</th>
-                              <th className="p-4 text-center w-48">رقم ولي الأمر</th>
-                              <th className="p-4 text-center w-16"></th>
+              {/* Table */}
+              <div className="overflow-x-auto">
+                  <table className="w-full text-right">
+                      <thead>
+                          <tr className="bg-slate-50/80 border-b border-slate-100">
+                              <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1]">م</th>
+                              <th className="px-3 py-4 text-xs font-black text-[#655ac1]">اسم الطالب <span className="text-rose-500">*</span></th>
+                              <th className="px-3 py-4 w-[22%] text-center text-xs font-black text-[#655ac1]">الصف <span className="text-rose-500">*</span></th>
+                              <th className="px-3 py-4 w-[24%] text-center text-xs font-black text-[#655ac1]">الفصل</th>
+                              <th className="px-3 py-4 w-[20%] text-center text-xs font-black text-[#655ac1]">رقم ولي الأمر</th>
+                              <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1]" />
                           </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
-                          {bulkStudents.map((student, index) => (
-                              <tr key={student.id} className="group hover:bg-indigo-50/10 transition-colors">
-                                  <td className="p-3 text-center text-slate-400 font-bold text-xs">{index + 1}</td>
-                                  <td className="p-3">
+                      <tbody className="divide-y divide-slate-50">
+                          {bulkStudents.map((student, index) => {
+                              const rowGradeOpts = gradeOptions;
+                              const rowClassOpts: DropdownOption[] = schoolClasses
+                                  .filter(c => c.grade === student.grade)
+                                  .map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` }));
+                              return (
+                              <tr key={student.id} className="group hover:bg-[#e5e1fe]/10 transition-colors">
+                                  <td className="px-3 py-3 text-center">
+                                      <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">
+                                          {index + 1}
+                                      </span>
+                                  </td>
+                                  <td className="px-3 py-3">
                                       <input
                                           type="text"
-                                          placeholder="اسم الطالب رباعي"
+                                          placeholder="أحمد محمد خالد"
                                           value={student.name}
-                                          onChange={(e) => {
-                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, name: e.target.value } : s);
-                                              setBulkStudents(updated);
-                                          }}
-                                          className={`w-full p-3 bg-slate-50 border-2 rounded-xl outline-none text-sm font-bold transition-all focus:bg-white ${
-                                              student.name.trim() ? 'border-transparent focus:border-[#655ac1]' : 'border-slate-200 focus:border-rose-400'
+                                          onChange={(e) => setBulkStudents(prev => prev.map((s, i) => i === index ? { ...s, name: e.target.value } : s))}
+                                          className={`w-full bg-transparent border-0 focus:ring-0 outline-none font-bold text-sm text-slate-800 py-1 ${
+                                              student.name.trim() ? '' : 'placeholder:text-rose-300'
                                           }`}
                                       />
                                   </td>
-                                  <td className="p-3">
-                                      <select
-                                          value={student.grade}
-                                          onChange={(e) => {
-                                              const grade = parseInt(e.target.value);
-                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, grade, classId: '' } : s);
-                                              setBulkStudents(updated);
+                                  <td className="px-3 py-3 align-middle">
+                                      <StudentDropdown
+                                          compact
+                                          value={String(student.grade)}
+                                          onChange={v => {
+                                              const g = parseInt(v);
+                                              setBulkStudents(prev => prev.map((s, i) => i === index ? { ...s, grade: g, classId: '' } : s));
                                           }}
-                                          className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1]"
-                                      >
-                                          {availableGrades.length > 0 ? availableGrades.map(g => (
-                                              <option key={g} value={g}>الصف {g}</option>
-                                          )) : (
-                                              <option value="1">الصف 1</option>
-                                          )}
-                                      </select>
+                                          options={rowGradeOpts}
+                                          placeholder="اختر الصف"
+                                      />
                                   </td>
-                                  <td className="p-3">
-                                      <select
+                                  <td className="px-3 py-3 align-middle">
+                                      <StudentDropdown
+                                          compact
                                           value={student.classId}
-                                          onChange={(e) => {
-                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, classId: e.target.value } : s);
-                                              setBulkStudents(updated);
-                                          }}
-                                          className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1]"
-                                      >
-                                          <option value="">اختر الفصل</option>
-                                          {schoolClasses.filter(c => c.grade === student.grade).map(c => (
-                                              <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
-                                          ))}
-                                      </select>
+                                          onChange={v => setBulkStudents(prev => prev.map((s, i) => i === index ? { ...s, classId: v } : s))}
+                                          options={rowClassOpts}
+                                          placeholder={rowClassOpts.length === 0 ? 'لا توجد فصول' : 'اختر الفصل'}
+                                          disabled={rowClassOpts.length === 0}
+                                      />
                                   </td>
-                                  <td className="p-3">
+                                  <td className="px-3 py-3 align-middle text-center">
                                       <input
                                           type="tel"
                                           dir="ltr"
                                           placeholder="05xxxxxxxx"
                                           value={student.parentPhone}
-                                          onChange={(e) => {
-                                              const updated = bulkStudents.map((s, i) => i === index ? { ...s, parentPhone: e.target.value } : s);
-                                              setBulkStudents(updated);
-                                          }}
-                                          className="w-full p-3 bg-slate-50 border border-transparent rounded-xl outline-none text-sm font-bold text-center group-hover:bg-white group-hover:border-slate-200 focus:!border-[#655ac1] focus:!bg-white transition-all"
+                                          onChange={(e) => setBulkStudents(prev => prev.map((s, i) => i === index ? { ...s, parentPhone: e.target.value } : s))}
+                                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:border-[#655ac1] text-center"
                                       />
                                   </td>
-                                   <td className="p-3 text-center">
+                                  <td className="px-3 py-3 text-center">
                                       <button
                                           onClick={() => setBulkStudents(prev => prev.filter((_, i) => i !== index))}
-                                          className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                          className="w-7 h-7 inline-flex items-center justify-center rounded-full bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm shadow-rose-500/20"
+                                          title="حذف السطر"
                                       >
-                                          <X size={16} />
+                                          <X size={14} />
                                       </button>
-                                   </td>
+                                  </td>
                               </tr>
-                          ))}
+                              );
+                          })}
                       </tbody>
                   </table>
 
-                  {/* Add Row Button */}
-                   <div className="p-4 border-t border-slate-100 bg-slate-50/30 text-center rounded-b-[2rem]">
+                  {/* Add Row */}
+                  <div className="p-4 border-t border-slate-100 bg-slate-50/30 rounded-b-[2rem] flex justify-start">
                       <button
                           onClick={() => {
                                const lastRow = bulkStudents[bulkStudents.length - 1];
@@ -917,9 +1031,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           }}
                           className="px-4 py-2 bg-white border border-dashed border-slate-300 rounded-xl text-slate-500 text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
                       >
-                          + إضافة سطر جديد
+                          + إضافة جديد
                       </button>
-                   </div>
+                  </div>
               </div>
           </div>
         );
@@ -928,54 +1042,110 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
       {/* ══════ Action Bar + Content ══════ */}
       {!isBulkEntryMode && (
         <>
-            {/* ══════ Action Bar ══════ */}
-            <div className="flex flex-wrap items-center gap-3 mb-6 bg-white/60 backdrop-blur-md rounded-2xl py-3.5 px-4 shadow-sm border border-slate-200">
-                {/* Import Button */}
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold shadow-md shadow-[#655ac1]/20 hover:bg-[#5448a8] transition-all hover:scale-105 active:scale-95"
-                >
-                    <Upload size={18} />
-                    استيراد من Excel
-                </button>
+            {/* ══════ Action Bar (Unified — matches Step6/Step7) ══════ */}
+            <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2 justify-between mb-6">
+                {/* Right group — primary actions */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        dir="rtl"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+                    >
+                        <Upload size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                        استيراد من Excel
+                    </button>
+                    <button
+                        dir="rtl"
+                        onClick={() => setShowAddForm(true)}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+                    >
+                        <UserPlus size={17} className="text-slate-400 group-hover:text-white transition-colors" />
+                        إضافة طالب
+                    </button>
+                    <button
+                        dir="rtl"
+                        onClick={() => setShowBulkCountModal(true)}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
+                    >
+                        <MultiAddIcon className="text-slate-400 group-hover:text-white transition-colors" />
+                        إضافة عدة طلاب
+                    </button>
+                    <button
+                        dir="rtl"
+                        onClick={() => {
+                          setBulkEditScope('selected');
+                          setBulkEditScopeGrade('');
+                          setBulkEditScopeClassId('');
+                          setBulkEditTargetClassId('');
+                          setShowBulkEditModal(true);
+                        }}
+                        disabled={schoolStudents.length === 0}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="نقل مجموعة/فصل/صف إلى فصل آخر"
+                    >
+                        <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
+                        تعديل جماعي
+                    </button>
+                </div>
 
-                {/* Add Student Button */}
-                <button
-                    onClick={() => setShowAddForm(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#8779fb] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-                >
-                    <Plus size={18} className="text-[#8779fb]" />
-                    إضافة طالب
-                </button>
+                {/* Divider */}
+                <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />
 
-                {/* Add Multiple Students Button */}
-                <button
-                    onClick={() => setShowBulkCountModal(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold hover:border-[#9d8fe8] hover:text-[#655ac1] transition-all hover:scale-105 active:scale-95"
-                >
-                    <Users size={18} className="text-[#9d8fe8]" />
-                    إضافة عدة طلاب
-                </button>
-
-                <div className="flex-1"></div>
-
-                {/* Print Button */}
-                <button
-                    onClick={() => { setPrintSelection({ type: 'all', gradeValue: '', classId: '' }); setShowPrintModal(true); }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:border-[#655ac1] transition-all hover:scale-105 active:scale-95"
-                >
-                    <Printer size={18} className="text-[#655ac1]" />
-                    طباعة
-                </button>
-
-                {/* Delete All Button */}
-                <button
-                    onClick={() => setShowDeleteAllConfirm(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-rose-500 border border-slate-200 rounded-xl font-bold hover:border-[#655ac1] transition-all hover:scale-105 active:scale-95"
-                >
-                    <Trash2 size={18} className="text-rose-500" />
-                    حذف الكل
-                </button>
+                {/* Left group — table actions */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        dir="rtl"
+                        onClick={() => { setPrintSelection({ type: 'all', gradeValue: '', classId: '' }); setShowPrintModal(true); }}
+                        disabled={schoolStudents.length === 0}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                        طباعة
+                    </button>
+                    {/* Selection-mode toggle (delete-multi flow) */}
+                    <button
+                        dir="rtl"
+                        onClick={() => {
+                          if (selectionMode && selectedStudents.size > 0) {
+                            setShowBulkDeleteConfirm(true);
+                          } else {
+                            setSelectionMode(prev => {
+                              if (prev) setSelectedStudents(new Set());
+                              return !prev;
+                            });
+                          }
+                        }}
+                        disabled={schoolStudents.length === 0}
+                        className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
+                          selectionMode
+                            ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
+                        }`}
+                    >
+                        {selectionMode ? <Check size={16} className="text-white" /> : <Trash2 size={16} className="text-rose-500" />}
+                        {selectionMode
+                          ? (selectedStudents.size > 0 ? `تأكيد حذف (${selectedStudents.size})` : 'تأكيد')
+                          : 'حذف محدد'}
+                    </button>
+                    {selectionMode && (
+                      <button
+                        dir="rtl"
+                        onClick={() => { setSelectionMode(false); setSelectedStudents(new Set()); }}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-bold text-sm transition-all"
+                      >
+                        إلغاء
+                      </button>
+                    )}
+                    <button
+                        dir="rtl"
+                        onClick={() => setShowDeleteAllConfirm(true)}
+                        disabled={schoolStudents.length === 0}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        <Trash2 size={16} className="text-rose-500" />
+                        حذف الكل
+                    </button>
+                </div>
             </div>
 
 
@@ -985,29 +1155,13 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           {/* ══════ Empty State ══════ */}
           {schoolStudents.length === 0 && !isImporting && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <GraduationCap size={48} className="mx-auto mb-5" style={{ color: '#8779fb' }} strokeWidth={1.6} />
+              <GraduationCap size={48} className="mx-auto mb-5 text-slate-300" strokeWidth={1.6} />
               <p className="text-slate-600 font-black text-lg mb-1">لا يوجد طلاب بعد</p>
-              <p className="text-slate-400 text-sm">استخدم زر <span className="font-bold" style={{ color: '#655ac1' }}>استيراد من Excel</span> أو <span className="font-bold" style={{ color: '#655ac1' }}>إضافة عدة طلاب</span> للبدء</p>
-            </div>
-          )}
-
-          {/* ══════ Import Loading Overlay ══════ */}
-          {showImportLoader && (
-            <div className="flex flex-col items-center justify-center py-16 space-y-6 animate-in fade-in duration-300">
-              <LoadingLogo size="lg" />
-              <div className="text-center">
-                <h4 className="font-black text-slate-700 mb-1">جاري تحميل البيانات...</h4>
-                <p className="text-sm text-slate-400">يتم قراءة ملف Excel ومطابقة الطلاب بالفصول</p>
-              </div>
-              <div className="w-full max-w-md">
-                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-l from-primary to-indigo-400 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.min(importProgress, 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-center text-slate-400 mt-2 font-bold">{Math.round(importProgress)}%</p>
-              </div>
+              <p className="text-slate-400 text-sm">
+                استخدم زر <span className="font-bold text-[#655ac1]">استيراد من Excel</span> أو{' '}
+                <span className="font-bold text-[#655ac1]">إضافة طالب</span> أو{' '}
+                <span className="font-bold text-[#655ac1]">إضافة عدة طلاب</span> للبدء
+              </p>
             </div>
           )}
         </>
@@ -1024,169 +1178,184 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
        />
       )}
 
-      {/* ─── Import Results Toast/Dialog ─── */}
+      {/* ─── Import Results Modal ─── */}
       {importResult && !isImporting && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-             <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-               <div className="flex items-center justify-between mb-6">
+          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
+               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
                     <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                      <CheckCircle2 size={24} className="text-emerald-500" /> نتائج الاستيراد
+                      <CheckCircle2 size={24} className="text-[#655ac1]" /> نتائج الاستيراد
                     </h3>
-                    <button onClick={() => setImportResult(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                      <X size={20} />
+                    <button onClick={() => setImportResult(null)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                      <X size={18} />
                     </button>
                </div>
-               
-               <div className="grid grid-cols-3 gap-3 mb-6">
-                    <div className="text-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="text-2xl font-black text-primary">{importResult.total}</div>
-                      <div className="text-xs text-slate-400 font-bold mt-1">إجمالي الطلاب</div>
-                    </div>
-                    <div className="text-center p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                      <div className="text-2xl font-black text-emerald-500">{importResult.matched}</div>
-                      <div className="text-xs text-emerald-600/70 font-bold mt-1">تمت المطابقة</div>
-                    </div>
-                    <div className="text-center p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                      <div className="text-2xl font-black text-amber-500">{importResult.unmatched}</div>
-                      <div className="text-xs text-amber-600/70 font-bold mt-1">بيانات ناقصة</div>
-                    </div>
-                </div>
 
-                {importResult.errors.length > 0 && (
-                  <div className="bg-slate-50 rounded-2xl p-4 max-h-40 overflow-y-auto custom-scrollbar border border-slate-100">
-                    <h4 className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
-                      <AlertTriangle size={12} /> تنبيهات ({importResult.errors.length})
-                    </h4>
-                    <div className="space-y-1">
-                      {importResult.errors.map((err, i) => (
-                         <div key={i} className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-100/50">{err}</div>
-                      ))}
-                    </div>
+               <div className="p-8">
+                 <div className="grid grid-cols-3 gap-3 mb-6">
+                      <div className="text-center p-4 bg-white rounded-2xl border border-slate-200">
+                        <div className="text-2xl font-black text-[#655ac1]">{importResult.total}</div>
+                        <div className="text-xs text-slate-400 font-bold mt-1">إجمالي الطلاب</div>
+                      </div>
+                      <div className="text-center p-4 bg-white rounded-2xl border border-slate-200">
+                        <div className="text-2xl font-black text-[#655ac1]">{importResult.matched}</div>
+                        <div className="text-xs text-slate-400 font-bold mt-1">تمت المطابقة</div>
+                      </div>
+                      <div className="text-center p-4 bg-white rounded-2xl border border-slate-200">
+                        <div className="text-2xl font-black text-[#655ac1]">{importResult.unmatched}</div>
+                        <div className="text-xs text-slate-400 font-bold mt-1">بيانات ناقصة</div>
+                      </div>
                   </div>
-                )}
-                
-                <div className="mt-6 flex justify-end">
-                  <button onClick={() => setImportResult(null)} className="px-6 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-all">
-                    إغلاق
-                  </button>
+
+                  {importResult.errors.length > 0 && (
+                    <div className="bg-slate-50 rounded-2xl p-4 max-h-40 overflow-y-auto custom-scrollbar border border-slate-200">
+                      <h4 className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                        <AlertTriangle size={12} /> تنبيهات ({importResult.errors.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {importResult.errors.map((err, i) => (
+                           <div key={i} className="text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200">{err}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-8 flex gap-3">
+                    <button
+                      onClick={() => setImportResult(null)}
+                      className="flex-1 py-4 bg-white text-slate-400 border border-slate-200 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all"
+                    >
+                      إغلاق
+                    </button>
+                  </div>
                 </div>
              </div>
           </div>
       )}
 
-      {/* ══════ Manual Add Modal (Replaces Card) ══════ */}
-      {showAddForm && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-               <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                 <UserPlus size={24} className="text-[#655ac1]" /> إضافة طالب جديد
-               </h3>
-               <button onClick={() => setShowAddForm(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                 <X size={20} />
-               </button>
-             </div>
-             
-             <div className="p-8">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2">اسم الطالب *</label>
-                      <input
-                        type="text"
-                        placeholder="أدخل اسم الطالب رباعياً"
-                        value={addName}
-                        onChange={e => setAddName(e.target.value)}
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
-                        autoFocus
-                      />
-                    </div>
-                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2">رقم ولي الأمر</label>
-                      <input
-                        type="tel"
-                        placeholder="05xxxxxxxx"
-                        value={addPhone}
-                        onChange={e => setAddPhone(e.target.value)}
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
-                        dir="ltr"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2">الصف الدراسي *</label>
-                      <select
-                        value={addGrade}
-                        onChange={e => { setAddGrade(parseInt(e.target.value)); setAddClassId(''); }}
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-primary transition-all"
-                      >
-                        {Array.from({ length: totalGrades }, (_, i) => (
-                          <option key={i + 1} value={i + 1}>الصف {i + 1}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-2">الفصل</label>
-                      <select
-                        value={addClassId}
-                        onChange={e => setAddClassId(e.target.value)}
-                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-primary transition-all"
-                      >
-                        <option value="">اختر الفصل</option>
-                        {classesForGrade.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.name || `${c.grade}/${c.section}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                 </div>
-                 
-                 <div className="mt-8 flex gap-3">
-                    <button
-                      onClick={() => { handleAddStudent(); setShowAddForm(false); }}
-                      disabled={!addName.trim()}
-                      className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 size={18} /> حفظ
-                    </button>
-                    <button
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 py-4 bg-white text-slate-400 border border-slate-200 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all"
-                    >
-                      إلغاء
-                    </button>
-                 </div>
-             </div>
-           </div>
+      {/* ══════ Add Single Student Modal (matches Step7 Admins) ══════ */}
+      {showAddForm && (() => {
+        // Grades available in the current school+phase (only grades that have classes)
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
+        const classOptions: DropdownOption[] = classesForGrade.map(c => ({
+          value: c.id,
+          label: c.name || `${c.grade}/${c.section}`,
+        }));
+
+        return (
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+              <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                <UserPlus size={24} className="text-[#655ac1]" /> إضافة طالب جديد
+              </h3>
+              <button onClick={() => setShowAddForm(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">اسم الطالب <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="أحمد محمد خالد"
+                    value={addName}
+                    onChange={e => setAddName(e.target.value)}
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#655ac1]/10 transition-all"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">رقم جوال ولي الأمر</label>
+                  <input
+                    type="tel"
+                    placeholder="05xxxxxxxx"
+                    value={addPhone}
+                    onChange={e => setAddPhone(e.target.value)}
+                    dir="ltr"
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1] focus:ring-4 focus:ring-[#655ac1]/10 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">الصف الدراسي <span className="text-rose-500">*</span></label>
+                  <StudentDropdown
+                    value={availableGrades.includes(addGrade) ? String(addGrade) : ''}
+                    onChange={v => { setAddGrade(parseInt(v)); setAddClassId(''); }}
+                    options={gradeOptions}
+                    placeholder={availableGrades.length === 0 ? 'لا توجد صفوف — أنشئ فصولاً أولاً' : 'اختر الصف'}
+                    disabled={availableGrades.length === 0}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">الفصل</label>
+                  <StudentDropdown
+                    value={addClassId}
+                    onChange={v => setAddClassId(v)}
+                    options={classOptions}
+                    placeholder={classOptions.length === 0 ? 'لا توجد فصول لهذا الصف' : 'اختر الفصل'}
+                    disabled={classOptions.length === 0}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button
+                  onClick={() => setShowAddForm(false)}
+                  className="flex-1 py-4 bg-white text-slate-400 border border-slate-200 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={() => { handleAddStudent(); setShowAddForm(false); }}
+                  disabled={!addName.trim() || availableGrades.length === 0}
+                  className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} /> حفظ
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ══════ Bulk Count Modal ══════ */}
       {showBulkCountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
               <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                <UserPlus size={20} className="text-[#655ac1]" /> إضافة عدة طلاب
+                <MultiAddIcon className="text-[#655ac1]" />
+                إضافة عدة طلاب
               </h3>
-              <button onClick={() => setShowBulkCountModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                <X size={20} />
+              <button onClick={() => setShowBulkCountModal(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                <X size={18} />
               </button>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-500 font-medium mb-5">حدد عدد الطلاب المتوقع إضافتهم وسيتم إنشاء جدول لتعبئة بياناتهم.</p>
+              <p className="text-sm text-slate-500 font-bold mb-5">حدد عدد الطلاب المتوقع إضافتهم</p>
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-6">
                 <span className="text-sm font-bold text-slate-500 shrink-0">عدد الطلاب:</span>
                 <input
                   type="number"
-                  min="1"
+                  min="2"
                   max="500"
                   value={bulkCount}
-                  onChange={(e) => setBulkCount(parseInt(e.target.value) || 0)}
-                  className="flex-1 p-2 bg-white border border-slate-200 rounded-xl font-bold text-center outline-none focus:border-[#9d8fe8] text-sm"
+                  onChange={(e) => setBulkCount(Math.max(2, parseInt(e.target.value) || 2))}
+                  className="flex-1 p-2 bg-white border border-slate-200 rounded-xl font-black text-center outline-none focus:border-[#9d8fe8] text-sm text-[#655ac1]"
                   autoFocus
                 />
               </div>
               <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBulkCountModal(false)}
+                  className="flex-1 py-3 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                >
+                  إلغاء
+                </button>
                 <button
                   onClick={() => {
                     if (bulkCount > 0) {
@@ -1204,16 +1373,10 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                       setIsBulkEntryMode(true);
                     }
                   }}
-                  disabled={!bulkCount || bulkCount < 1}
+                  disabled={!bulkCount || bulkCount < 2}
                   className="flex-1 py-3 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5448a8] transition-all shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 size={16} /> إضافة
-                </button>
-                <button
-                  onClick={() => setShowBulkCountModal(false)}
-                  className="flex-1 py-3 bg-white text-slate-500 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
-                >
-                  إلغاء
                 </button>
               </div>
             </div>
@@ -1225,43 +1388,20 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
       {schoolStudents.length > 0 && (
         <div className="space-y-4">
 
-          {/* Combined Search, Filter & Stats Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col-reverse lg:flex-row items-center gap-4 justify-between">
-            
-            {/* Stats Indicators (Left Side in RTL, so put at End of Flex Row or Start?) 
-                RTL: Flex Start is Right. Flex End is Left.
-                The user wants Stats on the LEFT.
-                So Stats should be at the END of the flex container (if flex-row).
-                
-                Current Order in Code: Search -> Filter -> Stats
-                In RTL Display: Search (Right) -> Filter (Center) -> Stats (Left)
-                
-                Wait, if it's RTL:
-                First Element (Search) -> Right
-                Last Element (Stats) -> Left
-                
-                So the current order IS correct for "Stats on Left".
-                The User says "Shift it to the left of the bar".
-                It IS on the left.
-                Maybe they mean "Far Left" and it wasn't going all the way?
-                
-                Let's use `flex-1` on the Search bar to push everything else.
-                The current Search input has `w-full`.
-                
-                Let's Force the order explicitely just to be safe and use `flex-grow` on search.
-            */}
+          {/* Search + Filter Bar (matches Step6/Step7 style) */}
+          <div dir="rtl" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row items-center gap-3">
 
             {/* Right Side: Search & Filter */}
-            <div className="flex flex-col lg:flex-row items-center gap-4 flex-1 w-full">
+            <div className="flex flex-col lg:flex-row items-center gap-3 flex-1 w-full">
                 {/* Search Input (Expands) */}
-                <div className="relative flex-[2] w-full">
+                <div className="relative flex-1 w-full">
                 <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                     type="text"
                     placeholder="بحث عن طالب..."
                     value={searchText}
                     onChange={e => { const v = e.target.value; startTransition(() => setSearchText(v)); }}
-                    className="w-full pr-12 pl-4 py-3 bg-slate-50 border-0 rounded-xl outline-none text-sm font-bold focus:ring-2 focus:ring-[#8779fb]/20 transition-all text-slate-600 placeholder:text-slate-400"
+                    className="w-full pr-12 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 transition-all text-slate-600 placeholder:text-slate-400"
                 />
                 {searchText && (
                     <button onClick={() => setSearchText('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
@@ -1270,144 +1410,101 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 )}
                 </div>
 
-                {/* Split Filter (Grade -> Class) — Multi-select dropdowns */}
+                {/* Split Filter (Grade -> Class) — Multi-select dropdowns (matches Step6 specialization filter) */}
                 <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
 
                     {/* Grade multi-select */}
-                    <div className="relative" ref={gradeDropdownRef}>
+                    <div className="relative w-full lg:w-44 shrink-0" ref={gradeDropdownRef}>
                         <button
                             onClick={() => { setGradeDropdownOpen(prev => !prev); setClassDropdownOpen(false); }}
-                            className={`flex items-center gap-2 px-4 py-3 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[140px] ${
-                                filterGrades.length > 0
-                                    ? 'border-[#655ac1] bg-[#f5f3ff] text-[#655ac1]'
-                                    : 'border-slate-200 bg-slate-50 text-slate-600'
-                            }`}
+                            className={`w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${gradeDropdownOpen ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
                         >
-                            <span className="flex-1 text-right">
+                            <span className="truncate text-[13px] leading-tight">
                                 {filterGrades.length === 0 ? 'جميع الصفوف' :
                                  filterGrades.length === 1 ? `الصف ${filterGrades[0]}` :
-                                 `${filterGrades.length} صفوف`}
+                                 `تم تحديد (${filterGrades.length})`}
                             </span>
-                            {filterGrades.length > 0 && (
-                                <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
-                                    <Check size={9} className="text-white" strokeWidth={3} />
-                                </div>
-                            )}
-                            <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${gradeDropdownOpen ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${gradeDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {gradeDropdownOpen && (
-                            <div className="absolute top-full mt-1.5 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] min-w-[160px] py-1.5 animate-in fade-in zoom-in-95 duration-100">
-                                {/* All grades */}
-                                <button
-                                    onClick={() => setFilterGrades([])}
-                                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                                        filterGrades.length === 0 ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
-                                >
-                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                        filterGrades.length === 0 ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                    }`}>
-                                        {filterGrades.length === 0 && <Check size={11} className="text-white" />}
-                                    </div>
-                                    جميع الصفوف
-                                </button>
-                                <div className="my-1 border-t border-slate-100" />
-                                {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
-                                    const isSel = filterGrades.includes(grade);
-                                    return (
-                                        <button
-                                            key={grade}
-                                            onClick={() => setFilterGrades(prev => isSel ? prev.filter(g => g !== grade) : [...prev, grade])}
-                                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                                                isSel ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                                            }`}
-                                        >
-                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                                isSel ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                            }`}>
-                                                {isSel && <Check size={11} className="text-white" />}
-                                            </div>
-                                            الصف {grade}
-                                        </button>
-                                    );
-                                })}
+                            <div className="absolute z-[200] top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 animate-in slide-in-from-top-2">
+                                <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                                    {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
+                                        const isSel = filterGrades.includes(grade);
+                                        return (
+                                            <button
+                                                key={grade}
+                                                type="button"
+                                                onClick={() => setFilterGrades(prev => isSel ? prev.filter(g => g !== grade) : [...prev, grade])}
+                                                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between ${
+                                                    isSel ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                                                }`}
+                                            >
+                                                <span>الصف {grade}</span>
+                                                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                                                    isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                                                }`}>
+                                                    <Check size={12} strokeWidth={3.5} />
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </div>
 
                     {/* Class multi-select */}
-                    <div className="relative" ref={classDropdownRef}>
+                    <div className="relative w-full lg:w-48 shrink-0" ref={classDropdownRef}>
                         <button
                             onClick={() => { setClassDropdownOpen(prev => !prev); setGradeDropdownOpen(false); }}
-                            className={`flex items-center gap-2 px-4 py-3 border-2 rounded-xl text-sm font-bold transition-all duration-100 min-w-[150px] ${
-                                filterClassIds.length > 0
-                                    ? 'border-[#655ac1] bg-[#f5f3ff] text-[#655ac1]'
-                                    : 'border-slate-200 bg-slate-50 text-slate-600'
-                            }`}
+                            className={`w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${classDropdownOpen ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
                         >
-                            <span className="flex-1 text-right">
+                            <span className="truncate text-[13px] leading-tight">
                                 {filterClassIds.length === 0 ? 'جميع الفصول' :
                                  filterClassIds.length === 1 ? getClassName(filterClassIds[0]) :
-                                 `${filterClassIds.length} فصول`}
+                                 `تم تحديد (${filterClassIds.length})`}
                             </span>
-                            {filterClassIds.length > 0 && (
-                                <div className="w-4 h-4 bg-[#655ac1] rounded-full flex items-center justify-center shrink-0">
-                                    <Check size={9} className="text-white" strokeWidth={3} />
-                                </div>
-                            )}
-                            <ChevronDown size={13} className={`shrink-0 transition-transform duration-100 ${classDropdownOpen ? 'rotate-180' : ''}`} />
+                            <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${classDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {classDropdownOpen && (
-                            <div className="absolute top-full mt-1.5 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[200] min-w-[180px] py-1.5 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-100">
-                                {/* All classes */}
-                                <button
-                                    onClick={() => setFilterClassIds([])}
-                                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                                        filterClassIds.length === 0 ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                                    }`}
-                                >
-                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                        filterClassIds.length === 0 ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                    }`}>
-                                        {filterClassIds.length === 0 && <Check size={11} className="text-white" />}
-                                    </div>
-                                    جميع الفصول
-                                </button>
-                                <div className="my-1 border-t border-slate-100" />
-                                {/* Grouped by grade */}
-                                {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
-                                    const gradeClsItems = classesForFilter.filter(c => c.grade === grade);
-                                    if (gradeClsItems.length === 0) return null;
-                                    if (filterGrades.length > 0 && !filterGrades.includes(grade)) return null;
-                                    return (
-                                        <React.Fragment key={grade}>
-                                            <div className="px-4 py-1 text-[11px] font-black text-slate-400 bg-slate-50/70 uppercase tracking-wide">
-                                                الصف {grade}
-                                            </div>
-                                            {gradeClsItems.map(cls => {
-                                                const isSel = filterClassIds.includes(cls.id);
-                                                return (
-                                                    <button
-                                                        key={cls.id}
-                                                        onClick={() => setFilterClassIds(prev => isSel ? prev.filter(id => id !== cls.id) : [...prev, cls.id])}
-                                                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors text-right ${
-                                                            isSel ? 'text-[#655ac1] bg-[#f5f3ff]' : 'text-slate-600 hover:bg-slate-50'
-                                                        }`}
-                                                    >
-                                                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                                            isSel ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300'
-                                                        }`}>
-                                                            {isSel && <Check size={11} className="text-white" />}
-                                                        </div>
-                                                        {cls.name || `${cls.grade}/${cls.section}`}
-                                                    </button>
-                                                );
-                                            })}
-                                        </React.Fragment>
-                                    );
-                                })}
+                            <div className="absolute z-[200] top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 animate-in slide-in-from-top-2">
+                                <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                                    {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => {
+                                        const gradeClsItems = classesForFilter.filter(c => c.grade === grade);
+                                        if (gradeClsItems.length === 0) return null;
+                                        if (filterGrades.length > 0 && !filterGrades.includes(grade)) return null;
+                                        return (
+                                            <React.Fragment key={grade}>
+                                                <div className="px-3 py-1 text-[11px] font-black text-slate-400">
+                                                    الصف {grade}
+                                                </div>
+                                                {gradeClsItems.map(cls => {
+                                                    const isSel = filterClassIds.includes(cls.id);
+                                                    return (
+                                                        <button
+                                                            key={cls.id}
+                                                            type="button"
+                                                            onClick={() => setFilterClassIds(prev => isSel ? prev.filter(id => id !== cls.id) : [...prev, cls.id])}
+                                                            className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between ${
+                                                                isSel ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                                                            }`}
+                                                        >
+                                                            <span>{cls.name || `${cls.grade}/${cls.section}`}</span>
+                                                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                                                                isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                                                            }`}>
+                                                                <Check size={12} strokeWidth={3.5} />
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1415,7 +1512,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     {(filterGrades.length > 0 || filterClassIds.length > 0) && (
                         <button
                             onClick={() => { setFilterGrades([]); setFilterClassIds([]); }}
-                            className="p-2.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-500 rounded-xl text-slate-400 transition-all duration-100"
+                            className="shrink-0 p-2.5 bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-500 rounded-xl text-slate-400 transition-all"
                             title="مسح التصفية"
                         >
                             <X size={15} />
@@ -1424,100 +1521,65 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 </div>
             </div>
 
-            <div className="w-px h-8 bg-slate-200 hidden lg:block mx-2"></div>
-
-            {/* Left Side: Stats (Fixed Width) */}
-            <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end shrink-0">
-               {/* Total Count */}
-               <div className="flex items-center gap-4 px-6 py-3 bg-white rounded-2xl border-2 border-[#655ac1]/20 cursor-default hover:border-[#655ac1]/40 transition-all">
-                  <div className="p-2 bg-slate-100 rounded-xl">
-                    <GraduationCap size={22} className="text-[#655ac1]" />
-                  </div>
-                  <div className="flex flex-col justify-center">
-                      <span className="text-xs font-bold text-slate-400 leading-tight">إجمالي الطلاب</span>
-                      <span className="text-2xl font-black text-[#655ac1] leading-none mt-0.5">{schoolStudents.length}</span>
-                  </div>
-               </div>
-
-               {/* Missing Data Warning */}
-               <div
-                  onClick={() => { if (studentsWithMissingData.length > 0) setShowMissingDataModal(true); }}
-                  className={`flex items-center gap-4 px-6 py-3 rounded-2xl transition-all border-2 ${
-                      studentsWithMissingData.length === 0
-                        ? 'cursor-default border-slate-100 opacity-60'
-                        : 'cursor-pointer bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50/50'
-                  }`}
-               >
-                  <div className={`p-2 bg-slate-100 rounded-xl ${studentsWithMissingData.length > 0 ? 'animate-pulse' : ''}`}>
-                    <AlertTriangle size={22} className="text-amber-500" />
-                  </div>
-                  <div className="flex flex-col justify-center">
-                      <span className="text-xs font-bold text-amber-600/80 leading-tight">بيانات ناقصة</span>
-                      <span className="text-2xl font-black text-amber-700 leading-none mt-0.5">{studentsWithMissingData.length}</span>
-                  </div>
-               </div>
-            </div>
+            {/* Missing data quick-access (clickable when there are items) */}
+            {studentsWithMissingData.length > 0 && (
+              <button
+                onClick={() => setShowMissingDataModal(true)}
+                className="shrink-0 group flex items-center gap-2 px-4 py-2.5 bg-white border border-amber-200 rounded-xl text-amber-600 hover:bg-amber-50 hover:border-amber-300 font-bold text-sm transition-all"
+                title="عرض الطلاب ذوي البيانات الناقصة"
+              >
+                <AlertTriangle size={16} />
+                بيانات ناقصة ({studentsWithMissingData.length})
+              </button>
+            )}
 
           </div>
 
-          {/* Selection Actions */}
+          {/* Selection summary chip (count only — delete action lives in the top action bar) */}
            {selectedStudents.size > 0 && (
-            <div className="flex items-center justify-between p-3 bg-[#e5e1fe]/50 border border-[#e5e1fe] rounded-2xl animate-in slide-in-from-top-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#655ac1] bg-[#e5e1fe] px-3 py-1.5 rounded-xl">
-                        {selectedStudents.size} محدد
-                    </span>
-                    <span className="text-xs font-bold text-slate-500">
-                      من إجمالي {filteredStudents.length} طالب
-                    </span>
-                </div>
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#e5e1fe]/40 border border-[#e5e1fe] rounded-xl animate-in slide-in-from-top-2 w-fit">
+                <span className="text-xs font-bold text-[#655ac1] bg-[#e5e1fe] px-3 py-1 rounded-lg">
+                    {selectedStudents.size} محدد
+                </span>
+                <span className="text-xs font-bold text-slate-500">
+                  من إجمالي {filteredStudents.length} طالب
+                </span>
                 <button
-                    onClick={() => setShowBulkDeleteConfirm(true)}
-                    className="flex items-center gap-1 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 transition-all"
+                  onClick={() => setSelectedStudents(new Set())}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  title="إلغاء التحديد"
                 >
-                    <Trash size={14} /> حذف المحدد
+                  <X size={14} />
                 </button>
             </div>
            )}
 
           {/* Bulk Delete Confirmation Modal */}
           {showBulkDeleteConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                    <Trash2 size={20} className="text-rose-500" /> حذف الطلاب المحددين
-                  </h3>
-                  <button onClick={() => setShowBulkDeleteConfirm(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                    <X size={20} />
-                  </button>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 flex items-start gap-3">
+                  <Trash2 size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 mb-2">حذف الطلاب المحددين</h2>
+                    <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                      سيتم حذف <span className="font-black text-rose-500">{selectedStudents.size}</span> طالب محدد. هل تريد المتابعة؟
+                    </p>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <div className="flex flex-col items-center text-center gap-4 mb-6">
-                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
-                      <AlertTriangle size={32} className="text-rose-500" />
-                    </div>
-                    <div>
-                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذݿ</p>
-                      <p className="text-sm text-slate-500 font-medium">
-                        سيتم حذف <span className="font-black text-rose-500">{selectedStudents.size}</span> طالب محدد بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleBulkDelete}
-                      className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
-                    >
-                      <Trash2 size={16} /> نعم، احذف المحدد
-                    </button>
-                    <button
-                      onClick={() => setShowBulkDeleteConfirm(false)}
-                      className="flex-1 px-4 py-3 bg-white text-slate-600 border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
-                    >
-                      إلغاء
-                    </button>
-                  </div>
+                <div className="p-6 pt-0 flex gap-3">
+                  <button
+                    onClick={() => setShowBulkDeleteConfirm(false)}
+                    className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                  >
+                    حذف
+                  </button>
                 </div>
               </div>
             </div>
@@ -1525,42 +1587,30 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
           {/* Delete All Confirmation Modal */}
           {showDeleteAllConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                    <Trash2 size={20} className="text-rose-500" /> تأكيد الحذف
-                  </h3>
-                  <button onClick={() => setShowDeleteAllConfirm(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                    <X size={20} />
-                  </button>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="p-6 flex items-start gap-3">
+                  <Trash2 size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 mb-2">حذف الكل</h2>
+                    <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                      سيتم حذف جميع الطلاب (<span className="font-black text-rose-500">{schoolStudents.length}</span>) بشكل نهائي. هل تريد المتابعة؟
+                    </p>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <div className="flex flex-col items-center text-center gap-4 mb-6">
-                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
-                      <AlertTriangle size={32} className="text-rose-500" />
-                    </div>
-                    <div>
-                      <p className="font-black text-slate-800 mb-2">هل أنت متأكد من حذف جميع الطلاȿ</p>
-                      <p className="text-sm text-slate-500 font-medium">
-                        سيتم حذف <span className="font-black text-rose-500">{schoolStudents.length}</span> طالب بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleDeleteAll}
-                      className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
-                    >
-                      <Trash2 size={16} /> نعم، احذف الكل
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteAllConfirm(false)}
-                      className="flex-1 px-4 py-3 bg-white text-slate-600 border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
-                    >
-                      إلغاء
-                    </button>
-                  </div>
+                <div className="p-6 pt-0 flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteAllConfirm(false)}
+                    className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    onClick={handleDeleteAll}
+                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                  >
+                    حذف
+                  </button>
                 </div>
               </div>
             </div>
@@ -1715,6 +1765,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                             idx={idx}
                             isSelected={selectedStudents.has(student.id)}
                             isEditing={editingStudent === student.id}
+                            selectionMode={selectionMode}
                             editName={editingStudent === student.id ? editName : ''}
                             editPhone={editingStudent === student.id ? editPhone : ''}
                             editClassId={editingStudent === student.id ? editClassId : ''}
@@ -1747,16 +1798,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
          </div>
       )}
 
-      {/* ══════ Print Options Modal ══════ */}
+      {/* ══════ Print Options Modal (matches Step7 Admins) ══════ */}
       {showPrintModal && (() => {
-        // Compute the count of students that will be printed based on current selection
-        const printCount = printSelection.type === 'all'
-          ? schoolStudents.length
-          : printSelection.type === 'grade' && printSelection.gradeValue !== ''
-            ? schoolStudents.filter(s => s.grade === printSelection.gradeValue).length
-            : printSelection.type === 'class' && printSelection.classId
-              ? schoolStudents.filter(s => s.classId === printSelection.classId).length
-              : null;
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
+        const classOptions: DropdownOption[] = schoolClasses.map(c => ({
+          value: c.id,
+          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
+        }));
 
         const canPrint =
           printSelection.type === 'all' ||
@@ -1776,174 +1825,88 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           setShowPrintModal(false);
         };
 
-        return (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        const options: Array<{ value: 'all' | 'grade' | 'class'; label: string }> = [
+          { value: 'all', label: 'طباعة جميع الطلاب' },
+          { value: 'grade', label: 'طباعة طلاب صف محدد' },
+          { value: 'class', label: 'طباعة طلاب فصل محدد' },
+        ];
 
-              {/* Header */}
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-2xl">
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+            <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                     <Printer size={22} className="text-[#655ac1]" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-lg text-slate-800">خيارات الطباعة</h3>
-                    <p className="text-xs text-slate-400 font-bold mt-0.5">اختر نطاق الطباعة ثم أكد</p>
-                  </div>
+                    طباعة الطلاب
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">اختر نطاق الطباعة المطلوب.</p>
                 </div>
                 <button
                   onClick={() => setShowPrintModal(false)}
-                  className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all shadow-sm"
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               </div>
 
-              {/* Radio cards */}
-              <div className="p-6 space-y-3">
-                {/* Card: All */}
-                <button
-                  onClick={() => setPrintSelection({ type: 'all', gradeValue: '', classId: '' })}
-                  className={`w-full p-4 border rounded-2xl transition-all flex items-center gap-4 text-right ${
-                    printSelection.type === 'all'
-                      ? 'border-[#655ac1] bg-[#f5f3ff]'
-                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                  }`}
-                >
-                  <div className={`p-2.5 rounded-xl border shrink-0 transition-all ${
-                    printSelection.type === 'all'
-                      ? 'bg-[#655ac1] border-[#655ac1]'
-                      : 'bg-white border-slate-200'
-                  }`}>
-                    <GraduationCap size={20} className={printSelection.type === 'all' ? 'text-white' : 'text-slate-400'} />
-                  </div>
-                  <div className="flex-1">
-                    <div className={`font-black text-sm ${printSelection.type === 'all' ? 'text-[#655ac1]' : 'text-slate-700'}`}>جميع الطلاب</div>
-                    <div className="text-xs text-slate-400 font-bold mt-0.5">طباعة كل الطلاب مرتبين حسب الصفوف والفصول</div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
-                    printSelection.type === 'all' ? 'border-[#655ac1] bg-[#655ac1]' : 'border-slate-300'
-                  }`}>
-                    {printSelection.type === 'all' && <div className="w-2 h-2 rounded-full bg-white" />}
-                  </div>
-                </button>
+              <div className="px-6 py-5 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
+                {options.map(opt => {
+                  const on = printSelection.type === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setPrintSelection({ type: opt.value, gradeValue: '', classId: '' })}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${on ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      <span>{opt.label}</span>
+                      <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    </button>
+                  );
+                })}
 
-                {/* Card: By Grade */}
-                <button
-                  onClick={() => setPrintSelection(prev => ({ ...prev, type: 'grade', classId: '' }))}
-                  className={`w-full p-4 border rounded-2xl transition-all flex items-center gap-4 text-right ${
-                    printSelection.type === 'grade'
-                      ? 'border-[#655ac1] bg-[#f5f3ff]'
-                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                  }`}
-                >
-                  <div className={`p-2.5 rounded-xl border shrink-0 transition-all ${
-                    printSelection.type === 'grade'
-                      ? 'bg-[#655ac1] border-[#655ac1]'
-                      : 'bg-white border-slate-200'
-                  }`}>
-                    <BookOpen size={20} className={printSelection.type === 'grade' ? 'text-white' : 'text-slate-400'} />
-                  </div>
-                  <div className="flex-1">
-                    <div className={`font-black text-sm ${printSelection.type === 'grade' ? 'text-[#655ac1]' : 'text-slate-700'}`}>حسب الصف</div>
-                    <div className="text-xs text-slate-400 font-bold mt-0.5">طباعة طلاب صف دراسي محدد</div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
-                    printSelection.type === 'grade' ? 'border-[#655ac1] bg-[#655ac1]' : 'border-slate-300'
-                  }`}>
-                    {printSelection.type === 'grade' && <div className="w-2 h-2 rounded-full bg-white" />}
-                  </div>
-                </button>
-
-                {/* Grade dropdown (shown when grade selected) */}
+                {/* Grade dropdown */}
                 {printSelection.type === 'grade' && (
-                  <div className="mr-14">
-                    <select
-                      value={printSelection.gradeValue}
-                      onChange={(e) => setPrintSelection(prev => ({ ...prev, gradeValue: e.target.value ? parseInt(e.target.value) : '' }))}
-                      className="w-full p-3 bg-white border border-[#e5e1fe] rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] transition-all cursor-pointer"
-                    >
-                      <option value="">اختر الصف...</option>
-                      {Array.from({ length: totalGrades }, (_, i) => i + 1).map(grade => (
-                        <option key={grade} value={grade}>الصف {grade}</option>
-                      ))}
-                    </select>
+                  <div className="pt-1">
+                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الصف</p>
+                    <StudentDropdown
+                      value={printSelection.gradeValue === '' ? '' : String(printSelection.gradeValue)}
+                      onChange={v => setPrintSelection(prev => ({ ...prev, gradeValue: v ? parseInt(v) : '' }))}
+                      options={gradeOptions}
+                      placeholder="اختر الصف"
+                    />
                   </div>
                 )}
 
-                {/* Card: By Class */}
-                <button
-                  onClick={() => setPrintSelection(prev => ({ ...prev, type: 'class', gradeValue: '' }))}
-                  className={`w-full p-4 border rounded-2xl transition-all flex items-center gap-4 text-right ${
-                    printSelection.type === 'class'
-                      ? 'border-[#655ac1] bg-[#f5f3ff]'
-                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                  }`}
-                >
-                  <div className={`p-2.5 rounded-xl border shrink-0 transition-all ${
-                    printSelection.type === 'class'
-                      ? 'bg-[#655ac1] border-[#655ac1]'
-                      : 'bg-white border-slate-200'
-                  }`}>
-                    <Users size={20} className={printSelection.type === 'class' ? 'text-white' : 'text-slate-400'} />
-                  </div>
-                  <div className="flex-1">
-                    <div className={`font-black text-sm ${printSelection.type === 'class' ? 'text-[#655ac1]' : 'text-slate-700'}`}>فصل محدد</div>
-                    <div className="text-xs text-slate-400 font-bold mt-0.5">طباعة طلاب فصل دراسي بعينه</div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
-                    printSelection.type === 'class' ? 'border-[#655ac1] bg-[#655ac1]' : 'border-slate-300'
-                  }`}>
-                    {printSelection.type === 'class' && <div className="w-2 h-2 rounded-full bg-white" />}
-                  </div>
-                </button>
-
-                {/* Class dropdown (shown when class selected) */}
+                {/* Class dropdown */}
                 {printSelection.type === 'class' && (
-                  <div className="mr-14">
-                    <select
+                  <div className="pt-1">
+                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الفصل</p>
+                    <StudentDropdown
                       value={printSelection.classId}
-                      onChange={(e) => setPrintSelection(prev => ({ ...prev, classId: e.target.value }))}
-                      className="w-full p-3 bg-white border border-[#e5e1fe] rounded-xl outline-none text-sm font-bold text-slate-600 focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] transition-all cursor-pointer"
-                    >
-                      <option value="">اختر الفصل...</option>
-                      {schoolClasses.map(c => (
-                        <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Summary badge */}
-                {printCount !== null && (
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5">
-                    <Printer size={14} className="text-[#655ac1] shrink-0" />
-                    <span className="text-xs font-bold text-slate-500">سيتم طباعة</span>
-                    <span className="text-sm font-black text-[#655ac1]">{printCount}</span>
-                    <span className="text-xs font-bold text-slate-500">طالب</span>
+                      onChange={v => setPrintSelection(prev => ({ ...prev, classId: v }))}
+                      options={classOptions}
+                      placeholder="اختر الفصل"
+                    />
                   </div>
                 )}
               </div>
 
-              {/* Footer */}
-              <div className="bg-slate-50/60 px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
                 <button
                   onClick={() => setShowPrintModal(false)}
-                  className="px-5 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                  className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   إلغاء
                 </button>
                 <button
                   onClick={handleConfirmPrint}
                   disabled={!canPrint}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${
-                    canPrint
-                      ? 'bg-[#655ac1] text-white hover:bg-[#5448a8] shadow-sm'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  }`}
+                  className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  <Printer size={15} />
-                  طباعة الآن
+                  طباعة
                 </button>
               </div>
             </div>
@@ -1951,130 +1914,144 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         );
       })()}
 
-      {/* ══════ Missing Data Modal ══════ */}
-      {showMissingDataModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[85vh]">
+      {/* ══════ Missing Data Modal (Inline Editing) ══════ */}
+      {showMissingDataModal && (() => {
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
 
-            {/* Header */}
-            <div className="p-6 border-b border-amber-100 flex items-center justify-between bg-amber-50/60 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-amber-100 rounded-2xl">
-                  <AlertTriangle size={24} className="text-amber-500" />
-                </div>
+        // Helper: update a single student field inline
+        const updateField = (id: string, patch: Partial<Student>) => {
+          setStudents(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
+        };
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+
+              {/* Header — clean, icon w/o background */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
                 <div>
-                  <h3 className="font-black text-lg text-slate-800">طلاب ببيانات ناقصة</h3>
-                  <p className="text-xs text-amber-600/80 font-bold mt-0.5">
-                    {studentsWithMissingData.length} طالب يحتاج إلى مراجعة وتحديث البيانات
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <AlertTriangle size={22} className="text-[#655ac1]" />
+                    البيانات الناقصة
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">
+                    {studentsWithMissingData.length} طالب — يمكنك التعديل المباشر هنا
                   </p>
                 </div>
+                <button
+                  onClick={() => setShowMissingDataModal(false)}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                onClick={() => setShowMissingDataModal(false)}
-                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all shadow-sm"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* Stats */}
-            <div className="px-6 py-4 border-b border-slate-100 flex gap-3 shrink-0">
-              <div className="flex-1 text-center p-3 bg-rose-50 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="text-xl font-black text-rose-500">
-                  {studentsWithMissingData.filter(s => !s.grade).length}
-                </div>
-                <div className="text-xs font-bold text-rose-600/80 mt-0.5">بدون صف</div>
+              {/* Stats (neutral) */}
+              <div className="px-6 py-4 border-b border-slate-100 grid grid-cols-3 gap-3 shrink-0">
+                {[
+                  { label: 'بدون صف', count: studentsWithMissingData.filter(s => !s.grade).length },
+                  { label: 'بدون فصل', count: studentsWithMissingData.filter(s => !s.classId).length },
+                  { label: 'بدون رقم ولي الأمر', count: studentsWithMissingData.filter(s => !s.parentPhone).length },
+                ].map(({ label, count }) => (
+                  <div key={label} className="text-center p-3 bg-white rounded-2xl border border-slate-200">
+                    <div className="text-xl font-black text-[#655ac1]">{count}</div>
+                    <div className="text-xs font-bold text-slate-400 mt-0.5">{label}</div>
+                  </div>
+                ))}
               </div>
-              <div className="flex-1 text-center p-3 bg-amber-50 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="text-xl font-black text-amber-500">
-                  {studentsWithMissingData.filter(s => !s.classId).length}
-                </div>
-                <div className="text-xs font-bold text-amber-600/80 mt-0.5">بدون فصل</div>
-              </div>
-              <div className="flex-1 text-center p-3 bg-orange-50 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="text-xl font-black text-orange-500">
-                  {studentsWithMissingData.filter(s => !s.parentPhone).length}
-                </div>
-                <div className="text-xs font-bold text-orange-600/80 mt-0.5">بدون رقم ولي الأمر</div>
-              </div>
-            </div>
 
-            {/* Table */}
-            <div className="overflow-y-auto custom-scrollbar flex-1">
-              <table className="w-full text-right">
-                <thead className="sticky top-0 bg-white border-b border-slate-100 z-10">
-                  <tr>
-                    <th className="p-4 text-xs font-black text-slate-400 w-12">م</th>
-                    <th className="p-4 text-xs font-black text-slate-500">اسم الطالب</th>
-                    <th className="p-4 text-center text-xs font-black text-slate-500 w-28">الصف</th>
-                    <th className="p-4 text-center text-xs font-black text-slate-500 w-40">الفصل</th>
-                    <th className="p-4 text-center text-xs font-black text-slate-500 w-44">رقم ولي الأمر</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {studentsWithMissingData.map((student, idx) => {
-                    const missingGrade = !student.grade;
-                    const missingClass = !student.classId;
-                    const missingPhone = !student.parentPhone;
-                    return (
-                      <tr key={student.id} className="hover:bg-amber-50/20 transition-colors">
-                        <td className="p-4 text-xs font-bold text-slate-300">{idx + 1}</td>
-                        <td className="p-4 font-bold text-slate-700 whitespace-nowrap">{student.name}</td>
-                        <td className="p-4 text-center">
-                          {missingGrade ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold border border-rose-100">
-                              <X size={11} /> غير محدد
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 rounded-lg text-xs font-bold">
-                              الصف {student.grade}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4 text-center">
-                          {missingClass ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-600 rounded-lg text-xs font-bold border border-amber-100">
-                              <X size={11} /> غير محدد
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 rounded-lg text-sm font-bold">
-                              {getClassName(student.classId)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4 text-center">
-                          {missingPhone ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-500 rounded-lg text-xs font-bold border border-orange-100">
-                              <X size={11} /> غير مسجل
-                            </span>
-                          ) : (
-                            <span className="text-sm font-bold text-slate-600 font-mono tracking-wide" dir="ltr">
-                              {student.parentPhone}
-                            </span>
-                          )}
-                        </td>
+              {/* Table — inline editable */}
+              <div className="overflow-y-auto custom-scrollbar flex-1">
+                {studentsWithMissingData.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-500" />
+                    <p className="font-bold text-slate-700">جميع البيانات مكتملة</p>
+                    <p className="text-xs text-slate-400 font-bold mt-1">لا يوجد طلاب بحاجة لتحديث</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-right">
+                    <thead className="sticky top-0 bg-white border-b border-slate-200 z-10">
+                      <tr>
+                        <th className="p-3 text-xs font-black text-slate-500 w-12 text-center">م</th>
+                        <th className="p-3 text-xs font-black text-slate-500 min-w-[180px]">اسم الطالب</th>
+                        <th className="p-3 text-center text-xs font-black text-slate-500 w-36">الصف</th>
+                        <th className="p-3 text-center text-xs font-black text-slate-500 w-44">الفصل</th>
+                        <th className="p-3 text-center text-xs font-black text-slate-500 w-48">رقم ولي الأمر</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {studentsWithMissingData.map((student, idx) => {
+                        const classOpts: DropdownOption[] = schoolClasses
+                          .filter(c => student.grade ? c.grade === student.grade : true)
+                          .map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` }));
+                        return (
+                          <tr key={student.id} className="hover:bg-slate-50/40 transition-colors">
+                            <td className="p-3 text-xs font-bold text-slate-300 text-center">{idx + 1}</td>
+                            <td className="p-3 font-bold text-slate-700 whitespace-nowrap">{student.name}</td>
+                            <td className="p-3">
+                              <StudentDropdown
+                                compact
+                                value={student.grade ? String(student.grade) : ''}
+                                onChange={v => updateField(student.id, { grade: parseInt(v), classId: '' })}
+                                options={gradeOptions}
+                                placeholder={!student.grade ? 'اختر الصف' : `الصف ${student.grade}`}
+                              />
+                            </td>
+                            <td className="p-3">
+                              <StudentDropdown
+                                compact
+                                value={student.classId}
+                                onChange={v => updateField(student.id, { classId: v })}
+                                options={classOpts}
+                                placeholder={classOpts.length === 0 ? 'اختر الصف أولاً' : 'اختر الفصل'}
+                                disabled={classOpts.length === 0}
+                              />
+                            </td>
+                            <td className="p-3">
+                              <input
+                                type="tel"
+                                dir="ltr"
+                                placeholder="05xxxxxxxx"
+                                defaultValue={student.parentPhone || ''}
+                                onBlur={e => {
+                                  const v = e.target.value.trim();
+                                  if (v !== (student.parentPhone || '')) {
+                                    updateField(student.id, { parentPhone: v || undefined });
+                                  }
+                                }}
+                                className={`w-full px-3 py-2 bg-white border-2 rounded-xl outline-none text-xs font-bold text-center transition-all focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 ${
+                                  !student.parentPhone ? 'border-rose-200 placeholder:text-rose-300' : 'border-slate-200'
+                                }`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
 
-            {/* Footer */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex justify-between items-center">
-              <p className="text-xs text-slate-400 font-bold">
-                يمكنك تعديل بيانات الطالب من خلال زر الإجراءات في الجدول الرئيسي
-              </p>
-              <button
-                onClick={() => setShowMissingDataModal(false)}
-                className="px-6 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
-              >
-                إغلاق
-              </button>
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                <button
+                  onClick={() => setShowMissingDataModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  إغلاق
+                </button>
+                <button
+                  onClick={() => { setShowMissingDataModal(false); showToast('تم حفظ التعديلات'); }}
+                  className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 transition-all"
+                >
+                  حفظ
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ══════ Grade / Class Delete Confirmation Modal ══════ */}
       {gradeDeleteTarget && (() => {
@@ -2086,44 +2063,201 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           ? `طلاب فصل ${className || classId}`
           : `طلاب الصف ${grade}`;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                  <Trash2 size={20} className="text-rose-500" /> تأكيد الحذف
-                </h3>
-                <button onClick={() => setGradeDeleteTarget(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all">
-                  <X size={20} />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 flex items-start gap-3">
+                <Trash2 size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 mb-2">حذف {label}</h2>
+                  <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                    سيتم حذف <span className="font-black text-rose-500">{targetStudents.length}</span> طالب. هل تريد المتابعة؟
+                  </p>
+                </div>
+              </div>
+              <div className="p-6 pt-0 flex gap-3">
+                <button
+                  onClick={() => setGradeDeleteTarget(null)}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleDeleteGradeOrClass}
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                >
+                  حذف
                 </button>
               </div>
-              <div className="p-6">
-                <div className="flex flex-col items-center text-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
-                    <AlertTriangle size={32} className="text-rose-500" />
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══════ Single Student Delete Confirmation ══════ */}
+      {studentToDelete && (() => {
+        const target = students.find(s => s.id === studentToDelete);
+        if (!target) return null;
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 flex items-start gap-3">
+                <Trash2 size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                <div>
+                  <h2 className="text-xl font-black text-slate-800 mb-2">حذف الطالب</h2>
+                  <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                    سيتم حذف الطالب <span className="font-black text-slate-700">{target.name}</span> بشكل نهائي. هل تريد المتابعة؟
+                  </p>
+                </div>
+              </div>
+              <div className="p-6 pt-0 flex gap-3">
+                <button
+                  onClick={() => setStudentToDelete(null)}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={() => { handleDeleteOne(studentToDelete); setStudentToDelete(null); }}
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                >
+                  حذف
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══════ Bulk Edit Modal (move scope → target class) ══════ */}
+      {showBulkEditModal && (() => {
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
+        const sourceClassOptions: DropdownOption[] = schoolClasses.map(c => ({
+          value: c.id,
+          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
+        }));
+        const targetClassOptions: DropdownOption[] = schoolClasses.map(c => ({
+          value: c.id,
+          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
+        }));
+
+        // Compute scope count for preview
+        let scopeCount = 0;
+        if (bulkEditScope === 'selected') scopeCount = selectedStudents.size;
+        else if (bulkEditScope === 'grade' && bulkEditScopeGrade !== '') scopeCount = schoolStudents.filter(s => s.grade === bulkEditScopeGrade).length;
+        else if (bulkEditScope === 'class' && bulkEditScopeClassId) scopeCount = schoolStudents.filter(s => s.classId === bulkEditScopeClassId).length;
+
+        const scopeOptions: Array<{ value: 'selected' | 'grade' | 'class'; label: string }> = [
+          { value: 'selected', label: `طلاب محددين (${selectedStudents.size})` },
+          { value: 'grade', label: 'صف كامل' },
+          { value: 'class', label: 'فصل كامل' },
+        ];
+
+        const canApply = !!bulkEditTargetClassId && scopeCount > 0 && (
+          bulkEditScope === 'selected' ||
+          (bulkEditScope === 'grade' && bulkEditScopeGrade !== '') ||
+          (bulkEditScope === 'class' && !!bulkEditScopeClassId)
+        );
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Edit2 size={20} className="text-[#655ac1]" />
+                    تعديل جماعي
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">نقل مجموعة طلاب أو فصل أو صف إلى فصل آخر.</p>
+                </div>
+                <button
+                  onClick={() => setShowBulkEditModal(false)}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">نطاق التعديل</p>
+                  <div className="space-y-2">
+                    {scopeOptions.map(opt => {
+                      const on = bulkEditScope === opt.value;
+                      const disabled = opt.value === 'selected' && selectedStudents.size === 0;
+                      return (
+                        <button
+                          key={opt.value}
+                          disabled={disabled}
+                          onClick={() => setBulkEditScope(opt.value)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${on ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'} disabled:opacity-40 disabled:cursor-not-allowed`}
+                        >
+                          <span>{opt.label}</span>
+                          <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
+                </div>
+
+                {bulkEditScope === 'grade' && (
                   <div>
-                    <p className="font-black text-slate-800 mb-2">هل أنت متأكد من الحذݿ</p>
-                    <p className="text-sm text-slate-500 font-medium">
-                      سيتم حذف جميع{' '}
-                      <span className="font-black text-rose-500">{targetStudents.length}</span>{' '}
-                      {label} بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.
-                    </p>
+                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الصف المصدر</p>
+                    <StudentDropdown
+                      value={bulkEditScopeGrade === '' ? '' : String(bulkEditScopeGrade)}
+                      onChange={v => setBulkEditScopeGrade(v ? parseInt(v) : '')}
+                      options={gradeOptions}
+                      placeholder="اختر الصف"
+                    />
                   </div>
+                )}
+                {bulkEditScope === 'class' && (
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الفصل المصدر</p>
+                    <StudentDropdown
+                      value={bulkEditScopeClassId}
+                      onChange={v => setBulkEditScopeClassId(v)}
+                      options={sourceClassOptions}
+                      placeholder="اختر الفصل"
+                    />
+                  </div>
+                )}
+
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">نقل إلى فصل</p>
+                  <StudentDropdown
+                    value={bulkEditTargetClassId}
+                    onChange={v => setBulkEditTargetClassId(v)}
+                    options={targetClassOptions}
+                    placeholder="اختر فصل الوجهة"
+                  />
                 </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleDeleteGradeOrClass}
-                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
-                  >
-                    <Trash2 size={16} /> نعم، احذف {label}
-                  </button>
-                  <button
-                    onClick={() => setGradeDeleteTarget(null)}
-                    className="flex-1 px-4 py-3 bg-white text-slate-600 border border-slate-200 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all"
-                  >
-                    إلغاء
-                  </button>
-                </div>
+
+                {scopeCount > 0 && bulkEditTargetClassId && (
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+                    <span className="text-xs font-bold text-slate-500">سيتم نقل</span>
+                    <span className="text-sm font-black text-[#655ac1]">{scopeCount}</span>
+                    <span className="text-xs font-bold text-slate-500">طالب</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                <button
+                  onClick={() => setShowBulkEditModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleBulkEditApply}
+                  disabled={!canApply}
+                  className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  تطبيق
+                </button>
               </div>
             </div>
           </div>
@@ -2149,7 +2283,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           <div className="my-1 border-t border-slate-100" />
           <button
             onClick={() => {
-              handleDeleteOne(actionDropdown.studentId);
+              setStudentToDelete(actionDropdown.studentId);
               setActionDropdown(null);
             }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 font-bold transition-colors"

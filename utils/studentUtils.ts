@@ -393,11 +393,16 @@ export function printStudentList(
       </div>`;
   }
 
-  const title = customTitle || `قائمة الطلاب — ${new Date().toLocaleDateString('ar-SA')}`;
+  const title = customTitle || 'بيان بأسماء الطلاب';
   const printDate = new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
+  const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId) ?? schoolInfo.semesters?.[0];
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
+
+  const logoHtml = schoolInfo.logo
+    ? `<img src="${schoolInfo.logo}" alt="شعار المدرسة" />`
+    : `<div class="logo-placeholder">شعار</div>`;
 
   printWindow.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -409,12 +414,17 @@ export function printStudentList(
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Tajawal', sans-serif; background: #fff; direction: rtl; color: #1e293b; padding: 28px 32px; }
 
-    /* ─── Page Header ─── */
-    .page-header { text-align: center; padding-bottom: 18px; border-bottom: 3px solid #655ac1; margin-bottom: 28px; }
-    .school-name { font-size: 22px; font-weight: 900; color: #1e293b; }
-    .list-title  { font-size: 15px; color: #64748b; font-weight: 500; margin-top: 5px; }
-    .meta        { font-size: 12px; color: #94a3b8; margin-top: 4px; }
-    .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 99px; margin-top: 10px; }
+    /* ─── Official Print Header (matches Admins/Teachers) ─── */
+    .official-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1e293b; margin-bottom: 18px; }
+    .official-header > div { font-size: 12px; line-height: 1.7; font-weight: 700; color: #1e293b; }
+    .official-header .header-right { text-align: right; flex: 1; }
+    .official-header .header-center { text-align: center; }
+    .official-header .header-left { text-align: left; flex: 1; }
+    .official-header img { width: 72px; height: 72px; object-fit: contain; }
+    .logo-placeholder { width: 72px; height: 72px; border: 2px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #94a3b8; }
+    .official-title { text-align: center; font-size: 18px; font-weight: 900; color: #1e293b; padding: 10px 0 6px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin-bottom: 18px; letter-spacing: 0.5px; }
+    .meta-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; font-size: 12px; color: #64748b; font-weight: 700; }
+    .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 99px; }
 
     /* ─── Group Block ─── */
     .group-block  { margin-bottom: 24px; }
@@ -460,10 +470,26 @@ export function printStudentList(
   </style>
 </head>
 <body>
-  <div class="page-header">
-    <div class="school-name">${schoolInfo.schoolName || 'المدرسة'}</div>
-    <div class="list-title">${title}</div>
-    <div class="meta">${printDate}</div>
+  <div class="official-header">
+    <div class="header-right">
+      <p>المملكة العربية السعودية</p>
+      <p>وزارة التعليم</p>
+      <p>${schoolInfo.region || 'إدارة التعليم بالمنطقة'}</p>
+      <p>مدرسة ${schoolInfo.schoolName || '..........'}</p>
+      <p>الفصل الدراسي: ${currentSemester?.name || ''}</p>
+    </div>
+    <div class="header-center">
+      ${logoHtml}
+    </div>
+    <div class="header-left">
+      <p>التاريخ: ${printDate}</p>
+      <p>العام الدراسي: ${schoolInfo.academicYear || ''}</p>
+    </div>
+  </div>
+
+  <h1 class="official-title">${title}</h1>
+
+  <div class="meta-line">
     <span class="total-badge">إجمالي الطلاب: ${students.length}</span>
   </div>
 
@@ -484,7 +510,7 @@ export interface StudentFilters {
   classId?: string;
 }
 
-const normalizeArabic = (text: string): string => {
+export const normalizeArabic = (text: string): string => {
   if (!text) return "";
   return text
     .replace(/[أإآ]/g, 'ا')
