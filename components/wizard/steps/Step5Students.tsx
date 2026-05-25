@@ -378,6 +378,13 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const [transferGlobalSelectWarning, setTransferGlobalSelectWarning] = useState(false);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // ─── Delete Selected Modal ───
+  const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
+  const [deleteModalSearch, setDeleteModalSearch] = useState('');
+  const [deleteModalGrade, setDeleteModalGrade] = useState<number | ''>('');
+  const [deleteModalClassId, setDeleteModalClassId] = useState('');
+  const [deleteWholeGroupConfirm, setDeleteWholeGroupConfirm] = useState(false);
   const [gradeDeleteTarget, setGradeDeleteTarget] = useState<{ grade: number; classId?: string; className?: string } | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [showMissingDataModal, setShowMissingDataModal] = useState(false);
@@ -1323,48 +1330,26 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         </button>
                       </>
                     )}
-                    {/* Selection-mode toggle (delete-multi flow — matches Teachers) */}
+                    {/* Delete selected (modal flow) */}
                     <button
                         dir="rtl"
                         onClick={() => {
-                          if (!selectionMode) {
-                            setSelectionMode(true);
-                            setSelectedStudents(new Set());
-                            setShowBulkDeleteConfirm(false);
-                            return;
-                          }
-                          if (selectedStudents.size === 0) {
-                            setSelectionMode(false);
-                            setShowBulkDeleteConfirm(false);
-                            return;
-                          }
-                          if (showBulkDeleteConfirm) {
-                            handleBulkDelete();
-                            return;
-                          }
-                          setShowBulkDeleteConfirm(true);
+                          if (schoolStudents.length === 0) return;
+                          setSelectedStudents(new Set());
+                          setDeleteModalSearch('');
+                          setDeleteModalGrade('');
+                          setDeleteModalClassId('');
+                          setDeleteWholeGroupConfirm(false);
+                          setShowBulkDeleteConfirm(false);
+                          setDeleteSelectedModalOpen(true);
                         }}
                         disabled={schoolStudents.length === 0}
-                        className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
-                          selectionMode
-                            ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
-                        }`}
+                        className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600"
+                        title="حذف طالب أو مجموعة طلاب"
                     >
-                        <CheckSquare size={16} className={selectionMode ? 'text-white' : 'text-rose-500'} />
-                        {selectionMode
-                          ? (showBulkDeleteConfirm ? 'تأكيد' : 'تأكيد الحذف')
-                          : 'حذف محدد'}
+                        <CheckSquare size={16} className="text-rose-500" />
+                        حذف محدد
                     </button>
-                    {selectionMode && (
-                      <button
-                        dir="rtl"
-                        onClick={() => { setSelectionMode(false); setSelectedStudents(new Set()); setShowBulkDeleteConfirm(false); }}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
-                      >
-                        إلغاء
-                      </button>
-                    )}
                     {!selectionMode && (
                       <button
                           dir="rtl"
@@ -2877,6 +2862,244 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         </div>,
         document.body
       )}
+
+      {/* ══════ Delete Selected Modal ══════ */}
+      {deleteSelectedModalOpen && (() => {
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: gradeLabel(g) }));
+        const classOptions: DropdownOption[] = (deleteModalGrade === '' ? schoolClasses : schoolClasses.filter(c => c.grade === deleteModalGrade)).map(c => ({
+          value: c.id,
+          label: c.name || `${c.grade}/${c.section}`,
+        }));
+        const qRaw = deleteModalSearch.trim();
+        const q = normalizeArabic(qRaw.toLowerCase());
+        const filteredForDelete = schoolStudents.filter(s => {
+          const matchesSearch = !q
+            || normalizeArabic(s.name).toLowerCase().includes(q)
+            || (s.parentPhone || '').includes(qRaw)
+            || (s.nationalId || '').includes(qRaw);
+          const matchesGrade = deleteModalGrade === '' || s.grade === deleteModalGrade;
+          const matchesClass = !deleteModalClassId || s.classId === deleteModalClassId;
+          return matchesSearch && matchesGrade && matchesClass;
+        }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : a.name.localeCompare(b.name, 'ar'));
+        const selectedCount = selectedStudents.size;
+        const groupCount = deleteModalClassId
+          ? schoolStudents.filter(s => s.classId === deleteModalClassId).length
+          : deleteModalGrade !== ''
+            ? schoolStudents.filter(s => s.grade === deleteModalGrade).length
+            : 0;
+        const groupLabel = deleteModalClassId
+          ? `فصل ${getClassName(deleteModalClassId)}`
+          : deleteModalGrade !== ''
+            ? `الصف ${gradeLabel(deleteModalGrade)}`
+            : '';
+        const closeModal = () => {
+          setDeleteSelectedModalOpen(false);
+          setDeleteWholeGroupConfirm(false);
+          setShowBulkDeleteConfirm(false);
+          setSelectionMode(false);
+        };
+        const deleteWholeGroup = () => {
+          let ids: Set<string>;
+          if (deleteModalClassId) {
+            ids = new Set(schoolStudents.filter(s => s.classId === deleteModalClassId).map(s => s.id));
+          } else if (deleteModalGrade !== '') {
+            ids = new Set(schoolStudents.filter(s => s.grade === deleteModalGrade).map(s => s.id));
+          } else {
+            return;
+          }
+          if (ids.size === 0) return;
+          setStudents(prev => prev.filter(s => !ids.has(s.id)));
+          showToast(`تم حذف ${ids.size} طالب من ${groupLabel}`);
+          closeModal();
+        };
+        const deleteSelectedStudentsAction = () => {
+          if (selectedStudents.size === 0) return;
+          const count = selectedStudents.size;
+          const ids = new Set(selectedStudents);
+          setStudents(prev => prev.filter(s => !ids.has(s.id)));
+          setSelectedStudents(new Set());
+          showToast(`تم حذف ${count} طالب`);
+          closeModal();
+        };
+        const visibleIds = filteredForDelete.map(s => s.id);
+        const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedStudents.has(id));
+        const toggleSelectAllVisible = () => {
+          setSelectedStudents(prev => {
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+              visibleIds.forEach(id => next.delete(id));
+            } else {
+              visibleIds.forEach(id => next.add(id));
+            }
+            return next;
+          });
+        };
+
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+            <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Trash2 size={20} className="text-rose-500" />
+                    حذف محدد
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">ابحث أو فلتر بالصف والفصل، ثم حدد الطلاب للحذف.</p>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="إغلاق"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-3 shrink-0 border-b border-slate-100 bg-slate-50/40">
+                <div className="relative">
+                  <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={deleteModalSearch}
+                    onChange={e => setDeleteModalSearch(e.target.value)}
+                    placeholder="ابحث باسم الطالب أو رقم الجوال"
+                    className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-rose-300 focus:ring-2 focus:ring-rose-200/40"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <StudentDropdown
+                    value={deleteModalGrade === '' ? '' : String(deleteModalGrade)}
+                    onChange={v => { setDeleteModalGrade(v ? parseInt(v) : ''); setDeleteModalClassId(''); setDeleteWholeGroupConfirm(false); }}
+                    options={gradeOptions}
+                    placeholder="اختر الصف"
+                    emptyLabel="كل الصفوف"
+                  />
+                  <StudentDropdown
+                    value={deleteModalClassId}
+                    onChange={v => { setDeleteModalClassId(v); setDeleteWholeGroupConfirm(false); }}
+                    options={classOptions}
+                    placeholder="اختر الفصل"
+                    emptyLabel="كل الفصول"
+                  />
+                </div>
+                {groupCount > 0 && groupLabel && (
+                  deleteWholeGroupConfirm ? (
+                    <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-3 space-y-2">
+                      <p className="text-xs font-black text-rose-700 text-center leading-relaxed">
+                        سيتم حذف <span className="text-sm">{groupCount}</span> طالب من {groupLabel}. هل أنت متأكد؟
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setDeleteWholeGroupConfirm(false)}
+                          className="flex-1 px-3 py-2 bg-white border border-slate-300 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50"
+                        >
+                          تراجع
+                        </button>
+                        <button
+                          onClick={deleteWholeGroup}
+                          className="flex-1 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-lg shadow-sm shadow-rose-500/30"
+                        >
+                          نعم، احذف الكل
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteWholeGroupConfirm(true)}
+                      className="w-full px-4 py-2.5 bg-white border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={14} />
+                      حذف كامل {groupLabel} ({groupCount})
+                    </button>
+                  )
+                )}
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white shrink-0">
+                <span className="text-xs font-black text-slate-500">
+                  {filteredForDelete.length} طالب
+                  {selectedCount > 0 && <span className="text-rose-600"> · {selectedCount} محدد</span>}
+                </span>
+                {filteredForDelete.length > 0 && (
+                  <button
+                    onClick={toggleSelectAllVisible}
+                    className="text-[11px] font-black text-rose-500 hover:text-rose-600"
+                  >
+                    {allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 min-h-0">
+                {filteredForDelete.length === 0 ? (
+                  <div className="py-12 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                ) : filteredForDelete.map(student => {
+                  const selected = selectedStudents.has(student.id);
+                  return (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() => setSelectedStudents(prev => {
+                        const next = new Set(prev);
+                        if (next.has(student.id)) next.delete(student.id);
+                        else next.add(student.id);
+                        return next;
+                      })}
+                      className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 mb-1 ${selected ? 'border-rose-300 bg-rose-50' : 'border-transparent hover:bg-slate-50'}`}
+                    >
+                      <span className="min-w-0">
+                        <span className={`block text-sm font-black truncate ${selected ? 'text-rose-600' : 'text-slate-700'}`}>{student.name}</span>
+                        <span className={`block text-[11px] font-bold truncate ${selected ? 'text-rose-400' : 'text-slate-400'}`}>{`الصف ${gradeLabel(student.grade)} - الفصل ${getClassName(student.classId)}`}</span>
+                      </span>
+                      <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="px-5 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                <button
+                  onClick={closeModal}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedCount === 0) return;
+                    if (selectedCount > 1) { setShowBulkDeleteConfirm(true); return; }
+                    deleteSelectedStudentsAction();
+                  }}
+                  disabled={selectedCount === 0}
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-rose-500/20"
+                >
+                  حذف المحدد {selectedCount > 0 ? `(${selectedCount})` : ''}
+                </button>
+              </div>
+
+              {showBulkDeleteConfirm && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد الحذف</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حذف {selectedCount} طالب. لا يمكن التراجع عن هذا الإجراء.</p>
+                      </div>
+                    </div>
+                    <div className="pt-6 flex gap-3">
+                      <button onClick={() => setShowBulkDeleteConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                      <button onClick={deleteSelectedStudentsAction} className="flex-1 py-3 bg-rose-500 text-white font-black text-sm rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all">نعم، احذف</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
