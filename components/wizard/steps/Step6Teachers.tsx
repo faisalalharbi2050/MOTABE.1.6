@@ -21,6 +21,15 @@ interface Step6Props {
 
 type DropdownOption = { id: string; name: string };
 
+type TeacherEditDraft = {
+  id: string;
+  name: string;
+  specializationId: string;
+  phone: string;
+  lessons: number;
+  waiting: number;
+};
+
 const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
   <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
     <Check size={13} strokeWidth={3.2} className="text-white" />
@@ -400,6 +409,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const [isBulkEdit, setIsBulkEdit] = useState(false);
   const teachersSnapshot = useRef<string>("");
 
+  // Data Edit Modal State
+  const [showDataEditModal, setShowDataEditModal] = useState(false);
+  const [showDataEditConfirm, setShowDataEditConfirm] = useState(false);
+  const [dataEditSearch, setDataEditSearch] = useState('');
+  const [dataEditSpecId, setDataEditSpecId] = useState('');
+  const [dataEditSelectedIds, setDataEditSelectedIds] = useState<Set<string>>(new Set());
+  const [dataEditDrafts, setDataEditDrafts] = useState<Record<string, TeacherEditDraft>>({});
+
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const printMenuRef = useRef<HTMLDivElement>(null);
   
@@ -455,6 +472,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const [deleteSpecModal, setDeleteSpecModal] = useState<{ specId: string; selectedIds: string[] } | null>(null);
   const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
   const [teacherDeleteSelectionMode, setTeacherDeleteSelectionMode] = useState(false);
+  const [deleteModalSearch, setDeleteModalSearch] = useState('');
+  const [deleteModalSpecFilter, setDeleteModalSpecFilter] = useState('');
+  const [deleteWholeSpecConfirm, setDeleteWholeSpecConfirm] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [deleteSelectedSpecIds, setDeleteSelectedSpecIds] = useState<string[]>([]);
   const [deleteSelectedTeacherIds, setDeleteSelectedTeacherIds] = useState<string[]>([]);
@@ -580,6 +600,93 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       setFilterSpecializations(prev => 
           prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
       );
+  };
+
+  const openDataEditModal = () => {
+      if (currentSchoolTeachers.length === 0) {
+          showToast('لا يوجد معلمون في القائمة للتعديل', 'warning');
+          return;
+      }
+      setDataEditSelectedIds(new Set());
+      setDataEditDrafts({});
+      setDataEditSearch('');
+      setDataEditSpecId('');
+      setShowDataEditConfirm(false);
+      setShowDataEditModal(true);
+  };
+
+  const toggleDataEditTeacher = (teacher: Teacher) => {
+      setDataEditSelectedIds(prev => {
+          const next = new Set(prev);
+          if (next.has(teacher.id)) {
+              next.delete(teacher.id);
+          } else {
+              next.add(teacher.id);
+              const quota = getSchoolQuota(teacher);
+              setDataEditDrafts(drafts => ({
+                  ...drafts,
+                  [teacher.id]: drafts[teacher.id] || {
+                      id: teacher.id,
+                      name: teacher.name || '',
+                      specializationId: teacher.specializationId || '',
+                      phone: teacher.phone || '',
+                      lessons: quota.lessons,
+                      waiting: quota.waiting,
+                  },
+              }));
+          }
+          return next;
+      });
+  };
+
+  const updateDataEditDraft = (id: string, patch: Partial<TeacherEditDraft>) => {
+      setDataEditDrafts(prev => {
+          const current = prev[id];
+          if (!current) return prev;
+          return { ...prev, [id]: { ...current, ...patch } };
+      });
+  };
+
+  const applyDataEditSave = () => {
+      const ids = Array.from(dataEditSelectedIds);
+      if (ids.length === 0) {
+          showToast('اختر معلمًا واحدًا على الأقل للحفظ', 'error');
+          return;
+      }
+      const patches = new Map(
+          ids
+              .map(id => [id, dataEditDrafts[id]] as const)
+              .filter((entry): entry is readonly [string, TeacherEditDraft] => !!entry[1])
+      );
+      setTeachers(prev => prev.map(t => {
+          const patch = patches.get(t.id);
+          if (!patch) return t;
+          const updated: Teacher = {
+              ...t,
+              name: patch.name.trim() || t.name,
+              specializationId: patch.specializationId || t.specializationId,
+              phone: patch.phone.trim(),
+              quotaLimit: patch.lessons,
+              waitingQuota: patch.waiting,
+          };
+          if (t.schools?.length) {
+              updated.schools = t.schools.map(s =>
+                  s.schoolId === activeSchoolId ? { ...s, lessons: patch.lessons, waiting: patch.waiting } : s
+              );
+          }
+          return updated;
+      }));
+      setShowDataEditConfirm(false);
+      setShowDataEditModal(false);
+      showToast(`تم حفظ بيانات ${patches.size} معلم`);
+  };
+
+  const handleDataEditSave = () => {
+      if (dataEditSelectedIds.size > 1) {
+          setShowDataEditConfirm(true);
+          return;
+      }
+      applyDataEditSave();
   };
 
   const handleBulkEditToggle = () => {
@@ -1237,10 +1344,17 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   };
   
   const openDeleteSelectedModal = () => {
+      if (currentSchoolTeachers.length === 0) {
+          showToast('لا يوجد معلمون للحذف', 'warning');
+          return;
+      }
       setDeleteSelectedSpecIds([]);
       setDeleteSelectedTeacherIds([]);
+      setDeleteModalSearch('');
+      setDeleteModalSpecFilter('');
+      setDeleteWholeSpecConfirm(false);
       setShowDeleteSelectedConfirm(false);
-      setTeacherDeleteSelectionMode(true);
+      setDeleteSelectedModalOpen(true);
   };
 
   const handleInlineDeleteSelected = () => {
@@ -1523,29 +1637,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               <>
                 <button
                   dir="rtl"
-                  onClick={handleBulkEditToggle}
+                  onClick={openDataEditModal}
                   disabled={currentSchoolTeachers.length === 0}
-                  className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
-                    isBulkEdit
-                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
-                  }`}
+                  className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white"
+                  title="تعديل بيانات معلم أو مجموعة معلمين"
                 >
-                  {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />}
-                  {isBulkEdit ? 'حفظ' : 'تعديل البيانات'}
+                  <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
+                  تعديل البيانات
                 </button>
-                {isBulkEdit && (
-                  <button
-                    dir="rtl"
-                    onClick={() => {
-                      try { setTeachers(JSON.parse(teachersSnapshot.current)); } catch {}
-                      setIsBulkEdit(false);
-                    }}
-                    className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
-                  >
-                    إلغاء
-                  </button>
-                )}
                 {!isBulkEdit && (
                   <button
                     dir="rtl"
@@ -1563,31 +1662,13 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             {!isBulkEdit && (
               <button
                 dir="rtl"
-                onClick={handleInlineDeleteSelected}
+                onClick={openDeleteSelectedModal}
                 disabled={currentSchoolTeachers.length === 0}
-                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
-                  teacherDeleteSelectionMode
-                    ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
-                }`}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600"
+                title="حذف معلم أو مجموعة معلمين"
               >
-                <CheckSquare size={16} className={teacherDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
-                {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'تأكيد' : 'تأكيد الحذف') : 'حذف محدد'}
-              </button>
-            )}
-            {teacherDeleteSelectionMode && !isBulkEdit && (
-              <button
-                data-cancel-teacher-delete-selection
-                dir="rtl"
-                onClick={() => {
-                  setTeacherDeleteSelectionMode(false);
-                  setShowDeleteSelectedConfirm(false);
-                  setDeleteSelectedSpecIds([]);
-                  setDeleteSelectedTeacherIds([]);
-                }}
-                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
-              >
-                إلغاء
+                <CheckSquare size={16} className="text-rose-500" />
+                حذف محدد
               </button>
             )}
             {!teacherDeleteSelectionMode && !isBulkEdit && (
@@ -2183,80 +2264,212 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
         </div>
       )}
 
-      {deleteSelectedModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 print:hidden">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-100 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-black text-slate-800">حذف محدد</h2>
-                <p className="text-sm font-bold text-slate-400 mt-1">حدد تخصصاً كاملاً أو معلماً واحداً أو أكثر.</p>
-              </div>
-              <button onClick={() => setDeleteSelectedModalOpen(false)} className="p-2 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-100">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h3 className="text-sm font-black text-slate-700">التخصصات</h3>
-                <div className="max-h-72 overflow-y-auto custom-scrollbar border border-slate-100 rounded-2xl p-2 space-y-1">
-                  {getUsedSpecializationIds().map(id => {
-                    const selected = deleteSelectedSpecIds.includes(id);
-                    return (
-                      <button
-                        key={id}
-                        onClick={() => setDeleteSelectedSpecIds(prev => selected ? prev.filter(x => x !== id) : [...prev, id])}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${selected ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        <span>{getSpecializationName(id)}</span>
-                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
-                          <Check size={12} strokeWidth={3.5} />
-                        </span>
-                      </button>
-                    );
-                  })}
+      {deleteSelectedModalOpen && (() => {
+        const usedSpecIds = getUsedSpecializationIds();
+        const specFilterOptions: DropdownOption[] = [
+          { id: '', name: 'كل التخصصات' },
+          ...usedSpecIds.map(id => ({ id, name: getSpecializationName(id) })),
+        ];
+        const qRaw = deleteModalSearch.trim();
+        const q = normalizeArabicName(qRaw.toLowerCase());
+        const filteredTeachersForDelete = currentSchoolTeachers.filter(t => {
+          const matchesSearch = !q
+            || normalizeArabicName((t.name || '').toLowerCase()).includes(q)
+            || (t.phone || '').includes(qRaw);
+          const matchesSpec = !deleteModalSpecFilter || t.specializationId === deleteModalSpecFilter;
+          return matchesSearch && matchesSpec;
+        }).sort((a, b) => {
+          if (a.specializationId !== b.specializationId) {
+            return getSpecializationName(a.specializationId).localeCompare(getSpecializationName(b.specializationId), 'ar');
+          }
+          return (a.name || '').localeCompare(b.name || '', 'ar');
+        });
+        const selectedCount = deleteSelectedTeacherIds.length;
+        const specTeacherCount = deleteModalSpecFilter
+          ? currentSchoolTeachers.filter(t => t.specializationId === deleteModalSpecFilter).length
+          : 0;
+        const closeModal = () => {
+          setDeleteSelectedModalOpen(false);
+          setDeleteWholeSpecConfirm(false);
+          setShowDeleteSelectedConfirm(false);
+        };
+        const deleteWholeSpec = () => {
+          if (!deleteModalSpecFilter) return;
+          const ids = new Set(currentSchoolTeachers.filter(t => t.specializationId === deleteModalSpecFilter).map(t => t.id));
+          if (ids.size === 0) return;
+          const specName = getSpecializationName(deleteModalSpecFilter);
+          setTeachers(prev => prev.filter(t => !ids.has(t.id)));
+          showToast(`تم حذف ${ids.size} معلم من تخصص ${specName}`, 'success');
+          closeModal();
+        };
+        const deleteSelectedTeachers = () => {
+          const ids = new Set(deleteSelectedTeacherIds);
+          if (ids.size === 0) return;
+          setTeachers(prev => prev.filter(t => !ids.has(t.id)));
+          showToast(`تم حذف ${ids.size} معلم`, 'success');
+          closeModal();
+        };
+        const toggleSelectAllVisible = () => {
+          const visibleIds = filteredTeachersForDelete.map(t => t.id);
+          const allSelected = visibleIds.length > 0 && visibleIds.every(id => deleteSelectedTeacherIds.includes(id));
+          if (allSelected) {
+            setDeleteSelectedTeacherIds(prev => prev.filter(id => !visibleIds.includes(id)));
+          } else {
+            setDeleteSelectedTeacherIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+          }
+        };
+        const visibleIds = filteredTeachersForDelete.map(t => t.id);
+        const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => deleteSelectedTeacherIds.includes(id));
+
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+            <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Trash2 size={20} className="text-rose-500" />
+                    حذف محدد
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">ابحث أو فلتر بالتخصص، ثم حدد المعلمين للحذف.</p>
                 </div>
+                <button
+                  onClick={closeModal}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="إغلاق"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-black text-slate-700">المعلمون</h3>
-                <div className="max-h-72 overflow-y-auto custom-scrollbar border border-slate-100 rounded-2xl p-2 space-y-1">
-                  {currentSchoolTeachers.map(t => {
-                    const selected = deleteSelectedTeacherIds.includes(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => setDeleteSelectedTeacherIds(prev => selected ? prev.filter(id => id !== t.id) : [...prev, t.id])}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${selected ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
-                      >
-                        <span>{t.name}</span>
-                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
-                          <Check size={12} strokeWidth={3.5} />
-                        </span>
-                      </button>
-                    );
-                  })}
+
+              <div className="p-5 space-y-3 shrink-0 border-b border-slate-100 bg-slate-50/40">
+                <div className="relative">
+                  <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={deleteModalSearch}
+                    onChange={e => setDeleteModalSearch(e.target.value)}
+                    placeholder="ابحث باسم المعلم أو رقم الجوال"
+                    className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-rose-300 focus:ring-2 focus:ring-rose-200/40"
+                  />
                 </div>
+                <TeacherSelectDropdown
+                  value={deleteModalSpecFilter}
+                  onChange={v => { setDeleteModalSpecFilter(v); setDeleteWholeSpecConfirm(false); }}
+                  options={specFilterOptions}
+                  placeholder="كل التخصصات"
+                />
+                {deleteModalSpecFilter && specTeacherCount > 0 && (
+                  deleteWholeSpecConfirm ? (
+                    <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-3 space-y-2">
+                      <p className="text-xs font-black text-rose-700 text-center leading-relaxed">
+                        سيتم حذف <span className="text-sm">{specTeacherCount}</span> معلم من تخصص {getSpecializationName(deleteModalSpecFilter)}. هل أنت متأكد؟
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setDeleteWholeSpecConfirm(false)}
+                          className="flex-1 px-3 py-2 bg-white border border-slate-300 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50"
+                        >
+                          تراجع
+                        </button>
+                        <button
+                          onClick={deleteWholeSpec}
+                          className="flex-1 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-lg shadow-sm shadow-rose-500/30"
+                        >
+                          نعم، احذف الكل
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteWholeSpecConfirm(true)}
+                      className="w-full px-4 py-2.5 bg-white border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={14} />
+                      حذف كامل معلمي {getSpecializationName(deleteModalSpecFilter)} ({specTeacherCount})
+                    </button>
+                  )
+                )}
               </div>
-            </div>
-            {showDeleteSelectedConfirm && (
-              <div className="mx-6 mb-4 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-700 text-center">
-                هل أنت متأكد من حذف العناصر المحددة؟ لا يمكن التراجع عن هذا الإجراء.
+
+              <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white shrink-0">
+                <span className="text-xs font-black text-slate-500">
+                  {filteredTeachersForDelete.length} معلم
+                  {selectedCount > 0 && <span className="text-rose-600"> · {selectedCount} محدد</span>}
+                </span>
+                {filteredTeachersForDelete.length > 0 && (
+                  <button
+                    onClick={toggleSelectAllVisible}
+                    className="text-[11px] font-black text-rose-500 hover:text-rose-600"
+                  >
+                    {allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
+                )}
               </div>
-            )}
-            <div className="p-6 pt-0 flex gap-3">
-              <button onClick={() => setDeleteSelectedModalOpen(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50">
-                تراجع
-              </button>
-              <button
-                onClick={() => showDeleteSelectedConfirm ? confirmDeleteSelected() : setShowDeleteSelectedConfirm(true)}
-                disabled={deleteSelectedSpecIds.length === 0 && deleteSelectedTeacherIds.length === 0}
-                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : `حذف المحدد (${new Set([...deleteSelectedTeacherIds, ...currentSchoolTeachers.filter(t => deleteSelectedSpecIds.includes(t.specializationId)).map(t => t.id)]).size})`}
-              </button>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 min-h-0">
+                {filteredTeachersForDelete.length === 0 ? (
+                  <div className="py-12 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                ) : filteredTeachersForDelete.map(teacher => {
+                  const selected = deleteSelectedTeacherIds.includes(teacher.id);
+                  return (
+                    <button
+                      key={teacher.id}
+                      type="button"
+                      onClick={() => setDeleteSelectedTeacherIds(prev => selected ? prev.filter(id => id !== teacher.id) : [...prev, teacher.id])}
+                      className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 mb-1 ${selected ? 'border-rose-300 bg-rose-50' : 'border-transparent hover:bg-slate-50'}`}
+                    >
+                      <span className="min-w-0">
+                        <span className={`block text-sm font-black truncate ${selected ? 'text-rose-600' : 'text-slate-700'}`}>{teacher.name}</span>
+                        <span className={`block text-[11px] font-bold truncate ${selected ? 'text-rose-400' : 'text-slate-400'}`}>{getSpecializationName(teacher.specializationId)}</span>
+                      </span>
+                      <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="px-5 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                <button
+                  onClick={closeModal}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedCount === 0) return;
+                    if (selectedCount > 1) { setShowDeleteSelectedConfirm(true); return; }
+                    deleteSelectedTeachers();
+                  }}
+                  disabled={selectedCount === 0}
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-rose-500/20"
+                >
+                  حذف المحدد {selectedCount > 0 ? `(${selectedCount})` : ''}
+                </button>
+              </div>
+
+              {showDeleteSelectedConfirm && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد الحذف</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حذف {selectedCount} معلم. لا يمكن التراجع عن هذا الإجراء.</p>
+                      </div>
+                    </div>
+                    <div className="pt-6 flex gap-3">
+                      <button onClick={() => setShowDeleteSelectedConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                      <button onClick={deleteSelectedTeachers} className="flex-1 py-3 bg-rose-500 text-white font-black text-sm rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all">نعم، احذف</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Copy Quota Modal (Hidden in Print) */}
       {showCopyModal && (
@@ -2483,7 +2696,230 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 </div>
            </div>
        )}
-     {/* â•گâ•گâ•گâ•گâ•گâ•گ Teacher Constraints Modal â•گâ•گâ•گâ•گâ•گâ•گ */}
+     {/* ══════ Data Edit Modal ══════ */}
+     {showDataEditModal && (() => {
+       const usedSpecIds = getUsedSpecializationIds();
+       const specFilterOptions: DropdownOption[] = [
+         { id: '', name: 'كل التخصصات' },
+         ...usedSpecIds.map(id => ({ id, name: getSpecializationName(id) })),
+       ];
+       const allSpecOptions: DropdownOption[] = getSpecializationOptions();
+       const qRaw = dataEditSearch.trim();
+       const q = normalizeArabicName(qRaw.toLowerCase());
+       const selectableTeachers = currentSchoolTeachers.filter(t => {
+         const matchesSearch = !q
+           || normalizeArabicName((t.name || '').toLowerCase()).includes(q)
+           || (t.phone || '').includes(qRaw);
+         const matchesSpec = !dataEditSpecId || t.specializationId === dataEditSpecId;
+         return matchesSearch && matchesSpec;
+       }).sort((a, b) => {
+         if (a.specializationId !== b.specializationId) {
+           return getSpecializationName(a.specializationId).localeCompare(getSpecializationName(b.specializationId), 'ar');
+         }
+         return (a.name || '').localeCompare(b.name || '', 'ar');
+       });
+       const selectedDrafts = Array.from(dataEditSelectedIds)
+         .map(id => dataEditDrafts[id])
+         .filter((draft): draft is TeacherEditDraft => !!draft);
+
+       return (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[92vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+               <div>
+                 <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                   <Edit2 size={20} className="text-[#655ac1]" />
+                   تعديل البيانات
+                 </h3>
+                 <p className="text-xs text-slate-400 font-bold mt-1">ابحث عن معلم أو اختر التخصص ثم عدّل البيانات مباشرة.</p>
+               </div>
+               <button
+                 onClick={() => setShowDataEditModal(false)}
+                 className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                 title="إغلاق"
+               >
+                 <X size={18} />
+               </button>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] min-h-0 flex-1">
+               <div className="border-l border-slate-100 p-5 space-y-4 bg-slate-50/40 overflow-y-auto custom-scrollbar">
+                 <div className="relative">
+                   <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                   <input
+                     value={dataEditSearch}
+                     onChange={e => setDataEditSearch(e.target.value)}
+                     placeholder="ابحث باسم المعلم أو رقم الجوال"
+                     className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                   />
+                 </div>
+                 <TeacherSelectDropdown
+                   value={dataEditSpecId}
+                   onChange={setDataEditSpecId}
+                   options={specFilterOptions}
+                   placeholder="كل التخصصات"
+                 />
+
+                 <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                   <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                     <span className="text-xs font-black text-slate-500">المعلمون</span>
+                     <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{dataEditSelectedIds.size} محدد</span>
+                   </div>
+                   <div className="max-h-[360px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                     {selectableTeachers.length === 0 ? (
+                       <div className="py-8 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                     ) : selectableTeachers.map(teacher => {
+                       const selected = dataEditSelectedIds.has(teacher.id);
+                       return (
+                         <button
+                           key={teacher.id}
+                           type="button"
+                           onClick={() => toggleDataEditTeacher(teacher)}
+                           className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${selected ? 'border-slate-300 bg-white' : 'border-transparent hover:bg-slate-50'}`}
+                         >
+                           <span className="min-w-0">
+                             <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{teacher.name}</span>
+                             <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{getSpecializationName(teacher.specializationId)}</span>
+                           </span>
+                           <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                             <Check size={12} strokeWidth={3.5} />
+                           </span>
+                         </button>
+                       );
+                     })}
+                   </div>
+                 </div>
+               </div>
+
+               <div className="min-w-0 flex flex-col">
+                 {selectedDrafts.length === 0 ? (
+                   <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
+                     <Users size={42} className="text-slate-300 mb-3" />
+                     <p className="font-black text-slate-700">اختر معلمًا أو مجموعة معلمين</p>
+                     <p className="text-xs font-bold text-slate-400 mt-1">ستظهر البيانات القابلة للتعديل هنا مباشرة.</p>
+                   </div>
+                 ) : (
+                   <div className="overflow-y-auto custom-scrollbar flex-1">
+                     <table className="w-full table-fixed text-right">
+                       <thead className="sticky top-0 z-10 bg-white border-b border-slate-200">
+                         <tr>
+                           <th className="p-3 text-xs font-black text-[#655ac1] w-12 text-center">م</th>
+                           <th className="p-3 text-xs font-black text-[#655ac1]">الاسم</th>
+                           <th className="p-3 text-xs font-black text-[#655ac1] w-40 text-center">التخصص</th>
+                           <th className="p-3 text-xs font-black text-[#655ac1] w-36 text-center">رقم الجوال</th>
+                           <th className="p-3 text-xs font-black text-[#655ac1] w-28 text-center">نصاب الحصص</th>
+                           <th className="p-3 text-xs font-black text-[#655ac1] w-28 text-center">نصاب الانتظار</th>
+                           <th className="p-3 text-xs font-black text-[#655ac1] w-12 text-center"></th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                         {selectedDrafts.map((draft, idx) => (
+                           <tr key={draft.id} className="hover:bg-slate-50/60">
+                             <td className="p-3 text-center">
+                               <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">
+                                 {idx + 1}
+                               </span>
+                             </td>
+                             <td className="p-3">
+                               <input
+                                 value={draft.name}
+                                 onChange={e => updateDataEditDraft(draft.id, { name: e.target.value })}
+                                 className="w-full min-w-0 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                               />
+                             </td>
+                             <td className="p-3">
+                               <TeacherSelectDropdown
+                                 compact
+                                 value={draft.specializationId}
+                                 onChange={v => updateDataEditDraft(draft.id, { specializationId: v })}
+                                 options={allSpecOptions}
+                                 placeholder="اختر التخصص"
+                               />
+                             </td>
+                             <td className="p-3">
+                               <input
+                                 value={draft.phone}
+                                 onChange={e => updateDataEditDraft(draft.id, { phone: e.target.value })}
+                                 dir="ltr"
+                                 placeholder="05xxxxxxxx"
+                                 className="w-full min-w-0 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-center text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                               />
+                             </td>
+                             <td className="p-3 text-center">
+                               <input
+                                 type="number"
+                                 value={draft.lessons}
+                                 onChange={e => updateDataEditDraft(draft.id, { lessons: Number(e.target.value) || 0 })}
+                                 className="w-20 px-2 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-black text-center text-slate-800 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 mx-auto"
+                               />
+                             </td>
+                             <td className="p-3 text-center">
+                               <input
+                                 type="number"
+                                 value={draft.waiting}
+                                 onChange={e => updateDataEditDraft(draft.id, { waiting: Number(e.target.value) || 0 })}
+                                 className="w-20 px-2 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-black text-center text-[#655ac1] focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 mx-auto"
+                               />
+                             </td>
+                             <td className="p-3 text-center">
+                               <button
+                                 type="button"
+                                 onClick={() => setDataEditSelectedIds(prev => { const next = new Set(prev); next.delete(draft.id); return next; })}
+                                 className="w-7 h-7 inline-flex items-center justify-center rounded-full bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm shadow-rose-500/20"
+                                 title="إزالة من التحديد"
+                               >
+                                 <X size={14} />
+                               </button>
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 )}
+               </div>
+             </div>
+
+             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-white">
+               <button
+                 onClick={() => setShowDataEditModal(false)}
+                 className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+               >
+                 إغلاق
+               </button>
+               <button
+                 onClick={handleDataEditSave}
+                 disabled={dataEditSelectedIds.size === 0}
+                 className="min-w-32 px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
+               >
+                 <SaveCheckIcon />
+                 حفظ
+               </button>
+             </div>
+
+             {showDataEditConfirm && (
+               <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                 <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                   <div className="flex items-start gap-3">
+                     <AlertTriangle size={28} className="text-amber-500 mt-0.5 shrink-0" />
+                     <div>
+                       <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد حفظ التعديلات</h2>
+                       <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حفظ تعديلات {dataEditSelectedIds.size} معلم. هل تريد المتابعة؟</p>
+                     </div>
+                   </div>
+                   <div className="pt-6 flex gap-3">
+                     <button onClick={() => setShowDataEditConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                     <button onClick={applyDataEditSave} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><SaveCheckIcon /> حفظ</button>
+                   </div>
+                 </div>
+               </div>
+             )}
+           </div>
+         </div>
+       );
+     })()}
+
+     {/* ══════ Teacher Constraints Modal ══════ */}
      {deleteSpecModal && (() => {
        const specTeachers = currentSchoolTeachers.filter(t => t.specializationId === deleteSpecModal.specId);
        const allSelected = specTeachers.length > 0 && specTeachers.every(t => deleteSpecModal.selectedIds.includes(t.id));
