@@ -167,10 +167,10 @@ const ModalInlineSelect: React.FC<{
         type="button"
         disabled={disabled}
         onClick={() => setOpen(o => !o)}
-        className={`w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-rose-300 transition-all flex items-center justify-between gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${open ? 'ring-2 ring-rose-200/40 border-rose-300' : ''}`}
+        className={`w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${open ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''}`}
       >
         <span className="truncate">{selected?.label || placeholder}</span>
-        <ChevronDown size={16} className={`text-rose-500 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute z-50 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 max-h-60 overflow-y-auto custom-scrollbar">
@@ -183,10 +183,10 @@ const ModalInlineSelect: React.FC<{
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`w-full text-right px-3 py-2 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
+                className={`w-full text-right px-3 py-2 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
               >
                 <span className="truncate">{opt.label}</span>
-                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 ${active ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                   <Check size={12} strokeWidth={3.5} />
                 </span>
               </button>
