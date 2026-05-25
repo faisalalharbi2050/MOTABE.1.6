@@ -6,7 +6,7 @@ import {
   Users, Upload, Search, Filter, Printer, Trash2, Plus, X, Pencil, Check,
   AlertTriangle, School, GraduationCap, ArrowUpCircle, Download,
   ChevronDown, Loader2, CheckCircle2, Phone, Hash, FileSpreadsheet,
-  RotateCcw, UserPlus, Trash, Edit2, BookOpen
+  RotateCcw, UserPlus, Trash, Edit2, BookOpen, ArrowLeftRight
 } from 'lucide-react';
 import {
   parseStudentExcel,
@@ -32,6 +32,24 @@ const MultiAddIcon: React.FC<{ className?: string }> = ({ className = 'text-slat
   </span>
 );
 
+const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
+  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
+    <Check size={13} strokeWidth={3.2} className="text-white" />
+  </span>
+);
+
+const gradeLabel = (grade: number) => {
+  const labels: Record<number, string> = {
+    1: 'الأول',
+    2: 'الثاني',
+    3: 'الثالث',
+    4: 'الرابع',
+    5: 'الخامس',
+    6: 'السادس',
+  };
+  return labels[grade] || String(grade);
+};
+
 // ─── Reusable Dropdown (matches EntityTypeDropdown style from Step1 General) ─────
 interface DropdownOption { value: string; label: string; }
 interface StudentDropdownProps {
@@ -43,6 +61,10 @@ interface StudentDropdownProps {
   disabled?: boolean;
   compact?: boolean;
 }
+
+type StudentEditDraft = Pick<Student, 'id' | 'name' | 'grade' | 'classId'> & {
+  parentPhone: string;
+};
 const StudentDropdown: React.FC<StudentDropdownProps> = ({
   value, onChange, options, placeholder = 'اختر', emptyLabel, disabled, compact,
 }) => {
@@ -68,13 +90,14 @@ const StudentDropdown: React.FC<StudentDropdownProps> = ({
     const above = r.top;
     const placeAbove = below < panelH + 16 && above > below;
     const maxH = Math.max(180, (placeAbove ? above : below) - 16);
+    const panelWidth = Math.min(window.innerWidth - 16, Math.max(r.width, compact ? 220 : r.width));
     setPos({
       top: placeAbove ? Math.max(8, r.top - Math.min(maxH, panelH) - 8) : r.bottom + 8,
-      left: Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)),
-      width: r.width,
+      left: Math.max(8, Math.min(r.left, window.innerWidth - panelWidth - 8)),
+      width: panelWidth,
       maxH,
     });
-  }, [open]);
+  }, [open, compact]);
 
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
 
@@ -97,7 +120,7 @@ const StudentDropdown: React.FC<StudentDropdownProps> = ({
         <div
           dir="rtl"
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH, zIndex: 99999 }}
-          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5"
+          className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 overflow-x-hidden"
           onMouseDown={e => e.stopPropagation()}
         >
           <div className="overflow-y-auto custom-scrollbar space-y-1 pr-1" style={{ maxHeight: pos.maxH - 20 }}>
@@ -107,7 +130,7 @@ const StudentDropdown: React.FC<StudentDropdownProps> = ({
                 onClick={() => { onChange(''); setOpen(false); }}
                 className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${!value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
               >
-                <span className="whitespace-nowrap">{emptyLabel}</span>
+                <span className="min-w-0 whitespace-normal leading-relaxed">{emptyLabel}</span>
                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${!value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                   <Check size={12} strokeWidth={3.5} />
                 </span>
@@ -125,7 +148,7 @@ const StudentDropdown: React.FC<StudentDropdownProps> = ({
                   onClick={() => { onChange(opt.value); setOpen(false); }}
                   className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
                 >
-                  <span className="whitespace-nowrap">{opt.label}</span>
+                  <span className="min-w-0 whitespace-normal leading-relaxed">{opt.label}</span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                     <Check size={12} strokeWidth={3.5} />
                   </span>
@@ -311,12 +334,25 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
 
-  // ─── Bulk Edit Modal State ───
+  // ─── Data Edit Modal State ───
+  const [showDataEditModal, setShowDataEditModal] = useState(false);
+  const [dataEditSearch, setDataEditSearch] = useState('');
+  const [dataEditGrade, setDataEditGrade] = useState<number | ''>('');
+  const [dataEditClassId, setDataEditClassId] = useState('');
+  const [dataEditSelectedIds, setDataEditSelectedIds] = useState<Set<string>>(new Set());
+  const [dataEditDrafts, setDataEditDrafts] = useState<Record<string, StudentEditDraft>>({});
+  const [showDataEditConfirm, setShowDataEditConfirm] = useState(false);
+
+  // ─── Student Transfer Modal State ───
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [bulkEditScope, setBulkEditScope] = useState<'selected' | 'grade' | 'class'>('selected');
   const [bulkEditScopeGrade, setBulkEditScopeGrade] = useState<number | ''>('');
   const [bulkEditScopeClassId, setBulkEditScopeClassId] = useState('');
   const [bulkEditTargetClassId, setBulkEditTargetClassId] = useState('');
+  const [transferSearch, setTransferSearch] = useState('');
+  const [transferSelectedIds, setTransferSelectedIds] = useState<Set<string>>(new Set());
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [transferGlobalSelectWarning, setTransferGlobalSelectWarning] = useState(false);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [gradeDeleteTarget, setGradeDeleteTarget] = useState<{ grade: number; classId?: string; className?: string } | null>(null);
@@ -634,7 +670,124 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     setGradeDeleteTarget(null);
   }, [gradeDeleteTarget, schoolStudents, activeSchoolId, setStudents, showToast]);
 
-  // ─── Bulk Edit Handler (move scope → target class) ───
+  const openDataEditModal = useCallback(() => {
+    const initialIds = selectedStudents.size > 0 ? selectedStudents : new Set<string>();
+    const drafts: Record<string, StudentEditDraft> = {};
+    schoolStudents.forEach(s => {
+      if (initialIds.has(s.id)) {
+        drafts[s.id] = {
+          id: s.id,
+          name: s.name,
+          grade: s.grade,
+          classId: s.classId,
+          parentPhone: s.parentPhone || '',
+        };
+      }
+    });
+    setDataEditSelectedIds(new Set(initialIds));
+    setDataEditDrafts(drafts);
+    setDataEditSearch('');
+    setDataEditGrade('');
+    setDataEditClassId('');
+    setShowDataEditConfirm(false);
+    setShowDataEditModal(true);
+  }, [schoolStudents, selectedStudents]);
+
+  const toggleDataEditStudent = useCallback((student: Student) => {
+    setDataEditSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(student.id)) {
+        next.delete(student.id);
+      } else {
+        next.add(student.id);
+        setDataEditDrafts(drafts => ({
+          ...drafts,
+          [student.id]: drafts[student.id] || {
+            id: student.id,
+            name: student.name,
+            grade: student.grade,
+            classId: student.classId,
+            parentPhone: student.parentPhone || '',
+          },
+        }));
+      }
+      return next;
+    });
+  }, []);
+
+  const updateDataEditDraft = useCallback((id: string, patch: Partial<StudentEditDraft>) => {
+    setDataEditDrafts(prev => {
+      const current = prev[id];
+      if (!current) return prev;
+      return { ...prev, [id]: { ...current, ...patch } };
+    });
+  }, []);
+
+  const applyDataEditSave = useCallback(() => {
+    const ids = Array.from(dataEditSelectedIds);
+    if (ids.length === 0) {
+      showToast('اختر طالبًا واحدًا على الأقل للحفظ', 'error');
+      return;
+    }
+
+    const patches = new Map(ids.map(id => [id, dataEditDrafts[id]]).filter((entry): entry is [string, StudentEditDraft] => !!entry[1]));
+    setStudents(prev => prev.map(s => {
+      const patch = patches.get(s.id);
+      if (!patch) return s;
+      return {
+        ...s,
+        name: patch.name.trim() || s.name,
+        grade: patch.grade,
+        classId: patch.classId,
+        parentPhone: patch.parentPhone.trim() || undefined,
+      };
+    }));
+    setShowDataEditConfirm(false);
+    setShowDataEditModal(false);
+    showToast(`تم حفظ بيانات ${patches.size} طالب`);
+  }, [dataEditDrafts, dataEditSelectedIds, setStudents, showToast]);
+
+  const handleDataEditSave = useCallback(() => {
+    if (dataEditSelectedIds.size > 1) {
+      setShowDataEditConfirm(true);
+      return;
+    }
+    applyDataEditSave();
+  }, [applyDataEditSave, dataEditSelectedIds.size]);
+
+  const openTransferModal = useCallback(() => {
+    const initialIds = new Set<string>();
+    selectedStudents.forEach(id => {
+      if (schoolStudents.some(s => s.id === id)) initialIds.add(id);
+    });
+    setTransferSelectedIds(initialIds);
+    setTransferSearch('');
+    setBulkEditScope('selected');
+    setBulkEditScopeGrade('');
+    setBulkEditScopeClassId('');
+    setBulkEditTargetClassId('');
+    setShowTransferConfirm(false);
+    setTransferGlobalSelectWarning(false);
+    setShowBulkEditModal(true);
+  }, [schoolStudents, selectedStudents]);
+
+  const toggleTransferStudent = useCallback((student: Student) => {
+    setTransferSelectedIds(prev => {
+      const next = new Set(prev);
+      const selectedGrades = new Set(schoolStudents.filter(s => next.has(s.id)).map(s => s.grade));
+      const selectedGrade = selectedGrades.size === 1 ? Array.from(selectedGrades)[0] : null;
+      if (next.has(student.id)) {
+        next.delete(student.id);
+      } else if (selectedGrade === null || student.grade === selectedGrade) {
+        next.add(student.id);
+      } else {
+        showToast('يمكن نقل طلاب من نفس الصف فقط', 'error');
+      }
+      return next;
+    });
+  }, [schoolStudents, showToast]);
+
+  // ─── Student Transfer Handler ───
   const handleBulkEditApply = useCallback(() => {
     if (!bulkEditTargetClassId) return;
     const targetClass = classes.find(c => c.id === bulkEditTargetClassId);
@@ -642,7 +795,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
     let affected: string[] = [];
     if (bulkEditScope === 'selected') {
-      affected = Array.from(selectedStudents);
+      affected = Array.from(transferSelectedIds);
     } else if (bulkEditScope === 'grade' && bulkEditScopeGrade !== '') {
       affected = schoolStudents.filter(s => s.grade === bulkEditScopeGrade).map(s => s.id);
     } else if (bulkEditScope === 'class' && bulkEditScopeClassId) {
@@ -654,14 +807,27 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
       return;
     }
 
+    const sourceStudents = schoolStudents.filter(s => affected.includes(s.id));
+    const selectedGrades = new Set(sourceStudents.map(s => s.grade));
+    if (selectedGrades.size !== 1 || !selectedGrades.has(targetClass.grade)) {
+      showToast('لا يمكن نقل الطالب إلى صف آخر', 'error');
+      return;
+    }
+    if (sourceStudents.every(s => s.classId === targetClass.id)) {
+      showToast('اختر فصلًا مختلفًا عن الفصل الحالي', 'error');
+      return;
+    }
+
     const affectedSet = new Set(affected);
     setStudents(prev => prev.map(s =>
       affectedSet.has(s.id) ? { ...s, classId: targetClass.id, grade: targetClass.grade } : s
     ));
     setShowBulkEditModal(false);
+    setShowTransferConfirm(false);
+    setTransferSelectedIds(new Set());
     if (bulkEditScope === 'selected') { setSelectedStudents(new Set()); setSelectionMode(false); }
     showToast(`تم نقل ${affected.length} طالب إلى ${targetClass.name || `${targetClass.grade}/${targetClass.section}`}`);
-  }, [bulkEditScope, bulkEditScopeGrade, bulkEditScopeClassId, bulkEditTargetClassId, selectedStudents, schoolStudents, classes, setStudents, showToast]);
+  }, [bulkEditScope, bulkEditScopeGrade, bulkEditScopeClassId, bulkEditTargetClassId, transferSelectedIds, schoolStudents, classes, setStudents, showToast]);
 
   const handleDeleteAll = useCallback(() => {
     setStudents(prev => prev.filter(s => (s.schoolId || 'main') !== activeSchoolId));
@@ -1070,22 +1236,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         <MultiAddIcon className="text-slate-400 group-hover:text-white transition-colors" />
                         إضافة عدة طلاب
                     </button>
-                    <button
-                        dir="rtl"
-                        onClick={() => {
-                          setBulkEditScope('selected');
-                          setBulkEditScopeGrade('');
-                          setBulkEditScopeClassId('');
-                          setBulkEditTargetClassId('');
-                          setShowBulkEditModal(true);
-                        }}
-                        disabled={schoolStudents.length === 0}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="نقل مجموعة/فصل/صف إلى فصل آخر"
-                    >
-                        <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
-                        تعديل جماعي
-                    </button>
                 </div>
 
                 {/* Divider */}
@@ -1093,6 +1243,26 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
                 {/* Left group — table actions */}
                 <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        dir="rtl"
+                        onClick={openDataEditModal}
+                        disabled={schoolStudents.length === 0}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="تعديل بيانات طالب أو مجموعة طلاب"
+                    >
+                        <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
+                        تعديل البيانات
+                    </button>
+                    <button
+                        dir="rtl"
+                        onClick={openTransferModal}
+                        disabled={schoolStudents.length === 0}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="نقل طالب أو مجموعة طلاب بين فصول الصف نفسه"
+                    >
+                        <ArrowLeftRight size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                        نقل طالب
+                    </button>
                     <button
                         dir="rtl"
                         onClick={() => { setPrintSelection({ type: 'all', gradeValue: '', classId: '' }); setShowPrintModal(true); }}
@@ -2128,137 +2298,491 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         );
       })()}
 
-      {/* ══════ Bulk Edit Modal (move scope → target class) ══════ */}
-      {showBulkEditModal && (() => {
+      {/* ══════ Data Edit Modal ══════ */}
+      {showDataEditModal && (() => {
         const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
-        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
-        const sourceClassOptions: DropdownOption[] = schoolClasses.map(c => ({
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: gradeLabel(g) }));
+        const classOptions = (dataEditGrade === '' ? schoolClasses : schoolClasses.filter(c => c.grade === dataEditGrade)).map(c => ({
           value: c.id,
-          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
+          label: c.name || `${c.grade}/${c.section}`,
         }));
-        const targetClassOptions: DropdownOption[] = schoolClasses.map(c => ({
-          value: c.id,
-          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
-        }));
-
-        // Compute scope count for preview
-        let scopeCount = 0;
-        if (bulkEditScope === 'selected') scopeCount = selectedStudents.size;
-        else if (bulkEditScope === 'grade' && bulkEditScopeGrade !== '') scopeCount = schoolStudents.filter(s => s.grade === bulkEditScopeGrade).length;
-        else if (bulkEditScope === 'class' && bulkEditScopeClassId) scopeCount = schoolStudents.filter(s => s.classId === bulkEditScopeClassId).length;
-
-        const scopeOptions: Array<{ value: 'selected' | 'grade' | 'class'; label: string }> = [
-          { value: 'selected', label: `طلاب محددين (${selectedStudents.size})` },
-          { value: 'grade', label: 'صف كامل' },
-          { value: 'class', label: 'فصل كامل' },
-        ];
-
-        const canApply = !!bulkEditTargetClassId && scopeCount > 0 && (
-          bulkEditScope === 'selected' ||
-          (bulkEditScope === 'grade' && bulkEditScopeGrade !== '') ||
-          (bulkEditScope === 'class' && !!bulkEditScopeClassId)
-        );
+        const q = normalizeArabic(dataEditSearch.trim().toLowerCase());
+        const selectableStudents = schoolStudents.filter(s => {
+          const matchesSearch = !q || normalizeArabic(s.name).toLowerCase().includes(q) || (s.parentPhone || '').includes(dataEditSearch.trim()) || (s.nationalId || '').includes(dataEditSearch.trim());
+          const matchesGrade = dataEditGrade === '' || s.grade === dataEditGrade;
+          const matchesClass = !dataEditClassId || s.classId === dataEditClassId;
+          return matchesSearch && matchesGrade && matchesClass;
+        }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : a.name.localeCompare(b.name, 'ar'));
+        const selectedDrafts = Array.from(dataEditSelectedIds)
+          .map(id => dataEditDrafts[id])
+          .filter((draft): draft is StudentEditDraft => !!draft);
 
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            <div className="bg-white rounded-3xl w-full max-w-6xl max-h-[92vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
                 <div>
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                     <Edit2 size={20} className="text-[#655ac1]" />
-                    تعديل جماعي
+                    تعديل البيانات
                   </h3>
-                  <p className="text-xs text-slate-400 font-bold mt-1">نقل مجموعة طلاب أو فصل أو صف إلى فصل آخر.</p>
+                  <p className="text-xs text-slate-400 font-bold mt-1">ابحث عن طالب أو اختر الصف والفصل ثم عدّل البيانات مباشرة.</p>
                 </div>
                 <button
-                  onClick={() => setShowBulkEditModal(false)}
+                  onClick={() => setShowDataEditModal(false)}
                   className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="إغلاق"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
-                <div>
-                  <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">نطاق التعديل</p>
-                  <div className="space-y-2">
-                    {scopeOptions.map(opt => {
-                      const on = bulkEditScope === opt.value;
-                      const disabled = opt.value === 'selected' && selectedStudents.size === 0;
-                      return (
-                        <button
-                          key={opt.value}
-                          disabled={disabled}
-                          onClick={() => setBulkEditScope(opt.value)}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${on ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'} disabled:opacity-40 disabled:cursor-not-allowed`}
-                        >
-                          <span>{opt.label}</span>
-                          <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
-                            <Check size={12} strokeWidth={3.5} />
-                          </span>
-                        </button>
-                      );
-                    })}
+              <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] min-h-0 flex-1">
+                <div className="border-l border-slate-100 p-5 space-y-4 bg-slate-50/40 overflow-y-auto custom-scrollbar">
+                  <div className="relative">
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={dataEditSearch}
+                      onChange={e => setDataEditSearch(e.target.value)}
+                      placeholder="ابحث باسم الطالب أو رقم الجوال"
+                      className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                    />
                   </div>
-                </div>
-
-                {bulkEditScope === 'grade' && (
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الصف المصدر</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                     <StudentDropdown
-                      value={bulkEditScopeGrade === '' ? '' : String(bulkEditScopeGrade)}
-                      onChange={v => setBulkEditScopeGrade(v ? parseInt(v) : '')}
+                      value={dataEditGrade === '' ? '' : String(dataEditGrade)}
+                      onChange={v => { setDataEditGrade(v ? parseInt(v) : ''); setDataEditClassId(''); }}
                       options={gradeOptions}
                       placeholder="اختر الصف"
+                      emptyLabel="كل الصفوف"
                     />
-                  </div>
-                )}
-                {bulkEditScope === 'class' && (
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">اختر الفصل المصدر</p>
                     <StudentDropdown
-                      value={bulkEditScopeClassId}
-                      onChange={v => setBulkEditScopeClassId(v)}
-                      options={sourceClassOptions}
+                      value={dataEditClassId}
+                      onChange={setDataEditClassId}
+                      options={classOptions}
                       placeholder="اختر الفصل"
+                      emptyLabel="كل الفصول"
                     />
                   </div>
-                )}
 
-                <div className="border-t border-slate-100 pt-4">
-                  <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">نقل إلى فصل</p>
-                  <StudentDropdown
-                    value={bulkEditTargetClassId}
-                    onChange={v => setBulkEditTargetClassId(v)}
-                    options={targetClassOptions}
-                    placeholder="اختر فصل الوجهة"
-                  />
+                  <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-500">الطلاب</span>
+                      <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{dataEditSelectedIds.size} محدد</span>
+                    </div>
+                    <div className="max-h-[360px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                      {selectableStudents.length === 0 ? (
+                        <div className="py-8 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                      ) : selectableStudents.map(student => {
+                        const selected = dataEditSelectedIds.has(student.id);
+                        return (
+                          <button
+                            key={student.id}
+                            type="button"
+                            onClick={() => toggleDataEditStudent(student)}
+                            className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${selected ? 'border-slate-300 bg-white' : 'border-transparent hover:bg-slate-50'}`}
+                          >
+                            <span className="min-w-0">
+                              <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{student.name}</span>
+                              <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{`الصف ${gradeLabel(student.grade)} - الفصل ${getClassName(student.classId)}`}</span>
+                            </span>
+                            <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3.5} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                {scopeCount > 0 && bulkEditTargetClassId && (
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
-                    <span className="text-xs font-bold text-slate-500">سيتم نقل</span>
-                    <span className="text-sm font-black text-[#655ac1]">{scopeCount}</span>
-                    <span className="text-xs font-bold text-slate-500">طالب</span>
-                  </div>
-                )}
+                <div className="min-w-0 flex flex-col">
+                  {selectedDrafts.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
+                      <Users size={42} className="text-slate-300 mb-3" />
+                      <p className="font-black text-slate-700">اختر طالبًا أو مجموعة طلاب</p>
+                      <p className="text-xs font-bold text-slate-400 mt-1">ستظهر البيانات القابلة للتعديل هنا مباشرة.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-y-auto custom-scrollbar flex-1">
+                      <table className="w-full table-fixed text-right">
+                        <thead className="sticky top-0 z-10 bg-white border-b border-slate-200">
+                          <tr>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-12 text-center">م</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1]">اسم الطالب</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-32 text-center">الصف</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-32 text-center">الفصل</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-36 text-center">رقم ولي الأمر</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-12 text-center"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedDrafts.map((draft, idx) => {
+                            const rowClassOptions = schoolClasses
+                              .filter(c => c.grade === draft.grade)
+                              .map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` }));
+                            return (
+                              <tr key={draft.id} className="hover:bg-slate-50/60">
+                                <td className="p-3 text-center">
+                                  <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">
+                                    {idx + 1}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    value={draft.name}
+                                    onChange={e => updateDataEditDraft(draft.id, { name: e.target.value })}
+                                    className="w-full min-w-0 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <StudentDropdown
+                                    compact
+                                    value={String(draft.grade)}
+                                    onChange={v => updateDataEditDraft(draft.id, { grade: parseInt(v), classId: '' })}
+                                    options={gradeOptions}
+                                    placeholder="اختر الصف"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <StudentDropdown
+                                    compact
+                                    value={draft.classId}
+                                    onChange={v => updateDataEditDraft(draft.id, { classId: v })}
+                                    options={rowClassOptions}
+                                    placeholder="اختر الفصل"
+                                    disabled={rowClassOptions.length === 0}
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    value={draft.parentPhone}
+                                    onChange={e => updateDataEditDraft(draft.id, { parentPhone: e.target.value })}
+                                    dir="ltr"
+                                    placeholder="05xxxxxxxx"
+                                    className="w-full min-w-0 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-center text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                                  />
+                                </td>
+                                <td className="p-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setDataEditSelectedIds(prev => { const next = new Set(prev); next.delete(draft.id); return next; })}
+                                    className="w-7 h-7 inline-flex items-center justify-center rounded-full bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm shadow-rose-500/20"
+                                    title="إزالة من التحديد"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-white">
                 <button
-                  onClick={() => setShowBulkEditModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                  onClick={() => setShowDataEditModal(false)}
+                  className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
                 >
-                  إلغاء
+                  إغلاق
                 </button>
                 <button
-                  onClick={handleBulkEditApply}
-                  disabled={!canApply}
-                  className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  onClick={handleDataEditSave}
+                  disabled={dataEditSelectedIds.size === 0}
+                  className="px-6 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
-                  تطبيق
+                  <SaveCheckIcon />
+                  حفظ
                 </button>
               </div>
+
+              {showDataEditConfirm && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={28} className="text-amber-500 mt-0.5 shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد حفظ التعديلات</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حفظ تعديلات {dataEditSelectedIds.size} طلاب. هل تريد المتابعة؟</p>
+                      </div>
+                    </div>
+                    <div className="pt-6 flex gap-3">
+                      <button onClick={() => setShowDataEditConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                    <button onClick={applyDataEditSave} className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5448a8] text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-[#655ac1]/20 inline-flex items-center justify-center gap-2"><SaveCheckIcon /> حفظ</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══════ Student Transfer Modal ══════ */}
+      {showBulkEditModal && (() => {
+        const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
+        const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
+        const sourceClassOptions: DropdownOption[] = schoolClasses
+          .filter(c => bulkEditScopeGrade === '' || c.grade === bulkEditScopeGrade)
+          .map(c => ({
+          value: c.id,
+          label: c.name || `${c.grade}/${c.section}`,
+        }));
+        const q = normalizeArabic(transferSearch.trim().toLowerCase());
+        const selectedTransferStudents = schoolStudents.filter(s => transferSelectedIds.has(s.id));
+        const selectedTransferGrades = new Set(selectedTransferStudents.map(s => s.grade));
+        const selectedTransferGrade = selectedTransferGrades.size === 1 ? Array.from(selectedTransferGrades)[0] : null;
+        const selectedCurrentClassIds = new Set(selectedTransferStudents.map(s => s.classId).filter(Boolean));
+        const sourceGradeCount = bulkEditScopeGrade === '' ? 0 : schoolStudents.filter(s => s.grade === bulkEditScopeGrade).length;
+        const sourceClass = schoolClasses.find(c => c.id === bulkEditScopeClassId);
+        const sourceClassCount = bulkEditScopeClassId ? schoolStudents.filter(s => s.classId === bulkEditScopeClassId).length : 0;
+        const sourceGradeClasses = bulkEditScopeGrade === '' ? [] : schoolClasses.filter(c => c.grade === bulkEditScopeGrade);
+        const sourceGradeClassCounts = sourceGradeClasses.map(c => ({
+          classInfo: c,
+          count: schoolStudents.filter(s => s.classId === c.id).length,
+        }));
+        const transferCandidates = schoolStudents.filter(s => {
+          const matchesSearch = !q || normalizeArabic(s.name).toLowerCase().includes(q) || (s.parentPhone || '').includes(transferSearch.trim()) || (s.nationalId || '').includes(transferSearch.trim());
+          const matchesGrade = bulkEditScopeGrade === '' || s.grade === bulkEditScopeGrade;
+          const matchesClass = !bulkEditScopeClassId || s.classId === bulkEditScopeClassId;
+          const matchesSelectedGrade = selectedTransferGrade === null || s.grade === selectedTransferGrade || transferSelectedIds.has(s.id);
+          return matchesSearch && matchesGrade && matchesClass && matchesSelectedGrade;
+        }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : a.name.localeCompare(b.name, 'ar'));
+        const targetClassOptions: DropdownOption[] = schoolClasses
+          .filter(c => selectedTransferGrade !== null && c.grade === selectedTransferGrade && !selectedCurrentClassIds.has(c.id))
+          .map(c => ({
+          value: c.id,
+          label: c.name || `${c.grade}/${c.section}`,
+        }));
+
+        const canApply = !!bulkEditTargetClassId && transferSelectedIds.size > 0 && selectedTransferGrade !== null;
+        const destinationClass = schoolClasses.find(c => c.id === bulkEditTargetClassId);
+        const destinationCurrentCount = destinationClass ? schoolStudents.filter(s => s.classId === destinationClass.id).length : 0;
+        const destinationAfterCount = destinationClass ? destinationCurrentCount + transferSelectedIds.size : 0;
+        const transferSelectableIds = transferCandidates.filter(s => selectedTransferGrade === null || s.grade === selectedTransferGrade).map(s => s.id);
+        const allTransferCandidatesSelected = transferSelectableIds.length > 0 && transferSelectableIds.every(id => transferSelectedIds.has(id));
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <ArrowLeftRight size={20} className="text-[#655ac1]" />
+                    نقل طالب
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">اختر طالبًا أو مجموعة طلاب ثم انقلهم إلى فصل آخر.</p>
+                </div>
+                <button
+                  onClick={() => setShowBulkEditModal(false)}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="إغلاق"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] min-h-0 flex-1">
+                <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar">
+                  <div className="relative">
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={transferSearch}
+                      onChange={e => { setTransferSearch(e.target.value); setTransferGlobalSelectWarning(false); }}
+                      placeholder="ابحث باسم الطالب أو رقم الجوال"
+                      className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <StudentDropdown
+                      value={bulkEditScopeGrade === '' ? '' : String(bulkEditScopeGrade)}
+                      onChange={v => { setBulkEditScopeGrade(v ? parseInt(v) : ''); setBulkEditScopeClassId(''); setTransferSelectedIds(new Set()); setBulkEditTargetClassId(''); setTransferGlobalSelectWarning(false); }}
+                      options={gradeOptions}
+                      placeholder="اختر الصف"
+                      emptyLabel="كل الصفوف"
+                    />
+                    <StudentDropdown
+                      value={bulkEditScopeClassId}
+                      onChange={v => { setBulkEditScopeClassId(v); setTransferSelectedIds(new Set()); setBulkEditTargetClassId(''); setTransferGlobalSelectWarning(false); }}
+                      options={sourceClassOptions}
+                      placeholder="اختر الفصل الحالي"
+                      emptyLabel="كل الفصول"
+                    />
+                  </div>
+                  {transferGlobalSelectWarning && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700 leading-relaxed">
+                      لا يمكن اختيار كل الطلاب في جميع الصفوف والفصول لنقلهم. اختر صفًا أو فصلًا محددًا أولًا.
+                    </div>
+                  )}
+
+                  <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-black text-slate-500">اختر الطلاب</span>
+                        {bulkEditScopeGrade !== '' && (
+                          <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">
+                            الصف {gradeLabel(bulkEditScopeGrade)}
+                          </span>
+                        )}
+                        {sourceClass && (
+                          <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">
+                            الفصل {sourceClass.name || `${sourceClass.grade}/${sourceClass.section}`}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!transferSearch.trim() && bulkEditScopeGrade === '' && !bulkEditScopeClassId && transferCandidates.length === schoolStudents.length) {
+                            setTransferGlobalSelectWarning(true);
+                            return;
+                          }
+                          const baseGrade = selectedTransferGrade ?? transferCandidates[0]?.grade;
+                          const nextIds = transferCandidates.filter(s => s.grade === baseGrade).map(s => s.id);
+                          const allSelected = nextIds.length > 0 && nextIds.every(id => transferSelectedIds.has(id));
+                          setTransferSelectedIds(prev => {
+                            const next = new Set(prev);
+                            nextIds.forEach(id => { if (allSelected) next.delete(id); else next.add(id); });
+                            return next;
+                          });
+                          setBulkEditTargetClassId('');
+                        }}
+                        disabled={transferCandidates.length === 0}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed ${allTransferCandidatesSelected ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        {allTransferCandidatesSelected ? 'إلغاء الكل' : 'اختر الكل'}
+                      </button>
+                    </div>
+                    <div className="max-h-[430px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                      {transferCandidates.length === 0 ? (
+                        <div className="py-10 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                      ) : transferCandidates.map(student => {
+                        const selected = transferSelectedIds.has(student.id);
+                        const disabled = selectedTransferGrade !== null && student.grade !== selectedTransferGrade && !selected;
+                        return (
+                          <button
+                            key={student.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => { toggleTransferStudent(student); setBulkEditTargetClassId(''); }}
+                            className={`w-full text-right px-4 py-3 transition-all flex items-center justify-between gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${selected ? 'bg-[#f5f3ff]' : 'hover:bg-slate-50'}`}
+                          >
+                            <span className="min-w-0">
+                              <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{student.name}</span>
+                              <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{`الصف ${gradeLabel(student.grade)} - الفصل ${getClassName(student.classId)}`}</span>
+                            </span>
+                            <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3.5} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-r border-slate-100 bg-slate-50/40 p-5 space-y-4 overflow-y-auto custom-scrollbar">
+                  <div className="rounded-2xl bg-white border border-slate-200 p-4">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-xs font-black text-slate-400">الطلاب المحددون</p>
+                      <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{transferSelectedIds.size} محدد</span>
+                    </div>
+                    <p className="text-[11px] font-bold text-slate-400 mt-1">يمكن نقل الطلاب داخل الصف نفسه فقط.</p>
+                  </div>
+                  {(bulkEditScopeGrade !== '' || sourceClass) && (
+                    <div className="rounded-2xl bg-white border border-slate-200 p-4 space-y-2">
+                      <p className="text-xs font-black text-slate-400">أعداد الطلاب</p>
+                      {bulkEditScopeGrade !== '' && (
+                        <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                          <span className="text-slate-500">الصف {gradeLabel(bulkEditScopeGrade)}</span>
+                          <span className="text-[#655ac1]">{sourceGradeCount} طالب</span>
+                        </div>
+                      )}
+                      {sourceClass && (
+                        <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                          <span className="text-slate-500">الفصل {sourceClass.name || `${sourceClass.grade}/${sourceClass.section}`}</span>
+                          <span className="text-[#655ac1]">{sourceClassCount} طالب</span>
+                        </div>
+                      )}
+                      {bulkEditScopeGrade !== '' && !sourceClass && sourceGradeClassCounts.length > 0 && (
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                          {sourceGradeClassCounts.map(({ classInfo, count }) => (
+                            <span key={classInfo.id} className="text-[10px] font-black text-[#655ac1] border border-slate-200 bg-white px-2 py-1 rounded-full text-center">
+                              {classInfo.name || `${classInfo.grade}/${classInfo.section}`}: {count}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">الفصل المنقول له الطالب</p>
+                    <StudentDropdown
+                      value={bulkEditTargetClassId}
+                      onChange={setBulkEditTargetClassId}
+                      options={targetClassOptions}
+                      placeholder={selectedTransferGrade === null ? 'اختر الطلاب أولًا' : 'اختر الفصل'}
+                      disabled={selectedTransferGrade === null || targetClassOptions.length === 0}
+                    />
+                  </div>
+
+                  {transferSelectedIds.size > 0 && destinationClass && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                        سيتم نقل <span className="font-black">{transferSelectedIds.size}</span> طالب إلى فصل <span className="font-black">{destinationClass.name || `${destinationClass.grade}/${destinationClass.section}`}</span>.
+                      </p>
+                      <p className="text-[11px] font-black text-amber-700 mt-2">
+                        العدد الحالي: {destinationCurrentCount} | بعد النقل: {destinationAfterCount}
+                      </p>
+                    </div>
+                  )}
+                  {transferSelectedIds.size > 0 && targetClassOptions.length === 0 && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold text-amber-700 leading-relaxed">
+                      لا يوجد فصل آخر متاح في الصف نفسه يمكن النقل إليه.
+                    </div>
+                  )}
+                  <div className="flex-1" />
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowBulkEditModal(false)}
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                    >
+                      إغلاق
+                    </button>
+                    <button
+                      onClick={() => setShowTransferConfirm(true)}
+                      disabled={!canApply}
+                      className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      نقل
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {showTransferConfirm && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <ArrowLeftRight size={28} className="text-[#655ac1] mt-0.5 shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد نقل الطلاب</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                          سيتم نقل {transferSelectedIds.size} طالب إلى فصل {destinationClass?.name || (destinationClass ? `${destinationClass.grade}/${destinationClass.section}` : '')}. هل تريد المتابعة؟
+                        </p>
+                      </div>
+                    </div>
+                    <div className="pt-6 flex gap-3">
+                      <button onClick={() => setShowTransferConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                      <button onClick={handleBulkEditApply} className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5448a8] text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-[#655ac1]/20">نقل</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
