@@ -139,6 +139,65 @@ const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
   return { triggerRef, panelRef, position };
 };
 
+// Inline (non-portal) dropdown for use inside modals; stacks with its parent's z-index.
+const ModalInlineSelect: React.FC<{
+  value: string;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}> = ({ value, options, placeholder, onChange, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOut = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOut);
+    return () => document.removeEventListener('mousedown', onClickOut);
+  }, [open]);
+
+  const selected = options.find(o => o.value === value);
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(o => !o)}
+        className={`w-full px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-rose-300 transition-all flex items-center justify-between gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${open ? 'ring-2 ring-rose-200/40 border-rose-300' : ''}`}
+      >
+        <span className="truncate">{selected?.label || placeholder}</span>
+        <ChevronDown size={16} className={`text-rose-500 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 max-h-60 overflow-y-auto custom-scrollbar">
+          {options.length === 0 ? (
+            <div className="py-4 text-center text-xs font-bold text-slate-400">لا توجد خيارات</div>
+          ) : options.map(opt => {
+            const active = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`w-full text-right px-3 py-2 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${active ? 'bg-rose-50 text-rose-600' : 'text-slate-700 hover:bg-slate-50'}`}
+              >
+                <span className="truncate">{opt.label}</span>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 ${active ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                  <Check size={12} strokeWidth={3.5} />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FacilitySingleSelectDropdown: React.FC<{
   label?: string;
   value: string;
@@ -307,8 +366,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   // ─── Delete Selected Modal ───
   const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
-  const [deleteModalSearch, setDeleteModalSearch] = useState('');
   const [deleteModalGrade, setDeleteModalGrade] = useState<string>('');
+  const [deleteModalClassId, setDeleteModalClassId] = useState<string>('');
   const [deleteWholeGradeConfirm, setDeleteWholeGradeConfirm] = useState(false);
   const [facilityDeleteConfirmId, setFacilityDeleteConfirmId] = useState<string | null>(null);
   const [editingSubjectsGrade, setEditingSubjectsGrade] = useState<number | null>(null);
@@ -1145,8 +1204,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               onClick={() => {
                 if (currentSchoolClasses.length === 0) return;
                 setSelectedClasses(new Set());
-                setDeleteModalSearch('');
                 setDeleteModalGrade('');
+                setDeleteModalClassId('');
                 setDeleteWholeGradeConfirm(false);
                 setShowBulkDeleteConfirm(false);
                 setDeleteSelectedModalOpen(true);
@@ -2951,17 +3010,21 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     {/* ═══ Delete Selected Modal ═══ */}
     {deleteSelectedModalOpen && (() => {
       const availableGrades = Object.keys(grouped).map(Number).sort((a, b) => a - b);
-      const gradeFilterOptions: FacilityDropdownOption[] = [
+      const gradeFilterOptions = [
         { value: '', label: 'كل الصفوف' },
         ...availableGrades.map(g => ({ value: String(g), label: getGradeLabelEx(g) })),
       ];
-      const qRaw = deleteModalSearch.trim();
-      const q = qRaw.toLowerCase();
+      const classFilterOptions = [
+        { value: '', label: 'كل الفصول' },
+        ...(deleteModalGrade
+          ? currentSchoolClasses.filter(c => c.grade === parseInt(deleteModalGrade))
+          : currentSchoolClasses
+        ).map(c => ({ value: c.id, label: c.name || getClassroomDisplayName(c) })),
+      ];
       const filteredForDelete = currentSchoolClasses.filter(c => {
-        const display = (c.name || getClassroomDisplayName(c)).toLowerCase();
-        const matchesSearch = !q || display.includes(q) || getGradeLabelEx(c.grade).toLowerCase().includes(q);
         const matchesGrade = !deleteModalGrade || c.grade === parseInt(deleteModalGrade);
-        return matchesSearch && matchesGrade;
+        const matchesClass = !deleteModalClassId || c.id === deleteModalClassId;
+        return matchesGrade && matchesClass;
       }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0));
       const selectedCount = selectedClasses.size;
       const gradeClassCount = deleteModalGrade
@@ -3023,23 +3086,20 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             </div>
 
             <div className="p-5 space-y-3 shrink-0 border-b border-slate-100 bg-slate-50/40">
-              <div className="relative">
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  <Hash size={16} />
-                </span>
-                <input
-                  value={deleteModalSearch}
-                  onChange={e => setDeleteModalSearch(e.target.value)}
-                  placeholder="ابحث باسم الفصل أو الصف"
-                  className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-rose-300 focus:ring-2 focus:ring-rose-200/40"
+              <div className="grid grid-cols-2 gap-2">
+                <ModalInlineSelect
+                  value={deleteModalGrade}
+                  onChange={v => { setDeleteModalGrade(v); setDeleteModalClassId(''); setDeleteWholeGradeConfirm(false); }}
+                  options={gradeFilterOptions}
+                  placeholder="كل الصفوف"
+                />
+                <ModalInlineSelect
+                  value={deleteModalClassId}
+                  onChange={v => { setDeleteModalClassId(v); setDeleteWholeGradeConfirm(false); }}
+                  options={classFilterOptions}
+                  placeholder="كل الفصول"
                 />
               </div>
-              <FacilitySingleSelectDropdown
-                value={deleteModalGrade}
-                onChange={v => { setDeleteModalGrade(v); setDeleteWholeGradeConfirm(false); }}
-                options={gradeFilterOptions}
-                placeholder="كل الصفوف"
-              />
               {deleteModalGrade && gradeClassCount > 0 && (
                 deleteWholeGradeConfirm ? (
                   <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-3 space-y-2">
