@@ -365,6 +365,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const [gradeDeleteTarget, setGradeDeleteTarget] = useState<{ grade: number; classId?: string; className?: string } | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [showMissingDataModal, setShowMissingDataModal] = useState(false);
+  const [missingSnapshotIds, setMissingSnapshotIds] = useState<string[]>([]);
 
 
   // ─── Print State ───
@@ -1012,7 +1013,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             return (
               <Wrapper
                 key={label}
-                {...(interactive ? { onClick: () => setShowMissingDataModal(true), title: 'انقر لعرض وتعديل البيانات الناقصة' } : {})}
+                {...(interactive ? { onClick: () => { setMissingSnapshotIds(studentsWithMissingData.map(s => s.id)); setShowMissingDataModal(true); }, title: 'انقر لعرض وتعديل البيانات الناقصة' } : {})}
                 className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 text-right ${
                   interactive ? 'cursor-pointer hover:border-[#655ac1]/40 hover:shadow-md transition-all' : ''
                 }`}
@@ -1613,7 +1614,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             <div className="flex flex-col lg:flex-row items-center gap-3 flex-1 w-full">
                 {studentsWithMissingData.length > 0 && (
                   <button
-                    onClick={() => setShowMissingDataModal(true)}
+                    onClick={() => { setMissingSnapshotIds(studentsWithMissingData.map(s => s.id)); setShowMissingDataModal(true); }}
                     className="w-full lg:w-auto shrink-0 group flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-amber-200 rounded-xl text-amber-600 hover:bg-amber-50 hover:border-amber-300 font-bold text-sm transition-all"
                     title="عرض الطلاب ذوي البيانات الناقصة"
                   >
@@ -2106,6 +2107,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
         const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
 
+        // Snapshot stays stable while modal is open so rows don't disappear mid-edit
+        const studentMap = new Map(students.map(s => [s.id, s]));
+        const snapshotStudents = missingSnapshotIds
+          .map(id => studentMap.get(id))
+          .filter((s): s is Student => !!s);
+        const liveMissingCount = (predicate: (s: Student) => boolean) =>
+          snapshotStudents.filter(predicate).length;
+
         // Helper: update a single student field inline
         const updateField = (id: string, patch: Partial<Student>) => {
           setStudents(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
@@ -2123,7 +2132,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     البيانات الناقصة
                   </h3>
                   <p className="text-xs text-slate-400 font-bold mt-1">
-                    {studentsWithMissingData.length} طالب — يمكنك التعديل المباشر هنا
+                    {snapshotStudents.length} طالب — يمكنك التعديل المباشر هنا
                   </p>
                 </div>
                 <button
@@ -2137,9 +2146,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
               {/* Stats (neutral) */}
               <div className="px-6 py-4 border-b border-slate-100 grid grid-cols-3 gap-3 shrink-0">
                 {[
-                  { label: 'بدون صف', count: studentsWithMissingData.filter(s => !s.grade).length },
-                  { label: 'بدون فصل', count: studentsWithMissingData.filter(s => !s.classId).length },
-                  { label: 'بدون رقم ولي الأمر', count: studentsWithMissingData.filter(s => !s.parentPhone).length },
+                  { label: 'بدون صف', count: liveMissingCount(s => !s.grade) },
+                  { label: 'بدون فصل', count: liveMissingCount(s => !s.classId) },
+                  { label: 'بدون رقم ولي الأمر', count: liveMissingCount(s => !s.parentPhone) },
                 ].map(({ label, count }) => (
                   <div key={label} className="text-center p-3 bg-white rounded-2xl border border-slate-200">
                     <div className="text-xl font-black text-[#655ac1]">{count}</div>
@@ -2150,7 +2159,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
               {/* Table — inline editable */}
               <div className="overflow-y-auto custom-scrollbar flex-1">
-                {studentsWithMissingData.length === 0 ? (
+                {snapshotStudents.length === 0 ? (
                   <div className="p-12 text-center">
                     <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-500" />
                     <p className="font-bold text-slate-700">جميع البيانات مكتملة</p>
@@ -2168,7 +2177,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {studentsWithMissingData.map((student, idx) => {
+                      {snapshotStudents.map((student, idx) => {
                         const classOpts: DropdownOption[] = schoolClasses
                           .filter(c => student.grade ? c.grade === student.grade : true)
                           .map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` }));
@@ -2181,39 +2190,41 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                               <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
                             </td>
                             <td className="px-3 py-3 font-bold text-sm text-slate-700 align-middle">{student.name}</td>
-                            <td className={`p-3 ${missingGrade ? 'bg-amber-100/70' : ''}`}>
-                              <StudentDropdown
-                                compact
-                                value={student.grade ? String(student.grade) : ''}
-                                onChange={v => updateField(student.id, { grade: parseInt(v), classId: '' })}
-                                options={gradeOptions}
-                                placeholder={missingGrade ? 'اختر الصف' : `الصف ${student.grade}`}
-                              />
+                            <td className="p-3">
+                              <div className={`rounded-xl ${missingGrade ? 'ring-2 ring-amber-300 bg-amber-50' : ''}`}>
+                                <StudentDropdown
+                                  compact
+                                  value={student.grade ? String(student.grade) : ''}
+                                  onChange={v => updateField(student.id, { grade: parseInt(v), classId: '' })}
+                                  options={gradeOptions}
+                                  placeholder={missingGrade ? 'اختر الصف' : `الصف ${student.grade}`}
+                                />
+                              </div>
                             </td>
-                            <td className={`p-3 ${missingClass ? 'bg-amber-100/70' : ''}`}>
-                              <StudentDropdown
-                                compact
-                                value={student.classId}
-                                onChange={v => updateField(student.id, { classId: v })}
-                                options={classOpts}
-                                placeholder={classOpts.length === 0 ? 'اختر الصف أولاً' : 'اختر الفصل'}
-                                disabled={classOpts.length === 0}
-                              />
+                            <td className="p-3">
+                              <div className={`rounded-xl ${missingClass ? 'ring-2 ring-amber-300 bg-amber-50' : ''}`}>
+                                <StudentDropdown
+                                  compact
+                                  value={student.classId}
+                                  onChange={v => updateField(student.id, { classId: v })}
+                                  options={classOpts}
+                                  placeholder={classOpts.length === 0 ? 'اختر الصف أولاً' : 'اختر الفصل'}
+                                  disabled={classOpts.length === 0}
+                                />
+                              </div>
                             </td>
-                            <td className={`p-3 ${missingPhone ? 'bg-amber-100/70' : ''}`}>
+                            <td className="p-3">
                               <input
                                 type="tel"
                                 dir="ltr"
                                 placeholder="05xxxxxxxx"
-                                defaultValue={student.parentPhone || ''}
-                                onBlur={e => {
-                                  const v = e.target.value.trim();
-                                  if (v !== (student.parentPhone || '')) {
-                                    updateField(student.id, { parentPhone: v || undefined });
-                                  }
+                                value={student.parentPhone || ''}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  updateField(student.id, { parentPhone: v.trim() ? v : undefined });
                                 }}
                                 className={`w-full px-3 py-2 bg-white border-2 rounded-xl outline-none text-xs font-bold text-center transition-all focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 ${
-                                  missingPhone ? 'border-amber-400 text-amber-700 placeholder:text-amber-500' : 'border-slate-200'
+                                  missingPhone ? 'border-amber-400 bg-amber-50 text-amber-700 placeholder:text-amber-500' : 'border-slate-200'
                                 }`}
                               />
                             </td>
