@@ -2910,7 +2910,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 <div>
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                     <Trash2 size={20} className="text-rose-500" />
-                    حذف محدد
+                    حذف
                   </h3>
                   <p className="text-xs text-slate-400 font-bold mt-1">ابحث أو فلتر بالصف والفصل، ثم حدد الطلاب للحذف.</p>
                 </div>

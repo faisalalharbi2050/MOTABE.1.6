@@ -2095,7 +2095,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                 <div>
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                     <Trash2 size={20} className="text-rose-500" />
-                    حذف محدد
+                    حذف
                   </h3>
                   <p className="text-xs text-slate-400 font-bold mt-1">ابحث أو فلتر بالدور، ثم حدد الإداريين للحذف.</p>
                 </div>
