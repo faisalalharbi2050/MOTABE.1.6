@@ -4,7 +4,7 @@ import { ClassInfo, Student, SchoolInfo, Phase } from '../../../types';
 import { PHASE_CONFIG } from '../../../constants';
 import {
   Users, Upload, Search, Filter, Printer, Trash2, Plus, X, Pencil, Check,
-  AlertTriangle, School, GraduationCap, ArrowUpCircle, Download,
+  AlertTriangle, AlertCircle, School, GraduationCap, ArrowUpCircle, Download,
   ChevronDown, Loader2, CheckCircle2, Phone, Hash, FileSpreadsheet,
   RotateCcw, UserPlus, Trash, Edit2, ArrowLeftRight, MoreHorizontal, LayoutGrid,
   Settings2, CheckSquare
@@ -194,10 +194,20 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
   onToggleSelect, onSetEditName, onSetEditPhone, onSetEditClassId,
   onSaveEdit, onCancelEdit, onOpenDropdown,
 }) {
+  const missingClass = !student.classId;
+  const missingPhone = !student.parentPhone;
+  const hasMissing = missingClass || missingPhone;
+  const rowBg = isSelected
+    ? 'bg-[#e5e1fe]/20'
+    : isEditing
+      ? 'bg-[#f5f3ff]'
+      : hasMissing
+        ? 'bg-amber-50/60 hover:bg-amber-50'
+        : selectionMode
+          ? 'hover:bg-rose-50/30'
+          : 'hover:bg-[#e5e1fe]/10';
   return (
-    <tr className={`transition-colors group ${
-      isSelected ? 'bg-[#e5e1fe]/20' : isEditing ? 'bg-[#f5f3ff]' : selectionMode ? 'hover:bg-rose-50/30' : 'hover:bg-[#e5e1fe]/10'
-    }`}>
+    <tr className={`transition-colors group ${rowBg}`}>
       <td className="px-3 py-3 text-center">
         <div className="flex items-center justify-center">
           {selectionMode ? (
@@ -244,11 +254,13 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
               <option key={c.id} value={c.id}>{c.name || `${c.grade}/${c.section}`}</option>
             ))}
           </select>
-        ) : (
-          <span className={`inline-flex min-h-8 items-center justify-center text-sm font-black ${
-            student.classId ? 'text-[#655ac1]' : 'text-amber-600'
-          }`}>
+        ) : student.classId ? (
+          <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-[#655ac1]">
             {getClassName(student.classId)}
+          </span>
+        ) : (
+          <span className="inline-flex min-h-8 items-center justify-center" title="بيانات ناقصة: الفصل">
+            <AlertCircle size={18} strokeWidth={2.5} className="text-amber-500" />
           </span>
         )}
       </td>
@@ -262,9 +274,13 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
             dir="ltr"
             onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit(); }}
           />
-        ) : (
+        ) : student.parentPhone ? (
           <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-slate-700 font-mono tracking-wide" dir="ltr">
-            {student.parentPhone || <span className="text-slate-300 font-normal">—</span>}
+            {student.parentPhone}
+          </span>
+        ) : (
+          <span className="inline-flex min-h-8 items-center justify-center" title="بيانات ناقصة: رقم الجوال">
+            <AlertCircle size={18} strokeWidth={2.5} className="text-amber-500" />
           </span>
         )}
       </td>
