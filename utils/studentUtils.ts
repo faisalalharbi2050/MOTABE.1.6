@@ -360,15 +360,13 @@ export function printStudentList(
   for (const { label, rows } of groups.values()) {
     let rowsHtml = '';
     rows.forEach((s, i) => {
-      const gradeName = `الصف ${s.grade}`;
       const clsName = getClassName(s.classId);
       const hasMissing = !s.grade || !s.classId || !s.parentPhone;
       rowsHtml += `
         <tr class="${hasMissing ? 'row-warning' : ''}">
           <td class="num">${i + 1}</td>
           <td class="name">${s.name}</td>
-          <td class="center"><span class="grade-badge">${gradeName}</span></td>
-          <td class="center"><span class="class-badge">${clsName}</span></td>
+          <td class="center"><span class="class-text">${clsName}</span></td>
           <td class="center phone" dir="ltr">${s.parentPhone || '<span class="missing">—</span>'}</td>
         </tr>`;
     });
@@ -381,11 +379,10 @@ export function printStudentList(
         <table>
           <thead>
             <tr>
-              <th class="center" style="width:44px">م</th>
+              <th class="center" style="width:52px">#</th>
               <th>اسم الطالب</th>
-              <th class="center" style="width:80px">الصف</th>
-              <th class="center" style="width:110px">الفصل</th>
-              <th class="center" style="width:130px">رقم ولي الأمر</th>
+              <th class="center" style="width:130px">الفصل</th>
+              <th class="center" style="width:150px">رقم الجوال</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
@@ -393,7 +390,7 @@ export function printStudentList(
       </div>`;
   }
 
-  const title = customTitle || 'بيان بأسماء الطلاب';
+  const title = 'بيان بأسماء الطلاب';
   const printDate = new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
   const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId) ?? schoolInfo.semesters?.[0];
 
@@ -426,35 +423,54 @@ export function printStudentList(
     .meta-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; font-size: 12px; color: #64748b; font-weight: 700; }
     .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 99px; }
 
-    /* ─── Group Block ─── */
-    .group-block  { margin-bottom: 24px; }
-    .group-header {
-      background: linear-gradient(to left, #655ac1, #8779fb);
-      color: #fff; padding: 9px 16px; border-radius: 10px 10px 0 0;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 14px; font-weight: 900;
+    /* ─── Group Block (matches teachers/admins spec card) ─── */
+    .group-block  {
+      margin-bottom: 14px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      background: #ffffff;
+      page-break-inside: avoid;
     }
-    .group-count { background: rgba(255,255,255,0.22); border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+    .group-header {
+      background: linear-gradient(to left, rgba(248, 250, 252, 0.55), #ffffff);
+      color: #1e293b; padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 15px; font-weight: 900;
+    }
+    .group-count { background: #f8fafc; color: #655ac1; border: 1px solid #e2e8f0; border-radius: 99px; padding: 2px 10px; font-size: 11px; font-weight: 900; }
 
     /* ─── Table ─── */
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      background: #f8fafc; padding: 9px 12px;
-      font-size: 12px; font-weight: 700; color: #64748b;
-      border-bottom: 2px solid #e2e8f0; text-align: right;
+    table {
+      width: 100%;
+      border-collapse: separate; border-spacing: 0;
+      table-layout: fixed;
+      font-size: 11px;
     }
+    thead tr { background: rgba(248, 250, 252, 0.8); border-bottom: 1px solid #e2e8f0; }
+    thead th {
+      background: rgba(248, 250, 252, 0.8); padding: 9px 7px;
+      font-size: 11px; font-weight: 900; color: #655ac1; line-height: 1.45;
+      border-left: 1px solid #e2e8f0; text-align: right;
+    }
+    thead th:last-child { border-left: 0; }
     thead th.center { text-align: center; }
-    tbody tr { border-bottom: 1px solid #f1f5f9; }
-    tbody tr:nth-child(even) { background: #fafafa; }
-    tbody tr.row-warning { background: #fffbeb; }
-    tbody td { padding: 9px 12px; font-size: 13px; vertical-align: middle; }
+    tbody td {
+      padding: 8px 7px;
+      font-size: 11px; font-weight: 700; color: #334155; line-height: 1.45;
+      border-left: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
+      background: #ffffff; vertical-align: middle;
+    }
+    tbody td:last-child { border-left: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:nth-child(even) td { background: #f8fafc; }
+    tbody tr.row-warning td { background: #fffbeb; }
 
-    .num   { text-align: center; color: #94a3b8; font-size: 12px; font-weight: 700; }
+    .num   { text-align: center; color: #1e293b; font-size: 11px; font-weight: 700; }
     .name  { font-weight: 700; color: #1e293b; }
     .center { text-align: center; }
-    .grade-badge { display: inline-block; background: #f1f5f9; color: #475569; padding: 3px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; }
-    .class-badge { display: inline-block; background: #ede9fe; color: #655ac1; padding: 3px 10px; border-radius: 8px; font-weight: 700; font-size: 12px; }
-    .phone { font-family: monospace; font-size: 12px; color: #475569; }
+    .class-text { display: inline-block; color: #655ac1; font-weight: 900; font-size: 11px; }
+    .phone { font-family: monospace; font-size: 11px; color: #475569; }
     .missing { color: #cbd5e1; }
 
     /* ─── Footer ─── */
@@ -464,7 +480,7 @@ export function printStudentList(
     @media print {
       body { padding: 12px 16px; }
       .group-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .class-badge  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .class-text  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .group-block  { page-break-inside: avoid; }
     }
   </style>

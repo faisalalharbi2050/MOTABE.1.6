@@ -6,7 +6,8 @@ import {
   Users, Upload, Search, Filter, Printer, Trash2, Plus, X, Pencil, Check,
   AlertTriangle, School, GraduationCap, ArrowUpCircle, Download,
   ChevronDown, Loader2, CheckCircle2, Phone, Hash, FileSpreadsheet,
-  RotateCcw, UserPlus, Trash, Edit2, BookOpen, ArrowLeftRight
+  RotateCcw, UserPlus, Trash, Edit2, ArrowLeftRight, MoreHorizontal, LayoutGrid,
+  Settings2, CheckSquare
 } from 'lucide-react';
 import {
   parseStudentExcel,
@@ -193,35 +194,37 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
   onToggleSelect, onSetEditName, onSetEditPhone, onSetEditClassId,
   onSaveEdit, onCancelEdit, onOpenDropdown,
 }) {
-  const showCheckbox = selectionMode || isSelected;
   return (
     <tr className={`transition-colors group ${
       isSelected ? 'bg-[#e5e1fe]/20' : isEditing ? 'bg-[#f5f3ff]' : selectionMode ? 'hover:bg-rose-50/30' : 'hover:bg-[#e5e1fe]/10'
     }`}>
-      <td className="p-4 text-center relative">
-        <div className="flex items-center justify-center gap-1">
-          <div
-            onClick={() => onToggleSelect(student.id)}
-            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all absolute right-3 ${
-              showCheckbox ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            } ${
-              isSelected ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300 hover:border-[#655ac1]'
-            }`}
-          >
-            {isSelected && <Check size={11} className="text-white" />}
-          </div>
-          <span className={`text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full transition-opacity ${showCheckbox ? 'opacity-0' : 'group-hover:opacity-0'}`}>
-            {idx + 1}
-          </span>
+      <td className="px-3 py-3 text-center">
+        <div className="flex items-center justify-center">
+          {selectionMode ? (
+            <button
+              type="button"
+              onClick={() => onToggleSelect(student.id)}
+              className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${
+                isSelected ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'
+              }`}
+              title="تحديد الطالب"
+            >
+              {isSelected && <Check size={12} strokeWidth={3.5} />}
+            </button>
+          ) : (
+            <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full">
+              {idx + 1}
+            </span>
+          )}
         </div>
       </td>
-      <td className="p-4 font-bold text-slate-700">
+      <td className="px-3 py-3 font-bold text-sm text-slate-700 align-middle">
         {isEditing ? (
           <input
             type="text"
             value={editName}
             onChange={e => onSetEditName(e.target.value)}
-            className="w-full p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-sm font-bold shadow-sm"
+            className="w-full bg-transparent border-0 focus:ring-0 outline-none font-bold text-sm text-slate-800 py-1"
             autoFocus
             onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit(); }}
           />
@@ -229,12 +232,12 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
           <span className="group-hover:text-[#655ac1] transition-colors">{student.name}</span>
         )}
       </td>
-      <td className="p-4 text-center">
+      <td className="px-3 py-3 align-middle text-center">
         {isEditing ? (
           <select
             value={editClassId}
             onChange={e => onSetEditClassId(e.target.value)}
-            className="p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-xs font-bold w-full shadow-sm"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-[#655ac1] focus:outline-none focus:border-[#655ac1]"
           >
             <option value="">غير محدد</option>
             {gradeClasses.map(c => (
@@ -242,47 +245,51 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
             ))}
           </select>
         ) : (
-          <span className={`inline-block text-sm font-bold px-3 py-1.5 rounded-xl ${
-            student.classId ? 'text-[#655ac1] bg-slate-100' : 'text-amber-600 bg-amber-50'
+          <span className={`inline-flex min-h-8 items-center justify-center text-xs font-black ${
+            student.classId ? 'text-[#655ac1]' : 'text-amber-600'
           }`}>
             {getClassName(student.classId)}
           </span>
         )}
       </td>
-      <td className="p-4 text-center">
+      <td className="px-3 py-3 align-middle text-center">
         {isEditing ? (
           <input
             type="tel"
             value={editPhone}
             onChange={e => onSetEditPhone(e.target.value)}
-            className="w-full p-2 bg-white border border-[#655ac1] rounded-lg outline-none text-xs font-bold text-center shadow-sm"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-700 focus:outline-none focus:border-[#655ac1] text-center"
             dir="ltr"
             onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit(); }}
           />
         ) : (
-          <span className="text-sm font-bold text-slate-600 font-mono tracking-wide" dir="ltr">
+          <span className="inline-flex min-h-8 items-center justify-center text-xs font-black text-slate-700 font-mono tracking-wide" dir="ltr">
             {student.parentPhone || <span className="text-slate-300 font-normal">—</span>}
           </span>
         )}
       </td>
-      <td className="p-4 text-center">
+      <td className="px-3 py-3 text-center">
         {isEditing ? (
-          <div className="flex items-center justify-center gap-1">
-            <button onClick={onSaveEdit} className="p-2 bg-[#655ac1] text-white rounded-lg hover:bg-[#5448a8] transition-all shadow-sm" title="حفظ">
-              <Check size={14} />
+          <div className="flex items-center justify-center gap-1.5">
+            <button onClick={onSaveEdit} className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all" title="حفظ">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-emerald-500">
+                <Check size={11} strokeWidth={3.2} className="text-white" />
+              </span>
             </button>
-            <button onClick={onCancelEdit} className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-all" title="إلغاء">
+            <button onClick={onCancelEdit} className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all" title="إلغاء">
               <X size={14} />
             </button>
           </div>
         ) : (
-          <button
-            onClick={e => onOpenDropdown(e, student.id)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#e5e1fe] text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#8779fb] mx-auto"
-            title="إجراءات"
-          >
-            <Edit2 size={14} />
-          </button>
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              onClick={e => onOpenDropdown(e, student.id)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#655ac1]"
+              title="إجراءات"
+            >
+              <Settings2 size={14} />
+            </button>
+          </div>
         )}
       </td>
     </tr>
@@ -298,7 +305,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
   const [isImporting, setIsImporting] = useState(false);
   const showImportLoader = useMinLoadingTime(isImporting, 2500);
   const [importProgress, setImportProgress] = useState(0);
-  const [importResult, setImportResult] = useState<{ matched: number; unmatched: number; total: number; errors: string[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ matched: number; missing: number; total: number; errors: string[] } | null>(null);
   const [showImportErrors, setShowImportErrors] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gradeDropdownRef = useRef<HTMLDivElement>(null);
@@ -367,7 +374,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
   // ─── Manual Bulk Entry State ───
   const [isBulkEntryMode, setIsBulkEntryMode] = useState(false);
-  const [bulkCount, setBulkCount] = useState<number>(20);
+  const [bulkCount, setBulkCount] = useState<number>(2);
   const [bulkSelectedGrade, setBulkSelectedGrade] = useState<number | ''>('');
   const [bulkSelectedClassId, setBulkSelectedClassId] = useState<string>('');
   const [bulkGradeDropdownOpen, setBulkGradeDropdownOpen] = useState(false);
@@ -549,7 +556,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
       setImportResult({
         matched: result.matched,
-        unmatched: result.unmatched,
+        missing: result.students.filter(s => !s.grade || !s.classId || !s.parentPhone).length,
         total: result.students.length,
         errors: result.errors,
       });
@@ -771,6 +778,21 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
     setShowBulkEditModal(true);
   }, [schoolStudents, selectedStudents]);
 
+  const openTransferForStudent = useCallback((studentId: string) => {
+    const initialIds = new Set<string>();
+    if (schoolStudents.some(s => s.id === studentId)) initialIds.add(studentId);
+    setSelectedStudents(initialIds);
+    setTransferSelectedIds(initialIds);
+    setTransferSearch('');
+    setBulkEditScope('selected');
+    setBulkEditScopeGrade('');
+    setBulkEditScopeClassId('');
+    setBulkEditTargetClassId('');
+    setShowTransferConfirm(false);
+    setTransferGlobalSelectWarning(false);
+    setShowBulkEditModal(true);
+  }, [schoolStudents]);
+
   const toggleTransferStudent = useCallback((student: Student) => {
     setTransferSelectedIds(prev => {
       const next = new Set(prev);
@@ -982,8 +1004,8 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 print:hidden">
           {[
             { label: 'إجمالي الطلاب', value: schoolStudents.length, icon: Users, clickable: false },
-            { label: 'عدد الفصول المستخدمة', value: stats.classMap.size, icon: BookOpen, clickable: false },
-            { label: 'بيانات ناقصة', value: studentsWithMissingData.length, icon: AlertTriangle, clickable: true },
+            { label: 'عدد الفصول', value: stats.classMap.size, icon: LayoutGrid, clickable: false },
+            { label: 'بيانات ناقصة', value: studentsWithMissingData.length, icon: AlertTriangle, clickable: false },
           ].map(({ label, value, icon: Icon, clickable }) => {
             const interactive = clickable && value > 0;
             const Wrapper: any = interactive ? 'button' : 'div';
@@ -1000,7 +1022,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 </div>
                 <div>
                   <p className="text-xs font-black text-slate-400">{label}</p>
-                  <p className="text-2xl font-black text-slate-800 leading-tight">{value}</p>
+                  <p className="text-2xl font-black leading-tight text-slate-800">{value}</p>
                 </div>
                 {interactive && (
                   <span className="mr-auto text-[10px] font-black text-[#655ac1] bg-[#e5e1fe] px-2 py-1 rounded-full">انقر للتعديل</span>
@@ -1014,11 +1036,13 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
       {/* ══════ Manual Bulk Entry Mode (matches Step7 Admins layout) ══════ */}
       {isBulkEntryMode && (() => {
         const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
-        const defaultGrade = availableGrades[0] ?? 1;
         const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
-        const allClassOptions: DropdownOption[] = schoolClasses.map(c => ({
+        const bulkClassOptions: DropdownOption[] = (bulkSelectedGrade === ''
+          ? []
+          : schoolClasses.filter(c => c.grade === bulkSelectedGrade)
+        ).map(c => ({
           value: c.id,
-          label: `${c.name || `${c.grade}/${c.section}`} — الصف ${c.grade}`,
+          label: c.name || `${c.grade}/${c.section}`,
         }));
 
         return (
@@ -1046,10 +1070,11 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                               const g = v ? parseInt(v) : '' as ('' | number);
                               setBulkSelectedGrade(g);
                               setBulkSelectedClassId('');
-                              if (g !== '') setBulkStudents(prev => prev.map(s => ({ ...s, grade: g as number, classId: '' })));
+                              setBulkStudents(prev => prev.map(s => ({ ...s, grade: g === '' ? 0 : g as number, classId: '' })));
                           }}
                           options={gradeOptions}
                           placeholder="اختر الصف للجميع"
+                          emptyLabel="اختر الصف للجميع"
                       />
                   </div>
 
@@ -1063,10 +1088,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                               if (cls) {
                                   setBulkSelectedGrade(cls.grade);
                                   setBulkStudents(prev => prev.map(s => ({ ...s, classId: cls.id, grade: cls.grade })));
+                              } else {
+                                  setBulkStudents(prev => prev.map(s => ({ ...s, classId: '' })));
                               }
                           }}
-                          options={allClassOptions}
-                          placeholder="اختر الفصل للجميع"
+                          options={bulkClassOptions}
+                          placeholder={bulkSelectedGrade === '' ? 'اختر الصف للجميع أولاً' : 'اختر الفصل للجميع'}
+                          emptyLabel="اختر الفصل للجميع"
+                          disabled={bulkSelectedGrade === ''}
                       />
                   </div>
 
@@ -1082,6 +1111,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           onClick={() => {
                              const validStudents = bulkStudents.filter(s => s.name.trim().length > 0);
                              if (validStudents.length === 0) { showToast('لا يوجد طلاب للحفظ', 'error'); return; }
+                             if (validStudents.some(s => !s.grade || !s.classId)) { showToast('يجب اختيار الصف والفصل لكل طالب قبل الحفظ', 'error'); return; }
                              const newStudents: Student[] = validStudents.map(s => ({
                                  id: s.id, name: s.name, grade: s.grade, classId: s.classId,
                                  parentPhone: s.parentPhone || undefined, schoolId: activeSchoolId
@@ -1115,7 +1145,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           {bulkStudents.map((student, index) => {
                               const rowGradeOpts = gradeOptions;
                               const rowClassOpts: DropdownOption[] = schoolClasses
-                                  .filter(c => c.grade === student.grade)
+                                  .filter(c => !!student.grade && c.grade === student.grade)
                                   .map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` }));
                               return (
                               <tr key={student.id} className="group hover:bg-[#e5e1fe]/10 transition-colors">
@@ -1138,7 +1168,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                   <td className="px-3 py-3 align-middle">
                                       <StudentDropdown
                                           compact
-                                          value={String(student.grade)}
+                                          value={student.grade ? String(student.grade) : ''}
                                           onChange={v => {
                                               const g = parseInt(v);
                                               setBulkStudents(prev => prev.map((s, i) => i === index ? { ...s, grade: g, classId: '' } : s));
@@ -1153,8 +1183,8 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                           value={student.classId}
                                           onChange={v => setBulkStudents(prev => prev.map((s, i) => i === index ? { ...s, classId: v } : s))}
                                           options={rowClassOpts}
-                                          placeholder={rowClassOpts.length === 0 ? 'لا توجد فصول' : 'اختر الفصل'}
-                                          disabled={rowClassOpts.length === 0}
+                                          placeholder={!student.grade ? 'اختر الصف أولاً' : rowClassOpts.length === 0 ? 'لا توجد فصول' : 'اختر الفصل'}
+                                          disabled={!student.grade || rowClassOpts.length === 0}
                                       />
                                   </td>
                                   <td className="px-3 py-3 align-middle text-center">
@@ -1190,7 +1220,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                setBulkStudents(prev => [...prev, {
                                   id: `student-bulk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                                   name: '',
-                                  grade: lastRow ? lastRow.grade : defaultGrade,
+                                  grade: lastRow ? lastRow.grade : 0,
                                   classId: lastRow ? lastRow.classId : '',
                                   parentPhone: ''
                                }]);
@@ -1208,10 +1238,10 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
       {/* ══════ Action Bar + Content ══════ */}
       {!isBulkEntryMode && (
         <>
-            {/* ══════ Action Bar (Unified — matches Step6/Step7) ══════ */}
+            {/* ══════ Action Bar (Unified — matches Step6 Teachers) ══════ */}
             <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2 justify-between mb-6">
                 {/* Right group — primary actions */}
-                <div className="flex flex-wrap items-center gap-2">
+                {!selectionMode && <div className="flex flex-wrap items-center gap-2">
                     <button
                         dir="rtl"
                         onClick={() => fileInputRef.current?.click()}
@@ -1236,54 +1266,66 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         <MultiAddIcon className="text-slate-400 group-hover:text-white transition-colors" />
                         إضافة عدة طلاب
                     </button>
-                </div>
+                </div>}
 
                 {/* Divider */}
-                <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />
+                {!selectionMode && <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />}
 
                 {/* Left group — table actions */}
                 <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        dir="rtl"
-                        onClick={openDataEditModal}
-                        disabled={schoolStudents.length === 0}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="تعديل بيانات طالب أو مجموعة طلاب"
-                    >
-                        <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
-                        تعديل البيانات
-                    </button>
-                    <button
-                        dir="rtl"
-                        onClick={openTransferModal}
-                        disabled={schoolStudents.length === 0}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="نقل طالب أو مجموعة طلاب بين فصول الصف نفسه"
-                    >
-                        <ArrowLeftRight size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-                        نقل طالب
-                    </button>
-                    <button
-                        dir="rtl"
-                        onClick={() => { setPrintSelection({ type: 'all', gradeValue: '', classId: '' }); setShowPrintModal(true); }}
-                        disabled={schoolStudents.length === 0}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-                        طباعة
-                    </button>
-                    {/* Selection-mode toggle (delete-multi flow) */}
+                    {!selectionMode && (
+                      <>
+                        <button
+                            dir="rtl"
+                            onClick={openDataEditModal}
+                            disabled={schoolStudents.length === 0}
+                            className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="تعديل بيانات طالب أو مجموعة طلاب"
+                        >
+                            <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
+                            تعديل البيانات
+                        </button>
+                        <button
+                            dir="rtl"
+                            onClick={openTransferModal}
+                            disabled={schoolStudents.length === 0}
+                            className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="نقل طالب أو مجموعة طلاب بين فصول الصف نفسه"
+                        >
+                            <ArrowLeftRight size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                            نقل طالب
+                        </button>
+                        <button
+                            dir="rtl"
+                            onClick={() => { setPrintSelection({ type: 'all', gradeValue: '', classId: '' }); setShowPrintModal(true); }}
+                            disabled={schoolStudents.length === 0}
+                            className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                            طباعة
+                        </button>
+                      </>
+                    )}
+                    {/* Selection-mode toggle (delete-multi flow — matches Teachers) */}
                     <button
                         dir="rtl"
                         onClick={() => {
-                          if (selectionMode && selectedStudents.size > 0) {
-                            setShowBulkDeleteConfirm(true);
-                          } else {
-                            setSelectionMode(prev => {
-                              if (prev) setSelectedStudents(new Set());
-                              return !prev;
-                            });
+                          if (!selectionMode) {
+                            setSelectionMode(true);
+                            setSelectedStudents(new Set());
+                            setShowBulkDeleteConfirm(false);
+                            return;
                           }
+                          if (selectedStudents.size === 0) {
+                            setSelectionMode(false);
+                            setShowBulkDeleteConfirm(false);
+                            return;
+                          }
+                          if (showBulkDeleteConfirm) {
+                            handleBulkDelete();
+                            return;
+                          }
+                          setShowBulkDeleteConfirm(true);
                         }}
                         disabled={schoolStudents.length === 0}
                         className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
@@ -1292,31 +1334,39 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
                         }`}
                     >
-                        {selectionMode ? <Check size={16} className="text-white" /> : <Trash2 size={16} className="text-rose-500" />}
+                        <CheckSquare size={16} className={selectionMode ? 'text-white' : 'text-rose-500'} />
                         {selectionMode
-                          ? (selectedStudents.size > 0 ? `تأكيد حذف (${selectedStudents.size})` : 'تأكيد')
+                          ? (showBulkDeleteConfirm ? 'تأكيد' : 'تأكيد الحذف')
                           : 'حذف محدد'}
                     </button>
                     {selectionMode && (
                       <button
                         dir="rtl"
-                        onClick={() => { setSelectionMode(false); setSelectedStudents(new Set()); }}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-bold text-sm transition-all"
+                        onClick={() => { setSelectionMode(false); setSelectedStudents(new Set()); setShowBulkDeleteConfirm(false); }}
+                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
                       >
                         إلغاء
                       </button>
                     )}
-                    <button
-                        dir="rtl"
-                        onClick={() => setShowDeleteAllConfirm(true)}
-                        disabled={schoolStudents.length === 0}
-                        className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        <Trash2 size={16} className="text-rose-500" />
-                        حذف الكل
-                    </button>
+                    {!selectionMode && (
+                      <button
+                          dir="rtl"
+                          onClick={() => setShowDeleteAllConfirm(true)}
+                          disabled={schoolStudents.length === 0}
+                          className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                          <Trash2 size={16} className="text-rose-500" />
+                          حذف الكل
+                      </button>
+                    )}
                 </div>
             </div>
+
+            {showBulkDeleteConfirm && selectionMode && (
+              <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-700 text-center mb-6">
+                هل أنت متأكد من حذف <span className="font-black">{selectedStudents.size}</span> طالب محدد؟ اضغط <span className="font-black">تأكيد</span> للحذف.
+              </div>
+            )}
 
 
 
@@ -1372,7 +1422,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         <div className="text-xs text-slate-400 font-bold mt-1">تمت المطابقة</div>
                       </div>
                       <div className="text-center p-4 bg-white rounded-2xl border border-slate-200">
-                        <div className="text-2xl font-black text-[#655ac1]">{importResult.unmatched}</div>
+                        <div className="text-2xl font-black text-[#655ac1]">{importResult.missing}</div>
                         <div className="text-xs text-slate-400 font-bold mt-1">بيانات ناقصة</div>
                       </div>
                   </div>
@@ -1529,12 +1579,10 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 <button
                   onClick={() => {
                     if (bulkCount > 0) {
-                      const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
-                      const defaultGrade = availableGrades[0] ?? 1;
                       const newRows = Array.from({ length: bulkCount }, (_, i) => ({
                         id: `student-bulk-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
                         name: '',
-                        grade: defaultGrade,
+                        grade: 0,
                         classId: '',
                         parentPhone: ''
                       }));
@@ -1563,6 +1611,16 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
             {/* Right Side: Search & Filter */}
             <div className="flex flex-col lg:flex-row items-center gap-3 flex-1 w-full">
+                {studentsWithMissingData.length > 0 && (
+                  <button
+                    onClick={() => setShowMissingDataModal(true)}
+                    className="w-full lg:w-auto shrink-0 group flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-amber-200 rounded-xl text-amber-600 hover:bg-amber-50 hover:border-amber-300 font-bold text-sm transition-all"
+                    title="عرض الطلاب ذوي البيانات الناقصة"
+                  >
+                    <AlertTriangle size={16} />
+                    بيانات ناقصة ({studentsWithMissingData.length})
+                  </button>
+                )}
                 {/* Search Input (Expands) */}
                 <div className="relative flex-1 w-full">
                 <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1691,18 +1749,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 </div>
             </div>
 
-            {/* Missing data quick-access (clickable when there are items) */}
-            {studentsWithMissingData.length > 0 && (
-              <button
-                onClick={() => setShowMissingDataModal(true)}
-                className="shrink-0 group flex items-center gap-2 px-4 py-2.5 bg-white border border-amber-200 rounded-xl text-amber-600 hover:bg-amber-50 hover:border-amber-300 font-bold text-sm transition-all"
-                title="عرض الطلاب ذوي البيانات الناقصة"
-              >
-                <AlertTriangle size={16} />
-                بيانات ناقصة ({studentsWithMissingData.length})
-              </button>
-            )}
-
           </div>
 
           {/* Selection summary chip (count only — delete action lives in the top action bar) */}
@@ -1723,37 +1769,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                 </button>
             </div>
            )}
-
-          {/* Bulk Delete Confirmation Modal */}
-          {showBulkDeleteConfirm && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="p-6 flex items-start gap-3">
-                  <Trash2 size={28} className="text-rose-500 mt-0.5 shrink-0" />
-                  <div>
-                    <h2 className="text-xl font-black text-slate-800 mb-2">حذف الطلاب المحددين</h2>
-                    <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                      سيتم حذف <span className="font-black text-rose-500">{selectedStudents.size}</span> طالب محدد. هل تريد المتابعة؟
-                    </p>
-                  </div>
-                </div>
-                <div className="p-6 pt-0 flex gap-3">
-                  <button
-                    onClick={() => setShowBulkDeleteConfirm(false)}
-                    className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-                  >
-                    إلغاء
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
-                  >
-                    حذف
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Delete All Confirmation Modal */}
           {showDeleteAllConfirm && (
@@ -1822,29 +1837,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           )}
                         </span>
                       </div>
-                      {/* Actions: Delete grade/class + select-all */}
+                      {/* Select all visible in grade */}
                       <div className="flex items-center gap-2">
-                        {/* Delete grade or active class button */}
-                        <button
-                          onClick={() => {
-                            if (activeClassId) {
-                              const cls = gradeClasses.find(c => c.id === activeClassId);
-                              setGradeDeleteTarget({ grade, classId: activeClassId, className: cls?.name || `${grade}/${cls?.section}` });
-                            } else {
-                              setGradeDeleteTarget({ grade });
-                            }
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-500 border border-rose-100 bg-rose-50/50 hover:bg-rose-50 hover:border-rose-300 transition-all duration-100"
-                          title={activeClassId ? 'حذف طلاب هذا الفصل' : `حذف طلاب الصف ${grade}`}
-                        >
-                          <Trash2 size={13} />
-                          {activeClassId
-                            ? `حذف طلاب الفصل`
-                            : `حذف طلاب الصف ${grade}`
-                          }
-                        </button>
-
-                        {/* Select all visible in grade */}
+                        {selectionMode && (
                         <div
                           onClick={() => {
                             const ids = displayStudents.map(s => s.id);
@@ -1866,6 +1861,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                             <Check size={12} className="text-white" />
                           )}
                         </div>
+                        )}
                       </div>
                     </div>
 
@@ -1901,7 +1897,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors duration-100 border ${
                                 isActive
                                   ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1] hover:bg-[#f5f3ff]'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1]'
                               }`}
                             >
                               {cls.name || `${cls.grade}/${cls.section}`}
@@ -1917,14 +1913,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
                   {/* Table */}
                   <div className="overflow-x-auto">
-                    <table className="w-full text-right">
+                    <table className="w-full min-w-[760px] table-fixed text-right border-separate border-spacing-0 rounded-2xl overflow-hidden border border-slate-100">
                       <thead>
-                        <tr className="bg-white border-b border-slate-100">
-                          <th className="p-4 w-12 text-center text-sm font-black text-[#655ac1]">م</th>
-                          <th className="p-4 text-sm font-black text-[#655ac1]">اسم الطالب</th>
-                          <th className="p-4 text-center w-32 text-sm font-black text-[#655ac1]">الفصل</th>
-                          <th className="p-4 text-center w-40 text-sm font-black text-[#655ac1]">رقم ولي الأمر</th>
-                          <th className="p-4 w-20 text-center text-sm font-black text-[#655ac1]">إجراءات</th>
+                        <tr className="bg-slate-50/80 border-b border-slate-100">
+                          <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1]">م</th>
+                          <th className="px-3 py-4 w-[42%] text-xs font-black text-[#655ac1]">اسم الطالب</th>
+                          <th className="px-3 py-4 w-[20%] text-center text-xs font-black text-[#655ac1]">الفصل</th>
+                          <th className="px-3 py-4 w-[22%] text-center text-xs font-black text-[#655ac1]">رقم الجوال</th>
+                          <th className="px-3 py-4 w-28 text-center text-xs font-black text-[#655ac1]">إجراءات</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
@@ -2102,7 +2098,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
                 <div>
                   <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
-                    <AlertTriangle size={22} className="text-[#655ac1]" />
+                    <AlertTriangle size={22} className="text-amber-500" />
                     البيانات الناقصة
                   </h3>
                   <p className="text-xs text-slate-400 font-bold mt-1">
@@ -2124,8 +2120,8 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   { label: 'بدون فصل', count: studentsWithMissingData.filter(s => !s.classId).length },
                   { label: 'بدون رقم ولي الأمر', count: studentsWithMissingData.filter(s => !s.parentPhone).length },
                 ].map(({ label, count }) => (
-                  <div key={label} className="text-center p-3 bg-white rounded-2xl border border-slate-200">
-                    <div className="text-xl font-black text-[#655ac1]">{count}</div>
+                  <div key={label} className="text-center p-3 bg-white rounded-2xl border border-amber-100">
+                    <div className="text-xl font-black text-amber-500">{count}</div>
                     <div className="text-xs font-bold text-slate-400 mt-0.5">{label}</div>
                   </div>
                 ))}
@@ -2140,14 +2136,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     <p className="text-xs text-slate-400 font-bold mt-1">لا يوجد طلاب بحاجة لتحديث</p>
                   </div>
                 ) : (
-                  <table className="w-full text-right">
-                    <thead className="sticky top-0 bg-white border-b border-slate-200 z-10">
-                      <tr>
-                        <th className="p-3 text-xs font-black text-slate-500 w-12 text-center">م</th>
-                        <th className="p-3 text-xs font-black text-slate-500 min-w-[180px]">اسم الطالب</th>
-                        <th className="p-3 text-center text-xs font-black text-slate-500 w-36">الصف</th>
-                        <th className="p-3 text-center text-xs font-black text-slate-500 w-44">الفصل</th>
-                        <th className="p-3 text-center text-xs font-black text-slate-500 w-48">رقم ولي الأمر</th>
+                  <table className="w-full min-w-[820px] table-fixed text-right border-separate border-spacing-0 rounded-2xl overflow-hidden border border-slate-100 mx-6 my-3" style={{ width: 'calc(100% - 3rem)' }}>
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-slate-50/80 border-b border-slate-100">
+                        <th className="px-3 py-4 w-14 text-center text-xs font-black text-[#655ac1]">م</th>
+                        <th className="px-3 py-4 w-[28%] text-xs font-black text-[#655ac1]">اسم الطالب</th>
+                        <th className="px-3 py-4 w-[18%] text-center text-xs font-black text-[#655ac1]">الصف</th>
+                        <th className="px-3 py-4 w-[22%] text-center text-xs font-black text-[#655ac1]">الفصل</th>
+                        <th className="px-3 py-4 w-[28%] text-center text-xs font-black text-[#655ac1]">رقم الجوال</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2155,20 +2151,25 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         const classOpts: DropdownOption[] = schoolClasses
                           .filter(c => student.grade ? c.grade === student.grade : true)
                           .map(c => ({ value: c.id, label: c.name || `${c.grade}/${c.section}` }));
+                        const missingGrade = !student.grade;
+                        const missingClass = !student.classId;
+                        const missingPhone = !student.parentPhone;
                         return (
-                          <tr key={student.id} className="hover:bg-slate-50/40 transition-colors">
-                            <td className="p-3 text-xs font-bold text-slate-300 text-center">{idx + 1}</td>
-                            <td className="p-3 font-bold text-slate-700 whitespace-nowrap">{student.name}</td>
-                            <td className="p-3">
+                          <tr key={student.id} className="hover:bg-amber-50/40 transition-colors">
+                            <td className="px-3 py-3 text-center">
+                              <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
+                            </td>
+                            <td className="px-3 py-3 font-bold text-sm text-slate-700 align-middle">{student.name}</td>
+                            <td className={`p-3 ${missingGrade ? 'bg-amber-50/60' : ''}`}>
                               <StudentDropdown
                                 compact
                                 value={student.grade ? String(student.grade) : ''}
                                 onChange={v => updateField(student.id, { grade: parseInt(v), classId: '' })}
                                 options={gradeOptions}
-                                placeholder={!student.grade ? 'اختر الصف' : `الصف ${student.grade}`}
+                                placeholder={missingGrade ? 'اختر الصف' : `الصف ${student.grade}`}
                               />
                             </td>
-                            <td className="p-3">
+                            <td className={`p-3 ${missingClass ? 'bg-amber-50/60' : ''}`}>
                               <StudentDropdown
                                 compact
                                 value={student.classId}
@@ -2178,7 +2179,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                 disabled={classOpts.length === 0}
                               />
                             </td>
-                            <td className="p-3">
+                            <td className={`p-3 ${missingPhone ? 'bg-amber-50/60' : ''}`}>
                               <input
                                 type="tel"
                                 dir="ltr"
@@ -2191,7 +2192,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                   }
                                 }}
                                 className={`w-full px-3 py-2 bg-white border-2 rounded-xl outline-none text-xs font-bold text-center transition-all focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 ${
-                                  !student.parentPhone ? 'border-rose-200 placeholder:text-rose-300' : 'border-slate-200'
+                                  missingPhone ? 'border-amber-300 text-amber-700 placeholder:text-amber-400' : 'border-slate-200'
                                 }`}
                               />
                             </td>
@@ -2204,17 +2205,18 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-white">
                 <button
                   onClick={() => setShowMissingDataModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                  className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
                 >
                   إغلاق
                 </button>
                 <button
                   onClick={() => { setShowMissingDataModal(false); showToast('تم حفظ التعديلات'); }}
-                  className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 transition-all"
+                  className="px-8 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"
                 >
+                  <SaveCheckIcon />
                   حفظ
                 </button>
               </div>
@@ -2804,6 +2806,15 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
           >
             <Pencil size={15} className="text-[#655ac1]" /> تعديل
+          </button>
+          <button
+            onClick={() => {
+              openTransferForStudent(actionDropdown.studentId);
+              setActionDropdown(null);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
+          >
+            <ArrowLeftRight size={15} className="text-[#655ac1]" /> نقل
           </button>
           <div className="my-1 border-t border-slate-100" />
           <button
