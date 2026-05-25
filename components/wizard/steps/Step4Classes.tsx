@@ -140,7 +140,7 @@ const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
 };
 
 const FacilitySingleSelectDropdown: React.FC<{
-  label: string;
+  label?: string;
   value: string;
   options: FacilityDropdownOption[];
   placeholder: string;
@@ -153,7 +153,7 @@ const FacilitySingleSelectDropdown: React.FC<{
 
   return (
     <div>
-      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      {label && <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>}
       <button
         ref={triggerRef}
         type="button"
@@ -304,6 +304,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // ─── Delete Selected Modal ───
+  const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
+  const [deleteModalSearch, setDeleteModalSearch] = useState('');
+  const [deleteModalGrade, setDeleteModalGrade] = useState<string>('');
+  const [deleteWholeGradeConfirm, setDeleteWholeGradeConfirm] = useState(false);
   const [facilityDeleteConfirmId, setFacilityDeleteConfirmId] = useState<string | null>(null);
   const [editingSubjectsGrade, setEditingSubjectsGrade] = useState<number | null>(null);
   const [editingSubjectsClassId, setEditingSubjectsClassId] = useState<string | null>(null);
@@ -1137,17 +1143,19 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             <button
               dir="rtl"
               onClick={() => {
-                if (!deleteSelectionMode) {
-                  setDeleteSelectionMode(true);
-                  setSelectedClasses(new Set());
-                  return;
-                }
-                if (selectedClasses.size > 0) setShowBulkDeleteConfirm(true);
+                if (currentSchoolClasses.length === 0) return;
+                setSelectedClasses(new Set());
+                setDeleteModalSearch('');
+                setDeleteModalGrade('');
+                setDeleteWholeGradeConfirm(false);
+                setShowBulkDeleteConfirm(false);
+                setDeleteSelectedModalOpen(true);
               }}
               disabled={currentSchoolClasses.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              title="حذف فصل أو مجموعة فصول"
             >
-              <CheckSquare size={16} className="text-rose-500" /> {deleteSelectionMode ? 'تأكيد حذف المحدد' : 'حذف محدد'}
+              <CheckSquare size={16} className="text-rose-500" /> حذف محدد
             </button>
             <button
               dir="rtl"
@@ -1157,15 +1165,6 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             >
               <Trash2 size={16} className="text-rose-500" /> حذف الكل
             </button>
-            {deleteSelectionMode && (
-            <button
-              dir="rtl"
-              onClick={() => { setDeleteSelectionMode(false); setSelectedClasses(new Set()); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm transition-all"
-            >
-              إلغاء التحديد
-            </button>
-            )}
           </div>
 
           {/* ── Classes Card ── */}
@@ -2579,36 +2578,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       );
     })()}
 
-    {/* ═══ Bulk Delete Confirmation Modal ═══ */}
-    {showBulkDeleteConfirm && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-          <div className="p-6 flex items-start gap-3">
-            <Trash2 size={28} className="text-rose-500 mt-0.5" />
-            <div>
-              <h2 className="text-xl font-black text-slate-800 mb-2">حذف المحدد</h2>
-              <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                سيتم حذف {selectedClasses.size} فصل محدد. هل تريد المتابعة؟
-              </p>
-            </div>
-          </div>
-          <div className="p-6 pt-0 flex gap-3">
-            <button
-              onClick={() => setShowBulkDeleteConfirm(false)}
-              className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-            >
-              إلغاء
-            </button>
-            <button
-              onClick={handleBulkDelete}
-              className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
-            >
-              حذف
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
+    {/* Bulk delete confirmation is rendered inside the delete-selected modal */}
 
     {/* ════════════════════════════════════════════════════
          PORTAL: ⋯ Dropdown Menu
@@ -2973,6 +2943,226 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 حذف
               </button>
             </div>
+          </div>
+        </div>
+      );
+    })()}
+
+    {/* ═══ Delete Selected Modal ═══ */}
+    {deleteSelectedModalOpen && (() => {
+      const availableGrades = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+      const gradeFilterOptions: FacilityDropdownOption[] = [
+        { value: '', label: 'كل الصفوف' },
+        ...availableGrades.map(g => ({ value: String(g), label: getGradeLabelEx(g) })),
+      ];
+      const qRaw = deleteModalSearch.trim();
+      const q = qRaw.toLowerCase();
+      const filteredForDelete = currentSchoolClasses.filter(c => {
+        const display = (c.name || getClassroomDisplayName(c)).toLowerCase();
+        const matchesSearch = !q || display.includes(q) || getGradeLabelEx(c.grade).toLowerCase().includes(q);
+        const matchesGrade = !deleteModalGrade || c.grade === parseInt(deleteModalGrade);
+        return matchesSearch && matchesGrade;
+      }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0));
+      const selectedCount = selectedClasses.size;
+      const gradeClassCount = deleteModalGrade
+        ? currentSchoolClasses.filter(c => c.grade === parseInt(deleteModalGrade)).length
+        : 0;
+      const visibleIds = filteredForDelete.map(c => c.id);
+      const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedClasses.has(id));
+      const closeModal = () => {
+        setDeleteSelectedModalOpen(false);
+        setDeleteWholeGradeConfirm(false);
+        setShowBulkDeleteConfirm(false);
+      };
+      const toggleSelectAllVisible = () => {
+        setSelectedClasses(prev => {
+          const next = new Set(prev);
+          if (allVisibleSelected) {
+            visibleIds.forEach(id => next.delete(id));
+          } else {
+            visibleIds.forEach(id => next.add(id));
+          }
+          return next;
+        });
+      };
+      const deleteWholeGrade = () => {
+        if (!deleteModalGrade) return;
+        const g = parseInt(deleteModalGrade);
+        const ids = new Set(currentSchoolClasses.filter(c => c.grade === g).map(c => c.id));
+        if (ids.size === 0) return;
+        setClasses(prev => prev.filter(c => !ids.has(c.id)));
+        setSelectedClasses(new Set());
+        closeModal();
+      };
+      const deleteSelectedClassesAction = () => {
+        if (selectedClasses.size === 0) return;
+        const ids = new Set(selectedClasses);
+        setClasses(prev => prev.filter(c => !ids.has(c.id)));
+        setSelectedClasses(new Set());
+        closeModal();
+      };
+
+      return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div>
+                <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                  <Trash2 size={20} className="text-rose-500" />
+                  حذف محدد
+                </h3>
+                <p className="text-xs text-slate-400 font-bold mt-1">ابحث أو فلتر بالصف، ثم حدد الفصول للحذف.</p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                title="إغلاق"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 shrink-0 border-b border-slate-100 bg-slate-50/40">
+              <div className="relative">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Hash size={16} />
+                </span>
+                <input
+                  value={deleteModalSearch}
+                  onChange={e => setDeleteModalSearch(e.target.value)}
+                  placeholder="ابحث باسم الفصل أو الصف"
+                  className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-rose-300 focus:ring-2 focus:ring-rose-200/40"
+                />
+              </div>
+              <FacilitySingleSelectDropdown
+                value={deleteModalGrade}
+                onChange={v => { setDeleteModalGrade(v); setDeleteWholeGradeConfirm(false); }}
+                options={gradeFilterOptions}
+                placeholder="كل الصفوف"
+              />
+              {deleteModalGrade && gradeClassCount > 0 && (
+                deleteWholeGradeConfirm ? (
+                  <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-3 space-y-2">
+                    <p className="text-xs font-black text-rose-700 text-center leading-relaxed">
+                      سيتم حذف <span className="text-sm">{gradeClassCount}</span> فصل من {getGradeLabelEx(parseInt(deleteModalGrade))}. هل أنت متأكد؟
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setDeleteWholeGradeConfirm(false)}
+                        className="flex-1 px-3 py-2 bg-white border border-slate-300 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50"
+                      >
+                        تراجع
+                      </button>
+                      <button
+                        onClick={deleteWholeGrade}
+                        className="flex-1 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-lg shadow-sm shadow-rose-500/30"
+                      >
+                        نعم، احذف الكل
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeleteWholeGradeConfirm(true)}
+                    className="w-full px-4 py-2.5 bg-white border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={14} />
+                    حذف كامل {getGradeLabelEx(parseInt(deleteModalGrade))} ({gradeClassCount})
+                  </button>
+                )
+              )}
+            </div>
+
+            <div className="px-5 py-3 border-b border-slate-100 bg-white shrink-0 space-y-2.5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 flex items-center justify-between">
+                <span className="text-xs font-black text-slate-600">العدد الكلي: {filteredForDelete.length}</span>
+                <span className="text-xs font-black text-rose-600">المحدد: {selectedCount}</span>
+              </div>
+              {filteredForDelete.length > 0 && (
+                <button
+                  onClick={toggleSelectAllVisible}
+                  className="w-full px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-xl transition-colors shadow-sm shadow-rose-500/20"
+                >
+                  {allVisibleSelected ? 'إلغاء الكل' : 'تحديد الكل'}
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 min-h-0">
+              {filteredForDelete.length === 0 ? (
+                <div className="py-12 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+              ) : filteredForDelete.map(cls => {
+                const selected = selectedClasses.has(cls.id);
+                const displayName = cls.name || getClassroomDisplayName(cls);
+                return (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => setSelectedClasses(prev => {
+                      const next = new Set(prev);
+                      if (next.has(cls.id)) next.delete(cls.id);
+                      else next.add(cls.id);
+                      return next;
+                    })}
+                    className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 mb-1 ${selected ? 'border-rose-300' : 'border-transparent hover:bg-slate-50'}`}
+                  >
+                    <span className="min-w-0">
+                      <span className={`block text-sm font-black truncate ${selected ? 'text-rose-600' : 'text-slate-700'}`}>{displayName}</span>
+                      <span className={`block text-[11px] font-bold truncate ${selected ? 'text-rose-400' : 'text-slate-400'}`}>{getGradeLabelEx(cls.grade)}</span>
+                    </span>
+                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                      <Check size={12} strokeWidth={3.5} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+              <button
+                onClick={closeModal}
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => { if (selectedCount === 0) return; setShowBulkDeleteConfirm(true); }}
+                disabled={selectedCount === 0}
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-rose-500/20"
+              >
+                حذف
+              </button>
+            </div>
+
+            {showBulkDeleteConfirm && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="p-6 flex items-start gap-3">
+                    <Trash2 size={28} className="text-rose-500 mt-0.5" />
+                    <div>
+                      <h2 className="text-xl font-black text-slate-800 mb-2">حذف المحدد</h2>
+                      <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                        سيتم حذف {selectedCount} فصل. هل تريد المتابعة؟
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-6 pt-0 flex gap-3">
+                    <button
+                      onClick={() => setShowBulkDeleteConfirm(false)}
+                      className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={deleteSelectedClassesAction}
+                      className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       );

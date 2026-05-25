@@ -2166,17 +2166,17 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                 )}
               </div>
 
-              <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white shrink-0">
-                <span className="text-xs font-black text-slate-500">
-                  {filteredForDelete.length} إداري
-                  {selectedCount > 0 && <span className="text-rose-600"> · {selectedCount} محدد</span>}
-                </span>
+              <div className="px-5 py-3 border-b border-slate-100 bg-white shrink-0 space-y-2.5">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-600">العدد الكلي: {filteredForDelete.length}</span>
+                  <span className="text-xs font-black text-rose-600">المحدد: {selectedCount}</span>
+                </div>
                 {filteredForDelete.length > 0 && (
                   <button
                     onClick={toggleSelectAllVisible}
-                    className="text-[11px] font-black text-rose-500 hover:text-rose-600"
+                    className="w-full px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-xl transition-colors shadow-sm shadow-rose-500/20"
                   >
-                    {allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                    {allVisibleSelected ? 'إلغاء الكل' : 'تحديد الكل'}
                   </button>
                 )}
               </div>
@@ -2191,7 +2191,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                       key={admin.id}
                       type="button"
                       onClick={() => setSelectedAdminIds(prev => selected ? prev.filter(id => id !== admin.id) : [...prev, admin.id])}
-                      className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 mb-1 ${selected ? 'border-rose-300 bg-rose-50' : 'border-transparent hover:bg-slate-50'}`}
+                      className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 mb-1 ${selected ? 'border-rose-300' : 'border-transparent hover:bg-slate-50'}`}
                     >
                       <span className="min-w-0">
                         <span className={`block text-sm font-black truncate ${selected ? 'text-rose-600' : 'text-slate-700'}`}>{admin.name || '—'}</span>
@@ -2213,31 +2213,39 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                   إلغاء
                 </button>
                 <button
-                  onClick={() => {
-                    if (selectedCount === 0) return;
-                    if (selectedCount > 1) { setShowDeleteSelectedConfirm(true); return; }
-                    deleteSelectedAdmins();
-                  }}
+                  onClick={() => { if (selectedCount === 0) return; setShowDeleteSelectedConfirm(true); }}
                   disabled={selectedCount === 0}
                   className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-rose-500/20"
                 >
-                  حذف المحدد {selectedCount > 0 ? `(${selectedCount})` : ''}
+                  حذف
                 </button>
               </div>
 
               {showDeleteSelectedConfirm && (
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="p-6 flex items-start gap-3">
+                      <Trash2 size={28} className="text-rose-500 mt-0.5" />
                       <div>
-                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد الحذف</h2>
-                        <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حذف {selectedCount} إداري. لا يمكن التراجع عن هذا الإجراء.</p>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">حذف المحدد</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                          سيتم حذف {selectedCount} إداري. هل تريد المتابعة؟
+                        </p>
                       </div>
                     </div>
-                    <div className="pt-6 flex gap-3">
-                      <button onClick={() => setShowDeleteSelectedConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
-                      <button onClick={deleteSelectedAdmins} className="flex-1 py-3 bg-rose-500 text-white font-black text-sm rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all">نعم، احذف</button>
+                    <div className="p-6 pt-0 flex gap-3">
+                      <button
+                        onClick={() => setShowDeleteSelectedConfirm(false)}
+                        className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        onClick={deleteSelectedAdmins}
+                        className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
+                      >
+                        حذف
+                      </button>
                     </div>
                   </div>
                 </div>
