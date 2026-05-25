@@ -1889,7 +1889,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           const clsStudentIds = gradeStudents.filter(s => s.classId === cls.id).map(s => s.id);
                           const allClsSelected = clsStudentIds.length > 0 && clsStudentIds.every(id => selectedStudents.has(id));
                           return (
-                            <div key={cls.id} className="inline-flex items-stretch">
+                            <div key={cls.id} className="inline-flex items-center gap-2">
                               {selectionMode && clsStudentIds.length > 0 && (
                                 <button
                                   type="button"
@@ -1901,16 +1901,12 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                       return ns;
                                     });
                                   }}
-                                  className={`inline-flex items-center justify-center w-9 px-2 rounded-r-xl border border-l-0 transition-all ${
-                                    allClsSelected
-                                      ? 'bg-rose-500 border-rose-500 text-white'
-                                      : 'bg-white border-slate-200 text-transparent hover:border-rose-300'
+                                  className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${
+                                    allClsSelected ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'
                                   }`}
                                   title={`تحديد كل طلاب ${cls.name || `${cls.grade}/${cls.section}`}`}
                                 >
-                                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all ${allClsSelected ? 'bg-rose-500 text-white' : 'border-2 border-slate-300 text-transparent hover:border-rose-300'}`}>
-                                    {allClsSelected && <Check size={12} strokeWidth={3.5} className="text-white" />}
-                                  </span>
+                                  {allClsSelected && <Check size={12} strokeWidth={3.5} />}
                                 </button>
                               )}
                               <button
@@ -1918,7 +1914,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                   ...prev,
                                   [grade]: isActive ? '' : cls.id
                                 }))}
-                                className={`group flex items-center gap-2 px-4 py-2.5 ${selectionMode && clsStudentIds.length > 0 ? 'rounded-l-xl rounded-r-none' : 'rounded-xl'} text-sm font-bold transition-all border ${
+                                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
                                   isActive
                                     ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
@@ -2145,7 +2141,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   { label: 'بدون فصل', count: studentsWithMissingData.filter(s => !s.classId).length },
                   { label: 'بدون رقم ولي الأمر', count: studentsWithMissingData.filter(s => !s.parentPhone).length },
                 ].map(({ label, count }) => (
-                  <div key={label} className="text-center p-3 bg-white rounded-2xl border border-amber-100">
+                  <div key={label} className="text-center p-3 bg-white rounded-2xl border border-slate-200">
                     <div className="text-xl font-black text-[#655ac1]">{count}</div>
                     <div className="text-xs font-bold text-slate-400 mt-0.5">{label}</div>
                   </div>
@@ -2185,7 +2181,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                               <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
                             </td>
                             <td className="px-3 py-3 font-bold text-sm text-slate-700 align-middle">{student.name}</td>
-                            <td className={`p-3 ${missingGrade ? 'bg-amber-50/60' : ''}`}>
+                            <td className={`p-3 ${missingGrade ? 'bg-amber-100/70' : ''}`}>
                               <StudentDropdown
                                 compact
                                 value={student.grade ? String(student.grade) : ''}
@@ -2194,7 +2190,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                 placeholder={missingGrade ? 'اختر الصف' : `الصف ${student.grade}`}
                               />
                             </td>
-                            <td className={`p-3 ${missingClass ? 'bg-amber-50/60' : ''}`}>
+                            <td className={`p-3 ${missingClass ? 'bg-amber-100/70' : ''}`}>
                               <StudentDropdown
                                 compact
                                 value={student.classId}
@@ -2204,7 +2200,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                 disabled={classOpts.length === 0}
                               />
                             </td>
-                            <td className={`p-3 ${missingPhone ? 'bg-amber-50/60' : ''}`}>
+                            <td className={`p-3 ${missingPhone ? 'bg-amber-100/70' : ''}`}>
                               <input
                                 type="tel"
                                 dir="ltr"
@@ -2217,7 +2213,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                   }
                                 }}
                                 className={`w-full px-3 py-2 bg-white border-2 rounded-xl outline-none text-xs font-bold text-center transition-all focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 ${
-                                  missingPhone ? 'border-amber-300 text-amber-700 placeholder:text-amber-400' : 'border-slate-200'
+                                  missingPhone ? 'border-amber-400 text-amber-700 placeholder:text-amber-500' : 'border-slate-200'
                                 }`}
                               />
                             </td>
