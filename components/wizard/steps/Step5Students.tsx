@@ -2756,8 +2756,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     <button
                       onClick={() => setShowTransferConfirm(true)}
                       disabled={!canApply}
-                      className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                      className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                     >
+                      <SaveCheckIcon />
                       نقل
                     </button>
                   </div>
@@ -2778,7 +2779,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     </div>
                     <div className="pt-6 flex gap-3">
                       <button onClick={() => setShowTransferConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
-                      <button onClick={handleBulkEditApply} className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5448a8] text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-[#655ac1]/20">نقل</button>
+                      <button onClick={handleBulkEditApply} className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5448a8] text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-[#655ac1]/20 inline-flex items-center justify-center gap-2"><SaveCheckIcon /> نقل</button>
                     </div>
                   </div>
                 </div>
