@@ -1532,7 +1532,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                   }`}
                 >
                   {isBulkEdit ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />}
-                  {isBulkEdit ? 'حفظ' : 'تعديل الكل'}
+                  {isBulkEdit ? 'حفظ' : 'تعديل البيانات'}
                 </button>
                 {isBulkEdit && (
                   <button
@@ -1546,32 +1546,36 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     إلغاء
                   </button>
                 )}
-                <button
-                  dir="rtl"
-                  onClick={() => { setPrintScope('all'); setPrintSpecId(getUsedSpecializationIds()[0] || ''); setShowPrintModal(true); }}
-                  disabled={filteredTeachers.length === 0}
-                  className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="طباعة القائمة الحالية"
-                >
-                  <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-                  طباعة
-                </button>
+                {!isBulkEdit && (
+                  <button
+                    dir="rtl"
+                    onClick={() => { setPrintScope('all'); setPrintSpecId(getUsedSpecializationIds()[0] || ''); setShowPrintModal(true); }}
+                    disabled={filteredTeachers.length === 0}
+                    className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="طباعة القائمة الحالية"
+                  >
+                    <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                    طباعة
+                  </button>
+                )}
               </>
             )}
-            <button
-              dir="rtl"
-              onClick={handleInlineDeleteSelected}
-              disabled={currentSchoolTeachers.length === 0}
-              className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
-                teacherDeleteSelectionMode
-                  ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
-              }`}
-            >
-              <CheckSquare size={16} className={teacherDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
-              {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'تأكيد' : 'تأكيد الحذف') : 'حذف محدد'}
-            </button>
-            {teacherDeleteSelectionMode && (
+            {!isBulkEdit && (
+              <button
+                dir="rtl"
+                onClick={handleInlineDeleteSelected}
+                disabled={currentSchoolTeachers.length === 0}
+                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
+                  teacherDeleteSelectionMode
+                    ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
+                }`}
+              >
+                <CheckSquare size={16} className={teacherDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
+                {teacherDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'تأكيد' : 'تأكيد الحذف') : 'حذف محدد'}
+              </button>
+            )}
+            {teacherDeleteSelectionMode && !isBulkEdit && (
               <button
                 data-cancel-teacher-delete-selection
                 dir="rtl"
@@ -1586,7 +1590,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 إلغاء
               </button>
             )}
-            {!teacherDeleteSelectionMode && (
+            {!teacherDeleteSelectionMode && !isBulkEdit && (
               <button
                 dir="rtl"
                 onClick={handleDeleteAll}

@@ -355,7 +355,7 @@ export function printStudentList(
     groups.get(key)!.rows.push(s);
   }
 
-  // Build HTML groups
+  // Build HTML groups (mirrors the on-screen grade card exactly)
   let groupsHtml = '';
   for (const { label, rows } of groups.values()) {
     let rowsHtml = '';
@@ -364,7 +364,7 @@ export function printStudentList(
       const hasMissing = !s.grade || !s.classId || !s.parentPhone;
       rowsHtml += `
         <tr class="${hasMissing ? 'row-warning' : ''}">
-          <td class="num">${i + 1}</td>
+          <td class="num-cell"><span class="num-pill">${i + 1}</span></td>
           <td class="name">${s.name}</td>
           <td class="center"><span class="class-text">${clsName}</span></td>
           <td class="center phone" dir="ltr">${s.parentPhone || '<span class="missing">—</span>'}</td>
@@ -373,16 +373,19 @@ export function printStudentList(
     groupsHtml += `
       <div class="group-block">
         <div class="group-header">
-          <span>${label}</span>
-          <span class="group-count">${rows.length} طالب</span>
+          <div class="group-title">
+            <span class="grade-bar"></span>
+            <span class="grade-name">${label}</span>
+            <span class="group-count">${rows.length}</span>
+          </div>
         </div>
         <table>
           <thead>
             <tr>
-              <th class="center" style="width:52px">#</th>
-              <th>اسم الطالب</th>
-              <th class="center" style="width:130px">الفصل</th>
-              <th class="center" style="width:150px">رقم الجوال</th>
+              <th class="center col-num">م</th>
+              <th class="col-name">اسم الطالب</th>
+              <th class="center col-class">الفصل</th>
+              <th class="center col-phone">رقم الجوال</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
@@ -423,54 +426,66 @@ export function printStudentList(
     .meta-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; font-size: 12px; color: #64748b; font-weight: 700; }
     .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 99px; }
 
-    /* ─── Group Block (matches teachers/admins spec card) ─── */
+    /* ─── Group Block (mirrors on-screen grade card exactly) ─── */
     .group-block  {
-      margin-bottom: 14px;
+      margin-bottom: 16px;
       overflow: hidden;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
+      border: 1px solid #f1f5f9;
+      border-radius: 24px;
       background: #ffffff;
+      box-shadow: 0 1px 2px rgba(101, 90, 193, 0.04);
       page-break-inside: avoid;
     }
     .group-header {
-      background: linear-gradient(to left, rgba(248, 250, 252, 0.55), #ffffff);
-      color: #1e293b; padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 15px; font-weight: 900;
+      background: linear-gradient(to left, rgba(248, 250, 252, 0.5), #ffffff);
+      padding: 14px 20px; border-bottom: 1px solid #f1f5f9;
     }
-    .group-count { background: #f8fafc; color: #655ac1; border: 1px solid #e2e8f0; border-radius: 99px; padding: 2px 10px; font-size: 11px; font-weight: 900; }
+    .group-title { display: flex; align-items: center; gap: 12px; }
+    .grade-bar { width: 6px; height: 22px; background: #655ac1; border-radius: 99px; display: inline-block; }
+    .grade-name { color: #1e293b; font-size: 16px; font-weight: 900; }
+    .group-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #f1f5f9; color: #655ac1; border-radius: 99px;
+      padding: 2px 12px; font-size: 13px; font-weight: 900;
+    }
 
-    /* ─── Table ─── */
+    /* ─── Table (matches Step5Students screen table) ─── */
     table {
       width: 100%;
       border-collapse: separate; border-spacing: 0;
       table-layout: fixed;
-      font-size: 11px;
     }
-    thead tr { background: rgba(248, 250, 252, 0.8); border-bottom: 1px solid #e2e8f0; }
+    .col-num { width: 56px; }
+    .col-class { width: 18%; }
+    .col-phone { width: 22%; }
+    .col-name { width: auto; }
+    thead tr { background: rgba(248, 250, 252, 0.8); }
     thead th {
-      background: rgba(248, 250, 252, 0.8); padding: 9px 7px;
-      font-size: 11px; font-weight: 900; color: #655ac1; line-height: 1.45;
-      border-left: 1px solid #e2e8f0; text-align: right;
+      background: rgba(248, 250, 252, 0.8); padding: 14px 12px;
+      font-size: 12px; font-weight: 900; color: #655ac1; line-height: 1.4;
+      border-bottom: 1px solid #f1f5f9; text-align: right;
     }
-    thead th:last-child { border-left: 0; }
     thead th.center { text-align: center; }
     tbody td {
-      padding: 8px 7px;
-      font-size: 11px; font-weight: 700; color: #334155; line-height: 1.45;
-      border-left: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9;
+      padding: 14px 12px;
+      font-size: 13px; font-weight: 700; color: #334155; line-height: 1.4;
+      border-bottom: 1px solid #f8fafc;
       background: #ffffff; vertical-align: middle;
     }
-    tbody td:last-child { border-left: 0; }
     tbody tr:last-child td { border-bottom: 0; }
-    tbody tr:nth-child(even) td { background: #f8fafc; }
     tbody tr.row-warning td { background: #fffbeb; }
 
-    .num   { text-align: center; color: #1e293b; font-size: 11px; font-weight: 700; }
-    .name  { font-weight: 700; color: #1e293b; }
+    .num-cell { text-align: center; }
+    .num-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px;
+      background: #f8fafc; color: #94a3b8;
+      border-radius: 99px; font-size: 11px; font-weight: 700;
+    }
+    .name  { font-weight: 700; color: #1e293b; font-size: 13px; }
     .center { text-align: center; }
-    .class-text { display: inline-block; color: #655ac1; font-weight: 900; font-size: 11px; }
-    .phone { font-family: monospace; font-size: 11px; color: #475569; }
+    .class-text { display: inline-block; color: #655ac1; font-weight: 900; font-size: 13px; }
+    .phone { font-family: monospace; font-size: 13px; font-weight: 900; color: #334155; }
     .missing { color: #cbd5e1; }
 
     /* ─── Footer ─── */

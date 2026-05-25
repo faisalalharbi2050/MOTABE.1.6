@@ -245,7 +245,7 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
             ))}
           </select>
         ) : (
-          <span className={`inline-flex min-h-8 items-center justify-center text-xs font-black ${
+          <span className={`inline-flex min-h-8 items-center justify-center text-sm font-black ${
             student.classId ? 'text-[#655ac1]' : 'text-amber-600'
           }`}>
             {getClassName(student.classId)}
@@ -263,7 +263,7 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
             onKeyDown={e => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onCancelEdit(); }}
           />
         ) : (
-          <span className="inline-flex min-h-8 items-center justify-center text-xs font-black text-slate-700 font-mono tracking-wide" dir="ltr">
+          <span className="inline-flex min-h-8 items-center justify-center text-sm font-black text-slate-700 font-mono tracking-wide" dir="ltr">
             {student.parentPhone || <span className="text-slate-300 font-normal">—</span>}
           </span>
         )}
@@ -1240,8 +1240,8 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         <>
             {/* ══════ Action Bar (Unified — matches Step6 Teachers) ══════ */}
             <div dir="rtl" className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2 justify-between mb-6">
-                {/* Right group — primary actions */}
-                {!selectionMode && <div className="flex flex-wrap items-center gap-2">
+                {/* Right group — primary actions (always visible, matches Teachers) */}
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         dir="rtl"
                         onClick={() => fileInputRef.current?.click()}
@@ -1266,10 +1266,10 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         <MultiAddIcon className="text-slate-400 group-hover:text-white transition-colors" />
                         إضافة عدة طلاب
                     </button>
-                </div>}
+                </div>
 
                 {/* Divider */}
-                {!selectionMode && <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />}
+                <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />
 
                 {/* Left group — table actions */}
                 <div className="flex flex-wrap items-center gap-2">
@@ -1751,21 +1751,24 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
 
           </div>
 
-          {/* Selection summary chip (count only — delete action lives in the top action bar) */}
+          {/* Selection summary alert banner (full-width amber alert) */}
            {selectedStudents.size > 0 && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#e5e1fe]/40 border border-[#e5e1fe] rounded-xl animate-in slide-in-from-top-2 w-fit">
-                <span className="text-xs font-bold text-[#655ac1] bg-[#e5e1fe] px-3 py-1 rounded-lg">
-                    {selectedStudents.size} محدد
-                </span>
-                <span className="text-xs font-bold text-slate-500">
-                  من إجمالي {filteredStudents.length} طالب
-                </span>
+            <div className="flex items-center gap-3 w-full px-5 py-4 bg-amber-50 border-2 border-amber-300 rounded-2xl shadow-sm animate-in slide-in-from-top-2">
+                <AlertTriangle size={22} className="text-amber-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-amber-800">
+                    تم تحديد <span className="text-rose-600">{selectedStudents.size}</span> طالب من إجمالي {filteredStudents.length} طالب
+                  </p>
+                  <p className="text-xs font-bold text-amber-700/80 mt-0.5">
+                    اضغط <span className="font-black">تأكيد الحذف</span> لحذف الطلاب المحددين أو <span className="font-black">إلغاء</span> للخروج من وضع التحديد.
+                  </p>
+                </div>
                 <button
                   onClick={() => setSelectedStudents(new Set())}
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  className="shrink-0 px-3 py-1.5 text-xs font-black text-amber-700 bg-white border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
                   title="إلغاء التحديد"
                 >
-                  <X size={14} />
+                  إلغاء التحديد
                 </button>
             </div>
            )}
@@ -1868,17 +1871,17 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     {/* Row 2: Class chips */}
                     {gradeClasses.length > 0 && (
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* "الكل" chip */}
+                        {/* "الكل" chip (matches primary action bar button style) */}
                         <button
                           onClick={() => setGradeClassFilters(prev => ({ ...prev, [grade]: '' }))}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors duration-100 border ${
+                          className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
                             !activeClassId
                               ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
-                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/50 hover:text-[#655ac1]'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
                           }`}
                         >
                           الكل
-                          <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${!activeClassId ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                          <span className={`px-2 py-0.5 rounded-lg text-xs font-black transition-colors ${!activeClassId ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-white/25 group-hover:text-white'}`}>
                             {gradeStudents.length}
                           </span>
                         </button>
@@ -1894,14 +1897,14 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                                 ...prev,
                                 [grade]: isActive ? '' : cls.id
                               }))}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors duration-100 border ${
+                              className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
                                 isActive
                                   ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:border-[#8779fb] hover:text-[#655ac1]'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
                               }`}
                             >
                               {cls.name || `${cls.grade}/${cls.section}`}
-                              <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                              <span className={`px-2 py-0.5 rounded-lg text-xs font-black transition-colors ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-white/25 group-hover:text-white'}`}>
                                 {clsCount}
                               </span>
                             </button>
@@ -2671,7 +2674,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                             type="button"
                             disabled={disabled}
                             onClick={() => { toggleTransferStudent(student); setBulkEditTargetClassId(''); }}
-                            className={`w-full text-right px-4 py-3 transition-all flex items-center justify-between gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${selected ? 'bg-[#f5f3ff]' : 'hover:bg-slate-50'}`}
+                            className={`w-full text-right px-4 py-3 transition-all flex items-center justify-between gap-3 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50`}
                           >
                             <span className="min-w-0">
                               <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{student.name}</span>

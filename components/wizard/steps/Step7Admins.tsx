@@ -982,7 +982,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                     }`}
                   >
                     {isEditAll ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />}
-                    {isEditAll ? 'حفظ' : 'تعديل الكل'}
+                    {isEditAll ? 'حفظ' : 'تعديل البيانات'}
                   </button>
                   {isEditAll && (
                     <button
@@ -993,31 +993,35 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                       إلغاء
                     </button>
                   )}
-                  <button
-                    dir="rtl"
-                    onClick={() => { setPrintScope('all'); setPrintRole(rolesToRender[0] || ''); setShowPrintModal(true); }}
-                    disabled={admins.length === 0}
-                    className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-                    طباعة
-                  </button>
+                  {!isEditAll && (
+                    <button
+                      dir="rtl"
+                      onClick={() => { setPrintScope('all'); setPrintRole(rolesToRender[0] || ''); setShowPrintModal(true); }}
+                      disabled={admins.length === 0}
+                      className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                      طباعة
+                    </button>
+                  )}
                 </>
               )}
-              <button
-                dir="rtl"
-                onClick={handleInlineDeleteSelected}
-                disabled={admins.length === 0}
-                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
-                  adminDeleteSelectionMode
-                    ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
-                }`}
-              >
-                <CheckSquare size={16} className={adminDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
-                {adminDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : `تأكيد الحذف (${selectedAdminIds.length})`) : 'حذف محدد'}
-              </button>
-              {adminDeleteSelectionMode && (
+              {!isEditAll && (
+                <button
+                  dir="rtl"
+                  onClick={handleInlineDeleteSelected}
+                  disabled={admins.length === 0}
+                  className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
+                    adminDeleteSelectionMode
+                      ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
+                  }`}
+                >
+                  <CheckSquare size={16} className={adminDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
+                  {adminDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : `تأكيد الحذف (${selectedAdminIds.length})`) : 'حذف محدد'}
+                </button>
+              )}
+              {adminDeleteSelectionMode && !isEditAll && (
                 <button
                   dir="rtl"
                   onClick={() => {
@@ -1030,7 +1034,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                   إلغاء
                 </button>
               )}
-              {!adminDeleteSelectionMode && (
+              {!adminDeleteSelectionMode && !isEditAll && (
                 <button
                   dir="rtl"
                   onClick={() => setShowDeleteAllConfirm(true)}
