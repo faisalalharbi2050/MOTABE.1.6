@@ -1330,7 +1330,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         </button>
                       </>
                     )}
-                    {/* Delete selected (modal flow) */}
+                    {/* Delete (modal flow) */}
                     <button
                         dir="rtl"
                         onClick={() => {
@@ -1347,20 +1347,9 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                         className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600"
                         title="حذف طالب أو مجموعة طلاب"
                     >
-                        <CheckSquare size={16} className="text-rose-500" />
-                        حذف محدد
+                        <Trash2 size={16} className="text-rose-500" />
+                        حذف
                     </button>
-                    {!selectionMode && (
-                      <button
-                          dir="rtl"
-                          onClick={() => setShowDeleteAllConfirm(true)}
-                          disabled={schoolStudents.length === 0}
-                          className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                          <Trash2 size={16} className="text-rose-500" />
-                          حذف الكل
-                      </button>
-                    )}
                 </div>
             </div>
 
@@ -1752,28 +1741,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
             </div>
 
           </div>
-
-          {/* Selection summary alert banner (full-width amber alert) */}
-           {selectedStudents.size > 0 && (
-            <div className="flex items-center gap-3 w-full px-5 py-4 bg-amber-50 border-2 border-amber-300 rounded-2xl shadow-sm animate-in slide-in-from-top-2">
-                <AlertTriangle size={22} className="text-amber-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-amber-800">
-                    تم تحديد <span className="text-rose-600">{selectedStudents.size}</span> طالب من إجمالي {filteredStudents.length} طالب
-                  </p>
-                  <p className="text-xs font-bold text-amber-700/80 mt-0.5">
-                    اضغط <span className="font-black">تأكيد الحذف</span> لحذف الطلاب المحددين أو <span className="font-black">إلغاء</span> للخروج من وضع التحديد.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedStudents(new Set())}
-                  className="shrink-0 px-3 py-1.5 text-xs font-black text-amber-700 bg-white border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
-                  title="إلغاء التحديد"
-                >
-                  إلغاء التحديد
-                </button>
-            </div>
-           )}
 
           {/* Delete All Confirmation Modal */}
           {showDeleteAllConfirm && (

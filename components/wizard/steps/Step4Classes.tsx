@@ -1214,15 +1214,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               title="حذف فصل أو مجموعة فصول"
             >
-              <CheckSquare size={16} className="text-rose-500" /> حذف محدد
-            </button>
-            <button
-              dir="rtl"
-              onClick={() => setShowDeleteAllConfirm(true)}
-              disabled={allCurrentSchoolClasses.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Trash2 size={16} className="text-rose-500" /> حذف الكل
+              <Trash2 size={16} className="text-rose-500" /> حذف
             </button>
           </div>
 

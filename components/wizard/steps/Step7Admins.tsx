@@ -1100,17 +1100,8 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                 className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600"
                 title="حذف إداري أو مجموعة إداريين"
               >
-                <CheckSquare size={16} className="text-rose-500" />
-                حذف محدد
-              </button>
-              <button
-                dir="rtl"
-                onClick={() => setShowDeleteAllConfirm(true)}
-                disabled={admins.length === 0}
-                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
                 <Trash2 size={16} className="text-rose-500" />
-                حذف الكل
+                حذف
               </button>
             </div>
           </div>
