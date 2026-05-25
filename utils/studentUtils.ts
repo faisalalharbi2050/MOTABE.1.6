@@ -412,64 +412,63 @@ export function printStudentList(
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Tajawal', sans-serif; background: #fff; direction: rtl; color: #1e293b; padding: 28px 32px; }
+    body { font-family: 'Tajawal', sans-serif; background: #fff; direction: rtl; color: #1e293b; padding: 14px 18px; }
 
     /* ─── Official Print Header (matches Admins/Teachers) ─── */
-    .official-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 2px solid #1e293b; margin-bottom: 18px; }
-    .official-header > div { font-size: 12px; line-height: 1.7; font-weight: 700; color: #1e293b; }
+    .official-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 2px solid #1e293b; margin-bottom: 8px; }
+    .official-header > div { font-size: 10.5px; line-height: 1.5; font-weight: 700; color: #1e293b; }
     .official-header .header-right { text-align: right; flex: 1; }
     .official-header .header-center { text-align: center; }
     .official-header .header-left { text-align: left; flex: 1; }
-    .official-header img { width: 72px; height: 72px; object-fit: contain; }
-    .logo-placeholder { width: 72px; height: 72px; border: 2px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #94a3b8; }
-    .official-title { text-align: center; font-size: 18px; font-weight: 900; color: #1e293b; padding: 10px 0 6px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin-bottom: 18px; letter-spacing: 0.5px; }
-    .meta-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; font-size: 12px; color: #64748b; font-weight: 700; }
-    .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 14px; border-radius: 99px; }
+    .official-header img { width: 48px; height: 48px; object-fit: contain; }
+    .logo-placeholder { width: 48px; height: 48px; border: 2px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #94a3b8; }
+    .official-title { text-align: center; font-size: 14px; font-weight: 900; color: #1e293b; padding: 5px 0 4px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin-bottom: 8px; letter-spacing: 0.3px; }
+    .meta-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; color: #64748b; font-weight: 700; }
+    .total-badge { display: inline-block; background: #655ac1; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
 
-    /* ─── Group Block (mirrors on-screen grade card exactly) ─── */
+    /* ─── Group Block (compact print version) ─── */
     .group-block  {
-      margin-bottom: 16px;
+      margin-bottom: 8px;
       overflow: hidden;
-      border: 1px solid #f1f5f9;
-      border-radius: 24px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(101, 90, 193, 0.04);
-      page-break-inside: avoid;
+      page-break-inside: auto;
     }
     .group-header {
       background: linear-gradient(to left, rgba(248, 250, 252, 0.5), #ffffff);
-      padding: 14px 20px; border-bottom: 1px solid #f1f5f9;
+      padding: 6px 10px; border-bottom: 1px solid #e2e8f0;
     }
-    .group-title { display: flex; align-items: center; gap: 12px; }
-    .grade-bar { width: 6px; height: 22px; background: #655ac1; border-radius: 99px; display: inline-block; }
-    .grade-name { color: #1e293b; font-size: 16px; font-weight: 900; }
+    .group-title { display: flex; align-items: center; gap: 8px; }
+    .grade-bar { width: 4px; height: 14px; background: #655ac1; border-radius: 99px; display: inline-block; }
+    .grade-name { color: #1e293b; font-size: 12px; font-weight: 900; }
     .group-count {
       display: inline-flex; align-items: center; justify-content: center;
       background: #f1f5f9; color: #655ac1; border-radius: 99px;
-      padding: 2px 12px; font-size: 13px; font-weight: 900;
+      padding: 1px 8px; font-size: 10px; font-weight: 900;
     }
 
-    /* ─── Table (matches Step5Students screen table) ─── */
+    /* ─── Table (compact, dense for many students) ─── */
     table {
       width: 100%;
       border-collapse: separate; border-spacing: 0;
       table-layout: fixed;
     }
-    .col-num { width: 56px; }
+    .col-num { width: 36px; }
     .col-class { width: 18%; }
     .col-phone { width: 22%; }
     .col-name { width: auto; }
     thead tr { background: rgba(248, 250, 252, 0.8); }
     thead th {
-      background: rgba(248, 250, 252, 0.8); padding: 14px 12px;
-      font-size: 12px; font-weight: 900; color: #655ac1; line-height: 1.4;
-      border-bottom: 1px solid #f1f5f9; text-align: right;
+      background: rgba(248, 250, 252, 0.8); padding: 5px 7px;
+      font-size: 10px; font-weight: 900; color: #655ac1; line-height: 1.2;
+      border-bottom: 1px solid #e2e8f0; text-align: right;
     }
     thead th.center { text-align: center; }
     tbody td {
-      padding: 14px 12px;
-      font-size: 13px; font-weight: 700; color: #334155; line-height: 1.4;
-      border-bottom: 1px solid #f8fafc;
+      padding: 4px 7px;
+      font-size: 10.5px; font-weight: 700; color: #334155; line-height: 1.25;
+      border-bottom: 1px solid #f1f5f9;
       background: #ffffff; vertical-align: middle;
     }
     tbody tr:last-child td { border-bottom: 0; }
@@ -478,25 +477,31 @@ export function printStudentList(
     .num-cell { text-align: center; }
     .num-pill {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 26px; height: 26px;
+      width: 18px; height: 18px;
       background: #f8fafc; color: #94a3b8;
-      border-radius: 99px; font-size: 11px; font-weight: 700;
+      border-radius: 99px; font-size: 9px; font-weight: 700;
     }
-    .name  { font-weight: 700; color: #1e293b; font-size: 13px; }
+    .name  { font-weight: 700; color: #1e293b; font-size: 10.5px; }
     .center { text-align: center; }
-    .class-text { display: inline-block; color: #655ac1; font-weight: 900; font-size: 13px; }
-    .phone { font-family: monospace; font-size: 13px; font-weight: 900; color: #334155; }
+    .class-text { display: inline-block; color: #655ac1; font-weight: 900; font-size: 10.5px; }
+    .phone { font-family: monospace; font-size: 10.5px; font-weight: 900; color: #334155; }
     .missing { color: #cbd5e1; }
 
     /* ─── Footer ─── */
-    .page-footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 11px; }
+    .page-footer { margin-top: 12px; padding-top: 6px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 9px; }
 
     /* ─── Print ─── */
+    @page { size: A4; margin: 8mm 10mm; }
     @media print {
-      body { padding: 12px 16px; }
+      body { padding: 0; }
       .group-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .class-text  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .group-block  { page-break-inside: avoid; }
+      .class-text   { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .num-pill     { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .total-badge  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      thead         { display: table-header-group; }
+      tr            { page-break-inside: avoid; }
+      .group-header { page-break-after: avoid; }
+      .group-block  { page-break-inside: auto; }
     }
   </style>
 </head>

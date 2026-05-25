@@ -1826,9 +1826,31 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   {/* Grade Section Header */}
                   <div className="px-6 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white">
 
-                    {/* Row 1: Title + select-all */}
+                    {/* Row 1: select-all + Title */}
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3">
+                        {selectionMode && (() => {
+                          const gradeIds = gradeStudents.map(s => s.id);
+                          const allGradeSelected = gradeIds.length > 0 && gradeIds.every(id => selectedStudents.has(id));
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedStudents(prev => {
+                                  const ns = new Set(prev);
+                                  gradeIds.forEach(id => { if (allGradeSelected) ns.delete(id); else ns.add(id); });
+                                  return ns;
+                                });
+                              }}
+                              className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${
+                                allGradeSelected ? 'bg-rose-500 border-rose-500 text-white' : 'bg-white border-2 border-slate-300 text-transparent hover:border-rose-300'
+                              }`}
+                              title="تحديد كل طلاب هذا الصف"
+                            >
+                              {allGradeSelected && <Check size={12} strokeWidth={3.5} />}
+                            </button>
+                          );
+                        })()}
                         <div className="w-1.5 h-6 bg-[#655ac1] rounded-full" />
                         <h4 className="font-black text-slate-800 text-lg">
                           الصف {grade}
@@ -1839,32 +1861,6 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                             <span className="text-slate-400 font-bold"> / {gradeStudents.length}</span>
                           )}
                         </span>
-                      </div>
-                      {/* Select all visible in grade */}
-                      <div className="flex items-center gap-2">
-                        {selectionMode && (
-                        <div
-                          onClick={() => {
-                            const ids = displayStudents.map(s => s.id);
-                            const allSelected = ids.length > 0 && ids.every(id => selectedStudents.has(id));
-                            setSelectedStudents(prev => {
-                              const ns = new Set(prev);
-                              ids.forEach(id => { if (allSelected) ns.delete(id); else ns.add(id); });
-                              return ns;
-                            });
-                          }}
-                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shrink-0 ${
-                            displayStudents.length > 0 && displayStudents.every(s => selectedStudents.has(s.id))
-                              ? 'bg-[#655ac1] border-[#655ac1]'
-                              : 'border-slate-300 hover:border-[#655ac1]'
-                          }`}
-                          title="تحديد الكل في هذا الصف"
-                        >
-                          {displayStudents.length > 0 && displayStudents.every(s => selectedStudents.has(s.id)) && (
-                            <Check size={12} className="text-white" />
-                          )}
-                        </div>
-                        )}
                       </div>
                     </div>
 
@@ -1886,28 +1882,54 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                           </span>
                         </button>
 
-                        {/* Class chips */}
+                        {/* Class chips (with optional select-class checkbox in selection mode) */}
                         {gradeClasses.map(cls => {
                           const clsCount = gradeStudents.filter(s => s.classId === cls.id).length;
                           const isActive = activeClassId === cls.id;
+                          const clsStudentIds = gradeStudents.filter(s => s.classId === cls.id).map(s => s.id);
+                          const allClsSelected = clsStudentIds.length > 0 && clsStudentIds.every(id => selectedStudents.has(id));
                           return (
-                            <button
-                              key={cls.id}
-                              onClick={() => setGradeClassFilters(prev => ({
-                                ...prev,
-                                [grade]: isActive ? '' : cls.id
-                              }))}
-                              className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
-                                isActive
-                                  ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
-                              }`}
-                            >
-                              {cls.name || `${cls.grade}/${cls.section}`}
-                              <span className={`px-2 py-0.5 rounded-lg text-xs font-black transition-colors ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-white/25 group-hover:text-white'}`}>
-                                {clsCount}
-                              </span>
-                            </button>
+                            <div key={cls.id} className="inline-flex items-stretch">
+                              {selectionMode && clsStudentIds.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedStudents(prev => {
+                                      const ns = new Set(prev);
+                                      clsStudentIds.forEach(id => { if (allClsSelected) ns.delete(id); else ns.add(id); });
+                                      return ns;
+                                    });
+                                  }}
+                                  className={`inline-flex items-center justify-center w-9 px-2 rounded-r-xl border border-l-0 transition-all ${
+                                    allClsSelected
+                                      ? 'bg-rose-500 border-rose-500 text-white'
+                                      : 'bg-white border-slate-200 text-transparent hover:border-rose-300'
+                                  }`}
+                                  title={`تحديد كل طلاب ${cls.name || `${cls.grade}/${cls.section}`}`}
+                                >
+                                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all ${allClsSelected ? 'bg-rose-500 text-white' : 'border-2 border-slate-300 text-transparent hover:border-rose-300'}`}>
+                                    {allClsSelected && <Check size={12} strokeWidth={3.5} className="text-white" />}
+                                  </span>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setGradeClassFilters(prev => ({
+                                  ...prev,
+                                  [grade]: isActive ? '' : cls.id
+                                }))}
+                                className={`group flex items-center gap-2 px-4 py-2.5 ${selectionMode && clsStudentIds.length > 0 ? 'rounded-l-xl rounded-r-none' : 'rounded-xl'} text-sm font-bold transition-all border ${
+                                  isActive
+                                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                                }`}
+                              >
+                                {cls.name || `${cls.grade}/${cls.section}`}
+                                <span className={`px-2 py-0.5 rounded-lg text-xs font-black transition-colors ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-white/25 group-hover:text-white'}`}>
+                                  {clsCount}
+                                </span>
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -2124,7 +2146,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   { label: 'بدون رقم ولي الأمر', count: studentsWithMissingData.filter(s => !s.parentPhone).length },
                 ].map(({ label, count }) => (
                   <div key={label} className="text-center p-3 bg-white rounded-2xl border border-amber-100">
-                    <div className="text-xl font-black text-amber-500">{count}</div>
+                    <div className="text-xl font-black text-[#655ac1]">{count}</div>
                     <div className="text-xs font-bold text-slate-400 mt-0.5">{label}</div>
                   </div>
                 ))}
@@ -2674,7 +2696,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                             type="button"
                             disabled={disabled}
                             onClick={() => { toggleTransferStudent(student); setBulkEditTargetClassId(''); }}
-                            className={`w-full text-right px-4 py-3 transition-all flex items-center justify-between gap-3 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50`}
+                            className={`w-full text-right px-4 py-3 transition-all flex items-center justify-between gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${selected ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                           >
                             <span className="min-w-0">
                               <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{student.name}</span>
