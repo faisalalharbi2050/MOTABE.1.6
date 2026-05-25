@@ -255,6 +255,21 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
   const [selectedAdminIds, setSelectedAdminIds] = useState<string[]>([]);
   const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = useState(false);
 
+  // ── Data Edit Modal ──────────────────────────────────────────
+  type AdminEditDraft = { id: string; name: string; role: string; phone: string };
+  const [showDataEditModal, setShowDataEditModal] = useState(false);
+  const [showDataEditConfirm, setShowDataEditConfirm] = useState(false);
+  const [dataEditSearch, setDataEditSearch] = useState('');
+  const [dataEditRole, setDataEditRole] = useState('');
+  const [dataEditSelectedIds, setDataEditSelectedIds] = useState<Set<string>>(new Set());
+  const [dataEditDrafts, setDataEditDrafts] = useState<Record<string, AdminEditDraft>>({});
+
+  // ── Delete Selected Modal ────────────────────────────────────
+  const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
+  const [deleteModalSearch, setDeleteModalSearch] = useState('');
+  const [deleteModalRoleFilter, setDeleteModalRoleFilter] = useState('');
+  const [deleteWholeRoleConfirm, setDeleteWholeRoleConfirm] = useState(false);
+
   // ── Print ────────────────────────────────────────────────────
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printScope, setPrintScope] = useState<'all' | 'role'>('all');
@@ -470,6 +485,96 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
     setAdminDeleteSelectionMode(false);
     setSelectedAdminIds([]);
     setShowDeleteSelectedConfirm(false);
+  };
+
+  const openDataEditModal = () => {
+    if (admins.length === 0) {
+      showToast('لا يوجد إداريون للتعديل', 'error');
+      return;
+    }
+    setDataEditSelectedIds(new Set());
+    setDataEditDrafts({});
+    setDataEditSearch('');
+    setDataEditRole('');
+    setShowDataEditConfirm(false);
+    setShowDataEditModal(true);
+  };
+
+  const toggleDataEditAdmin = (admin: Admin) => {
+    setDataEditSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(admin.id)) {
+        next.delete(admin.id);
+      } else {
+        next.add(admin.id);
+        setDataEditDrafts(drafts => ({
+          ...drafts,
+          [admin.id]: drafts[admin.id] || {
+            id: admin.id,
+            name: admin.name || '',
+            role: admin.role || '',
+            phone: admin.phone || '',
+          },
+        }));
+      }
+      return next;
+    });
+  };
+
+  const updateDataEditDraft = (id: string, patch: Partial<AdminEditDraft>) => {
+    setDataEditDrafts(prev => {
+      const current = prev[id];
+      if (!current) return prev;
+      return { ...prev, [id]: { ...current, ...patch } };
+    });
+  };
+
+  const applyDataEditSave = () => {
+    const ids = Array.from(dataEditSelectedIds);
+    if (ids.length === 0) {
+      showToast('اختر إداريًا واحدًا على الأقل للحفظ', 'error');
+      return;
+    }
+    const patches = new Map(
+      ids
+        .map(id => [id, dataEditDrafts[id]] as const)
+        .filter((entry): entry is readonly [string, AdminEditDraft] => !!entry[1])
+    );
+    setAdmins(prev => prev.map(a => {
+      const patch = patches.get(a.id);
+      if (!patch) return a;
+      return {
+        ...a,
+        name: patch.name.trim() || a.name,
+        role: patch.role,
+        phone: patch.phone.trim(),
+        agentType: patch.role === 'وكيل' ? (a.agentType || []) : [],
+      };
+    }));
+    setShowDataEditConfirm(false);
+    setShowDataEditModal(false);
+    showToast(`تم حفظ بيانات ${patches.size} إداري`);
+  };
+
+  const handleDataEditSave = () => {
+    if (dataEditSelectedIds.size > 1) {
+      setShowDataEditConfirm(true);
+      return;
+    }
+    applyDataEditSave();
+  };
+
+  const openDeleteSelectedModal = () => {
+    if (admins.length === 0) {
+      showToast('لا يوجد إداريون للحذف', 'error');
+      return;
+    }
+    setSelectedAdminIds([]);
+    setDeleteModalSearch('');
+    setDeleteModalRoleFilter('');
+    setDeleteWholeRoleConfirm(false);
+    setShowDeleteSelectedConfirm(false);
+    setDeleteSelectedModalOpen(true);
   };
 
   const toggleAdminSelection = (adminId: string) => {
@@ -969,82 +1074,44 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
             <div className="hidden lg:block w-px h-9 bg-slate-200" aria-hidden="true" />
 
             <div className="flex flex-wrap items-center gap-2">
-              {!adminDeleteSelectionMode && (
-                <>
-                  <button
-                    dir="rtl"
-                    onClick={handleEditAllToggle}
-                    disabled={admins.length === 0}
-                    className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed ${
-                      isEditAll
-                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
-                    }`}
-                  >
-                    {isEditAll ? <SaveCheckIcon className="bg-emerald-500" /> : <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />}
-                    {isEditAll ? 'حفظ' : 'تعديل البيانات'}
-                  </button>
-                  {isEditAll && (
-                    <button
-                      dir="rtl"
-                      onClick={cancelEditAll}
-                      className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
-                    >
-                      إلغاء
-                    </button>
-                  )}
-                  {!isEditAll && (
-                    <button
-                      dir="rtl"
-                      onClick={() => { setPrintScope('all'); setPrintRole(rolesToRender[0] || ''); setShowPrintModal(true); }}
-                      disabled={admins.length === 0}
-                      className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-                      طباعة
-                    </button>
-                  )}
-                </>
-              )}
-              {!isEditAll && (
-                <button
-                  dir="rtl"
-                  onClick={handleInlineDeleteSelected}
-                  disabled={admins.length === 0}
-                  className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
-                    adminDeleteSelectionMode
-                      ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:border-rose-600 shadow-md shadow-rose-500/20'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600'
-                  }`}
-                >
-                  <CheckSquare size={16} className={adminDeleteSelectionMode ? 'text-white' : 'text-rose-500'} />
-                  {adminDeleteSelectionMode ? (showDeleteSelectedConfirm ? 'نعم، احذف المحدد' : `تأكيد الحذف (${selectedAdminIds.length})`) : 'حذف محدد'}
-                </button>
-              )}
-              {adminDeleteSelectionMode && !isEditAll && (
-                <button
-                  dir="rtl"
-                  onClick={() => {
-                    setAdminDeleteSelectionMode(false);
-                    setShowDeleteSelectedConfirm(false);
-                    setSelectedAdminIds([]);
-                  }}
-                  className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all"
-                >
-                  إلغاء
-                </button>
-              )}
-              {!adminDeleteSelectionMode && !isEditAll && (
-                <button
-                  dir="rtl"
-                  onClick={() => setShowDeleteAllConfirm(true)}
-                  disabled={admins.length === 0}
-                  className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Trash2 size={16} className="text-rose-500" />
-                  حذف الكل
-                </button>
-              )}
+              <button
+                dir="rtl"
+                onClick={openDataEditModal}
+                disabled={admins.length === 0}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white"
+                title="تعديل بيانات إداري أو مجموعة إداريين"
+              >
+                <Edit2 size={15} className="text-slate-400 group-hover:text-white transition-colors" />
+                تعديل البيانات
+              </button>
+              <button
+                dir="rtl"
+                onClick={() => { setPrintScope('all'); setPrintRole(rolesToRender[0] || ''); setShowPrintModal(true); }}
+                disabled={admins.length === 0}
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Printer size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                طباعة
+              </button>
+              <button
+                dir="rtl"
+                onClick={openDeleteSelectedModal}
+                disabled={admins.length === 0}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border disabled:opacity-40 disabled:cursor-not-allowed bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600"
+                title="حذف إداري أو مجموعة إداريين"
+              >
+                <CheckSquare size={16} className="text-rose-500" />
+                حذف محدد
+              </button>
+              <button
+                dir="rtl"
+                onClick={() => setShowDeleteAllConfirm(true)}
+                disabled={admins.length === 0}
+                className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-600 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={16} className="text-rose-500" />
+                حذف الكل
+              </button>
             </div>
           </div>
           {isEditAll && hasChanges && (
@@ -1787,6 +1854,398 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
           </div>
         </div>
       )}
+
+      {/* ══════ Data Edit Modal ══════ */}
+      {showDataEditModal && (() => {
+        const qRaw = dataEditSearch.trim();
+        const q = qRaw.toLowerCase();
+        const selectableAdmins = admins.filter(a => {
+          const matchesSearch = !q
+            || (a.name || '').toLowerCase().includes(q)
+            || (a.phone || '').includes(qRaw);
+          const matchesRole = !dataEditRole || a.role === dataEditRole;
+          return matchesSearch && matchesRole;
+        }).sort((a, b) => {
+          if ((a.role || '') !== (b.role || '')) return (a.role || '').localeCompare(b.role || '', 'ar');
+          return (a.name || '').localeCompare(b.name || '', 'ar');
+        });
+        const selectedDrafts = Array.from(dataEditSelectedIds)
+          .map(id => dataEditDrafts[id])
+          .filter((d): d is AdminEditDraft => !!d);
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Edit2 size={20} className="text-[#655ac1]" />
+                    تعديل البيانات
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">ابحث عن إداري أو اختر الدور ثم عدّل البيانات مباشرة.</p>
+                </div>
+                <button
+                  onClick={() => setShowDataEditModal(false)}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="إغلاق"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] min-h-0 flex-1">
+                <div className="border-l border-slate-100 p-5 space-y-4 bg-slate-50/40 overflow-y-auto custom-scrollbar">
+                  <div className="relative">
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={dataEditSearch}
+                      onChange={e => setDataEditSearch(e.target.value)}
+                      placeholder="ابحث باسم الإداري أو رقم الجوال"
+                      className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                    />
+                  </div>
+                  <RoleSelectDropdown
+                    value={dataEditRole}
+                    onChange={setDataEditRole}
+                    placeholder="كل الأدوار"
+                    emptyLabel="كل الأدوار"
+                  />
+
+                  <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-500">الإداريون</span>
+                      <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{dataEditSelectedIds.size} محدد</span>
+                    </div>
+                    <div className="max-h-[360px] overflow-y-auto custom-scrollbar p-2 space-y-1">
+                      {selectableAdmins.length === 0 ? (
+                        <div className="py-8 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                      ) : selectableAdmins.map(admin => {
+                        const selected = dataEditSelectedIds.has(admin.id);
+                        return (
+                          <button
+                            key={admin.id}
+                            type="button"
+                            onClick={() => toggleDataEditAdmin(admin)}
+                            className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${selected ? 'border-slate-300 bg-white' : 'border-transparent hover:bg-slate-50'}`}
+                          >
+                            <span className="min-w-0">
+                              <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{admin.name || '—'}</span>
+                              <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{admin.role || 'غير محدد'}</span>
+                            </span>
+                            <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3.5} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex flex-col">
+                  {selectedDrafts.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
+                      <Users size={42} className="text-slate-300 mb-3" />
+                      <p className="font-black text-slate-700">اختر إداريًا أو مجموعة إداريين</p>
+                      <p className="text-xs font-bold text-slate-400 mt-1">ستظهر البيانات القابلة للتعديل هنا مباشرة.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-y-auto custom-scrollbar flex-1">
+                      <table className="w-full table-fixed text-right">
+                        <thead className="sticky top-0 z-10 bg-white border-b border-slate-200">
+                          <tr>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-12 text-center">م</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1]">الاسم</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-44 text-center">الدور</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-36 text-center">رقم الجوال</th>
+                            <th className="p-3 text-xs font-black text-[#655ac1] w-12 text-center"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedDrafts.map((draft, idx) => (
+                            <tr key={draft.id} className="hover:bg-slate-50/60">
+                              <td className="p-3 text-center">
+                                <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">
+                                  {idx + 1}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  value={draft.name}
+                                  onChange={e => updateDataEditDraft(draft.id, { name: e.target.value })}
+                                  className="w-full min-w-0 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <RoleSelectDropdown
+                                  compact
+                                  value={draft.role}
+                                  onChange={v => updateDataEditDraft(draft.id, { role: v })}
+                                  placeholder="اختر الدور"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  value={draft.phone}
+                                  onChange={e => updateDataEditDraft(draft.id, { phone: e.target.value })}
+                                  dir="ltr"
+                                  placeholder="05xxxxxxxx"
+                                  className="w-full min-w-0 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-center text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                                />
+                              </td>
+                              <td className="p-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setDataEditSelectedIds(prev => { const next = new Set(prev); next.delete(draft.id); return next; })}
+                                  className="w-7 h-7 inline-flex items-center justify-center rounded-full bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-sm shadow-rose-500/20"
+                                  title="إزالة من التحديد"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-white">
+                <button
+                  onClick={() => setShowDataEditModal(false)}
+                  className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  إغلاق
+                </button>
+                <button
+                  onClick={handleDataEditSave}
+                  disabled={dataEditSelectedIds.size === 0}
+                  className="min-w-32 px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
+                >
+                  <SaveCheckIcon />
+                  حفظ
+                </button>
+              </div>
+
+              {showDataEditConfirm && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={28} className="text-amber-500 mt-0.5 shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد حفظ التعديلات</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حفظ تعديلات {dataEditSelectedIds.size} إداري. هل تريد المتابعة؟</p>
+                      </div>
+                    </div>
+                    <div className="pt-6 flex gap-3">
+                      <button onClick={() => setShowDataEditConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                      <button onClick={applyDataEditSave} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><SaveCheckIcon /> حفظ</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══════ Delete Selected Modal ══════ */}
+      {deleteSelectedModalOpen && (() => {
+        const qRaw = deleteModalSearch.trim();
+        const q = qRaw.toLowerCase();
+        const filteredForDelete = admins.filter(a => {
+          const matchesSearch = !q
+            || (a.name || '').toLowerCase().includes(q)
+            || (a.phone || '').includes(qRaw);
+          const matchesRole = !deleteModalRoleFilter || a.role === deleteModalRoleFilter;
+          return matchesSearch && matchesRole;
+        }).sort((a, b) => {
+          if ((a.role || '') !== (b.role || '')) return (a.role || '').localeCompare(b.role || '', 'ar');
+          return (a.name || '').localeCompare(b.name || '', 'ar');
+        });
+        const selectedCount = selectedAdminIds.length;
+        const roleAdminCount = deleteModalRoleFilter ? admins.filter(a => a.role === deleteModalRoleFilter).length : 0;
+        const closeModal = () => {
+          setDeleteSelectedModalOpen(false);
+          setDeleteWholeRoleConfirm(false);
+          setShowDeleteSelectedConfirm(false);
+        };
+        const deleteWholeRole = () => {
+          if (!deleteModalRoleFilter) return;
+          const ids = new Set(admins.filter(a => a.role === deleteModalRoleFilter).map(a => a.id));
+          if (ids.size === 0) return;
+          setAdmins(prev => prev.filter(a => !ids.has(a.id)));
+          showToast(`تم حذف ${ids.size} إداري من دور ${deleteModalRoleFilter}`);
+          closeModal();
+        };
+        const deleteSelectedAdmins = () => {
+          const ids = new Set(selectedAdminIds);
+          if (ids.size === 0) return;
+          setAdmins(prev => prev.filter(a => !ids.has(a.id)));
+          showToast(`تم حذف ${ids.size} إداري`);
+          closeModal();
+        };
+        const visibleIds = filteredForDelete.map(a => a.id);
+        const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedAdminIds.includes(id));
+        const toggleSelectAllVisible = () => {
+          if (allVisibleSelected) {
+            setSelectedAdminIds(prev => prev.filter(id => !visibleIds.includes(id)));
+          } else {
+            setSelectedAdminIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+            <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Trash2 size={20} className="text-rose-500" />
+                    حذف محدد
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">ابحث أو فلتر بالدور، ثم حدد الإداريين للحذف.</p>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  title="إغلاق"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-3 shrink-0 border-b border-slate-100 bg-slate-50/40">
+                <div className="relative">
+                  <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={deleteModalSearch}
+                    onChange={e => setDeleteModalSearch(e.target.value)}
+                    placeholder="ابحث باسم الإداري أو رقم الجوال"
+                    className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-rose-300 focus:ring-2 focus:ring-rose-200/40"
+                  />
+                </div>
+                <RoleSelectDropdown
+                  value={deleteModalRoleFilter}
+                  onChange={v => { setDeleteModalRoleFilter(v); setDeleteWholeRoleConfirm(false); }}
+                  placeholder="كل الأدوار"
+                  emptyLabel="كل الأدوار"
+                />
+                {deleteModalRoleFilter && roleAdminCount > 0 && (
+                  deleteWholeRoleConfirm ? (
+                    <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-3 space-y-2">
+                      <p className="text-xs font-black text-rose-700 text-center leading-relaxed">
+                        سيتم حذف <span className="text-sm">{roleAdminCount}</span> إداري بدور {deleteModalRoleFilter}. هل أنت متأكد؟
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setDeleteWholeRoleConfirm(false)}
+                          className="flex-1 px-3 py-2 bg-white border border-slate-300 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50"
+                        >
+                          تراجع
+                        </button>
+                        <button
+                          onClick={deleteWholeRole}
+                          className="flex-1 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-black rounded-lg shadow-sm shadow-rose-500/30"
+                        >
+                          نعم، احذف الكل
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteWholeRoleConfirm(true)}
+                      className="w-full px-4 py-2.5 bg-white border-2 border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={14} />
+                      حذف كامل {deleteModalRoleFilter} ({roleAdminCount})
+                    </button>
+                  )
+                )}
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-white shrink-0">
+                <span className="text-xs font-black text-slate-500">
+                  {filteredForDelete.length} إداري
+                  {selectedCount > 0 && <span className="text-rose-600"> · {selectedCount} محدد</span>}
+                </span>
+                {filteredForDelete.length > 0 && (
+                  <button
+                    onClick={toggleSelectAllVisible}
+                    className="text-[11px] font-black text-rose-500 hover:text-rose-600"
+                  >
+                    {allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-2 min-h-0">
+                {filteredForDelete.length === 0 ? (
+                  <div className="py-12 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                ) : filteredForDelete.map(admin => {
+                  const selected = selectedAdminIds.includes(admin.id);
+                  return (
+                    <button
+                      key={admin.id}
+                      type="button"
+                      onClick={() => setSelectedAdminIds(prev => selected ? prev.filter(id => id !== admin.id) : [...prev, admin.id])}
+                      className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 mb-1 ${selected ? 'border-rose-300 bg-rose-50' : 'border-transparent hover:bg-slate-50'}`}
+                    >
+                      <span className="min-w-0">
+                        <span className={`block text-sm font-black truncate ${selected ? 'text-rose-600' : 'text-slate-700'}`}>{admin.name || '—'}</span>
+                        <span className={`block text-[11px] font-bold truncate ${selected ? 'text-rose-400' : 'text-slate-400'}`}>{admin.role || 'غير محدد'}</span>
+                      </span>
+                      <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="px-5 py-4 border-t border-slate-100 flex gap-3 shrink-0 bg-white">
+                <button
+                  onClick={closeModal}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedCount === 0) return;
+                    if (selectedCount > 1) { setShowDeleteSelectedConfirm(true); return; }
+                    deleteSelectedAdmins();
+                  }}
+                  disabled={selectedCount === 0}
+                  className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-rose-500/20"
+                >
+                  حذف المحدد {selectedCount > 0 ? `(${selectedCount})` : ''}
+                </button>
+              </div>
+
+              {showDeleteSelectedConfirm && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={28} className="text-rose-500 mt-0.5 shrink-0" />
+                      <div>
+                        <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد الحذف</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed">سيتم حذف {selectedCount} إداري. لا يمكن التراجع عن هذا الإجراء.</p>
+                      </div>
+                    </div>
+                    <div className="pt-6 flex gap-3">
+                      <button onClick={() => setShowDeleteSelectedConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
+                      <button onClick={deleteSelectedAdmins} className="flex-1 py-3 bg-rose-500 text-white font-black text-sm rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all">نعم، احذف</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
