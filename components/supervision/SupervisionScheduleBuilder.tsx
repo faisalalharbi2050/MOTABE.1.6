@@ -1156,8 +1156,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               {locationModalView !== 'cards' && (
                 <button
                   onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
                 >
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                    <Check size={13} strokeWidth={3.2} className="text-white" />
+                  </span>
                   حفظ
                 </button>
               )}
@@ -1442,8 +1445,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </button>
               <button
                 onClick={saveSelectedStaff}
-                className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
+                className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
               >
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
                 حفظ{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
               </button>
             </div>
@@ -1566,8 +1572,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   setFollowUpSupervisor(showFollowUpPicker, selected.id, selected.name);
                 }}
                 disabled={!selectedFollowUpId}
-                className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
                 حفظ
               </button>
             </div>

@@ -215,7 +215,12 @@ const TimingPopup: React.FC<Props> = ({ schoolInfo, setSchoolInfo, onClose, show
           ) : <span />}
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose} className="border">تخطي الآن</Button>
-            <Button variant="primary" icon={Check} onClick={handleSave}>حفظ التوقيت</Button>
+            <Button variant="primary" onClick={handleSave}>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                <Check size={13} strokeWidth={3.2} className="text-white" />
+              </span>
+              حفظ التوقيت
+            </Button>
           </div>
         </div>
       </div>
