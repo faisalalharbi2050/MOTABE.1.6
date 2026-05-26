@@ -34,7 +34,6 @@ import {
   ChevronLeft,
   ChevronRight,
   School,
-  BookOpen,
   Layers,
   LayoutGrid,
   UserCog,
@@ -62,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Auto-expand if a sub-item is active
   React.useEffect(() => {
-    const scheduleTabs = ['manual', 'schedule_v2'];
+    const scheduleTabs = ['manual_v2', 'schedule_v2'];
     if (scheduleTabs.includes(activeTab)) {
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
@@ -336,8 +335,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                <div className="flex flex-col pt-2 gap-2">
 
                   <SubNavItem
-                     active={activeTab === "manual"}
-                     onClick={() => handleTabClick("manual")}
+                     active={activeTab === "manual_v2"}
+                     onClick={() => handleTabClick("manual_v2")}
                      label="إسناد المواد"
                      icon={<ClipboardList size={18} />}
                      inverted={true}

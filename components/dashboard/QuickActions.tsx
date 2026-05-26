@@ -43,7 +43,7 @@ const ROWS = [
     { label: 'إضافة انتظار',    icon: UserX,         tab: 'daily_waiting', action: 'add_waiting',        rotate: false },
   ],
   [
-    { label: 'إسناد المواد',    icon: ClipboardList, tab: 'manual',        action: undefined,            rotate: false },
+    { label: 'إسناد المواد',    icon: ClipboardList, tab: 'manual_v2',     action: undefined,            rotate: false },
     { label: 'جدول الحصص',      icon: CalendarCheck, tab: 'schedule_v2',   action: 'open_schedule_view', rotate: false },
   ],
   [

@@ -18,7 +18,7 @@ export const MODULES = [
     id: 'schedule',
     name: 'الجدول المدرسي',
     submodules: [
-      { id: 'manual',           name: 'إسناد المواد'          },
+      { id: 'manual_v2',        name: 'إسناد المواد'          },
     ],
   },
   {

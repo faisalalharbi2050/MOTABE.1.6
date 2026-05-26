@@ -20,7 +20,7 @@ import TimingSettings from './components/settings/TimingSettings';
 import ScheduleV2Container from './components/schedule-v2/ScheduleV2Container';
 
 
-import ManualAssignment from './components/ManualAssignment';
+import AssignmentPage from './components/Assignment/Assignment';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -292,7 +292,7 @@ const App: React.FC = () => {
     teacherConstraints: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual' | 'schedule_v2' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual_v2' | 'schedule_v2' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
     // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -476,7 +476,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     // Subscription Lock Logic
     const isSubscriptionActive = new Date(subscription.endDate).getTime() >= new Date().getTime();
-    const lockedTabs = ['manual', 'schedule_v2', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
+    const lockedTabs = ['manual_v2', 'schedule_v2', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
     
     if (!isSubscriptionActive && lockedTabs.includes(activeTab as string)) {
       return (
@@ -527,7 +527,7 @@ const App: React.FC = () => {
       case 'settings_admins': return <Step7Admins admins={admins} setAdmins={setAdmins} schoolInfo={schoolInfo} />;
 
       // Schedule Section
-      case 'manual': return <ManualAssignment teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
+      case 'manual_v2': return <AssignmentPage teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
       case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }} />;
 
       // Supervision and Duty
