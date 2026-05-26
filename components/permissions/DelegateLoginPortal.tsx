@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowRight,
+  Check,
   CheckCircle2,
   Eye,
   EyeOff,
@@ -310,7 +311,9 @@ export default function DelegateLoginPortal({ onSuccess, onCancel }: Props) {
                 onClick={handleSetupAccount}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#655ac1] py-4 font-bold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-600"
               >
-                <CheckCircle2 size={20} />
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
                 حفظ وإنهاء الإعداد
               </button>
             </div>

@@ -732,7 +732,9 @@ export default function AddDelegate({ onSimulateLogin }: AddDelegateProps) {
               disabled={!selectedStaffId || !selectedStaffInfo?.phone}
               className="px-8 py-3 bg-[#655ac1] hover:bg-[#655ac1] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-200 text-white rounded-xl font-bold shadow-md shadow-indigo-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              <CheckCircle2 size={20} />
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                <Check size={13} strokeWidth={3.2} className="text-white" />
+              </span>
               مراجعة وتأكيد
             </button>
           </div>

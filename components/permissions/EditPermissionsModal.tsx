@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ListChecks, Check, AlertCircle, Save, Sparkles, ChevronLeft } from 'lucide-react';
+import { X, ListChecks, Check, AlertCircle, Sparkles, ChevronLeft } from 'lucide-react';
 import { Delegate, ModulePermission, PermissionLevel } from '../../types';
 import { MODULES, ACTIONS, ALL_ACTION_IDS, createFullPermissions, isFullPermissions } from './permissionsConfig';
 
@@ -271,7 +271,10 @@ export default function EditPermissionsModal({ delegate, onSave, onClose }: Prop
             onClick={handleSave}
             className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-indigo-600 text-white rounded-xl font-bold transition-colors shadow-md shadow-indigo-200 flex items-center justify-center gap-2"
           >
-            <Save size={17} /> حفظ التعديلات
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+              <Check size={13} strokeWidth={3.2} className="text-white" />
+            </span>
+            حفظ التعديلات
           </button>
         </div>
       </div>

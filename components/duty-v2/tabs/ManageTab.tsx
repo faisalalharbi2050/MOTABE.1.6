@@ -238,7 +238,10 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
                       <td className="px-6 py-3.5">
                         {isEditing ? (
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => saveName(schedule)} className="px-3 py-1.5 text-xs font-bold text-white rounded-lg bg-[#655ac1]">
+                            <button onClick={() => saveName(schedule)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white rounded-lg bg-[#655ac1]">
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                                <Check size={13} strokeWidth={3.2} className="text-white" />
+                              </span>
                               حفظ
                             </button>
                             <button
