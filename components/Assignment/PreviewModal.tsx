@@ -27,12 +27,13 @@ const PreviewModal: React.FC<Props> = ({
   const schoolLabel = activeSchoolTab === 'main'
     ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
     : (sharedSchools.find(s => s.id === activeSchoolTab)?.name || activeSchoolTab);
+  const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
 
   // ── إسنادات المدرسة الحالية فقط ──
   const schoolAssignments = useMemo(() => {
     return assignments.filter(a => {
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === activeSchoolTab;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
     });
   }, [assignments, classes, activeSchoolTab]);
 

@@ -116,6 +116,10 @@ const AssignmentPage: React.FC<Props> = ({
     return c.schoolId === activeSchoolTab;
   };
 
+  const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => {
+    return !!c && (!c.type || c.type === 'class');
+  };
+
   const isTeacherInCurrentSchool = (t: { schoolId?: string; isShared?: boolean; schools?: { schoolId: string }[] }) => {
     if (!hasSharedSchools) return true;
     if (t.isShared) {
@@ -137,7 +141,11 @@ const AssignmentPage: React.FC<Props> = ({
   };
 
   const getTeacherLoad = (tId: string, source: Assignment[] = assignments) => {
-    return source.filter(a => a.teacherId === tId).reduce((total, a) => {
+    return source.filter(a => {
+      if (a.teacherId !== tId) return false;
+      const cls = classes.find(c => c.id === a.classId);
+      return isAssignableClass(cls);
+    }).reduce((total, a) => {
       const sub = subjects.find(s => s.id === a.subjectId);
       return total + (sub?.periodsPerClass || 0);
     }, 0);
@@ -147,7 +155,7 @@ const AssignmentPage: React.FC<Props> = ({
     return source.filter(a => {
       if (a.teacherId !== tId) return false;
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === schoolId;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === schoolId;
     }).reduce((total, a) => {
       const sub = subjects.find(s => s.id === a.subjectId);
       return total + (sub?.periodsPerClass || 0);
@@ -193,7 +201,7 @@ const AssignmentPage: React.FC<Props> = ({
     let assignedPeriods = 0, assignedSubjects = 0;
     let unassignedClasses = 0;
     classes
-      .filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c))
+      .filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c))
       .forEach(cls => {
         const relevant = subjects.filter(s =>
           !s.isArchived &&
@@ -238,7 +246,7 @@ const AssignmentPage: React.FC<Props> = ({
   const activeGrades = useMemo(() => {
     const grades = new Set<number>();
     classes.forEach(c => {
-      if (currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)) grades.add(c.grade);
+      if (isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)) grades.add(c.grade);
     });
     return Array.from(grades).sort((a, b) => a - b);
   }, [classes, currentSchoolPhases, activeSchoolTab]);
@@ -248,12 +256,12 @@ const AssignmentPage: React.FC<Props> = ({
       const phaseMatch = currentSchoolPhases.includes(c.phase);
       const schoolMatch = isClassInCurrentSchool(c);
       const gradeMatch = selectedGrades.length === 0 || selectedGrades.includes(c.grade);
-      return phaseMatch && schoolMatch && gradeMatch;
+      return isAssignableClass(c) && phaseMatch && schoolMatch && gradeMatch;
     });
   }, [classes, currentSchoolPhases, selectedGrades, activeSchoolTab]);
 
   const currentSchoolClassCount = useMemo(() => {
-    return classes.filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)).length;
+    return classes.filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)).length;
   }, [classes, currentSchoolPhases, activeSchoolTab]);
 
   const displayedGrades = useMemo(() => {
@@ -262,7 +270,7 @@ const AssignmentPage: React.FC<Props> = ({
       const g = new Set<number>();
       selectedClassIds.forEach(id => {
         const c = classes.find(x => x.id === id);
-        if (c) g.add(c.grade);
+        if (isAssignableClass(c)) g.add(c.grade);
       });
       return Array.from(g).sort((a, b) => a - b);
     }
@@ -270,7 +278,7 @@ const AssignmentPage: React.FC<Props> = ({
   }, [selectedGrades, selectedClassIds, activeGrades, classes]);
 
   const displayedClasses = (grade: number) => {
-    let g = classes.filter(c => currentSchoolPhases.includes(c.phase) && c.grade === grade && isClassInCurrentSchool(c));
+    let g = classes.filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && c.grade === grade && isClassInCurrentSchool(c));
     if (selectedClassIds.length > 0) g = g.filter(c => selectedClassIds.includes(c.id));
     return g;
   };
@@ -319,7 +327,7 @@ const AssignmentPage: React.FC<Props> = ({
     const removed = assignments.filter(a => {
       if (!subjectIds.includes(a.subjectId)) return false;
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === activeSchoolTab;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
     });
     if (removed.length === 0) {
       setShowDeleteBySubject(false);
@@ -342,7 +350,7 @@ const AssignmentPage: React.FC<Props> = ({
     const removed = assignments.filter(a => {
       if (!teacherIds.includes(a.teacherId)) return false;
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === activeSchoolTab;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
     });
     if (removed.length === 0) {
       setShowDeleteByTeacher(false);
@@ -391,7 +399,7 @@ const AssignmentPage: React.FC<Props> = ({
     const sourceAssns = assignments.filter(a => {
       if (a.teacherId !== source.id) return false;
       const cls = classes.find(c => c.id === a.classId);
-      if ((cls?.schoolId || 'main') !== activeSchoolTab) return false;
+      if (!isAssignableClass(cls) || (cls?.schoolId || 'main') !== activeSchoolTab) return false;
       return selectedKeys.has(`${a.classId}::${a.subjectId}`);
     });
     if (sourceAssns.length === 0) {
@@ -410,7 +418,7 @@ const AssignmentPage: React.FC<Props> = ({
       const next = assignments.map(a => {
         if (a.teacherId !== source.id) return a;
         const cls = classes.find(c => c.id === a.classId);
-        if ((cls?.schoolId || 'main') !== activeSchoolTab) return a;
+        if (!isAssignableClass(cls) || (cls?.schoolId || 'main') !== activeSchoolTab) return a;
         if (!selectedKeys.has(`${a.classId}::${a.subjectId}`)) return a;
         return { ...a, teacherId: target.id };
       });
@@ -467,6 +475,10 @@ const AssignmentPage: React.FC<Props> = ({
     const existing = assignments.find(a => a.classId === classId && a.subjectId === subjectId);
     const cls = classes.find(c => c.id === classId);
     const sub = subjects.find(s => s.id === subjectId);
+    if (!isAssignableClass(cls)) {
+      showToast('لا يمكن إسناد المواد للمعامل أو المرافق', 'warning');
+      return;
+    }
     if (!selectedTeacherId) {
       if (existing) {
         const t = teachers.find(x => x.id === existing.teacherId);
@@ -529,7 +541,7 @@ const AssignmentPage: React.FC<Props> = ({
   const handleUnassign = (classId: string, subjectId: string) => {
     const cls = classes.find(c => c.id === classId);
     const sub = subjects.find(s => s.id === subjectId);
-    if (!cls || !sub) return;
+    if (!cls || !sub || !isAssignableClass(cls)) return;
     const assignment = assignments.find(a => a.classId === classId && a.subjectId === subjectId);
     if (!assignment || assignment.teacherId !== selectedTeacherId) {
       showToast('اختر المعلم المسندة له المادة قبل إلغاء الإسناد', 'warning');
@@ -542,7 +554,7 @@ const AssignmentPage: React.FC<Props> = ({
     const currentSchool = activeSchoolTab;
     const currentAssns = assignments.filter(a => {
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === currentSchool;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === currentSchool;
     });
     if (currentAssns.length === 0) {
       showToast('لا توجد إسنادات للحذف', 'info');
@@ -559,7 +571,7 @@ const AssignmentPage: React.FC<Props> = ({
       onConfirm: () => {
         const next = assignments.filter(a => {
           const cls = classes.find(c => c.id === a.classId);
-          return (cls?.schoolId || 'main') !== currentSchool;
+          return !isAssignableClass(cls) || (cls?.schoolId || 'main') !== currentSchool;
         });
         applyChangeWithUndo(`حذف الكل في ${schoolLabel} (${currentAssns.length} إسناد)`, next);
       },
@@ -876,7 +888,10 @@ const AssignmentPage: React.FC<Props> = ({
                   const sname = (entry as any).schoolName || (sid === 'main' ? (schoolInfo.schoolName || 'المدرسة الرئيسية') : (sharedSchools.find(s => s.id === sid)?.name || sid));
                   const sQuota = sid === originalId ? (((entry as any).lessons || t.quotaLimit || 0)) : ((entry as any).lessons || 0);
                   const sLoad = assignments
-                    .filter(a => a.teacherId === t.id && (classes.find(c => c.id === a.classId)?.schoolId || 'main') === sid)
+                    .filter(a => {
+                      const cls = classes.find(c => c.id === a.classId);
+                      return a.teacherId === t.id && isAssignableClass(cls) && (cls?.schoolId || 'main') === sid;
+                    })
                     .reduce((sum, a) => sum + (subjects.find(x => x.id === a.subjectId)?.periodsPerClass || 0), 0);
                   sharedSchoolsArr.push({ id: sid, name: sname, quota: sQuota, load: sLoad });
                 });

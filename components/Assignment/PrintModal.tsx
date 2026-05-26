@@ -38,6 +38,7 @@ const PrintModal: React.FC<Props> = ({
     if (activeSchoolTab === 'main') return !c.schoolId || c.schoolId === 'main';
     return c.schoolId === activeSchoolTab;
   };
+  const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
 
   const isTeacherInCurrentSchool = (t: Teacher) => {
     if (t.isShared) {
@@ -61,13 +62,13 @@ const PrintModal: React.FC<Props> = ({
   const schoolAssignments = useMemo(() =>
     assignments.filter(a => {
       const cls = classes.find(c => c.id === a.classId);
-      return cls ? isClassInCurrentSchool(cls) : false;
+      return isAssignableClass(cls) && isClassInCurrentSchool(cls);
     }), [assignments, classes, activeSchoolTab]);
 
   const schoolTeachers = useMemo(() =>
     teachers.filter(isTeacherInCurrentSchool), [teachers, activeSchoolTab]);
   const schoolClasses = useMemo(() =>
-    classes.filter(c => currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)),
+    classes.filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c)),
     [classes, currentSchoolPhases, activeSchoolTab]);
 
   // المواد المستخدمة فعلًا في إسنادات المدرسة الحالية

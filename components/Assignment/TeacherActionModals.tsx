@@ -8,6 +8,8 @@ const SaveCheckIcon = ({ className = 'bg-[#655ac1]' }: { className?: string }) =
   </span>
 );
 
+const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
+
 const getTeacherLessonQuota = (teacher: Teacher, schoolId?: string) => {
   const originalSchoolId = teacher.schoolId || 'main';
   if ((teacher.isShared || teacher.schools?.length) && schoolId) {
@@ -34,8 +36,36 @@ const getTeacherLoadForSchool = (
 ) => assignments.filter(a => {
   if (a.teacherId !== teacherId) return false;
   const cls = classes.find(c => c.id === a.classId);
-  return (cls?.schoolId || 'main') === schoolId;
+  return isAssignableClass(cls) && (cls?.schoolId || 'main') === schoolId;
 }).reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+
+const getTeacherTotalLoad = (
+  teacherId: string,
+  assignments: Assignment[],
+  classes: ClassInfo[],
+  subjects: Subject[],
+) => assignments.filter(a => {
+  if (a.teacherId !== teacherId) return false;
+  const cls = classes.find(c => c.id === a.classId);
+  return isAssignableClass(cls);
+}).reduce((sum, a) => {
+  const sub = subjects.find(s => s.id === a.subjectId);
+  return sum + (sub?.periodsPerClass || 0);
+}, 0);
+
+const getTeacherEffectiveLoad = (
+  teacher: Teacher,
+  schoolId: string,
+  assignments: Assignment[],
+  classes: ClassInfo[],
+  subjects: Subject[],
+) => teacher.isShared
+  ? getTeacherTotalLoad(teacher.id, assignments, classes, subjects)
+  : getTeacherLoadForSchool(teacher.id, schoolId, assignments, classes, subjects);
+
+const getTeacherEffectiveQuota = (teacher: Teacher, schoolId: string) => {
+  return teacher.isShared ? getTeacherLessonQuota(teacher) : getTeacherLessonQuota(teacher, schoolId);
+};
 
 // ═══════════════════════════════════════════════════════════════
 //   مودال تفاصيل إسناد المعلم
@@ -58,8 +88,12 @@ export const TeacherDetailsModal: React.FC<DetailsProps> = ({
   const spec = specializations.find(s => s.id === teacher.specializationId)?.name || 'عام';
 
   const teacherAssignments = useMemo(
-    () => assignments.filter(a => a.teacherId === teacher.id),
-    [assignments, teacher.id]
+    () => assignments.filter(a => {
+      if (a.teacherId !== teacher.id) return false;
+      const cls = classes.find(c => c.id === a.classId);
+      return isAssignableClass(cls);
+    }),
+    [assignments, classes, teacher.id]
   );
 
   const getSchoolName = (sid: string) => {
@@ -92,28 +126,6 @@ export const TeacherDetailsModal: React.FC<DetailsProps> = ({
   return sum + (sub?.periodsPerClass || 0);
 }, 0);
 
-const getTeacherTotalLoad = (
-  teacherId: string,
-  assignments: Assignment[],
-  subjects: Subject[],
-) => assignments.filter(a => a.teacherId === teacherId).reduce((sum, a) => {
-  const sub = subjects.find(s => s.id === a.subjectId);
-  return sum + (sub?.periodsPerClass || 0);
-}, 0);
-
-const getTeacherEffectiveLoad = (
-  teacher: Teacher,
-  schoolId: string,
-  assignments: Assignment[],
-  classes: ClassInfo[],
-  subjects: Subject[],
-) => teacher.isShared
-  ? getTeacherTotalLoad(teacher.id, assignments, subjects)
-  : getTeacherLoadForSchool(teacher.id, schoolId, assignments, classes, subjects);
-
-const getTeacherEffectiveQuota = (teacher: Teacher, schoolId: string) => {
-  return teacher.isShared ? getTeacherLessonQuota(teacher) : getTeacherLessonQuota(teacher, schoolId);
-};
       return {
         sid,
         schoolName: getSchoolName(sid),
@@ -314,7 +326,7 @@ export const TransferTeacherModal: React.FC<TransferProps> = ({
     assignments.filter(a => {
       if (a.teacherId !== sourceTeacher.id) return false;
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === activeSchoolTab;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
     }), [assignments, classes, sourceTeacher.id, activeSchoolTab]);
 
   // المواد والفصول المتاحة من إسنادات المصدر
@@ -324,7 +336,7 @@ export const TransferTeacherModal: React.FC<TransferProps> = ({
   }, [sourceAssns, subjects]);
   const availableClasses = useMemo(() => {
     const ids = new Set(sourceAssns.map(a => a.classId));
-    return classes.filter(c => ids.has(c.id));
+    return classes.filter(c => isAssignableClass(c) && ids.has(c.id));
   }, [sourceAssns, classes]);
 
   // الإسنادات المختارة فعليًا للنقل

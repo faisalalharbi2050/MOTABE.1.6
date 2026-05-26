@@ -19,12 +19,13 @@ export const DeleteBySubjectModal: React.FC<DeleteBySubjectProps> = ({
   subjects, classes, assignments, activeSchoolTab, onConfirm, onClose,
 }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
 
   // المواد المُستخدمة في إسنادات المدرسة الحالية فقط
   const schoolAssignments = useMemo(() =>
     assignments.filter(a => {
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === activeSchoolTab;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
     }), [assignments, classes, activeSchoolTab]);
 
   const usedSubjects = useMemo(() => {
@@ -165,11 +166,12 @@ export const DeleteByTeacherModal: React.FC<DeleteByTeacherProps> = ({
 }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
+  const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
 
   const schoolAssignments = useMemo(() =>
     assignments.filter(a => {
       const cls = classes.find(c => c.id === a.classId);
-      return (cls?.schoolId || 'main') === activeSchoolTab;
+      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
     }), [assignments, classes, activeSchoolTab]);
 
   const teachersWithAssignments = useMemo(() => {
