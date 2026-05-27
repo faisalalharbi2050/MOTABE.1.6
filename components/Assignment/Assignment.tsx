@@ -564,9 +564,9 @@ const AssignmentPage: React.FC<Props> = ({
       ? (schoolInfo.schoolName || 'المدرسة الرئيسية')
       : (sharedSchools.find(s => s.id === currentSchool)?.name || currentSchool);
     setConfirmDialog({
-      title: 'حذف جميع الإسنادات',
+      title: 'حذف كل الإسنادات',
       message: `سيتم حذف جميع الإسنادات في "${schoolLabel}" نهائيًا. إسنادات المدارس الأخرى لن تتأثر. لا يمكن التراجع عن هذا الإجراء.`,
-      confirmLabel: 'حذف الكل',
+      confirmLabel: 'حذف كل الإسنادات',
       type: 'danger',
       onConfirm: () => {
         const next = assignments.filter(a => {
@@ -724,8 +724,7 @@ const AssignmentPage: React.FC<Props> = ({
                     className="w-full text-right px-3 py-2.5 rounded-xl text-xs font-bold transition-colors hover:bg-slate-50 text-slate-700 flex items-center gap-2"
                   >
                     <div className="flex-1">
-                      <div className="text-xs font-black text-slate-800">حذف حسب المادة</div>
-                      <div className="text-[10px] font-bold text-slate-400 mt-0.5">احذف كل إسنادات مادة معيّنة</div>
+                      <div className="text-xs font-black text-slate-800">حذف إسنادات مادة</div>
                     </div>
                     <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white inline-flex items-center justify-center shrink-0">
                       <Check size={12} strokeWidth={3.5} className="text-transparent" />
@@ -736,8 +735,7 @@ const AssignmentPage: React.FC<Props> = ({
                     className="w-full text-right px-3 py-2.5 rounded-xl text-xs font-bold transition-colors hover:bg-slate-50 text-slate-700 flex items-center gap-2"
                   >
                     <div className="flex-1">
-                      <div className="text-xs font-black text-slate-800">حذف حسب المعلم</div>
-                      <div className="text-[10px] font-bold text-slate-400 mt-0.5">احذف كل إسنادات معلم معيّن</div>
+                      <div className="text-xs font-black text-slate-800">حذف إسنادات معلم</div>
                     </div>
                     <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white inline-flex items-center justify-center shrink-0">
                       <Check size={12} strokeWidth={3.5} className="text-transparent" />
@@ -750,8 +748,7 @@ const AssignmentPage: React.FC<Props> = ({
                     className="w-full text-right px-3 py-2.5 rounded-xl text-xs font-bold transition-colors hover:bg-rose-50 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white flex items-center gap-2"
                   >
                     <div className="flex-1">
-                      <div className="text-xs font-black text-rose-600">حذف الكل</div>
-                      <div className="text-[10px] font-bold text-slate-400 mt-0.5">احذف كل إسنادات المدرسة الحالية</div>
+                      <div className="text-xs font-black text-rose-600">حذف كل الإسنادات</div>
                     </div>
                     <Trash2 size={16} className="text-rose-500 shrink-0" />
                   </button>

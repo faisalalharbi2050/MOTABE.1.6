@@ -177,18 +177,17 @@ const DutySettingsPage: React.FC<Props> = ({
                       اختر الأسابيع التي ستوزّع فيها المناوبة
                     </p>
                     <div className="flex gap-2">
-                      <button
-                        onClick={selectAllWeeks}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white text-[#655ac1] border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
-                      >
-                        اختيار الكل
-                      </button>
-                      <button
-                        onClick={clearAllWeeks}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white text-[#655ac1] border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
-                      >
-                        إلغاء الكل
-                      </button>
+                      {(() => {
+                        const allSelected = allWeeks.length > 0 && allWeeks.every(w => selectedWeeks.includes(w));
+                        return (
+                          <button
+                            onClick={allSelected ? clearAllWeeks : selectAllWeeks}
+                            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white text-[#655ac1] border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                          >
+                            {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
 

@@ -533,8 +533,8 @@ const OptionalColumnButton: React.FC<{
     className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-white border-slate-200 hover:border-slate-300 ${active ? 'text-[#655ac1]' : 'text-slate-500'}`}
   >
     <span>{label}</span>
-    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-      <Check size={12} strokeWidth={3.5} />
+    <span className={`w-4 h-4 rounded-full border-2 inline-flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+      <Check size={10} strokeWidth={3.5} />
     </span>
   </button>
 );

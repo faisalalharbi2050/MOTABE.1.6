@@ -272,7 +272,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
 
   // ── Print ────────────────────────────────────────────────────
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printScope, setPrintScope] = useState<'all' | 'role'>('all');
+  const [printScope, setPrintScope] = useState<'all' | 'role' | ''>('all');
   const [printRole, setPrintRole] = useState('');
 
   // ── Role cards order ─────────────────────────────────────────
@@ -1642,7 +1642,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
             </div>
             <div className="px-6 py-5 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
               <button
-                onClick={() => setPrintScope('all')}
+                onClick={() => setPrintScope(printScope === 'all' ? '' : 'all')}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'all' ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <span>طباعة الكل</span>
@@ -1651,7 +1651,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                 </span>
               </button>
               <button
-                onClick={() => setPrintScope('role')}
+                onClick={() => setPrintScope(printScope === 'role' ? '' : 'role')}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'role' ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <span>طباعة دور محدد</span>
@@ -1669,7 +1669,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                         <button
                           type="button"
                           key={role}
-                          onClick={() => setPrintRole(role)}
+                          onClick={() => setPrintRole(on ? '' : role)}
                           className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-slate-200 text-[#655ac1]' : 'border-slate-100 hover:border-slate-300'}`}
                         >
                           <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-2 border-slate-300 text-transparent'}`}>
@@ -1689,7 +1689,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
               </button>
               <button
                 onClick={executePrint}
-                disabled={printScope === 'role' && !printRole}
+                disabled={!printScope || (printScope === 'role' && !printRole)}
                 className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 طباعة

@@ -541,7 +541,7 @@ const ClassesView: React.FC<{
                     <td className="px-4 py-3 text-center">
                       <span className="text-sm font-black text-[#655ac1] tabular-nums">{r.subject.periodsPerClass}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-slate-700">
+                    <td className="px-4 py-3 text-xs font-bold text-slate-700">
                       {r.teacher ? r.teacher.name : <span className="text-[11px] font-black text-rose-600">غير مسندة</span>}
                     </td>
                   </tr>

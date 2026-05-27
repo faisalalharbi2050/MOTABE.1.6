@@ -3158,28 +3158,19 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     />
                   </div>
                   <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
-                    <button
-                      type="button"
-                      onClick={() => setRptSelectedWeekNumbers(new Set(academicWeeks.map(w => w.number)))}
-                      className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
-                    >
-                      تحديد الكل
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRptSelectedWeekNumbers(new Set())}
-                      className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
-                    >
-                      إلغاء التحديد
-                    </button>
-                    <div className="flex-1" />
-                    <button
-                      type="button"
-                      onClick={() => setRptWeekDropdownOpen(false)}
-                      className="text-xs font-bold text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                    >
-                      تم
-                    </button>
+                    {(() => {
+                      const allWeekNums = academicWeeks.map(w => w.number);
+                      const allSelected = allWeekNums.length > 0 && allWeekNums.every(n => rptSelectedWeekNumbers.has(n));
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setRptSelectedWeekNumbers(allSelected ? new Set() : new Set(allWeekNums))}
+                          className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                        >
+                          {allSelected ? 'إلغاء الكل' : 'تحديد الكل'}
+                        </button>
+                      );
+                    })()}
                   </div>
                   <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
                     {filteredWeeks.length === 0 ? (
@@ -3763,7 +3754,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               type="button"
               onClick={printWaitingBalance}
               disabled={balanceRows.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#5448a8] hover:border-[#5448a8] hover:text-white transition-all disabled:opacity-50"
             >
               <Printer size={15} />
               طباعة رصيد الانتظار
@@ -3771,7 +3762,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <button
               type="button"
               onClick={() => setShowBalanceResetConfirm(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#5448a8] hover:border-[#5448a8] hover:text-white transition-all"
             >
               <RefreshCw size={15} />
               إعادة ضبط

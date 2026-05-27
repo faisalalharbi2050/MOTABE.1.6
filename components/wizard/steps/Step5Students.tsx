@@ -2012,7 +2012,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   return (
                     <button
                       key={opt.value}
-                      onClick={() => setPrintSelection({ type: opt.value, gradeValue: '', classId: '' })}
+                      onClick={() => setPrintSelection(on ? { type: '' as any, gradeValue: '', classId: '' } : { type: opt.value, gradeValue: '', classId: '' })}
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${on ? 'border-slate-200 text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                     >
                       <span>{opt.label}</span>

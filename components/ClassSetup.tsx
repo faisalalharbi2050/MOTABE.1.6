@@ -419,6 +419,8 @@ const ClassSetup: React.FC<Props> = ({
           <Plus size={18} /> إنشاء الفصول
         </button>
 
+        <div className="w-px h-8 bg-slate-200 mx-1" />
+
         {/* Bulk action bar */}
         <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
           <span className="text-xs text-slate-400 font-bold ml-2 pl-2 border-l border-slate-100">

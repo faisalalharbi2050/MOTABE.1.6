@@ -326,7 +326,13 @@ const TargetTeachersDropdown: React.FC<{
               className="w-full pr-9 pl-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#655ac1]/40"
             />
           </div>
-          <div className="flex justify-end mb-2 shrink-0">
+          <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-black">
+              <span className="text-slate-500">المعلمون</span>
+              <span className="text-slate-800">{filtered.length}</span>
+              <span className="w-px h-3.5 bg-slate-200" />
+              <span className="text-[#655ac1]">المحدد {selected.length}</span>
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -480,7 +486,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const [deleteSelectedTeacherIds, setDeleteSelectedTeacherIds] = useState<string[]>([]);
   const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printScope, setPrintScope] = useState<'all' | 'spec'>('all');
+  const [printScope, setPrintScope] = useState<'all' | 'spec' | ''>('all');
   const [printSpecId, setPrintSpecId] = useState('');
 
   // Action Dropdown State
@@ -2190,14 +2196,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 </h3>
                 <p className="text-xs text-slate-400 font-bold mt-1">اختر نطاق الطباعة المطلوب.</p>
               </div>
-              <button onClick={() => setShowPrintModal(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+              <button onClick={() => setShowPrintModal(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="إغلاق">
                 <X size={18} />
               </button>
             </div>
             <div className="px-6 py-5 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
               <button
-                onClick={() => setPrintScope('all')}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'all' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                onClick={() => setPrintScope(printScope === 'all' ? '' as any : 'all')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'all' ? 'border-slate-300 text-[#655ac1] bg-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <span>طباعة الكل</span>
                 <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'all' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
@@ -2205,8 +2211,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                 </span>
               </button>
               <button
-                onClick={() => setPrintScope('spec')}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'spec' ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                onClick={() => setPrintScope(printScope === 'spec' ? '' as any : 'spec')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-black transition-all ${printScope === 'spec' ? 'border-slate-300 text-[#655ac1] bg-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 <span>طباعة تخصص محدد</span>
                 <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center ${printScope === 'spec' ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
@@ -2223,13 +2229,13 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         <button
                           type="button"
                           key={id}
-                          onClick={() => setPrintSpecId(id)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-[#655ac1]' : 'border-slate-100 hover:border-[#655ac1]/40'}`}
+                          onClick={() => setPrintSpecId(on ? '' : id)}
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-right ${on ? 'border-slate-300 bg-white' : 'border-slate-100 hover:border-[#655ac1]/40'}`}
                         >
                           <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-all shrink-0 ${on ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-2 border-slate-300 text-transparent'}`}>
                             {on && <Check size={12} strokeWidth={3.5} />}
                           </span>
-                          <span className="text-sm font-bold text-slate-700">{getSpecializationName(id)}</span>
+                          <span className={`text-sm font-bold ${on ? 'text-[#655ac1]' : 'text-slate-700'}`}>{getSpecializationName(id)}</span>
                         </button>
                       );
                     })}
@@ -2243,7 +2249,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               </button>
               <button
                 onClick={executePrint}
-                disabled={printScope === 'spec' && !printSpecId}
+                disabled={!printScope || (printScope === 'spec' && !printSpecId)}
                 className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 طباعة
@@ -2669,17 +2675,12 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                      </div>
 
                      {/* Footer */}
-                     <div className="p-6 bg-white flex gap-3 border-t border-slate-100">
-                         <div className="flex-1 flex items-center gap-2 text-xs font-bold text-slate-500">
-                             <span>تم تحديد:</span>
-                             <span className="bg-[#655ac1] text-white px-2 py-0.5 rounded-md">
-                               {copyTargetCount}
-                             </span>
-                             <span>معلم</span>
-                             {copyTargetCount > 0 && copyOptions.basic && copyOptions.waiting && (copyMode === 'manual' ? manualQuotaValues.basic + manualQuotaValues.waiting : sourceTeacher ? getSchoolQuota(sourceTeacher).total : 0) > 24 && (
-                               <span className="mr-2 text-amber-700">الإجمالي يتجاوز 24</span>
-                             )}
-                         </div>
+                     <div className="p-6 bg-white flex gap-3 border-t border-slate-100 justify-end">
+                         {copyTargetCount > 0 && copyOptions.basic && copyOptions.waiting && (copyMode === 'manual' ? manualQuotaValues.basic + manualQuotaValues.waiting : sourceTeacher ? getSchoolQuota(sourceTeacher).total : 0) > 24 && (
+                           <div className="flex-1 flex items-center text-xs font-bold text-amber-700">
+                             الإجمالي يتجاوز 24
+                           </div>
+                         )}
                          <button
                              onClick={() => setShowCopyModal(false)}
                              className="px-6 py-3 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all"

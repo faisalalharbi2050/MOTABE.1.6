@@ -471,15 +471,18 @@ export const TransferTeacherModal: React.FC<TransferProps> = ({
           </div>
 
           {/* بحث عن المعلم البديل */}
-          <div className="relative mt-3">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="ابحث عن المعلم البديل"
-              className="w-full pr-10 pl-4 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1] outline-none transition-all"
-            />
+          <div className="mt-3 space-y-1.5">
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="ابحث عن المعلم البديل"
+                className="w-full pr-10 pl-4 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1] outline-none transition-all"
+              />
+            </div>
+            <p className="text-xs font-bold text-[#655ac1] px-1">إلى المعلم</p>
           </div>
         </div>
 

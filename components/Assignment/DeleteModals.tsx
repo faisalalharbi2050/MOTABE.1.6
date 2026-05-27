@@ -68,7 +68,7 @@ export const DeleteBySubjectModal: React.FC<DeleteBySubjectProps> = ({
                 <BookOpen size={22} />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-800">حذف حسب المادة</h3>
+                <h3 className="text-lg font-black text-slate-800">حذف إسنادات مادة</h3>
               </div>
             </div>
             <button onClick={onClose} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
@@ -218,7 +218,7 @@ export const DeleteByTeacherModal: React.FC<DeleteByTeacherProps> = ({
                 <Users size={22} />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-800">حذف حسب المعلم</h3>
+                <h3 className="text-lg font-black text-slate-800">حذف إسنادات معلم</h3>
               </div>
             </div>
             <button onClick={onClose} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
