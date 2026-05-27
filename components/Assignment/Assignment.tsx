@@ -323,27 +323,14 @@ const AssignmentPage: React.FC<Props> = ({
     : (sharedSchools.find(s => s.id === activeSchoolTab)?.name || activeSchoolTab);
 
   // ─── handlers: المرحلة 3 ───
-  const handleDeleteBySubjectConfirm = (subjectIds: string[]) => {
-    const removed = assignments.filter(a => {
-      if (!subjectIds.includes(a.subjectId)) return false;
-      const cls = classes.find(c => c.id === a.classId);
-      return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
-    });
-    if (removed.length === 0) {
+  const handleDeleteBySubjectConfirm = (assignmentIds: string[]) => {
+    if (assignmentIds.length === 0) {
       setShowDeleteBySubject(false);
-      showToast('لا توجد إسنادات للحذف', 'info');
       return;
     }
-    setConfirmDialog({
-      title: 'تأكيد حذف الإسنادات',
-      message: `سيتم حذف ${removed.length} إسناد لـ ${subjectIds.length} مادة في "${currentSchoolLabel}". لا يمكن التراجع.`,
-      confirmLabel: 'حذف',
-      type: 'danger',
-      onConfirm: () => {
-        applyChangeWithUndo(`حذف ${removed.length} إسناد حسب المادة`, assignments.filter(a => !removed.includes(a)));
-        setShowDeleteBySubject(false);
-      },
-    });
+    const idSet = new Set(assignmentIds);
+    applyChangeWithUndo(`حذف ${assignmentIds.length} إسناد`, assignments.filter(a => !idSet.has(a.id)));
+    setShowDeleteBySubject(false);
   };
 
   const handleDeleteByTeacherConfirm = (teacherIds: string[]) => {
@@ -724,7 +711,7 @@ const AssignmentPage: React.FC<Props> = ({
                     className="w-full text-right px-3 py-2.5 rounded-xl text-xs font-bold transition-colors hover:bg-slate-50 text-slate-700 flex items-center gap-2"
                   >
                     <div className="flex-1">
-                      <div className="text-xs font-black text-slate-800">حذف إسنادات مادة</div>
+                      <div className="text-xs font-black text-slate-800">حذف إسنادات فصل</div>
                     </div>
                     <span className="w-5 h-5 rounded-full border-2 border-slate-300 bg-white inline-flex items-center justify-center shrink-0">
                       <Check size={12} strokeWidth={3.5} className="text-transparent" />
