@@ -1183,6 +1183,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               <Plus size={16} className={allCurrentSchoolClasses.length === 0 ? 'text-white' : 'text-slate-400'} />
               إنشاء الفصول
             </button>
+
+            <div className="w-px h-8 bg-slate-200 mx-1" />
+
             <button
               dir="rtl"
               onClick={() => setShowGlobalRenameModal(true)}

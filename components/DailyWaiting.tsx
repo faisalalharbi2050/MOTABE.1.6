@@ -3165,9 +3165,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         <button
                           type="button"
                           onClick={() => setRptSelectedWeekNumbers(allSelected ? new Set() : new Set(allWeekNums))}
-                          className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                          className="text-xs font-bold text-slate-600 bg-white border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-colors"
                         >
-                          {allSelected ? 'إلغاء الكل' : 'تحديد الكل'}
+                          {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
                         </button>
                       );
                     })()}
@@ -3754,7 +3754,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               type="button"
               onClick={printWaitingBalance}
               disabled={balanceRows.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#5448a8] hover:border-[#5448a8] hover:text-white transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all disabled:opacity-50"
             >
               <Printer size={15} />
               طباعة رصيد الانتظار
@@ -3762,7 +3762,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <button
               type="button"
               onClick={() => setShowBalanceResetConfirm(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#5448a8] hover:border-[#5448a8] hover:text-white transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all"
             >
               <RefreshCw size={15} />
               إعادة ضبط
