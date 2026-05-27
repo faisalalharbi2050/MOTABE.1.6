@@ -1316,6 +1316,7 @@ const AssignmentPage: React.FC<Props> = ({
           assignments={assignments}
           specializations={specializations}
           schoolInfo={schoolInfo}
+          gradeSubjectMap={gradeSubjectMap}
           activeSchoolTab={activeSchoolTab}
           onClose={() => setShowPreview(false)}
         />
