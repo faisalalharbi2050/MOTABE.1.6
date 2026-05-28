@@ -601,8 +601,11 @@ export async function generateSchedule(
                     const subjectDayCount = classSubjectDayCounts.get(subjectDayKey) || 0;
                     const subjectSamePeriodCount = classSubjectPeriodCounts.get(subjectPeriodKey) || 0;
                     const subjectDayTarget = getSubjectDayTarget(classId, subj, day);
-                    if (!isBypassingConflicts && subjectDayTarget <= 0) continue;
-                    if (!isBypassingConflicts && subjectDayCount >= subjectDayTarget) continue;
+                    const subjectAllowedPerDay = relaxation === 0
+                        ? subjectDayTarget
+                        : getSubjectMaxPerDay(subj);
+                    if (!isBypassingConflicts && subjectAllowedPerDay <= 0) continue;
+                    if (!isBypassingConflicts && subjectDayCount >= subjectAllowedPerDay) continue;
                     if (!isBypassingConflicts && subjectSamePeriodCount >= 2) continue;
 
                     const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
