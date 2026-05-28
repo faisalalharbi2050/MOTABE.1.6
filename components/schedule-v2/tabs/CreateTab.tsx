@@ -406,7 +406,7 @@ const CreateTab: React.FC<Props> = ({
                   </div>
                 )}
               </div>
-              <div className="mt-0.5 pr-12">
+              <div className="mt-0 pr-12">
                 <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
                 {hasIssue && (
                   <p className={`mt-1 text-xs font-black truncate ${isBlocking ? 'text-rose-600' : 'text-amber-600'}`}>
