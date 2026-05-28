@@ -143,11 +143,6 @@ export async function generateSchedule(
     const getSubjectMaxPerDay = (subj: Subject) =>
         subj.periodsPerClass <= activeDays.length ? 1 : 2;
 
-    const getTeacherTargetMaxDaily = (teacher: Teacher) => {
-        const assignedLoad = teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0;
-        return Math.max(1, Math.ceil(assignedLoad / activeDays.length));
-    };
-
     const getTeacherIdealDaily = (teacher: Teacher) => {
         const assignedLoad = teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0;
         return assignedLoad > 0 ? assignedLoad / activeDays.length : 0;
@@ -384,22 +379,12 @@ export async function generateSchedule(
                 }
                 // ─────────────────────────────────────────────────────
 
-                // Check Max Daily (Smart Distribution)
-                // e.g. 24 limit -> 5 max per day. 20 limit -> 4 max per day.
-                // We'll calculate a target max per day based on quota.
-                const targetMaxDaily = getTeacherTargetMaxDaily(t);
-                
+                // Keep daily balance as a scoring priority, not a hard blocker.
                 const currentDailyLoad = teacherDailyLoad.get(`${t.id}-${day}`) || 0;
                 
-                // If not bypassing, strictly enforce daily limits
-                if (!isBypassingConflicts && currentDailyLoad >= targetMaxDaily) {
-                    if (slotIndex === 0) console.log(`   -> REJECTED: Teacher reached balanced daily limit (${targetMaxDaily})`);
-                    // We might need to relax this if no teacher is found later, but for greedy it's strict first.
-                    return false;
-                }
-                
-                // If bypassing, we can relax the balanced daily limit, but still prevent > periodsPerDay obviously
-                if (isBypassingConflicts && currentDailyLoad >= periodsPerDay) {
+                // Daily balance is a scoring priority, not a hard blocker.
+                // Hard-blocking it can leave large assignment gaps when constraints are tight.
+                if (currentDailyLoad >= periodsPerDay) {
                      return false;
                 }
 

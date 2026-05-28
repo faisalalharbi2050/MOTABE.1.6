@@ -241,12 +241,23 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const subjDisplay = (id: string) => settings.subjectAbbreviations?.[id] || subjName(id);
     const tName       = (id: string) => teachers.find(t => t.id === id)?.name || '';
     const cName       = (id: string) => { const c = classes.find(c => c.id === id); return c ? (c.name || `${c.grade}/${c.section}`) : ''; };
-    const tLQ  = (t: Teacher) => t.quotaLimit   || 0;
+    const tLQ  = (t: Teacher) => {
+        const legacyWeeklyQuota = Number((t as any).weeklyQuota ?? 0);
+        const schoolLessons = Array.isArray(t.schools)
+            ? t.schools.reduce((sum, school) => sum + Number(school.lessons || 0), 0)
+            : 0;
+        return Number(t.quotaLimit ?? 0) || legacyWeeklyQuota || schoolLessons || 0;
+    };
     const tWQ  = (t: Teacher) => {
-        if (t.waitingQuota !== undefined) return t.waitingQuota;
+        const directWaitingQuota = t.waitingQuota ?? (t as any).waitingQuota;
+        if (directWaitingQuota !== undefined && directWaitingQuota !== null) return Number(directWaitingQuota) || 0;
+        const schoolWaiting = Array.isArray(t.schools)
+            ? t.schools.reduce((sum, school) => sum + Number(school.waiting || 0), 0)
+            : 0;
+        if (schoolWaiting > 0) return schoolWaiting;
         if (isManualMode) {
             const maxQ = (settings.substitution as any)?.maxTotalQuota || 24;
-            return Math.max(0, maxQ - (t.quotaLimit || 0));
+            return Math.max(0, maxQ - tLQ(t));
         }
         return 0;
     };
