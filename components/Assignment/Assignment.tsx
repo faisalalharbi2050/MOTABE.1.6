@@ -4,7 +4,7 @@ import SchoolTabs from '../wizard/SchoolTabs';
 import {
   Search, X, Trash2, ChevronDown, Filter, Check, Layers,
   Printer, Users, CheckCircle2, AlertTriangle, ClipboardList, BookOpen,
-  ListFilter, LayoutGrid, Eye, Sparkles, ArrowLeftRight
+  ListFilter, LayoutGrid, Eye, Sparkles, ArrowLeftRight, HelpCircle, ArrowLeft
 } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 import PreviewModal from './PreviewModal';
@@ -1141,10 +1141,9 @@ const AssignmentPage: React.FC<Props> = ({
                                 const isMine = isAssigned && assignment?.teacherId === selectedTeacherId;
                                 const cellKey = `${cls.id}::${sub.id}`;
                                 const isSelectedForDelete = selectionMode && selectedCells.has(cellKey);
-                                // الذكاء البصري
+                                // الذكاء البصري — إشارات إيجابية فقط، بدون إخفاء خيارات
                                 const teacherSelected = !!selectedTeacher && !selectionMode;
                                 const matchesSpec = teacherSelected && matchesTeacherSpec(sub, selectedTeacher!);
-                                const dim = teacherSelected && !matchesSpec && !isMine;
                                 const highlightSpec = teacherSelected && matchesSpec && !isMine && !isAssigned;
                                 // في وضع التحديد: الخلايا غير المسندة معطّلة
                                 const selectionDisabled = selectionMode && !isAssigned;
@@ -1152,17 +1151,24 @@ const AssignmentPage: React.FC<Props> = ({
                                   <div
                                     key={sub.id}
                                     onClick={() => handleCellClick(cls.id, sub.id)}
-                                    className={`relative rounded-xl border text-right transition-all group cursor-pointer select-none p-2.5 min-h-[78px] flex flex-col justify-between
+                                    className={`relative rounded-xl text-right transition-all group cursor-pointer select-none p-2.5 min-h-[78px] flex flex-col justify-between
                                       ${isSelectedForDelete
-                                        ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-200'
+                                        ? 'bg-rose-50 border border-rose-400 ring-2 ring-rose-200'
                                         : isAssigned
-                                          ? 'bg-slate-50/80 border-slate-300 hover:border-slate-400'
+                                          ? 'bg-white border border-slate-200 hover:border-slate-300'
                                           : highlightSpec
-                                            ? 'bg-white border-[#655ac1]/40 ring-1 ring-[#655ac1]/15 hover:border-[#655ac1] hover:ring-[#655ac1]/30'
-                                            : 'bg-white border-dashed border-slate-300 hover:border-[#655ac1] hover:bg-slate-50'}
-                                      ${dim ? 'opacity-50' : ''}
+                                            ? 'bg-white border border-[#655ac1]/40 ring-1 ring-[#655ac1]/15 hover:border-[#655ac1] hover:ring-[#655ac1]/30'
+                                            : 'bg-amber-50/40 hover:bg-slate-50'}
                                       ${selectionDisabled ? 'opacity-40 cursor-not-allowed' : ''}
                                     `}
+                                    style={
+                                      !isSelectedForDelete && !isAssigned && !highlightSpec
+                                        ? {
+                                            backgroundImage:
+                                              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23fbbf24' stroke-width='2' stroke-dasharray='8 5'/%3E%3C/svg%3E\")",
+                                          }
+                                        : undefined
+                                    }
                                   >
                                     {/* checkbox في وضع التحديد */}
                                     {selectionMode && isAssigned && (
@@ -1174,8 +1180,8 @@ const AssignmentPage: React.FC<Props> = ({
                                     )}
                                     <div className="flex justify-between items-start gap-1 mb-1">
                                       <div className={`min-w-0 flex-1 ${isAssigned && !selectionMode ? 'pr-5' : ''}`}>
-                                        <div className={`text-[11px] font-black truncate ${isSelectedForDelete ? 'text-rose-700' : isAssigned ? 'text-[#655ac1]' : 'text-slate-700'}`}>{sub.name}</div>
-                                        <div className={`text-[10px] font-bold ${isAssigned ? 'text-[#655ac1]' : 'text-slate-500'}`}>{sub.periodsPerClass} حصص</div>
+                                        <div className={`text-[11px] font-black truncate ${isSelectedForDelete ? 'text-rose-700' : isAssigned ? 'text-slate-800' : 'text-slate-700'}`}>{sub.name}</div>
+                                        <div className="text-[10px] font-bold text-slate-500">{sub.periodsPerClass} حصص</div>
                                       </div>
                                       {!selectionMode && isAssigned && (
                                         <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-1" strokeWidth={2.5} />
@@ -1183,10 +1189,13 @@ const AssignmentPage: React.FC<Props> = ({
                                       {!selectionMode && !isAssigned && highlightSpec && (
                                         <Sparkles size={12} className="text-[#655ac1] shrink-0" />
                                       )}
+                                      {!selectionMode && !isAssigned && !highlightSpec && (
+                                        <HelpCircle size={16} className="text-amber-500 shrink-0 mt-1" strokeWidth={2.5} />
+                                      )}
                                     </div>
                                     {isAssigned ? (
                                       <div className="flex items-center gap-1">
-                                        <span className={`text-[10px] font-bold truncate flex-1 ${isSelectedForDelete ? 'text-rose-700' : 'text-[#655ac1]'}`}>
+                                        <span className={`text-[10px] font-black truncate flex-1 ${isSelectedForDelete ? 'text-rose-700' : 'text-[#655ac1]'}`}>
                                           {assignedTeacher?.name}
                                         </span>
                                         {!selectionMode && isMine && (
@@ -1200,7 +1209,10 @@ const AssignmentPage: React.FC<Props> = ({
                                         )}
                                       </div>
                                     ) : (
-                                      <div className="text-[10px] text-slate-500 font-bold">— غير مسندة —</div>
+                                      <div className={`flex items-center gap-1 text-[10px] font-black ${highlightSpec ? 'text-[#655ac1]' : 'text-amber-700'}`}>
+                                        <ArrowLeft size={11} strokeWidth={3} />
+                                        <span>اضغط للإسناد</span>
+                                      </div>
                                     )}
                                   </div>
                                 );
