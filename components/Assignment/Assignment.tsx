@@ -260,13 +260,22 @@ const AssignmentPage: React.FC<Props> = ({
 
   // ─── derived ───
   const filteredTeachers = useMemo(() => {
+    const specIndex = new Map<string, number>();
+    specializations.forEach((s, i) => specIndex.set(s.id, i));
     return teachers.filter(t => {
       const matchId = selectedTeacherFilterIds.length === 0 || selectedTeacherFilterIds.includes(t.id);
       const matchSpec = selectedSpecs.length === 0 || selectedSpecs.includes(t.specializationId);
       const matchSchool = isTeacherInCurrentSchool(t);
       return matchId && matchSpec && matchSchool;
+    }).sort((a, b) => {
+      // أولاً: ترتيب التخصص (بنفس ترتيب صفحة المعلمين)
+      const aSpec = specIndex.get(a.specializationId) ?? Number.MAX_SAFE_INTEGER;
+      const bSpec = specIndex.get(b.specializationId) ?? Number.MAX_SAFE_INTEGER;
+      if (aSpec !== bSpec) return aSpec - bSpec;
+      // ثانياً: ترتيب المعلم داخل التخصص حسب sortIndex
+      return (a.sortIndex || 0) - (b.sortIndex || 0);
     });
-  }, [teachers, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab]);
+  }, [teachers, specializations, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab]);
 
   const availableSpecializations = useMemo(() => {
     const used = new Set(teachers.map(t => t.specializationId));
