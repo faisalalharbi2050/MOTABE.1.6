@@ -382,7 +382,7 @@ const CreateTab: React.FC<Props> = ({
               key={card.label}
               type="button"
               onClick={() => hasIssue && openReadinessTarget(card.target)}
-              className={`bg-white rounded-2xl border shadow-sm p-4 text-right transition-all ${
+              className={`bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 text-right transition-all ${
                 hasIssue
                   ? isBlocking
                     ? 'border-rose-200 hover:border-rose-300 hover:bg-rose-50/40'
@@ -390,23 +390,11 @@ const CreateTab: React.FC<Props> = ({
                   : 'border-slate-200'
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-10 h-10 flex items-center justify-center shrink-0 ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
-                    <card.icon size={20} />
-                  </div>
-                  <p className="text-xs font-black text-slate-400 truncate">{card.label}</p>
-                </div>
-                {hasIssue ? <AlertTriangle size={16} className={`shrink-0 ${isBlocking ? 'text-rose-500' : 'text-amber-500'}`} /> : (
-                  <div className="inline-flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs font-black text-emerald-600">جاهز</span>
-                    <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
-                      <Check size={12} strokeWidth={3} />
-                    </span>
-                  </div>
-                )}
+              <div className={`w-10 h-10 flex items-center justify-center shrink-0 ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
+                <card.icon size={20} />
               </div>
-              <div className="mt-0 pr-12">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-slate-400 truncate">{card.label}</p>
                 <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
                 {hasIssue && (
                   <p className={`mt-1 text-xs font-black truncate ${isBlocking ? 'text-rose-600' : 'text-amber-600'}`}>
@@ -414,6 +402,14 @@ const CreateTab: React.FC<Props> = ({
                   </p>
                 )}
               </div>
+              {hasIssue ? <AlertTriangle size={16} className={`shrink-0 ${isBlocking ? 'text-rose-500' : 'text-amber-500'}`} /> : (
+                <div className="inline-flex items-center gap-1.5 shrink-0 self-center">
+                  <span className="text-xs font-black text-emerald-600">جاهز</span>
+                  <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                </div>
+              )}
             </button>
           );
         })}
