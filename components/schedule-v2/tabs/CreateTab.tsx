@@ -361,14 +361,18 @@ const CreateTab: React.FC<Props> = ({
               <div className={`w-10 h-10 flex items-center justify-center ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
                 <card.icon size={20} />
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 self-center">
                 <p className="text-xs font-black text-slate-400">{card.label}</p>
                 <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
-                <p className={`mt-1 text-[11px] font-bold truncate ${hasIssue ? (isBlocking ? 'text-rose-600' : 'text-amber-600') : 'text-emerald-600'}`}>
+                <p className={`mt-1 text-xs font-black truncate ${hasIssue ? (isBlocking ? 'text-rose-600' : 'text-amber-600') : 'text-emerald-600'}`}>
                   {hasIssue ? card.issue?.message : 'جاهز'}
                 </p>
               </div>
-              {hasIssue ? <AlertTriangle size={16} className={isBlocking ? 'text-rose-500' : 'text-amber-500'} /> : <CheckCircle2 size={16} className="text-emerald-500" />}
+              {hasIssue ? <AlertTriangle size={16} className={isBlocking ? 'text-rose-500' : 'text-amber-500'} /> : (
+                <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
+                  <Check size={12} strokeWidth={3} />
+                </span>
+              )}
             </button>
           );
         })}
@@ -496,7 +500,7 @@ const CreateTab: React.FC<Props> = ({
               setShowRegenerateConfirm(true);
             }}
             disabled={isGenerating}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-[#655ac1] transition-all hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#655ac1] bg-[#655ac1] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-[#5046a0] hover:border-[#5046a0] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Sparkles size={17} />
             {isGenerating ? 'جارٍ الإنشاء...' : hasSchedule ? 'إعادة إنشاء الجدول' : 'إنشاء الجدول'}
