@@ -79,6 +79,88 @@ const CreateTab: React.FC<Props> = ({
 
   const hasSharedSchools = !!(schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0);
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
+  const assignableClasses = useMemo(
+    () => classes.filter(c => !(c.grade === 0 && c.linkedSubjectIds && c.linkedSubjectIds.length > 0)),
+    [classes]
+  );
+  const activeSubjects = useMemo(() => subjects.filter(s => !s.isArchived), [subjects]);
+
+  const readinessReview = useMemo(() => {
+    const issues: { level: 'error' | 'warning' | 'info'; message: string; suggestion?: string }[] = [];
+    const timing = schoolInfo.timing || {
+      activeDays: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'],
+      periodCounts: { sunday: 7, monday: 7, tuesday: 7, wednesday: 7, thursday: 7 },
+    };
+    const activeDays = timing.activeDays || [];
+    const periodCounts = timing.periodCounts || {};
+    const periodsPerDay = Math.max(0, ...(Object.values(periodCounts) as number[]), 0);
+    const teacherIds = new Set(teachers.map(t => t.id));
+    const classIds = new Set(assignableClasses.map(c => c.id));
+    const subjectIds = new Set(activeSubjects.map(s => s.id));
+    const relevantAssignments = assignments.filter(a => classIds.has(a.classId));
+
+    if (activeDays.length === 0) {
+      issues.push({ level: 'error', message: 'لم يتم تحديد أيام الدراسة النشطة.', suggestion: 'راجع إعدادات وقت الدوام وأيام الدراسة.' });
+    }
+    if (periodsPerDay <= 0) {
+      issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع إعدادات الدوام وعدد الحصص لكل يوم.' });
+    }
+    if (teachers.length === 0) {
+      issues.push({ level: 'error', message: 'لا يوجد معلمون.', suggestion: 'استورد أو أضف المعلمين أولًا.' });
+    }
+    if (assignableClasses.length === 0) {
+      issues.push({ level: 'error', message: 'لا توجد فصول قابلة للجدولة.', suggestion: 'أنشئ الفصول قبل إنشاء الجدول.' });
+    }
+    if (activeSubjects.length === 0) {
+      issues.push({ level: 'error', message: 'لا توجد مواد نشطة.', suggestion: 'أضف المواد أو فعّل المواد المطلوبة.' });
+    }
+    if (relevantAssignments.length === 0) {
+      issues.push({ level: 'error', message: 'لا توجد إسنادات مواد للفصول.', suggestion: 'أكمل إسناد المواد للمعلمين قبل إنشاء الجدول.' });
+    }
+
+    const brokenAssignments = relevantAssignments.filter(a =>
+      !teacherIds.has(a.teacherId) || !subjectIds.has(a.subjectId) || !classIds.has(a.classId)
+    );
+    if (brokenAssignments.length > 0) {
+      issues.push({
+        level: 'error',
+        message: `يوجد ${brokenAssignments.length} إسنادًا مرتبطًا بمعلم أو مادة أو فصل غير موجود.`,
+        suggestion: 'راجع إسناد المواد واحذف أو أعد حفظ الإسنادات غير الصحيحة.'
+      });
+    }
+
+    const classesWithoutAssignments = assignableClasses.filter(cls =>
+      !relevantAssignments.some(a => a.classId === cls.id)
+    );
+    if (classesWithoutAssignments.length > 0) {
+      issues.push({
+        level: 'warning',
+        message: `${classesWithoutAssignments.length} فصل بدون أي إسناد مواد.`,
+        suggestion: 'يمكنك المتابعة، لكن هذه الفصول قد تظهر فارغة في الجدول.'
+      });
+    }
+
+    const assignedLoad = new Map<string, number>();
+    relevantAssignments.forEach(a => {
+      const subject = activeSubjects.find(s => s.id === a.subjectId);
+      assignedLoad.set(a.teacherId, (assignedLoad.get(a.teacherId) || 0) + (subject?.periodsPerClass || 0));
+    });
+    const overloadedTeachers = teachers.filter(t => {
+      const load = assignedLoad.get(t.id) || 0;
+      const quota = t.quotaLimit || 0;
+      return quota > 0 && load > quota;
+    });
+    if (overloadedTeachers.length > 0) {
+      issues.push({
+        level: 'warning',
+        message: `${overloadedTeachers.length} معلمًا لديهم إسناد أعلى من نصاب الحصص.`,
+        suggestion: 'راجع النصاب أو الإسناد؛ سيعرض النظام تقرير القيود قبل الإنشاء.'
+      });
+    }
+
+    const blockingCount = issues.filter(i => i.level === 'error').length;
+    return { issues, blockingCount, isReady: blockingCount === 0 };
+  }, [schoolInfo.timing, teachers, assignableClasses, activeSubjects, assignments]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -105,6 +187,17 @@ const CreateTab: React.FC<Props> = ({
       classes.length, schoolInfo.sharedSchools
     );
     setValidationWarnings(warnings);
+
+    if (!readinessReview.isReady) {
+      const firstIssue = readinessReview.issues.find(i => i.level === 'error');
+      setMissingDataAlert({
+        title: 'البيانات غير جاهزة لإنشاء الجدول',
+        message: firstIssue
+          ? `${firstIssue.message}${firstIssue.suggestion ? ` ${firstIssue.suggestion}` : ''}`
+          : 'راجع ملخص الجاهزية قبل إنشاء الجدول.'
+      });
+      return;
+    }
 
     if (teachers.length === 0 || classes.length === 0 || subjects.length === 0) {
       setMissingDataAlert({ title: 'بيانات أساسية مفقودة', message: 'تأكد من إضافة بيانات المعلمين والمواد والفصول في إعدادات المدرسة.' });
@@ -300,6 +393,47 @@ const CreateTab: React.FC<Props> = ({
         </div>
       )}
 
+      <div className={`bg-white rounded-2xl p-5 border transition-all ${
+        readinessReview.isReady ? 'border-emerald-200' : 'border-amber-200'
+      }`} style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-start gap-3 text-right">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              readinessReview.isReady ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+            }`}>
+              {readinessReview.isReady ? <CheckCircle2 size={21} /> : <AlertTriangle size={21} />}
+            </div>
+            <div>
+              <h4 className="font-black text-slate-800 text-sm">مراجعة جاهزية إنشاء الجدول</h4>
+              <p className="text-xs font-bold text-slate-500 mt-1">
+                {readinessReview.isReady
+                  ? 'المدخلات الأساسية جاهزة، وسيتم عرض ملاحظات القيود قبل البدء إن وجدت.'
+                  : `يوجد ${readinessReview.blockingCount} ملاحظة تمنع إنشاء الجدول حاليًا.`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 text-[11px] font-black">
+            <span className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">الفصول: {assignableClasses.length}</span>
+            <span className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">المواد النشطة: {activeSubjects.length}</span>
+            <span className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">الإسنادات: {assignments.length}</span>
+          </div>
+        </div>
+        {readinessReview.issues.length > 0 && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+            {readinessReview.issues.slice(0, 4).map((issue, index) => (
+              <div key={`${issue.level}-${index}`} className={`rounded-xl border px-3 py-2 text-right ${
+                issue.level === 'error'
+                  ? 'bg-rose-50 border-rose-100 text-rose-700'
+                  : 'bg-amber-50 border-amber-100 text-amber-700'
+              }`}>
+                <p className="text-xs font-black">{issue.message}</p>
+                {issue.suggestion && <p className="text-[11px] font-bold opacity-80 mt-1">{issue.suggestion}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-2xl p-6 border border-slate-200 transition-all w-full text-center" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
         <div className="flex items-center justify-center gap-3 mb-2 flex-wrap">
           <Sparkles size={22} className="text-[#655ac1] shrink-0" />
@@ -312,13 +446,23 @@ const CreateTab: React.FC<Props> = ({
         <div className="flex justify-center">
           <button
             onClick={() => {
+              if (!readinessReview.isReady) {
+                const firstIssue = readinessReview.issues.find(i => i.level === 'error');
+                setMissingDataAlert({
+                  title: 'البيانات غير جاهزة لإنشاء الجدول',
+                  message: firstIssue
+                    ? `${firstIssue.message}${firstIssue.suggestion ? ` ${firstIssue.suggestion}` : ''}`
+                    : 'راجع ملخص الجاهزية قبل إنشاء الجدول.'
+                });
+                return;
+              }
               if (hasSharedSchools && !generationMode) {
                 showToast('اختر آلية إنشاء الجدول للمدرستين أولاً', 'info');
                 return;
               }
               setShowRegenerateConfirm(true);
             }}
-            disabled={isGenerating || (!hasSchedule && isScheduleLocked)}
+            disabled={isGenerating}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-[#655ac1] transition-all hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Sparkles size={17} />
