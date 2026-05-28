@@ -971,16 +971,15 @@ const AssignmentPage: React.FC<Props> = ({
                         const scProgress = sc.quota > 0 ? Math.min(100, Math.round((sc.load / sc.quota) * 100)) : 0;
                         return (
                           <div key={sc.id}>
-                            <div className="flex items-center justify-between text-[10px] font-bold mb-0.5">
-                              <span className="text-[#655ac1] truncate flex-1 ml-1">{sc.name}</span>
-                              <span className="text-slate-400">نصاب الحصص: {sc.quota}</span>
+                            <div className="flex items-center justify-between gap-2 text-[10px] font-bold mb-1">
+                              <span className="text-[#655ac1] truncate flex-1">{sc.name}</span>
+                              <span className="shrink-0">
+                                <span className={`font-black ${scOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{sc.load}</span>
+                                <span className="text-slate-400"> / {sc.quota}</span>
+                              </span>
                             </div>
                             <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                               <div className={`h-full ${scColor} transition-all duration-700 ease-out`} style={{ width: `${scProgress}%` }} />
-                            </div>
-                            <div className="flex justify-start mt-0.5">
-                              <span className="text-[10px] font-bold text-slate-400 ml-1">النصاب المسند</span>
-                              <span className={`text-[10px] font-black ${scOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{sc.load}</span>
                             </div>
                           </div>
                         );
@@ -988,15 +987,15 @@ const AssignmentPage: React.FC<Props> = ({
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-bold">
-                        <span className="text-slate-500">نصاب الحصص: {totalQuota}</span>
+                      <div className="flex items-center justify-between gap-2 text-[10px] font-bold">
+                        <span className="text-slate-500">الإسناد</span>
+                        <span>
+                          <span className={`font-black ${isOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{load}</span>
+                          <span className="text-slate-400"> / {totalQuota}</span>
+                        </span>
                       </div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div className={`h-full ${progressColor} transition-all duration-700 ease-out`} style={{ width: `${progress}%` }} />
-                      </div>
-                      <div className="flex justify-start">
-                        <span className="text-[10px] font-bold text-slate-400 ml-1">النصاب المسند</span>
-                        <span className={`text-[10px] font-black ${isOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{load}</span>
                       </div>
                     </div>
                   )}
