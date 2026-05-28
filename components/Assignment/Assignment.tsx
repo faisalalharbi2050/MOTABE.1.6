@@ -906,16 +906,11 @@ const AssignmentPage: React.FC<Props> = ({
                 <div
                   key={t.id}
                   onClick={() => !selectionMode && setSelectedTeacherId(isSelected ? null : t.id)}
-                  className={`relative rounded-2xl overflow-hidden border bg-white transition-all cursor-pointer p-3 ${isSelected ? 'border-slate-300 ring-2 ring-slate-200 shadow-md' : 'border-slate-200 hover:border-slate-300'} ${selectionMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`relative rounded-2xl border bg-white transition-all cursor-pointer p-3 ${isSelected ? 'border-slate-300 ring-2 ring-slate-200 shadow-md' : 'border-slate-200 hover:border-slate-300'} ${selectionMode ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  {isSelected && (
-                    <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shadow-sm z-10">
-                      <Check size={12} strokeWidth={3.5} />
-                    </span>
-                  )}
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-start justify-between gap-2 mb-3 pb-3 border-b border-slate-100">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-0.5">
                         <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-800'}`}>{t.name}</h4>
                         {isShared && (
                           <span title="معلم مشترك" className="shrink-0 text-[#655ac1]">
@@ -925,11 +920,16 @@ const AssignmentPage: React.FC<Props> = ({
                             </svg>
                           </span>
                         )}
+                        {isSelected && (
+                          <span className="mr-3 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shadow-sm shrink-0">
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        )}
                       </div>
-                      <span className={`text-[13px] font-bold truncate block ${isSelected ? 'text-slate-500' : 'text-[#655ac1]'}`}>{spec}</span>
+                      <span className={`text-[11px] font-bold truncate block ${isSelected ? 'text-slate-500' : 'text-[#655ac1]'}`}>{spec}</span>
                     </div>
                     {/* قائمة الإجراءات — كباب أفقي */}
-                    <div className={`relative shrink-0 ${isSelected ? 'mt-7' : ''}`} ref={openTeacherMenuId === t.id ? teacherMenuRef : undefined}>
+                    <div className="relative shrink-0" ref={openTeacherMenuId === t.id ? teacherMenuRef : undefined}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setOpenTeacherMenuId(openTeacherMenuId === t.id ? null : t.id); }}
                         className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all"
@@ -971,10 +971,10 @@ const AssignmentPage: React.FC<Props> = ({
                         const scProgress = sc.quota > 0 ? Math.min(100, Math.round((sc.load / sc.quota) * 100)) : 0;
                         return (
                           <div key={sc.id}>
-                            <div className="flex items-center justify-between gap-2 text-[10px] font-bold mb-1">
+                            <div className="flex items-center justify-between gap-2 text-xs font-bold mb-1">
                               <span className="text-[#655ac1] truncate flex-1">{sc.name}</span>
-                              <span className="shrink-0">
-                                <span className={`font-black ${scOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{sc.load}</span>
+                              <span className="shrink-0 leading-none">
+                                <span className={`text-sm font-black ${scOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{sc.load}</span>
                                 <span className="text-slate-400"> / {sc.quota}</span>
                               </span>
                             </div>
@@ -986,11 +986,11 @@ const AssignmentPage: React.FC<Props> = ({
                       })}
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between gap-2 text-[10px] font-bold">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 text-xs font-bold">
                         <span className="text-slate-500">الإسناد</span>
-                        <span>
-                          <span className={`font-black ${isOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{load}</span>
+                        <span className="leading-none">
+                          <span className={`text-sm font-black ${isOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{load}</span>
                           <span className="text-slate-400"> / {totalQuota}</span>
                         </span>
                       </div>
