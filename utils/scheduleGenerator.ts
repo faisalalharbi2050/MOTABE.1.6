@@ -108,6 +108,7 @@ export async function generateSchedule(
     const classSubjectCounts = new Map<string, number>();
     const classSubjectDayCounts = new Map<string, number>();
     const classSubjectPeriodCounts = new Map<string, number>();
+    const subjectDailyTargets = new Map<string, number>(); // "classId-subjectId-day" => target count
 
     teachers.forEach(t => teacherWeeklyLoadTarget.set(t.id, 0));
     if (assignments && assignments.length > 0) {
@@ -153,6 +154,19 @@ export async function generateSchedule(
 
     const getSubjectMaxPerDay = (subj: Subject) =>
         subj.periodsPerClass <= activeDays.length ? 1 : 2;
+
+    const getStableDayOffset = (classId: string, subjectId: string) => {
+        const value = `${classId}-${subjectId}`;
+        let hash = 0;
+        for (let i = 0; i < value.length; i++) {
+            hash = ((hash << 5) - hash) + value.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash) % Math.max(1, activeDays.length);
+    };
+
+    const getSubjectDayTarget = (classId: string, subj: Subject, day: string) =>
+        subjectDailyTargets.get(`${classId}-${subj.id}-${day}`) ?? getSubjectMaxPerDay(subj);
 
     const getTeacherDayTarget = (teacher: Teacher, day: string) =>
         teacherDailyTargets.get(`${teacher.id}-${day}`) ?? Math.ceil((teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0) / activeDays.length);
@@ -217,6 +231,34 @@ export async function generateSchedule(
         }
     });
 
+    schedulableClasses.forEach(cls => {
+        const subjectsForClass = classSubjectsMap.get(cls.id) || [];
+        subjectsForClass.forEach(subj => {
+            const weekly = Math.max(0, subj.periodsPerClass || 0);
+            const daysCount = activeDays.length;
+            const offset = getStableDayOffset(cls.id, subj.id);
+            const selectedExtraDays = new Set<string>();
+
+            if (weekly <= daysCount) {
+                for (let i = 0; i < weekly; i++) {
+                    selectedExtraDays.add(activeDays[(offset + i) % daysCount]);
+                }
+                activeDays.forEach(day => {
+                    subjectDailyTargets.set(`${cls.id}-${subj.id}-${day}`, selectedExtraDays.has(day) ? 1 : 0);
+                });
+                return;
+            }
+
+            const doubleDays = Math.min(daysCount, weekly - daysCount);
+            for (let i = 0; i < doubleDays; i++) {
+                selectedExtraDays.add(activeDays[(offset + i) % daysCount]);
+            }
+            activeDays.forEach(day => {
+                subjectDailyTargets.set(`${cls.id}-${subj.id}-${day}`, selectedExtraDays.has(day) ? 2 : 1);
+            });
+        });
+    });
+
     // Helper: Get assigned teacher for a subject
     // In many systems, a subject for a class is assigned to ONE teacher.
     // We need that mapping. "Class X - Subject Y => Teacher Z"
@@ -276,7 +318,9 @@ export async function generateSchedule(
             }
             const dayCount = classSubjectDayCounts.get(`${classId}-${subj.id}-${day}`) || 0;
             const samePeriodCount = classSubjectPeriodCounts.get(`${classId}-${subj.id}-${period}`) || 0;
-            if (!isBypassingConflicts && dayCount >= getSubjectMaxPerDay(subj)) return Number.POSITIVE_INFINITY;
+            const subjectDayTarget = getSubjectDayTarget(classId, subj, day);
+            if (!isBypassingConflicts && subjectDayTarget <= 0) return Number.POSITIVE_INFINITY;
+            if (!isBypassingConflicts && dayCount >= subjectDayTarget) return Number.POSITIVE_INFINITY;
             if (!isBypassingConflicts && samePeriodCount >= 2) return Number.POSITIVE_INFINITY;
 
             const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
@@ -285,7 +329,7 @@ export async function generateSchedule(
             const teacherPenalty = teacher ? getTeacherDayBalanceScore(teacher, day) : 0;
             const preferredPenalty = subjectConstraint?.preferredPeriods?.length && !subjectConstraint.preferredPeriods.includes(period) ? 18 : 0;
 
-            return (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + preferredPenalty + teacherLoad - remaining;
+            return ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + preferredPenalty + teacherLoad - remaining;
         };
         const shuffledSubjects = [...subjectsForClass].sort((a, b) => {
             const diff = getSubjectSlotScore(a) - getSubjectSlotScore(b);
@@ -310,10 +354,14 @@ export async function generateSchedule(
             const subjectDayCount = classSubjectDayCounts.get(daySubjectKey) || 0;
             const subjectSamePeriodCount = classSubjectPeriodCounts.get(periodSubjectKey) || 0;
             const subjectConstraint = subjectConstraintById.get(subj.id);
+            const subjectDayTarget = getSubjectDayTarget(classId, subj, day);
             if (!isBypassingConflicts && subjectConstraint?.excludedPeriods?.includes(period)) {
                 continue;
             }
-            if (!isBypassingConflicts && subjectDayCount >= getSubjectMaxPerDay(subj)) {
+            if (!isBypassingConflicts && subjectDayTarget <= 0) {
+                continue;
+            }
+            if (!isBypassingConflicts && subjectDayCount >= subjectDayTarget) {
                 continue;
             }
             if (!isBypassingConflicts && subjectSamePeriodCount >= 2) {
@@ -552,9 +600,10 @@ export async function generateSchedule(
                     const subjectPeriodKey = `${classId}-${subj.id}-${period}`;
                     const subjectDayCount = classSubjectDayCounts.get(subjectDayKey) || 0;
                     const subjectSamePeriodCount = classSubjectPeriodCounts.get(subjectPeriodKey) || 0;
-                    const maxPerDay = relaxation === 0 ? getSubjectMaxPerDay(subj) : 2;
-                    if (!isBypassingConflicts && subjectDayCount >= maxPerDay) continue;
-                    if (!isBypassingConflicts && relaxation < 2 && subjectSamePeriodCount >= 2) continue;
+                    const subjectDayTarget = getSubjectDayTarget(classId, subj, day);
+                    if (!isBypassingConflicts && subjectDayTarget <= 0) continue;
+                    if (!isBypassingConflicts && subjectDayCount >= subjectDayTarget) continue;
+                    if (!isBypassingConflicts && subjectSamePeriodCount >= 2) continue;
 
                     const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
                     if (!assignedTeacherId) continue;
