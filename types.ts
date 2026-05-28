@@ -136,6 +136,9 @@ export interface SchoolInfo {
   secondSchoolEmail?: string;
 
   mergeTeachers?: boolean;
+
+  // ترتيب التخصصات (يستخدم لعرض المعلمين في صفحة المعلمين وصفحة الإسناد)
+  specializationOrder?: string[];
   mergeTiming?: boolean;
   mergeSubjects?: boolean;
   mergeClassesView?: boolean;

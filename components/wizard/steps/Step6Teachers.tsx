@@ -387,7 +387,7 @@ const normalizeArabicName = (raw: string): string => {
     .toLowerCase();
 };
 
-const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, specializations = [], schoolInfo, scheduleSettings, setScheduleSettings, classes }) => {
+const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, specializations = [], schoolInfo, setSchoolInfo, scheduleSettings, setScheduleSettings, classes }) => {
   // State
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [searchTerm, setSearchTerm] = useState("");
@@ -426,8 +426,21 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const [printMenuOpen, setPrintMenuOpen] = useState(false);
   const printMenuRef = useRef<HTMLDivElement>(null);
   
-  // Custom Specialization Order State
-  const [specializationOrder, setSpecializationOrder] = useState<string[]>(INITIAL_SPECIALIZATIONS.map(s => s.id));
+  // ترتيب التخصصات — نقرأه من schoolInfo (مع توحيد قائمة الافتراضي) وأي تغيير يُحفظ هناك
+  const specializationOrder = useMemo(() => {
+    const defaults = INITIAL_SPECIALIZATIONS.map(s => s.id);
+    const saved = schoolInfo.specializationOrder || [];
+    // ادمج المحفوظ مع الافتراضي، مع المحافظة على ترتيب المحفوظ ثم إضافة أي معرّفات افتراضية مفقودة
+    const merged: string[] = [];
+    const seen = new Set<string>();
+    saved.forEach(id => { if (!seen.has(id)) { merged.push(id); seen.add(id); } });
+    defaults.forEach(id => { if (!seen.has(id)) { merged.push(id); seen.add(id); } });
+    return merged;
+  }, [schoolInfo.specializationOrder]);
+  const setSpecializationOrder = (next: string[]) => {
+    if (!setSchoolInfo) return;
+    setSchoolInfo(prev => ({ ...prev, specializationOrder: next }));
+  };
 
   // Drag and Drop State
   const [draggedTeacherId, setDraggedTeacherId] = useState<string | null>(null);

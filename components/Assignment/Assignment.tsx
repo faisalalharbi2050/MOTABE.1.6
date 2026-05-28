@@ -260,8 +260,15 @@ const AssignmentPage: React.FC<Props> = ({
 
   // ─── derived ───
   const filteredTeachers = useMemo(() => {
+    // اقرأ ترتيب التخصصات من schoolInfo (يُضبط من صفحة المعلمين)، مع fallback لترتيب المصفوفة الأصلي
     const specIndex = new Map<string, number>();
-    specializations.forEach((s, i) => specIndex.set(s.id, i));
+    const savedOrder = schoolInfo.specializationOrder || [];
+    savedOrder.forEach((id, i) => specIndex.set(id, i));
+    // أضف أي تخصص غير موجود في الترتيب المحفوظ في النهاية بترتيب مصفوفة specializations
+    let nextIdx = savedOrder.length;
+    specializations.forEach(s => {
+      if (!specIndex.has(s.id)) specIndex.set(s.id, nextIdx++);
+    });
     return teachers.filter(t => {
       const matchId = selectedTeacherFilterIds.length === 0 || selectedTeacherFilterIds.includes(t.id);
       const matchSpec = selectedSpecs.length === 0 || selectedSpecs.includes(t.specializationId);
@@ -275,7 +282,7 @@ const AssignmentPage: React.FC<Props> = ({
       // ثانياً: ترتيب المعلم داخل التخصص حسب sortIndex
       return (a.sortIndex || 0) - (b.sortIndex || 0);
     });
-  }, [teachers, specializations, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab]);
+  }, [teachers, specializations, schoolInfo.specializationOrder, selectedTeacherFilterIds, selectedSpecs, activeSchoolTab]);
 
   const availableSpecializations = useMemo(() => {
     const used = new Set(teachers.map(t => t.specializationId));
