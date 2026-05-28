@@ -45,6 +45,7 @@ const CreateTab: React.FC<Props> = ({
   classes,
   assignments,
   gradeSubjectMap,
+  onNavigate,
   onNavigateMain,
   isScheduleLocked,
 }) => {
@@ -338,6 +339,7 @@ const CreateTab: React.FC<Props> = ({
         setTimeout(() => {
           setIsGenerating(false);
           showToast(wasRegeneration ? 'تم إعادة إنشاء الجدول بنجاح' : 'تم إنشاء الجدول بنجاح', 'success');
+          onNavigate('edit');
         }, 2500);
       } catch (err) {
         console.error(err);
