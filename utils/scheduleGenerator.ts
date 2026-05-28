@@ -76,6 +76,7 @@ export async function generateSchedule(
     // Track Teacher Availability (Day-Period => TeacherId[])
     // To avoid double booking.
     const teacherOccupied = new Set<string>(); // "teacherId-day-period"
+    const classOccupied = new Set<string>(); // "classId-day-period"
     const teacherDayPeriods = new Map<string, Set<number>>(); // "teacherId-day" => periods
     const teacherDailyLoad = new Map<string, number>(); // "teacherId-day" => count
     const teacherWeeklyLoadTarget = new Map<string, number>();
@@ -91,6 +92,8 @@ export async function generateSchedule(
             const p = parseInt(parts[parts.length - 1]);
             const day = parts[parts.length - 2];
             const tid = parts.slice(0, parts.length - 2).join('-');
+            const slot = existingTimetable[key];
+            if (slot?.classId) classOccupied.add(`${slot.classId}-${day}-${p}`);
             const dayKey = `${tid}-${day}`;
             if (!teacherDayPeriods.has(dayKey)) teacherDayPeriods.set(dayKey, new Set<number>());
             teacherDayPeriods.get(dayKey)!.add(p);
@@ -461,6 +464,7 @@ export async function generateSchedule(
                 
                 // Update State
                 teacherOccupied.add(`${validTeacher.id}-${day}-${period}`);
+                classOccupied.add(`${classId}-${day}-${period}`);
                 // Update shared-teacher global slot tracker
                 if (teacherSlots[validTeacher.id]) {
                     teacherSlots[validTeacher.id].add(`${day}-${period}`);
@@ -497,6 +501,112 @@ export async function generateSchedule(
            // Allow UI to breathe
            await new Promise(r => setTimeout(r, 0)); 
         }
+    }
+
+    const fillRemainingSlots = () => {
+        let madeProgress = false;
+
+        for (let relaxation = 0; relaxation <= 2; relaxation++) {
+            for (const slot of slotsToFill) {
+                const { classId, day, period } = slot;
+                if (classOccupied.has(`${classId}-${day}-${period}`)) continue;
+
+                const currentClassForSlot = classes.find(c => c.id === classId);
+                if (!currentClassForSlot) continue;
+
+                const candidateSubjects = [...(classSubjectsMap.get(classId) || [])]
+                    .filter(subj => getRemainingQuota(currentClassForSlot, subj) > 0)
+                    .sort((a, b) => getRemainingQuota(currentClassForSlot, b) - getRemainingQuota(currentClassForSlot, a));
+
+                for (const subj of candidateSubjects) {
+                    const subjectConstraint = subjectConstraintById.get(subj.id);
+                    if (!isBypassingConflicts && subjectConstraint?.excludedPeriods?.includes(period)) continue;
+
+                    const subjectDayKey = `${classId}-${subj.id}-${day}`;
+                    const subjectPeriodKey = `${classId}-${subj.id}-${period}`;
+                    const subjectDayCount = classSubjectDayCounts.get(subjectDayKey) || 0;
+                    const subjectSamePeriodCount = classSubjectPeriodCounts.get(subjectPeriodKey) || 0;
+                    const maxPerDay = relaxation === 0 ? getSubjectMaxPerDay(subj) : 2;
+                    if (!isBypassingConflicts && subjectDayCount >= maxPerDay) continue;
+                    if (!isBypassingConflicts && relaxation < 2 && subjectSamePeriodCount >= 2) continue;
+
+                    const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
+                    if (!assignedTeacherId) continue;
+                    const teacher = teachers.find(t => t.id === assignedTeacherId);
+                    if (!teacher) continue;
+
+                    const slotKey = `${day}-${period}`;
+                    if (teacherOccupied.has(`${teacher.id}-${day}-${period}`)) continue;
+                    if (teacherSlots[teacher.id] && teacherSlots[teacher.id].has(slotKey)) continue;
+
+                    if (teacher.isShared && teacher.constraints?.presenceDays) {
+                        const currentSchoolId = currentClassForSlot.schoolId || 'main';
+                        const allowedDays = teacher.constraints.presenceDays[currentSchoolId];
+                        if (allowedDays !== undefined && !allowedDays.includes(day)) continue;
+                    }
+
+                    const currentDailyLoad = teacherDailyLoad.get(`${teacher.id}-${day}`) || 0;
+                    if (currentDailyLoad >= periodsPerDay) continue;
+
+                    const constraint = teacherConstraintById.get(teacher.id);
+                    if (!isBypassingConflicts && constraint?.excludedSlots[day]?.includes(period)) continue;
+
+                    const consecutiveAfterAdding = getConsecutiveRunAfterAdding(teacher.id, day, period);
+                    if (!isBypassingConflicts && consecutiveAfterAdding > getMaxConsecutive(teacher)) continue;
+
+                    if (!isBypassingConflicts && relaxation === 0 && constraint) {
+                        if (period === 1 && constraint.maxFirstPeriods !== undefined && (teacherFirstPeriodCount.get(teacher.id) || 0) >= constraint.maxFirstPeriods) continue;
+                        if (period === periodsPerDay && constraint.maxLastPeriods !== undefined && (teacherLastPeriodCount.get(teacher.id) || 0) >= constraint.maxLastPeriods) continue;
+                    }
+
+                    const linkedFacilities = subjectFacilityMap.get(subj.id);
+                    if (linkedFacilities && linkedFacilities.length > 0 && !isBypassingConflicts) {
+                        const facilityFull = linkedFacilities.some(({ capacity, facilityId }) => {
+                            const usageKey = `${facilityId}-${day}-${period}`;
+                            const used = facilityUsage.get(usageKey) || 0;
+                            return used >= capacity;
+                        });
+                        if (facilityFull) continue;
+                    }
+
+                    const key = `${teacher.id}-${day}-${period}`;
+                    timetable[key] = {
+                        teacherId: teacher.id,
+                        subjectId: subj.id,
+                        classId,
+                        type: 'lesson'
+                    };
+
+                    teacherOccupied.add(key);
+                    classOccupied.add(`${classId}-${day}-${period}`);
+                    if (teacherSlots[teacher.id]) teacherSlots[teacher.id].add(slotKey);
+                    classSubjectCounts.set(`${classId}-${subj.id}`, (classSubjectCounts.get(`${classId}-${subj.id}`) || 0) + 1);
+                    classSubjectDayCounts.set(subjectDayKey, subjectDayCount + 1);
+                    classSubjectPeriodCounts.set(subjectPeriodKey, subjectSamePeriodCount + 1);
+                    const teacherDayKey = `${teacher.id}-${day}`;
+                    if (!teacherDayPeriods.has(teacherDayKey)) teacherDayPeriods.set(teacherDayKey, new Set<number>());
+                    teacherDayPeriods.get(teacherDayKey)!.add(period);
+                    teacherDailyLoad.set(teacherDayKey, currentDailyLoad + 1);
+                    if (period === 1) teacherFirstPeriodCount.set(teacher.id, (teacherFirstPeriodCount.get(teacher.id) || 0) + 1);
+                    if (period === periodsPerDay) teacherLastPeriodCount.set(teacher.id, (teacherLastPeriodCount.get(teacher.id) || 0) + 1);
+                    if (linkedFacilities) {
+                        linkedFacilities.forEach(({ facilityId }) => {
+                            const usageKey = `${facilityId}-${day}-${period}`;
+                            facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
+                        });
+                    }
+
+                    madeProgress = true;
+                    break;
+                }
+            }
+        }
+
+        return madeProgress;
+    };
+
+    for (let pass = 0; pass < 4; pass++) {
+        if (!fillRemainingSlots()) break;
     }
     
     return timetable;

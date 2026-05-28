@@ -249,12 +249,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         return Number(t.quotaLimit ?? 0) || legacyWeeklyQuota || schoolLessons || 0;
     };
     const tWQ  = (t: Teacher) => {
-        const directWaitingQuota = t.waitingQuota ?? (t as any).waitingQuota;
-        if (directWaitingQuota !== undefined && directWaitingQuota !== null) return Number(directWaitingQuota) || 0;
+        const directWaitingQuota = Number(t.waitingQuota ?? (t as any).waitingQuota ?? 0);
         const schoolWaiting = Array.isArray(t.schools)
             ? t.schools.reduce((sum, school) => sum + Number(school.waiting || 0), 0)
             : 0;
-        if (schoolWaiting > 0) return schoolWaiting;
+        const savedWaitingQuota = Math.max(directWaitingQuota, schoolWaiting);
+        if (savedWaitingQuota > 0) return savedWaitingQuota;
         if (isManualMode) {
             const maxQ = (settings.substitution as any)?.maxTotalQuota || 24;
             return Math.max(0, maxQ - tLQ(t));
