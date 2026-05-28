@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BookOpenCheck, Check, Edit3, Pencil, Table, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BookOpenCheck, Check, MoreHorizontal, Pencil, Table, Trash2, X } from 'lucide-react';
 import { SavedSupervisionSchedule, SupervisionScheduleData } from '../../../types';
 
 interface Props {
@@ -272,9 +272,9 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
                             <button
                               onClick={event => openMenu(event, schedule.id)}
                               className="p-2 text-slate-400 bg-white hover:text-[#655ac1] hover:bg-[#f5f3ff] rounded-lg transition-all border border-slate-200"
-                              title="تعديل"
+                              title="إجراءات"
                             >
-                              <Edit3 size={15} />
+                              <MoreHorizontal size={15} />
                             </button>
                           </div>
                         )}

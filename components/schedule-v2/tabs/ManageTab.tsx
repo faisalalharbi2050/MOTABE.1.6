@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    Trash2, CheckCircle2, Pen, Pencil, Check, AlertTriangle,
+    Trash2, CheckCircle2, MoreHorizontal, Pencil, Check, AlertTriangle,
     Table, BookOpenCheck, AlertCircle, X, CalendarDays, Clock, Archive, BadgeCheck
 } from 'lucide-react';
 import { ScheduleSettingsData, SavedSchedule } from '../../../types';
@@ -321,9 +321,9 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                                         <button
                                                             onClick={(event) => openMenu(event, schedule.id)}
                                                             className="p-2 text-slate-400 bg-white hover:text-primary hover:bg-primary/5 rounded-lg transition-all border border-slate-200"
-                                                            title="تعديل"
+                                                            title="إجراءات"
                                                         >
-                                                            <Pen size={14} />
+                                                            <MoreHorizontal size={14} />
                                                         </button>
                                                     </div>
                                                 )}
