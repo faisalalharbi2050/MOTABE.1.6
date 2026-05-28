@@ -205,72 +205,78 @@ export const TeacherDetailsModal: React.FC<DetailsProps> = ({
           ) : (
             <>
               <h4 className="text-sm font-black text-slate-700">المواد المسندة للمعلم</h4>
-              {teacher.isShared ? (
-                schoolSummaryRows.map(({ sid, schoolName, quota, assigned, list }) => {
-                  return (
-                    <div key={sid} className="rounded-2xl border border-slate-200 overflow-hidden">
-                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
-                        <span className="text-sm font-black text-[#655ac1]">{schoolName}</span>
-                      </div>
-                      <table className="w-full text-right text-xs">
-                        <thead className="bg-slate-50 text-slate-500 font-black">
-                          <tr>
-                            <th className="px-3 py-2 w-10">م</th>
-                            <th className="px-3 py-2">المادة</th>
-                            <th className="px-3 py-2">الفصل</th>
-                            <th className="px-3 py-2 w-24 text-center">عدد الحصص</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {list.length === 0 ? (
-                            <tr>
-                              <td colSpan={4} className="px-3 py-6 text-center text-slate-400 font-bold">لا توجد إسنادات في هذه المدرسة</td>
-                            </tr>
-                          ) : list.map((a, idx) => {
-                            const sub = subjects.find(s => s.id === a.subjectId);
-                            const cls = classes.find(c => c.id === a.classId);
-                            return (
-                              <tr key={idx} className="text-slate-700 font-bold">
-                                <td className="px-3 py-2 text-slate-400">{idx + 1}</td>
-                                <td className="px-3 py-2 font-black">{sub?.name}</td>
-                                <td className="px-3 py-2">{cls?.grade}/{cls?.section}</td>
-                                <td className="px-3 py-2 text-center">{sub?.periodsPerClass}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-2xl border border-slate-200 overflow-hidden">
+              {(() => {
+                // تجميع الإسنادات حسب الفصل
+                const groupByClass = (list: Assignment[]) => {
+                  const map = new Map<string, { cls: typeof classes[number] | undefined; subjects: { name: string; periods: number }[]; totalPeriods: number }>();
+                  list.forEach(a => {
+                    const cls = classes.find(c => c.id === a.classId);
+                    const sub = subjects.find(s => s.id === a.subjectId);
+                    if (!cls || !sub) return;
+                    const entry = map.get(a.classId) || { cls, subjects: [], totalPeriods: 0 };
+                    entry.subjects.push({ name: sub.name, periods: sub.periodsPerClass });
+                    entry.totalPeriods += sub.periodsPerClass;
+                    map.set(a.classId, entry);
+                  });
+                  return Array.from(map.values()).sort((a, b) => {
+                    const aKey = `${a.cls?.grade ?? 0}-${a.cls?.section ?? ''}`;
+                    const bKey = `${b.cls?.grade ?? 0}-${b.cls?.section ?? ''}`;
+                    return aKey.localeCompare(bKey);
+                  });
+                };
+
+                const renderTable = (rows: ReturnType<typeof groupByClass>) => (
                   <table className="w-full text-right text-xs">
                     <thead className="bg-slate-50 text-slate-500 font-black">
                       <tr>
                         <th className="px-3 py-2 w-10">م</th>
-                        <th className="px-3 py-2">المادة</th>
-                        <th className="px-3 py-2">الفصل</th>
+                        <th className="px-3 py-2 w-24">الفصل</th>
+                        <th className="px-3 py-2">المواد</th>
                         <th className="px-3 py-2 w-24 text-center">عدد الحصص</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {teacherAssignments.map((a, idx) => {
-                        const sub = subjects.find(s => s.id === a.subjectId);
-                        const cls = classes.find(c => c.id === a.classId);
-                        return (
-                          <tr key={idx} className="text-slate-700 font-bold">
-                            <td className="px-3 py-2 text-slate-400">{idx + 1}</td>
-                            <td className="px-3 py-2 font-black">{sub?.name}</td>
-                            <td className="px-3 py-2">{cls?.grade}/{cls?.section}</td>
-                            <td className="px-3 py-2 text-center">{sub?.periodsPerClass}</td>
-                          </tr>
-                        );
-                      })}
+                      {rows.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-6 text-center text-slate-400 font-bold">لا توجد إسنادات</td>
+                        </tr>
+                      ) : rows.map((row, idx) => (
+                        <tr key={row.cls?.id || idx} className="text-slate-700 font-bold align-top">
+                          <td className="px-3 py-2 text-slate-400">{idx + 1}</td>
+                          <td className="px-3 py-2 font-black tabular-nums">{row.cls?.section}/{row.cls?.grade}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap gap-1">
+                              {row.subjects.map((s, i) => (
+                                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-[11px] font-black text-slate-700">
+                                  <span>{s.name}</span>
+                                  <span className="text-slate-400">·</span>
+                                  <span className="text-[#655ac1]">{s.periods}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-center font-black text-[#655ac1]">{row.totalPeriods}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
-                </div>
-              )}
+                );
+
+                return teacher.isShared ? (
+                  schoolSummaryRows.map(({ sid, schoolName, list }) => (
+                    <div key={sid} className="rounded-2xl border border-slate-200 overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                        <span className="text-sm font-black text-[#655ac1]">{schoolName}</span>
+                      </div>
+                      {renderTable(groupByClass(list))}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                    {renderTable(groupByClass(teacherAssignments))}
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
@@ -457,7 +463,7 @@ export const TransferTeacherModal: React.FC<TransferProps> = ({
                       const active = selectedClassIds.has(c.id);
                       return (
                         <button key={c.id} onClick={() => toggleCls(c.id)} className={`w-full text-right px-3 py-2 text-xs font-bold rounded-xl transition-colors flex items-center justify-between gap-2 ${active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}>
-                          <span className="truncate">فصل {c.grade}/{c.section}</span>
+                          <span className="truncate tabular-nums">فصل {c.section}/{c.grade}</span>
                           <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                             <Check size={12} strokeWidth={3.5} />
                           </span>
