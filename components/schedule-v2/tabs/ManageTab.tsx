@@ -48,8 +48,16 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     const isFull = savedSchedules.length >= 10;
     const isNearFull = savedSchedules.length === 9;
 
-    const scheduleGenerationCount = settings.scheduleGenerationCount || 0;
-    const waitingGenerationCount = settings.waitingGenerationCount || 0;
+    const hasLessonSlots = (timetable?: SavedSchedule['timetable']) =>
+        !!timetable && Object.values(timetable).some((slot: any) => slot?.type !== 'waiting');
+
+    const hasWaitingSlots = (timetable?: SavedSchedule['timetable']) =>
+        !!timetable && Object.values(timetable).some((slot: any) => slot?.type === 'waiting');
+
+    const lessonScheduleCount = savedSchedules.filter(s => hasLessonSlots(s.timetable)).length;
+    const waitingScheduleCount = hasWaitingSlots(settings.timetable)
+        ? 1
+        : savedSchedules.filter(s => hasWaitingSlots(s.timetable)).length;
 
     const dayNames: Record<number, string> = {
         0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء',
@@ -102,6 +110,14 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                 savedSchedules: updated,
                 activeScheduleId: isDeletingActiveSchedule ? undefined : prev.activeScheduleId,
                 ...(isDeletingActiveSchedule ? { timetable: undefined } : {}),
+                ...(updated.length === 0 ? {
+                    scheduleGenerationCount: 0,
+                    waitingGenerationCount: 0,
+                    substitution: {
+                        ...prev.substitution,
+                        manualReady: false,
+                    },
+                } : {}),
             }));
         }
 
@@ -118,8 +134,8 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     };
 
     const stats = [
-        { label: 'إجمالي جداول الحصص', value: String(scheduleGenerationCount), icon: CalendarDays },
-        { label: 'إجمالي جداول الانتظار', value: String(waitingGenerationCount), icon: Clock },
+        { label: 'إجمالي جداول الحصص', value: String(lessonScheduleCount), icon: CalendarDays },
+        { label: 'إجمالي جداول الانتظار', value: String(waitingScheduleCount), icon: Clock },
         { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10`, icon: Archive },
         { label: 'الجدول المعتمد', value: activeSchedule?.name ?? '—', icon: BadgeCheck, isText: true },
     ];
