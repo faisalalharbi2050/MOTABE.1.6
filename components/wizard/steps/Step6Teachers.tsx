@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Teacher, Specialization, SchoolInfo, ScheduleSettingsData, ClassInfo } from '../../../types';
-import { BookOpen, Plus, X, Upload, Trash2, Edit, Edit2, Edit3, Pen, Pencil, Check, ChevronDown, ChevronUp, Search, Printer, List, User, UserPlus, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle, Settings2, Link2, Unlink } from 'lucide-react';
+import { BookOpen, Plus, X, Upload, Trash2, Edit, Edit2, Edit3, Pen, Pencil, Check, ChevronDown, ChevronUp, Search, Printer, List, User, UserPlus, Users, GripVertical, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Copy, CheckSquare, Square, Sliders, Info, AlertCircle, Settings2, Link2, Unlink, MoreHorizontal } from 'lucide-react';
 import { INITIAL_SPECIALIZATIONS } from '../../../constants';
 import { parseTeachersExcel, TeacherData } from '../../../utils/excelTeachers';
 import SchoolTabs from '../SchoolTabs';
@@ -2006,7 +2006,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#655ac1]"
                                                     title="إجراءات"
                                                 >
-                                                    <Settings2 size={14} />
+                                                    <MoreHorizontal size={14} />
                                                 </button>
                                                 </div>
                                             )}

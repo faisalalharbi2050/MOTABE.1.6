@@ -303,7 +303,7 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-400 hover:text-[#655ac1] transition-all border border-slate-200 hover:border-[#655ac1]"
               title="إجراءات"
             >
-              <Settings2 size={14} />
+              <MoreHorizontal size={14} />
             </button>
           </div>
         )}
