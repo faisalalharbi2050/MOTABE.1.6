@@ -214,9 +214,10 @@ const AssignmentPage: React.FC<Props> = ({
     let totalPeriods = 0, totalSubjects = 0;
     let assignedPeriods = 0, assignedSubjects = 0;
     let unassignedClasses = 0;
-    classes
-      .filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c))
-      .forEach(cls => {
+    let totalClasses = 0;
+    const schoolClasses = classes.filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c));
+    schoolClasses.forEach(cls => {
+        totalClasses += 1;
         const relevant = subjects.filter(s =>
           !s.isArchived &&
           (getGradeSubjectIds(cls).includes(s.id) || cls.subjectIds?.includes(s.id))
@@ -235,12 +236,27 @@ const AssignmentPage: React.FC<Props> = ({
         });
         if (uniq.length > 0 && classAssigned < uniq.length) unassignedClasses += 1;
       });
+
+    // معلمو المدرسة الحالية
+    const schoolTeachers = teachers.filter(t => isTeacherInCurrentSchool(t));
+    const totalTeachers = schoolTeachers.length;
+    const teachersWithAssignments = new Set(
+      assignments
+        .filter(a => {
+          const cls = classes.find(c => c.id === a.classId);
+          return isAssignableClass(cls) && (cls?.schoolId || 'main') === activeSchoolTab;
+        })
+        .map(a => a.teacherId)
+    );
+    const unassignedTeachers = schoolTeachers.filter(t => !teachersWithAssignments.has(t.id)).length;
+
     return {
       totalPeriods, assignedPeriods, unassignedPeriods: totalPeriods - assignedPeriods,
       totalSubjects, assignedSubjects, unassignedSubjects: totalSubjects - assignedSubjects,
-      unassignedClasses,
+      totalClasses, unassignedClasses,
+      totalTeachers, unassignedTeachers,
     };
-  }, [classes, subjects, assignments, currentSchoolPhases, activeSchoolTab, gradeSubjectMap]);
+  }, [classes, subjects, assignments, teachers, currentSchoolPhases, activeSchoolTab, gradeSubjectMap]);
 
   // ─── derived ───
   const filteredTeachers = useMemo(() => {
@@ -658,25 +674,25 @@ const AssignmentPage: React.FC<Props> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
               <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
-                <BookOpen size={20} />
+                <Users size={20} />
               </div>
               <div>
-                <p className="text-xs font-black text-slate-400">حصص غير مسندة</p>
-                <p className="text-2xl font-black text-[#655ac1] leading-tight">
-                  {stats.unassignedPeriods}
-                  <span className="text-sm font-black text-slate-800 mr-1">/ {stats.totalPeriods}</span>
+                <p className="text-xs font-black text-slate-400">معلمون بلا إسناد</p>
+                <p className="text-2xl font-black text-slate-800 leading-tight">
+                  {stats.totalTeachers}
+                  <span className="text-base font-black text-[#655ac1] mr-1">/ {stats.unassignedTeachers}</span>
                 </p>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
               <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]">
-                <Layers size={20} />
+                <BookOpen size={20} />
               </div>
               <div>
-                <p className="text-xs font-black text-slate-400">مواد غير مسندة</p>
-                <p className="text-2xl font-black text-[#655ac1] leading-tight">
-                  {stats.unassignedSubjects}
-                  <span className="text-sm font-black text-slate-800 mr-1">/ {stats.totalSubjects}</span>
+                <p className="text-xs font-black text-slate-400">حصص غير مسندة</p>
+                <p className="text-2xl font-black text-slate-800 leading-tight">
+                  {stats.totalPeriods}
+                  <span className="text-base font-black text-[#655ac1] mr-1">/ {stats.unassignedPeriods}</span>
                 </p>
               </div>
             </div>
@@ -686,7 +702,10 @@ const AssignmentPage: React.FC<Props> = ({
               </div>
               <div>
                 <p className="text-xs font-black text-slate-400">فصول غير مكتملة</p>
-                <p className="text-2xl font-black text-[#655ac1] leading-tight">{stats.unassignedClasses}</p>
+                <p className="text-2xl font-black text-slate-800 leading-tight">
+                  {stats.totalClasses}
+                  <span className="text-base font-black text-[#655ac1] mr-1">/ {stats.unassignedClasses}</span>
+                </p>
               </div>
             </div>
           </div>
