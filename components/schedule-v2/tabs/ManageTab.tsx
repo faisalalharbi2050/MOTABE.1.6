@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     Trash2, CheckCircle2, MoreHorizontal, Pencil, Check, AlertTriangle,
-    Table, BookOpenCheck, AlertCircle, X, CalendarDays, Clock, Archive, BadgeCheck
+    Table, BookOpenCheck, AlertCircle, X, CalendarDays, Archive, BadgeCheck
 } from 'lucide-react';
 import { ScheduleSettingsData, SavedSchedule } from '../../../types';
 
@@ -48,16 +48,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     const isFull = savedSchedules.length >= 10;
     const isNearFull = savedSchedules.length === 9;
 
-    const hasLessonSlots = (timetable?: SavedSchedule['timetable']) =>
-        !!timetable && Object.values(timetable).some((slot: any) => slot?.type !== 'waiting');
-
-    const hasWaitingSlots = (timetable?: SavedSchedule['timetable']) =>
-        !!timetable && Object.values(timetable).some((slot: any) => slot?.type === 'waiting');
-
-    const lessonScheduleCount = savedSchedules.filter(s => hasLessonSlots(s.timetable)).length;
-    const waitingScheduleCount = hasWaitingSlots(settings.timetable)
-        ? 1
-        : savedSchedules.filter(s => hasWaitingSlots(s.timetable)).length;
+    const createdSchedulesCount = settings.scheduleGenerationCount || 0;
 
     const dayNames: Record<number, string> = {
         0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء',
@@ -111,7 +102,6 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                 activeScheduleId: isDeletingActiveSchedule ? undefined : prev.activeScheduleId,
                 ...(isDeletingActiveSchedule ? { timetable: undefined } : {}),
                 ...(updated.length === 0 ? {
-                    scheduleGenerationCount: 0,
                     waitingGenerationCount: 0,
                     substitution: {
                         ...prev.substitution,
@@ -134,8 +124,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     };
 
     const stats = [
-        { label: 'إجمالي جداول الحصص', value: String(lessonScheduleCount), icon: CalendarDays },
-        { label: 'إجمالي جداول الانتظار', value: String(waitingScheduleCount), icon: Clock },
+        { label: 'الجداول المنشأة', value: String(createdSchedulesCount), icon: CalendarDays },
         { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10`, icon: Archive },
         { label: 'الجدول المعتمد', value: activeSchedule?.name ?? '—', icon: BadgeCheck, isText: true },
     ];
@@ -166,7 +155,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
     return (
         <div className="space-y-5" dir="rtl">
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {stats.map((s, i) => (
                     <div
                         key={i}
