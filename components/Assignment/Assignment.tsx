@@ -1099,14 +1099,6 @@ const AssignmentPage: React.FC<Props> = ({
                 )}
               </div>
 
-              {!selectionMode && selectedTeacher && (
-                <div className="mr-auto inline-flex items-center gap-2 text-xs font-bold text-[#655ac1] bg-white border border-slate-300 px-3 py-2.5 rounded-xl">
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#655ac1] text-white">
-                    <Check size={10} strokeWidth={3.5} />
-                  </span>
-                  <span>الإسناد لـ "{selectedTeacher.name}"</span>
-                </div>
-              )}
             </div>
 
             <div className="pt-3 space-y-6">
