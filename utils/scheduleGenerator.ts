@@ -93,10 +93,22 @@ export async function generateSchedule(
     // Track Subject Quotas per Class
     // "classId-subjectId" => count
     const classSubjectCounts = new Map<string, number>();
+    const classSubjectDayCounts = new Map<string, number>();
+    const classSubjectPeriodCounts = new Map<string, number>();
 
     // Detailed Teacher Tracking for balanced distribution
     // Number of periods a teacher teaches per day: "teacherId-day" => count
     const teacherDailyLoad = new Map<string, number>();
+    const teacherWeeklyLoadTarget = new Map<string, number>();
+
+    teachers.forEach(t => teacherWeeklyLoadTarget.set(t.id, 0));
+    if (assignments && assignments.length > 0) {
+        assignments.forEach(a => {
+            const sub = subjects.find(s => s.id === a.subjectId);
+            if (!sub) return;
+            teacherWeeklyLoadTarget.set(a.teacherId, (teacherWeeklyLoadTarget.get(a.teacherId) || 0) + (sub.periodsPerClass || 0));
+        });
+    }
 
     // Track first/last period assignments per teacher (across all days/classes)
     const teacherFirstPeriodCount = new Map<string, number>(); // teacherId => count
@@ -125,6 +137,19 @@ export async function generateSchedule(
         const key = `${cls.id}-${subj.id}`;
         const used = classSubjectCounts.get(key) || 0;
         return subj.periodsPerClass - used;
+    };
+
+    const getSubjectMaxPerDay = (subj: Subject) =>
+        subj.periodsPerClass <= activeDays.length ? 1 : 2;
+
+    const getTeacherTargetMaxDaily = (teacher: Teacher) => {
+        const assignedLoad = teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0;
+        return Math.max(1, Math.ceil(assignedLoad / activeDays.length));
+    };
+
+    const getTeacherIdealDaily = (teacher: Teacher) => {
+        const assignedLoad = teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0;
+        return assignedLoad > 0 ? assignedLoad / activeDays.length : 0;
     };
 
     // Pre-calculate valid subjects for each class
@@ -208,13 +233,32 @@ export async function generateSchedule(
         
         let assigned = false;
         
-        // Try to find a subject that needs to be taught
-        // Shuffle subjects to vary schedule? Or keep fixed order?
-        // Shuffle helps distribution.
-        const shuffledSubjects = [...subjectsForClass].sort(() => Math.random() - 0.5);
+        // Try subjects with a fairness score instead of random order.
+        const currentClassForSlot = classes.find(c => c.id === classId)!;
+        const getSubjectSlotScore = (subj: Subject) => {
+            const remaining = getRemainingQuota(currentClassForSlot, subj);
+            if (remaining <= 0) return Number.POSITIVE_INFINITY;
+
+            const dayCount = classSubjectDayCounts.get(`${classId}-${subj.id}-${day}`) || 0;
+            const samePeriodCount = classSubjectPeriodCounts.get(`${classId}-${subj.id}-${period}`) || 0;
+            if (!isBypassingConflicts && dayCount >= getSubjectMaxPerDay(subj)) return Number.POSITIVE_INFINITY;
+            if (!isBypassingConflicts && samePeriodCount >= 2) return Number.POSITIVE_INFINITY;
+
+            const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
+            const teacher = assignedTeacherId ? teachers.find(t => t.id === assignedTeacherId) : undefined;
+            const teacherLoad = teacher ? (teacherDailyLoad.get(`${teacher.id}-${day}`) || 0) : 0;
+            const teacherIdeal = teacher ? getTeacherIdealDaily(teacher) : 0;
+            const teacherPenalty = Math.max(0, teacherLoad + 1 - teacherIdeal) * 20;
+
+            return (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + teacherLoad - remaining;
+        };
+        const shuffledSubjects = [...subjectsForClass].sort((a, b) => {
+            const diff = getSubjectSlotScore(a) - getSubjectSlotScore(b);
+            return diff !== 0 ? diff : (a.name || '').localeCompare(b.name || '', 'ar');
+        });
         
         for (const subj of shuffledSubjects) {
-            const quota = getRemainingQuota(classes.find(c => c.id === classId)!, subj);
+            const quota = getRemainingQuota(currentClassForSlot, subj);
             
             // DEBUG: Trace first class subject loop
             if (slotIndex === 0) {
@@ -223,6 +267,17 @@ export async function generateSchedule(
 
             if (quota <= 0) {
                 if (slotIndex === 0) console.log(`-> Skipped due to 0 quota.`);
+                continue;
+            }
+
+            const daySubjectKey = `${classId}-${subj.id}-${day}`;
+            const periodSubjectKey = `${classId}-${subj.id}-${period}`;
+            const subjectDayCount = classSubjectDayCounts.get(daySubjectKey) || 0;
+            const subjectSamePeriodCount = classSubjectPeriodCounts.get(periodSubjectKey) || 0;
+            if (!isBypassingConflicts && subjectDayCount >= getSubjectMaxPerDay(subj)) {
+                continue;
+            }
+            if (!isBypassingConflicts && subjectSamePeriodCount >= 2) {
                 continue;
             }
 
@@ -277,7 +332,7 @@ export async function generateSchedule(
             // Filter by constraints (Teacher max daily, exclusions, etc.)
             // We can use `checkConflicts` logic here but localized.
             
-            const validTeacher = potentialTeachers.find(t => {
+            const validTeachers = potentialTeachers.filter(t => {
                 // ── Shared Teacher: Time-Slot Conflict Check ─────────
                 // Prevent a teacher from being assigned to the same
                 // (day, period) in two different schools.
@@ -306,8 +361,7 @@ export async function generateSchedule(
                 // Check Max Daily (Smart Distribution)
                 // e.g. 24 limit -> 5 max per day. 20 limit -> 4 max per day.
                 // We'll calculate a target max per day based on quota.
-                const quota = t.quotaLimit || 24;
-                const targetMaxDaily = Math.ceil(quota / activeDays.length);
+                const targetMaxDaily = getTeacherTargetMaxDaily(t);
                 
                 const currentDailyLoad = teacherDailyLoad.get(`${t.id}-${day}`) || 0;
                 
@@ -358,6 +412,20 @@ export async function generateSchedule(
 
                 return true;
             });
+            const validTeacher = validTeachers
+                .map(t => {
+                    const currentDailyLoad = teacherDailyLoad.get(`${t.id}-${day}`) || 0;
+                    const idealDaily = getTeacherIdealDaily(t);
+                    const teacherBalancePenalty = Math.max(0, currentDailyLoad + 1 - idealDaily) * 20;
+                    const subjectDayPenalty = subjectDayCount * 40;
+                    const subjectSamePeriodPenalty = subjectSamePeriodCount * 35;
+                    const remainingPriority = -quota;
+                    return {
+                        teacher: t,
+                        score: teacherBalancePenalty + subjectDayPenalty + subjectSamePeriodPenalty + currentDailyLoad + remainingPriority
+                    };
+                })
+                .sort((a, b) => a.score - b.score)[0]?.teacher;
             
             if (validTeacher) {
                 // ASSIGN
@@ -378,6 +446,8 @@ export async function generateSchedule(
                     teacherSlots[validTeacher.id].add(`${day}-${period}`);
                 }
                 classSubjectCounts.set(`${classId}-${subj.id}`, (classSubjectCounts.get(`${classId}-${subj.id}`) || 0) + 1);
+                classSubjectDayCounts.set(`${classId}-${subj.id}-${day}`, (classSubjectDayCounts.get(`${classId}-${subj.id}-${day}`) || 0) + 1);
+                classSubjectPeriodCounts.set(`${classId}-${subj.id}-${period}`, (classSubjectPeriodCounts.get(`${classId}-${subj.id}-${period}`) || 0) + 1);
                 teacherDailyLoad.set(`${validTeacher.id}-${day}`, (teacherDailyLoad.get(`${validTeacher.id}-${day}`) || 0) + 1);
                 if (period === 1) teacherFirstPeriodCount.set(validTeacher.id, (teacherFirstPeriodCount.get(validTeacher.id) || 0) + 1);
                 if (period === periodsPerDay) teacherLastPeriodCount.set(validTeacher.id, (teacherLastPeriodCount.get(validTeacher.id) || 0) + 1);
