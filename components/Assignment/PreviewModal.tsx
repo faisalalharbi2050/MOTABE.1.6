@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
 import { X, Eye, Search, Check, ChevronDown } from 'lucide-react';
+import { sortSpecIdsByAssignmentOrder, sortTeachersByAssignmentOrder } from './teacherSort';
 
 interface Props {
   teachers: Teacher[];
@@ -69,6 +70,11 @@ const PreviewModal: React.FC<Props> = ({
   const schoolTeachers = useMemo(() => teachers.filter(isTeacherInCurrentSchool),
     [teachers, activeSchoolTab]);
 
+  const orderedSchoolTeachers = useMemo(
+    () => sortTeachersByAssignmentOrder(schoolTeachers, specializations, schoolInfo),
+    [schoolTeachers, specializations, schoolInfo.specializationOrder]
+  );
+
   const sortedSchoolClasses = useMemo(() => {
     const list = classes.filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c));
     return [...list].sort((a, b) => {
@@ -81,17 +87,17 @@ const PreviewModal: React.FC<Props> = ({
   }, [classes, currentSchoolPhases, activeSchoolTab]);
 
   useEffect(() => {
-    setSelectedTeacherIds(new Set(schoolTeachers.map(t => t.id)));
-  }, [schoolTeachers.length, activeSchoolTab]);
+    setSelectedTeacherIds(new Set(orderedSchoolTeachers.map(t => t.id)));
+  }, [orderedSchoolTeachers.length, activeSchoolTab]);
   useEffect(() => {
     setSelectedClassIds(new Set(sortedSchoolClasses.map(c => c.id)));
   }, [sortedSchoolClasses.length, activeSchoolTab]);
 
   const usedSpecIds = useMemo(() => {
     const ids = new Set<string>();
-    schoolTeachers.forEach(t => { if (t.specializationId) ids.add(t.specializationId); });
-    return Array.from(ids);
-  }, [schoolTeachers]);
+    orderedSchoolTeachers.forEach(t => { if (t.specializationId) ids.add(t.specializationId); });
+    return sortSpecIdsByAssignmentOrder(Array.from(ids), specializations, schoolInfo);
+  }, [orderedSchoolTeachers, specializations, schoolInfo.specializationOrder]);
 
   const normalize = (s: string) => (s || '').toLowerCase().trim();
   const getSpecName = (id: string) => specializations.find(s => s.id === id)?.name || '—';
@@ -99,16 +105,10 @@ const PreviewModal: React.FC<Props> = ({
   // ── Sidebar teacher list (filtered by search + spec filter) ──
   const sidebarTeachers = useMemo(() => {
     const q = normalize(search);
-    return schoolTeachers
+    return orderedSchoolTeachers
       .filter(t => !filterSpecId || t.specializationId === filterSpecId)
-      .filter(t => !q || normalize(t.name).includes(q))
-      .sort((a, b) => {
-        if (a.specializationId !== b.specializationId) {
-          return getSpecName(a.specializationId).localeCompare(getSpecName(b.specializationId), 'ar');
-        }
-        return (a.name || '').localeCompare(b.name || '', 'ar');
-      });
-  }, [schoolTeachers, search, filterSpecId, specializations]);
+      .filter(t => !q || normalize(t.name).includes(q));
+  }, [orderedSchoolTeachers, search, filterSpecId]);
 
   const sidebarClasses = useMemo(() => {
     const q = normalize(search);
@@ -122,16 +122,15 @@ const PreviewModal: React.FC<Props> = ({
   const teachersGrouped = useMemo(() => {
     const groups: { specId: string; specName: string; teachers: Teacher[] }[] = [];
     usedSpecIds.forEach(specId => {
-      const list = schoolTeachers
+      const list = orderedSchoolTeachers
         .filter(t => t.specializationId === specId)
-        .filter(t => selectedTeacherIds.has(t.id))
-        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
+        .filter(t => selectedTeacherIds.has(t.id));
       if (list.length > 0) {
         groups.push({ specId, specName: getSpecName(specId), teachers: list });
       }
     });
     return groups;
-  }, [schoolTeachers, usedSpecIds, selectedTeacherIds, specializations]);
+  }, [orderedSchoolTeachers, usedSpecIds, selectedTeacherIds, specializations]);
 
   const formatAssignmentChip = (a: Assignment): string => {
     const s = subjects.find(x => x.id === a.subjectId);
@@ -158,7 +157,7 @@ const PreviewModal: React.FC<Props> = ({
 
   // ── Unassigned (grouped by class) ──
   const unassignedData = useMemo(() => {
-    const teacherList = schoolTeachers.filter(t => !schoolAssignments.some(a => a.teacherId === t.id))
+    const teacherList = orderedSchoolTeachers.filter(t => !schoolAssignments.some(a => a.teacherId === t.id))
       .map(t => ({ teacherName: t.name, teacherSpec: getSpecName(t.specializationId) }));
 
     const classRows: { className: string; subjects: string[] }[] = [];
@@ -171,7 +170,7 @@ const PreviewModal: React.FC<Props> = ({
     });
 
     return { teacherRows: teacherList, classRows };
-  }, [schoolTeachers, schoolAssignments, sortedSchoolClasses, specializations, subjects]);
+  }, [orderedSchoolTeachers, schoolAssignments, sortedSchoolClasses, specializations, subjects]);
 
   const viewOptions: { id: ViewMode; name: string }[] = [
     { id: 'teachers', name: 'المعلمون' },

@@ -1406,6 +1406,7 @@ const AssignmentPage: React.FC<Props> = ({
           classes={classes}
           assignments={assignments}
           specializations={specializations}
+          schoolInfo={schoolInfo}
           activeSchoolTab={activeSchoolTab}
           schoolLabel={currentSchoolLabel}
           onConfirm={handleDeleteByTeacherConfirm}

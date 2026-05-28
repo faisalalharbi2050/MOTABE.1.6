@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
 import { X, Printer, Check, ChevronDown } from 'lucide-react';
+import { sortTeachersByAssignmentOrder } from './teacherSort';
 
 interface Props {
   teachers: Teacher[];
@@ -70,6 +71,11 @@ const PrintModal: React.FC<Props> = ({
   const schoolTeachers = useMemo(() =>
     teachers.filter(isTeacherInCurrentSchool), [teachers, activeSchoolTab]);
 
+  const orderedSchoolTeachers = useMemo(
+    () => sortTeachersByAssignmentOrder(schoolTeachers, specializations, schoolInfo),
+    [schoolTeachers, specializations, schoolInfo.specializationOrder]
+  );
+
   const sortedSchoolClasses = useMemo(() => {
     const list = classes.filter(c => isAssignableClass(c) && currentSchoolPhases.includes(c.phase) && isClassInCurrentSchool(c));
     return [...list].sort((a, b) => {
@@ -108,14 +114,15 @@ const PrintModal: React.FC<Props> = ({
     const teacherList = teacherIds
       .map(id => teachers.find(t => t.id === id))
       .filter((t): t is Teacher => !!t);
+    const orderedTeacherList = sortTeachersByAssignmentOrder(teacherList, specializations, schoolInfo);
     const specIds: string[] = [];
-    teacherList.forEach(t => {
+    orderedTeacherList.forEach(t => {
       if (!specIds.includes(t.specializationId)) specIds.push(t.specializationId);
     });
 
     return specIds.map(specId => {
       const specName = specializations.find(s => s.id === specId)?.name || 'بدون تخصص';
-      const inSpec = teacherList.filter(t => t.specializationId === specId);
+      const inSpec = orderedTeacherList.filter(t => t.specializationId === specId);
 
       const rows = inSpec.map((t, idx) => {
         const list = schoolAssignments.filter(a => a.teacherId === t.id);
@@ -210,7 +217,7 @@ const PrintModal: React.FC<Props> = ({
   };
 
   const renderUnassignedHtml = (): string => {
-    const teacherList = schoolTeachers.filter(t => !schoolAssignments.some(a => a.teacherId === t.id));
+    const teacherList = orderedSchoolTeachers.filter(t => !schoolAssignments.some(a => a.teacherId === t.id));
     const teacherRows = teacherList.map((t, idx) => {
       const spec = specializations.find(sp => sp.id === t.specializationId)?.name || '—';
       return `
@@ -448,7 +455,7 @@ const PrintModal: React.FC<Props> = ({
                 {opt.value === 'teacher' && active && (
                   <InlineMultiSelect
                     label="المعلمون"
-                    items={schoolTeachers.map(t => ({
+                    items={orderedSchoolTeachers.map(t => ({
                       id: t.id,
                       primary: t.name,
                       secondary: specializations.find(s => s.id === t.specializationId)?.name || '—',

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Teacher, Subject, ClassInfo, Assignment, Specialization } from '../../types';
+import { Teacher, Subject, ClassInfo, Assignment, Specialization, SchoolInfo } from '../../types';
 import { X, Trash2, Check, BookOpen, Users, Search, ChevronDown } from 'lucide-react';
+import { createSpecializationOrderIndex, compareTeachersByAssignmentOrder } from './teacherSort';
 
 // قائمة منسدلة بنفس تصميم نافذة حذف الفصول (Step4Classes)
 const InlineSelect: React.FC<{
@@ -317,6 +318,7 @@ interface DeleteByTeacherProps {
   classes: ClassInfo[];
   assignments: Assignment[];
   specializations: Specialization[];
+  schoolInfo: SchoolInfo;
   activeSchoolTab: string;
   schoolLabel: string;
   onConfirm: (teacherIds: string[]) => void;
@@ -325,7 +327,7 @@ interface DeleteByTeacherProps {
 
 export const DeleteByTeacherModal: React.FC<DeleteByTeacherProps> = ({
   teachers, subjects, classes, assignments, specializations,
-  activeSchoolTab, onConfirm, onClose,
+  schoolInfo, activeSchoolTab, onConfirm, onClose,
 }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -339,14 +341,15 @@ export const DeleteByTeacherModal: React.FC<DeleteByTeacherProps> = ({
 
   const teachersWithAssignments = useMemo(() => {
     const counts = new Map<string, number>();
+    const specIndex = createSpecializationOrderIndex(specializations, schoolInfo);
     schoolAssignments.forEach(a => {
       counts.set(a.teacherId, (counts.get(a.teacherId) || 0) + 1);
     });
     return Array.from(counts.entries())
       .map(([id, count]) => ({ teacher: teachers.find(t => t.id === id)!, count }))
       .filter(x => x.teacher)
-      .sort((a, b) => b.count - a.count);
-  }, [schoolAssignments, teachers]);
+      .sort((a, b) => compareTeachersByAssignmentOrder(a.teacher, b.teacher, specIndex));
+  }, [schoolAssignments, teachers, specializations, schoolInfo.specializationOrder]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
