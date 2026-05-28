@@ -38,14 +38,13 @@ export async function generateSchedule(
     // Flat list of all slots to fill: [ClassId, Day, Period]
     const slotsToFill: { classId: string; day: string; period: number }[] = [];
     
-    classes.forEach(cls => {
-        // Skip facility entries — they are constraints, not schedulable classes
-        if (cls.grade === 0 && cls.linkedSubjectIds && cls.linkedSubjectIds.length > 0) return;
-        activeDays.forEach(day => {
-            for (let p = 1; p <= periodsPerDay; p++) {
+    const schedulableClasses = classes.filter(cls => !(cls.grade === 0 && cls.linkedSubjectIds && cls.linkedSubjectIds.length > 0));
+    activeDays.forEach(day => {
+        for (let p = 1; p <= periodsPerDay; p++) {
+            schedulableClasses.forEach(cls => {
                 slotsToFill.push({ classId: cls.id, day, period: p });
-            }
-        });
+            });
+        }
     });
     
     // ── Shared Teacher Time-Conflict Prevention ──────────────────────
@@ -80,6 +79,7 @@ export async function generateSchedule(
     const teacherDayPeriods = new Map<string, Set<number>>(); // "teacherId-day" => periods
     const teacherDailyLoad = new Map<string, number>(); // "teacherId-day" => count
     const teacherWeeklyLoadTarget = new Map<string, number>();
+    const teacherDailyTargets = new Map<string, number>(); // "teacherId-day" => target count
     const teacherFirstPeriodCount = new Map<string, number>(); // teacherId => count
     const teacherLastPeriodCount  = new Map<string, number>(); // teacherId => count
     
@@ -117,6 +117,14 @@ export async function generateSchedule(
             teacherWeeklyLoadTarget.set(a.teacherId, (teacherWeeklyLoadTarget.get(a.teacherId) || 0) + (sub.periodsPerClass || 0));
         });
     }
+    teachers.forEach(t => {
+        const weeklyLoad = teacherWeeklyLoadTarget.get(t.id) || t.quotaLimit || 0;
+        const base = Math.floor(weeklyLoad / activeDays.length);
+        const extraDays = weeklyLoad % activeDays.length;
+        activeDays.forEach((day, index) => {
+            teacherDailyTargets.set(`${t.id}-${day}`, base + (index < extraDays ? 1 : 0));
+        });
+    });
 
     // ── Facility Capacity Constraint ──────────────────────────────────────
     // Identify facility entries (grade === 0 with linkedSubjectIds)
@@ -146,9 +154,17 @@ export async function generateSchedule(
     const getSubjectMaxPerDay = (subj: Subject) =>
         subj.periodsPerClass <= activeDays.length ? 1 : 2;
 
-    const getTeacherIdealDaily = (teacher: Teacher) => {
-        const assignedLoad = teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0;
-        return assignedLoad > 0 ? assignedLoad / activeDays.length : 0;
+    const getTeacherDayTarget = (teacher: Teacher, day: string) =>
+        teacherDailyTargets.get(`${teacher.id}-${day}`) ?? Math.ceil((teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0) / activeDays.length);
+
+    const getTeacherDayBalanceScore = (teacher: Teacher, day: string, periodsToAdd = 1) => {
+        const current = teacherDailyLoad.get(`${teacher.id}-${day}`) || 0;
+        const target = getTeacherDayTarget(teacher, day);
+        if (target <= 0) return current + periodsToAdd;
+        const after = current + periodsToAdd;
+        return after <= target
+            ? -(target - current) * 120
+            : (after - target) * 180;
     };
 
     const subjectConstraintById = new Map(settings.subjectConstraints.map(sc => [sc.subjectId, sc]));
@@ -266,8 +282,7 @@ export async function generateSchedule(
             const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
             const teacher = assignedTeacherId ? teachers.find(t => t.id === assignedTeacherId) : undefined;
             const teacherLoad = teacher ? (teacherDailyLoad.get(`${teacher.id}-${day}`) || 0) : 0;
-            const teacherIdeal = teacher ? getTeacherIdealDaily(teacher) : 0;
-            const teacherPenalty = Math.max(0, teacherLoad + 1 - teacherIdeal) * 20;
+            const teacherPenalty = teacher ? getTeacherDayBalanceScore(teacher, day) : 0;
             const preferredPenalty = subjectConstraint?.preferredPeriods?.length && !subjectConstraint.preferredPeriods.includes(period) ? 18 : 0;
 
             return (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + preferredPenalty + teacherLoad - remaining;
@@ -390,6 +405,10 @@ export async function generateSchedule(
                 if (currentDailyLoad >= periodsPerDay) {
                      return false;
                 }
+                const dailyTarget = getTeacherDayTarget(t, day);
+                if (!isBypassingConflicts && dailyTarget > 0 && currentDailyLoad >= dailyTarget) {
+                    return false;
+                }
 
                 // Check Excluded Slots
                 const constraint = teacherConstraintById.get(t.id);
@@ -436,9 +455,8 @@ export async function generateSchedule(
             const validTeacher = validTeachers
                 .map(t => {
                     const currentDailyLoad = teacherDailyLoad.get(`${t.id}-${day}`) || 0;
-                    const idealDaily = getTeacherIdealDaily(t);
                     const consecutiveAfterAdding = getConsecutiveRunAfterAdding(t.id, day, period);
-                    const teacherBalancePenalty = Math.max(0, currentDailyLoad + 1 - idealDaily) * 20;
+                    const teacherBalancePenalty = getTeacherDayBalanceScore(t, day);
                     const consecutivePenalty = Math.max(0, consecutiveAfterAdding - 1) * 45;
                     const subjectDayPenalty = subjectDayCount * 40;
                     const subjectSamePeriodPenalty = subjectSamePeriodCount * 35;
@@ -516,7 +534,15 @@ export async function generateSchedule(
 
                 const candidateSubjects = [...(classSubjectsMap.get(classId) || [])]
                     .filter(subj => getRemainingQuota(currentClassForSlot, subj) > 0)
-                    .sort((a, b) => getRemainingQuota(currentClassForSlot, b) - getRemainingQuota(currentClassForSlot, a));
+                    .sort((a, b) => {
+                        const getScore = (subj: Subject) => {
+                            const assignedTeacherId = teacherForSubject.get(`${classId}-${subj.id}`);
+                            const teacher = assignedTeacherId ? teachers.find(t => t.id === assignedTeacherId) : undefined;
+                            const balanceScore = teacher ? getTeacherDayBalanceScore(teacher, day) : 0;
+                            return balanceScore - getRemainingQuota(currentClassForSlot, subj);
+                        };
+                        return getScore(a) - getScore(b);
+                    });
 
                 for (const subj of candidateSubjects) {
                     const subjectConstraint = subjectConstraintById.get(subj.id);
@@ -547,6 +573,13 @@ export async function generateSchedule(
 
                     const currentDailyLoad = teacherDailyLoad.get(`${teacher.id}-${day}`) || 0;
                     if (currentDailyLoad >= periodsPerDay) continue;
+                    const dailyTarget = getTeacherDayTarget(teacher, day);
+                    const allowedDailyLoad = relaxation === 0
+                        ? dailyTarget
+                        : relaxation === 1
+                            ? dailyTarget + 1
+                            : periodsPerDay;
+                    if (!isBypassingConflicts && dailyTarget > 0 && currentDailyLoad >= allowedDailyLoad) continue;
 
                     const constraint = teacherConstraintById.get(teacher.id);
                     if (!isBypassingConflicts && constraint?.excludedSlots[day]?.includes(period)) continue;
