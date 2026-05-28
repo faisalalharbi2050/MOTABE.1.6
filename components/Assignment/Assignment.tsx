@@ -1156,13 +1156,11 @@ const AssignmentPage: React.FC<Props> = ({
                                         ? 'bg-rose-50 border border-rose-400 ring-2 ring-rose-200'
                                         : isAssigned
                                           ? 'bg-white border border-slate-200 hover:border-slate-300'
-                                          : highlightSpec
-                                            ? 'bg-white border border-[#655ac1]/40 ring-1 ring-[#655ac1]/15 hover:border-[#655ac1] hover:ring-[#655ac1]/30'
-                                            : 'bg-amber-50/40 hover:bg-slate-50'}
+                                          : 'bg-amber-50/40 hover:bg-amber-100/50'}
                                       ${selectionDisabled ? 'opacity-40 cursor-not-allowed' : ''}
                                     `}
                                     style={
-                                      !isSelectedForDelete && !isAssigned && !highlightSpec
+                                      !isSelectedForDelete && !isAssigned
                                         ? {
                                             backgroundImage:
                                               "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23fbbf24' stroke-width='2' stroke-dasharray='8 5'/%3E%3C/svg%3E\")",
@@ -1184,13 +1182,18 @@ const AssignmentPage: React.FC<Props> = ({
                                         <div className="text-[10px] font-bold text-slate-500">{sub.periodsPerClass} حصص</div>
                                       </div>
                                       {!selectionMode && isAssigned && (
-                                        <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-1" strokeWidth={2.5} />
+                                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shrink-0 mt-0.5">
+                                          <Check size={10} strokeWidth={3.5} />
+                                        </span>
                                       )}
-                                      {!selectionMode && !isAssigned && highlightSpec && (
-                                        <Sparkles size={12} className="text-[#655ac1] shrink-0" />
-                                      )}
-                                      {!selectionMode && !isAssigned && !highlightSpec && (
-                                        <HelpCircle size={16} className="text-amber-500 shrink-0 mt-1" strokeWidth={2.5} />
+                                      {!selectionMode && !isAssigned && (
+                                        highlightSpec ? (
+                                          <span title="تناسب تخصص المعلم" className="shrink-0 mt-0.5">
+                                            <Sparkles size={14} className="text-[#655ac1]" strokeWidth={2.5} />
+                                          </span>
+                                        ) : (
+                                          <HelpCircle size={16} className="text-amber-500 shrink-0 mt-1" strokeWidth={2.5} />
+                                        )
                                       )}
                                     </div>
                                     {isAssigned ? (
@@ -1209,7 +1212,7 @@ const AssignmentPage: React.FC<Props> = ({
                                         )}
                                       </div>
                                     ) : (
-                                      <div className={`flex items-center gap-1 text-[10px] font-black ${highlightSpec ? 'text-[#655ac1]' : 'text-amber-700'}`}>
+                                      <div className="flex items-center gap-1 text-[10px] font-black text-amber-700">
                                         <ArrowLeft size={11} strokeWidth={3} />
                                         <span>اضغط للإسناد</span>
                                       </div>
