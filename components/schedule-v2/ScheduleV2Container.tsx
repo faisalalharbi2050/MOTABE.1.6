@@ -21,6 +21,7 @@ interface Props {
   specializations: Specialization[];
   onOpenMessagesArchive?: () => void;
   onPrepareMessageDraft?: (draft: MessageComposerDraft) => void;
+  onNavigateMain?: (tab: string) => void;
 }
 
 type TabId = 'create' | 'edit' | 'waiting' | 'view' | 'send' | 'manage';

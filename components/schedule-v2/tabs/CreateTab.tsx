@@ -1,10 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
   Calendar,
-  CalendarDays,
   Check,
   CheckCircle2,
-  ClipboardList,
   Grid,
   LayoutGrid,
   Sparkles,
@@ -32,6 +30,7 @@ interface Props {
   assignments: Assignment[];
   specializations: Specialization[];
   onNavigate: (tab: 'view' | 'edit' | 'create' | 'waiting') => void;
+  onNavigateMain?: (tab: string) => void;
   isScheduleLocked: boolean;
   setIsScheduleLocked: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -44,6 +43,7 @@ const CreateTab: React.FC<Props> = ({
   subjects,
   classes,
   assignments,
+  onNavigateMain,
   isScheduleLocked,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -317,28 +317,61 @@ const CreateTab: React.FC<Props> = ({
     return sum + (sub?.periodsPerClass || 0);
   }, 0);
 
-  const statsCards = [
-    { label: 'المعلمون', value: teachers.length, icon: Users },
-    { label: 'الفصول', value: classes.length, icon: LayoutGrid },
-    { label: 'الإسنادات', value: assignments.length, icon: ClipboardList },
-    { label: 'المواد', value: subjects.length, icon: CalendarDays },
-    { label: 'عدد الحصص', value: totalAssignedPeriods, icon: BookOpen },
+  const openReadinessTarget = (target: 'teachers' | 'classes' | 'assignment') => {
+    if (target === 'teachers') onNavigateMain?.('settings_teachers');
+    if (target === 'classes') onNavigateMain?.('settings_classes');
+    if (target === 'assignment') onNavigateMain?.('manual_v2');
+  };
+
+  const teacherCardIssue = readinessReview.issues.find(issue =>
+    issue.message.includes('معلم') || issue.message.includes('نصاب')
+  );
+  const classCardIssue = readinessReview.issues.find(issue =>
+    issue.message.includes('فصل') || issue.message.includes('فصول')
+  );
+  const assignmentCardIssue = readinessReview.issues.find(issue =>
+    issue.message.includes('إسناد') || issue.message.includes('مادة') || issue.message.includes('مواد')
+  );
+
+  const readinessCards = [
+    { label: 'المعلمون', value: teachers.length, icon: Users, issue: teacherCardIssue, target: 'teachers' as const },
+    { label: 'الفصول', value: assignableClasses.length, icon: LayoutGrid, issue: classCardIssue, target: 'classes' as const },
+    { label: 'الحصص المسندة', value: totalAssignedPeriods, icon: BookOpen, issue: assignmentCardIssue, target: 'assignment' as const },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {statsCards.map(card => (
-          <div key={card.label} className="bg-white rounded-2xl p-4 border border-slate-200 transition-all" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-            <div className="flex items-center gap-3">
-              <card.icon size={22} className="text-[#655ac1]" />
-              <div>
-                <p className="text-xs text-slate-500 font-bold">{card.label}</p>
-                <p className="text-2xl font-black text-slate-800">{card.value}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {readinessCards.map(card => {
+          const hasIssue = !!card.issue;
+          const isBlocking = card.issue?.level === 'error';
+          return (
+            <button
+              key={card.label}
+              type="button"
+              onClick={() => hasIssue && openReadinessTarget(card.target)}
+              className={`bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 text-right transition-all ${
+                hasIssue
+                  ? isBlocking
+                    ? 'border-rose-200 hover:border-rose-300 hover:bg-rose-50/40'
+                    : 'border-amber-200 hover:border-amber-300 hover:bg-amber-50/40'
+                  : 'border-slate-200'
+              }`}
+            >
+              <div className={`w-10 h-10 flex items-center justify-center ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
+                <card.icon size={20} />
               </div>
-            </div>
-          </div>
-        ))}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-slate-400">{card.label}</p>
+                <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
+                <p className={`mt-1 text-[11px] font-bold truncate ${hasIssue ? (isBlocking ? 'text-rose-600' : 'text-amber-600') : 'text-emerald-600'}`}>
+                  {hasIssue ? card.issue?.message : 'جاهز'}
+                </p>
+              </div>
+              {hasIssue ? <AlertTriangle size={16} className={isBlocking ? 'text-rose-500' : 'text-amber-500'} /> : <CheckCircle2 size={16} className="text-emerald-500" />}
+            </button>
+          );
+        })}
       </div>
 
       {hasSharedSchools && !isModeLocked && (
@@ -393,7 +426,7 @@ const CreateTab: React.FC<Props> = ({
         </div>
       )}
 
-      <div className={`bg-white rounded-2xl p-5 border transition-all ${
+      <div className={`hidden bg-white rounded-2xl p-5 border transition-all ${
         readinessReview.isReady ? 'border-emerald-200' : 'border-amber-200'
       }`} style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
