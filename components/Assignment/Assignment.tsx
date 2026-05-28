@@ -4,7 +4,7 @@ import SchoolTabs from '../wizard/SchoolTabs';
 import {
   Search, X, Trash2, ChevronDown, Filter, Check, Layers,
   Printer, Users, CheckCircle2, AlertTriangle, ClipboardList, BookOpen,
-  ListFilter, LayoutGrid, Eye, Sparkles, ArrowLeftRight, HelpCircle, ArrowLeft
+  ListFilter, LayoutGrid, Eye, Sparkles, ArrowLeftRight, HelpCircle, ArrowLeft, MoreHorizontal
 } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 import PreviewModal from './PreviewModal';
@@ -60,6 +60,20 @@ const AssignmentPage: React.FC<Props> = ({
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
 
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
+  const [openTeacherMenuId, setOpenTeacherMenuId] = useState<string | null>(null);
+  const teacherMenuRef = useRef<HTMLDivElement>(null);
+
+  // إغلاق قائمة الكباب عند الضغط خارجها
+  useEffect(() => {
+    if (!openTeacherMenuId) return;
+    const onClick = (e: MouseEvent) => {
+      if (teacherMenuRef.current && !teacherMenuRef.current.contains(e.target as Node)) {
+        setOpenTeacherMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [openTeacherMenuId]);
 
   const [showSpecDropdown, setShowSpecDropdown] = useState(false);
   const [showTeacherFilterDropdown, setShowTeacherFilterDropdown] = useState(false);
@@ -892,17 +906,17 @@ const AssignmentPage: React.FC<Props> = ({
                 <div
                   key={t.id}
                   onClick={() => !selectionMode && setSelectedTeacherId(isSelected ? null : t.id)}
-                  className={`rounded-2xl overflow-hidden border bg-white transition-all cursor-pointer p-3 ${isSelected ? 'border-slate-300 ring-2 ring-slate-200 shadow-md' : 'border-slate-200 hover:border-slate-300'} ${selectionMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`relative rounded-2xl overflow-hidden border bg-white transition-all cursor-pointer p-3 ${isSelected ? 'border-slate-300 ring-2 ring-slate-200 shadow-md' : 'border-slate-200 hover:border-slate-300'} ${selectionMode ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
+                  {isSelected && (
+                    <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shadow-sm z-10">
+                      <Check size={12} strokeWidth={3.5} />
+                    </span>
+                  )}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2.5 mb-1">
+                      <div className="flex items-center gap-2 mb-1">
                         <h4 className={`text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-800'}`}>{t.name}</h4>
-                        {isSelected && (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
-                            <Check size={12} strokeWidth={3.5} />
-                          </span>
-                        )}
                         {isShared && (
                           <span title="معلم مشترك" className="shrink-0 text-[#655ac1]">
                             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -914,23 +928,38 @@ const AssignmentPage: React.FC<Props> = ({
                       </div>
                       <span className={`text-[13px] font-bold truncate block ${isSelected ? 'text-slate-500' : 'text-[#655ac1]'}`}>{spec}</span>
                     </div>
-                    {/* أزرار الإجراءات — مكدّسة عموديًا */}
-                    <div className="flex flex-col items-center gap-1 shrink-0">
+                    {/* قائمة الإجراءات — كباب أفقي */}
+                    <div className={`relative shrink-0 ${isSelected ? 'mt-7' : ''}`} ref={openTeacherMenuId === t.id ? teacherMenuRef : undefined}>
                       <button
-                        onClick={(e) => { e.stopPropagation(); setViewingTeacher(t); }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-[#655ac1] hover:bg-[#f0edff] transition-all"
-                        title="عرض الإسنادات"
+                        onClick={(e) => { e.stopPropagation(); setOpenTeacherMenuId(openTeacherMenuId === t.id ? null : t.id); }}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-all"
+                        title="إجراءات"
                       >
-                        <Eye size={14} />
+                        <MoreHorizontal size={14} />
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); if (hasAssignments) setTransferringTeacher(t); else showToast('لا توجد إسنادات للنقل', 'info'); }}
-                        disabled={!hasAssignments}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                        title="نقل الإسنادات لمعلم آخر"
-                      >
-                        <ArrowLeftRight size={14} />
-                      </button>
+                      {openTeacherMenuId === t.id && (
+                        <div className="absolute z-20 top-full mt-1 left-0 bg-white rounded-xl shadow-lg border border-slate-200 p-1 w-44 animate-in slide-in-from-top-1 duration-150">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setViewingTeacher(t); setOpenTeacherMenuId(null); }}
+                            className="w-full text-right flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1] transition-colors"
+                          >
+                            <Eye size={14} className="text-slate-500" />
+                            <span>عرض الإسنادات</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasAssignments) { setTransferringTeacher(t); setOpenTeacherMenuId(null); }
+                              else { showToast('لا توجد إسنادات للنقل', 'info'); setOpenTeacherMenuId(null); }
+                            }}
+                            disabled={!hasAssignments}
+                            className="w-full text-right flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-700"
+                          >
+                            <ArrowLeftRight size={14} className="text-slate-500" />
+                            <span>نقل الإسنادات</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {isShared && sharedSchoolsArr.length > 0 ? (
@@ -951,7 +980,7 @@ const AssignmentPage: React.FC<Props> = ({
                             </div>
                             <div className="flex justify-start mt-0.5">
                               <span className="text-[10px] font-bold text-slate-400 ml-1">النصاب المسند</span>
-                              <span className={`text-[10px] font-black ${scOver ? 'text-rose-600' : scHigh ? 'text-amber-600' : 'text-emerald-600'}`}>{sc.load} حصة</span>
+                              <span className={`text-[10px] font-black ${scOver ? 'text-rose-600' : scHigh ? 'text-amber-600' : 'text-emerald-600'}`}>{sc.load}</span>
                             </div>
                           </div>
                         );
@@ -967,7 +996,7 @@ const AssignmentPage: React.FC<Props> = ({
                       </div>
                       <div className="flex justify-start">
                         <span className="text-[10px] font-bold text-slate-400 ml-1">النصاب المسند</span>
-                        <span className={`text-[10px] font-black ${isOver ? 'text-rose-600' : isHigh ? 'text-amber-600' : 'text-emerald-600'}`}>{load} حصة</span>
+                        <span className={`text-[10px] font-black ${isOver ? 'text-rose-600' : isHigh ? 'text-amber-600' : 'text-emerald-600'}`}>{load}</span>
                       </div>
                     </div>
                   )}
