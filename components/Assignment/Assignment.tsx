@@ -783,7 +783,7 @@ const AssignmentPage: React.FC<Props> = ({
       <div className="flex flex-col lg:flex-row items-start gap-4">
 
         {/* ── جانب المعلمين ── */}
-        <aside dir="rtl" className="w-full lg:w-96 shrink-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col">
+        <aside dir="rtl" className="w-full lg:w-96 shrink-0 md:sticky md:top-4 md:max-h-[calc(100vh-9rem)] bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col">
 
           <div className="flex items-center gap-3 justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -886,7 +886,7 @@ const AssignmentPage: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pt-1">
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 pt-1 pl-2">
             {filteredTeachers.length > 0 ? filteredTeachers.map(t => {
               const load = getTeacherLoad(t.id);
               const isSelected = selectedTeacherId === t.id;
