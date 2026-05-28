@@ -87,6 +87,17 @@ const PrintModal: React.FC<Props> = ({
     });
   }, [classes, currentSchoolPhases, activeSchoolTab]);
 
+  const getTeacherWaitingQuotaForSchool = (teacher: Teacher) => {
+    if (teacher.isShared || teacher.schools?.length) {
+      const originalSchoolId = teacher.schoolId || 'main';
+      const entry = teacher.schools?.find(s => s.schoolId === activeSchoolTab);
+      if (entry) return activeSchoolTab === originalSchoolId ? (entry.waiting ?? teacher.waitingQuota ?? 0) : (entry.waiting ?? 0);
+      if (activeSchoolTab === originalSchoolId) return teacher.waitingQuota ?? 0;
+      return 0;
+    }
+    return teacher.waitingQuota ?? 0;
+  };
+
   useEffect(() => {
     if (scope !== 'teacher') setSelectedTeacherIds(new Set());
     if (scope !== 'class') setSelectedClassIds(new Set());
@@ -133,8 +144,8 @@ const PrintModal: React.FC<Props> = ({
           return `<span class="chip">${escapeHtml(s?.name || '—')} - ${c ? `${c.section}/${c.grade}` : '—'} - ح${p}</span>`;
         }).join('');
         const totalPeriods = list.reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
-        const waiting = t.waitingQuota || 0;
-        const quota = t.quotaLimit || 0;
+        const waiting = getTeacherWaitingQuotaForSchool(t);
+        const quota = totalPeriods;
         const grand = showWaitEffective ? totalPeriods + waiting : totalPeriods;
         return `
           <tr>
