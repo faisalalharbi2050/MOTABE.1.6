@@ -897,7 +897,8 @@ const AssignmentPage: React.FC<Props> = ({
               const totalQuota = isShared
                 ? sharedSchoolsArr.reduce((s, x) => s + x.quota, 0)
                 : getTeacherLessonQuotaForSchool(t);
-              const isOver = totalQuota > 0 && load > totalQuota;
+              const isOver = load > 24;
+              const isOverQuota = totalQuota > 0 && load > totalQuota;
               const progressColor = isOver ? 'bg-rose-500' : 'bg-emerald-500';
               const progress = totalQuota > 0 ? Math.min(100, Math.round((load / totalQuota) * 100)) : 0;
               const hasAssignments = load > 0;
@@ -964,7 +965,8 @@ const AssignmentPage: React.FC<Props> = ({
                   {isShared && sharedSchoolsArr.length > 0 ? (
                     <div className="space-y-2">
                       {sharedSchoolsArr.map(sc => {
-                        const scOver = sc.quota > 0 && sc.load > sc.quota;
+                        const scOver = sc.load > 24;
+                        const scOverQuota = sc.quota > 0 && sc.load > sc.quota;
                         const scColor = scOver ? 'bg-rose-500' : 'bg-emerald-500';
                         const scProgress = sc.quota > 0 ? Math.min(100, Math.round((sc.load / sc.quota) * 100)) : 0;
                         return (
@@ -978,7 +980,7 @@ const AssignmentPage: React.FC<Props> = ({
                             </div>
                             <div className="flex justify-start mt-0.5">
                               <span className="text-[10px] font-bold text-slate-400 ml-1">النصاب المسند</span>
-                              <span className={`text-[10px] font-black ${scOver ? 'text-rose-600' : 'text-emerald-600'}`}>{sc.load}</span>
+                              <span className={`text-[10px] font-black ${scOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{sc.load}</span>
                             </div>
                           </div>
                         );
@@ -994,7 +996,7 @@ const AssignmentPage: React.FC<Props> = ({
                       </div>
                       <div className="flex justify-start">
                         <span className="text-[10px] font-bold text-slate-400 ml-1">النصاب المسند</span>
-                        <span className={`text-[10px] font-black ${isOver ? 'text-rose-600' : 'text-emerald-600'}`}>{load}</span>
+                        <span className={`text-[10px] font-black ${isOverQuota ? 'text-rose-600' : 'text-emerald-600'}`}>{load}</span>
                       </div>
                     </div>
                   )}
