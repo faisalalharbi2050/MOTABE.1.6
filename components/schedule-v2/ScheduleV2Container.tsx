@@ -18,6 +18,7 @@ interface Props {
   students: Student[];
   admins: Admin[];
   assignments: Assignment[];
+  gradeSubjectMap: Record<string, string[]>;
   specializations: Specialization[];
   onOpenMessagesArchive?: () => void;
   onPrepareMessageDraft?: (draft: MessageComposerDraft) => void;

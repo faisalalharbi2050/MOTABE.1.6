@@ -28,6 +28,7 @@ interface Props {
   classes: ClassInfo[];
   admins: Admin[];
   assignments: Assignment[];
+  gradeSubjectMap: Record<string, string[]>;
   specializations: Specialization[];
   onNavigate: (tab: 'view' | 'edit' | 'create' | 'waiting') => void;
   onNavigateMain?: (tab: string) => void;
@@ -43,6 +44,7 @@ const CreateTab: React.FC<Props> = ({
   subjects,
   classes,
   assignments,
+  gradeSubjectMap,
   onNavigateMain,
   isScheduleLocked,
 }) => {
@@ -85,6 +87,32 @@ const CreateTab: React.FC<Props> = ({
   );
   const activeSubjects = useMemo(() => subjects.filter(s => !s.isArchived), [subjects]);
 
+  const assignmentPeriodStats = useMemo(() => {
+    let total = 0;
+    let assigned = 0;
+
+    assignableClasses.forEach(cls => {
+      const schoolId = cls.schoolId || 'main';
+      const gradeSubjectIds =
+        gradeSubjectMap[`${schoolId}-${cls.phase}-${cls.grade}`] ||
+        gradeSubjectMap[`${cls.phase}-${cls.grade}`] ||
+        [];
+      const requiredSubjects = activeSubjects.filter(subject =>
+        gradeSubjectIds.includes(subject.id) || cls.subjectIds?.includes(subject.id)
+      );
+      const uniqueSubjects = Array.from(new Map(requiredSubjects.map(subject => [subject.id, subject])).values());
+
+      uniqueSubjects.forEach(subject => {
+        total += subject.periodsPerClass || 0;
+        if (assignments.some(a => a.classId === cls.id && a.subjectId === subject.id)) {
+          assigned += subject.periodsPerClass || 0;
+        }
+      });
+    });
+
+    return { total, assigned, unassigned: Math.max(0, total - assigned) };
+  }, [assignableClasses, activeSubjects, assignments, gradeSubjectMap]);
+
   const readinessReview = useMemo(() => {
     const issues: { level: 'error' | 'warning' | 'info'; message: string; suggestion?: string }[] = [];
     const timing = schoolInfo.timing || {
@@ -116,6 +144,13 @@ const CreateTab: React.FC<Props> = ({
     }
     if (relevantAssignments.length === 0) {
       issues.push({ level: 'error', message: 'لا توجد إسنادات مواد للفصول.', suggestion: 'أكمل إسناد المواد للمعلمين قبل إنشاء الجدول.' });
+    }
+    if (assignmentPeriodStats.total > 0 && assignmentPeriodStats.unassigned > 0) {
+      issues.push({
+        level: 'error',
+        message: `يوجد ${assignmentPeriodStats.unassigned} حصة غير مسندة.`,
+        suggestion: 'أكمل إسناد جميع مواد الفصول قبل إنشاء الجدول.'
+      });
     }
 
     const brokenAssignments = relevantAssignments.filter(a =>
@@ -160,7 +195,7 @@ const CreateTab: React.FC<Props> = ({
 
     const blockingCount = issues.filter(i => i.level === 'error').length;
     return { issues, blockingCount, isReady: blockingCount === 0 };
-  }, [schoolInfo.timing, teachers, assignableClasses, activeSubjects, assignments]);
+  }, [schoolInfo.timing, teachers, assignableClasses, activeSubjects, assignments, assignmentPeriodStats]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -312,10 +347,7 @@ const CreateTab: React.FC<Props> = ({
     }, 50);
   };
 
-  const totalAssignedPeriods = assignments.reduce((sum, a) => {
-    const sub = subjects.find(s => s.id === a.subjectId);
-    return sum + (sub?.periodsPerClass || 0);
-  }, 0);
+  const totalAssignedPeriods = assignmentPeriodStats.assigned;
 
   const openReadinessTarget = (target: 'teachers' | 'classes' | 'assignment') => {
     if (target === 'teachers') onNavigateMain?.('settings_teachers');
@@ -330,7 +362,7 @@ const CreateTab: React.FC<Props> = ({
     issue.message.includes('فصل') || issue.message.includes('فصول')
   );
   const assignmentCardIssue = readinessReview.issues.find(issue =>
-    issue.message.includes('إسناد') || issue.message.includes('مادة') || issue.message.includes('مواد')
+    issue.message.includes('إسناد') || issue.message.includes('مسند') || issue.message.includes('مادة') || issue.message.includes('مواد')
   );
 
   const readinessCards = [
@@ -350,7 +382,7 @@ const CreateTab: React.FC<Props> = ({
               key={card.label}
               type="button"
               onClick={() => hasIssue && openReadinessTarget(card.target)}
-              className={`bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 text-right transition-all ${
+              className={`bg-white rounded-2xl border shadow-sm p-4 text-right transition-all ${
                 hasIssue
                   ? isBlocking
                     ? 'border-rose-200 hover:border-rose-300 hover:bg-rose-50/40'
@@ -358,21 +390,30 @@ const CreateTab: React.FC<Props> = ({
                   : 'border-slate-200'
               }`}
             >
-              <div className={`w-10 h-10 flex items-center justify-center ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
-                <card.icon size={20} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-10 h-10 flex items-center justify-center shrink-0 ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
+                    <card.icon size={20} />
+                  </div>
+                  <p className="text-xs font-black text-slate-400 truncate">{card.label}</p>
+                </div>
+                {hasIssue ? <AlertTriangle size={16} className={`shrink-0 ${isBlocking ? 'text-rose-500' : 'text-amber-500'}`} /> : (
+                  <div className="inline-flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs font-black text-emerald-600">جاهز</span>
+                    <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="min-w-0 flex-1 self-center">
-                <p className="text-xs font-black text-slate-400">{card.label}</p>
+              <div className="mt-2 pr-12">
                 <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
-                <p className={`mt-1 text-xs font-black truncate ${hasIssue ? (isBlocking ? 'text-rose-600' : 'text-amber-600') : 'text-emerald-600'}`}>
-                  {hasIssue ? card.issue?.message : 'جاهز'}
-                </p>
+                {hasIssue && (
+                  <p className={`mt-1 text-xs font-black truncate ${isBlocking ? 'text-rose-600' : 'text-amber-600'}`}>
+                    {card.issue?.message}
+                  </p>
+                )}
               </div>
-              {hasIssue ? <AlertTriangle size={16} className={isBlocking ? 'text-rose-500' : 'text-amber-500'} /> : (
-                <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
-                  <Check size={12} strokeWidth={3} />
-                </span>
-              )}
             </button>
           );
         })}
