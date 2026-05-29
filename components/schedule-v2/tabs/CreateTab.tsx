@@ -358,6 +358,19 @@ const CreateTab: React.FC<Props> = ({
     if (target === 'assignment') onNavigateMain?.('manual_v2');
   };
 
+  const getReadinessIssueTarget = (issue: { message: string; suggestion?: string }) => {
+    const text = `${issue.message} ${issue.suggestion || ''}`;
+    if (text.includes('معلم') || text.includes('نصاب')) return 'teachers' as const;
+    if (text.includes('فصل') || text.includes('فصول')) return 'classes' as const;
+    return 'assignment' as const;
+  };
+
+  const getReadinessTargetLabel = (target: 'teachers' | 'classes' | 'assignment') => {
+    if (target === 'teachers') return 'إصلاح بيانات المعلمين';
+    if (target === 'classes') return 'إصلاح بيانات الفصول';
+    return 'إصلاح الإسناد';
+  };
+
   const teacherCardIssue = readinessReview.issues.find(issue =>
     issue.message.includes('معلم') || issue.message.includes('نصاب')
   );
@@ -373,6 +386,10 @@ const CreateTab: React.FC<Props> = ({
     { label: 'الفصول', value: assignableClasses.length, icon: LayoutGrid, issue: classCardIssue, target: 'classes' as const },
     { label: 'الحصص المسندة', value: totalAssignedPeriods, icon: BookOpen, issue: assignmentCardIssue, target: 'assignment' as const },
   ];
+  const orderedReadinessIssues = [...readinessReview.issues].sort((a, b) => {
+    if (a.level === b.level) return 0;
+    return a.level === 'error' ? -1 : 1;
+  });
 
   return (
     <div className="space-y-6">
@@ -388,24 +405,25 @@ const CreateTab: React.FC<Props> = ({
               className={`bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 text-right transition-all ${
                 hasIssue
                   ? isBlocking
-                    ? 'border-rose-200 hover:border-rose-300 hover:bg-rose-50/40'
-                    : 'border-amber-200 hover:border-amber-300 hover:bg-amber-50/40'
+                    ? 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
                   : 'border-slate-200'
               }`}
             >
-              <div className={`w-10 h-10 flex items-center justify-center shrink-0 ${hasIssue ? (isBlocking ? 'text-rose-500' : 'text-amber-500') : 'text-[#655ac1]'}`}>
+              <div className={`w-10 h-10 flex items-center justify-center shrink-0 ${hasIssue ? 'text-slate-400' : 'text-[#655ac1]'}`}>
                 <card.icon size={20} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-black text-slate-400 truncate">{card.label}</p>
                 <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
-                {hasIssue && (
-                  <p className={`mt-1 text-xs font-black truncate ${isBlocking ? 'text-rose-600' : 'text-amber-600'}`}>
-                    {card.issue?.message}
-                  </p>
-                )}
               </div>
-              {hasIssue ? <AlertTriangle size={16} className={`shrink-0 ${isBlocking ? 'text-rose-500' : 'text-amber-500'}`} /> : (
+              {hasIssue ? (
+                <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black ${
+                  isBlocking ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  {isBlocking ? 'يلزم إجراء' : 'تنبيه'}
+                </span>
+              ) : (
                 <div className="inline-flex items-center gap-1.5 shrink-0 self-center">
                   <span className="text-xs font-black text-emerald-600">جاهز</span>
                   <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
@@ -417,6 +435,52 @@ const CreateTab: React.FC<Props> = ({
           );
         })}
       </div>
+
+      {orderedReadinessIssues.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+          <div className="flex items-start gap-3 mb-4">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              readinessReview.blockingCount > 0 ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'
+            }`}>
+              <AlertTriangle size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-black text-slate-800 text-sm">ملاحظات قبل إنشاء الجدول</h4>
+              <p className="text-xs font-bold text-slate-500 mt-1 leading-5">
+                {readinessReview.blockingCount > 0
+                  ? `يوجد ${readinessReview.blockingCount} إجراء يجب إصلاحه قبل إنشاء الجدول.`
+                  : 'يمكنك المتابعة، لكن يُفضّل مراجعة هذه الملاحظات لتحسين جودة الجدول.'}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {orderedReadinessIssues.slice(0, 5).map((issue, index) => {
+              const target = getReadinessIssueTarget(issue);
+              const isBlockingIssue = issue.level === 'error';
+              return (
+                <div key={`${issue.level}-${index}`} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 flex flex-col md:flex-row md:items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${isBlockingIssue ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                      <p className="text-xs font-black text-slate-800">{issue.message}</p>
+                    </div>
+                    {issue.suggestion && (
+                      <p className="text-[11px] font-bold text-slate-500 leading-5 pr-4">{issue.suggestion}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openReadinessTarget(target)}
+                    className="shrink-0 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-[#655ac1] hover:border-[#655ac1]/40 hover:bg-[#f6f4ff] transition-all"
+                  >
+                    {getReadinessTargetLabel(target)}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {hasSharedSchools && !isModeLocked && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
