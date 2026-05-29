@@ -131,7 +131,7 @@ const CreateTab: React.FC<Props> = ({
       const text = `${warning.message} ${warning.suggestion || ''}`;
       if (text.includes('معلم') || text.includes('معلمين') || text.includes('الخروج المبكر') || text.includes('تواجد')) return 'teachers';
       if (text.includes('مادة') || text.includes('مواد') || text.includes('التتابع')) return 'subjects';
-      if (text.includes('حصة') || text.includes('حصص') || text.includes('اليوم') || text.includes('أيام') || text.includes('الدوام')) return 'timing';
+      if (text.includes('عدد الحصص') || text.includes('الحصص اليومية') || text.includes('أيام الدراسة')) return 'timing';
       return 'subjects';
     };
 
@@ -150,10 +150,10 @@ const CreateTab: React.FC<Props> = ({
     const relevantAssignments = assignments.filter(a => classIds.has(a.classId));
 
     if (activeDays.length === 0) {
-      issues.push({ level: 'error', message: 'لم يتم تحديد أيام الدراسة النشطة.', suggestion: 'راجع إعدادات وقت الدوام وأيام الدراسة.', target: 'timing' });
+      issues.push({ level: 'error', message: 'لم يتم تحديد أيام الدراسة النشطة.', suggestion: 'راجع صفحة التوقيت وحدد أيام الدراسة.', target: 'timing' });
     }
     if (periodsPerDay <= 0) {
-      issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع إعدادات الدوام وعدد الحصص لكل يوم.', target: 'timing' });
+      issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع صفحة التوقيت وحدد عدد الحصص لكل يوم.', target: 'timing' });
     }
     const brokenAssignments = relevantAssignments.filter(a =>
       !teacherIds.has(a.teacherId) || !subjectIds.has(a.subjectId) || !classIds.has(a.classId)
@@ -399,7 +399,7 @@ const CreateTab: React.FC<Props> = ({
     if (target === 'classes') return 'إصلاح بيانات الفصول';
     if (target === 'assignment') return 'إصلاح الإسناد';
     if (target === 'subjects') return 'إصلاح قيود المواد';
-    return 'إصلاح إعدادات التوقيت';
+    return 'إصلاح التوقيت';
   };
 
   const teacherCardIssue = readinessReview.issues.find(issue =>
