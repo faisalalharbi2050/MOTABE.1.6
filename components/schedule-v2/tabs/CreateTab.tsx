@@ -199,7 +199,14 @@ const CreateTab: React.FC<Props> = ({
       assignableClasses.length, schoolInfo.sharedSchools
     ).filter(warning => warning.level === 'error' || warning.level === 'warning');
 
-    constraintWarnings.forEach(warning => {
+    const uniqueConstraintWarnings = constraintWarnings.filter((warning, index, list) => {
+      const key = `${warning.type || 'general'}-${warning.relatedId || ''}-${warning.message}-${warning.suggestion || ''}`;
+      return list.findIndex(item =>
+        `${item.type || 'general'}-${item.relatedId || ''}-${item.message}-${item.suggestion || ''}` === key
+      ) === index;
+    });
+
+    uniqueConstraintWarnings.forEach(warning => {
       issues.push({
         level: 'error',
         message: warning.message,
