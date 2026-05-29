@@ -37,6 +37,14 @@ interface Props {
   setIsScheduleLocked: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+type ReadinessTarget = 'teachers' | 'classes' | 'assignment' | 'subjects' | 'timing';
+type ReadinessIssue = {
+  level: 'error' | 'warning' | 'info';
+  message: string;
+  suggestion?: string;
+  target: ReadinessTarget;
+};
+
 const CreateTab: React.FC<Props> = ({
   schoolInfo,
   scheduleSettings,
@@ -116,7 +124,7 @@ const CreateTab: React.FC<Props> = ({
   }, [assignableClasses, activeSubjects, assignments, gradeSubjectMap]);
 
   const readinessReview = useMemo(() => {
-    const issues: { level: 'error' | 'warning' | 'info'; message: string; suggestion?: string }[] = [];
+    const issues: ReadinessIssue[] = [];
     const timing = schoolInfo.timing || {
       activeDays: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'],
       periodCounts: { sunday: 7, monday: 7, tuesday: 7, wednesday: 7, thursday: 7 },
@@ -130,19 +138,20 @@ const CreateTab: React.FC<Props> = ({
     const relevantAssignments = assignments.filter(a => classIds.has(a.classId));
 
     if (activeDays.length === 0) {
-      issues.push({ level: 'error', message: 'لم يتم تحديد أيام الدراسة النشطة.', suggestion: 'راجع إعدادات وقت الدوام وأيام الدراسة.' });
+      issues.push({ level: 'error', message: 'لم يتم تحديد أيام الدراسة النشطة.', suggestion: 'راجع إعدادات وقت الدوام وأيام الدراسة.', target: 'timing' });
     }
     if (periodsPerDay <= 0) {
-      issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع إعدادات الدوام وعدد الحصص لكل يوم.' });
+      issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع إعدادات الدوام وعدد الحصص لكل يوم.', target: 'timing' });
     }
     if (assignableClasses.length > 0 && relevantAssignments.length === 0) {
-      issues.push({ level: 'error', message: 'لم يكتمل إسناد مواد الفصول.', suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد كل فصل قبل إنشاء الجدول.' });
+      issues.push({ level: 'error', message: 'لم يكتمل إسناد مواد الفصول.', suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد كل فصل قبل إنشاء الجدول.', target: 'assignment' });
     }
     if (assignmentPeriodStats.total > 0 && assignmentPeriodStats.unassigned > 0) {
       issues.push({
         level: 'error',
         message: `يوجد ${assignmentPeriodStats.unassigned} حصة غير مسندة.`,
-        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد جميع مواد الفصول قبل إنشاء الجدول.'
+        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد جميع مواد الفصول قبل إنشاء الجدول.',
+        target: 'assignment'
       });
     }
 
@@ -153,7 +162,8 @@ const CreateTab: React.FC<Props> = ({
       issues.push({
         level: 'error',
         message: `يوجد ${brokenAssignments.length} إسنادًا مرتبطًا بمعلم أو مادة أو فصل غير موجود.`,
-        suggestion: 'راجع صفحة إسناد المواد واحذف أو أعد حفظ الإسنادات غير الصحيحة.'
+        suggestion: 'راجع صفحة إسناد المواد واحذف أو أعد حفظ الإسنادات غير الصحيحة.',
+        target: 'assignment'
       });
     }
 
@@ -164,7 +174,8 @@ const CreateTab: React.FC<Props> = ({
       issues.push({
         level: 'error',
         message: `${classesWithoutAssignments.length} فصل بدون أي إسناد مواد.`,
-        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد هذه الفصول قبل إنشاء الجدول.'
+        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد هذه الفصول قبل إنشاء الجدول.',
+        target: 'assignment'
       });
     }
 
@@ -182,7 +193,8 @@ const CreateTab: React.FC<Props> = ({
       issues.push({
         level: 'error',
         message: `${overloadedTeachers.length} معلمًا لديهم إسناد أعلى من نصاب الحصص.`,
-        suggestion: 'راجع النصاب أو الإسناد قبل إنشاء الجدول.'
+        suggestion: 'راجع النصاب أو الإسناد قبل إنشاء الجدول.',
+        target: 'teachers'
       });
     }
 
@@ -196,7 +208,8 @@ const CreateTab: React.FC<Props> = ({
       issues.push({
         level: 'error',
         message: warning.message,
-        suggestion: warning.suggestion || 'راجع القيود أو الإسناد قبل إنشاء الجدول.'
+        suggestion: warning.suggestion || 'راجع القيود قبل إنشاء الجدول.',
+        target: warning.type === 'subject' ? 'subjects' : warning.type === 'teacher' ? 'teachers' : 'timing'
       });
     });
 
@@ -356,34 +369,30 @@ const CreateTab: React.FC<Props> = ({
 
   const totalAssignedPeriods = assignmentPeriodStats.assigned;
 
-  const openReadinessTarget = (target: 'teachers' | 'classes' | 'assignment') => {
+  const openReadinessTarget = (target: ReadinessTarget) => {
     if (target === 'teachers') onNavigateMain?.('settings_teachers');
     if (target === 'classes') onNavigateMain?.('settings_classes');
     if (target === 'assignment') onNavigateMain?.('manual_v2');
+    if (target === 'subjects') onNavigateMain?.('settings_subjects');
+    if (target === 'timing') onNavigateMain?.('settings_timing');
   };
 
-  const getReadinessIssueTarget = (issue: { message: string; suggestion?: string }) => {
-    const text = `${issue.message} ${issue.suggestion || ''}`;
-    if (text.includes('إسناد') || text.includes('مسند') || text.includes('حصة') || text.includes('مادة') || text.includes('مواد')) return 'assignment' as const;
-    if (text.includes('معلم') || text.includes('نصاب')) return 'teachers' as const;
-    if (text.includes('فصل') || text.includes('فصول')) return 'classes' as const;
-    return 'assignment' as const;
-  };
-
-  const getReadinessTargetLabel = (target: 'teachers' | 'classes' | 'assignment') => {
+  const getReadinessTargetLabel = (target: ReadinessTarget) => {
     if (target === 'teachers') return 'إصلاح بيانات المعلمين';
     if (target === 'classes') return 'إصلاح بيانات الفصول';
-    return 'إصلاح الإسناد';
+    if (target === 'assignment') return 'إصلاح الإسناد';
+    if (target === 'subjects') return 'إصلاح قيود المواد';
+    return 'إصلاح إعدادات التوقيت';
   };
 
   const teacherCardIssue = readinessReview.issues.find(issue =>
-    issue.message.includes('معلم') || issue.message.includes('نصاب')
+    issue.target === 'teachers'
   );
   const classCardIssue = readinessReview.issues.find(issue =>
-    issue.message.includes('فصل') || issue.message.includes('فصول')
+    issue.target === 'classes'
   );
   const assignmentCardIssue = readinessReview.issues.find(issue =>
-    issue.message.includes('إسناد') || issue.message.includes('مسند') || issue.message.includes('مادة') || issue.message.includes('مواد')
+    issue.target === 'assignment'
   );
 
   const readinessCards = [
@@ -406,7 +415,7 @@ const CreateTab: React.FC<Props> = ({
             <button
               key={card.label}
               type="button"
-              onClick={() => hasIssue && openReadinessTarget(getReadinessIssueTarget(card.issue!))}
+              onClick={() => hasIssue && openReadinessTarget(card.issue!.target)}
               className={`bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 text-right transition-all ${
                 hasIssue
                   ? isBlocking
@@ -460,7 +469,7 @@ const CreateTab: React.FC<Props> = ({
           </div>
           <div className="space-y-2">
             {orderedReadinessIssues.slice(0, 5).map((issue, index) => {
-              const target = getReadinessIssueTarget(issue);
+              const target = issue.target;
               const isBlockingIssue = issue.level === 'error';
               return (
                 <div key={`${issue.level}-${index}`} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 flex flex-col md:flex-row md:items-center gap-3">
