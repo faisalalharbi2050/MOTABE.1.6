@@ -431,13 +431,7 @@ const CreateTab: React.FC<Props> = ({
                 <p className="text-xs font-black text-slate-400 truncate">{card.label}</p>
                 <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
               </div>
-              {hasIssue ? (
-                <span className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black ${
-                  isBlocking ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
-                }`}>
-                  {isBlocking ? 'يلزم إجراء' : 'تنبيه'}
-                </span>
-              ) : (
+              {!hasIssue && (
                 <div className="inline-flex items-center gap-1.5 shrink-0 self-center">
                   <span className="text-xs font-black text-emerald-600">جاهز</span>
                   <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white">
