@@ -1,6 +1,7 @@
 ﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject, AuditLogEntry } from '../../types';
-import { Maximize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight, CheckCircle2, Shuffle, X, GripVertical, Check, AlertTriangle, Trash2 } from 'lucide-react';
+import { Maximize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight, CheckCircle2, Shuffle, X, GripVertical, Check, AlertTriangle, Trash2, ChevronDown, Search, Settings2 } from 'lucide-react';
 import { getKey, tryMoveOrSwap, findChainSwap, SwapResult, buildRevertPatch } from '../../utils/scheduleInteractive';
 import SwapConfirmationModal from './SwapConfirmationModal';
 
@@ -92,6 +93,7 @@ const DENSITY_PRESETS: Record<DensityMode, DensityConfig> = {
 // Design tokens
 const C_BG          = '#a59bf0'; // purple – day header bg & content text
 const C_ACCENT      = '#8779fb';
+const C_PRIMARY     = '#655ac1';
 const C_BG_SOFT     = '#ffffff'; // white – period-number row bg
 const C_BG_HEADER_ROW = '#a59bf0'; // same purple for sticky info header
 const C_BORDER      = '#94a3b8'; // slate-400 – normal column dividers (light)
@@ -219,9 +221,10 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const [fsPendingSpecOrder, setFsPendingSpecOrder] = useState<string[]>([]);
 
     /* effective sort when fullscreen overrides props */
-    const effectiveSortMode        = isFullScreen ? fsTeacherSort        : (teacherSortMode       ?? 'alpha');
-    const effectiveCustomOrder     = isFullScreen ? fsCustomOrder        : (teacherCustomOrder    ?? []);
-    const effectiveSpecOrder       = isFullScreen ? fsSpecOrder          : (specializationCustomOrder ?? []);
+    const usesInternalGeneralControls = type === 'general_teachers' || type === 'general_waiting';
+    const effectiveSortMode        = (isFullScreen || usesInternalGeneralControls) ? fsTeacherSort        : (teacherSortMode       ?? 'alpha');
+    const effectiveCustomOrder     = (isFullScreen || usesInternalGeneralControls) ? fsCustomOrder        : (teacherCustomOrder    ?? []);
+    const effectiveSpecOrder       = (isFullScreen || usesInternalGeneralControls) ? fsSpecOrder          : (specializationCustomOrder ?? []);
 
     const [showWaitingCounts, setShowWaitingCounts] = useState(true);
     const [draggingWaiting, setDraggingWaiting] = useState<'card'|'slot'|null>(null);
@@ -233,6 +236,13 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const [swapNotice, setSwapNotice] = useState<{ type: 'simple' | 'chain'; text: string } | null>(null);
     const [pendingSwap, setPendingSwap] = useState<SwapResult | null>(null);
     const [editModeToast, setEditModeToast] = useState<string | null>(null);
+    const [openGeneralFilter, setOpenGeneralFilter] = useState<'days' | 'teachers' | 'sort' | null>(null);
+    const [generalFilterPos, setGeneralFilterPos] = useState<{ top: number; right: number; width: number }>({ top: 0, right: 0, width: 288 });
+    const [selectedGeneralTeacherIds, setSelectedGeneralTeacherIds] = useState<string[]>([]);
+    const [teacherFilterSearch, setTeacherFilterSearch] = useState('');
+    const dayFilterButtonRef = useRef<HTMLButtonElement>(null);
+    const teacherFilterButtonRef = useRef<HTMLButtonElement>(null);
+    const sortFilterButtonRef = useRef<HTMLButtonElement>(null);
     const fullScreenEditSnapshotRef = useRef<Record<string, any> | null>(null);
     const settings          = _settings;
     const teachers          = _teachers;
@@ -972,6 +982,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         ));
     };
 
+    const toggleGeneralTeacher = (teacherId: string) => {
+        setSelectedGeneralTeacherIds(prev => (
+            prev.includes(teacherId) ? prev.filter(id => id !== teacherId) : [...prev, teacherId]
+        ));
+    };
+
     const teachersWithWaiting = useMemo(()=>{
         const ids=new Set<string>();
         Object.values(timetable).forEach(s=>{ if(s.type==='waiting'||s.isSubstitution) ids.add(s.teacherId); });
@@ -988,109 +1004,232 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         individual_class:   'جدول الفصل: ' +cName(targetId||''),
     };
 
-    const renderGeneralTeacherControlCards = (compact = false) => {
+    const renderGeneralFilterToolbar = (compact = false) => {
         const generalDayOptions = ENGLISH_DAYS.map((key, index) => ({ key, label: ARABIC_DAYS[index] }));
-        return (
-            <div className={`grid gap-3 ${compact ? 'lg:grid-cols-2' : 'xl:grid-cols-[1.3fr_1fr]'}`}>
-                <div className={`rounded-2xl border border-slate-300 bg-white ${compact ? 'px-4 py-3' : 'px-5 py-4'} shadow-sm`}>
-                    <div className="flex items-start gap-3 mb-3">
-                        <CalendarClock size={18} className="text-[#655ac1] shrink-0 mt-1" />
-                        <div className="min-w-0">
-                            <p className="text-sm font-black text-slate-800">عرض الأيام</p>
-                            <p className="text-xs font-medium text-slate-500">اختر يومًا واحدًا أو أكثر أو اعرض الأسبوع كاملًا.</p>
+        const baseTeacherOptions = type === 'general_waiting' ? teachersWithWaiting : getSortedTeachers();
+        const filteredTeacherOptions = baseTeacherOptions.filter(t => t.name.toLowerCase().includes(teacherFilterSearch.trim().toLowerCase()));
+        const selectedTeachersCount = selectedGeneralTeacherIds.filter(id => baseTeacherOptions.some(t => t.id === id)).length;
+        const allTeacherOptionsSelected = baseTeacherOptions.length > 0 && baseTeacherOptions.every(t => selectedGeneralTeacherIds.includes(t.id));
+        const daySummary = selectedGeneralDays.length === 0
+            ? 'الأسبوع كاملًا'
+            : selectedGeneralDays.length === 1
+                ? (generalDayOptions.find(d => d.key === selectedGeneralDays[0])?.label || 'يوم محدد')
+                : `${selectedGeneralDays.length} أيام محددة`;
+        const teacherSummary = selectedTeachersCount === 0
+            ? (type === 'general_waiting' ? 'كل معلمي الانتظار' : 'كل المعلمين')
+            : selectedTeachersCount === 1
+                ? (baseTeacherOptions.find(t => t.id === selectedGeneralTeacherIds[0])?.name || 'معلم محدد')
+                : `${selectedTeachersCount} معلمين`;
+        const sortSummary = fsTeacherSort === 'alpha' ? 'أبجدي' : fsTeacherSort === 'specialization' ? 'حسب التخصص' : 'مخصص';
+        const checkboxClass = (active: boolean) => `flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+            active ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm' : 'border-slate-300 bg-white text-transparent'
+        }`;
+        const menuButtonClass = "inline-flex min-w-[150px] items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-black text-slate-700 transition-all hover:border-[#655ac1]/40 hover:bg-slate-50 active:scale-[0.98]";
+        const openPanel = (filter: 'days' | 'teachers' | 'sort', element: HTMLButtonElement | null, width: number) => {
+            if (openGeneralFilter === filter) {
+                setOpenGeneralFilter(null);
+                return;
+            }
+            const rect = element?.getBoundingClientRect();
+            if (rect && typeof window !== 'undefined') {
+                setGeneralFilterPos({
+                    top: rect.bottom + 8,
+                    right: Math.max(12, window.innerWidth - rect.right),
+                    width,
+                });
+            }
+            setOpenGeneralFilter(filter);
+        };
+
+        const renderOptionRow = (active: boolean, label: string, onClick: () => void, hint?: string) => (
+            <button
+                type="button"
+                onClick={onClick}
+                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-right transition-colors hover:bg-slate-50"
+            >
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black text-slate-700">{label}</span>
+                    {hint && <span className="block truncate text-[11px] font-bold text-slate-400">{hint}</span>}
+                </span>
+                <span className={checkboxClass(active)}>{active && <Check size={12} strokeWidth={3.5} />}</span>
+            </button>
+        );
+
+        const ensureCustomOrder = () => {
+            const baseIds = getSortedTeachers().map(t => t.id);
+            setFsPendingOrder(fsCustomOrder.length > 0 ? fsCustomOrder : baseIds);
+            setShowFsSortModal(true);
+        };
+
+        const ensureSpecOrder = () => {
+            const usedIds = new Set(teachers.map(t => t.specializationId));
+            const cur = fsSpecOrder.filter(id => usedIds.has(id));
+            Object.keys(specializationNames).forEach(id => { if (usedIds.has(id) && !cur.includes(id)) cur.push(id); });
+            setFsPendingSpecOrder(cur);
+            setShowFsSpecSortModal(true);
+        };
+
+        const renderPanelContent = () => {
+            if (openGeneralFilter === 'days') {
+                return (
+                    <>
+                        <div className="border-b border-slate-100 px-4 py-3">
+                            <p className="text-sm font-black text-slate-800">اختر أيام العرض</p>
                         </div>
-                    </div>
-                    <div className="flex gap-1.5 flex-wrap">
-                        <button
-                            onClick={() => setSelectedGeneralDays([])}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all inline-flex items-center gap-1.5 ${
-                                selectedGeneralDays.length === 0
-                                    ? 'bg-white text-[#8779fb] border-slate-300'
-                                    : 'bg-white text-slate-500 border-slate-300 hover:border-[#8779fb]'
-                            }`}
-                        >
-                            {selectedGeneralDays.length === 0 && <Check size={13} strokeWidth={3} />}
-                            الكل
-                        </button>
-                        {generalDayOptions.map(d => {
-                            const active = selectedGeneralDays.length === 0 || selectedGeneralDays.includes(d.key);
-                            return (
+                        <div className="p-2.5">
+                            {renderOptionRow(selectedGeneralDays.length === 0, 'الأسبوع كاملًا', () => setSelectedGeneralDays([]), 'عرض جميع أيام الجدول')}
+                            <div className="my-1 h-px bg-slate-100" />
+                            {generalDayOptions.map(d => renderOptionRow(
+                                selectedGeneralDays.includes(d.key),
+                                d.label,
+                                () => {
+                                    setSelectedGeneralDays(prev => {
+                                        if (prev.length === 0) return [d.key];
+                                        const next = prev.includes(d.key) ? prev.filter(k => k !== d.key) : [...prev, d.key];
+                                        return next.length === generalDayOptions.length ? [] : next;
+                                    });
+                                }
+                            ))}
+                        </div>
+                    </>
+                );
+            }
+
+            if (openGeneralFilter === 'teachers') {
+                return (
+                    <>
+                        <div className="border-b border-slate-100 px-4 py-3">
+                            <p className="text-sm font-black text-slate-800">تصفية المعلمين</p>
+                        </div>
+                        <div className="p-3 border-b border-slate-100 space-y-2.5">
+                            <div className="relative">
+                                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    value={teacherFilterSearch}
+                                    onChange={e => setTeacherFilterSearch(e.target.value)}
+                                    placeholder="ابحث عن معلم"
+                                    className="w-full pr-9 pl-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1]/40 transition-all"
+                                />
+                            </div>
+                            <div className="flex gap-1.5">
                                 <button
-                                    key={d.key}
-                                    onClick={() => {
-                                        setSelectedGeneralDays(prev => {
-                                            if (prev.length === 0) return generalDayOptions.filter(x => x.key !== d.key).map(x => x.key);
-                                            if (prev.includes(d.key)) {
-                                                const next = prev.filter(k => k !== d.key);
-                                                return next.length === 0 ? [] : next;
-                                            }
-                                            const next = [...prev, d.key];
-                                            return next.length === generalDayOptions.length ? [] : next;
-                                        });
-                                    }}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all inline-flex items-center gap-1.5 ${
-                                        active
-                                            ? 'bg-white text-[#8779fb] border-slate-300'
-                                            : 'bg-white text-slate-400 border-slate-300 hover:border-[#8779fb]'
+                                    type="button"
+                                    onClick={() => setSelectedGeneralTeacherIds(allTeacherOptionsSelected ? [] : baseTeacherOptions.map(t => t.id))}
+                                    className={`w-full px-2 py-2 rounded-lg border text-[11px] font-black transition-all ${
+                                        allTeacherOptionsSelected
+                                            ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm'
+                                            : 'border-slate-300 bg-white text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
                                     }`}
                                 >
-                                    {active && <Check size={13} strokeWidth={3} />}
-                                    {d.label}
+                                    {allTeacherOptionsSelected ? 'إلغاء الكل' : 'اختيار الكل'}
                                 </button>
-                            );
-                        })}
-                    </div>
+                            </div>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                            {filteredTeacherOptions.map(t => renderOptionRow(
+                                selectedGeneralTeacherIds.includes(t.id),
+                                t.name,
+                                () => toggleGeneralTeacher(t.id),
+                                specializationNames[t.specializationId] || undefined
+                            ))}
+                            {filteredTeacherOptions.length === 0 && (
+                                <div className="px-3 py-8 text-center text-sm font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                            )}
+                        </div>
+                    </>
+                );
+            }
+
+            if (openGeneralFilter === 'sort') {
+                return (
+                    <>
+                        <div className="border-b border-slate-100 px-4 py-3">
+                            <p className="text-sm font-black text-slate-800">ترتيب صفوف المعلمين</p>
+                        </div>
+                        <div className="p-2.5">
+                            {renderOptionRow(fsTeacherSort === 'alpha', 'أبجدي', () => { setFsTeacherSort('alpha'); setOpenGeneralFilter(null); })}
+                            {renderOptionRow(fsTeacherSort === 'specialization', 'حسب التخصص', () => { setFsTeacherSort('specialization'); setOpenGeneralFilter(null); ensureSpecOrder(); })}
+                            {renderOptionRow(fsTeacherSort === 'custom', 'مخصص', () => { setFsTeacherSort('custom'); setOpenGeneralFilter(null); ensureCustomOrder(); })}
+                        </div>
+                    </>
+                );
+            }
+
+            return null;
+        };
+
+        return (
+            <div className={`flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white ${compact ? 'px-3.5 py-3' : 'px-4 py-3.5'} shadow-sm`}>
+                <div className="flex items-center gap-2 pl-2 text-slate-500">
+                    <Settings2 size={18} className="text-[#655ac1]" />
+                    <span className="text-sm font-black">خيارات العرض</span>
                 </div>
 
-                <div className={`rounded-2xl border border-slate-300 bg-white ${compact ? 'px-4 py-3' : 'px-5 py-4'} shadow-sm`}>
-                    <div className="flex items-start gap-3 mb-3">
-                        <Users size={18} className="text-[#655ac1] shrink-0 mt-1" />
-                        <div className="min-w-0">
-                            <p className="text-sm font-black text-slate-800">عرض المعلمين</p>
-                            <p className="text-xs font-medium text-slate-500">غيّر ترتيب العرض أبجديًا أو حسب التخصص أو بتخصيص يدوي.</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-1.5 flex-wrap">
-                        {([
-                            { id: 'alpha' as InternalSortMode, label: 'أبجدي' },
-                            { id: 'specialization' as InternalSortMode, label: 'التخصص' },
-                            { id: 'custom' as InternalSortMode, label: 'مخصص' },
-                        ]).map(opt => (
-                            <button
-                                key={opt.id}
-                                onClick={() => {
-                                    setFsTeacherSort(opt.id);
-                                    if (opt.id === 'custom') {
-                                        setFsPendingOrder(fsCustomOrder.length > 0 ? fsCustomOrder : teachers.map(t => t.id));
-                                        setShowFsSortModal(true);
-                                    } else if (opt.id === 'specialization') {
-                                        const usedIds = new Set(teachers.map(t => t.specializationId));
-                                        const cur = fsSpecOrder.filter(id => usedIds.has(id));
-                                        Object.keys(specializationNames).forEach(id => { if (usedIds.has(id) && !cur.includes(id)) cur.push(id); });
-                                        setFsPendingSpecOrder(cur);
-                                        setShowFsSpecSortModal(true);
-                                    }
-                                }}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all inline-flex items-center gap-1.5 ${
-                                    fsTeacherSort === opt.id
-                                        ? 'bg-white border-slate-300 text-[#8779fb]'
-                                        : 'bg-white border-slate-300 text-slate-500 hover:border-[#8779fb]/50'
-                                }`}
-                            >
-                                {fsTeacherSort === opt.id && <Check size={13} strokeWidth={3} />}
-                                {opt.label}
-                            </button>
-                        ))}
-                        {fsTeacherSort === 'custom' && fsCustomOrder.length > 0 && (
-                            <button onClick={() => { setFsPendingOrder([...fsCustomOrder]); setShowFsSortModal(true); }} className="px-3 py-1.5 rounded-xl text-xs font-black border border-slate-300 text-[#655ac1] bg-white hover:border-[#8779fb] transition-all">تعديل الترتيب</button>
-                        )}
-                        {fsTeacherSort === 'specialization' && fsSpecOrder.length > 0 && (
-                            <button onClick={() => { setFsPendingSpecOrder([...fsSpecOrder]); setShowFsSpecSortModal(true); }} className="px-3 py-1.5 rounded-xl text-xs font-black border border-slate-300 text-[#655ac1] bg-white hover:border-[#8779fb] transition-all">تعديل ترتيب التخصصات</button>
-                        )}
-                    </div>
+                <div className="relative">
+                    <button ref={dayFilterButtonRef} type="button" onClick={() => openPanel('days', dayFilterButtonRef.current, 288)} className={menuButtonClass}>
+                        <span className="truncate">الأيام: {daySummary}</span>
+                        <ChevronDown size={15} className="text-[#655ac1]" />
+                    </button>
                 </div>
+
+                <div className="relative">
+                    <button ref={teacherFilterButtonRef} type="button" onClick={() => openPanel('teachers', teacherFilterButtonRef.current, 320)} className={menuButtonClass}>
+                        <span className="truncate">المعلمون: {teacherSummary}</span>
+                        <ChevronDown size={15} className="text-[#655ac1]" />
+                    </button>
+                </div>
+
+                <div className="relative">
+                    <button ref={sortFilterButtonRef} type="button" onClick={() => openPanel('sort', sortFilterButtonRef.current, 288)} className={menuButtonClass}>
+                        <span className="truncate">الترتيب: {sortSummary}</span>
+                        <ChevronDown size={15} className="text-[#655ac1]" />
+                    </button>
+                </div>
+
+                {(selectedGeneralDays.length > 0 || selectedTeachersCount > 0) && (
+                    <button
+                        type="button"
+                        onClick={() => { setSelectedGeneralDays([]); setSelectedGeneralTeacherIds([]); setTeacherFilterSearch(''); setOpenGeneralFilter(null); }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-500 transition-all hover:border-[#8779fb] hover:text-[#655ac1]"
+                    >
+                        <X size={13} />
+                        مسح
+                    </button>
+                )}
+                {!isFullScreen && !hideHeaderActionButton && (type === 'general_teachers' || type === 'general_waiting') && (
+                    <button
+                        type="button"
+                        onClick={() => setIsFullScreen(true)}
+                        className="mr-auto inline-flex items-center gap-2 rounded-xl bg-[#655ac1] px-4 py-2.5 text-sm font-black text-white shadow-md shadow-[#655ac1]/20 transition-all hover:bg-[#5549b0] active:scale-[0.98]"
+                    >
+                        <Maximize2 size={14} />
+                        <span>{type === 'general_teachers' ? (fullscreenButtonLabel ?? 'فتح الجدول للتعديل') : (fullscreenButtonLabel ?? 'معاينة')}</span>
+                    </button>
+                )}
+                {openGeneralFilter && typeof document !== 'undefined' && createPortal(
+                    <>
+                        <button
+                            type="button"
+                            aria-label="إغلاق القائمة"
+                            onClick={() => setOpenGeneralFilter(null)}
+                            className="fixed inset-0 z-[298] cursor-default bg-transparent"
+                        />
+                        <div
+                            dir="rtl"
+                            className="fixed z-[310] overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-2xl animate-in slide-in-from-top-2"
+                            style={{ top: generalFilterPos.top, right: generalFilterPos.right, width: generalFilterPos.width }}
+                        >
+                            {renderPanelContent()}
+                        </div>
+                    </>,
+                    document.body
+                )}
             </div>
         );
+    };
+
+    const renderGeneralTeacherControlCards = (compact = false) => {
+        return renderGeneralFilterToolbar(compact);
     };
 
     /* ════════════════════════════════════════════════════
@@ -1167,10 +1306,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         interface Row { serial:number; id:string; name:string; spec?:string; quota1?:number; quota2?:number; }
         const rows: Row[] = [];
+        const selectedTeacherSet = new Set(selectedGeneralTeacherIds);
         if(isClasses){
             getSortedClasses().forEach((c,i)=>rows.push({serial:i+1,id:c.id,name:c.name||(c.grade+'/'+c.section),quota1:classLessonCount.get(c.id)||0}));
         } else {
-            const list = isWaiting ? teachersWithWaiting : getSortedTeachers();
+            const baseList = isWaiting ? teachersWithWaiting : getSortedTeachers();
+            const list = selectedGeneralTeacherIds.length > 0 ? baseList.filter(t => selectedTeacherSet.has(t.id)) : baseList;
             list.forEach((t,i)=>rows.push({serial:i+1,id:t.id,name:t.name,spec:getAbbrSpec(t.specializationId),quota1:isWaiting?tWQ(t):tLQ(t),quota2:isTeachers?tWQ(t):undefined}));
         }
         const generalDayOptions = ENGLISH_DAYS.map((key, index) => ({ key, label: ARABIC_DAYS[index] }));
@@ -1179,7 +1320,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         /* waiting badge counts per period */
         const periodWaitingCounts: number[][] = Array.from({length:displayedDays.length}, ()=>Array(MAX_PERIODS).fill(0));
         if((isTeachers || isWaiting) && showWaitingCounts){
-            teachers.forEach(t=>{
+            const countTeachers = rows.length > 0 ? rows.map(row => ({ id: row.id })) : (isWaiting ? teachersWithWaiting : teachers);
+            countTeachers.forEach(t=>{
                 displayedDays.forEach(({ key: d },di)=>{
                     for(let p=1;p<=MAX_PERIODS;p++){
                         const s=timetable[`${t.id}-${d}-${p}`];
@@ -1368,37 +1510,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         return (
             <div className="w-full relative flex flex-col flex-1 min-h-0">
                 <div className="mb-3 space-y-3">
-                    {!showInlineTeacherHeaderCards && !isFullScreen && isTeachers && (
-                        <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-300 bg-white px-3.5 py-3.5 shadow-sm">
-                            <span className="text-sm font-black text-slate-500">عرض الأيام:</span>
-                            <span className="text-xs font-bold text-slate-400">اختر يومًا أو أكثر، أو اعرض الأسبوع كاملًا.</span>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedGeneralDays([])}
-                                className={`rounded-xl border px-3.5 py-2 text-sm font-black transition active:scale-95 ${
-                                    selectedGeneralDays.length === 0
-                                        ? 'border-[#8779fb] bg-[#8779fb] text-white shadow-sm'
-                                        : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
-                                }`}
-                            >
-                                الأسبوع كاملاً
-                            </button>
-                            {ENGLISH_DAYS.map((dayKey, index) => (
-                                <button
-                                    key={dayKey}
-                                    type="button"
-                                    onClick={() => toggleGeneralDay(dayKey)}
-                                    className={`rounded-xl border px-3.5 py-2 text-sm font-black transition active:scale-95 ${
-                                        selectedGeneralDays.includes(dayKey)
-                                            ? 'border-[#8779fb] bg-[#8779fb] text-white shadow-sm'
-                                            : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
-                                    }`}
-                                >
-                                    {ARABIC_DAYS[index]}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    {!showInlineTeacherHeaderCards && !isFullScreen && (isTeachers || isWaiting) && renderGeneralFilterToolbar(false)}
                     {isTeachers && generalTopControls}
                 </div>
                 {/* Table wrapper — flex-1+min-h-0 يجعل هذه الحاوية تأخذ الارتفاع المتبقي في الوضع الكامل */}
@@ -1507,7 +1619,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         {rows.length===0 ? (
                             <tr>
                                 <td colSpan={999} style={{textAlign:'center', padding:'40px', color:'#94a3b8', fontSize:'15px', fontWeight:600, background:'#fff'}}>
-                                    لا توجد بيانات — قم بإنشاء الجدول أولاً
+                                    {selectedGeneralTeacherIds.length > 0 ? 'لا توجد نتائج تطابق فلاتر المعلمين' : 'لا توجد بيانات — قم بإنشاء الجدول أولاً'}
                                 </td>
                             </tr>
                         ) : rows.map((row, rowIndex)=>{
@@ -2201,82 +2313,131 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
     /* ── fullscreen sort modals ─────────────────────────────────── */
     const renderFsSortModal = () => (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
-                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl flex flex-col max-h-[82vh] overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="flex items-center justify-between border-b border-slate-100 p-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center"><Users size={18} className="text-[#655ac1]" /></div>
-                        <div><h3 className="font-black text-slate-800">ترتيب المعلمين</h3><p className="text-xs text-slate-500">اسحب وغير الترتيب كما تريد</p></div>
+                        <GripVertical size={22} className="text-[#655ac1]" />
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800">ترتيب المعلمين</h3>
+                            <p className="text-xs font-bold text-slate-400 mt-0.5">اسحب الصفوف لتغيير ترتيب ظهور المعلمين في الجدول</p>
+                        </div>
                     </div>
-                    <button onClick={() => setShowFsSortModal(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400"><X size={18} /></button>
+                    <button onClick={() => setShowFsSortModal(false)} className="w-9 h-9 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 transition-all"><X size={18} /></button>
                 </div>
-                <div className="overflow-y-auto flex-1 p-4 space-y-2">
-                    {fsPendingOrder.map((tid, idx) => {
-                        const t = teachers.find(t => t.id === tid); if (!t) return null;
-                        return (
-                            <div key={tid} draggable
-                                onDragStart={e => e.dataTransfer.setData('text/plain', idx.toString())}
-                                onDragOver={e => e.preventDefault()}
-                                onDrop={e => {
-                                    e.preventDefault();
-                                    const src = parseInt(e.dataTransfer.getData('text/plain'));
-                                    if (isNaN(src) || src === idx) return;
-                                    const arr = [...fsPendingOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
-                                    setFsPendingOrder(arr);
-                                }}
-                                className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 hover:border-[#8779fb] cursor-move group"
-                            >
-                                <GripVertical size={20} className="text-slate-300 group-hover:text-[#655ac1]" />
-                                <span className="w-6 h-6 rounded-lg border border-slate-300 text-[#655ac1] text-xs font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                                <p className="text-sm font-bold text-slate-800 truncate flex-1">{t.name}</p>
-                            </div>
-                        );
-                    })}
+                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
+                    <div className="overflow-hidden rounded-2xl border border-slate-100">
+                        <table className="w-full text-right text-sm" dir="rtl">
+                            <thead className="bg-slate-50 border-b border-slate-100">
+                                <tr>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-14 text-center">م</th>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1]">اسم المعلم</th>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1]">التخصص</th>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-16 text-center">ترتيب</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {fsPendingOrder.map((tid, idx) => {
+                                    const t = teachers.find(t => t.id === tid); if (!t) return null;
+                                    return (
+                                        <tr key={tid} draggable
+                                            onDragStart={e => e.dataTransfer.setData('text/plain', idx.toString())}
+                                            onDragOver={e => e.preventDefault()}
+                                            onDrop={e => {
+                                                e.preventDefault();
+                                                const src = parseInt(e.dataTransfer.getData('text/plain'));
+                                                if (isNaN(src) || src === idx) return;
+                                                const arr = [...fsPendingOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
+                                                setFsPendingOrder(arr);
+                                            }}
+                                            className="hover:bg-slate-50/60 transition-all cursor-move group"
+                                        >
+                                            <td className="px-5 py-3 text-center">
+                                                <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
+                                            </td>
+                                            <td className="px-5 py-3 font-bold text-slate-800">{t.name}</td>
+                                            <td className="px-5 py-3 text-xs font-bold text-slate-500">{specializationNames[t.specializationId] || 'بدون تخصص'}</td>
+                                            <td className="px-5 py-3 text-center"><GripVertical size={18} className="mx-auto text-slate-300 group-hover:text-[#655ac1]" /></td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div className="p-4 border-t border-slate-100 flex gap-3">
-                    <button onClick={() => setShowFsSortModal(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-all">إلغاء</button>
-                    <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setShowFsSortModal(false); }} className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold text-sm transition-all">اعتماد الترتيب</button>
+                <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                    <button onClick={() => setShowFsSortModal(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
+                    <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setShowFsSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
+                        <Check size={14} strokeWidth={3.5} />
+                        حفظ
+                    </button>
                 </div>
             </div>
         </div>
     );
 
     const renderFsSpecSortModal = () => (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
-                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl flex flex-col max-h-[82vh] overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="flex items-center justify-between border-b border-slate-100 p-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center"><Users size={18} className="text-[#655ac1]" /></div>
-                        <div><h3 className="font-black text-slate-800">ترتيب التخصصات</h3><p className="text-xs text-slate-500">اسحب وغير الترتيب كما تريد</p></div>
+                        <Users size={22} className="text-[#655ac1]" />
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800">ترتيب التخصصات</h3>
+                            <p className="text-xs font-bold text-slate-400 mt-0.5">سيتم ترتيب المعلمين في الجدول بناءً على ترتيب التخصصات</p>
+                        </div>
                     </div>
-                    <button onClick={() => setShowFsSpecSortModal(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400"><X size={18} /></button>
+                    <button onClick={() => setShowFsSpecSortModal(false)} className="w-9 h-9 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 transition-all"><X size={18} /></button>
                 </div>
-                <div className="overflow-y-auto flex-1 p-4 space-y-2">
-                    {fsPendingSpecOrder.map((specId, idx) => {
-                        const sp = specializationNames[specId]; if (!sp) return null;
-                        return (
-                            <div key={specId} draggable
-                                onDragStart={e => e.dataTransfer.setData('text/plain', idx.toString())}
-                                onDragOver={e => e.preventDefault()}
-                                onDrop={e => {
-                                    e.preventDefault();
-                                    const src = parseInt(e.dataTransfer.getData('text/plain'));
-                                    if (isNaN(src) || src === idx) return;
-                                    const arr = [...fsPendingSpecOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
-                                    setFsPendingSpecOrder(arr);
-                                }}
-                                className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 hover:border-[#8779fb] cursor-move group"
-                            >
-                                <GripVertical size={20} className="text-slate-300 group-hover:text-[#655ac1]" />
-                                <span className="w-6 h-6 rounded-lg border border-slate-300 text-[#655ac1] text-xs font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                                <p className="text-sm font-bold text-slate-800 truncate">{sp}</p>
-                            </div>
-                        );
-                    })}
+                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
+                    <div className="overflow-hidden rounded-2xl border border-slate-100">
+                        <table className="w-full text-right text-sm" dir="rtl">
+                            <thead className="bg-slate-50 border-b border-slate-100">
+                                <tr>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-14 text-center">م</th>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1]">التخصص</th>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-28 text-center">عدد المعلمين</th>
+                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-16 text-center">ترتيب</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {fsPendingSpecOrder.map((specId, idx) => {
+                                    const sp = specializationNames[specId]; if (!sp) return null;
+                                    const specCount = teachers.filter(t => t.specializationId === specId).length;
+                                    return (
+                                        <tr key={specId} draggable
+                                            onDragStart={e => e.dataTransfer.setData('text/plain', idx.toString())}
+                                            onDragOver={e => e.preventDefault()}
+                                            onDrop={e => {
+                                                e.preventDefault();
+                                                const src = parseInt(e.dataTransfer.getData('text/plain'));
+                                                if (isNaN(src) || src === idx) return;
+                                                const arr = [...fsPendingSpecOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
+                                                setFsPendingSpecOrder(arr);
+                                            }}
+                                            className="hover:bg-slate-50/60 transition-all cursor-move group"
+                                        >
+                                            <td className="px-5 py-3 text-center">
+                                                <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
+                                            </td>
+                                            <td className="px-5 py-3 font-bold text-slate-800">{sp}</td>
+                                            <td className="px-5 py-3 text-center">
+                                                <span className="inline-block px-3 py-1 bg-slate-50 rounded-lg text-[10px] font-black text-slate-700">{specCount}</span>
+                                            </td>
+                                            <td className="px-5 py-3 text-center"><GripVertical size={18} className="mx-auto text-slate-300 group-hover:text-[#655ac1]" /></td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div className="p-4 border-t border-slate-100 flex gap-3">
-                    <button onClick={() => setShowFsSpecSortModal(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-all">إلغاء</button>
-                    <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setShowFsSpecSortModal(false); }} className="flex-1 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold text-sm transition-all">اعتماد الترتيب</button>
+                <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                    <button onClick={() => setShowFsSpecSortModal(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
+                    <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setShowFsSpecSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
+                        <Check size={14} strokeWidth={3.5} />
+                        حفظ
+                    </button>
                 </div>
             </div>
         </div>
@@ -2290,12 +2451,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     {/* Row 1: title + action buttons */}
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-3 flex-wrap">
-                            {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
-                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
-                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
+                            {type === 'general_teachers' && <Users size={22} style={{color: C_PRIMARY}} />}
+                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_PRIMARY}} />}
+                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_PRIMARY}} />}
                             <div>
                                 <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
-                                <div className="h-1 w-10 rounded-full mt-0.5" style={{background: C_BG}}></div>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
@@ -2496,15 +2656,14 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 <div className="mb-5 px-1 print:hidden">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
-                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
-                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
+                            {type === 'general_teachers' && <Users size={22} style={{color: C_PRIMARY}} />}
+                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_PRIMARY}} />}
+                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_PRIMARY}} />}
                             <div>
                                 <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
-                                <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
                             </div>
                         </div>
-                        {!hideHeaderActionButton && (
+                        {!hideHeaderActionButton && !(type === 'general_teachers' || type === 'general_waiting') && (
                         <button onClick={()=>setIsFullScreen(true)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all active:scale-95 ${
                                 type === 'general_teachers'
@@ -2522,15 +2681,14 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 <div className="mb-5 px-1 print:hidden space-y-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            {type === 'general_teachers' && <Users size={22} style={{color: C_BG}} />}
-                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_BG}} />}
-                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_BG}} />}
+                            {type === 'general_teachers' && <Users size={22} style={{color: C_PRIMARY}} />}
+                            {type === 'general_waiting'  && <CalendarClock size={22} style={{color: C_PRIMARY}} />}
+                            {type === 'general_classes'  && <LayoutGrid size={22} style={{color: C_PRIMARY}} />}
                             <div>
                                 <h2 className="text-xl font-black text-slate-800 leading-tight">{titleMap[type]}</h2>
-                                <div className="h-1 w-10 rounded-full mt-1" style={{background: C_BG}}></div>
                             </div>
                         </div>
-                        {!hideHeaderActionButton && (
+                        {!hideHeaderActionButton && !(type === 'general_teachers' || type === 'general_waiting') && (
                         <button onClick={()=>setIsFullScreen(true)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all active:scale-95 ${
                                 type === 'general_teachers'
