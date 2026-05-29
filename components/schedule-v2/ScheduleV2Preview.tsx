@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck, PenLine, FileOutput, Send, Shuffle, Sparkles,
-  Check, Lock, Archive, Eye, Printer, FileDown,
+  Check, Archive, Eye, Printer, FileDown,
 } from 'lucide-react';
 import {
   SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin,
@@ -94,16 +94,15 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
 
   const stages: Array<{
     id: StageId; n: number; label: string; hint: string;
-    icon: React.ComponentType<any>; complete: boolean; gated: boolean;
+    icon: React.ComponentType<any>; complete: boolean;
   }> = [
-    { id: 'create', n: 1, label: 'إنشاء الجدول', hint: 'ابنِ جدول الحصص', icon: Sparkles, complete: hasSchedule, gated: false },
-    { id: 'review', n: 2, label: 'المراجعة والتعديل', hint: 'راجع وعدّل الجدول', icon: PenLine, complete: false, gated: !hasSchedule },
-    { id: 'waiting', n: 3, label: 'توزيع الانتظار', hint: 'ابنِ جدول الانتظار', icon: Shuffle, complete: distributionPrepared, gated: !hasSchedule },
-    { id: 'output', n: 4, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - صدّر - أرسل', icon: FileOutput, complete: false, gated: !hasSchedule },
+    { id: 'create', n: 1, label: 'إنشاء الجدول', hint: 'ابنِ جدول الحصص', icon: Sparkles, complete: hasSchedule },
+    { id: 'review', n: 2, label: 'المراجعة والتعديل', hint: 'راجع وعدّل الجدول', icon: PenLine, complete: false },
+    { id: 'waiting', n: 3, label: 'توزيع الانتظار', hint: 'ابنِ جدول الانتظار', icon: Shuffle, complete: distributionPrepared },
+    { id: 'output', n: 4, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - صدّر - أرسل', icon: FileOutput, complete: false },
   ];
 
   const goToStage = (s: typeof stages[number]) => {
-    if (s.gated) return;
     setStage(s.id);
   };
 
@@ -141,34 +140,28 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                 <button
                   type="button"
                   onClick={() => goToStage(s)}
-                  disabled={s.gated}
-                  title={s.gated ? 'أنشئ الجدول أولًا لفتح هذه المرحلة' : undefined}
                   className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
-                    s.gated
-                      ? 'cursor-not-allowed opacity-60'
-                      : isActive
-                        ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20'
-                        : 'hover:bg-slate-50'
+                    isActive
+                      ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                      : 'hover:bg-slate-50'
                   }`}
                 >
                   <span className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black border-2 transition-all ${
                     s.complete
                       ? 'bg-white border-slate-200'
-                      : s.gated
-                        ? 'bg-slate-100 border-slate-200 text-slate-300'
-                        : isActive
-                          ? 'bg-white border-white text-[#655ac1]'
-                          : 'bg-white border-slate-200 text-[#655ac1]'
+                      : isActive
+                        ? 'bg-white border-white text-[#655ac1]'
+                        : 'bg-white border-slate-200 text-[#655ac1]'
                   }`}>
                     {s.complete ? (
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white">
                         <Check size={12} strokeWidth={3.5} />
                       </span>
-                    ) : s.gated ? <Lock size={15} /> : s.n}
+                    ) : s.n}
                   </span>
                   <span className="min-w-0">
                     <span className={`flex items-center gap-1.5 font-black text-sm leading-tight ${
-                      isActive ? 'text-white' : s.gated ? 'text-slate-400' : 'text-slate-800'
+                      isActive ? 'text-white' : 'text-slate-800'
                     }`}>
                       <s.icon size={15} className={isActive ? 'text-white' : 'text-[#655ac1]'} />
                       {s.label}
