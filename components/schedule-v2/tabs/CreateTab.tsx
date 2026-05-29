@@ -125,6 +125,18 @@ const CreateTab: React.FC<Props> = ({
 
   const readinessReview = useMemo(() => {
     const issues: ReadinessIssue[] = [];
+    const getConstraintTarget = (warning: ValidationWarning): ReadinessTarget => {
+      if (warning.type === 'subject') return 'subjects';
+      if (warning.type === 'teacher') return 'teachers';
+      const text = `${warning.message} ${warning.suggestion || ''}`;
+      if (text.includes('معلم') || text.includes('معلمين') || text.includes('الخروج المبكر') || text.includes('تواجد')) return 'teachers';
+      if (text.includes('مادة') || text.includes('مواد') || text.includes('التتابع')) return 'subjects';
+      if (text.includes('حصة') || text.includes('حصص') || text.includes('اليوم') || text.includes('أيام') || text.includes('الدوام')) return 'timing';
+      return 'subjects';
+    };
+
+    const getIssueKey = (issue: ReadinessIssue) =>
+      `${issue.target}-${issue.message.replace(/\s+/g, ' ').trim()}-${(issue.suggestion || '').replace(/\s+/g, ' ').trim()}`;
     const timing = schoolInfo.timing || {
       activeDays: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'],
       periodCounts: { sunday: 7, monday: 7, tuesday: 7, wednesday: 7, thursday: 7 },
@@ -211,12 +223,15 @@ const CreateTab: React.FC<Props> = ({
         level: 'error',
         message: warning.message,
         suggestion: warning.suggestion || 'راجع القيود قبل إنشاء الجدول.',
-        target: warning.type === 'subject' ? 'subjects' : warning.type === 'teacher' ? 'teachers' : 'timing'
+        target: getConstraintTarget(warning)
       });
     });
 
-    const blockingCount = issues.length;
-    return { issues, blockingCount, isReady: blockingCount === 0 };
+    const uniqueIssues = issues.filter((issue, index, list) =>
+      list.findIndex(item => getIssueKey(item) === getIssueKey(issue)) === index
+    );
+    const blockingCount = uniqueIssues.length;
+    return { issues: uniqueIssues, blockingCount, isReady: blockingCount === 0 };
   }, [schoolInfo.timing, schoolInfo.sharedSchools, scheduleSettings, teachers, assignableClasses, activeSubjects, assignments, assignmentPeriodStats]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -380,7 +395,7 @@ const CreateTab: React.FC<Props> = ({
   };
 
   const getReadinessTargetLabel = (target: ReadinessTarget) => {
-    if (target === 'teachers') return 'إصلاح بيانات المعلمين';
+    if (target === 'teachers') return 'إصلاح قيود المعلمين';
     if (target === 'classes') return 'إصلاح بيانات الفصول';
     if (target === 'assignment') return 'إصلاح الإسناد';
     if (target === 'subjects') return 'إصلاح قيود المواد';
