@@ -135,23 +135,14 @@ const CreateTab: React.FC<Props> = ({
     if (periodsPerDay <= 0) {
       issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع إعدادات الدوام وعدد الحصص لكل يوم.' });
     }
-    if (teachers.length === 0) {
-      issues.push({ level: 'error', message: 'لا يوجد معلمون.', suggestion: 'استورد أو أضف المعلمين أولًا.' });
-    }
-    if (assignableClasses.length === 0) {
-      issues.push({ level: 'error', message: 'لا توجد فصول قابلة للجدولة.', suggestion: 'أنشئ الفصول قبل إنشاء الجدول.' });
-    }
-    if (activeSubjects.length === 0) {
-      issues.push({ level: 'error', message: 'لا توجد مواد نشطة.', suggestion: 'أضف المواد أو فعّل المواد المطلوبة.' });
-    }
-    if (relevantAssignments.length === 0) {
-      issues.push({ level: 'error', message: 'لا توجد إسنادات مواد للفصول.', suggestion: 'أكمل إسناد المواد للمعلمين قبل إنشاء الجدول.' });
+    if (assignableClasses.length > 0 && relevantAssignments.length === 0) {
+      issues.push({ level: 'error', message: 'لم يكتمل إسناد مواد الفصول.', suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد كل فصل قبل إنشاء الجدول.' });
     }
     if (assignmentPeriodStats.total > 0 && assignmentPeriodStats.unassigned > 0) {
       issues.push({
         level: 'error',
         message: `يوجد ${assignmentPeriodStats.unassigned} حصة غير مسندة.`,
-        suggestion: 'أكمل إسناد جميع مواد الفصول قبل إنشاء الجدول.'
+        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد جميع مواد الفصول قبل إنشاء الجدول.'
       });
     }
 
@@ -162,7 +153,7 @@ const CreateTab: React.FC<Props> = ({
       issues.push({
         level: 'error',
         message: `يوجد ${brokenAssignments.length} إسنادًا مرتبطًا بمعلم أو مادة أو فصل غير موجود.`,
-        suggestion: 'راجع إسناد المواد واحذف أو أعد حفظ الإسنادات غير الصحيحة.'
+        suggestion: 'راجع صفحة إسناد المواد واحذف أو أعد حفظ الإسنادات غير الصحيحة.'
       });
     }
 
@@ -171,9 +162,9 @@ const CreateTab: React.FC<Props> = ({
     );
     if (classesWithoutAssignments.length > 0) {
       issues.push({
-        level: 'warning',
+        level: 'error',
         message: `${classesWithoutAssignments.length} فصل بدون أي إسناد مواد.`,
-        suggestion: 'يمكنك المتابعة، لكن هذه الفصول قد تظهر فارغة في الجدول.'
+        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد هذه الفصول قبل إنشاء الجدول.'
       });
     }
 
@@ -189,15 +180,29 @@ const CreateTab: React.FC<Props> = ({
     });
     if (overloadedTeachers.length > 0) {
       issues.push({
-        level: 'warning',
+        level: 'error',
         message: `${overloadedTeachers.length} معلمًا لديهم إسناد أعلى من نصاب الحصص.`,
-        suggestion: 'راجع النصاب أو الإسناد؛ سيعرض النظام تقرير القيود قبل الإنشاء.'
+        suggestion: 'راجع النصاب أو الإسناد قبل إنشاء الجدول.'
       });
     }
 
-    const blockingCount = issues.filter(i => i.level === 'error').length;
+    const constraintWarnings = validateAllConstraints(
+      scheduleSettings, activeSubjects, teachers,
+      activeDays.length, periodsPerDay, activeDays,
+      assignableClasses.length, schoolInfo.sharedSchools
+    ).filter(warning => warning.level === 'error' || warning.level === 'warning');
+
+    constraintWarnings.forEach(warning => {
+      issues.push({
+        level: 'error',
+        message: warning.message,
+        suggestion: warning.suggestion || 'راجع القيود أو الإسناد قبل إنشاء الجدول.'
+      });
+    });
+
+    const blockingCount = issues.length;
     return { issues, blockingCount, isReady: blockingCount === 0 };
-  }, [schoolInfo.timing, teachers, assignableClasses, activeSubjects, assignments, assignmentPeriodStats]);
+  }, [schoolInfo.timing, schoolInfo.sharedSchools, scheduleSettings, teachers, assignableClasses, activeSubjects, assignments, assignmentPeriodStats]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -236,16 +241,15 @@ const CreateTab: React.FC<Props> = ({
       return;
     }
 
-    if (teachers.length === 0 || classes.length === 0 || subjects.length === 0) {
-      setMissingDataAlert({ title: 'بيانات أساسية مفقودة', message: 'تأكد من إضافة بيانات المعلمين والمواد والفصول في إعدادات المدرسة.' });
+    if (warnings.length > 0) {
+      const firstWarning = warnings[0];
+      setMissingDataAlert({
+        title: 'توجد مشكلة تمنع إنشاء الجدول',
+        message: `${firstWarning.message}${firstWarning.suggestion ? ` ${firstWarning.suggestion}` : ''}`
+      });
       return;
     }
-    if (!assignments || assignments.length === 0) {
-      setMissingDataAlert({ title: 'لا يوجد إسناد للمواد', message: 'يجب إسناد المواد للمعلمين أولاً من قسم "إسناد المواد".' });
-      return;
-    }
-    if (warnings.length > 0) setShowConflictReport(true);
-    else startGeneration();
+    startGeneration();
   };
 
   // Returns true if the presence warning was opened (caller should NOT proceed yet)
@@ -360,6 +364,7 @@ const CreateTab: React.FC<Props> = ({
 
   const getReadinessIssueTarget = (issue: { message: string; suggestion?: string }) => {
     const text = `${issue.message} ${issue.suggestion || ''}`;
+    if (text.includes('إسناد') || text.includes('مسند') || text.includes('حصة') || text.includes('مادة') || text.includes('مواد')) return 'assignment' as const;
     if (text.includes('معلم') || text.includes('نصاب')) return 'teachers' as const;
     if (text.includes('فصل') || text.includes('فصول')) return 'classes' as const;
     return 'assignment' as const;
@@ -401,7 +406,7 @@ const CreateTab: React.FC<Props> = ({
             <button
               key={card.label}
               type="button"
-              onClick={() => hasIssue && openReadinessTarget(card.target)}
+              onClick={() => hasIssue && openReadinessTarget(getReadinessIssueTarget(card.issue!))}
               className={`bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 text-right transition-all ${
                 hasIssue
                   ? isBlocking
@@ -439,8 +444,8 @@ const CreateTab: React.FC<Props> = ({
       {orderedReadinessIssues.length > 0 && (
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
           <div className="flex items-start gap-3 mb-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              readinessReview.blockingCount > 0 ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'
+            <div className={`w-10 h-10 flex items-center justify-center shrink-0 ${
+              readinessReview.blockingCount > 0 ? 'text-rose-500' : 'text-amber-500'
             }`}>
               <AlertTriangle size={20} />
             </div>
@@ -602,8 +607,12 @@ const CreateTab: React.FC<Props> = ({
               }
               setShowRegenerateConfirm(true);
             }}
-            disabled={isGenerating}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#655ac1] bg-[#655ac1] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-[#5046a0] hover:border-[#5046a0] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isGenerating || !readinessReview.isReady}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+              readinessReview.isReady
+                ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-md shadow-indigo-200 hover:bg-[#5046a0] hover:border-[#5046a0]'
+                : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+            } disabled:cursor-not-allowed disabled:opacity-70`}
           >
             <Sparkles size={17} />
             {isGenerating ? 'جارٍ الإنشاء...' : hasSchedule ? 'إعادة إنشاء الجدول' : 'إنشاء الجدول'}
