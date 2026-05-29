@@ -143,38 +143,33 @@ const CreateTab: React.FC<Props> = ({
     if (periodsPerDay <= 0) {
       issues.push({ level: 'error', message: 'عدد الحصص اليومية غير محدد.', suggestion: 'راجع إعدادات الدوام وعدد الحصص لكل يوم.', target: 'timing' });
     }
-    if (assignableClasses.length > 0 && relevantAssignments.length === 0) {
-      issues.push({ level: 'error', message: 'لم يكتمل إسناد مواد الفصول.', suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد كل فصل قبل إنشاء الجدول.', target: 'assignment' });
-    }
-    if (assignmentPeriodStats.total > 0 && assignmentPeriodStats.unassigned > 0) {
-      issues.push({
-        level: 'error',
-        message: `يوجد ${assignmentPeriodStats.unassigned} حصة غير مسندة.`,
-        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد جميع مواد الفصول قبل إنشاء الجدول.',
-        target: 'assignment'
-      });
-    }
-
     const brokenAssignments = relevantAssignments.filter(a =>
       !teacherIds.has(a.teacherId) || !subjectIds.has(a.subjectId) || !classIds.has(a.classId)
     );
-    if (brokenAssignments.length > 0) {
-      issues.push({
-        level: 'error',
-        message: `يوجد ${brokenAssignments.length} إسنادًا مرتبطًا بمعلم أو مادة أو فصل غير موجود.`,
-        suggestion: 'راجع صفحة إسناد المواد واحذف أو أعد حفظ الإسنادات غير الصحيحة.',
-        target: 'assignment'
-      });
-    }
-
     const classesWithoutAssignments = assignableClasses.filter(cls =>
       !relevantAssignments.some(a => a.classId === cls.id)
     );
-    if (classesWithoutAssignments.length > 0) {
+
+    const assignmentIssueDetails: string[] = [];
+    if (assignableClasses.length > 0 && relevantAssignments.length === 0) {
+      assignmentIssueDetails.push('لا توجد إسنادات مواد للفصول المنشأة');
+    } else {
+      if (assignmentPeriodStats.total > 0 && assignmentPeriodStats.unassigned > 0) {
+        assignmentIssueDetails.push(`${assignmentPeriodStats.unassigned} حصة غير مسندة`);
+      }
+      if (brokenAssignments.length > 0) {
+        assignmentIssueDetails.push(`${brokenAssignments.length} إسناد غير صالح`);
+      }
+      if (classesWithoutAssignments.length > 0) {
+        assignmentIssueDetails.push(`${classesWithoutAssignments.length} فصل بلا إسناد مواد`);
+      }
+    }
+
+    if (assignmentIssueDetails.length > 0) {
       issues.push({
         level: 'error',
-        message: `${classesWithoutAssignments.length} فصل بدون أي إسناد مواد.`,
-        suggestion: 'انتقل إلى صفحة إسناد المواد وأكمل إسناد مواد هذه الفصول قبل إنشاء الجدول.',
+        message: 'إسناد المواد غير مكتمل.',
+        suggestion: `راجع صفحة إسناد المواد: ${assignmentIssueDetails.join('، ')}.`,
         target: 'assignment'
       });
     }
