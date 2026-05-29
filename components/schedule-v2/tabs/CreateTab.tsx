@@ -514,7 +514,6 @@ const CreateTab: React.FC<Props> = ({
         <div className="flex items-center justify-center gap-3 mb-2 flex-wrap">
           <Sparkles size={22} className="text-[#655ac1] shrink-0" />
           <h3 className="font-black text-slate-800">إنشاء جداول الحصص</h3>
-          {hasSchedule && <CheckCircle2 size={24} className="text-emerald-500 shrink-0" />}
         </div>
         <p className="text-sm text-slate-500 font-medium mb-7 max-w-2xl mx-auto">
           {hasSchedule ? 'الجدول جاهز ويمكنك إعادة الإنشاء في أي وقت.' : 'بناء الجدول تلقائيًا وفق القيود والإسنادات.'}

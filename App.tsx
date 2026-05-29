@@ -17,7 +17,7 @@ import Step5Students from './components/wizard/steps/Step5Students';
 import Step6Teachers from './components/wizard/steps/Step6Teachers';
 import Step7Admins from './components/wizard/steps/Step7Admins';
 import TimingSettings from './components/settings/TimingSettings';
-import ScheduleV2Container from './components/schedule-v2/ScheduleV2Container';
+import ScheduleV2Preview from './components/schedule-v2/ScheduleV2Preview';
 
 
 import AssignmentPage from './components/Assignment/Assignment';
@@ -292,7 +292,7 @@ const App: React.FC = () => {
     teacherConstraints: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual_v2' | 'schedule_v2' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual_v2' | 'schedule_v3' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
     // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -476,7 +476,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     // Subscription Lock Logic
     const isSubscriptionActive = new Date(subscription.endDate).getTime() >= new Date().getTime();
-    const lockedTabs = ['manual_v2', 'schedule_v2', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
+    const lockedTabs = ['manual_v2', 'schedule_v3', 'supervision', 'duty', 'daily_waiting', 'messages', 'permissions'];
     
     if (!isSubscriptionActive && lockedTabs.includes(activeTab as string)) {
       return (
@@ -528,7 +528,7 @@ const App: React.FC = () => {
 
       // Schedule Section
       case 'manual_v2': return <AssignmentPage teachers={teachers} setTeachers={setTeachers} subjects={subjects} classes={classes} assignments={assignments} setAssignments={setAssignments} specializations={specializations} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} />;
-      case 'schedule_v2': return <ScheduleV2Container teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} gradeSubjectMap={gradeSubjectMap} onNavigateMain={(tab) => setActiveTab(tab as any)} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }} />;
+      case 'schedule_v3': return <ScheduleV2Preview teachers={teachers} subjects={subjects} classes={classes} students={students} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} admins={admins} assignments={assignments} gradeSubjectMap={gradeSubjectMap} onNavigateMain={(tab) => setActiveTab(tab as any)} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }} />;
 
       // Supervision and Duty
       case 'supervision': return <SupervisionV2Container schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} scheduleSettings={scheduleSettings} onNavigateToTiming={() => setActiveTab('settings_timing')} onOpenMessagesArchive={() => { setMessagesInitialTab('archive'); setActiveTab('messages'); }} />;

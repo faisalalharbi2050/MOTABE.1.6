@@ -3,6 +3,41 @@ import { TimetableData, TimetableSlot, Teacher, ScheduleSettingsData, ClassInfo 
 // Helper to generate key
 export const getKey = (teacherId: string, day: string, period: number) => `${teacherId}-${day}-${period}`;
 
+/**
+ * النصاب الفعلي للانتظار: يأخذ الأكبر بين الحقل المباشر (waitingQuota)
+ * ومجموع أنصبة الانتظار عبر المدارس (schools[].waiting) للمعلمين المشتركين.
+ */
+export function getEffectiveWaitingQuota(
+    teacher: { waitingQuota?: number; schools?: Array<{ waiting?: number }> }
+): number {
+    const direct = Number(teacher?.waitingQuota ?? 0) || 0;
+    const schoolWaiting = Array.isArray(teacher?.schools)
+        ? teacher.schools.reduce((sum, s) => sum + (Number(s?.waiting || 0) || 0), 0)
+        : 0;
+    return Math.max(direct, schoolWaiting);
+}
+
+/**
+ * يبني "رقعة التراجع": لكل خانة تغيّرت بين الحالة قبل وبعد، نحفظ قيمتها قبل التعديل.
+ * null تعني أن الخانة لم تكن موجودة قبل التعديل (تُحذف عند التراجع).
+ * يُطبَّق التراجع بإسناد كل مفتاح إلى قيمته المحفوظة (أو حذفه إن كانت null).
+ */
+export function buildRevertPatch(
+    before: TimetableData,
+    after: TimetableData
+): Record<string, TimetableSlot | null> {
+    const patch: Record<string, TimetableSlot | null> = {};
+    const b = before || {};
+    const a = after || {};
+    const keys = new Set([...Object.keys(b), ...Object.keys(a)]);
+    keys.forEach(k => {
+        if (JSON.stringify(b[k]) !== JSON.stringify(a[k])) {
+            patch[k] = b[k] ?? null;
+        }
+    });
+    return patch;
+}
+
 // Arabic day names
 const DAY_NAMES_AR: Record<string, string> = {
     sunday: 'الأحد', monday: 'الإثنين', tuesday: 'الثلاثاء',

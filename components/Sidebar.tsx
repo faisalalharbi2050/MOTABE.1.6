@@ -39,6 +39,7 @@ import {
   UserCog,
   Lock,
   CalendarCheck,
+  Sparkles,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -61,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Auto-expand if a sub-item is active
   React.useEffect(() => {
-    const scheduleTabs = ['manual_v2', 'schedule_v2'];
+    const scheduleTabs = ['manual_v2', 'schedule_v3'];
     if (scheduleTabs.includes(activeTab)) {
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
@@ -342,8 +343,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                      inverted={true}
                   />
                   <SubNavItem
-                     active={activeTab === "schedule_v2"}
-                     onClick={() => handleTabClick("schedule_v2")}
+                     active={activeTab === "schedule_v3"}
+                     onClick={() => handleTabClick("schedule_v3")}
                      label="إدارة الحصص والانتظار"
                      icon={<CalendarCheck size={18} />}
                      inverted={true}

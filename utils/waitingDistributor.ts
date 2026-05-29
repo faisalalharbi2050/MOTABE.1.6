@@ -1,11 +1,16 @@
 import { 
     Teacher, Admin, ScheduleSettingsData, TimetableData, SubstitutionConfig 
 } from '../types';
-import { getKey } from './scheduleInteractive';
+import { getKey, getEffectiveWaitingQuota } from './scheduleInteractive';
 
 export interface WaitingDistributorOptions {
     activeDays: string[];
     periodsPerDay: number;
+    /**
+     * عند التفعيل: سقف انتظار كل معلم = نصابه الفردي (waitingQuota) بدل الحد الأقصى العام.
+     * مُطفأ افتراضيًا حتى لا يتغيّر سلوك الصفحات القائمة؛ تُفعّله الصفحة المطوّرة.
+     */
+    respectTeacherQuota?: boolean;
 }
 
 export function distributeWaiting(
@@ -16,7 +21,7 @@ export function distributeWaiting(
     options: WaitingDistributorOptions
 ): TimetableData {
     const newTimetable = { ...timetable };
-    const { activeDays, periodsPerDay } = options;
+    const { activeDays, periodsPerDay, respectTeacherQuota = false } = options;
     const { maxTotalQuota = 24, maxDailyTotal = 5, method, fixedPerPeriod } = settings.substitution;
 
     // 1. Identify Empty Slots (Potential Waiting Slots)
@@ -75,24 +80,18 @@ export function distributeWaiting(
         return count;
     };
 
+    // Helper: هل بلغ المرشّح سقفه؟ (نصابه الفردي عند respectTeacherQuota، وإلا الحد العام)
+    const overQuota = (candidate: { id: string; waitingQuota?: number; schools?: Array<{ waiting?: number }> }) => {
+        if (respectTeacherQuota) {
+            const quota = getEffectiveWaitingQuota(candidate);
+            return getLoad(candidate.id).waiting >= quota;
+        }
+        return getLoad(candidate.id).total >= maxTotalQuota;
+    };
+
     activeDays.forEach(day => {
         for (let p = 1; p <= periodsPerDay; p++) {
             
-            // Check how many waiting currently assigned
-            const currentWaiting = Object.values(newTimetable).filter(s => 
-                s.teacherId && // valid teacher
-                s.type === 'waiting' &&
-                // We need to know DAY and PERIOD of the slot.
-                // Timetable key is "teacherId-day-period".
-                // We shouldn't scan values, we should scan KEYS or store metadata.
-                // The current TimetableData structure uses keys. 
-                // BUT we don't know the key unless we construct it from teacherId.
-                // We need to iterate candidates to see who is assigned waiting at this slot.
-                // This is inefficient. Better to check candidate by candidate.
-                false // placeholder
-            ); 
-            
-            // Correct approach:
             // Find candidates who are FREE at this slot.
             const freeCandidates = candidates.filter(c => {
                 const key = getKey(c.id, day, p);
@@ -118,11 +117,10 @@ export function distributeWaiting(
                 for (const candidate of freeCandidates) {
                     if (assignedCount >= targetPerPeriod) break;
                     
-                    const { total } = getLoad(candidate.id);
                     const daily = getDailyLoad(candidate.id, day);
 
                     // Constraints
-                    if (total >= maxTotalQuota) continue;
+                    if (overQuota(candidate)) continue;
                     if (daily >= maxDailyTotal) continue;
 
                     // Assign
@@ -140,10 +138,9 @@ export function distributeWaiting(
             // Prompt says: "ملء الفراغات حتى الوصول للحد الأقصى لكل معلم" -> Fill ALL gaps up to limit.
             else if (method === 'auto') {
                  for (const candidate of freeCandidates) {
-                    const { total } = getLoad(candidate.id);
                     const daily = getDailyLoad(candidate.id, day);
 
-                    if (total >= maxTotalQuota) continue;
+                    if (overQuota(candidate)) continue;
                     if (daily >= maxDailyTotal) continue;
 
                     const key = getKey(candidate.id, day, p);

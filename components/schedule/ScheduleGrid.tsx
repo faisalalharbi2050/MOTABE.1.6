@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Teacher, ScheduleSettingsData, Subject, ClassInfo, AuditLogEntry } from '../../types';
-import { getKey, tryMoveOrSwap, findChainSwap, SwapResult } from '../../utils/scheduleInteractive';
+import { getKey, tryMoveOrSwap, findChainSwap, SwapResult, buildRevertPatch } from '../../utils/scheduleInteractive';
 import { GripHorizontal, Lock } from 'lucide-react';
 import SwapConfirmationModal from './SwapConfirmationModal';
 
@@ -215,6 +215,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                 relatedTeacherIds: relatedIds,
                 viewType: 'general',
                 teacherName: primaryTeacher?.name || '',
+                revert: buildRevertPatch(settings.timetable || {}, pendingSwap.newTimetable),
             };
             const updatedLogs = [...(settings.auditLogs || []), logEntry];
             onUpdateSettings({ ...settings, timetable: pendingSwap.newTimetable, auditLogs: updatedLogs });

@@ -545,6 +545,8 @@ export interface AuditLogEntry {
   relatedTeacherIds: string[]; // المعنيون بالحركة
   viewType?: 'general' | 'individual'; // نوع العرض: جدول عام أو جدول معلم
   teacherName?: string;   // اسم المعلم الأساسي
+  /** رقعة التراجع: مفتاح الخانة → قيمتها قبل التعديل (null = لم تكن موجودة، تُحذف عند التراجع) */
+  revert?: Record<string, TimetableSlot | null>;
 }
 
 // ===== Daily Supervision Types =====

@@ -28,9 +28,12 @@ import {
 } from '../../../types';
 import { validateAllConstraints } from '../../../utils/scheduleConstraints';
 import { distributeWaiting } from '../../../utils/waitingDistributor';
-import SubstitutionTab from '../../schedule/SubstitutionTab';
+import { getEffectiveWaitingQuota } from '../../../utils/scheduleInteractive';
+import LoadingLogo from '../../ui/LoadingLogo';
+import SubstitutionTabV3 from '../../schedule/SubstitutionTabV3';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
 import ConfirmDialog from '../../ui/ConfirmDialog';
+import { useToast } from '../../ui/ToastProvider';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -47,9 +50,9 @@ interface Props {
   onNavigate: (tab: 'view' | 'edit' | 'create' | 'waiting') => void;
 }
 
-type SubTab = 'lock' | 'settings' | 'preview';
+type SubTab = 'settings' | 'preview';
 
-const WaitingTab: React.FC<Props> = ({
+const WaitingTabV3: React.FC<Props> = ({
   schoolInfo,
   scheduleSettings,
   setScheduleSettings,
@@ -62,7 +65,7 @@ const WaitingTab: React.FC<Props> = ({
   setIsScheduleLocked,
   onNavigate,
 }) => {
-  const [subTab, setSubTab] = useState<SubTab>('lock');
+  const [subTab, setSubTab] = useState<SubTab>('settings');
   const [previewType, setPreviewType] = useState<'general_teachers' | 'general_waiting' | 'individual_teacher'>('general_teachers');
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [showTeacherSelector, setShowTeacherSelector] = useState(false);
@@ -75,7 +78,7 @@ const WaitingTab: React.FC<Props> = ({
   const [showMethodChangeConfirm, setShowMethodChangeConfirm] = useState(false);
   const [showPreviewSkipConfirm, setShowPreviewSkipConfirm] = useState(false);
   const [pendingConfig, setPendingConfig] = useState<SubstitutionConfig | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
 
@@ -153,19 +156,10 @@ const WaitingTab: React.FC<Props> = ({
 
   const totalManualCards = useMemo(() => {
     if (!isManualMode) return 0;
-    const maxQuota = substitutionConfig.maxTotalQuota || 24;
-    return teachers.reduce((sum, t) => {
-      const quota = t.waitingQuota !== undefined
-        ? t.waitingQuota
-        : Math.max(0, maxQuota - (t.quotaLimit || 0));
-      return sum + quota;
-    }, 0);
-  }, [teachers, isManualMode, substitutionConfig.maxTotalQuota]);
+    return teachers.reduce((sum, t) => sum + getEffectiveWaitingQuota(t), 0);
+  }, [teachers, isManualMode]);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const { showToast } = useToast();
 
   const getTimingConfig = () =>
     schoolInfo.timing || {
@@ -200,9 +194,20 @@ const WaitingTab: React.FC<Props> = ({
     );
   }, [scheduleSettings, subjects, teachers, classes.length, schoolInfo.sharedSchools]);
 
+  // عجز "التوزيع المحدّد": عدد المنتظرين المطلوب أكبر من مجموع أنصبة الانتظار
+  const fixedDeficit = useMemo(() => {
+    const fpp = substitutionConfig.fixedPerPeriod || 0;
+    if (currentMethod !== 'fixed' || fpp <= 0) return false;
+    const timing = getTimingConfig();
+    const ppd = Math.max(...(Object.values(timing.periodCounts || {}) as number[]));
+    const totalSlots = timing.activeDays.length * ppd;
+    const required = fpp * totalSlots;
+    const available = teachers.reduce((s, t) => s + getEffectiveWaitingQuota(t), 0);
+    return available < required;
+  }, [currentMethod, substitutionConfig.fixedPerPeriod, teachers, schoolInfo.timing]);
+
   const subTabs: Array<{ id: SubTab; label: string; icon: React.ComponentType<any> }> = [
-    { id: 'lock', label: 'قفل الجدول', icon: Lock },
-    { id: 'settings', label: 'إعداد وتنفيذ التوزيع', icon: Shuffle },
+    { id: 'settings', label: 'تثبيت وإعداد التوزيع', icon: Shuffle },
     { id: 'preview', label: 'معاينة وتعديل الانتظار', icon: PenLine },
   ];
 
@@ -221,61 +226,73 @@ const WaitingTab: React.FC<Props> = ({
     const nextState = !isScheduleLocked;
     setIsScheduleLocked(nextState);
     showToast(
-      nextState ? 'تم قفل الجدول بنجاح' : 'تم فك قفل الجدول',
+      nextState ? 'تم تثبيت الجدول بنجاح' : 'تم إلغاء تثبيت الجدول',
       nextState ? 'success' : 'info'
     );
   };
 
   const prepareManualWaiting = () => {
-    const maxQuota = substitutionConfig.maxTotalQuota || 24;
-    const cardCount = teachers.reduce((sum, t) => {
-      const quota = t.waitingQuota !== undefined
-        ? t.waitingQuota
-        : Math.max(0, maxQuota - (t.quotaLimit || 0));
-      return sum + quota;
-    }, 0);
-    setScheduleSettings(prev => ({
-      ...prev,
-      substitution: {
-        ...(prev.substitution || defaultSubstitutionConfig),
-        method: 'manual',
-        maxTotalQuota: (prev.substitution as any)?.maxTotalQuota || defaultSubstitutionConfig.maxTotalQuota,
-        maxDailyTotal: (prev.substitution as any)?.maxDailyTotal || defaultSubstitutionConfig.maxDailyTotal,
-        fixedPerPeriod: (prev.substitution as any)?.fixedPerPeriod || defaultSubstitutionConfig.fixedPerPeriod,
-        manualReady: true,
-      } as any,
-      waitingGenerationCount: (prev.waitingGenerationCount || 0) + 1,
-    }));
-    showToast(`تم تجهيز ${cardCount} بطاقة انتظار جاهزة للتوزيع اليدوي`, 'success');
-  };
-
-  const execAutomaticOrFixedDistribution = () => {
-    try {
-      if (!scheduleSettings.timetable) {
-        showToast('لا يوجد جدول حصص لتوزيع الانتظار عليه', 'error');
-        return;
-      }
-      const timing = getTimingConfig();
-      const periodsPerDay = Math.max(...(Object.values(timing.periodCounts || {}) as number[]));
-      const newTimetable = distributeWaiting(scheduleSettings.timetable, teachers, admins, scheduleSettings, {
-        activeDays: timing.activeDays,
-        periodsPerDay,
-      });
+    const cardCount = teachers.reduce((sum, t) => sum + getEffectiveWaitingQuota(t), 0);
+    setShowRedistributeConfirm(false);
+    setIsCreating(true);
+    setTimeout(() => {
       setScheduleSettings(prev => ({
         ...prev,
-        timetable: newTimetable,
         substitution: {
           ...(prev.substitution || defaultSubstitutionConfig),
-          manualReady: false,
+          method: 'manual',
+          maxTotalQuota: (prev.substitution as any)?.maxTotalQuota || defaultSubstitutionConfig.maxTotalQuota,
+          maxDailyTotal: (prev.substitution as any)?.maxDailyTotal || defaultSubstitutionConfig.maxDailyTotal,
+          fixedPerPeriod: (prev.substitution as any)?.fixedPerPeriod || defaultSubstitutionConfig.fixedPerPeriod,
+          manualReady: true,
         } as any,
         waitingGenerationCount: (prev.waitingGenerationCount || 0) + 1,
       }));
-      showToast('تم إنشاء وتوزيع حصص الانتظار بنجاح', 'success');
-      setShowRedistributeConfirm(false);
-    } catch (error) {
-      console.error(error);
-      showToast('حدث خطأ أثناء إنشاء حصص الانتظار', 'error');
+      setTimeout(() => {
+        setIsCreating(false);
+        showToast(`تم تجهيز ${cardCount} بطاقة انتظار جاهزة للتوزيع اليدوي`, 'success');
+        setSubTab('preview');
+      }, 800);
+    }, 50);
+  };
+
+  const execAutomaticOrFixedDistribution = () => {
+    const baseTimetable = scheduleSettings.timetable;
+    if (!baseTimetable) {
+      showToast('لا يوجد جدول حصص لتوزيع الانتظار عليه', 'error');
+      return;
     }
+    setShowRedistributeConfirm(false);
+    setIsCreating(true);
+    setTimeout(() => {
+      try {
+        const timing = getTimingConfig();
+        const periodsPerDay = Math.max(...(Object.values(timing.periodCounts || {}) as number[]));
+        const newTimetable = distributeWaiting(baseTimetable, teachers, admins, scheduleSettings, {
+          activeDays: timing.activeDays,
+          periodsPerDay,
+          respectTeacherQuota: true,
+        });
+        setScheduleSettings(prev => ({
+          ...prev,
+          timetable: newTimetable,
+          substitution: {
+            ...(prev.substitution || defaultSubstitutionConfig),
+            manualReady: false,
+          } as any,
+          waitingGenerationCount: (prev.waitingGenerationCount || 0) + 1,
+        }));
+        setTimeout(() => {
+          setIsCreating(false);
+          showToast('تم إنشاء وتوزيع حصص الانتظار بنجاح', 'success');
+          setSubTab('preview');
+        }, 800);
+      } catch (error) {
+        console.error(error);
+        setIsCreating(false);
+        showToast('حدث خطأ أثناء إنشاء حصص الانتظار', 'error');
+      }
+    }, 50);
   };
 
   const handleCreateWaiting = () => {
@@ -343,27 +360,28 @@ const WaitingTab: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ── قفل الجدول ── */}
-      {subTab === 'lock' && (
+      {/* ── التثبيت والإعداد والتنفيذ ── */}
+      {subTab === 'settings' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all w-full">
+          {/* بوابة التثبيت — الخطوة الأولى في أعلى المرحلة */}
+          <div className={`bg-white rounded-2xl p-6 border shadow-sm transition-all w-full ${isScheduleLocked ? 'border-slate-200' : 'border-[#655ac1]/30 ring-1 ring-[#655ac1]/10'}`}>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center">
+                <div className="w-12 h-12 flex items-center justify-center">
                   {isScheduleLocked ? (
-                    <Lock size={22} className="text-[#655ac1]" />
+                    <Lock size={26} className="text-[#655ac1]" />
                   ) : (
-                    <Unlock size={22} className="text-slate-500" />
+                    <Unlock size={26} className="text-[#655ac1]" />
                   )}
                 </div>
                 <div>
                   <p className="font-black text-slate-800 text-lg">
-                    {isScheduleLocked ? 'الجدول مقفل' : 'الجدول غير مقفل'}
+                    {isScheduleLocked ? 'الجدول مثبّت' : 'الخطوة الأولى: ثبّت الجدول'}
                   </p>
                   <p className="text-sm font-medium mt-1 text-slate-500">
                     {isScheduleLocked
-                      ? 'يمكنك الآن إعداد وتنفيذ توزيع حصص الانتظار'
-                      : 'اقفل الجدول لتفعيل إعدادات الانتظار وتنفيذ التوزيع'}
+                      ? 'الجدول مثبّت — يمكنك الآن ضبط الإعدادات وتنفيذ التوزيع بالأسفل'
+                      : 'ثبّت الجدول لمنع تغيّره أثناء توزيع الانتظار، وتفعيل الإعدادات بالأسفل'}
                   </p>
                 </div>
               </div>
@@ -372,42 +390,19 @@ const WaitingTab: React.FC<Props> = ({
                 onClick={handleLockToggle}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all border ${
                   isScheduleLocked
-                    ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-                    : 'bg-[#655ac1] hover:bg-[#5046a0] text-white border-[#655ac1]'
+                    ? 'bg-white border-[#655ac1] text-[#655ac1] hover:bg-[#655ac1] hover:text-white'
+                    : 'bg-[#655ac1] text-white border-[#655ac1]'
                 }`}
               >
                 {isScheduleLocked ? <Unlock size={16} /> : <Lock size={16} />}
-                {isScheduleLocked ? 'فك القفل' : 'قفل الجدول'}
+                {isScheduleLocked ? 'إلغاء التثبيت' : 'تثبيت الجدول'}
               </button>
             </div>
-
           </div>
-        </div>
-      )}
-
-      {/* ── إعداد وتنفيذ التوزيع ── */}
-      {subTab === 'settings' && (
-        <div className="space-y-4">
-          {!isScheduleLocked && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex items-center gap-3 flex-wrap shadow-sm">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 border border-amber-200">
-                <Lock size={18} className="text-amber-600" />
-              </div>
-              <p className="text-sm font-bold text-amber-800 flex-1">
-                اقفل الجدول أولًا لتفعيل إعدادات وتوزيع الانتظار
-              </p>
-              <button
-                onClick={() => setSubTab('lock')}
-                className="shrink-0 bg-white hover:bg-amber-50 text-amber-700 border border-amber-300 px-4 py-2 rounded-lg text-xs font-bold transition-all"
-              >
-                انتقل إلى القفل
-              </button>
-            </div>
-          )}
 
           <div className={`transition-all duration-300 ${!isScheduleLocked ? 'opacity-50 pointer-events-none select-none' : ''}`}>
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
-              <SubstitutionTab
+              <SubstitutionTabV3
                 teachers={teachers}
                 config={substitutionConfig}
                 weekDays={getTimingConfig().activeDays.length}
@@ -435,12 +430,8 @@ const WaitingTab: React.FC<Props> = ({
                 }}
               />
 
-              {/* بطاقة ابدأ إنشاء حصص الانتظار */}
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
-                <p className="text-sm font-black text-slate-800 text-center mb-5">
-                  ابدأ إنشاء حصص الانتظار بعد ضبط الإعدادات
-                </p>
-
+              {/* زر إنشاء حصص الانتظار */}
+              <div className="pt-2">
                 {isDistributionPrepared && !isManualMode && (
                   <div className="mb-4 flex items-center justify-center gap-2 text-emerald-700">
                     <CheckCircle2 size={16} className="shrink-0" />
@@ -448,58 +439,28 @@ const WaitingTab: React.FC<Props> = ({
                   </div>
                 )}
 
-                <div>
-                  {isManualMode ? (
-                    <div className="space-y-4">
-                      {isManualReady && (
-                        <div className="flex items-center justify-center gap-2 text-emerald-700">
-                          <CheckCircle2 size={16} className="shrink-0" />
-                          <p className="text-sm font-bold">
-                            {totalManualCards > 0
-                              ? `تم تجهيز ${totalManualCards} بطاقة انتظار — انتقل إلى معاينة وتعديل لتوزيعها`
-                              : 'تم تجهيز بطاقات الانتظار — انتقل إلى معاينة وتعديل لتوزيعها'}
-                          </p>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-center gap-3 flex-wrap">
-                      <button
-                        onClick={handleCreateWaiting}
-                        className={`inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black transition-all ${
-                          isManualReady
-                            ? 'text-[#655ac1] hover:bg-[#f5f3ff] hover:border-[#c4b5fd]'
-                            : 'text-slate-700 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1]'
-                        }`}
-                      >
-                        <Shuffle size={16} />
-                        {isManualReady ? 'إعادة إنشاء بطاقات الانتظار' : 'إنشاء بطاقات الانتظار'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSubTab('preview');
-                          onNavigate('waiting');
-                        }}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d8d0ff] bg-[#f8f7ff] px-4 py-2.5 text-sm font-black text-[#655ac1] transition-all hover:border-[#c4b5fd] hover:bg-[#f1efff]"
-                      >
-                        <PenLine size={14} />
-                        الانتقال إلى معاينة وتعديل
-                      </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex justify-center pt-1">
-                      <button
-                        onClick={handleCreateWaiting}
-                        className={`inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black transition-all ${
-                          hasWaiting
-                            ? 'text-[#655ac1] hover:bg-[#f5f3ff] hover:border-[#c4b5fd]'
-                            : 'text-slate-700 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1]'
-                        }`}
-                      >
-                        <Shuffle size={16} />
-                        {hasWaiting ? 'إعادة إنشاء حصص الانتظار' : 'إنشاء حصص الانتظار'}
-                      </button>
-                    </div>
-                  )}
+                {isManualMode && isManualReady && (
+                  <div className="mb-4 flex items-center justify-center gap-2 text-emerald-700">
+                    <CheckCircle2 size={16} className="shrink-0" />
+                    <p className="text-sm font-bold">
+                      {totalManualCards > 0
+                        ? `تم تجهيز ${totalManualCards} بطاقة انتظار جاهزة للتوزيع اليدوي`
+                        : 'تم تجهيز بطاقات الانتظار جاهزة للتوزيع اليدوي'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-center pt-1">
+                  <button
+                    onClick={handleCreateWaiting}
+                    disabled={fixedDeficit}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#655ac1] bg-[#655ac1] px-5 py-3 text-sm font-black text-white shadow-md shadow-[#655ac1]/20 transition-all hover:bg-[#5046a0] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Shuffle size={16} />
+                    {isManualMode
+                      ? (isManualReady ? 'إعادة إنشاء بطاقات الانتظار' : 'إنشاء بطاقات الانتظار')
+                      : (hasWaiting ? 'إعادة إنشاء حصص الانتظار' : 'إنشاء حصص الانتظار')}
+                  </button>
                 </div>
               </div>
             </div>
@@ -610,6 +571,7 @@ const WaitingTab: React.FC<Props> = ({
                           showWaitingManagement
                           interactive
                           forceWaitingInteractive
+                          allowLessonOverWaiting
                           waitingCountPerSlot={waitingCountPerSlot}
                           fullscreenButtonLabel="فتح الانتظار للتعديل"
                           onUpdateSettings={setScheduleSettings}
@@ -647,21 +609,6 @@ const WaitingTab: React.FC<Props> = ({
             </div>
           </div>
           )}
-        </div>
-      )}
-
-      {/* Toast notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-xl font-bold shadow-2xl animate-in slide-in-from-bottom-5 ${
-            toast.type === 'success'
-              ? 'bg-emerald-500 text-white'
-              : toast.type === 'error'
-                ? 'bg-rose-500 text-white'
-                : 'bg-slate-700 text-white'
-          }`}
-        >
-          {toast.message}
         </div>
       )}
 
@@ -718,136 +665,83 @@ const WaitingTab: React.FC<Props> = ({
         document.body
       )}
 
-      {/* تخطي معاينة التوزيع */}
-      {showPreviewSkipConfirm && (
-        <div className="fixed inset-0 z-[170] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center">
-                <AlertTriangle size={22} className="text-rose-500" />
-              </div>
-              <h3 className="font-black text-slate-800 text-lg">الانتقال إلى معاينة وتعديل</h3>
-            </div>
-            <p className="text-sm text-rose-700 bg-white border border-rose-200 rounded-xl p-4 leading-relaxed mb-5">
-              لم يتم اختيار أو تنفيذ آلية التوزيع بعد. هل تريد التخطي والمتابعة إلى معاينة وتعديل؟
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowPreviewSkipConfirm(false)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={openPreviewTab}
-                className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-all"
-              >
-                تخطَّ والمتابعة
-              </button>
-            </div>
-          </div>
+      {/* شاشة جاري الإنشاء — بنفس تصميم إنشاء الجدول */}
+      {isCreating && (
+        <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
+          <LoadingLogo size="lg" />
+          <p className="text-base font-bold text-[#655ac1]">جاري إنشاء حصص الانتظار...</p>
         </div>
       )}
+
+      {/* تخطي معاينة التوزيع */}
+      <ConfirmDialog
+        isOpen={showPreviewSkipConfirm}
+        title="الانتقال إلى معاينة وتعديل"
+        message="لم يتم اختيار أو تنفيذ آلية التوزيع بعد. هل تريد التخطي والمتابعة إلى معاينة وتعديل؟"
+        confirmLabel="تخطَّ والمتابعة"
+        cancelLabel="إلغاء"
+        tone="danger"
+        onCancel={() => setShowPreviewSkipConfirm(false)}
+        onConfirm={openPreviewTab}
+      />
 
       {/* تأكيد فك القفل — نظام التأكيدات بالمنصة باللون الأحمر */}
       <ConfirmDialog
         isOpen={showUnlockConfirm}
-        title="فك قفل الجدول"
-        message="يوجد توزيع أو تجهيز انتظار حالي. فك القفل يسمح بتعديل الجدول الأساسي، وفي حال إعادة الإنشاء سيتم حذف الوضع الحالي وبناء جديد."
-        confirmLabel="فك القفل"
+        title="إلغاء تثبيت الجدول"
+        message="يوجد توزيع أو تجهيز انتظار حالي. إلغاء التثبيت يسمح بتعديل الجدول الأساسي، وفي حال إعادة الإنشاء سيتم حذف الوضع الحالي وبناء جديد."
+        confirmLabel="إلغاء التثبيت"
         cancelLabel="إلغاء"
         tone="danger"
         onCancel={() => setShowUnlockConfirm(false)}
         onConfirm={() => {
           setIsScheduleLocked(false);
           setShowUnlockConfirm(false);
-          showToast('تم فك قفل الجدول', 'info');
+          showToast('تم إلغاء تثبيت الجدول', 'info');
         }}
       />
 
       {/* تأكيد إعادة التوزيع */}
-      {showRedistributeConfirm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 animate-in zoom-in-95">
-            <div className="flex items-center gap-3 mb-3">
-              <h3 className="font-black text-slate-800 text-lg">
-                {isManualMode ? 'إعادة تجهيز بطاقات الانتظار' : 'إعادة إنشاء حصص الانتظار'}
-              </h3>
-            </div>
-            <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-4 leading-relaxed mb-5">
-              {isManualMode
-                ? 'يوجد تجهيز سابق لبطاقات الانتظار اليدوي. سيتم حذف الوضع الحالي وتجهيز بطاقات جديدة. هل تريد المتابعة؟'
-                : `يوجد توزيع سابق (${waitingCount} حصة على ${waitingTeachersCount} معلم). سيتم حذف التوزيع السابق بالكامل وبناء توزيع جديد. هل تريد المتابعة؟`}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRedistributeConfirm(false)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={isManualMode ? prepareManualWaiting : execAutomaticOrFixedDistribution}
-                className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-all"
-              >
-                متابعة
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={showRedistributeConfirm}
+        title={isManualMode ? 'إعادة تجهيز بطاقات الانتظار' : 'إعادة إنشاء حصص الانتظار'}
+        message={isManualMode
+          ? 'يوجد تجهيز سابق لبطاقات الانتظار اليدوي. سيتم حذف الوضع الحالي وتجهيز بطاقات جديدة. هل تريد المتابعة؟'
+          : `يوجد توزيع سابق (${waitingCount} حصة على ${waitingTeachersCount} معلم). سيتم حذف التوزيع السابق بالكامل وبناء توزيع جديد. هل تريد المتابعة؟`}
+        confirmLabel="متابعة"
+        cancelLabel="إلغاء"
+        tone="danger"
+        onCancel={() => setShowRedistributeConfirm(false)}
+        onConfirm={() => {
+          setShowRedistributeConfirm(false);
+          (isManualMode ? prepareManualWaiting : execAutomaticOrFixedDistribution)();
+        }}
+      />
 
       {/* تأكيد تغيير طريقة التوزيع */}
-      {showMethodChangeConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <AlertTriangle size={20} className="text-rose-500" />
-              </div>
-              <div>
-                <h3 className="font-black text-slate-800">تغيير طريقة التوزيع</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  سيتم حذف جميع حصص الانتظار الموزعة أو الجاهزة يدويًا
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3 leading-relaxed">
-              لديك حصص انتظار موزعة أو مجهزة يدويًا. تغيير الطريقة سيحذفها نهائيًا. هل تريد المتابعة؟
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => {
-                  setShowMethodChangeConfirm(false);
-                  setPendingConfig(null);
-                }}
-                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={() => {
-                  const newTimetable = Object.fromEntries(
-                    Object.entries(scheduleSettings.timetable || {}).filter(([, slot]: any) => slot.type !== 'waiting')
-                  );
-                  setScheduleSettings(prev => ({
-                    ...prev,
-                    substitution: { ...(pendingConfig as any), manualReady: false } as any,
-                    timetable: newTimetable,
-                  }));
-                  setShowMethodChangeConfirm(false);
-                  setPendingConfig(null);
-                }}
-                className="px-5 py-2.5 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-all"
-              >
-                حذف والمتابعة
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={showMethodChangeConfirm}
+        title="تغيير طريقة التوزيع"
+        message="لديك حصص انتظار موزعة أو مجهزة يدويًا. تغيير الطريقة سيحذفها نهائيًا. هل تريد المتابعة؟"
+        confirmLabel="حذف والمتابعة"
+        cancelLabel="إلغاء"
+        tone="danger"
+        onCancel={() => { setShowMethodChangeConfirm(false); setPendingConfig(null); }}
+        onConfirm={() => {
+          const newTimetable = Object.fromEntries(
+            Object.entries(scheduleSettings.timetable || {}).filter(([, slot]: any) => slot.type !== 'waiting')
+          );
+          setScheduleSettings(prev => ({
+            ...prev,
+            substitution: { ...(pendingConfig as any), manualReady: false } as any,
+            timetable: newTimetable,
+          }));
+          setShowMethodChangeConfirm(false);
+          setPendingConfig(null);
+        }}
+      />
     </div>
   );
 };
 
-export default WaitingTab;
+export default WaitingTabV3;

@@ -1,7 +1,7 @@
 ﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject, AuditLogEntry } from '../../types';
 import { Maximize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight, CheckCircle2, Shuffle, X, GripVertical, Check, AlertTriangle, Trash2 } from 'lucide-react';
-import { getKey, tryMoveOrSwap, findChainSwap, SwapResult } from '../../utils/scheduleInteractive';
+import { getKey, tryMoveOrSwap, findChainSwap, SwapResult, buildRevertPatch } from '../../utils/scheduleInteractive';
 import SwapConfirmationModal from './SwapConfirmationModal';
 
 export type TeacherSortMode = 'alpha' | 'specialization' | 'custom';
@@ -153,6 +153,13 @@ interface InlineScheduleViewProps {
     waitingCountPerSlot?: Record<string, number>;
     forceWaitingInteractive?: boolean;
     hideHeaderActionButton?: boolean;
+    /**
+     * عند تفعيله: يُسمح بإسقاط حصة فوق خانة فيها انتظار. تأخذ الحصة مكانها
+     * ويُزال انتظار تلك الخانة، فيعود تلقائيًا كـ"كرت انتظار" في المخزن
+     * (لأن عدد الكروت = النصاب − الموزّع). مُطفأ افتراضيًا حتى لا يتغيّر سلوك
+     * الصفحات القائمة؛ تُفعّله الصفحة المطوّرة فقط.
+     */
+    allowLessonOverWaiting?: boolean;
 }
 
 const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
@@ -177,6 +184,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     waitingCountPerSlot = {},
     forceWaitingInteractive = false,
     hideHeaderActionButton = false,
+    allowLessonOverWaiting = false,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isFullScreenEditMode, setIsFullScreenEditMode] = useState(false);
@@ -772,6 +780,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             relatedTeacherIds: relatedIds,
             viewType: 'general',
             teacherName: primaryTeacher?.name || '',
+            revert: buildRevertPatch(timetable, result.newTimetable),
         };
         onUpdateSettings({
             ...settings,
@@ -908,8 +917,18 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
         const source = parseSourceFromKey(e.dataTransfer.getData('sourceKey')) || dragSource;
         if (!source) return;
+
+        // إسقاط حصة فوق خانة انتظار: نُزيل الانتظار أولًا فتُعامَل الخانة كفارغة،
+        // ثم تأخذ الحصة مكانها. الانتظار المُزاح يعود تلقائيًا كرتًا في المخزن.
+        const targetExistingSlot = timetable[targetKey];
+        const droppingOnWaiting =
+            allowLessonOverWaiting && !!targetExistingSlot && targetExistingSlot.type === 'waiting';
+        const workingTimetable = droppingOnWaiting
+            ? (() => { const t = { ...timetable }; delete t[targetKey]; return t; })()
+            : timetable;
+
         const result = tryMoveOrSwap(
-            timetable,
+            workingTimetable,
             source,
             { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
             settings,
@@ -920,7 +939,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             setPendingSwap(result);
         } else {
             const chainResult = findChainSwap(
-                timetable,
+                workingTimetable,
                 source,
                 { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
                 teachers,
@@ -1949,7 +1968,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         const isDraggingLesson = activeLessonDragSource !== null && draggingWaiting === null;
                                         const isThisCellDragging = activeLessonDragSource?.teacherId === targetId && activeLessonDragSource?.day === ENGLISH_DAYS[di] && activeLessonDragSource?.period === pi+1;
                                         const canDropWaiting = isTeacher && interactive && effectiveWaitingOk && onUpdateSettings && draggingWaiting !== null && !slot;
-                                        const canDropLesson = isTeacher && interactive && onUpdateSettings && isDraggingLesson && !isWaiting;
+                                        const canDropLesson = isTeacher && interactive && onUpdateSettings && isDraggingLesson && (!isWaiting || allowLessonOverWaiting);
                                         const canDropOnWaiting = isTeacher && interactive && effectiveWaitingOk && onUpdateSettings && draggingWaiting === 'slot' && isWaiting;
 
                                         let cellContent = null;
@@ -1988,7 +2007,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                          margin:'0 auto'
                                                       }}>
                                                     {renderPlacedWaitingCard({
-                                                        highlighted: canDropOnWaiting && isHovered,
+                                                        highlighted: (canDropOnWaiting || (canDropLesson && isDraggingLesson)) && isHovered,
                                                         onDelete: isTeacher && onUpdateSettings && canEditWaitingNow ? () => setWaitingDeleteKey(slotKey) : undefined,
                                                     })}
                                                 </div>
@@ -2041,7 +2060,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                         || (activeLessonDragSource ? 'slot' : '')
                                                         || (draggingWaiting === 'card' ? 'waitingCard' : draggingWaiting === 'slot' ? 'waitingSlot' : '');
                                                     if (dragType === 'slot') {
-                                                        if (!interactive || isWaiting) return;
+                                                        if (!interactive || (isWaiting && !allowLessonOverWaiting)) return;
                                                         handleGeneralDragOver(e, targetId!, slotKey, isLessonSlot);
                                                         return;
                                                     }
@@ -2065,7 +2084,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                     if (!isTeacher || !onUpdateSettings) return;
                                                     const dragType = e.dataTransfer.getData('dragType') || (activeLessonDragSource ? 'slot' : '');
                                                     if (dragType === 'slot') {
-                                                        if (!interactive || isWaiting) { e.preventDefault(); return; }
+                                                        if (!interactive || (isWaiting && !allowLessonOverWaiting)) { e.preventDefault(); return; }
                                                         handleGeneralDrop(e, targetId!, ENGLISH_DAYS[di], pi + 1, isLessonSlot);
                                                         setHoverTarget(null);
                                                         return;

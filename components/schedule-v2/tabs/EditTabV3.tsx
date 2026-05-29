@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom';
 import {
   Grid, User, Users, AlertTriangle, Sparkles, ArrowLeft,
   History, Search, FileText, Trash2, RotateCcw, ArrowRightLeft, LayoutGrid, X,
-  GripVertical
+  GripVertical, Undo2
 } from 'lucide-react';
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../../types';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
-import CustomTeacherView from '../../schedule/CustomTeacherView';
+import ConfirmDialog from '../../ui/ConfirmDialog';
+import { useToast } from '../../ui/ToastProvider';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -24,7 +25,7 @@ interface Props {
   onNavigate: (tab: 'view' | 'edit' | 'create' | 'waiting') => void;
 }
 
-type SubTab = 'general' | 'teacher' | 'compare' | 'audit';
+type SubTab = 'general' | 'teacher' | 'audit';
 type SortMode = 'alpha' | 'specialization' | 'custom';
 
 const DAY_NAMES_AR: Record<number, string> = {
@@ -36,7 +37,8 @@ const fmtDay = (iso: string) => DAY_NAMES_AR[new Date(iso).getDay()] ?? '';
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const fmtStep = (s: string) => s.replace(/↔/g, ' مقابل ').replace(/→/g, ' إلى ');
 
-const EditTab: React.FC<Props> = ({
+// نسخة مطوّرة من تبويب التعديل (schedule_v3): بدون "مقارنة وتعديل" + سجل تعديل مُعاد تصميمه
+const EditTabV3: React.FC<Props> = ({
   scheduleSettings, setScheduleSettings,
   teachers, subjects, classes, specializations, onNavigate
 }) => {
@@ -51,7 +53,6 @@ const EditTab: React.FC<Props> = ({
   const [pendingSpecOrder, setPendingSpecOrder] = useState<string[]>([]);
 
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
-  const [compareSelectedTeacherIds, setCompareSelectedTeacherIds] = useState<string[]>([]);
   const [teacherSearch, setTeacherSearch] = useState('');
   const [showTeacherSelector, setShowTeacherSelector] = useState(false);
   const [teacherSelectorPos, setTeacherSelectorPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 360 });
@@ -61,6 +62,8 @@ const EditTab: React.FC<Props> = ({
   const [auditFilter, setAuditFilter] = useState<'all' | 'general' | 'individual'>('all');
   const [auditSearch, setAuditSearch] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ mode: 'all' } | { mode: 'one'; id: string } | null>(null);
+  const [confirmUndoId, setConfirmUndoId] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const specNames = useMemo(
@@ -244,7 +247,6 @@ const EditTab: React.FC<Props> = ({
   const subTabs: Array<{ id: SubTab; label: string; icon: React.ComponentType<any> }> = [
     { id: 'general', label: 'الجدول العام للمعلمين', icon: Grid },
     { id: 'teacher', label: 'جدول معلم', icon: User },
-    { id: 'compare', label: 'مقارنة وتعديل', icon: Users },
     { id: 'audit', label: 'سجل التعديل', icon: History },
   ];
   const subTabButtonClass = (isActive: boolean) => `flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 border ${
@@ -357,50 +359,28 @@ const EditTab: React.FC<Props> = ({
         </div>
       )}
 
-      {subTab === 'compare' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-4">
-            <CustomTeacherView
-              teachers={teachers}
-              subjects={subjects}
-              classes={classes}
-              settings={settingsNoWaiting}
-              onUpdateSettings={setScheduleSettings}
-              activeSchoolId="main"
-              selectedTeacherIds={compareSelectedTeacherIds}
-              setSelectedTeacherIds={setCompareSelectedTeacherIds}
-              specializationNames={specNames}
-            />
-          </div>
-        </div>
-      )}
-
       {subTab === 'audit' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-6 pt-5 pb-4 flex gap-4 border-b border-slate-100">
-            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4">
-              <LayoutGrid size={22} className="text-[#655ac1] shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">التعديل على الجدول العام للمعلمين</p>
-                <p className="text-2xl font-black leading-none text-[#655ac1]">{generalCount}</p>
+        <div className="space-y-4">
+          {/* بطاقات إحصائية — بنفس تصميم بطاقات الجاهزية في "إنشاء الجدول" */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { label: 'التعديل على الجدول العام للمعلمين', value: generalCount, icon: LayoutGrid },
+              { label: 'التعديل على جدول معلم', value: individualCount, icon: User },
+              { label: 'إجمالي التعديلات', value: logs.length, icon: History },
+            ].map(card => (
+              <div key={card.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 text-right">
+                <div className="w-10 h-10 flex items-center justify-center shrink-0 text-[#655ac1]">
+                  <card.icon size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-slate-400 truncate" title={card.label}>{card.label}</p>
+                  <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4">
-              <User size={22} className="text-[#655ac1] shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">التعديل على جدول معلم</p>
-                <p className="text-2xl font-black leading-none text-[#655ac1]">{individualCount}</p>
-              </div>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[190px]">
-              <History size={22} className="text-[#655ac1] shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">إجمالي التعديلات</p>
-                <p className="text-2xl font-black leading-none text-[#655ac1]">{logs.length}</p>
-              </div>
-            </div>
+            ))}
           </div>
 
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="px-6 py-3 flex items-center gap-3 border-b border-slate-100 bg-white flex-wrap">
             <div className="flex gap-2 flex-wrap">
               {([
@@ -411,7 +391,7 @@ const EditTab: React.FC<Props> = ({
                 <button key={tab.key} onClick={() => setAuditFilter(tab.key)}
                   className={`rounded-xl border px-3.5 py-2 text-sm font-black transition active:scale-95 flex items-center gap-1.5 ${
                     auditFilter === tab.key
-                      ? 'border-[#8779fb] bg-[#8779fb] text-white shadow-sm'
+                      ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm'
                       : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
                   }`}
                 >
@@ -505,13 +485,24 @@ const EditTab: React.FC<Props> = ({
                           </div>
                         </td>
                         <td className="px-6 py-3.5 text-center">
-                          <button
-                            onClick={() => setConfirmDelete({ mode: 'one', id: log.id })}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-colors hover:bg-rose-50"
-                            style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            {log.revert && Object.keys(log.revert).length > 0 && (
+                              <button
+                                onClick={() => setConfirmUndoId(log.id)}
+                                title="تراجع عن هذا التعديل"
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-300 bg-white text-[#655ac1] transition-colors hover:bg-[#f5f3ff] hover:border-[#c4b5fd]"
+                              >
+                                <Undo2 size={15} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setConfirmDelete({ mode: 'one', id: log.id })}
+                              className="inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-colors hover:bg-rose-50"
+                              style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -523,6 +514,7 @@ const EditTab: React.FC<Props> = ({
 
           <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400">عرض {filteredLogs.length} من أصل {logs.length} سجل</span>
+          </div>
           </div>
         </div>
       )}
@@ -588,13 +580,13 @@ const EditTab: React.FC<Props> = ({
           <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden" dir="rtl">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-rose-50 text-rose-500"><AlertTriangle size={22} /></div>
+                <div className="flex items-center justify-center text-rose-500"><AlertTriangle size={22} /></div>
                 <div>
                   <h3 className="font-black text-xl text-slate-800">تأكيد الحذف</h3>
                   <p className="text-sm font-bold text-slate-500 mt-0.5">{confirmDelete.mode === 'all' ? 'سيتم حذف كامل سجل التعديلات.' : 'سيتم حذف سجل التعديل المحدد.'}</p>
                 </div>
               </div>
-              <button onClick={() => setConfirmDelete(null)} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"><X size={18} /></button>
+              <button onClick={() => setConfirmDelete(null)} className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all"><X size={18} /></button>
             </div>
             <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
               {confirmDelete.mode === 'all' ? 'هذا الإجراء سيحذف جميع سجلات التعديل نهائيًا.' : 'هذا الإجراء سيحذف هذا السجل فقط.'}
@@ -616,8 +608,34 @@ const EditTab: React.FC<Props> = ({
 
       {showSortModal && renderSortModal()}
       {showSpecSortModal && renderSpecSortModal()}
+
+      <ConfirmDialog
+        isOpen={!!confirmUndoId}
+        title="التراجع عن التعديل"
+        message="سيُعاد الجدول إلى حالته قبل هذا التعديل، ويُزال هذا السطر من السجل. هل تريد المتابعة؟"
+        confirmLabel="تراجع"
+        cancelLabel="إلغاء"
+        tone="warning"
+        onCancel={() => setConfirmUndoId(null)}
+        onConfirm={() => {
+          const entry = logs.find(l => l.id === confirmUndoId);
+          if (entry?.revert) {
+            const patch = entry.revert;
+            setScheduleSettings(prev => {
+              const t = { ...(prev.timetable || {}) };
+              Object.entries(patch).forEach(([k, v]) => {
+                if (v === null || v === undefined) delete t[k];
+                else (t as any)[k] = v;
+              });
+              return { ...prev, timetable: t, auditLogs: (prev.auditLogs || []).filter(l => l.id !== entry.id) };
+            });
+            showToast('تم التراجع عن التعديل', 'success');
+          }
+          setConfirmUndoId(null);
+        }}
+      />
     </div>
   );
 };
 
-export default EditTab;
+export default EditTabV3;

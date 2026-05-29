@@ -20,8 +20,7 @@ function navWithAction(onNavigate: (tab: string) => void, tab: string, action?: 
         localStorage.setItem('motabe:waiting_v2:lastTab', 'register');
         break;
       case 'open_schedule_view':
-        localStorage.setItem('motabe:schedule_v2:lastTab', 'view');
-        sessionStorage.setItem('motabe:schedule_v2:open_preview', '1');
+        localStorage.setItem('motabe:schedule_v3:stage', 'output');
         break;
       case 'send_supervision':
         localStorage.setItem('motabe:supervision_v2:lastTab', 'printsend');
@@ -44,7 +43,7 @@ const ROWS = [
   ],
   [
     { label: 'إسناد المواد',    icon: ClipboardList, tab: 'manual_v2',     action: undefined,            rotate: false },
-    { label: 'جدول الحصص',      icon: CalendarCheck, tab: 'schedule_v2',   action: 'open_schedule_view', rotate: false },
+    { label: 'جدول الحصص',      icon: CalendarCheck, tab: 'schedule_v3',   action: 'open_schedule_view', rotate: false },
   ],
   [
     { label: 'التذكير بالإشراف', icon: Eye,          tab: 'supervision',   action: 'send_supervision',   rotate: false },

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
@@ -82,7 +82,8 @@ interface Props {
   isScheduleLocked?: boolean;
   onOpenMessagesArchive?: () => void;
   onPrepareMessageDraft?: (draft: MessageComposerDraft) => void;
-  mode?: 'view' | 'send';
+  /** Active task, driven by the merged stage-4 toolbar in ScheduleV2Preview. */
+  task?: TaskMode;
 }
 
 type ScheduleType =
@@ -234,7 +235,14 @@ const useDropdownPosition = (open: boolean, onClose: () => void) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
 
-  useEffect(() => {
+  // Keep the latest onClose without making it an effect dependency — a fresh closure each
+  // render would otherwise re-run the effect every render, and setPosition's new object would
+  // re-render again → an infinite loop (white screen with useLayoutEffect).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Position synchronously before paint so the panel never flashes at the top-left (0,0) corner.
+  useLayoutEffect(() => {
     if (!open) return;
 
     const updatePosition = () => {
@@ -254,7 +262,7 @@ const useDropdownPosition = (open: boolean, onClose: () => void) => {
       const target = event.target as Node;
       const inButton = triggerRef.current?.contains(target);
       const inPanel = panelRef.current?.contains(target);
-      if (!inButton && !inPanel) onClose();
+      if (!inButton && !inPanel) onCloseRef.current();
     };
 
     updatePosition();
@@ -264,7 +272,7 @@ const useDropdownPosition = (open: boolean, onClose: () => void) => {
       window.removeEventListener('resize', updatePosition);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return { triggerRef, panelRef, position };
 };
@@ -495,25 +503,6 @@ const NumberChoiceButtons: React.FC<{
         );
       })}
     </div>
-  </div>
-);
-
-const TaskPanel: React.FC<{
-  icon: React.ComponentType<any>;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}> = ({ icon: Icon, title, description, children }) => (
-  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
-    <div className="relative text-center">
-      <div className="absolute top-[-24px] left-[-24px] w-28 h-28 rounded-br-[2.5rem] bg-[#e5e1fe] opacity-80" />
-      <div className="relative z-10 flex items-center justify-center gap-3 mb-2">
-        <Icon size={22} className="text-[#655ac1] shrink-0" />
-        <h3 className="font-black text-slate-800">{title}</h3>
-      </div>
-      <p className="relative z-10 text-sm text-slate-500 font-medium mb-7 max-w-2xl mx-auto">{description}</p>
-    </div>
-    <div className="space-y-5">{children}</div>
   </div>
 );
 
@@ -959,7 +948,7 @@ const SignatureSummaryPrintWorkspace: React.FC<{
   );
 };
 
-const ViewTab: React.FC<Props> = ({
+const ViewTabV3: React.FC<Props> = ({
   schoolInfo,
   scheduleSettings,
   teachers,
@@ -971,18 +960,11 @@ const ViewTab: React.FC<Props> = ({
   onNavigate,
   onOpenMessagesArchive,
   onPrepareMessageDraft,
-  mode = 'view',
+  task = 'preview',
 }) => {
-  const { sendMessage } = useMessageArchive();
-  const [taskMode, setTaskMode] = useState<TaskMode>(() => {
-    if (mode === 'send') return 'send';
-    try {
-      if (sessionStorage.getItem('motabe:schedule_v2:open_preview') === '1') {
-        sessionStorage.removeItem('motabe:schedule_v2:open_preview');
-      }
-    } catch {}
-    return 'preview';
-  });
+  const { sendMessage, scheduleMessage } = useMessageArchive();
+  // Navigation is owned by the merged stage-4 toolbar; this tab just renders the active task.
+  const taskMode = task;
 
   const [previewScheduleType, setPreviewScheduleType] = useState<ScheduleType>('general_teachers');
   const [previewTeacherId, setPreviewTeacherId] = useState<string>('');
@@ -1002,12 +984,9 @@ const ViewTab: React.FC<Props> = ({
   const [selectedSendAdminIds, setSelectedSendAdminIds] = useState<string[]>([]);
   const [selectedSendClassIds, setSelectedSendClassIds] = useState<string[]>([]);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
-  const [isSending, setIsSending] = useState(false);
-  const [showLinkDetails, setShowLinkDetails] = useState(false);
   const [showRecipientsModal, setShowRecipientsModal] = useState(false);
   const [recipientsListLink, setRecipientsListLink] = useState<GeneratedLink | null>(null);
 
-  const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendModalResults, setSendModalResults] = useState<Array<{id: string; name: string; phone: string; status: 'sent'|'failed'; channel: string; timestamp: string; failureReason?: string}>>([]);
   const [isSendingNow, setIsSendingNow] = useState(false);
   const [modalMessageContent, setModalMessageContent] = useState('');
@@ -1171,28 +1150,6 @@ const ViewTab: React.FC<Props> = ({
     () => SCHEDULE_TYPES.map(item => ({ value: item.id, label: item.label, icon: item.icon })),
     []
   );
-  const taskModeMeta: Record<TaskMode, { title: string; description: string; icon: React.ComponentType<any> }> = {
-    preview: {
-      title: 'معاينة الجدول',
-      description: 'اختر نوع الجدول لاستعراضه بسرعة قبل الطباعة أو الإرسال أو التصدير.',
-      icon: Eye,
-    },
-    print: {
-      title: 'إعداد الطباعة',
-      description: 'اختر نوع الجدول ثم اضبط خيارات الإخراج قبل فتح صفحة الطباعة.',
-      icon: Printer,
-    },
-    send: {
-      title: 'إعداد الإرسال',
-      description: 'حدّد الجهة المستهدفة ونوع الجدول ثم ولّد الروابط بنفس الآلية الحالية.',
-      icon: Send,
-    },
-    export: {
-      title: 'إعداد التصدير',
-      description: 'اختر الجدول المطلوب ثم صدّره إلى Excel أو XML بدون أي تغيير في البيانات.',
-      icon: FileDown,
-    },
-  };
   const specializationNames = useMemo(
     () => Object.fromEntries(specializations.map(item => [item.id, item.name])),
     [specializations]
@@ -1204,7 +1161,6 @@ const ViewTab: React.FC<Props> = ({
       setSendAudience(allowed[0]);
     }
     setGeneratedLinks([]);
-    setShowLinkDetails(false);
   }, [sendAudience, sendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, selectedSendClassIds]);
 
   const isPrintGeneral = SCHEDULE_TYPES.find(item => item.id === printScheduleType)?.isGeneral;
@@ -1632,29 +1588,6 @@ const ViewTab: React.FC<Props> = ({
     schoolInfo.currentSemesterId,
   ]);
 
-  const handlePrepareInMessages = () => {
-    if (!validateSendSelection()) return;
-    if (!onPrepareMessageDraft) {
-      showToast('تعذر فتح صفحة الرسائل من هذا الموضع.');
-      return;
-    }
-    const links = createGeneratedLinks();
-    setGeneratedLinks(links);
-    setIsSending(true);
-    onPrepareMessageDraft(buildMessageComposerDraft(links));
-    setIsSending(false);
-    showToast('تم تجهيز المسودة في صفحة الرسائل.');
-  };
-
-  const handleOpenSendModal = () => {
-    if (!validateSendSelection()) return;
-    const links = createGeneratedLinks();
-    setGeneratedLinks(links);
-    setSendModalResults([]);
-    setModalMessageContent(buildMessageComposerDraft(links).content);
-    setSendModalOpen(true);
-  };
-
   const buildSendPayloads = (links: GeneratedLink[], contentOverride?: string) => {
     const draft = buildMessageComposerDraft(links);
     const templateContent = contentOverride ?? draft.content;
@@ -1698,42 +1631,34 @@ const ViewTab: React.FC<Props> = ({
     });
   };
 
-  const executeSendNow = async () => {
-    setIsSendingNow(true);
-    const links = generatedLinks;
-    const payloads = buildSendPayloads(links, modalMessageContent || undefined);
-    const results: typeof sendModalResults = [];
-    for (const payload of payloads) {
-      const response = await sendMessage(payload.message, sendChannel === 'whatsapp');
-      results.push({
-        id: payload.recipientInfo.id,
-        name: payload.recipientInfo.name,
-        phone: payload.recipientInfo.phone,
-        status: response.status === 'sent' ? 'sent' : 'failed',
-        channel: response.channel,
-        timestamp: response.timestamp,
-        failureReason: response.failureReason,
-      });
-    }
-    setSendModalResults(results);
-    setIsSendingNow(false);
-    setSigReceiptRequests(readScheduleSignatureRequests());
-    const sentCount = results.filter(r => r.status === 'sent').length;
-    const failedCount = results.length - sentCount;
-    showToast(
-      failedCount > 0
-        ? `تم الإرسال إلى ${sentCount} وتعذر الإرسال إلى ${failedCount}.`
-        : `تم إرسال جميع الجداول بنجاح إلى ${sentCount} مستلمًا.`
-    );
-  };
-
   const handleSendDirectly = async () => {
     if (!validateSendSelection()) return;
     if (!modalMessageContent.trim()) { showToast('نص الرسالة فارغ.'); return; }
     const links = createGeneratedLinks();
     setGeneratedLinks(links);
-    setIsSendingNow(true);
     const payloads = buildSendPayloads(links, modalMessageContent);
+
+    // ── إرسال مجدوَل: نسلّم الدفعة لمنفّذ الجدولة في سياق الرسائل ──
+    if (isSendScheduled) {
+      if (!sendScheduleDate) { showToast('حدّد تاريخ الجدولة.'); return; }
+      const scheduledFor = new Date(`${sendScheduleDate}T${sendScheduleTime || '08:00'}:00`);
+      if (Number.isNaN(scheduledFor.getTime())) { showToast('تاريخ أو وقت الجدولة غير صالح.'); return; }
+      if (scheduledFor.getTime() <= Date.now()) { showToast('وقت الجدولة يجب أن يكون في المستقبل.'); return; }
+      scheduleMessage({
+        scheduledFor: scheduledFor.toISOString(),
+        fallbackToSms: sendChannel === 'whatsapp',
+        messages: payloads.map(payload => payload.message),
+      });
+      setSigReceiptRequests(readScheduleSignatureRequests());
+      const whenLabel = new Intl.DateTimeFormat(
+        sendScheduleCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic' : 'ar-SA',
+        { dateStyle: 'medium', timeStyle: 'short' }
+      ).format(scheduledFor);
+      showToast(`تمت جدولة إرسال ${payloads.length} رسالة في ${whenLabel}.`);
+      return;
+    }
+
+    setIsSendingNow(true);
     const results: typeof sendModalResults = [];
     for (const payload of payloads) {
       const response = await sendMessage(payload.message, sendChannel === 'whatsapp');
@@ -2092,53 +2017,30 @@ const ViewTab: React.FC<Props> = ({
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
-        <div className="flex flex-wrap gap-3">
-          {(mode === 'send'
-            ? [{ id: 'send' as TaskMode, label: 'إرسال', icon: Send }]
-            : [
-                { id: 'preview' as TaskMode, label: 'معاينة الجدول', icon: Eye },
-                { id: 'print' as TaskMode, label: 'طباعة', icon: Printer },
-                { id: 'export' as TaskMode, label: 'تصدير', icon: FileDown },
-              ]
-          ).map(option => (
+      {/* الإجراءات الثانوية للإرسال — التنقّل الرئيسي يُدار من شريط المرحلة الموحّد في ScheduleV2Preview */}
+      {taskMode === 'send' && (
+        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
+          <div className="flex flex-wrap gap-3">
             <button
-              key={option.id}
               type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                setTaskMode(option.id);
-                setGeneratedLinks([]);
-              }}
-              className={actionButtonClass(taskMode === option.id)}
+              onClick={() => { setSigReceiptRequests(readScheduleSignatureRequests()); setSigReceiptModalOpen(true); }}
+              className={actionButtonClass(false)}
             >
-              <option.icon size={17} />
-              {option.label}
+              <ClipboardList size={17} />
+              سجل استلام المعلمين للجداول
             </button>
-          ))}
-          {mode === 'send' && (
-            <>
-              <button
-                type="button"
-                onClick={() => { setSigReceiptRequests(readScheduleSignatureRequests()); setSigReceiptModalOpen(true); }}
-                className={actionButtonClass(false)}
-              >
-                <ClipboardList size={17} />
-                سجل استلام المعلمين للجداول
-              </button>
-              <button
-                type="button"
-                onClick={onOpenMessagesArchive}
-                disabled={!onOpenMessagesArchive}
-                className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <Archive size={17} />
-                أرشيف الرسائل
-              </button>
-            </>
-          )}
+            <button
+              type="button"
+              onClick={onOpenMessagesArchive}
+              disabled={!onOpenMessagesArchive}
+              className={`${actionButtonClass(false)} disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <Archive size={17} />
+              أرشيف الرسائل
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {taskMode === 'preview' && (
         <div className="space-y-4">
@@ -2661,8 +2563,12 @@ const ViewTab: React.FC<Props> = ({
                   disabled={isSendingNow}
                   className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSendingNow ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  {isSendingNow ? 'جارٍ الإرسال...' : `إرسال عبر ${sendChannelLabel}`}
+                  {isSendingNow
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : isSendScheduled ? <CalendarClock size={16} /> : <Send size={16} />}
+                  {isSendingNow
+                    ? 'جارٍ الإرسال...'
+                    : isSendScheduled ? `جدولة الإرسال عبر ${sendChannelLabel}` : `إرسال عبر ${sendChannelLabel}`}
                 </button>
               </div>
             </div>
@@ -2755,397 +2661,6 @@ const ViewTab: React.FC<Props> = ({
         </div>
       )}
 
-      {taskMode === 'send' && generatedLinks.length > 0 && showLinkDetails && (
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-4">
-          <div className="flex items-center gap-2 text-slate-800">
-            <h4 className="text-sm font-black">تفاصيل الروابط المولدة</h4>
-          </div>
-
-          <div className="px-4 py-3.5 border border-slate-200 rounded-2xl bg-white flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-sm font-black text-slate-700">
-              {generatedLinks.length} {generatedLinks.length === 1 ? 'رابط جاهز' : 'روابط جاهزة'}
-            </span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black text-slate-400">مشاركة يدوية</span>
-              <button
-                onClick={copyAllLinks}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold"
-              >
-                <Copy size={13} className="text-[#655ac1]" />
-                نسخ الكل
-              </button>
-              <button
-                onClick={openWhatsAppForAll}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-300"
-              >
-                <WhatsAppIcon size={14} />
-                واتساب للكل {generatedLinks.length > 0 && `(${generatedLinks.length})`}
-              </button>
-              <button
-                onClick={openSMSForAll}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-300"
-              >
-                <MessageSquare size={13} className="text-[#007AFF]" />
-                نصية للكل {generatedLinks.length > 0 && `(${generatedLinks.length})`}
-              </button>
-              <button
-                onClick={handleOpenSendModal}
-                disabled={isSending}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-xs font-bold border border-[#655ac1] disabled:opacity-45 disabled:cursor-not-allowed"
-              >
-                <Send size={13} />
-                إرسال الآن
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full min-w-[1080px] text-right" dir="rtl">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-right">اسم الجدول</th>
-                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">رقم الجوال</th>
-                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">نوع النموذج</th>
-                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">نوع الجدول</th>
-                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">الرابط</th>
-                  <th className="px-5 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {generatedLinks.map(link => {
-                  const phones = Array.from(new Set(link.recipients.map(item => item.phone).filter(Boolean)));
-                  const actionButtonClassName = 'w-8 h-8 flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-50 active:scale-90 transition-all';
-                  return (
-                    <tr key={link.url} className="hover:bg-accent/5 transition-all">
-                      <td className="px-5 py-3.5">
-                        <div className="font-bold text-[13px] text-slate-800">{link.targetLabel}</div>
-                        <div className="text-[11px] font-bold text-slate-400 mt-0.5">{link.label}</div>
-                      </td>
-                      <td className="px-5 py-3.5 text-center text-[12px] font-bold text-slate-600" dir="ltr">
-                        {phones.length > 0 ? phones.join('، ') : 'بدون رقم'}
-                      </td>
-                      <td className="px-5 py-3.5 text-center text-[12px] font-bold text-slate-600">
-                        {link.teacherId ? 'توقيع إلكتروني بالاستلام' : 'اطلاع فقط'}
-                      </td>
-                      <td className="px-5 py-3.5 text-center text-[12px] font-bold text-slate-600">{selectedScheduleLabel}</td>
-                      <td className="px-5 py-3.5">
-                        <div dir="ltr" className="max-w-[260px] mx-auto rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-500 truncate">
-                          {link.url}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button onClick={() => openWhatsApp(link)} title="واتساب" className={actionButtonClassName}>
-                            <WhatsAppIcon size={15} />
-                          </button>
-                          <button onClick={() => openSMS(link)} title="رسالة نصية" className={actionButtonClassName}>
-                            <MessageSquare size={14} className="text-[#007AFF]" />
-                          </button>
-                          <button onClick={() => window.open(link.url, '_blank')} title="معاينة النموذج" className={actionButtonClassName}>
-                            <Eye size={14} className="text-[#655ac1]" />
-                          </button>
-                          <button onClick={() => copyToClipboard(link.url)} title="نسخ الرابط" className={actionButtonClassName}>
-                            <Copy size={14} className="text-[#655ac1]" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-
-
-
-      {sendModalOpen && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 bg-slate-900/50 backdrop-blur-sm" dir="rtl">
-          <div className="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] shadow-2xl flex flex-col overflow-hidden">
-
-            {/* ── Header ── */}
-            <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] text-[#655ac1] flex items-center justify-center shrink-0">
-                  <Send size={20} />
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-800">إرسال الجداول</h3>
-                  <p className="text-xs text-slate-500">{selectedScheduleLabel} • {AUDIENCE_LABELS[safeSendAudience]}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setSendModalOpen(false); setSendModalResults([]); }}
-                className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors flex items-center justify-center"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* ── Body: two-column ── */}
-            <div className="flex-1 overflow-hidden min-h-0">
-              <div className="grid grid-cols-1 lg:grid-cols-2 h-full divide-x divide-x-reverse divide-slate-100">
-
-                {/* ══ Left: recipients + links ══ */}
-                <div className="flex flex-col h-full overflow-y-auto p-5 space-y-4">
-
-                  {/* summary cards */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {([
-                      ['نوع الجدول', selectedScheduleLabel || '-'],
-                      ['عدد المستلمين', `${selectedRecipients.length}`],
-                      ['نوع النموذج', modelTypeSummary],
-                      ['عدد الروابط', `${generatedLinks.length}`],
-                    ] as [string, string][]).map(([label, value]) => (
-                      <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-[10px] font-black text-slate-400 mb-0.5">{label}</p>
-                        <p className="text-sm font-black text-slate-800">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* recipient list */}
-                  <div>
-                    <p className="text-xs font-black text-slate-500 mb-2 flex items-center gap-1.5">
-                      <Users size={13} />
-                      المستلمون ({selectedRecipients.length})
-                    </p>
-                    <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100 max-h-52 overflow-y-auto">
-                      {selectedRecipients.length === 0 ? (
-                        <div className="py-6 text-center text-sm font-medium text-slate-400">لم يتم اختيار مستلمين بعد.</div>
-                      ) : selectedRecipients.map(r => (
-                        <div key={`${r.role}-${r.id}`} className="px-4 py-2.5 flex items-center justify-between gap-3 bg-white hover:bg-slate-50 transition-colors">
-                          <div>
-                            <p className="text-sm font-black text-slate-800">{r.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400">
-                              {r.role === 'teacher' ? 'معلم' : r.role === 'admin' ? 'إداري' : 'ولي أمر'}
-                            </p>
-                          </div>
-                          <p className="text-xs font-mono text-slate-400 shrink-0" dir="ltr">{r.phone || '—'}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* links */}
-                  {generatedLinks.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-black text-slate-500 flex items-center gap-1.5">
-                          <Copy size={13} />
-                          الروابط ({generatedLinks.length})
-                        </p>
-                        <button
-                          type="button"
-                          onClick={copyAllLinks}
-                          className="text-xs font-black text-[#655ac1] hover:underline"
-                        >
-                          نسخ الكل
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {generatedLinks.map(link => (
-                          <div key={link.url} className="rounded-2xl border border-[#e5e1fe] bg-[#f8f7ff] p-3">
-                            <div className="flex items-center justify-between gap-2 mb-1.5">
-                              <p className="text-xs font-black text-[#655ac1] truncate">{link.label}</p>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboard(link.url)}
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#d9d2ff] bg-white hover:bg-[#f0edff] text-[#655ac1] transition-all"
-                                >
-                                  <Copy size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => window.open(link.url, '_blank')}
-                                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#d9d2ff] bg-white hover:bg-[#f0edff] text-[#655ac1] transition-all"
-                                >
-                                  <Eye size={12} />
-                                </button>
-                              </div>
-                            </div>
-                            <p dir="ltr" className="text-[10px] font-mono text-slate-500 truncate">{link.url}</p>
-                            <p className="text-[10px] font-bold text-slate-400 mt-1 truncate">
-                              {link.recipients.map(r => r.name).join('، ')}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* ══ Right: channel + message + send ══ */}
-                <div className="flex flex-col h-full overflow-y-auto p-5 space-y-4">
-
-                  {/* channel cards */}
-                  <div>
-                    <p className="text-xs font-black text-slate-500 mb-3">طريقة الإرسال</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setSendChannel('whatsapp')}
-                        disabled={sendModalResults.length > 0}
-                        className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all disabled:opacity-60 ${
-                          sendChannel === 'whatsapp' ? 'border-[#25D366] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'
-                        }`}
-                      >
-                        <WhatsAppIcon size={28} />
-                        <span className={`font-black mt-2 text-sm ${sendChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-400'}`}>واتساب</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSendChannel('sms')}
-                        disabled={sendModalResults.length > 0}
-                        className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all disabled:opacity-60 ${
-                          sendChannel === 'sms' ? 'border-[#007AFF] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'
-                        }`}
-                      >
-                        <MessageSquare size={28} className={sendChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'} />
-                        <span className={`font-black mt-2 text-sm ${sendChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-400'}`}>النصية SMS</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* message textarea */}
-                  <div className="flex-1 flex flex-col">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-black text-slate-500">نص الرسالة</p>
-                      <span className="text-[10px] text-slate-400 font-bold">يتم تخصيص الرسالة لكل مستلم تلقائياً</span>
-                    </div>
-                    <textarea
-                      value={modalMessageContent}
-                      onChange={e => setModalMessageContent(e.target.value)}
-                      disabled={sendModalResults.length > 0}
-                      rows={9}
-                      className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed disabled:bg-slate-50 disabled:text-slate-500 transition-colors"
-                      placeholder="نص الرسالة..."
-                      dir="rtl"
-                    />
-                    {sendChannel === 'sms' && (
-                      <div className="rounded-2xl border border-slate-200 px-4 py-3 mt-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">
-                          <span>{smsStats.characterCount} حرفًا</span>
-                          <span>الحد الأقصى: {smsStats.maxPerMessage} حرفًا للرسالة</span>
-                          <span>{smsStats.messageCount} رسالة نصية</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* live preview */}
-                  {(() => {
-                    if (!modalMessageContent.trim() || generatedLinks.length === 0) return null;
-                    const draft = buildMessageComposerDraft(generatedLinks);
-                    const firstRecipient = draft.recipients[0];
-                    if (!firstRecipient) return null;
-                    const now = new Date();
-                    const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-                    const dateLabel = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { dateStyle: 'medium' }).format(now);
-                    const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
-                    const previewContent = modalMessageContent
-                      .replace(/\{اسم_المعلم\}/g, firstRecipient.name)
-                      .replace(/\{اسم_الإداري\}/g, firstRecipient.name)
-                      .replace(/\{اسم_الطالب\}/g, firstRecipient.classLabel || firstRecipient.name)
-                      .replace(/\{روابط_الجداول\}/g, draft.linksByRecipientId?.[firstRecipient.id] || '')
-                      .replace(/\{اسم_المدرسة\}/g, schoolInfo.schoolName || 'المدرسة')
-                      .replace(/\{اليوم\}/g, dayLabel)
-                      .replace(/\{التاريخ\}/g, dateLabel)
-                      .replace(/\{نوع_الجدول\}/g, scheduleTypeLabel);
-                    return (
-                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
-                        <p className="text-[10px] font-black text-emerald-600 mb-2">معاينة — {firstRecipient.name}</p>
-                        <pre className="text-xs text-slate-700 whitespace-pre-wrap font-medium leading-relaxed">{previewContent}</pre>
-                      </div>
-                    );
-                  })()}
-
-                  {/* results after send */}
-                  {sendModalResults.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-2.5 text-center">
-                          <p className="text-lg font-black text-emerald-800">{sendModalResults.filter(r => r.status === 'sent').length}</p>
-                          <p className="text-[10px] text-emerald-600 mt-0.5">تم الإرسال</p>
-                        </div>
-                        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-2.5 text-center">
-                          <p className="text-lg font-black text-rose-800">{sendModalResults.filter(r => r.status === 'failed').length}</p>
-                          <p className="text-[10px] text-rose-600 mt-0.5">فشل</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 text-center">
-                          <p className="text-lg font-black text-slate-800">{sendModalResults.length}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">الإجمالي</p>
-                        </div>
-                      </div>
-                      <p className="text-xs font-medium text-slate-500 rounded-xl border border-[#e5e1fe] bg-[#f8f7ff] px-3 py-2">
-                        تم تسجيل هذه العملية في أرشيف الرسائل.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* send button */}
-                  <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
-                    {sendModalResults.length === 0 ? (
-                      <button
-                        type="button"
-                        onClick={executeSendNow}
-                        disabled={isSendingNow || !modalMessageContent.trim()}
-                        className="w-full bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white py-4 rounded-xl font-black text-base hover:shadow-lg hover:shadow-[#655ac1]/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
-                      >
-                        {isSendingNow ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-                        {isSendingNow ? 'جارٍ الإرسال...' : `إرسال الآن عبر ${sendChannelLabel}`}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => { setSendModalOpen(false); setSendModalResults([]); setSigReceiptRequests(readScheduleSignatureRequests()); }}
-                        className="w-full py-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-black text-base hover:bg-slate-50 transition-all"
-                      >
-                        إغلاق
-                      </button>
-                    )}
-                    {sendModalResults.length === 0 && (
-                      <div className="flex gap-2 flex-wrap justify-center">
-                        <button
-                          type="button"
-                          onClick={openFirstGeneratedModel}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-slate-50 transition-all"
-                        >
-                          <Eye size={13} />
-                          معاينة النموذج
-                        </button>
-                        <button
-                          type="button"
-                          onClick={copyAllLinks}
-                          disabled={generatedLinks.length === 0}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-slate-50 transition-all disabled:opacity-50"
-                        >
-                          <Copy size={13} />
-                          نسخ الرابط
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setSendModalOpen(false); onOpenMessagesArchive?.(); }}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-slate-50 transition-all"
-                        >
-                          <Archive size={13} />
-                          عرض الأرشيف
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {showRecipientsModal && (() => {
         const now = new Date();
@@ -3313,4 +2828,4 @@ const ViewTab: React.FC<Props> = ({
   );
 };
 
-export default ViewTab;
+export default ViewTabV3;
