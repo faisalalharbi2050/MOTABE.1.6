@@ -131,26 +131,26 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
     const confirmTheme = confirmAction?.mode === 'delete'
         ? {
-            iconWrap: 'bg-rose-50 text-rose-500',
             title: 'تأكيد الحذف',
             button: 'bg-rose-500 hover:bg-rose-600',
-            subtitle: 'سيتم حذف الجدول المحدد من قائمة الجداول المحفوظة.',
-            body: 'هذا الإجراء سيحذف جدول الحصص وجدول الانتظار الذي تم إنشاؤه نهائياً',
+            body: 'هذا الإجراء سيحذف جدول الحصص وجدول الانتظار الذي تم إنشاؤه نهائياً، لا يمكن التراجع عن هذا الإجراء.',
+            icon: Trash2,
+            iconClass: 'text-rose-500',
         }
         : confirmAction?.mode === 'unadopt'
             ? {
-                iconWrap: 'bg-amber-50 text-amber-500',
                 title: 'إلغاء الاعتماد',
                 button: 'bg-amber-500 hover:bg-amber-600',
-                subtitle: 'سيتم إلغاء اعتماد هذا الجدول.',
                 body: 'سيبقى الجدول محفوظاً، لكن لن يكون هو الجدول المعتمد حالياً.',
+                icon: AlertTriangle,
+                iconClass: 'text-amber-500',
             }
             : {
-                iconWrap: 'bg-[#f1efff] text-[#655ac1]',
                 title: 'اعتماد الجدول',
                 button: 'bg-[#655ac1] hover:bg-[#5448b5]',
-                subtitle: 'سيتم اعتماد هذا الجدول كجدول نشط.',
                 body: 'سيصبح هذا الجدول هو الجدول المعتمد الحالي داخل صفحة إدارة الجداول.',
+                icon: AlertTriangle,
+                iconClass: 'text-[#655ac1]',
             };
 
     return (
@@ -209,7 +209,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
                 {savedSchedules.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400 opacity-60">
-                        <Table size={64} strokeWidth={1.4} style={{ color: '#655ac1' }} />
+                        <Table size={64} strokeWidth={1.4} className="text-slate-400" />
                         <div className="text-center">
                             <p className="font-bold text-slate-600 text-lg mb-1">لا توجد جداول محفوظة بعد</p>
                             <p className="text-xs">سيُحفظ الجدول تلقائياً عند إنشائه من زر «بناء الجدول»</p>
@@ -420,40 +420,26 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
             )}
 
             {confirmAction && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden" dir="rtl">
-                        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${confirmTheme.iconWrap}`}>
-                                    <AlertTriangle size={22} />
-                                </div>
-                                <div>
-                                    <h3 className="font-black text-xl text-slate-800">{confirmTheme.title}</h3>
-                                    <p className="text-sm font-bold text-slate-500 mt-0.5">{confirmTheme.subtitle}</p>
-                                </div>
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+                        <div className="p-6 flex items-start gap-3">
+                            <confirmTheme.icon size={28} className={`${confirmTheme.iconClass} mt-0.5 shrink-0`} />
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 mb-2">{confirmTheme.title}</h3>
+                                <p className="text-sm font-medium text-slate-500 leading-relaxed">{confirmTheme.body}</p>
                             </div>
-                            <button
-                                onClick={() => setConfirmAction(null)}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
-                            >
-                                <X size={18} />
-                            </button>
                         </div>
 
-                        <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
-                            {confirmTheme.body}
-                        </div>
-
-                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+                        <div className="p-6 pt-0 flex gap-3">
                             <button
                                 onClick={() => setConfirmAction(null)}
-                                className="px-5 py-2.5 rounded-xl text-sm font-black text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
                             >
                                 إلغاء
                             </button>
                             <button
                                 onClick={handleConfirmAction}
-                                className={`px-5 py-2.5 rounded-xl text-sm font-black text-white transition-colors ${confirmTheme.button}`}
+                                className={`flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md ${confirmTheme.button} ${confirmAction.mode === 'delete' ? 'shadow-rose-500/20' : 'shadow-[#655ac1]/20'}`}
                             >
                                 تأكيد
                             </button>

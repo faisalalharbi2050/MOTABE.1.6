@@ -135,7 +135,6 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
           {stages.map((s, i) => {
             const isActive = stage === s.id;
             const prevComplete = i > 0 && stages[i - 1].complete;
-            const waitingForSchedule = !hasSchedule && s.id !== 'create';
             return (
               <React.Fragment key={s.id}>
                 <button
@@ -151,8 +150,8 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                     s.complete
                       ? 'bg-white border-slate-200'
                       : isActive
-                        ? `bg-white border-white ${waitingForSchedule ? 'text-slate-400' : 'text-[#655ac1]'}`
-                        : `bg-white border-slate-200 ${waitingForSchedule ? 'text-slate-400' : 'text-[#655ac1]'}`
+                        ? 'bg-white border-white text-[#655ac1]'
+                        : 'bg-white border-slate-200 text-[#655ac1]'
                   }`}>
                     {s.complete ? (
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white">
@@ -164,7 +163,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                     <span className={`flex items-center gap-1.5 font-black text-sm leading-tight ${
                       isActive ? 'text-white' : 'text-slate-800'
                     }`}>
-                      <s.icon size={15} className={isActive ? 'text-white' : waitingForSchedule ? 'text-slate-400' : 'text-[#655ac1]'} />
+                      <s.icon size={15} className={isActive ? 'text-white' : 'text-[#655ac1]'} />
                       {s.label}
                     </span>
                     <span className={`block text-[11px] font-bold mt-0.5 truncate ${

@@ -671,11 +671,9 @@ const CreateTab: React.FC<Props> = ({
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 animate-in zoom-in-95">
             <div className="flex items-center gap-3 mb-3">
-              <div className={`w-11 h-11 ${hasSchedule ? 'bg-rose-100' : 'bg-indigo-100'} rounded-xl flex items-center justify-center`}>
-                {hasSchedule
-                  ? <AlertTriangle size={22} className="text-rose-600" />
-                  : <Sparkles size={22} className="text-[#655ac1]" />}
-              </div>
+              {hasSchedule
+                ? <AlertTriangle size={28} className="text-rose-500 shrink-0" />
+                : <Sparkles size={28} className="text-[#655ac1] shrink-0" />}
               <h3 className="font-black text-slate-800 text-lg">
                 {hasSchedule ? 'إعادة إنشاء الجدول؟' : 'إنشاء الجدول؟'}
               </h3>
@@ -688,7 +686,7 @@ const CreateTab: React.FC<Props> = ({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowRegenerateConfirm(false)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all"
+                className="flex-1 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-bold transition-all"
               >
                 إلغاء
               </button>

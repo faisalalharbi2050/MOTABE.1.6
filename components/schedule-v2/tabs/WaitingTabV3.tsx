@@ -327,7 +327,7 @@ const WaitingTabV3: React.FC<Props> = ({
   if (!hasSchedule) {
     return (
       <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 shadow-sm p-12 text-center">
-        <AlertTriangle className="mx-auto mb-5 text-[#655ac1]" size={36} />
+        <AlertTriangle className="mx-auto mb-5 text-slate-400" size={36} />
         <h3 className="text-xl font-black text-slate-800 mb-2">لا يوجد جدول للانتظار</h3>
         <p className="text-sm text-slate-500 font-medium">
           يجب إنشاء جدول الحصص أولًا من تبويب "إنشاء الجدول" قبل إعداد الانتظار
