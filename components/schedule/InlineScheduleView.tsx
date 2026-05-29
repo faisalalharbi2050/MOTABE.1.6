@@ -213,6 +213,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     /* ── Internal teacher sort (used in fullscreen) ──────────────── */
     type InternalSortMode = 'alpha' | 'specialization' | 'custom';
     const [fsTeacherSort, setFsTeacherSort] = useState<InternalSortMode>('alpha');
+    const [pendingSortChoice, setPendingSortChoice] = useState<InternalSortMode | null>(null);
     const [fsCustomOrder, setFsCustomOrder] = useState<string[]>([]);
     const [fsSpecOrder, setFsSpecOrder] = useState<string[]>([]);
     const [showFsSortModal, setShowFsSortModal] = useState(false);
@@ -1147,9 +1148,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             <p className="text-sm font-black text-slate-800">ترتيب صفوف المعلمين</p>
                         </div>
                         <div className="p-2.5">
-                            {renderOptionRow(fsTeacherSort === 'alpha', 'أبجدي', () => { setFsTeacherSort('alpha'); setOpenGeneralFilter(null); })}
-                            {renderOptionRow(fsTeacherSort === 'specialization', 'حسب التخصص', () => { setFsTeacherSort('specialization'); setOpenGeneralFilter(null); ensureSpecOrder(); })}
-                            {renderOptionRow(fsTeacherSort === 'custom', 'مخصص', () => { setFsTeacherSort('custom'); setOpenGeneralFilter(null); ensureCustomOrder(); })}
+                            {renderOptionRow(pendingSortChoice === 'alpha', 'أبجدي', () => { setFsTeacherSort('alpha'); setPendingSortChoice(null); setOpenGeneralFilter(null); })}
+                            {renderOptionRow(pendingSortChoice === 'specialization', 'حسب التخصص', () => { setPendingSortChoice('specialization'); setOpenGeneralFilter(null); ensureSpecOrder(); })}
+                            {renderOptionRow(pendingSortChoice === 'custom', 'مخصص', () => { setPendingSortChoice('custom'); setOpenGeneralFilter(null); ensureCustomOrder(); })}
                         </div>
                     </>
                 );
@@ -2366,9 +2367,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     </div>
                 </div>
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                    <button onClick={() => setShowFsSortModal(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
-                    <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setShowFsSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
-                        <Check size={14} strokeWidth={3.5} />
+                    <button onClick={() => { setPendingSortChoice(null); setShowFsSortModal(false); }} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
+                    <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setPendingSortChoice(null); setShowFsSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                            <Check size={13} strokeWidth={3.2} className="text-white" />
+                        </span>
                         حفظ
                     </button>
                 </div>
@@ -2422,7 +2425,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                             </td>
                                             <td className="px-5 py-3 font-bold text-slate-800">{sp}</td>
                                             <td className="px-5 py-3 text-center">
-                                                <span className="inline-block px-3 py-1 bg-slate-50 rounded-lg text-[10px] font-black text-slate-700">{specCount}</span>
+                                                <span className="inline-block px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-700">{specCount}</span>
                                             </td>
                                             <td className="px-5 py-3 text-center"><GripVertical size={18} className="mx-auto text-slate-300 group-hover:text-[#655ac1]" /></td>
                                         </tr>
@@ -2433,9 +2436,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     </div>
                 </div>
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                    <button onClick={() => setShowFsSpecSortModal(false)} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
-                    <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setShowFsSpecSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
-                        <Check size={14} strokeWidth={3.5} />
+                    <button onClick={() => { setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
+                    <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                            <Check size={13} strokeWidth={3.2} className="text-white" />
+                        </span>
                         حفظ
                     </button>
                 </div>
