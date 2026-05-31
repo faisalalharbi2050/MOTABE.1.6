@@ -1297,20 +1297,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 </div>
                 {compactEdit && (
                     <div
-                        className="pointer-events-none absolute bottom-full left-1/2 z-[120] mb-2 hidden min-w-[132px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-xl group-hover/cell:block"
+                        className="pointer-events-none absolute bottom-full left-1/2 z-[120] hidden min-w-[112px] -translate-x-1/2 mb-2 flex-col items-center gap-0.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-center shadow-xl group-hover/cell:flex"
                         dir="rtl"
                     >
-                        <div className="text-[10px] font-black text-slate-400 mb-1">بيانات الحصة</div>
-                        <div className="space-y-1">
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-[10px] font-bold text-slate-400">الفصل</span>
-                                <span className="text-[11px] font-black text-slate-800">{cls || '—'}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-[10px] font-bold text-slate-400">المادة</span>
-                                <span className="text-[11px] font-black text-[#655ac1]">{subj || '—'}</span>
-                            </div>
-                        </div>
+                        <span className="text-[15px] font-black text-slate-800 leading-tight">{cls || '—'}</span>
+                        <span className="text-[13px] font-black text-[#655ac1] leading-tight">{subj || '—'}</span>
                     </div>
                 )}
             </div>
