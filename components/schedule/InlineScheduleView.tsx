@@ -130,6 +130,9 @@ const ONE_LINE_CELL_TEXT: React.CSSProperties = {
     overflowWrap: 'normal',
 };
 
+// إطار منقّط كهرماني — نفس تنقيط المواد غير المسندة في صفحة إسناد المواد
+const UNASSIGNED_DASH_SVG = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='none' rx='8' ry='8' stroke='%23fbbf24' stroke-width='2' stroke-dasharray='8 5'/%3E%3C/svg%3E\")";
+
 interface InlineScheduleViewProps {
     type: 'general_teachers' | 'general_classes' | 'individual_teacher' | 'individual_class' | 'general_waiting';
     settings: ScheduleSettingsData;
@@ -637,6 +640,24 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         }, 0);
     };
 
+    // شبح سحب نظيف لحصة واحدة فقط — يمنع التقاط المتصفح لخلية مجاورة في الصورة
+    const setLessonDragImage = (e: React.DragEvent, primary: string, secondary: string) => {
+        if (typeof document === 'undefined') return;
+        const dragEl = document.createElement('div');
+        dragEl.style.cssText = 'width:56px;height:46px;position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:8px;background:#ffffff;border:1px solid #d1d5db;box-shadow:0 8px 18px rgba(15,23,42,0.18);padding:4px;font-family:inherit;user-select:none;overflow:hidden;';
+        const top = document.createElement('div');
+        top.textContent = primary;
+        top.style.cssText = 'color:#111827;font-weight:900;font-size:12px;line-height:1.05;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        const bottom = document.createElement('div');
+        bottom.textContent = secondary;
+        bottom.style.cssText = 'color:#334155;font-weight:700;font-size:9px;line-height:1.1;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        dragEl.appendChild(top);
+        dragEl.appendChild(bottom);
+        document.body.appendChild(dragEl);
+        e.dataTransfer.setDragImage(dragEl, 28, 23);
+        window.setTimeout(() => { dragEl.remove(); }, 0);
+    };
+
     /* ── abbreviation helper ────────────────────────── */
     const getAbbrSpec = (specId: string) => {
         const full = (specializationNames[specId] || specId || '').trim();
@@ -852,6 +873,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const slot = timetable[key];
         if (!slot || slot.type === 'waiting') { e.preventDefault(); return; }
         const nextSource = { teacherId, day, period };
+        setLessonDragImage(e, cName(slot.classId || ''), subjDisplay(slot.subjectId || ''));
         setDragSource(nextSource);
         onExternalDragSourceChange?.(nextSource);
         setDraggingTeacherRowId(teacherId);
@@ -1741,20 +1763,20 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     {/* serial */}
                                     <td style={{
                                         padding:CELL_PAD,
-                                        background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG,
+                                        background: GAP_BG,
                                         verticalAlign:'middle',
                                         ...(isLastRow ? { borderBottomRightRadius:`${TABLE_RADIUS}px` } : {}),
-                                        ...buildStickyColumnStyle(stickyRightOffsets.serial, 18, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)
+                                        ...buildStickyColumnStyle(stickyRightOffsets.serial, 18, GAP_BG)
                                     }}>
                                         <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                             style={{...infoCardBase, justifyContent:'center', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                             style={{...infoCardBase, justifyContent:'center', background: infoCardBase.background, borderColor: '#e8eaf2'}}>
                                              <span style={{color:'#94a3b8', fontSize:'9px', fontWeight:700}}>{row.serial}</span>
                                         </div>
                                     </td>
                                     {/* name */}
-                                    <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.name, 17, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
+                                    <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.name, 17, GAP_BG)}}>
                                         <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                             style={{...infoCardBase, justifyContent:'flex-start', paddingRight:'6px', paddingLeft:'3px', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                             style={{...infoCardBase, justifyContent:'flex-start', paddingRight:'6px', paddingLeft:'3px', background: row.id === draggingTeacherRowId ? 'rgba(255,251,235,0.7)' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? 'transparent' : '#e8eaf2', backgroundImage: row.id === draggingTeacherRowId ? UNASSIGNED_DASH_SVG : undefined}}>
                                              <div className="flex items-center justify-between gap-2 w-full">
                                                 <span style={{color:'#1e293b', fontSize: isCompactTeacherEdit ? '11px' : '13px', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', direction:'rtl', textAlign:'right', flex:1}}>{row.name}</span>
                                                 {showWaitingManagement && isTeachers && isManualMode && isManualReady && (row.quota2 || 0) > 0 && Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0) > 0 && (
@@ -1809,28 +1831,28 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     </td>
                                     {/* spec */}
                                     {!isClasses && !hideTeacherMetaColumns && (
-                                        <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.spec, 16, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
+                                        <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.spec, 16, GAP_BG)}}>
                                             <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                                 style={{...infoCardBase, background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}} title={row.spec}>
+                                                 style={{...infoCardBase, background: infoCardBase.background, borderColor: '#e8eaf2'}} title={row.spec}>
                                                 <span style={{color:'#64748b', fontSize:'10.5px', fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{row.spec}</span>
                                             </div>
                                         </td>
                                     )}
                                     {/* quota1 */}
                                     {quota1ColW > 0 && (
-                                        <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.quota1, 15, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
+                                        <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.quota1, 15, GAP_BG)}}>
                                             <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
-                                                 style={{...infoCardBase, background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                                 style={{...infoCardBase, background: infoCardBase.background, borderColor: '#e8eaf2'}}>
                                             <span style={{color: '#64748b', fontSize:'11px', fontWeight:900}}>{row.quota1}</span>
                                             </div>
                                         </td>
                                     )}
                                     {/* quota2 teachers only */}
                                     {quota2ColW > 0 && (
-                                        <td style={{padding:CELL_PAD, background: row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.quota2, 14, row.id === draggingTeacherRowId ? '#ede9fe' : GAP_BG)}}>
+                                        <td style={{padding:CELL_PAD, background: GAP_BG, verticalAlign:'middle', ...buildStickyColumnStyle(stickyRightOffsets.quota2, 14, GAP_BG)}}>
                                             <div
                                                  className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200 relative"
-                                                 style={{...infoCardBase, overflow:'visible', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
+                                                 style={{...infoCardBase, overflow:'visible', background: infoCardBase.background, borderColor: '#e8eaf2'}}>
                                                 <span style={{color: '#64748b', fontSize:'11px', fontWeight:900}}>
                                                     {row.quota2}
                                                 </span>
@@ -1857,9 +1879,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                 onDragEnd={resetGeneralDragState}
                                                 style={{
                                                     padding: CELL_PAD,
-                                                    background: row.id === draggingTeacherRowId
-                                                        ? (hoverTarget === `${row.id}-${dayKey}-${pi+1}` ? '#ddd6fe' : '#ede9fe')
-                                                        : (hoverTarget === `${row.id}-${dayKey}-${pi+1}` ? '#f1f5f9' : GAP_BG),
+                                                    background: hoverTarget === `${row.id}-${dayKey}-${pi+1}` ? '#f1f5f9' : GAP_BG,
                                                     verticalAlign:'middle',
                                                     height:`${ROW_H}px`,
                                                     overflow:'visible',
@@ -1871,32 +1891,26 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                 {(() => {
                                                     const cellKey = `${row.id}-${dayKey}-${pi+1}`;
                                                     const isDropTarget = draggingTeacherRowId === row.id && hoverTarget === cellKey;
+                                                    // المعلم الهدف أثناء السحب (انتظار أو حصة): حصصه الفارغة فقط تتحوّل
+                                                    // إلى مناطق إفلات بتصميم المواد غير المسندة (كهرماني منقّط بلا نص)
+                                                    const isActiveDrag = draggingWaiting === 'card' || dragSource !== null;
                                                     const isAvailableForDrop =
                                                         draggingTeacherRowId === row.id &&
-                                                        draggingWaiting === 'card' &&
+                                                        isActiveDrag &&
                                                         !timetable[cellKey];
-                                                    if (isAvailableForDrop && !timetable[cellKey]) {
+                                                    if (isAvailableForDrop) {
                                                         return (
                                                             <div
-                                                                className="flex items-center justify-center rounded-[10px] border-2 border-dashed text-center transition-all"
+                                                                className="rounded-[8px] transition-all"
                                                                 style={{
                                                                     width:`${dynamicPeriodCard}px`,
                                                                     height:`${dynamicPeriodCardH}px`,
                                                                     margin:'0 auto',
-                                                                    borderColor: isDropTarget ? '#7c3aed' : '#c4b5fd',
-                                                                    background: isDropTarget ? '#f3e8ff' : '#faf5ff',
-                                                                    boxShadow: isDropTarget ? '0 8px 20px rgba(124,58,237,0.18)' : 'inset 0 0 0 1px rgba(196,181,253,0.35)',
+                                                                    backgroundColor: isDropTarget ? 'rgba(254,243,199,0.85)' : 'rgba(255,251,235,0.4)',
+                                                                    backgroundImage: UNASSIGNED_DASH_SVG,
+                                                                    boxShadow: isDropTarget ? '0 0 0 2px rgba(251,191,36,0.35)' : 'none',
                                                                 }}
-                                                            >
-                                                                <div>
-                                                                    <div className="text-[14px] font-black" style={{color: isDropTarget ? '#7c3aed' : '#8b5cf6'}}>
-                                                                        {isDropTarget ? 'أفلت' : 'اسحب'}
-                                                                    </div>
-                                                                    <div className="text-[8px] font-black" style={{color: isDropTarget ? '#7c3aed' : '#8b5cf6'}}>
-                                                                        {isDropTarget ? 'هنا' : 'إلى هنا'}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                            />
                                                         );
                                                     }
                                                     return renderPeriodCell(row.id, dayKey, pi);
@@ -2235,29 +2249,35 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         if (!slot) {
                                             const isDragActive = canDropWaiting || canDropLesson;
                                             const showDrop = isDragActive && isHovered;
-                                            cellContent = (
-                                                <div className="w-full h-full rounded-[8px] border flex items-center justify-center transition-all"
-                                                     style={{
-                                                         borderStyle: 'dashed',
-                                                         borderColor: showDrop ? '#64748b' : isDragActive ? '#94a3b8' : '#dde1ea',
-                                                         background: showDrop ? '#f1f5f9' : isDragActive ? '#f8fafc' : '#f8f9fc',
-                                                         width:`calc(100% - ${individualCardInset * 2}px)`,
-                                                         height:`${individualPeriodCardHeight}px`,
-                                                         margin:'0 auto',
-                                                         boxShadow: showDrop ? '0 0 0 2px rgba(100,116,139,0.15)' : 'none',
-                                                      }}>
-                                                    {showDrop ? (
-                                                        <div className="text-center flex flex-col items-center gap-0.5">
-                                                            <div className="text-[13px] font-black" style={{color:'#64748b'}}>↓</div>
-                                                            <div className="text-[9px] font-black" style={{color:'#94a3b8'}}>انقل هنا</div>
-                                                        </div>
-                                                    ) : isDragActive ? (
-                                                        <span className="text-[9px] font-bold" style={{color:'#94a3b8'}}>انقل هنا</span>
-                                                    ) : (
+                                            if (interactive && isDragActive) {
+                                                // أثناء السحب فقط: حصة فارغة بتصميم المواد غير المسندة في صفحة الإسناد
+                                                // (خلفية كهرمانية فاتحة + إطار منقّط كهرماني) — بدون أي نص
+                                                cellContent = (
+                                                    <div className="w-full h-full rounded-[8px] transition-all"
+                                                         style={{
+                                                             backgroundColor: showDrop ? 'rgba(254,243,199,0.85)' : 'rgba(255,251,235,0.4)',
+                                                             backgroundImage: UNASSIGNED_DASH_SVG,
+                                                             width:`calc(100% - ${individualCardInset * 2}px)`,
+                                                             height:`${individualPeriodCardHeight}px`,
+                                                             margin:'0 auto',
+                                                             boxShadow: showDrop ? '0 0 0 2px rgba(251,191,36,0.35)' : 'none',
+                                                          }} />
+                                                );
+                                            } else {
+                                                cellContent = (
+                                                    <div className="w-full h-full rounded-[8px] border flex items-center justify-center"
+                                                         style={{
+                                                             borderStyle: 'dashed',
+                                                             borderColor: '#dde1ea',
+                                                             background: '#f8f9fc',
+                                                             width:`calc(100% - ${individualCardInset * 2}px)`,
+                                                             height:`${individualPeriodCardHeight}px`,
+                                                             margin:'0 auto',
+                                                          }}>
                                                         <span className="text-[10px] font-bold" style={{color:'#cbd5e1'}}>—</span>
-                                                    )}
-                                                </div>
-                                            );
+                                                    </div>
+                                                );
+                                            }
                                         } else if (isWaiting) {
                                             cellContent = (
                                                 <div className="w-full h-full relative group"
