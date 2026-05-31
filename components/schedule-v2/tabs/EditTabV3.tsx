@@ -366,14 +366,20 @@ const EditTabV3: React.FC<Props> = ({
 
               <button
                 type="button"
-                disabled={teachers.length === 0}
+                disabled={filteredDropdownTeachers.length === 0}
                 onClick={() => {
-                  const allSelected = teachers.length > 0 && selectedTeacherIds.length === teachers.length;
-                  setSelectedTeacherIds(allSelected ? [] : teachers.map(t => t.id));
+                  const visibleIds = filteredDropdownTeachers.map(t => t.id);
+                  const visibleIdSet = new Set(visibleIds);
+                  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedTeacherIds.includes(id));
+                  setSelectedTeacherIds(prev =>
+                    allVisibleSelected
+                      ? prev.filter(id => !visibleIdSet.has(id))
+                      : Array.from(new Set([...prev, ...visibleIds]))
+                  );
                 }}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black transition-all hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {teachers.length > 0 && selectedTeacherIds.length === teachers.length ? 'إلغاء الكل' : 'اختيار الكل'}
+                {filteredDropdownTeachers.length > 0 && filteredDropdownTeachers.every(t => selectedTeacherIds.includes(t.id)) ? 'إلغاء الكل' : 'اختيار الكل'}
               </button>
             </div>
 
