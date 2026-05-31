@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo, useState } from 'react';
 import {
   Grid, User, Users, AlertTriangle, Sparkles, ArrowLeft,
   History, Search, FileText, Trash2, RotateCcw, ArrowRightLeft, LayoutGrid, X,
-  GripVertical, Undo2
+  GripVertical, Undo2, Check, ChevronDown
 } from 'lucide-react';
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../../types';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
@@ -54,10 +53,8 @@ const EditTabV3: React.FC<Props> = ({
 
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [teacherSearch, setTeacherSearch] = useState('');
-  const [showTeacherSelector, setShowTeacherSelector] = useState(false);
-  const [teacherSelectorPos, setTeacherSelectorPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 360 });
-  const teacherSelectorButtonRef = useRef<HTMLButtonElement>(null);
-  const teacherSelectorPanelRef = useRef<HTMLDivElement>(null);
+  const [teacherSpecFilter, setTeacherSpecFilter] = useState('');
+  const [teacherSpecDropdownOpen, setTeacherSpecDropdownOpen] = useState(false);
 
   const [auditFilter, setAuditFilter] = useState<'all' | 'general' | 'individual'>('all');
   const [auditSearch, setAuditSearch] = useState('');
@@ -92,43 +89,37 @@ const EditTabV3: React.FC<Props> = ({
     return r;
   }, [logs, auditFilter, auditSearch]);
 
-  const filteredDropdownTeachers = useMemo(
-    () => teachers.filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase())),
-    [teachers, teacherSearch]
-  );
+  const availableSpecializations = useMemo(() => {
+    const usedIds = new Set(teachers.map(t => t.specializationId).filter(Boolean));
+    return specializations.filter(s => usedIds.has(s.id));
+  }, [specializations, teachers]);
 
-  useEffect(() => {
-    if (!showTeacherSelector) return;
+  const selectedTeacherSpecName = teacherSpecFilter
+    ? availableSpecializations.find(spec => spec.id === teacherSpecFilter)?.name
+    : '';
 
-    const updatePosition = () => {
-      if (!teacherSelectorButtonRef.current) return;
-      const rect = teacherSelectorButtonRef.current.getBoundingClientRect();
-      const margin = 16;
-      const width = Math.min(420, Math.max(340, rect.width + 90));
-      const safeWidth = Math.min(width, window.innerWidth - margin * 2);
-      const centeredLeft = rect.left + rect.width / 2 - safeWidth / 2;
-      setTeacherSelectorPos({
-        top: rect.bottom + 12,
-        left: Math.min(Math.max(margin, centeredLeft), window.innerWidth - safeWidth - margin),
-        width: safeWidth,
+  const filteredDropdownTeachers = useMemo(() => {
+    const term = teacherSearch.trim().toLowerCase();
+    return teachers
+      .filter(t => {
+        const matchesSearch = !term
+          || (t.name || '').toLowerCase().includes(term);
+        const matchesSpec = !teacherSpecFilter || t.specializationId === teacherSpecFilter;
+        return matchesSearch && matchesSpec;
+      })
+      .sort((a, b) => {
+        const specCompare = (specNames[a.specializationId] || '').localeCompare(specNames[b.specializationId] || '', 'ar');
+        return specCompare || (a.name || '').localeCompare(b.name || '', 'ar');
       });
-    };
+  }, [teachers, teacherSearch, teacherSpecFilter, specNames]);
 
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const inButton = teacherSelectorButtonRef.current?.contains(target);
-      const inPanel = teacherSelectorPanelRef.current?.contains(target);
-      if (!inButton && !inPanel) setShowTeacherSelector(false);
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showTeacherSelector]);
+  const toggleTeacherSelection = (teacherId: string) => {
+    setSelectedTeacherIds(prev =>
+      prev.includes(teacherId)
+        ? prev.filter(id => id !== teacherId)
+        : [...prev, teacherId]
+    );
+  };
 
   if (!hasSchedule) {
     return (
@@ -295,67 +286,160 @@ const EditTabV3: React.FC<Props> = ({
       )}
 
       {subTab === 'teacher' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-3 flex-wrap">
-                <User size={20} className="text-[#655ac1] shrink-0" />
-                <p className="text-xs font-black text-slate-500 shrink-0">اختر معلماً أو أكثر لعرض جدولهم</p>
-                <button
-                  ref={teacherSelectorButtonRef}
-                  onClick={() => setShowTeacherSelector(current => !current)}
-                  className="px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center gap-2"
-                >
-                  <Search size={16} className="text-[#655ac1]" />
-                  اختيار المعلمين
-                </button>
+        <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-4 items-start">
+          <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden xl:sticky xl:top-4">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Users size={20} className="text-[#655ac1] shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="text-sm font-black text-slate-800">اختيار المعلمين</h3>
+                  <p className="text-[11px] font-bold text-slate-400 mt-0.5">اختر معلمًا أو أكثر لعرض الجداول</p>
+                </div>
               </div>
+              <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full shrink-0">
+                {selectedTeacherIds.length} محدد
+              </span>
             </div>
 
-            {selectedTeacherIds.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-                {teachers.filter(t => selectedTeacherIds.includes(t.id)).map(t => (
-                  <div key={t.id} className="flex items-center gap-2 pl-2.5 pr-3.5 py-2 bg-white text-[#655ac1] rounded-xl border border-slate-300 shadow-sm">
-                    <span className="text-sm font-bold">{t.name}</span>
-                    <button
-                      onClick={() => setSelectedTeacherIds(prev => prev.filter(id => id !== t.id))}
-                      className="p-1 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-slate-600"
-                    >
-                      <X size={14} />
-                    </button>
+            <div className="p-4 space-y-3 bg-slate-50/40">
+              <div className="relative">
+                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ابحث باسم المعلم..."
+                  value={teacherSearch}
+                  onChange={e => setTeacherSearch(e.target.value)}
+                  className="w-full pr-10 pl-9 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm text-slate-700 outline-none focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 font-bold placeholder:text-slate-400"
+                />
+                {teacherSearch && (
+                  <button
+                    onClick={() => setTeacherSearch('')}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+                    title="مسح البحث"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTeacherSpecDropdownOpen(open => !open)}
+                  className={`w-full px-5 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 text-[13px] ${
+                    teacherSpecDropdownOpen ? 'ring-2 ring-[#8779fb]/20 border-[#655ac1]/40' : ''
+                  }`}
+                >
+                  <span className="truncate leading-tight">{selectedTeacherSpecName || 'كل التخصصات'}</span>
+                  <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${teacherSpecDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {teacherSpecDropdownOpen && (
+                  <div className="absolute z-30 top-full mt-2 right-0 left-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+                    <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                      {[{ id: '', name: 'كل التخصصات' }, ...availableSpecializations].map(opt => {
+                        const active = opt.id === teacherSpecFilter;
+                        return (
+                          <button
+                            key={opt.id || 'all'}
+                            type="button"
+                            onClick={() => {
+                              setTeacherSpecFilter(opt.id);
+                              setTeacherSpecDropdownOpen(false);
+                            }}
+                            className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-between gap-3 ${
+                              active ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                            }`}
+                          >
+                            <span className="whitespace-nowrap">{opt.name}</span>
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                              active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                            }`}>
+                              <Check size={12} strokeWidth={3.5} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={teachers.length === 0}
+                onClick={() => {
+                  const allSelected = teachers.length > 0 && selectedTeacherIds.length === teachers.length;
+                  setSelectedTeacherIds(allSelected ? [] : teachers.map(t => t.id));
+                }}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black transition-all hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {teachers.length > 0 && selectedTeacherIds.length === teachers.length ? 'إلغاء الكل' : 'اختيار الكل'}
+              </button>
+            </div>
+
+            <div className="max-h-[62vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
+              {filteredDropdownTeachers.length === 0 ? (
+                <div className="py-10 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+              ) : filteredDropdownTeachers.map(teacher => {
+                const isSelected = selectedTeacherIds.includes(teacher.id);
+                return (
+                  <button
+                    key={teacher.id}
+                    type="button"
+                    onClick={() => toggleTeacherSelection(teacher.id)}
+                    className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'border-slate-300 bg-white shadow-sm'
+                        : 'border-transparent hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className={`block text-sm font-black truncate ${isSelected ? 'text-[#655ac1]' : 'text-slate-800'}`}>{teacher.name}</span>
+                      <span className={`block text-[11px] font-bold truncate mt-0.5 ${isSelected ? 'text-slate-400' : 'text-[#655ac1]'}`}>
+                        {specNames[teacher.specializationId] || 'بدون تخصص'}
+                      </span>
+                    </span>
+                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 transition-colors ${
+                      isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                    }`}>
+                      <Check size={12} strokeWidth={3.5} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+
+          <section className="min-w-0">
+            {selectedTeacherIds.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-slate-200 shadow-sm flex flex-col items-center justify-center min-h-[420px] text-center text-slate-400 p-8">
+                <User size={46} strokeWidth={1.6} className="mb-3 text-slate-300" />
+                <p className="text-sm font-black text-slate-600">قم باختيار المعلم أولاً لعرض جدوله</p>
+                <p className="text-xs font-bold text-slate-400 mt-1">ستظهر هنا جداول المعلمين المحددين من القائمة الجانبية.</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {selectedTeacherIds.map((id, idx) => (
+                  <div key={id}>
+                    {idx > 0 && <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent mb-5" />}
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-4">
+                      <InlineScheduleView
+                        type="individual_teacher"
+                        settings={settingsNoWaiting}
+                        teachers={teachers}
+                        classes={classes}
+                        subjects={subjects}
+                        targetId={id}
+                        specializationNames={specNames}
+                        onUpdateSettings={setScheduleSettings}
+                        interactive
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          {selectedTeacherIds.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-56 text-center text-slate-400">
-              <User size={42} className="mb-3 text-[#655ac1]" />
-              <p className="text-sm font-bold text-slate-500">قم باختيار المعلم أولاً لعرض جدوله</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {selectedTeacherIds.map((id, idx) => (
-                <div key={id} style={{ zoom: 0.78 }}>
-                  {idx > 0 && <div className="h-px bg-gradient-to-r from-transparent via-[#a59bf0] to-transparent opacity-40 mb-6" />}
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-4">
-                    <InlineScheduleView
-                      type="individual_teacher"
-                      settings={settingsNoWaiting}
-                      teachers={teachers}
-                      classes={classes}
-                      subjects={subjects}
-                      targetId={id}
-                      specializationNames={specNames}
-                      onUpdateSettings={setScheduleSettings}
-                      interactive
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </section>
         </div>
       )}
 
@@ -517,62 +601,6 @@ const EditTabV3: React.FC<Props> = ({
           </div>
           </div>
         </div>
-      )}
-
-      {showTeacherSelector && createPortal(
-        <div
-          ref={teacherSelectorPanelRef}
-          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[120] animate-in slide-in-from-top-2"
-          style={{ top: teacherSelectorPos.top, left: teacherSelectorPos.left, width: teacherSelectorPos.width }}
-        >
-          <div className="relative mb-2">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="ابحث عن معلم..."
-              value={teacherSearch}
-              onChange={e => setTeacherSearch(e.target.value)}
-              className="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#655ac1]/20 font-medium"
-            />
-          </div>
-          <div className="flex items-center justify-between px-2 py-2 mb-2 border border-slate-100 bg-slate-50 rounded-xl">
-            <button onClick={() => setSelectedTeacherIds(teachers.map(t => t.id))} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button>
-            <button onClick={() => setSelectedTeacherIds([])} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
-          </div>
-          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-            {filteredDropdownTeachers.map(t => {
-              const isSelected = selectedTeacherIds.includes(t.id);
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setSelectedTeacherIds(prev =>
-                      isSelected ? prev.filter(id => id !== t.id) : [...prev, t.id]
-                    );
-                  }}
-                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between border ${
-                    isSelected
-                      ? 'bg-white text-[#655ac1] border-[#655ac1] shadow-sm'
-                      : 'text-slate-700 border-transparent hover:bg-[#f0edff] hover:text-[#655ac1] hover:border-[#d9d3ff]'
-                  }`}
-                >
-                  {t.name}
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
-                    isSelected
-                      ? 'bg-[#655ac1] border-[#655ac1] text-white'
-                      : 'border-slate-300 text-transparent'
-                  }`}>
-                    <span className="text-[11px] font-black">✓</span>
-                  </span>
-                </button>
-              );
-            })}
-            {filteredDropdownTeachers.length === 0 && (
-              <p className="text-center text-xs text-slate-400 font-medium py-3">لا يوجد معلمون مطابقون</p>
-            )}
-          </div>
-        </div>,
-        document.body
       )}
 
       {confirmDelete && (

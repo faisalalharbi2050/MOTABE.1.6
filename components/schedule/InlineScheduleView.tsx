@@ -1894,17 +1894,17 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const individualPlacedWaiting = isTeacher && teacher ? (placedWaitingPerTeacher.get(teacher.id) || 0) : 0;
         const individualRemainingWaiting = isManualReady ? Math.max(individualWaitingQuota - individualPlacedWaiting, 0) : 0;
         const GAP_BG = '#eef0f6';
-        const INDIVIDUAL_HEADER_BG = '#e5e1fe';
-        const INDIVIDUAL_HEADER_BORDER = '#cfc7ff';
-        const INDIVIDUAL_HEADER_TEXT = '#655ac1';
-        const ROW_H = compactIndividual ? 52 : 76;
+        const INDIVIDUAL_HEADER_BG = C_BG;
+        const INDIVIDUAL_HEADER_BORDER = '#ffffff';
+        const INDIVIDUAL_HEADER_TEXT = '#ffffff';
+        const ROW_H = compactIndividual ? 48 : 58;
         const CELL_PAD = '1px';
-        const periodColW = compactIndividual ? 64 : 86;
-        const dayColW = compactIndividual ? periodColW : 82;
+        const periodColW = compactIndividual ? 58 : 64;
+        const dayColW = compactIndividual ? 58 : 70;
         const individualPeriodBox = periodColW;
         const individualPeriodCardWidth = periodColW;
-        const individualPeriodCardHeight = compactIndividual ? 48 : 72;
-        const individualCardInset = compactIndividual ? 2 : 4;
+        const individualPeriodCardHeight = compactIndividual ? 44 : 54;
+        const individualCardInset = compactIndividual ? 2 : 3;
         const infoCardBase: React.CSSProperties = {
             borderRadius:'7px',
             background:'#fff',
@@ -1919,7 +1919,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const headerCardBase: React.CSSProperties = {
             background:INDIVIDUAL_HEADER_BG,
             border:`1px solid ${INDIVIDUAL_HEADER_BORDER}`,
-            boxShadow:'0 1px 2px rgba(101,90,193,0.10)',
+            boxShadow:'none',
             height:`${individualPeriodCardHeight}px`,
             width:'100%',
             display:'flex',
@@ -1943,22 +1943,22 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             width:'100%',
                             height:'100%',
                             boxShadow: isDropTarget ? '0 0 0 3px rgba(135,121,251,0.15)' : '0 1px 2px rgba(15,23,42,0.06)',
-                            padding:'4px 5px',
-                            gap:'3px',
+                            padding: compactIndividual ? '3px 4px' : '4px 4px',
+                            gap: compactIndividual ? '2px' : '2px',
                             overflow:'visible',
                             transition:'border-color 0.15s, background 0.15s, box-shadow 0.15s',
                             cursor: isDragging ? 'grabbing' : undefined,
                         }}
                     >
                         <span
-                            className={`w-full text-center font-black leading-tight ${compactIndividual ? 'text-[13px]' : 'text-[16px]'}`}
-                            style={{color:'#6b7280', wordBreak:'break-word', overflowWrap:'anywhere'}}
+                            className={`w-full text-center font-black leading-tight ${compactIndividual ? 'text-[11px]' : 'text-[12px]'}`}
+                            style={{color:'#111827', wordBreak:'break-word', overflowWrap:'anywhere'}}
                         >
                             {primaryText}
                         </span>
                         <span
-                            className={`w-full text-center font-bold leading-tight ${compactIndividual ? 'text-[10px]' : 'text-[12px]'}`}
-                            style={{color:'#9ca3af', wordBreak:'break-word', overflowWrap:'anywhere'}}
+                            className={`w-full text-center font-bold leading-tight ${compactIndividual ? 'text-[8px]' : 'text-[9px]'}`}
+                            style={{color:'#334155', wordBreak:'break-word', overflowWrap:'anywhere'}}
                         >
                             {secondaryText}
                         </span>
@@ -1972,27 +1972,27 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 
                 {/* ── Info Card Header ── */}
                 {!hideIndividualHeader && (
-                    <div className={`rounded-2xl relative overflow-hidden ${compactIndividual ? 'p-3.5 mb-3.5' : 'p-5 mb-5'}`}
+                    <div className={`rounded-xl relative overflow-hidden ${compactIndividual ? 'p-2.5 mb-2.5' : 'p-3 mb-3'}`}
                         style={{
-                            background: '#ffffff',
-                            border: '1px solid #d1d5db',
-                            boxShadow:'0 2px 8px rgba(0,0,0,0.06)'
+                            background: GAP_BG,
+                            border: '1px solid #e2e8f0',
+                            boxShadow:'0 2px 8px rgba(0,0,0,0.05)'
                         }}>
-                        <div className={`relative flex items-center gap-5 flex-wrap ${compactIndividual ? 'justify-between' : ''}`}>
+                        <div className={`relative flex items-center gap-3 flex-wrap ${compactIndividual ? 'justify-between' : ''}`}>
                             <div className="flex-1 min-w-0 text-right">
                                 <div
-                                    className="font-black mb-1"
-                                    style={{color:'#8779fb', fontSize: compactIndividual ? '13px' : '18px'}}
+                                    className="font-black mb-0.5"
+                                    style={{color:'#64748b', fontSize: compactIndividual ? '10px' : '11px'}}
                                 >
                                     {isTeacher ? 'المعلم' : 'الفصل'}
                                 </div>
-                                <div className={`font-black leading-tight truncate ${compactIndividual ? 'text-lg' : 'text-2xl'}`} dir="ltr" style={{textAlign:'right', color:'#655ac1'}}>
+                                <div className={`font-black leading-tight truncate ${compactIndividual ? 'text-base' : 'text-lg'}`} dir="ltr" style={{textAlign:'right', color:'#1e293b'}}>
                                     {isTeacher ? (teacher?.name||'—') : (cls?.name || (cls ? `${cls.grade}/${cls.section}` : '—'))}
                                 </div>
                                 {isTeacher && teacher && (
                                     <div
-                                        className="font-semibold mt-1"
-                                        style={{color:'#8779fb', fontSize: compactIndividual ? '11px' : '15px'}}
+                                        className="font-bold mt-1 inline-flex px-2 py-0.5 rounded-md bg-white border border-slate-200"
+                                        style={{color:'#64748b', fontSize: compactIndividual ? '9px' : '10px'}}
                                     >
                                         {specializationNames[teacher.specializationId]||'—'}
                                     </div>
@@ -2020,21 +2020,21 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                 setDraggingTeacherRowId(null);
                                             },
                                         })}
-                                        <span className={`font-bold ${compactIndividual ? 'text-[8px]' : 'text-[10px]'}`} style={{color:'#94a3b8'}}>اسحب للتعيين</span>
+                                        <span className={`font-bold ${compactIndividual ? 'text-[7px]' : 'text-[8px]'}`} style={{color:'#94a3b8'}}>اسحب للتعيين</span>
                                     </div>
                                 )}
-                                <div className={`flex flex-col items-center rounded-xl border border-slate-200 bg-slate-50 ${compactIndividual ? 'px-2.5 py-1 min-w-[56px]' : 'px-4 py-2 min-w-[80px]'}`}>
-                                    <span className={`font-bold leading-none mb-1 ${compactIndividual ? 'text-[9px]' : 'text-[13px]'}`} style={{color:'#94a3b8'}}>
+                                <div className={`flex flex-col items-center rounded-lg border border-slate-200 bg-white ${compactIndividual ? 'px-2 py-1 min-w-[50px]' : 'px-3 py-1.5 min-w-[66px]'}`}>
+                                    <span className={`font-bold leading-none mb-1 ${compactIndividual ? 'text-[8px]' : 'text-[10px]'}`} style={{color:'#94a3b8'}}>
                                         {isTeacher ? 'نصاب الحصص' : 'عدد الحصص'}
                                     </span>
-                                    <span className={`font-black leading-none ${compactIndividual ? 'text-[16px]' : 'text-[24px]'}`} style={{color:'#655ac1'}}>
+                                    <span className={`font-black leading-none ${compactIndividual ? 'text-[14px]' : 'text-[17px]'}`} style={{color:'#64748b'}}>
                                         {isTeacher ? (teacher ? tLQ(teacher) : 0) : (classLessonCount.get(targetId||'')||0)}
                                     </span>
                                 </div>
                                 {isTeacher && (
-                                    <div className={`flex flex-col items-center rounded-xl border border-slate-200 bg-slate-50 ${compactIndividual ? 'px-2.5 py-1 min-w-[56px]' : 'px-4 py-2 min-w-[80px]'}`}>
-                                        <span className={`font-bold leading-none mb-1 ${compactIndividual ? 'text-[9px]' : 'text-[13px]'}`} style={{color:'#94a3b8'}}>نصاب الانتظار</span>
-                                        <span className={`font-black leading-none ${compactIndividual ? 'text-[16px]' : 'text-[24px]'}`} style={{color:'#655ac1'}}>{individualWaitingQuota}</span>
+                                    <div className={`flex flex-col items-center rounded-lg border border-slate-200 bg-white ${compactIndividual ? 'px-2 py-1 min-w-[50px]' : 'px-3 py-1.5 min-w-[66px]'}`}>
+                                        <span className={`font-bold leading-none mb-1 ${compactIndividual ? 'text-[8px]' : 'text-[10px]'}`} style={{color:'#94a3b8'}}>نصاب الانتظار</span>
+                                        <span className={`font-black leading-none ${compactIndividual ? 'text-[14px]' : 'text-[17px]'}`} style={{color:'#64748b'}}>{individualWaitingQuota}</span>
                                     </div>
                                 )}
                             </div>
@@ -2062,14 +2062,14 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         color:'#fff',
                                         borderBottom:'0',
                                         borderLeft:'0',
-                                        fontSize: compactIndividual ? '13px' : '18px'
+                                    fontSize: compactIndividual ? '11px' : '13px'
                                     }}>
                                     <div
                                         style={{
                                             ...headerCardBase,
                                             borderRadius: compactIndividual ? '12px' : '14px',
                                             color:INDIVIDUAL_HEADER_TEXT,
-                                            fontSize: compactIndividual ? '13px' : '18px',
+                                            fontSize: compactIndividual ? '11px' : '13px',
                                             fontWeight:900,
                                         }}
                                     >
@@ -2092,7 +2092,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                 style={{
                                                     ...headerCardBase,
                                                     color:INDIVIDUAL_HEADER_TEXT,
-                                                    fontSize: compactIndividual ? '12px' : '17px',
+                                                    fontSize: compactIndividual ? '10px' : '12px',
                                                     fontWeight:900,
                                                     padding: compactIndividual ? '3px 3px 2px' : '6px 5px 5px',
                                                 }}
@@ -2127,7 +2127,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                             }}
                                         >
                                             <span
-                                                className={`px-2 font-black text-center leading-none ${compactIndividual ? 'text-[12px]' : 'text-[18px]'}`}
+                                                className={`px-2 font-black text-center leading-none ${compactIndividual ? 'text-[10px]' : 'text-[12px]'}`}
                                                 style={{color:INDIVIDUAL_HEADER_TEXT}}
                                             >
                                                 {day}
