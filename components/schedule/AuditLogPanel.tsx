@@ -177,7 +177,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                 <div className="flex-1 overflow-auto">
                     {filtered.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 opacity-60 py-20">
-                            <FileText size={60} strokeWidth={1} />
+                            <FileText size={60} strokeWidth={1} className={logs.length === 0 ? 'text-slate-300' : 'text-[#655ac1]'} />
                             <p className="font-bold text-lg">
                                 {logs.length === 0 ? 'لا توجد تعديلات يدوية مسجلة حتى الآن' : 'لا توجد نتائج تطابق بحثك'}
                             </p>

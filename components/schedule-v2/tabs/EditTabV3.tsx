@@ -1,13 +1,16 @@
 import React, { useMemo, useState } from 'react';
+import DatePicker, { DateObject } from 'react-multi-date-picker';
+import arabic from 'react-date-object/calendars/arabic';
+import arabic_ar from 'react-date-object/locales/arabic_ar';
+import gregorian from 'react-date-object/calendars/gregorian';
+import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
   Grid, User, Users, AlertTriangle, Sparkles, ArrowLeft,
   History, Search, FileText, Trash2, RotateCcw, ArrowRightLeft, X,
-  GripVertical, Undo2, Check, ChevronDown
+  GripVertical, Check, ChevronDown
 } from 'lucide-react';
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization, SwapStepDetail } from '../../../types';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
-import ConfirmDialog from '../../ui/ConfirmDialog';
-import { useToast } from '../../ui/ToastProvider';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -26,15 +29,76 @@ interface Props {
 
 type SubTab = 'general' | 'teacher' | 'audit';
 type SortMode = 'alpha' | 'specialization' | 'custom';
+type CalendarType = 'hijri' | 'gregorian';
 
-const DAY_NAMES_AR: Record<number, string> = {
-  0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت',
+const formatIsoDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const parseIsoDate = (date?: string) => {
+  if (!date) return undefined;
+  const parsed = new Date(`${date}T00:00:00`);
+  return isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ar-SA-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' });
-const fmtDay = (iso: string) => DAY_NAMES_AR[new Date(iso).getDay()] ?? '';
-const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const formatPickerDate = (date: any) => {
+  if (!date) return '';
+  if (date instanceof DateObject) return formatIsoDate(date.toDate());
+  if (date instanceof Date && !isNaN(date.getTime())) return formatIsoDate(date);
+  return '';
+};
+
+const timestampDateKey = (iso: string) => {
+  const parsed = new Date(iso);
+  return isNaN(parsed.getTime()) ? '' : formatIsoDate(parsed);
+};
+
+const fmtHijriDate = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(iso));
+const fmtGregorianDate = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+const fmtDay = (iso: string) => new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date(iso));
+const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit', hour12: true });
 const fmtStep = (s: string) => s.replace(/↔/g, ' مقابل ').replace(/→/g, ' إلى ');
+
+const formatCalendarDate = (date: string, calendarType: CalendarType) => {
+  if (!date) return 'غير محدد';
+  const parsed = parseIsoDate(date);
+  if (!parsed) return 'غير محدد';
+  return calendarType === 'hijri'
+    ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed)
+    : new Intl.DateTimeFormat('ar-SA-u-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
+};
+
+const formatDateLabel = (date: string, calendarType: CalendarType) => {
+  if (!date) return 'غير محدد';
+  const parsed = parseIsoDate(date);
+  if (!parsed) return 'غير محدد';
+  const day = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(parsed);
+  return `${day} - ${formatCalendarDate(date, calendarType)}`;
+};
+
+const AuditDateField: React.FC<{
+  label: string;
+  value: string;
+  calendarType: CalendarType;
+  onChange: (value: string) => void;
+}> = ({ label, value, calendarType, onChange }) => (
+  <div className="min-w-[210px] flex-1">
+    <label className="block text-[11px] font-black text-slate-600 mb-1.5">{label}: {formatDateLabel(value, calendarType)}</label>
+    <DatePicker
+      value={parseIsoDate(value)}
+      onChange={date => onChange(formatPickerDate(date))}
+      calendar={calendarType === 'hijri' ? arabic : gregorian}
+      locale={calendarType === 'hijri' ? arabic_ar : gregorian_ar}
+      containerClassName="w-full"
+      inputClass="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white text-slate-700"
+      placeholder="حدد التاريخ"
+      format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
+      portal
+      portalTarget={document.body}
+      editable={false}
+      zIndex={99999}
+    />
+  </div>
+);
 
 const PURPLE = '#655ac1';
 
@@ -84,9 +148,10 @@ const EditTabV3: React.FC<Props> = ({
 
   const [auditFilter, setAuditFilter] = useState<'all' | 'general' | 'individual'>('all');
   const [auditSearch, setAuditSearch] = useState('');
+  const [auditDateFrom, setAuditDateFrom] = useState('');
+  const [auditDateTo, setAuditDateTo] = useState('');
+  const [auditCalendarType, setAuditCalendarType] = useState<CalendarType>('hijri');
   const [confirmDelete, setConfirmDelete] = useState<{ mode: 'all' } | { mode: 'one'; id: string } | null>(null);
-  const [confirmUndoId, setConfirmUndoId] = useState<string | null>(null);
-  const { showToast } = useToast();
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const specNames = useMemo(
@@ -108,12 +173,19 @@ const EditTabV3: React.FC<Props> = ({
     let r = [...logs].reverse();
     if (auditFilter === 'general') r = r.filter(l => (l.viewType ?? 'general') === 'general');
     if (auditFilter === 'individual') r = r.filter(l => l.viewType === 'individual');
+    if (auditDateFrom) r = r.filter(l => timestampDateKey(l.timestamp) >= auditDateFrom);
+    if (auditDateTo) r = r.filter(l => timestampDateKey(l.timestamp) <= auditDateTo);
     if (auditSearch.trim()) {
-      const q = auditSearch.toLowerCase();
-      r = r.filter(l => (l.teacherName ?? '').toLowerCase().includes(q) || l.description.toLowerCase().includes(q));
+      const q = auditSearch.trim().toLowerCase();
+      r = r.filter(l => {
+        const detailTeachers = (l.swapDetails || []).map(d => d.teacher).join(' ');
+        return (l.teacherName ?? '').toLowerCase().includes(q)
+          || detailTeachers.toLowerCase().includes(q)
+          || l.description.toLowerCase().includes(q);
+      });
     }
     return r;
-  }, [logs, auditFilter, auditSearch]);
+  }, [logs, auditFilter, auditSearch, auditDateFrom, auditDateTo]);
 
   const availableSpecializations = useMemo(() => {
     const usedIds = new Set(teachers.map(t => t.specializationId).filter(Boolean));
@@ -479,35 +551,35 @@ const EditTabV3: React.FC<Props> = ({
       {subTab === 'audit' && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3 border-b border-slate-50 bg-white">
+          <div className="px-4 py-3 flex flex-col xl:flex-row xl:items-center gap-3 border-b border-slate-100 bg-white">
             {/* الفلاتر — أزرار مجزّأة بنفس نمط صفحة المعلمين */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-xl">
+            <div className="grid grid-cols-3 gap-1 bg-slate-50 border border-slate-200 p-1 rounded-xl xl:w-auto w-full">
               {([
                 { key: 'all', label: 'الكل', count: logs.length },
                 { key: 'general', label: 'الجدول العام', count: generalCount },
                 { key: 'individual', label: 'جدول معلم', count: individualCount },
               ] as const).map(tab => (
                 <button key={tab.key} onClick={() => setAuditFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all flex items-center gap-1.5 ${
-                    auditFilter === tab.key ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  className={`px-3 py-2 rounded-lg text-[11px] font-black transition-all flex items-center justify-center gap-1.5 border ${
+                    auditFilter === tab.key ? 'bg-white text-black shadow-sm border-slate-200' : 'text-black hover:bg-white/70 border-transparent'
                   }`}
                 >
                   {tab.label}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${
-                    auditFilter === tab.key ? 'bg-primary/10 text-primary' : 'bg-slate-200/70 text-slate-500'
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black border ${
+                    auditFilter === tab.key ? 'bg-white text-[#655ac1] border-slate-300' : 'bg-white text-[#655ac1] border-slate-300'
                   }`}>{tab.count}</span>
                 </button>
               ))}
             </div>
             {/* شريط البحث — بنفس نمط صفحة المعلمين */}
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative flex-1 min-w-[220px]">
               <Search size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={auditSearch}
                 onChange={e => setAuditSearch(e.target.value)}
-                placeholder="بحث باسم المعلم أو التفاصيل..."
-                className="w-full pr-10 pl-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
+                placeholder="بحث باسم المعلم المعدل له أو المعدل معه الحصص..."
+                className="w-full pr-10 pl-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1] focus:ring-2 focus:ring-[#8779fb]/15 transition-all text-slate-700 placeholder:text-slate-400"
                 dir="rtl"
               />
             </div>
@@ -515,27 +587,65 @@ const EditTabV3: React.FC<Props> = ({
             <button
               onClick={() => setConfirmDelete({ mode: 'all' })}
               disabled={logs.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl hover:bg-rose-100 transition-all font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-800 border border-slate-300 rounded-xl hover:bg-slate-50 transition-all font-black text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Trash2 size={15} /> حذف كل السجلات
+              <Trash2 size={15} className="text-rose-600" /> حذف كل السجلات
             </button>
+          </div>
+
+          <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/40">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs font-black text-slate-500">نوع التقويم</span>
+              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
+                {[
+                  { value: 'hijri' as CalendarType, label: 'هجري' },
+                  { value: 'gregorian' as CalendarType, label: 'ميلادي' },
+                ].map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setAuditCalendarType(option.value)}
+                    className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                      auditCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <AuditDateField label="من يوم وتاريخ" value={auditDateFrom} calendarType={auditCalendarType} onChange={setAuditDateFrom} />
+              <AuditDateField label="إلى يوم وتاريخ" value={auditDateTo} calendarType={auditCalendarType} onChange={setAuditDateTo} />
+              {(auditDateFrom || auditDateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuditDateFrom('');
+                    setAuditDateTo('');
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-xs font-black text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  مسح المدة
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-auto max-h-[60vh]">
             {filteredLogs.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-4">
-                <FileText size={48} strokeWidth={1.3} className="text-[#655ac1]" />
+                <FileText size={48} strokeWidth={1.3} className={logs.length === 0 ? 'text-slate-300' : 'text-[#655ac1]'} />
                 <p className="font-bold">{logs.length === 0 ? 'لا توجد تعديلات يدوية مسجلة' : 'لا توجد نتائج تطابق بحثك'}</p>
               </div>
             ) : (
-              <table className="w-full text-right text-sm min-w-[980px]" dir="rtl">
+              <table className="w-full text-right text-sm min-w-[900px]" dir="rtl">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50/50 border-b border-slate-100">
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-14">م</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-24">اليوم</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-28">التاريخ</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-28">الوقت</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-40">المعلم</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-36">نوع التعديل</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">تفاصيل التعديل</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-24">إجراء</th>
@@ -549,17 +659,19 @@ const EditTabV3: React.FC<Props> = ({
                     return (
                       <tr key={log.id} className="hover:bg-slate-50/60 transition-all">
                         <td className="px-6 py-3.5 text-center">
-                          <span className="inline-flex w-7 h-7 rounded-lg items-center justify-center text-[11px] font-black border border-slate-300 bg-white text-[#655ac1]">
+                          <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full">
                             {filteredLogs.length - idx}
                           </span>
                         </td>
                         <td className="px-6 py-3.5"><span className="text-[12px] font-bold text-slate-700">{fmtDay(log.timestamp)}</span></td>
-                        <td className="px-6 py-3.5"><span className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700">{fmtDate(log.timestamp)}</span></td>
-                        <td className="px-6 py-3.5 whitespace-nowrap"><span className="inline-flex px-3 py-1 bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700">{fmtTime(log.timestamp)}</span></td>
+                        <td className="px-6 py-3.5">
+                          <div className="flex flex-col gap-0.5 text-[12px] font-bold leading-tight">
+                            <span className="text-slate-800">{fmtHijriDate(log.timestamp)}</span>
+                            <span className="text-[11px] text-slate-400">{fmtGregorianDate(log.timestamp)}</span>
+                          </div>
+                        </td>
                         <td className="px-6 py-3.5 whitespace-nowrap">
-                          {log.teacherName
-                            ? <span className="font-bold text-[13px] text-slate-800 whitespace-nowrap">{log.teacherName}</span>
-                            : <span className="text-xs text-slate-400 font-semibold">—</span>}
+                          <span className="text-[12px] font-bold text-slate-700 whitespace-nowrap">{fmtTime(log.timestamp)}</span>
                         </td>
                         <td className="px-6 py-3.5 text-center">
                           <div className="flex flex-col items-center gap-1.5">
@@ -591,15 +703,6 @@ const EditTabV3: React.FC<Props> = ({
                         </td>
                         <td className="px-6 py-3.5 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            {log.revert && Object.keys(log.revert).length > 0 && (
-                              <button
-                                onClick={() => setConfirmUndoId(log.id)}
-                                title="تراجع عن هذا التعديل"
-                                className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-300 bg-white text-[#655ac1] transition-colors hover:bg-[#f5f3ff] hover:border-[#c4b5fd]"
-                              >
-                                <Undo2 size={15} />
-                              </button>
-                            )}
                             <button
                               onClick={() => setConfirmDelete({ mode: 'one', id: log.id })}
                               className="inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-colors hover:bg-rose-50"
@@ -658,31 +761,6 @@ const EditTabV3: React.FC<Props> = ({
       {showSortModal && renderSortModal()}
       {showSpecSortModal && renderSpecSortModal()}
 
-      <ConfirmDialog
-        isOpen={!!confirmUndoId}
-        title="التراجع عن التعديل"
-        message="سيُعاد الجدول إلى حالته قبل هذا التعديل، ويُزال هذا السطر من السجل. هل تريد المتابعة؟"
-        confirmLabel="تراجع"
-        cancelLabel="إلغاء"
-        tone="warning"
-        onCancel={() => setConfirmUndoId(null)}
-        onConfirm={() => {
-          const entry = logs.find(l => l.id === confirmUndoId);
-          if (entry?.revert) {
-            const patch = entry.revert;
-            setScheduleSettings(prev => {
-              const t = { ...(prev.timetable || {}) };
-              Object.entries(patch).forEach(([k, v]) => {
-                if (v === null || v === undefined) delete t[k];
-                else (t as any)[k] = v;
-              });
-              return { ...prev, timetable: t, auditLogs: (prev.auditLogs || []).filter(l => l.id !== entry.id) };
-            });
-            showToast('تم التراجع عن التعديل', 'success');
-          }
-          setConfirmUndoId(null);
-        }}
-      />
     </div>
   );
 };
