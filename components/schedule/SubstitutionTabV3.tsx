@@ -58,8 +58,8 @@ export default function SubstitutionTabV3({ teachers, config, weekDays, periodsP
       {/* تنبيه إرشادي — صفّ مسطّح بلا إطار داخلي (الإطار الرئيسي يحيط القسم بالكامل) */}
       <div className="flex items-start gap-3">
         <Info size={20} className="mt-0.5 shrink-0" style={{ color: ACCENT }} />
-        <p className="text-sm font-bold text-slate-800 leading-relaxed">
-          يملأ النظام الحصص الفارغة لكل معلم بحصص انتظار وفق نصاب الانتظار المحدّد له في صفحة المعلمين. اضبط الحد اليومي واختر طريقة التوزيع ثم نفّذ.
+        <p className="text-sm font-bold text-[#655ac1] leading-relaxed">
+          اضبط حد اليوم ثم اختر طريقة توزيع الانتظار المناسبة وفق أنصبة المعلمين والفراغات المتاحة.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export default function SubstitutionTabV3({ teachers, config, weekDays, periodsP
         </div>
 
         <div className="max-w-xs space-y-2">
-          <label className="text-xs font-black text-slate-500">الحد الأقصى اليومي (أساسي + انتظار)</label>
+          <label className="text-xs font-black text-slate-500">الحد الأقصى اليومي (مواد + انتظار)</label>
           <div className="relative">
             <input
               type="number"
@@ -92,7 +92,7 @@ export default function SubstitutionTabV3({ teachers, config, weekDays, periodsP
             <div className="flex items-start gap-2.5">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
               <p className="text-xs font-bold text-amber-800 leading-relaxed">
-                {missingQuotaTeachers.length} معلمًا بدون نصاب انتظار — لن يُسند لهم انتظار في التوزيع الآلي.
+                {missingQuotaTeachers.length} معلمًا بدون نصاب انتظار — لن يُسند لهم انتظار.
               </p>
             </div>
             <button
