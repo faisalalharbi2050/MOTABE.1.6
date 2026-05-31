@@ -131,8 +131,9 @@ const WaitingTabV3: React.FC<Props> = ({
     };
     const handleClickOutside = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (!teacherSelectorButtonRef.current?.contains(t) && !teacherSelectorPanelRef.current?.contains(t))
+      if (!teacherSelectorButtonRef.current?.contains(t) && !teacherSelectorPanelRef.current?.contains(t)) {
         setShowTeacherSelector(false);
+      }
     };
     updatePosition();
     window.addEventListener('resize', updatePosition);
@@ -471,29 +472,6 @@ const WaitingTabV3: React.FC<Props> = ({
       {/* ── معاينة وتعديل ── */}
       {subTab === 'preview' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-[2rem] px-4 py-3 border border-slate-100 shadow-sm">
-            <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
-              <button
-                onClick={() => setPreviewType('general_teachers')}
-                className={subTabButtonClass(previewType === 'general_teachers')}
-              >
-                <Users size={16} /> الجدول العام للمعلمين
-              </button>
-              <button
-                onClick={() => setPreviewType('general_waiting')}
-                className={subTabButtonClass(previewType === 'general_waiting')}
-              >
-                <CalendarClock size={16} /> الجدول العام للانتظار
-              </button>
-              <button
-                onClick={() => setPreviewType('individual_teacher')}
-                className={subTabButtonClass(previewType === 'individual_teacher')}
-              >
-                <User size={16} /> جدول معلم
-              </button>
-            </div>
-          </div>
-
           {!isDistributionPrepared && (
             <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 border border-amber-200">
@@ -505,7 +483,7 @@ const WaitingTabV3: React.FC<Props> = ({
             </div>
           )}
 
-          {isDistributionPrepared && previewType === 'general_waiting' && (
+          {false && (
             <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 border border-amber-200">
                 <Info size={15} className="text-amber-600" />
@@ -516,7 +494,7 @@ const WaitingTabV3: React.FC<Props> = ({
             </div>
           )}
 
-          {previewType === 'individual_teacher' ? (
+          {false ? (
             <div className="space-y-4">
               {/* Teacher selector — نفس تصميم EditTab */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -586,7 +564,7 @@ const WaitingTabV3: React.FC<Props> = ({
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-4">
               <InlineScheduleView
-                type={previewType as 'general_teachers' | 'general_waiting'}
+                type="general_teachers"
                 settings={scheduleSettings}
                 teachers={teachers}
                 classes={classes}

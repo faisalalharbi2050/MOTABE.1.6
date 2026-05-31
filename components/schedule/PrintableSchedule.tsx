@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo, TimetableSlot, Specialization } from '../../types';
+import { buildTeacherShortName, generateSubjectAbbreviation } from '../../utils/nameAbbreviations';
 
 interface PrintableScheduleProps {
     type: 'general_teachers' | 'general_classes' | 'individual_teacher' | 'individual_class' | 'general_waiting';
@@ -31,8 +32,12 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
     fontSize = 11, blackAndWhite = false, hideSignature = false, sentAt, hideHeader = false
 }) => {
     const zoomFactor = fontSize / 11;
-    const subjectName  = (id: string) => settings.subjectAbbreviations?.[id] || subjects.find(s => s.id === id)?.name || '';
-    const teacherName  = (id: string) => teachers.find(t => t.id === id)?.name || '';
+    const subjectFullName = (id: string) => subjects.find(s => s.id === id)?.name || '';
+    const subjectName  = (id: string) => settings.subjectAbbreviations?.[id] || generateSubjectAbbreviation(subjectFullName(id));
+    const teacherName  = (id: string) => {
+        const teacher = teachers.find(t => t.id === id);
+        return teacher ? (teacher.shortName?.trim() || buildTeacherShortName(teacher.name)) : '';
+    };
     const className    = (id: string) => { const c = classes.find(cl => cl.id === id); return c ? (c.name || `${c.grade}/${c.section}`) : ''; };
 
     // ── School meta ──────────────────────────────────────────
@@ -85,9 +90,9 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             const slot = getTeacherSlot(rowId, day, period);
             if (!slot) return null;
             return (
-                <div className="text-center">
-                    <div className="font-bold text-[10px] break-words" style={{color:'#a59bf0'}}>{className(slot.classId || '')}</div>
-                    <div className="text-[9px] font-bold text-slate-600">{subjectName(slot.subjectId || '')}</div>
+                <div className="text-center w-full min-w-0">
+                    <div className="font-bold text-[9px] truncate" style={{color:'#a59bf0'}}>{className(slot.classId || '')}</div>
+                    <div className="text-[8px] font-bold text-slate-600 truncate">{subjectName(slot.subjectId || '')}</div>
                 </div>
             );
         }
@@ -95,9 +100,9 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             const slot = classIndex[`${rowId}-${day}-${period}`];
             if (!slot) return null;
             return (
-                <div className="text-center">
-                    <div className="font-bold text-[10px] truncate" style={{color:'#a59bf0'}}>{subjectName(slot.subjectId || '')}</div>
-                    <div className="text-[9px] font-bold text-slate-600 break-words">{teacherName(slot.teacherId)}</div>
+                <div className="text-center w-full min-w-0">
+                    <div className="font-bold text-[9px] truncate" style={{color:'#a59bf0'}}>{subjectName(slot.subjectId || '')}</div>
+                    <div className="text-[8px] font-bold text-slate-600 truncate">{teacherName(slot.teacherId)}</div>
                 </div>
             );
         }
@@ -147,7 +152,10 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
             .sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0))
             .map(c => ({ id: c.id, name: c.name || `${c.grade}/${c.section}` }));
     } else if (type === 'general_teachers' || type === 'general_waiting') {
-        rowsToRender = [...teachers].sort((a, b) => a.name.localeCompare(b.name, 'ar')).map(t => ({ id: t.id, name: t.name }));
+        rowsToRender = [...teachers].sort((a, b) => a.name.localeCompare(b.name, 'ar')).map(t => ({
+            id: t.id,
+            name: t.shortName?.trim() || buildTeacherShortName(t.name),
+        }));
     } else if (type === 'individual_teacher') {
         const t = teachers.find(t => t.id === targetId);
         if (t) rowsToRender = [{ id: t.id, name: t.name }];
@@ -356,7 +364,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                 <table className="w-full border-collapse text-sm" style={{border:'2px solid '+C_DAY_SEP, tableLayout:'fixed'}}>
                     <thead style={{ display: 'table-header-group' }}>
                         <tr>
-                            <th className="p-2 w-32 font-bold max-w-[120px] text-white"
+                            <th className="p-1 w-24 font-bold max-w-[96px] text-white"
                                 style={{background:C_BG, border:'1px solid '+C_BORDER}}>
                                 {type === 'general_classes' ? 'الفصل' : 'المعلم'}
                             </th>
@@ -391,7 +399,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                         {rowsToRender.map(row => (
                             <tr key={row.id} style={{borderBottom:'1px solid '+C_BORDER, breakInside:'avoid', pageBreakInside:'avoid'}}>
                                 <td
-                                    className={`p-2 font-bold truncate ${isIndividual ? 'text-sm' : 'text-[11px] w-32'} max-w-[120px]`}
+                                    className={`p-1 font-bold truncate ${isIndividual ? 'text-sm' : 'text-[10px] w-24'} max-w-[96px]`}
                                     style={{background:'#fff', border:'1px solid '+C_BORDER}}
                                     title={row.name}>
                                     <span dir={type === 'general_classes' ? 'ltr' : 'auto'}>{row.name}</span>
@@ -400,7 +408,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
                                     Array.from({ length: MAX_PERIODS }).map((_, i) => (
                                         <td
                                             key={`${day}-${i}`}
-                                            className={`p-0 ${isIndividual ? 'h-24 w-24' : 'h-10 w-10'} overflow-hidden relative align-middle`}
+                                            className={`p-0 ${isIndividual ? 'h-24 w-24' : 'h-8 w-9'} overflow-hidden relative align-middle`}
                                             style={{background:'#fff',
                                                 borderTop:'1px solid '+C_BORDER,
                                                 borderBottom:'1px solid '+C_BORDER,
