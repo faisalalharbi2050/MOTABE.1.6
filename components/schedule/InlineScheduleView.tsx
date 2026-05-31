@@ -149,6 +149,13 @@ interface InlineScheduleViewProps {
     showWaitingManagement?: boolean;
     compactIndividual?: boolean;
     hideIndividualHeader?: boolean;
+    /**
+     * التصميم الموحّد للجدول الفردي (معلم/فصل): بطاقة بيانات بتصميم نافذة
+     * قيود المعلمين (الاسم في الأعلى ثم شرائح التخصص/عدد الحصص والنصاب)،
+     * خلفية رمادية خفيفة خلف بطاقات الحصص بحواف مطابقة، ونص أكبر لرأس
+     * "اليوم" وأسماء الأيام. يُستخدم في التعديل والمعاينة والطباعة والإرسال.
+     */
+    unifiedIndividual?: boolean;
     externalDragSource?: { teacherId: string; day: string; period: number } | null;
     onExternalDragSourceChange?: (src: { teacherId: string; day: string; period: number } | null) => void;
     onDeleteAllWaiting?: () => void;
@@ -180,6 +187,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     showWaitingManagement = true,
     compactIndividual = false,
     hideIndividualHeader = false,
+    unifiedIndividual = false,
     externalDragSource = null,
     onExternalDragSourceChange,
     onDeleteAllWaiting,
@@ -728,7 +736,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         }
         return list;
     };
-    const getSortedClasses = () => [...classes].sort((a,b)=> a.grade!==b.grade?a.grade-b.grade:(a.section||0)-(b.section||0));
+    const getSortedClasses = () => classes
+        .filter(c => !c.type || c.type === 'class') // استبعاد المرافق (مختبر…) من جداول الفصول
+        .sort((a,b)=> a.grade!==b.grade?a.grade-b.grade:(a.section||0)-(b.section||0));
 
     const isGeneral = type.startsWith('general_');
     const isInteractiveGeneralTeachers = type === 'general_teachers' && !!onUpdateSettings && (interactive || isFullScreenEditMode);
@@ -1240,7 +1250,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         cardW: number,
         cardH: number,
         primaryTextSize: string,
-        secondaryTextSize: string
+        secondaryTextSize: string,
+        compactEdit = false
     ) => {
         const slot = timetable[teacherId+'-'+dayKey+'-'+(pi+1)];
         if(type==='general_waiting'){
@@ -1257,9 +1268,29 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                  style={{background: '#ffffff', border: '1px solid #d1d5db', width:`${cardW}px`, height:`${cardH}px`, boxShadow:'0 1px 2px rgba(15,23,42,0.06)'}}>
                 <span className={`font-bold leading-[1.05] text-center w-full px-0.5 ${primaryTextSize}`}
                       style={{...ONE_LINE_CELL_TEXT, color: '#111827'}}>{cls}</span>
-                <span className={`font-semibold leading-[1.15] text-center w-full px-0.5 ${secondaryTextSize}`}
-                      style={{...ONE_LINE_CELL_TEXT, color: '#334155'}}>{subj}</span>
+                {!compactEdit && (
+                    <span className={`font-semibold leading-[1.15] text-center w-full px-0.5 ${secondaryTextSize}`}
+                          style={{...ONE_LINE_CELL_TEXT, color: '#334155'}}>{subj}</span>
+                )}
                 </div>
+                {compactEdit && (
+                    <div
+                        className="pointer-events-none absolute bottom-full left-1/2 z-[120] mb-2 hidden min-w-[132px] -translate-x-1/2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right shadow-xl group-hover/cell:block"
+                        dir="rtl"
+                    >
+                        <div className="text-[10px] font-black text-slate-400 mb-1">بيانات الحصة</div>
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-bold text-slate-400">الفصل</span>
+                                <span className="text-[11px] font-black text-slate-800">{cls || '—'}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-[10px] font-bold text-slate-400">المادة</span>
+                                <span className="text-[11px] font-black text-[#655ac1]">{subj || '—'}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -1331,6 +1362,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const GAP_BG   = '#eef0f6';
         /* المرحلة 2: المقاسات تُقرأ من الـ state الحالي (overview أو expanded) */
         const isTeacherEditPage = isTeachers && isFullScreen && !!onUpdateSettings;
+        const isCompactTeacherEdit = isTeacherEditPage;
         const isEdit = isInteractiveGeneralTeachers || isTeacherEditPage;
         const canEditNow = isTeacherEditPage && isFullScreenEditMode; // السحب يعمل في ملء الشاشة فقط
         // صفحة تعديل المعلمين تستخدم نفس تصميم المعاينة الموسّعة؛ الفرق الوحيد هو إخفاء أعمدة البيانات لتقليل التمرير.
@@ -1338,18 +1370,18 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const D = DENSITY_PRESETS[tableDensity];
         const CELL_PAD = D.cellPad; // td padding → creates the visual gap
         const hideTeacherMetaColumns = isTeacherEditPage;
-        const serialColW = D.serialColW;
-        const nameColW = isClasses ? D.classNameColW : D.teacherNameColW;
+        const serialColW = isCompactTeacherEdit ? 34 : D.serialColW;
+        const nameColW = isClasses ? D.classNameColW : (isCompactTeacherEdit ? 86 : D.teacherNameColW);
         const specColW = (isClasses || hideTeacherMetaColumns) ? 0 : D.specColW;
         const quota1ColW = hideTeacherMetaColumns ? 0 : D.quota1ColW;
         const quota2ColW = (isTeachers && !hideTeacherMetaColumns) ? D.quota2ColW : 0;
-        const dynamicPeriodColW = D.periodBox;
+        const dynamicPeriodColW = isCompactTeacherEdit ? 46 : D.periodBox;
         const dynamicPeriodBox  = dynamicPeriodColW;
         const dynamicPeriodBoxH = dynamicPeriodColW;
-        const dynamicPeriodCard = D.periodCard;
+        const dynamicPeriodCard = isCompactTeacherEdit ? 40 : D.periodCard;
         const dynamicPeriodCardH = dynamicPeriodCard;
-        const ROW_H = D.rowH;
-        const dynamicPrimaryTextSize = D.primaryTextClass;
+        const ROW_H = isCompactTeacherEdit ? 48 : D.rowH;
+        const dynamicPrimaryTextSize = isCompactTeacherEdit ? 'text-[9px]' : D.primaryTextClass;
         const dynamicSecondaryTextSize = D.secondaryTextClass;
         const dynamicWaitingTextSize = D.waitingTextSize;
         const stickyRightOffsets = {
@@ -1438,7 +1470,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     );
                 }
                 // التعديل (ملء الشاشة): نفس بطاقة العرض، مع إمكانية السحب فقط.
-                const content = renderTeacherCell(rowId, dayKey, pi, dynamicPeriodBox, dynamicPeriodBoxH, dynamicPeriodCard, dynamicPeriodCardH, dynamicPrimaryTextSize, dynamicSecondaryTextSize);
+                const content = renderTeacherCell(rowId, dayKey, pi, dynamicPeriodBox, dynamicPeriodBoxH, dynamicPeriodCard, dynamicPeriodCardH, dynamicPrimaryTextSize, dynamicSecondaryTextSize, isCompactTeacherEdit);
                 if (isEdit && slot.type === 'lesson') {
                     return (
                         <div
@@ -1724,7 +1756,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         <div className="group-hover/row:bg-indigo-50 group-hover/row:border-indigo-200 transition-all duration-200"
                                              style={{...infoCardBase, justifyContent:'flex-start', paddingRight:'6px', paddingLeft:'3px', background: row.id === draggingTeacherRowId ? '#f5f3ff' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? '#a78bfa' : '#e8eaf2'}}>
                                              <div className="flex items-center justify-between gap-2 w-full">
-                                                <span style={{color:'#1e293b', fontSize:'13px', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', direction:'rtl', textAlign:'right', flex:1}}>{row.name}</span>
+                                                <span style={{color:'#1e293b', fontSize: isCompactTeacherEdit ? '11px' : '13px', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', direction:'rtl', textAlign:'right', flex:1}}>{row.name}</span>
                                                 {showWaitingManagement && isTeachers && isManualMode && isManualReady && (row.quota2 || 0) > 0 && Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0) > 0 && (
                                                     <div className="group/waiting-trigger relative flex items-center gap-2 shrink-0 rounded-xl px-1.5 py-1 transition-all duration-200">
                                                         <div
@@ -1893,7 +1925,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const individualWaitingQuota = isTeacher && teacher ? tWQ(teacher) : 0;
         const individualPlacedWaiting = isTeacher && teacher ? (placedWaitingPerTeacher.get(teacher.id) || 0) : 0;
         const individualRemainingWaiting = isManualReady ? Math.max(individualWaitingQuota - individualPlacedWaiting, 0) : 0;
-        const GAP_BG = '#eef0f6';
+        const GAP_BG = unifiedIndividual ? '#f4f5f9' : '#eef0f6';
         const INDIVIDUAL_HEADER_BG = C_BG;
         const INDIVIDUAL_HEADER_BORDER = '#ffffff';
         const INDIVIDUAL_HEADER_TEXT = '#ffffff';
@@ -1970,8 +2002,57 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         return (
             <div className="w-full" style={{direction:'rtl'}}>
 
-                {/* ── Info Card Header ── */}
-                {!hideIndividualHeader && (
+                {/* ── Info Card Header (موحّد): بطاقة بيانات بتصميم نافذة قيود المعلمين ── */}
+                {!hideIndividualHeader && unifiedIndividual && (
+                    <div className="pb-3 mb-3 border-b border-slate-200">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div className="min-w-0 flex-1">
+                                <h3 className="text-lg font-black text-slate-800 truncate" dir="ltr" style={{textAlign:'right'}}>
+                                    {isTeacher ? (teacher?.name||'—') : (cls?.name || (cls ? `${cls.grade}/${cls.section}` : '—'))}
+                                </h3>
+                                {isTeacher && (
+                                    <div className="flex gap-2 mt-2 flex-wrap">
+                                        {teacher && (
+                                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">التخصص: {specializationNames[teacher.specializationId] || 'عام'}</span>
+                                        )}
+                                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">نصاب الحصص: {teacher ? tLQ(teacher) : 0}</span>
+                                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">نصاب الانتظار: {individualWaitingQuota}</span>
+                                    </div>
+                                )}
+                            </div>
+                            {/* الفصل: عدد الحصص في أقصى اليسار */}
+                            {!isTeacher && (
+                                <span className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">عدد الحصص: {classLessonCount.get(targetId||'')||0}</span>
+                            )}
+                            {showWaitingManagement && isTeacher && effectiveWaitingOk && individualRemainingWaiting > 0 && (
+                                <div className="flex flex-col items-center gap-1 shrink-0">
+                                    {renderWaitingDeck({
+                                        count: individualRemainingWaiting,
+                                        compact: compactIndividual,
+                                        draggable: true,
+                                        onDragStart: e => {
+                                            setWaitingDragImage(e);
+                                            e.dataTransfer.setData('text/plain', `waiting-${targetId}`);
+                                            e.dataTransfer.setData('dragType', 'waitingCard');
+                                            e.dataTransfer.setData('teacherId', targetId || '');
+                                            e.dataTransfer.effectAllowed = 'move';
+                                            setDraggingWaiting('card');
+                                            setDraggingTeacherRowId(targetId || null);
+                                        },
+                                        onDragEnd: () => {
+                                            setDraggingWaiting(null);
+                                            setDraggingTeacherRowId(null);
+                                        },
+                                    })}
+                                    <span className={`font-bold ${compactIndividual ? 'text-[7px]' : 'text-[8px]'}`} style={{color:'#94a3b8'}}>اسحب للتعيين</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Info Card Header (العرض العادي) ── */}
+                {!hideIndividualHeader && !unifiedIndividual && (
                     <div className={`rounded-xl relative overflow-hidden ${compactIndividual ? 'p-2.5 mb-2.5' : 'p-3 mb-3'}`}
                         style={{
                             background: GAP_BG,
@@ -2043,7 +2124,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 )}
 
                 {/* ── Table ── */}
-                <div className="relative" style={{borderRadius:'16px', overflow:'visible', boxShadow:'0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG}}>
+                <div className="relative" style={{borderRadius: unifiedIndividual ? '8px' : '16px', overflow:'visible', boxShadow: unifiedIndividual ? 'none' : '0 4px 16px rgba(0,0,0,0.06)', background: GAP_BG, padding: unifiedIndividual ? '4px' : undefined}}>
                     <div className={compactIndividual ? 'overflow-x-visible' : 'overflow-x-auto'}>
                     <table className="w-full border-collapse" style={{minWidth: compactIndividual ? '100%' : '600px', background:GAP_BG}}>
                         <colgroup>
@@ -2062,14 +2143,14 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                         color:'#fff',
                                         borderBottom:'0',
                                         borderLeft:'0',
-                                    fontSize: compactIndividual ? '11px' : '13px'
+                                    fontSize: compactIndividual ? '11px' : (unifiedIndividual ? '15px' : '13px')
                                     }}>
                                     <div
                                         style={{
                                             ...headerCardBase,
                                             borderRadius: compactIndividual ? '12px' : '14px',
                                             color:INDIVIDUAL_HEADER_TEXT,
-                                            fontSize: compactIndividual ? '11px' : '13px',
+                                            fontSize: compactIndividual ? '11px' : (unifiedIndividual ? '15px' : '13px'),
                                             fontWeight:900,
                                         }}
                                     >
@@ -2127,7 +2208,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                             }}
                                         >
                                             <span
-                                                className={`px-2 font-black text-center leading-none ${compactIndividual ? 'text-[10px]' : 'text-[12px]'}`}
+                                                className={`px-2 font-black text-center leading-none ${compactIndividual ? 'text-[10px]' : (unifiedIndividual ? 'text-[14px]' : 'text-[12px]')}`}
                                                 style={{color:INDIVIDUAL_HEADER_TEXT}}
                                             >
                                                 {day}

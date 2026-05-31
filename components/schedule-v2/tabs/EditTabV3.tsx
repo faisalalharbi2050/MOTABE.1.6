@@ -428,7 +428,7 @@ const EditTabV3: React.FC<Props> = ({
                 {selectedTeacherIds.map((id, idx) => (
                   <div key={id}>
                     {idx > 0 && <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent mb-5" />}
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-4">
+                    <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden p-4">
                       <InlineScheduleView
                         type="individual_teacher"
                         settings={settingsNoWaiting}
@@ -439,6 +439,7 @@ const EditTabV3: React.FC<Props> = ({
                         specializationNames={specNames}
                         onUpdateSettings={setScheduleSettings}
                         interactive
+                        unifiedIndividual
                       />
                     </div>
                   </div>

@@ -427,16 +427,19 @@ const MultiSelectDropdown: React.FC<{
               />
             </div>
           )}
-          <div className="flex items-center justify-between px-2 py-2 mb-2 border border-slate-100 bg-slate-50 rounded-xl">
-            {onSelectAll ? (
-              <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">
-                اختيار الكل
+          {(() => {
+            const allSelected = options.length > 0 && options.every(o => selectedValues.includes(o.value));
+            const isClearMode = !onSelectAll || allSelected;
+            return (
+              <button
+                type="button"
+                onClick={() => { if (isClearMode) { onClear(); } else { onSelectAll?.(); } }}
+                className="w-full px-4 py-2.5 mb-2 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black transition-all hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white"
+              >
+                {isClearMode ? 'إلغاء الكل' : 'اختيار الكل'}
               </button>
-            ) : <span />}
-            <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">
-              إلغاء الكل
-            </button>
-          </div>
+            );
+          })()}
           <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {filteredOptions.map(option => {
               const isSelected = selectedValues.includes(option.value);
@@ -632,6 +635,7 @@ const PrintWorkspace: React.FC<{
                           targetId={targetId || undefined}
                           compactIndividual={pageIds.length > 1}
                           showWaitingManagement={false}
+                          unifiedIndividual
                         />
                       </div>
                     ) : (
@@ -967,8 +971,8 @@ const ViewTabV3: React.FC<Props> = ({
   const taskMode = task;
 
   const [previewScheduleType, setPreviewScheduleType] = useState<ScheduleType>('general_teachers');
-  const [previewTeacherId, setPreviewTeacherId] = useState<string>('');
-  const [previewClassId, setPreviewClassId] = useState<string>('');
+  const [previewTeacherIds, setPreviewTeacherIds] = useState<string[]>([]);
+  const [previewClassIds, setPreviewClassIds] = useState<string[]>([]);
 
   const [printScheduleType, setPrintScheduleType] = useState<ScheduleType>('general_teachers');
   const [selectedPrintTeacherIds, setSelectedPrintTeacherIds] = useState<string[]>([]);
@@ -1012,7 +1016,9 @@ const ViewTabV3: React.FC<Props> = ({
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const sortedClasses = useMemo(
-    () => [...classes].sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0)),
+    () => classes
+      .filter(c => !c.type || c.type === 'class') // استبعاد المرافق (مختبر/مصلى/مكتبة…) — فصول فعلية فقط
+      .sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0)),
     [classes]
   );
 
@@ -2067,23 +2073,31 @@ const ViewTabV3: React.FC<Props> = ({
               </div>
               {previewScheduleType === 'individual_teacher' && (
                 <div className="min-w-[260px]">
-                  <SingleSelectDropdown
-                    label="المعلم"
-                    value={previewTeacherId}
-                    onChange={value => setPreviewTeacherId(value)}
-                    placeholder="اختر المعلم"
+                  <MultiSelectDropdown
+                    label="المعلمون"
+                    buttonLabel="اختر المعلمين"
+                    selectedSummary={previewTeacherIds.length > 0 ? `${previewTeacherIds.length} معلمين محددين` : undefined}
                     options={teacherOptions}
+                    selectedValues={previewTeacherIds}
+                    onToggle={value => setPreviewTeacherIds(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])}
+                    onClear={() => setPreviewTeacherIds([])}
+                    onSelectAll={() => setPreviewTeacherIds(teachers.map(item => item.id))}
+                    searchable
                   />
                 </div>
               )}
               {previewScheduleType === 'individual_class' && (
                 <div className="min-w-[260px]">
-                  <SingleSelectDropdown
-                    label="الفصل"
-                    value={previewClassId}
-                    onChange={value => setPreviewClassId(value)}
-                    placeholder="اختر الفصل"
+                  <MultiSelectDropdown
+                    label="الفصول"
+                    buttonLabel="اختر الفصول"
+                    selectedSummary={previewClassIds.length > 0 ? `${previewClassIds.length} فصول محددة` : undefined}
                     options={classOptions}
+                    selectedValues={previewClassIds}
+                    onToggle={value => setPreviewClassIds(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value])}
+                    onClear={() => setPreviewClassIds([])}
+                    onSelectAll={() => setPreviewClassIds(sortedClasses.map(item => item.id))}
+                    searchable
                   />
                 </div>
               )}
@@ -2096,16 +2110,60 @@ const ViewTabV3: React.FC<Props> = ({
                 <AlertCircle size={36} className="mb-3 text-slate-300" />
                 <p className="font-bold">لا يوجد جدول لعرضه. يرجى إنشاء الجدول أولاً.</p>
               </div>
-            ) : previewScheduleType === 'individual_teacher' && !previewTeacherId ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-                <User size={36} className="mb-3 text-slate-300" />
-                <p className="font-bold">اختر معلمًا لعرض جدوله.</p>
-              </div>
-            ) : previewScheduleType === 'individual_class' && !previewClassId ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-                <BookOpen size={36} className="mb-3 text-slate-300" />
-                <p className="font-bold">اختر فصلاً لعرض جدوله.</p>
-              </div>
+            ) : previewScheduleType === 'individual_teacher' ? (
+              previewTeacherIds.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                  <User size={36} className="mb-3 text-slate-300" />
+                  <p className="font-bold">اختر معلمًا أو أكثر لعرض جداولهم.</p>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-4 justify-start">
+                  {previewTeacherIds.map(id => (
+                    <div key={id} className="flex-1 min-w-[520px] max-w-[680px] rounded-2xl border border-slate-100 overflow-hidden bg-white p-3">
+                      <InlineScheduleView
+                        type="individual_teacher"
+                        settings={scheduleSettings}
+                        teachers={teachers}
+                        classes={classes}
+                        subjects={subjects}
+                        specializationNames={specializationNames}
+                        targetId={id}
+                        showWaitingManagement={false}
+                        compactIndividual
+                        unifiedIndividual
+                        hideHeaderActionButton
+                      />
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : previewScheduleType === 'individual_class' ? (
+              previewClassIds.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                  <BookOpen size={36} className="mb-3 text-slate-300" />
+                  <p className="font-bold">اختر فصلاً أو أكثر لعرض جداولها.</p>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-4 justify-start">
+                  {previewClassIds.map(id => (
+                    <div key={id} className="flex-1 min-w-[520px] max-w-[680px] rounded-2xl border border-slate-100 overflow-hidden bg-white p-3">
+                      <InlineScheduleView
+                        type="individual_class"
+                        settings={scheduleSettings}
+                        teachers={teachers}
+                        classes={classes}
+                        subjects={subjects}
+                        specializationNames={specializationNames}
+                        targetId={id}
+                        showWaitingManagement={false}
+                        compactIndividual
+                        unifiedIndividual
+                        hideHeaderActionButton
+                      />
+                    </div>
+                  ))}
+                </div>
+              )
             ) : (
               <InlineScheduleView
                 type={previewScheduleType}
@@ -2114,13 +2172,6 @@ const ViewTabV3: React.FC<Props> = ({
                 classes={classes}
                 subjects={subjects}
                 specializationNames={specializationNames}
-                targetId={
-                  previewScheduleType === 'individual_teacher'
-                    ? previewTeacherId
-                    : previewScheduleType === 'individual_class'
-                      ? previewClassId
-                      : undefined
-                }
                 showWaitingManagement={false}
                 hideHeaderActionButton
               />

@@ -105,6 +105,7 @@ const ScheduleSignatureDocument: React.FC<Props> = ({
         specializationNames={specializationNames}
         compactIndividual
         showWaitingManagement={false}
+        unifiedIndividual
       />
     </div>
 

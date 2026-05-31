@@ -112,6 +112,7 @@ const ScheduleSharePage: React.FC<Props> = ({ token }) => {
                     targetId={request.targetId}
                     compactIndividual
                     showWaitingManagement={false}
+                    unifiedIndividual
                   />
                 </div>
               ) : request.type === 'individual_class' ? (
@@ -128,6 +129,7 @@ const ScheduleSharePage: React.FC<Props> = ({ token }) => {
                       targetId={classId}
                       compactIndividual
                       showWaitingManagement={false}
+                      unifiedIndividual
                     />
                   ))}
                 </div>

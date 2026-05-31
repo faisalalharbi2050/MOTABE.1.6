@@ -149,6 +149,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
     let rowsToRender: Array<{ id: string; name: string }> = [];
     if (type === 'general_classes') {
         rowsToRender = [...classes]
+            .filter(c => !c.type || c.type === 'class') // استبعاد المرافق (مختبر…) من جدول الفصول العام
             .sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : (a.section || 0) - (b.section || 0))
             .map(c => ({ id: c.id, name: c.name || `${c.grade}/${c.section}` }));
     } else if (type === 'general_teachers' || type === 'general_waiting') {
