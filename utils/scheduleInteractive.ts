@@ -1,4 +1,6 @@
-import { TimetableData, TimetableSlot, Teacher, ScheduleSettingsData, ClassInfo, Subject } from '../types';
+import { TimetableData, TimetableSlot, Teacher, ScheduleSettingsData, ClassInfo, Subject, SwapStepDetail } from '../types';
+
+export type { SwapStepDetail };
 
 // Helper to generate key
 export const getKey = (teacherId: string, day: string, period: number) => `${teacherId}-${day}-${period}`;
@@ -96,17 +98,6 @@ const findClassAtTime = (
     }
     return null;
 };
-
-/** تفصيل منظَّم لحركة واحدة (نقل حصة معلم من خانة إلى أخرى) — تستهلكه نافذة التأكيد */
-export interface SwapStepDetail {
-    teacher: string;
-    subject: string;
-    className: string;
-    fromDay: string;   // اسم اليوم بالعربية
-    fromPeriod: number;
-    toDay: string;
-    toPeriod: number;
-}
 
 export interface SwapResult {
     success: boolean;

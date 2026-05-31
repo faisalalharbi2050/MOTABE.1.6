@@ -808,6 +808,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             user: 'المستخدم الحالي',
             actionType: result.isChain ? 'chain_swap' : 'swap',
             description: result.chainSteps?.join(' | ') || 'تبديل حصص',
+            swapDetails: result.swapDetails,
             relatedTeacherIds: relatedIds,
             viewType: 'general',
             teacherName: primaryTeacher?.name || '',

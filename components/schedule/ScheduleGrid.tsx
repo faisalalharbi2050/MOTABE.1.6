@@ -212,6 +212,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                 user: "المستخدم الحالي",
                 actionType: pendingSwap.isChain ? 'chain_swap' : 'swap',
                 description: pendingSwap.chainSteps?.join(' | ') || 'تبديل حصص',
+                swapDetails: pendingSwap.swapDetails,
                 relatedTeacherIds: relatedIds,
                 viewType: 'general',
                 teacherName: primaryTeacher?.name || '',

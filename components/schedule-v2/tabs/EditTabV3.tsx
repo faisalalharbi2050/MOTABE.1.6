@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   Grid, User, Users, AlertTriangle, Sparkles, ArrowLeft,
-  History, Search, FileText, Trash2, RotateCcw, ArrowRightLeft, LayoutGrid, X,
+  History, Search, FileText, Trash2, RotateCcw, ArrowRightLeft, X,
   GripVertical, Undo2, Check, ChevronDown
 } from 'lucide-react';
-import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../../types';
+import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization, SwapStepDetail } from '../../../types';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
 import ConfirmDialog from '../../ui/ConfirmDialog';
 import { useToast } from '../../ui/ToastProvider';
@@ -35,6 +35,32 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('ar-SA-u-nu-la
 const fmtDay = (iso: string) => DAY_NAMES_AR[new Date(iso).getDay()] ?? '';
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const fmtStep = (s: string) => s.replace(/↔/g, ' مقابل ').replace(/→/g, ' إلى ');
+
+const PURPLE = '#655ac1';
+
+// خانة وقت "الأحد ح2" مع تمييز رقم الحصة بالبنفسجي
+const AuditSlot: React.FC<{ day: string; period: number }> = ({ day, period }) => (
+  <span className="whitespace-nowrap font-bold text-slate-700">
+    {day} ح<span className="font-black" style={{ color: PURPLE }}>{period}</span>
+  </span>
+);
+
+// خطوة منظَّمة في عمود التفاصيل (نفس لغة نافذة التبديل)
+const AuditStep: React.FC<{ d: SwapStepDetail; num: number; total: number }> = ({ d, num, total }) => (
+  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+    {total > 1 && (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-black" style={{ background: '#f1f5f9', color: PURPLE }}>{num}</span>
+    )}
+    <span className="font-black text-slate-800">{d.teacher}</span>
+    {d.subject && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-bold text-slate-600">{d.subject}</span>}
+    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-bold text-slate-600">فصل {d.className}</span>
+    <span className="inline-flex items-center gap-1">
+      <AuditSlot day={d.fromDay} period={d.fromPeriod} />
+      <ArrowLeft size={12} className="text-slate-400" />
+      <AuditSlot day={d.toDay} period={d.toPeriod} />
+    </span>
+  </div>
+);
 
 // نسخة مطوّرة من تبويب التعديل (schedule_v3): بدون "مقارنة وتعديل" + سجل تعديل مُعاد تصميمه
 const EditTabV3: React.FC<Props> = ({
@@ -452,64 +478,44 @@ const EditTabV3: React.FC<Props> = ({
 
       {subTab === 'audit' && (
         <div className="space-y-4">
-          {/* بطاقات إحصائية — بنفس تصميم بطاقات الجاهزية في "إنشاء الجدول" */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              { label: 'التعديل على الجدول العام للمعلمين', value: generalCount, icon: LayoutGrid },
-              { label: 'التعديل على جدول معلم', value: individualCount, icon: User },
-              { label: 'إجمالي التعديلات', value: logs.length, icon: History },
-            ].map(card => (
-              <div key={card.label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3 text-right">
-                <div className="w-10 h-10 flex items-center justify-center shrink-0 text-[#655ac1]">
-                  <card.icon size={20} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-slate-400 truncate" title={card.label}>{card.label}</p>
-                  <p className="text-2xl font-black text-slate-800 leading-tight">{card.value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-3 flex items-center gap-3 border-b border-slate-100 bg-white flex-wrap">
-            <div className="flex gap-2 flex-wrap">
+          <div className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3 border-b border-slate-50 bg-white">
+            {/* الفلاتر — أزرار مجزّأة بنفس نمط صفحة المعلمين */}
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-xl">
               {([
                 { key: 'all', label: 'الكل', count: logs.length },
                 { key: 'general', label: 'الجدول العام', count: generalCount },
                 { key: 'individual', label: 'جدول معلم', count: individualCount },
               ] as const).map(tab => (
                 <button key={tab.key} onClick={() => setAuditFilter(tab.key)}
-                  className={`rounded-xl border px-3.5 py-2 text-sm font-black transition active:scale-95 flex items-center gap-1.5 ${
-                    auditFilter === tab.key
-                      ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm'
-                      : 'border-slate-300 bg-white text-[#655ac1] hover:bg-slate-50'
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all flex items-center gap-1.5 ${
+                    auditFilter === tab.key ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  {auditFilter === tab.key && <span className="font-black">✓</span>}
                   {tab.label}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-md font-black ${
-                    auditFilter === tab.key ? 'bg-white/20 text-white' : 'bg-slate-100 text-[#655ac1]'
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${
+                    auditFilter === tab.key ? 'bg-primary/10 text-primary' : 'bg-slate-200/70 text-slate-500'
                   }`}>{tab.count}</span>
                 </button>
               ))}
             </div>
-            <div className="flex-1 relative min-w-[180px]">
-              <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* شريط البحث — بنفس نمط صفحة المعلمين */}
+            <div className="relative flex-1 min-w-[180px]">
+              <Search size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={auditSearch}
                 onChange={e => setAuditSearch(e.target.value)}
                 placeholder="بحث باسم المعلم أو التفاصيل..."
-                className="w-full pr-9 pl-4 py-2 text-sm border border-slate-200 rounded-xl outline-none bg-slate-50 text-slate-700 font-semibold placeholder:text-slate-400"
+                className="w-full pr-10 pl-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
                 dir="rtl"
               />
             </div>
+            {/* حذف كل السجلات — بنمط أزرار صفحة المعلمين (إجراء حذف) */}
             <button
               onClick={() => setConfirmDelete({ mode: 'all' })}
               disabled={logs.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl hover:bg-rose-100 transition-all font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 size={15} /> حذف كل السجلات
             </button>
@@ -566,14 +572,22 @@ const EditTabV3: React.FC<Props> = ({
                           </div>
                         </td>
                         <td className="px-6 py-3.5">
-                          <div className="space-y-1">
-                            {steps.map((step, si) => (
-                              <div key={si} className="flex items-start gap-2 text-xs text-slate-600">
-                                {steps.length > 1 && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 mt-0.5" style={{ background: '#f1f5f9', color: '#655ac1' }}>{si + 1}</span>}
-                                <span className="font-semibold leading-relaxed">{fmtStep(step)}</span>
-                              </div>
-                            ))}
-                          </div>
+                          {log.swapDetails && log.swapDetails.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {log.swapDetails.map((d, di) => (
+                                <AuditStep key={di} d={d} num={di + 1} total={log.swapDetails!.length} />
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              {steps.map((step, si) => (
+                                <div key={si} className="flex items-start gap-2 text-xs text-slate-600">
+                                  {steps.length > 1 && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 mt-0.5" style={{ background: '#f1f5f9', color: '#655ac1' }}>{si + 1}</span>}
+                                  <span className="font-semibold leading-relaxed">{fmtStep(step)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-3.5 text-center">
                           <div className="flex items-center justify-center gap-2">

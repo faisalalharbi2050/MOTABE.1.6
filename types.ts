@@ -534,12 +534,24 @@ export interface ScheduleSettingsData {
 
 // ===== Audit Log Types =====
 
+/** تفصيل منظَّم لحركة واحدة (نقل حصة معلم من خانة إلى أخرى) — تستهلكه نافذة التأكيد وعمود سجل التعديل */
+export interface SwapStepDetail {
+  teacher: string;
+  subject: string;
+  className: string;
+  fromDay: string;   // اسم اليوم بالعربية
+  fromPeriod: number;
+  toDay: string;
+  toPeriod: number;
+}
+
 export interface AuditLogEntry {
   id: string;
   timestamp: string;      // ISO string
   user: string;           // "النظام" أو "المستخدم" أو اسم مدير النظام
   actionType: 'swap' | 'move' | 'chain_swap';
   description: string;    // تفاصيل الحركة للقراءة
+  swapDetails?: SwapStepDetail[]; // تفاصيل منظَّمة للعرض (السجلات القديمة قد لا تحملها)
   sourceKey?: string;     // المفتاح الأساسي "معلم-يوم-حصة"
   targetKey?: string;
   relatedTeacherIds: string[]; // المعنيون بالحركة
