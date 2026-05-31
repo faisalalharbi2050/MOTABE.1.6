@@ -965,7 +965,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
             settings,
             teachers,
-            classes
+            classes,
+            subjects
         );
         if (result.success && result.newTimetable) {
             setPendingSwap(result);
@@ -976,7 +977,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
                 teachers,
                 settings,
-                classes
+                classes,
+                subjects
             );
             if (chainResult && chainResult.success && chainResult.newTimetable) {
                 setPendingSwap(chainResult);

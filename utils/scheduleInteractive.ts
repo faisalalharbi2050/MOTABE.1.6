@@ -1,4 +1,4 @@
-import { TimetableData, TimetableSlot, Teacher, ScheduleSettingsData, ClassInfo } from '../types';
+import { TimetableData, TimetableSlot, Teacher, ScheduleSettingsData, ClassInfo, Subject } from '../types';
 
 // Helper to generate key
 export const getKey = (teacherId: string, day: string, period: number) => `${teacherId}-${day}-${period}`;
@@ -57,6 +57,13 @@ const getTeacherName = (teacherId: string, teachers?: Teacher[]): string => {
     return teachers.find(t => t.id === teacherId)?.name || teacherId;
 };
 
+const getSubjectName = (subjectId: string | undefined, subjects?: Subject[]): string => {
+    if (!subjectId || !subjects) return '';
+    return subjects.find(s => s.id === subjectId)?.name || '';
+};
+
+const dayAr = (day: string) => DAY_NAMES_AR[day] || day;
+
 const formatSlotAr = (day: string, period: number) =>
     `${DAY_NAMES_AR[day] || day} - الحصة ${period}`;
 
@@ -90,12 +97,24 @@ const findClassAtTime = (
     return null;
 };
 
+/** تفصيل منظَّم لحركة واحدة (نقل حصة معلم من خانة إلى أخرى) — تستهلكه نافذة التأكيد */
+export interface SwapStepDetail {
+    teacher: string;
+    subject: string;
+    className: string;
+    fromDay: string;   // اسم اليوم بالعربية
+    fromPeriod: number;
+    toDay: string;
+    toPeriod: number;
+}
+
 export interface SwapResult {
     success: boolean;
     reason?: string;
     newTimetable?: TimetableData;
     isChain?: boolean;
     chainSteps?: string[];
+    swapDetails?: SwapStepDetail[];
     relatedTeacherIds?: string[];
 }
 
@@ -112,7 +131,8 @@ export function tryMoveOrSwap(
     target: { teacherId: string; day: string; period: number },
     settings: ScheduleSettingsData,
     allTeachers?: Teacher[],
-    allClasses?: ClassInfo[]
+    allClasses?: ClassInfo[],
+    allSubjects?: Subject[]
 ): SwapResult {
     const sourceKey = getKey(source.teacherId, source.day, source.period);
     const targetKey = getKey(target.teacherId, target.day, target.period);
@@ -152,6 +172,10 @@ export function tryMoveOrSwap(
                 chainSteps: [
                     `تبديل مكاني: [${srcTeacherName}] فصل (${srcClassName}) في ${srcSlotAr} ↔ فصل (${tgtClassName}) في ${tgtSlotAr}`
                 ],
+                swapDetails: [
+                    { teacher: srcTeacherName, subject: getSubjectName(sourceSlot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(target.day), toPeriod: target.period },
+                    { teacher: srcTeacherName, subject: getSubjectName(targetSlot.subjectId, allSubjects), className: tgtClassName, fromDay: dayAr(target.day), fromPeriod: target.period, toDay: dayAr(source.day), toPeriod: source.period },
+                ],
                 relatedTeacherIds: [source.teacherId]
             };
         } else {
@@ -184,6 +208,10 @@ export function tryMoveOrSwap(
                             `تبديل بسيط: [${srcTeacherName}] فصل (${srcClassName}) من ${srcSlotAr} → ${tgtSlotAr}`,
                             `[${getTeacherName(conflictTeacherId, allTeachers)}] فصل (${srcClassName}) من ${tgtSlotAr} → ${srcSlotAr}`
                         ],
+                        swapDetails: [
+                            { teacher: srcTeacherName, subject: getSubjectName(sourceSlot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(target.day), toPeriod: target.period },
+                            { teacher: getTeacherName(conflictTeacherId, allTeachers), subject: getSubjectName(conflict.slot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(target.day), fromPeriod: target.period, toDay: dayAr(source.day), toPeriod: source.period },
+                        ],
                         relatedTeacherIds: [source.teacherId, conflictTeacherId]
                     };
                 }
@@ -196,6 +224,9 @@ export function tryMoveOrSwap(
                 success: true,
                 newTimetable: nt,
                 chainSteps: [`نقل: [${srcTeacherName}] فصل (${srcClassName}) من ${srcSlotAr} إلى ${tgtSlotAr}`],
+                swapDetails: [
+                    { teacher: srcTeacherName, subject: getSubjectName(sourceSlot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(target.day), toPeriod: target.period },
+                ],
                 relatedTeacherIds: [source.teacherId]
             };
         }
@@ -245,6 +276,10 @@ export function tryMoveOrSwap(
                     `تبديل بسيط: [${srcTeacherName}] فصل (${srcClassName}) من ${srcSlotAr} → ${tgtSlotAr}`,
                     `[${getTeacherName(conflictTeacherId, allTeachers)}] فصل (${srcClassName}) من ${tgtSlotAr} → ${srcSlotAr}`
                 ],
+                swapDetails: [
+                    { teacher: srcTeacherName, subject: getSubjectName(sourceSlot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(target.day), toPeriod: target.period },
+                    { teacher: getTeacherName(conflictTeacherId, allTeachers), subject: getSubjectName(conflict.slot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(target.day), fromPeriod: target.period, toDay: dayAr(source.day), toPeriod: source.period },
+                ],
                 relatedTeacherIds: [source.teacherId, conflictTeacherId]
             };
         }
@@ -257,6 +292,9 @@ export function tryMoveOrSwap(
             success: true,
             newTimetable: nt,
             chainSteps: [`نقل: [${srcTeacherName}] فصل (${srcClassName}) من ${srcSlotAr} إلى ${tgtSlotAr}`],
+            swapDetails: [
+                { teacher: srcTeacherName, subject: getSubjectName(sourceSlot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(target.day), toPeriod: target.period },
+            ],
             relatedTeacherIds: [source.teacherId]
         };
     }
@@ -315,6 +353,10 @@ export function tryMoveOrSwap(
         chainSteps: [
             `تبديل بسيط: [${srcTeacherName}] فصل (${srcClassName}) في ${srcSlotAr} ↔ [${tgtTeacherName}] في ${tgtSlotAr}`
         ],
+        swapDetails: [
+            { teacher: srcTeacherName, subject: getSubjectName(sourceSlot.subjectId, allSubjects), className: srcClassName, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(target.day), toPeriod: target.period },
+            { teacher: tgtTeacherName, subject: getSubjectName(targetSlot.subjectId, allSubjects), className: getClassName(targetSlot.classId, allClasses), fromDay: dayAr(target.day), fromPeriod: target.period, toDay: dayAr(source.day), toPeriod: source.period },
+        ],
         relatedTeacherIds: [source.teacherId, target.teacherId]
     };
 }
@@ -335,7 +377,8 @@ export function findChainSwap(
     target: { teacherId: string; day: string; period: number },
     allTeachers: Teacher[],
     settings: ScheduleSettingsData,
-    allClasses?: ClassInfo[]
+    allClasses?: ClassInfo[],
+    allSubjects?: Subject[]
 ): SwapResult | null {
     const sourceKey = getKey(source.teacherId, source.day, source.period);
 
@@ -414,6 +457,11 @@ export function findChainSwap(
                     `[${t1Name}] فصل (${className}) ينتقل من ${formatSlotAr(source.day, source.period)} إلى ${formatSlotAr(effectiveTarget.day, effectiveTarget.period)}`,
                     `[${t2Name}] فصل (${className}) ينتقل من ${formatSlotAr(effectiveTarget.day, effectiveTarget.period)} إلى ${formatSlotAr(dayC, periodC)}`,
                     `[${t3.name}] فصل (${className}) ينتقل من ${formatSlotAr(dayC, periodC)} إلى ${formatSlotAr(source.day, source.period)}`,
+                ],
+                swapDetails: [
+                    { teacher: t1Name, subject: getSubjectName(slotA.subjectId, allSubjects), className, fromDay: dayAr(source.day), fromPeriod: source.period, toDay: dayAr(effectiveTarget.day), toPeriod: effectiveTarget.period },
+                    { teacher: t2Name, subject: getSubjectName(slotB.subjectId, allSubjects), className, fromDay: dayAr(effectiveTarget.day), fromPeriod: effectiveTarget.period, toDay: dayAr(dayC), toPeriod: periodC },
+                    { teacher: t3.name, subject: getSubjectName(slotC.subjectId, allSubjects), className, fromDay: dayAr(dayC), fromPeriod: periodC, toDay: dayAr(source.day), toPeriod: source.period },
                 ],
                 newTimetable: nt,
                 relatedTeacherIds: [source.teacherId, effectiveTarget.teacherId, t3.id]

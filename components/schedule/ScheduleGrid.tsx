@@ -156,7 +156,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
         const result = tryMoveOrSwap(
             timetable, dragSource,
             { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
-            settings, teachers, classes
+            settings, teachers, classes, subjects
         );
         if (result.success) {
             setSwapError(null);
@@ -165,7 +165,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({
             const chainResult = findChainSwap(
                 timetable, dragSource,
                 { teacherId: targetTeacherId, day: targetDay, period: targetPeriod },
-                teachers, settings, classes
+                teachers, settings, classes, subjects
             );
             if (chainResult && chainResult.success) {
                 setSwapError(null);
