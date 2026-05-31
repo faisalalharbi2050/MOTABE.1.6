@@ -19,11 +19,14 @@ const DAY_NAMES_AR: Record<number, string> = {
     6: 'السبت',
 };
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ar-SA-u-nu-latn', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-});
+const datePart = (date: Date, locale: string, options: Intl.DateTimeFormatOptions, type: string) =>
+    new Intl.DateTimeFormat(locale, options).formatToParts(date).find(part => part.type === type)?.value ?? '';
+
+const formatHijriDate = (iso: string) => {
+    const date = new Date(iso);
+    const options = { year: 'numeric', month: 'numeric', day: 'numeric' } as const;
+    return `${datePart(date, 'ar-SA-u-ca-islamic-umalqura-nu-latn', options, 'day')} / ${datePart(date, 'ar-SA-u-ca-islamic-umalqura-nu-latn', options, 'month')} / ${datePart(date, 'ar-SA-u-ca-islamic-umalqura-nu-latn', options, 'year')}هـ`;
+};
 
 const formatDay = (iso: string) => DAY_NAMES_AR[new Date(iso).getDay()] ?? '';
 
@@ -183,12 +186,12 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                             </p>
                         </div>
                     ) : (
-                        <table className="w-full text-right text-sm min-w-[980px]" dir="rtl">
+                        <table className="w-full text-right text-sm min-w-[1120px]" dir="rtl">
                             <thead className="sticky top-0 z-10">
                                 <tr className="bg-slate-50/50 border-b border-slate-100">
                                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-14">م</th>
                                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-24">اليوم</th>
-                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-28">التاريخ</th>
+                                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-40">التاريخ</th>
                                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-28">الوقت</th>
                                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right w-40">المعلم</th>
                                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-36">نوع التعديل</th>
@@ -213,7 +216,11 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3.5"><span className="text-[12px] font-bold text-slate-700">{formatDay(log.timestamp)}</span></td>
-                                            <td className="px-6 py-3.5"><span className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700">{formatDate(log.timestamp)}</span></td>
+                                            <td className="px-6 py-3.5">
+                                                <span className="text-[12px] font-bold leading-tight text-slate-700 whitespace-nowrap">
+                                                    {formatHijriDate(log.timestamp)}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-3.5 whitespace-nowrap"><span className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700 whitespace-nowrap">{formatTime(log.timestamp)}</span></td>
                                             <td className="px-6 py-3.5 whitespace-nowrap">
                                                 {log.teacherName ? (
@@ -230,7 +237,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                                     >
                                                         {isChain ? <><RotateCcw size={11} /> متعدد</> : <><ArrowRightLeft size={11} /> بسيط</>}
                                                     </span>
-                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#f1f0fb', color: '#7c6dd6' }}>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border" style={{ background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }}>
                                                         {isGeneral ? 'جدول عام' : 'جدول معلم'}
                                                     </span>
                                                 </div>
@@ -238,13 +245,13 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                             <td className="px-6 py-3.5">
                                                 <div className="space-y-1">
                                                     {steps.map((step, si) => (
-                                                        <div key={si} className="flex items-start gap-2 text-xs text-slate-600">
+                                                        <div key={si} className="flex items-start gap-2 text-xs text-slate-600 whitespace-nowrap">
                                                             {steps.length > 1 && (
                                                                 <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 mt-0.5" style={{ background: '#f1f5f9', color: '#655ac1' }}>
                                                                     {si + 1}
                                                                 </span>
                                                             )}
-                                                            <span className="font-semibold leading-relaxed">{formatDetailStep(step)}</span>
+                                                            <span className="font-semibold leading-relaxed whitespace-nowrap">{formatDetailStep(step)}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -252,8 +259,7 @@ const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ logs, isOpen, onClose, on
                                             <td className="px-6 py-3.5 text-center">
                                                 <button
                                                     onClick={() => setConfirmDelete({ mode: 'one', id: log.id })}
-                                                    className="inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-colors hover:bg-rose-50"
-                                                    style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
+                                                    className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-300 bg-transparent text-rose-600 transition-colors hover:border-slate-400"
                                                     title="حذف هذا السجل"
                                                 >
                                                     <Trash2 size={15} />

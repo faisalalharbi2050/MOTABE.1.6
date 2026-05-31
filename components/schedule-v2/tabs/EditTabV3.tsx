@@ -52,8 +52,19 @@ const timestampDateKey = (iso: string) => {
   return isNaN(parsed.getTime()) ? '' : formatIsoDate(parsed);
 };
 
-const fmtHijriDate = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(iso));
-const fmtGregorianDate = (iso: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+const datePart = (date: Date, locale: string, options: Intl.DateTimeFormatOptions, type: string) =>
+  new Intl.DateTimeFormat(locale, options).formatToParts(date).find(part => part.type === type)?.value ?? '';
+const fmtHijriDate = (iso: string) => {
+  const date = new Date(iso);
+  const options = { year: 'numeric', month: 'numeric', day: 'numeric' } as const;
+  return `${datePart(date, 'ar-SA-u-ca-islamic-umalqura-nu-latn', options, 'day')} / ${datePart(date, 'ar-SA-u-ca-islamic-umalqura-nu-latn', options, 'month')} / ${datePart(date, 'ar-SA-u-ca-islamic-umalqura-nu-latn', options, 'year')}هـ`;
+};
+const fmtGregorianDate = (iso: string) => {
+  const date = new Date(iso);
+  return `${date.getDate()} / ${date.getMonth() + 1} / ${date.getFullYear()} م`;
+};
+const fmtAuditDate = (iso: string, calendarType: CalendarType) =>
+  calendarType === 'hijri' ? fmtHijriDate(iso) : fmtGregorianDate(iso);
 const fmtDay = (iso: string) => new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date(iso));
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('ar-SA-u-nu-latn', { hour: '2-digit', minute: '2-digit', hour12: true });
 const fmtStep = (s: string) => s.replace(/↔/g, ' مقابل ').replace(/→/g, ' إلى ');
@@ -111,7 +122,7 @@ const AuditSlot: React.FC<{ day: string; period: number }> = ({ day, period }) =
 
 // خطوة منظَّمة في عمود التفاصيل (نفس لغة نافذة التبديل)
 const AuditStep: React.FC<{ d: SwapStepDetail; num: number; total: number }> = ({ d, num, total }) => (
-  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+  <div className="flex flex-nowrap items-center gap-x-2 gap-y-1 text-xs whitespace-nowrap">
     {total > 1 && (
       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-black" style={{ background: '#f1f5f9', color: PURPLE }}>{num}</span>
     )}
@@ -639,12 +650,12 @@ const EditTabV3: React.FC<Props> = ({
                 <p className="font-bold">{logs.length === 0 ? 'لا توجد تعديلات يدوية مسجلة' : 'لا توجد نتائج تطابق بحثك'}</p>
               </div>
             ) : (
-              <table className="w-full text-right text-sm min-w-[900px]" dir="rtl">
+              <table className="w-full text-right text-sm min-w-[1120px]" dir="rtl">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50/50 border-b border-slate-100">
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-14">م</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-24">اليوم</th>
-                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-28">التاريخ</th>
+                    <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-40">التاريخ</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] w-28">الوقت</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-36">نوع التعديل</th>
                     <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">تفاصيل التعديل</th>
@@ -665,10 +676,9 @@ const EditTabV3: React.FC<Props> = ({
                         </td>
                         <td className="px-6 py-3.5"><span className="text-[12px] font-bold text-slate-700">{fmtDay(log.timestamp)}</span></td>
                         <td className="px-6 py-3.5">
-                          <div className="flex flex-col gap-0.5 text-[12px] font-bold leading-tight">
-                            <span className="text-slate-800">{fmtHijriDate(log.timestamp)}</span>
-                            <span className="text-[11px] text-slate-400">{fmtGregorianDate(log.timestamp)}</span>
-                          </div>
+                          <span className="text-[12px] font-bold leading-tight text-slate-700 whitespace-nowrap">
+                            {fmtAuditDate(log.timestamp, auditCalendarType)}
+                          </span>
                         </td>
                         <td className="px-6 py-3.5 whitespace-nowrap">
                           <span className="text-[12px] font-bold text-slate-700 whitespace-nowrap">{fmtTime(log.timestamp)}</span>
@@ -678,7 +688,7 @@ const EditTabV3: React.FC<Props> = ({
                             <span className="text-xs font-black px-2.5 py-1 rounded-lg flex items-center gap-1 w-max" style={{ background: '#ffffff', color: '#655ac1', border: '1px solid #cbd5e1' }}>
                               {isChain ? <><RotateCcw size={11} /> متعدد</> : <><ArrowRightLeft size={11} /> بسيط</>}
                             </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: '#f1f0fb', color: '#7c6dd6' }}>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border" style={{ background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }}>
                               {isGeneral ? 'جدول عام' : 'جدول معلم'}
                             </span>
                           </div>
@@ -693,9 +703,9 @@ const EditTabV3: React.FC<Props> = ({
                           ) : (
                             <div className="space-y-1">
                               {steps.map((step, si) => (
-                                <div key={si} className="flex items-start gap-2 text-xs text-slate-600">
+                                <div key={si} className="flex items-start gap-2 text-xs text-slate-600 whitespace-nowrap">
                                   {steps.length > 1 && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md shrink-0 mt-0.5" style={{ background: '#f1f5f9', color: '#655ac1' }}>{si + 1}</span>}
-                                  <span className="font-semibold leading-relaxed">{fmtStep(step)}</span>
+                                  <span className="font-semibold leading-relaxed whitespace-nowrap">{fmtStep(step)}</span>
                                 </div>
                               ))}
                             </div>
@@ -705,8 +715,7 @@ const EditTabV3: React.FC<Props> = ({
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => setConfirmDelete({ mode: 'one', id: log.id })}
-                              className="inline-flex items-center justify-center w-9 h-9 rounded-xl border transition-colors hover:bg-rose-50"
-                              style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
+                              className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-300 bg-transparent text-rose-600 transition-colors hover:border-slate-400"
                             >
                               <Trash2 size={15} />
                             </button>
