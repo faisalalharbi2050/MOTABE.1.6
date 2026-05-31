@@ -55,14 +55,6 @@ export default function SubstitutionTabV3({ teachers, config, weekDays, periodsP
 
   return (
     <div className="space-y-5">
-      {/* تنبيه إرشادي — صفّ مسطّح بلا إطار داخلي (الإطار الرئيسي يحيط القسم بالكامل) */}
-      <div className="flex items-start gap-3">
-        <Info size={20} className="mt-0.5 shrink-0" style={{ color: ACCENT }} />
-        <p className="text-sm font-bold text-[#655ac1] leading-relaxed">
-          اضبط حد اليوم ثم اختر طريقة توزيع الانتظار المناسبة وفق أنصبة المعلمين والفراغات المتاحة.
-        </p>
-      </div>
-
       {/* الإعدادات العامة — قسم مسطّح مفصول بخط رفيع */}
       <div className="border-t border-slate-100 pt-5">
         <div className="flex items-center gap-3 mb-5">
@@ -70,20 +62,29 @@ export default function SubstitutionTabV3({ teachers, config, weekDays, periodsP
           <h3 className="font-black text-slate-800">إعداد وتوزيع الانتظار</h3>
         </div>
 
-        <div className="max-w-xs space-y-2">
-          <label className="text-xs font-black text-slate-500">الحد الأقصى اليومي (مواد + انتظار)</label>
-          <div className="relative">
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={config.maxDailyTotal}
-              onChange={e => onChange({ ...config, maxDailyTotal: Number(e.target.value) })}
-              className="w-full bg-white border-2 border-slate-200 rounded-xl pr-4 pl-20 py-3 text-sm font-bold outline-none transition-all focus:border-[#655ac1] focus:ring-2 focus:ring-[#655ac1]/20"
-            />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400 pointer-events-none border-r border-slate-200 pl-2">
-              حصة/يوم
-            </span>
+        <div className="space-y-5">
+          <div className="flex items-start gap-3">
+            <Info size={20} className="mt-0.5 shrink-0" style={{ color: ACCENT }} />
+            <p className="text-sm font-bold text-[#655ac1] leading-relaxed">
+              اضبط حد اليوم ثم اختر طريقة توزيع الانتظار المناسبة وفق أنصبة المعلمين والفراغات المتاحة.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pr-8">
+            <label className="text-xs font-black text-slate-500">الحد الأقصى اليومي (مواد + انتظار)</label>
+            <div className="relative w-36">
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={config.maxDailyTotal}
+                onChange={e => onChange({ ...config, maxDailyTotal: Number(e.target.value) })}
+                className="w-full bg-white border-2 border-slate-200 rounded-xl pr-3 pl-16 py-2 text-sm font-bold outline-none transition-all focus:border-[#655ac1] focus:ring-2 focus:ring-[#655ac1]/20"
+              />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none border-r border-slate-200 pl-2">
+                حصة/يوم
+              </span>
+            </div>
           </div>
         </div>
 
@@ -106,103 +107,121 @@ export default function SubstitutionTabV3({ teachers, config, weekDays, periodsP
         )}
       </div>
 
-      {/* اختيار الطريقة */}
-      <div className="space-y-3 border-t border-slate-100 pt-5">
+      {/* اختيار الطريقة وتفاصيلها */}
+      <div className="border-t border-slate-100 pt-5 space-y-3">
         <h3 className="font-black text-slate-800 px-1">طريقة التوزيع</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {methods.map(method => {
-          const active = config.method === method.id;
-          return (
-            <button
-              key={method.id}
-              onClick={() => onChange({ ...config, method: method.id })}
-              className={`relative text-right px-5 py-4 rounded-2xl border-2 bg-white transition-all flex items-start gap-3 ${
-                active
-                  ? 'border-slate-300 shadow-lg shadow-slate-200/70'
-                  : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
-              }`}
-            >
-              <span className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center">
-                <method.icon size={20} className={active ? 'text-[#655ac1]' : 'text-slate-400'} />
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className={`block font-black text-sm mb-0.5 ${active ? 'text-[#655ac1]' : 'text-slate-800'}`}>{method.label}</span>
-                <span className="block text-[11px] font-medium text-slate-500 leading-5">{method.desc}</span>
-              </span>
-              <span className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${active ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
-                <Check size={12} strokeWidth={3} />
-              </span>
-            </button>
-          );
-        })}
-        </div>
-      </div>
-
-      {/* تفاصيل الطريقة المختارة — قسم مسطّح مفصول بخط رفيع */}
-      <div className="border-t border-slate-100 pt-5 space-y-4">
-        {config.method === 'auto' && (
-          <div className="space-y-2.5">
-            <Bullet>يملأ فراغات كل معلم حتى يبلغ <span style={{ color: ACCENT }} className="font-black">نصاب انتظاره</span> المحدّد في صفحة المعلمين.</Bullet>
-            <Bullet>لا يتجاوز <span className="font-black">{config.maxDailyTotal}</span> حصص في اليوم الواحد (مواد + انتظار).</Bullet>
-            <Bullet>يوزّع الانتظار على أيام الأسبوع وفي حصص مختلفة قدر الإمكان.</Bullet>
-          </div>
-        )}
-
-        {config.method === 'fixed' && (
-          <div className="space-y-4">
-            <div className="space-y-2.5">
-              <Bullet>تغطية كل حصة بعدد ثابت من المنتظرين تحدّده بالأسفل.</Bullet>
-              <Bullet>يوزّع مع احترام نصاب انتظار كل معلم والحد اليومي.</Bullet>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-black text-slate-700">عدد المنتظرين لكل حصة</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={config.fixedPerPeriod || ''}
-                onChange={e => onChange({ ...config, fixedPerPeriod: Number(e.target.value) })}
-                placeholder="مثال: 3"
-                className="w-64 bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all focus:border-[#655ac1] focus:ring-2 focus:ring-[#655ac1]/20"
-              />
-            </div>
-
-            {!!config.fixedPerPeriod && config.fixedPerPeriod > 0 && (
-              balance.enough ? (
-                <div className="rounded-2xl p-5 border-2 border-emerald-300 bg-white flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shrink-0">
-                    <Check size={14} strokeWidth={3.5} />
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
+          <div className="rounded-2xl border border-slate-200 bg-white p-2 space-y-1">
+            {methods.map(method => {
+              const active = config.method === method.id;
+              return (
+                <button
+                  key={method.id}
+                  onClick={() => onChange({ ...config, method: method.id })}
+                  className={`w-full text-right px-3.5 py-3 rounded-xl border transition-all flex items-center gap-3 ${
+                    active
+                      ? 'bg-white border-slate-300 text-[#655ac1] shadow-sm'
+                      : 'bg-white border-transparent text-slate-700 hover:bg-slate-50 hover:border-slate-200'
+                  }`}
+                >
+                  <span className="w-9 h-9 shrink-0 flex items-center justify-center">
+                    <method.icon size={18} className={active ? 'text-[#655ac1]' : 'text-slate-400'} />
                   </span>
-                  <div className="space-y-1">
-                    <p className="text-sm font-black text-emerald-700">العدد مناسب لكل حصة</p>
-                    <p className="text-sm font-medium text-emerald-700/90">
-                      يمكن تغطية كل حصة بـ <span className="font-black">{config.fixedPerPeriod}</span> منتظرين دون مشكلة.
-                    </p>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-black text-sm truncate">{method.label}</span>
+                  </span>
+                  <span className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${active ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 min-h-[210px]">
+            {config.method === 'auto' && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-base font-black text-slate-800">التوزيع الآلي</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1">يناسب توزيع الانتظار بسرعة وفق الأنصبة والفراغات.</p>
+                </div>
+                <div className="space-y-2.5">
+                  <Bullet>يملأ فراغات كل معلم حتى يبلغ <span style={{ color: ACCENT }} className="font-black">نصاب انتظاره</span> المحدّد في صفحة المعلمين.</Bullet>
+                  <Bullet>لا يتجاوز <span className="font-black">{config.maxDailyTotal}</span> حصص في اليوم الواحد (مواد + انتظار).</Bullet>
+                  <Bullet>يوزّع الانتظار على أيام الأسبوع وفي حصص مختلفة قدر الإمكان.</Bullet>
+                </div>
+              </div>
+            )}
+
+            {config.method === 'fixed' && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-base font-black text-slate-800">التوزيع المحدد</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1">يناسب عندما تريد عددًا ثابتًا من المنتظرين لكل حصة.</p>
+                </div>
+                <div className="space-y-2.5">
+                  <Bullet>تغطية كل حصة بعدد ثابت من المنتظرين تحدّده بالأسفل.</Bullet>
+                  <Bullet>يوزّع مع احترام نصاب انتظار كل معلم والحد اليومي.</Bullet>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-black text-slate-700">عدد المنتظرين لكل حصة</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={config.fixedPerPeriod || ''}
+                      onChange={e => onChange({ ...config, fixedPerPeriod: Number(e.target.value) })}
+                      placeholder="مثال: 3"
+                      className="w-48 bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none transition-all focus:border-[#655ac1] focus:ring-2 focus:ring-[#655ac1]/20"
+                    />
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-2xl p-5 border-2 border-rose-300 bg-white flex items-start gap-3">
-                  <AlertTriangle size={24} className="mt-0.5 shrink-0 text-rose-500" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-black text-rose-700">عدد المنتظرين لكل حصة أكبر من المتاح</p>
-                    <p className="text-sm font-medium text-rose-600">
-                      أقصى عدد مناسب حاليًا: <span className="font-black text-base">{balance.suggestedMax}</span> منتظرين لكل حصة. قلّل الرقم، أو ارفع نصاب الانتظار للمعلمين.
-                    </p>
-                  </div>
+
+                {!!config.fixedPerPeriod && config.fixedPerPeriod > 0 && (
+                  balance.enough ? (
+                    <div className="rounded-2xl p-4 border border-slate-300 bg-white flex items-start gap-3">
+                      <span className="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shrink-0">
+                        <Check size={14} strokeWidth={3.5} />
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-sm font-black text-emerald-700">العدد مناسب لكل حصة</p>
+                        <p className="text-sm font-medium text-emerald-700/90">
+                          يمكن تغطية كل حصة بـ <span className="font-black">{config.fixedPerPeriod}</span> منتظرين دون مشكلة.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl p-4 border border-slate-300 bg-white flex items-start gap-3">
+                      <AlertTriangle size={22} className="mt-0.5 shrink-0 text-rose-500" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-black text-rose-700">عدد المنتظرين لكل حصة أكبر من المتاح</p>
+                        <p className="text-sm font-medium text-rose-600">
+                          أقصى عدد مناسب حاليًا: <span className="font-black text-base">{balance.suggestedMax}</span> منتظرين لكل حصة. قلّل الرقم، أو ارفع نصاب الانتظار للمعلمين.
+                        </p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+            {config.method === 'manual' && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-base font-black text-slate-800">التوزيع اليدوي</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1">يناسب التحكم الكامل بالسحب والإفلات بعد إنشاء البطاقات.</p>
                 </div>
-              )
+                <div className="space-y-2.5">
+                  <Bullet>تحكّم كامل في عدد ومواقع حصص الانتظار لكل معلم.</Bullet>
+                  <Bullet>اضغط «إنشاء بطاقات الانتظار» ثم يمكنك توزيع البطاقات بالسحب والإفلات.</Bullet>
+                  <Bullet>عدد البطاقات لكل معلم = نصاب انتظاره المحدّد له.</Bullet>
+                </div>
+              </div>
             )}
           </div>
-        )}
-
-        {config.method === 'manual' && (
-          <div className="space-y-2.5">
-            <Bullet>تحكّم كامل في عدد ومواقع حصص الانتظار لكل معلم.</Bullet>
-            <Bullet>اضغط «إنشاء بطاقات الانتظار» ثم يمكنك توزيع البطاقات بالسحب والإفلات.</Bullet>
-            <Bullet>عدد البطاقات لكل معلم = نصاب انتظاره المحدّد له.</Bullet>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* نافذة أسماء المعلمين بدون نصاب انتظار */}
