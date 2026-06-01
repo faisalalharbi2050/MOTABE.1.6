@@ -25,7 +25,7 @@ export const PACKAGE_FEATURES: PackageFeature[] = [
   { name: 'إرسال التكليف بالمناوبة اليومية', includedIn: ['basic', 'advanced', 'premium'] },
   { name: 'إرسال تذكير يومي بالمناوبة اليومية', includedIn: ['basic', 'advanced', 'premium'] },
   { name: 'إرسال الانتظار للمنتظرين الكترونيًا', includedIn: ['basic', 'advanced', 'premium'] },
-  { name: 'التوقيع الالكتروني للجداول والانتظار', includedIn: ['basic', 'advanced', 'premium'] },
+  { name: 'التوقيع الإلكتروني للجداول والانتظار', includedIn: ['basic', 'advanced', 'premium'] },
   { name: 'رصيد مجاني للرسائل النصية 10 رسائل', includedIn: ['basic', 'advanced', 'premium'] },
   { name: 'رصيد مجاني لرسائل الواتساب 50 رسالة', includedIn: ['basic', 'advanced', 'premium'] },
   { name: 'باقات الرسائل حسب احتياجك', includedIn: ['basic', 'advanced', 'premium'] },

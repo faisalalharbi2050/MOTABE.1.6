@@ -2030,7 +2030,7 @@ const ViewTabV3: React.FC<Props> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
             >
               <Printer size={15} />
-              طباعة سجل الاستلام الالكتروني
+              طباعة سجل الاستلام الإلكتروني
             </button>
             <button
               type="button"

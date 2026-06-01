@@ -98,7 +98,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
   }> = [
     { id: 'create', n: 1, label: 'إنشاء الجدول', hint: 'ابنِ جدول الحصص', icon: Sparkles, complete: hasSchedule },
     { id: 'review', n: 2, label: 'المراجعة والتعديل', hint: 'راجع وعدّل الجدول', icon: PenLine, complete: false },
-    { id: 'waiting', n: 3, label: 'توزيع الانتظار', hint: 'ابنِ جدول الانتظار', icon: Shuffle, complete: distributionPrepared },
+    { id: 'waiting', n: 3, label: 'توزيع الانتظار', hint: 'وزّع حصص الانتظار', icon: Shuffle, complete: distributionPrepared },
     { id: 'output', n: 4, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - صدّر - أرسل', icon: FileOutput, complete: false },
   ];
 

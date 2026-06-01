@@ -2603,7 +2603,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <button type="button" onClick={() => printWaitingReceiptGroups()} disabled={receiptGroups.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة سجل الاستلام الالكتروني
+              طباعة سجل الاستلام الإلكتروني
             </button>
             <button type="button" onClick={printWaitingScheduleForReceiptDates} disabled={receiptGroups.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
@@ -2747,7 +2747,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <Eye size={22} className="text-[#655ac1] shrink-0" />
-                  <h3 className="font-black text-slate-800">معاينة التكليف الالكتروني</h3>
+                  <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
                 </div>
                 <button type="button" onClick={() => setShowElectronicPreview(false)}
                   className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
@@ -7407,7 +7407,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <Eye size={22} className="text-[#655ac1] shrink-0" />
-                <h3 className="font-black text-slate-800">معاينة التكليف الالكتروني</h3>
+                <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
               </div>
               <button
                 type="button"
