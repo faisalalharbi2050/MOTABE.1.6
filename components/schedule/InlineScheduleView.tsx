@@ -1770,7 +1770,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 Array.from({length:MAX_PERIODS}).map((_,pi)=>(
                                     <th key={`h-${di}-${pi}`} style={{
                                         ...thPeriod,
-                                        borderLeft: (pi===MAX_PERIODS-1 && di<displayedDays.length-1) ? `3px solid #ffffff` : `1px solid ${PERIOD_DIVIDER}`,
+                                        borderLeft: (pi===MAX_PERIODS-1 && di<displayedDays.length-1) ? `3px solid ${DAY_DIVIDER}` : `1px solid ${PERIOD_DIVIDER}`,
                                         borderRight: pi === 0 ? `2px solid #ffffff` : `1px solid ${PERIOD_DIVIDER}`,
                                     }}>
                                         <span className="relative inline-flex items-center justify-center font-black text-xs"
