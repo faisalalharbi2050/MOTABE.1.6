@@ -142,10 +142,10 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
         : confirmAction?.mode === 'unadopt'
             ? {
                 title: 'إلغاء الاعتماد',
-                button: 'bg-amber-500 hover:bg-amber-600',
+                button: 'bg-[#655ac1] hover:bg-[#5448b5]',
                 body: 'سيبقى الجدول محفوظاً، لكن لن يكون هو الجدول المعتمد حالياً.',
                 icon: AlertTriangle,
-                iconClass: 'text-amber-500',
+                iconClass: 'text-[#655ac1]',
             }
             : {
                 title: 'اعتماد الجدول',
@@ -259,8 +259,10 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                             className="hover:bg-accent/5 transition-all group"
                                             style={isActive ? { borderRight: '3px solid #655ac1' } : {}}
                                         >
-                                            <td className="px-6 py-3.5 text-center text-slate-400 text-sm">
-                                                {savedSchedules.length - index}
+                                            <td className="px-6 py-3.5 text-center">
+                                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold">
+                                                    {savedSchedules.length - index}
+                                                </span>
                                             </td>
 
                                             <td className="px-6 py-3.5">

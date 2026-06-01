@@ -1903,9 +1903,10 @@ const ViewTabV3: React.FC<Props> = ({
     const formatBatchSent = (iso: string) => {
       const d = new Date(iso);
       const locale = sigCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
-      const datePart = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
-        .format(d)
-        .replace(/\//g, ' / ');
+      // نستخرج المقاطع لاستبعاد لاحقة الحقبة التي يضيفها Intl تلقائيًّا (تفاديًا لتكرار «هـ»).
+      const parts = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(d);
+      const pick = (type: string) => parts.find(p => p.type === type)?.value || '';
+      const datePart = `${pick('day')} / ${pick('month')} / ${pick('year')}`;
       const timePart = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: true }).format(d);
       const era = sigCalendarType === 'hijri' ? 'هـ' : 'م';
       return `${datePart}${era} - ${timePart}`;
