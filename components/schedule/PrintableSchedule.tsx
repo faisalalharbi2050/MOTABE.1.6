@@ -46,7 +46,7 @@ const PrintableSchedule: React.FC<PrintableScheduleProps> = ({
     const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId) || schoolInfo.semesters?.[0];
     const academicYear    = schoolInfo.academicYear || '';
     const semesterName    = currentSemester?.name || '';
-    const calendarType    = currentSemester?.calendarType || 'hijri';
+    const calendarType    = schoolInfo.calendarType || 'hijri';
 
     const effectiveDate = sentAt ? new Date(sentAt) : new Date();
     const printDate = calendarType === 'hijri'

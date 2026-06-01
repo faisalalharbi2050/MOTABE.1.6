@@ -174,7 +174,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<DateObject | null>(null);
   const [scheduleTime, setScheduleTime] = useState('08:00');
-  const [scheduleCalendarType, setScheduleCalendarType] = useState<CalendarType>('hijri');
+  const scheduleCalendarType = ((schoolInfo?.calendarType || 'hijri') as CalendarType);
   const [isSending, setIsSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [draftMeta, setDraftMeta] = useState<{ source?: MessageSource; senderRole?: string; title?: string; linksByRecipientId?: Record<string, string>; previewUrlByRecipientId?: Record<string, string> } | null>(null);
@@ -957,23 +957,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
                     <label className="text-xs font-black text-slate-500">التاريخ</label>
-                    <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                      {[
-                        { value: 'hijri', label: 'هجري' },
-                        { value: 'gregorian', label: 'ميلادي' },
-                      ].map(option => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setScheduleCalendarType(option.value as CalendarType)}
-                          className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                            scheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                   <DatePicker
                     value={scheduleDate ? new DateObject(scheduleDate).convert(scheduleCalendarType === 'hijri' ? arabic : gregorian) : null}

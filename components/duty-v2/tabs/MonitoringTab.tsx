@@ -99,40 +99,19 @@ const CircleCheck: React.FC<{ checked: boolean }> = ({ checked }) => (
   </span>
 );
 
-const CalendarSwitch: React.FC<{ value: CalendarType; onChange: (value: CalendarType) => void }> = ({ value, onChange }) => (
-  <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-    {[
-      { value: 'hijri' as CalendarType, label: 'هجري' },
-      { value: 'gregorian' as CalendarType, label: 'ميلادي' },
-    ].map(option => (
-      <button
-        key={option.value}
-        type="button"
-        onClick={() => onChange(option.value)}
-        className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-          value === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-        }`}
-      >
-        {option.label}
-      </button>
-    ))}
-  </div>
-);
-
 const DateField: React.FC<{
   title?: string;
   label: string;
   value: string;
   calendarType: CalendarType;
-  onCalendarTypeChange: (value: CalendarType) => void;
+  onCalendarTypeChange?: (value: CalendarType) => void;
   onChange: (value: string) => void;
   showCalendarSwitch?: boolean;
-}> = ({ title, label, value, calendarType, onCalendarTypeChange, onChange, showCalendarSwitch = true }) => (
+}> = ({ title, label, value, calendarType, onChange }) => (
   <div className="flex-1 min-w-[190px]">
     {title ? <p className="text-xs font-black text-[#655ac1] mb-1.5">{title}</p> : null}
     <label className="block text-xs font-black text-slate-500 mb-1.5">{label}</label>
     <div className="flex items-center gap-2">
-      {showCalendarSwitch && <CalendarSwitch value={calendarType} onChange={onCalendarTypeChange} />}
       <DatePicker
         value={parseIsoDate(value)}
         onChange={date => onChange(formatPickerDate(date))}
@@ -235,8 +214,8 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
   const today = useMemo(() => formatIsoDate(new Date()), []);
   const [activeView, setActiveView] = useState<InnerTab>('daily');
   const [selectedDate, setSelectedDate] = useState(today);
-  const [dailyCalendarType, setDailyCalendarType] = useState<CalendarType>((schoolInfo.calendarType || 'hijri') as CalendarType);
-  const [reportCalendarType, setReportCalendarType] = useState<CalendarType>((schoolInfo.calendarType || 'hijri') as CalendarType);
+  const dailyCalendarType = ((schoolInfo.calendarType || 'hijri') as CalendarType);
+  const reportCalendarType = ((schoolInfo.calendarType || 'hijri') as CalendarType);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [reportFrom, setReportFrom] = useState(today);
   const [reportTo, setReportTo] = useState(today);
@@ -423,10 +402,6 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
       {activeView === 'daily' && (
         <div className="space-y-5">
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-xs font-black text-slate-500">نوع التقويم</span>
-              <CalendarSwitch value={dailyCalendarType} onChange={setDailyCalendarType} />
-            </div>
             <div className="w-80">
               <label className="block text-xs font-black text-slate-500 mb-1.5">
                 {`اليوم والتاريخ: ${formatDateLabel(selectedDate, dailyCalendarType)}`}
@@ -521,26 +496,18 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
       {activeView === 'reports' && (
         <div className="space-y-5">
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-xs font-black text-slate-500">نوع التقويم</span>
-              <CalendarSwitch value={reportCalendarType} onChange={setReportCalendarType} />
-            </div>
             <div className="flex flex-wrap gap-4 items-end">
               <DateField
                 label={`من يوم وتاريخ: ${formatDateLabel(reportFrom, reportCalendarType)}`}
                 value={reportFrom}
                 calendarType={reportCalendarType}
-                onCalendarTypeChange={setReportCalendarType}
                 onChange={setReportFrom}
-                showCalendarSwitch={false}
               />
               <DateField
                 label={`إلى يوم وتاريخ: ${formatDateLabel(reportTo, reportCalendarType)}`}
                 value={reportTo}
                 calendarType={reportCalendarType}
-                onCalendarTypeChange={setReportCalendarType}
                 onChange={setReportTo}
-                showCalendarSwitch={false}
               />
               <StaffMultiSelect options={reportStaffOptions} selectedValues={reportStaffIds} onChange={setReportStaffIds} />
               <button

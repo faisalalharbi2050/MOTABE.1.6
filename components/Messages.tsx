@@ -96,7 +96,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
           />
         )}
         {activeTab === 'archive' && (
-          <MessageArchive schoolName={schoolInfo?.schoolName || 'اسم المدرسة'} />
+          <MessageArchive schoolName={schoolInfo?.schoolName || 'اسم المدرسة'} calendarType={schoolInfo?.calendarType} />
         )}
         {activeTab === 'templates' && (
           <MessageTemplates />

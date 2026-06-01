@@ -60,7 +60,12 @@ const Step2AcademicYear: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) 
                  <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/50">
                     <SemesterManager 
                       semesters={schoolInfo.semesters || []}
-                      setSemesters={(semesters) => setSchoolInfo(prev => ({ ...prev, semesters }))}
+                      setSemesters={(semesters) => setSchoolInfo(prev => {
+                        const current = semesters.find(s => s.id === prev.currentSemesterId)
+                          || semesters.find(s => s.isCurrent)
+                          || semesters[0];
+                        return { ...prev, semesters, calendarType: current?.calendarType || prev.calendarType || 'hijri' };
+                      })}
                       currentSemesterId={schoolInfo.currentSemesterId}
                       setCurrentSemesterId={(id) => setSchoolInfo(prev => ({ ...prev, currentSemesterId: id }))}
                       academicYear={schoolInfo.academicYear || ''}

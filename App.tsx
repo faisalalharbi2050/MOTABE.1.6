@@ -74,6 +74,7 @@ const createDefaultSchoolInfo = (): SchoolInfo => ({
   gender: 'بنين',
   educationalAgent: '',
   principal: '',
+  calendarType: 'hijri',
   sharedSchools: []
 });
 

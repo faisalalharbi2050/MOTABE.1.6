@@ -140,7 +140,7 @@ const AuditStep: React.FC<{ d: SwapStepDetail; num: number; total: number }> = (
 // نسخة مطوّرة من تبويب التعديل (schedule_v3): بدون "مقارنة وتعديل" + سجل تعديل مُعاد تصميمه
 const EditTabV3: React.FC<Props> = ({
   scheduleSettings, setScheduleSettings,
-  teachers, subjects, classes, specializations, onNavigate
+  teachers, subjects, classes, specializations, onNavigate, schoolInfo
 }) => {
   const [subTab, setSubTab] = useState<SubTab>('general');
 
@@ -161,7 +161,7 @@ const EditTabV3: React.FC<Props> = ({
   const [auditSearch, setAuditSearch] = useState('');
   const [auditDateFrom, setAuditDateFrom] = useState('');
   const [auditDateTo, setAuditDateTo] = useState('');
-  const [auditCalendarType, setAuditCalendarType] = useState<CalendarType>('hijri');
+  const auditCalendarType = ((schoolInfo.calendarType || 'hijri') as CalendarType);
   const [confirmDelete, setConfirmDelete] = useState<{ mode: 'all' } | { mode: 'one'; id: string } | null>(null);
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
@@ -605,26 +605,6 @@ const EditTabV3: React.FC<Props> = ({
           </div>
 
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/40">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-xs font-black text-slate-500">نوع التقويم</span>
-              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                {[
-                  { value: 'hijri' as CalendarType, label: 'هجري' },
-                  { value: 'gregorian' as CalendarType, label: 'ميلادي' },
-                ].map(option => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setAuditCalendarType(option.value)}
-                    className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                      auditCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="flex flex-wrap items-end gap-3">
               <AuditDateField label="من يوم وتاريخ" value={auditDateFrom} calendarType={auditCalendarType} onChange={setAuditDateFrom} />
               <AuditDateField label="إلى يوم وتاريخ" value={auditDateTo} calendarType={auditCalendarType} onChange={setAuditDateTo} />

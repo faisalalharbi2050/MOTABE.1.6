@@ -70,9 +70,7 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
     }
     return { waSent, waFailed, smsSent, smsFailed };
   }, [messages]);
-  const [calendarType, setCalendarType] = useState<CalendarType>(
-    (schoolInfo?.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as CalendarType
-  );
+  const calendarType = ((schoolInfo?.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as CalendarType);
 
   const freeWaTotal = 50;
   const freeSmsTotal = 10;
@@ -221,27 +219,8 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
               </div>
             </div>
 
-            {/* Row 2: Calendar toggle + Week navigator */}
+            {/* Row 2: Week navigator */}
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Hijri / Gregorian toggle */}
-              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                {[
-                  { value: 'hijri', label: 'هجري' },
-                  { value: 'gregorian', label: 'ميلادي' },
-                ].map(option => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setCalendarType(option.value as CalendarType)}
-                    className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                      calendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
               <div className="flex items-center gap-1 bg-white border-2 border-slate-200 rounded-xl px-1 py-0.5">
                 <button
                   onClick={() => setWeekIdx(i => Math.max(0, i - 1))}

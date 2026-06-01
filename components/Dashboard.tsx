@@ -281,6 +281,37 @@ const Dashboard: React.FC<DashboardProps> = ({
         {/* Right: sidebar stacked */}
         <div className="order-1 lg:order-2 lg:col-span-4 space-y-4">
 
+          {/* ─── Calendar Display Format (Master Switch) ─── */}
+          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h4 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <CalendarDays size={18} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+                صيغة عرض التقويم
+              </h4>
+              <div className="flex bg-slate-100 rounded-xl p-1">
+                {([
+                  { value: 'hijri', label: 'هجري' },
+                  { value: 'gregorian', label: 'ميلادي' },
+                ] as const).map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSchoolInfo(prev => ({ ...prev, calendarType: option.value }))}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
+                      (schoolInfo.calendarType || 'hijri') === option.value
+                        ? 'bg-[#655ac1] text-white shadow-sm'
+                        : 'text-slate-500 hover:text-[#655ac1]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[11px] font-bold text-slate-400 mt-3 leading-5">
+              تُطبَّق هذه الصيغة على عرض جميع التواريخ في كل صفحات البرنامج.
+            </p>
+          </div>
+
           {/* ─── Academic Calendar Card ─── */}
           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px] hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
@@ -324,7 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <CalendarCheck size={12} className="text-[#8779fb] shrink-0" />
                   <span>يبدأ من: {new Intl.DateTimeFormat(
-                    currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
+                    (schoolInfo.calendarType || 'hijri') === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
                     { day: 'numeric', month: 'long', year: 'numeric' }
                   ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
                 </div>
@@ -334,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                   <CalendarX2 size={12} className="text-[#8779fb] shrink-0" />
                   <span>ينتهي في: {new Intl.DateTimeFormat(
-                    currentSemester.calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
+                    (schoolInfo.calendarType || 'hijri') === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
                     { day: 'numeric', month: 'long', year: 'numeric' }
                   ).format(new Date(currentSemester.endDate + 'T00:00:00'))}</span>
                 </div>

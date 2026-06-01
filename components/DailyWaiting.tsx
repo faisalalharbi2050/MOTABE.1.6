@@ -597,7 +597,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [sendPreferredChannel, setSendPreferredChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [sendScheduleEnabled, setSendScheduleEnabled] = useState(false);
   const [sendScheduledAt, setSendScheduledAt] = useState('');
-  const [sendScheduleCalendarType, setSendScheduleCalendarType] = useState<'hijri' | 'gregorian'>('hijri');
+  const sendScheduleCalendarType = (schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
   const [sendScheduleDate, setSendScheduleDate] = useState('');
   const [sendScheduleTime, setSendScheduleTime] = useState('');
   const [showSendRecipientsPreview, setShowSendRecipientsPreview] = useState(false);
@@ -629,7 +629,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [rptSearch, setRptSearch] = useState('');
   const [rptDropdownOpen, setRptDropdownOpen] = useState(false);
   const [rptSelectedWeekNumbers, setRptSelectedWeekNumbers] = useState<Set<number>>(new Set());
-  const [rptCalendarType, setRptCalendarType] = useState<'hijri' | 'gregorian'>(schoolInfo.calendarType || 'hijri');
+  const rptCalendarType = (schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
   const [rptWeekDropdownOpen, setRptWeekDropdownOpen] = useState(false);
   const [rptWeekSearch, setRptWeekSearch] = useState('');
   const rptWeekDropdownRef = useRef<HTMLDivElement>(null);
@@ -1398,12 +1398,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ===== Embedded inline-table state =====
   const [embTableSearch, setEmbTableSearch] = useState('');
   const [embAbsentsOnly, setEmbAbsentsOnly] = useState(false);
-  const [embCalendarType, setEmbCalendarType] = useState<'hijri' | 'gregorian'>(
-    (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian'
-  );
-  const [receiptCalendarType, setReceiptCalendarType] = useState<'hijri' | 'gregorian'>(
-    (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian'
-  );
+  const embCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
+  const receiptCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
   const [receiptSelectedDates, setReceiptSelectedDates] = useState<string[]>([selectedDate]);
   const [showAbsentListModal, setShowAbsentListModal] = useState(false);
 
@@ -2572,26 +2568,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 ml-2">
-              <span className="text-xs font-black text-slate-500">نوع التقويم</span>
-              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                {[
-                  { value: 'hijri' as const, label: 'هجري' },
-                  { value: 'gregorian' as const, label: 'ميلادي' },
-                ].map(option => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setReceiptCalendarType(option.value)}
-                    className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                      receiptCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="w-72">
               <DatePicker
                 multiple
@@ -3120,21 +3096,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <label className="block text-xs font-black text-slate-500">الأسبوع الدراسي</label>
-              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                {[
-                  { value: 'hijri' as const, label: 'هجري' },
-                  { value: 'gregorian' as const, label: 'ميلادي' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setRptCalendarType(opt.value)}
-                    className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${rptCalendarType === opt.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
             </div>
             <div className="relative" ref={rptWeekDropdownRef}>
               <button
@@ -4124,28 +4085,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             {/* Date Picker Bar + Teachers Table — register section only */}
             {isRegister && (<>
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-              <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-slate-500">نوع التقويم</span>
-                  <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                    {[
-                      { value: 'hijri' as const, label: 'هجري' },
-                      { value: 'gregorian' as const, label: 'ميلادي' },
-                    ].map(option => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setEmbCalendarType(option.value)}
-                        className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                          embCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
               <div className="w-64">
                 <label className="block text-xs font-black text-slate-500 mb-1.5">
                   {`اليوم والتاريخ: ${getArabicDayFromDate(selectedDate)} - ${embCalendarType === 'hijri' ? formatHijri(selectedDate) : formatGregorian(selectedDate)}`}
@@ -5118,23 +5057,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                           <div className="min-w-0">
                             <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
                               <label className="text-xs font-black text-slate-500">التاريخ</label>
-                              <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                                {[
-                                  { value: 'hijri', label: 'هجري' },
-                                  { value: 'gregorian', label: 'ميلادي' },
-                                ].map(option => (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setSendScheduleCalendarType(option.value as 'hijri' | 'gregorian')}
-                                    className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                                      sendScheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                                    }`}
-                                  >
-                                    {option.label}
-                                  </button>
-                                ))}
-                              </div>
                             </div>
                             <DatePicker
                               value={sendScheduleDate ? new DateObject({ date: new Date(`${sendScheduleDate}T12:00:00`), calendar: gregorian }).convert(sendScheduleCalendarType === 'hijri' ? arabic : gregorian) : undefined}

@@ -43,7 +43,7 @@ const DutyReportsModalContent: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  const calendarType = schoolInfo.semesters?.[0]?.calendarType || 'hijri';
+  const calendarType = schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri';
   let semesterStartDate = new Date();
   if (schoolInfo.semesters?.[0]?.startDate) {
     const parsed = new Date(schoolInfo.semesters[0].startDate);

@@ -288,7 +288,7 @@ const DutyMessagingModal: React.FC<Props> = ({
   const [bulkConfirm, setBulkConfirm] = useState<{ method: 'whatsapp' | 'sms'; count: number } | null>(null);
   const [sentKeys, setSentKeys] = useState<Set<string>>(new Set());
 
-  const calendarType = (schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0])?.calendarType || 'hijri';
+  const calendarType = schoolInfo.calendarType || (schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0])?.calendarType || 'hijri';
   const timing = getTimingConfig(schoolInfo);
   const activeDays = timing.activeDays || DAYS.slice();
 

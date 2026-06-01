@@ -266,9 +266,7 @@ const PrintSendTab: React.FC<Props> = ({
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleDate, setSendScheduleDate] = useState('');
   const [sendScheduleTime, setSendScheduleTime] = useState('08:00');
-  const [scheduleCalendarType, setScheduleCalendarType] = useState<'hijri' | 'gregorian'>(
-    ((schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian')
-  );
+  const scheduleCalendarType = ((schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian');
   const [isSendingNow, setIsSendingNow] = useState(false);
   const smsStats = useMemo(() => calculateSmsSegments(messageText), [messageText]);
   const [sendResults, setSendResults] = useState<{ name: string; status: 'sent' | 'failed' }[]>([]);
@@ -1689,23 +1687,6 @@ const PrintSendTab: React.FC<Props> = ({
                       <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[30px]">
                           <label className="text-xs font-black text-slate-500">التاريخ</label>
-                          <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-                            {[
-                              { value: 'hijri', label: 'هجري' },
-                              { value: 'gregorian', label: 'ميلادي' },
-                            ].map(option => (
-                              <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setScheduleCalendarType(option.value as 'hijri' | 'gregorian')}
-                                className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                                  scheduleCalendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                                }`}
-                              >
-                                {option.label}
-                              </button>
-                            ))}
-                          </div>
                         </div>
                         <DatePicker
                           value={getValidPickerDate(sendScheduleDate)}

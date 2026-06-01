@@ -11,6 +11,7 @@ import gregorian_ar from "react-date-object/locales/gregorian_ar";
 
 interface MessageArchiveProps {
   schoolName: string;
+  calendarType?: 'hijri' | 'gregorian';
 }
 
 const sourceLabels: Record<MessageSource, string> = {
@@ -161,11 +162,11 @@ interface MessageBatch {
   retryCount?: number;
 }
 
-const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
+const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName, calendarType: calendarTypeProp }) => {
   const { messages, resendMessage, clearArchive } = useMessageArchive();
-  
+
   // Advanced Search State (UI Only)
-  const [calendarType, setCalendarType] = useState<CalendarType>('hijri');
+  const calendarType = ((calendarTypeProp || 'hijri') as CalendarType);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['all']);
@@ -510,26 +511,6 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName }) => {
         
         {/* Row 1: Date Range */}
         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
-           <div className="mb-4 flex items-center gap-2">
-             <span className="text-xs font-black text-slate-500">نوع التقويم</span>
-             <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5">
-               {[
-                 { value: 'hijri' as CalendarType, label: 'هجري' },
-                 { value: 'gregorian' as CalendarType, label: 'ميلادي' },
-               ].map(option => (
-                 <button
-                   key={option.value}
-                   type="button"
-                   onClick={() => setCalendarType(option.value)}
-                   className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                     calendarType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                   }`}
-                 >
-                   {option.label}
-                 </button>
-               ))}
-             </div>
-           </div>
            <div className="flex flex-wrap gap-4">
              <div className="flex-1 min-w-[200px]">
                <label className="text-xs font-bold text-slate-600 mb-1.5 block">من يوم وتاريخ: {formatDateLabel(dateFrom)}</label>
