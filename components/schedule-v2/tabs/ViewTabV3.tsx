@@ -123,6 +123,12 @@ type ScheduleSignatureRequest = {
   status: 'pending' | 'signed';
   signedAt?: string;
   signatureData?: string;
+  /** يجمع طلبات إرسال واحد في دفعة مستقلة. القيمة 'preview' تعني طلب معاينة لا يظهر في السجل. */
+  sendBatchId?: string;
+  /** اسم الجدول المختوم وقت الإرسال — يُستخدم كاحتياطي لو حُذف الجدول لاحقًا. */
+  scheduleName?: string;
+  /** معرّف الجدول المعتمد وقت الإرسال — يتيح عرض الاسم الحيّ المحدّث عند إعادة التسمية. */
+  scheduleId?: string;
 };
 
 type DropdownOption = {
@@ -151,6 +157,37 @@ const writeScheduleSignatureRequests = (requests: ScheduleSignatureRequest[]) =>
 
 const createSignatureToken = (teacherId: string) =>
   `schedule-${teacherId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+/** معرّف الدفعة المخصص لطلبات المعاينة — تُحفظ ليعمل رابط المعاينة لكنها لا تظهر في سجل الاستلام. */
+const PREVIEW_SIGNATURE_BATCH = 'preview';
+
+/** يطبّع الاسم العربي (يوحّد المسافات) لمطابقة أكثر تسامحًا. */
+const normalizeTeacherName = (name: string) => name.replace(/\s+/g, ' ').trim();
+
+/**
+ * يحلّ المعلم من طلب توقيع محفوظ بتسامح: بالمعرّف، ثم بالاسم المطبّع،
+ * ثم بتطابق المقاطع (يلتقط الاسم المختصر «أحمد الزهراني» داخل «أحمد محمد الزهراني»).
+ */
+const resolveSignatureTeacher = <T extends { id: string; name: string }>(
+  teacherList: T[],
+  teacherId: string,
+  teacherName?: string,
+): T | undefined => {
+  const byId = teacherList.find(item => item.id === teacherId);
+  if (byId) return byId;
+  if (!teacherName) return undefined;
+  const target = normalizeTeacherName(teacherName);
+  const byExactName = teacherList.find(item => normalizeTeacherName(item.name) === target);
+  if (byExactName) return byExactName;
+  const targetTokens = target.split(' ').filter(Boolean);
+  if (targetTokens.length === 0) return undefined;
+  const subsetMatches = teacherList.filter(item => {
+    const itemTokens = normalizeTeacherName(item.name).split(' ').filter(Boolean);
+    return targetTokens.every(token => itemTokens.includes(token));
+  });
+  // نقبل تطابق المقاطع فقط حين يكون فريدًا لتجنّب الالتباس بين أسماء متشابهة.
+  return subsetMatches.length === 1 ? subsetMatches[0] : undefined;
+};
 
 const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -722,9 +759,7 @@ const SignaturePrintWorkspace: React.FC<{
       <div id="signature-print-root" className="bg-white p-6 space-y-8">
         {teacherIds.map(teacherId => {
           const sigRequest = sigRequests.find(r => r.teacherId === teacherId);
-          const teacher =
-            teachers.find(item => item.id === teacherId) ||
-            (sigRequest?.teacherName ? teachers.find(item => item.name === sigRequest.teacherName) : undefined);
+          const teacher = resolveSignatureTeacher(teachers, teacherId, sigRequest?.teacherName);
           if (!teacher) {
             return (
               <div key={teacherId || sigRequest?.token || 'missing-teacher'} className="signature-print-page rounded-[2rem] border border-amber-200 bg-amber-50 p-8 text-center">
@@ -1008,6 +1043,7 @@ const ViewTabV3: React.FC<Props> = ({
   const [modalMessageContent, setModalMessageContent] = useState('');
   const [sigFilter, setSigFilter] = useState<'all' | 'signed' | 'pending'>('all');
   const [sigSearch, setSigSearch] = useState('');
+  const [selectedSigBatchId, setSelectedSigBatchId] = useState<string>('');
   const [sigReceiptRequests, setSigReceiptRequests] = useState<ScheduleSignatureRequest[]>(() => readScheduleSignatureRequests());
   const [sigReceiptModalOpen, setSigReceiptModalOpen] = useState(false);
   const [summaryPrintRequests, setSummaryPrintRequests] = useState<ScheduleSignatureRequest[] | null>(null);
@@ -1374,17 +1410,30 @@ const ViewTabV3: React.FC<Props> = ({
     return buildScheduleShareLink(`${window.location.origin}${window.location.pathname}`, token);
   };
 
-  const buildTeacherSignatureUrl = (teacherId: string, persistSignatureRequest = true) => {
+  const buildTeacherSignatureUrl = (
+    teacherId: string,
+    persistSignatureRequest = true,
+    batch?: { id: string; name: string; scheduleId?: string } | null,
+  ) => {
     const teacher = teachers.find(item => item.id === teacherId);
     const token = createSignatureToken(teacherId);
     if (persistSignatureRequest) {
-      const requests = readScheduleSignatureRequests().filter(request => request.teacherId !== teacherId);
+      const sendBatchId = batch?.id ?? PREVIEW_SIGNATURE_BATCH;
+      const isPreview = sendBatchId === PREVIEW_SIGNATURE_BATCH;
+      const existing = readScheduleSignatureRequests();
+      // دفعات الإرسال الحقيقية تتراكم كسجلّات مستقلة؛ أمّا المعاينة فتُستبدل لنفس المعلم فقط.
+      const requests = isPreview
+        ? existing.filter(request => !(request.sendBatchId === PREVIEW_SIGNATURE_BATCH && request.teacherId === teacherId))
+        : existing;
       requests.push({
         token,
         teacherId,
         teacherName: teacher?.name || 'معلم',
         createdAt: new Date().toISOString(),
         status: 'pending',
+        sendBatchId,
+        scheduleName: batch?.name,
+        scheduleId: batch?.scheduleId,
       });
       writeScheduleSignatureRequests(requests);
     }
@@ -1434,7 +1483,10 @@ const ViewTabV3: React.FC<Props> = ({
     return true;
   };
 
-  const createGeneratedLinks = (persistSignatureRequests = true) => {
+  const createGeneratedLinks = (
+    persistSignatureRequests = true,
+    batch?: { id: string; name: string; scheduleId?: string } | null,
+  ) => {
     const links: GeneratedLink[] = [];
 
     if (sendScheduleType === 'individual_teacher') {
@@ -1447,7 +1499,7 @@ const ViewTabV3: React.FC<Props> = ({
         if ((sendAudience === 'teachers' || sendAudience === 'teachers_admins') && teacherRecipients.length > 0) {
           links.push({
             label: `جدول ${targetLabel}`,
-            url: buildTeacherSignatureUrl(teacherId, persistSignatureRequests),
+            url: buildTeacherSignatureUrl(teacherId, persistSignatureRequests, batch),
             teacherId,
             targetId: teacherId,
             targetLabel,
@@ -1672,7 +1724,13 @@ const ViewTabV3: React.FC<Props> = ({
   const handleSendDirectly = async () => {
     if (!validateSendSelection()) return;
     if (!modalMessageContent.trim()) { showToast('نص الرسالة فارغ.'); return; }
-    const links = createGeneratedLinks();
+    const activeSchedule = (scheduleSettings.savedSchedules || []).find(s => s.id === scheduleSettings.activeScheduleId);
+    const sendBatch = {
+      id: `sigbatch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: activeSchedule?.name || selectedScheduleLabel || 'الجدول',
+      scheduleId: activeSchedule?.id,
+    };
+    const links = createGeneratedLinks(true, sendBatch);
     setGeneratedLinks(links);
     const payloads = buildSendPayloads(links, modalMessageContent);
 
@@ -1726,7 +1784,8 @@ const ViewTabV3: React.FC<Props> = ({
   const openFirstGeneratedModel = () => {
     if (!validateSendSelection()) return;
 
-    const links = createGeneratedLinks();
+    // معاينة فقط: تُحفظ الطلبات بدفعة 'preview' لتعمل الروابط دون أن تلوّث سجل الاستلام.
+    const links = createGeneratedLinks(true, null);
     setGeneratedLinks(links);
     const firstLink = links[0];
     if (!firstLink?.url) {
@@ -1839,12 +1898,63 @@ const ViewTabV3: React.FC<Props> = ({
   }
 
   if (sigReceiptModalOpen) {
-    const filteredReceipts = sigReceiptRequests.filter(r =>
+    // ── تجميع الطلبات في دفعات إرسال مستقلة (تُستثنى دفعات المعاينة) ──
+    const sigCalendarType = (schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian';
+    const formatBatchSent = (iso: string) => {
+      const d = new Date(iso);
+      const locale = sigCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
+      const datePart = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+        .format(d)
+        .replace(/\//g, ' / ');
+      const timePart = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: true }).format(d);
+      const era = sigCalendarType === 'hijri' ? 'هـ' : 'م';
+      return `${datePart}${era} - ${timePart}`;
+    };
+    const savedSchedulesList = scheduleSettings.savedSchedules || [];
+
+    const batchMap = new Map<string, { id: string; scheduleId?: string; name?: string; sentAt: string; requests: ScheduleSignatureRequest[] }>();
+    sigReceiptRequests
+      .filter(r => r.sendBatchId !== PREVIEW_SIGNATURE_BATCH)
+      .forEach(r => {
+        const id = r.sendBatchId || 'legacy';
+        const existing = batchMap.get(id);
+        if (existing) {
+          existing.requests.push(r);
+          if (r.createdAt < existing.sentAt) existing.sentAt = r.createdAt;
+        } else {
+          batchMap.set(id, {
+            id,
+            scheduleId: r.scheduleId,
+            name: r.scheduleName,
+            sentAt: r.createdAt,
+            requests: [r],
+          });
+        }
+      });
+    const batches = Array.from(batchMap.values()).sort((a, b) => b.sentAt.localeCompare(a.sentAt));
+    const activeBatchId = batches.some(b => b.id === selectedSigBatchId)
+      ? selectedSigBatchId
+      : (batches[0]?.id || '');
+    const activeBatch = batches.find(b => b.id === activeBatchId) || null;
+    const batchRequests = activeBatch?.requests || [];
+
+    // الاسم الحيّ من الجداول المحفوظة (يتحدّث عند إعادة التسمية)، ثم المختوم، ثم احتياطي عام.
+    const resolveBatchName = (b: { scheduleId?: string; name?: string }) =>
+      (b.scheduleId ? savedSchedulesList.find(s => s.id === b.scheduleId)?.name : undefined) || b.name || 'جدول مُرسَل';
+    const batchOptions: DropdownOption[] = batches.map(b => {
+      const isAdopted = !!b.scheduleId && b.scheduleId === scheduleSettings.activeScheduleId;
+      return {
+        value: b.id,
+        label: `${resolveBatchName(b)}${isAdopted ? ' (المعتمد)' : ''} · أُرسل ${formatBatchSent(b.sentAt)}`,
+      };
+    });
+
+    const filteredReceipts = batchRequests.filter(r =>
       (sigFilter === 'all' || r.status === sigFilter) &&
       (sigSearch.trim() === '' || r.teacherName.includes(sigSearch.trim()))
     );
-    const signedCount = sigReceiptRequests.filter(r => r.status === 'signed').length;
-    const pendingCount = sigReceiptRequests.filter(r => r.status === 'pending').length;
+    const signedCount = batchRequests.filter(r => r.status === 'signed').length;
+    const pendingCount = batchRequests.filter(r => r.status === 'pending').length;
 
     return (
       <div className="space-y-5" dir="rtl">
@@ -1862,7 +1972,7 @@ const ViewTabV3: React.FC<Props> = ({
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام المعلمين للجداول</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {signedCount} وقّع من أصل {sigReceiptRequests.length} معلم
+                {signedCount} وقّع من أصل {batchRequests.length} معلم
               </p>
             </div>
           </div>
@@ -1871,7 +1981,7 @@ const ViewTabV3: React.FC<Props> = ({
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'إجمالي المعلمين', value: String(sigReceiptRequests.length), icon: Users },
+            { label: 'إجمالي المعلمين', value: String(batchRequests.length), icon: Users },
             { label: 'وقّع', value: String(signedCount), icon: CheckCircle2 },
             { label: 'لم يوقّع', value: String(pendingCount), icon: AlertCircle },
           ].map((s, i) => (
@@ -1894,6 +2004,15 @@ const ViewTabV3: React.FC<Props> = ({
         {/* Actions */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
+            <SingleSelectDropdown
+              label=""
+              value={activeBatchId}
+              options={batchOptions}
+              placeholder="اختر دفعة الإرسال"
+              onChange={setSelectedSigBatchId}
+              disabled={batchOptions.length === 0}
+              minWidthClass="min-w-[260px] max-w-[400px]"
+            />
             <button
               type="button"
               onClick={() => { setSigSearch(''); setSigFilter('all'); setSigReceiptRequests(readScheduleSignatureRequests()); }}
@@ -1908,7 +2027,7 @@ const ViewTabV3: React.FC<Props> = ({
                 if (filteredReceipts.length > 0) setSummaryPrintRequests(filteredReceipts);
                 else showToast('لا توجد بيانات للطباعة.');
               }}
-              disabled={sigReceiptRequests.length === 0}
+              disabled={batchRequests.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
             >
               <Printer size={15} />
@@ -1921,7 +2040,7 @@ const ViewTabV3: React.FC<Props> = ({
                 if (ids.length > 0) setSignaturePrintTeacherIds(ids);
                 else showToast('لا توجد نماذج للطباعة.');
               }}
-              disabled={sigReceiptRequests.length === 0}
+              disabled={batchRequests.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50"
             >
               <Printer size={15} />
@@ -1976,7 +2095,7 @@ const ViewTabV3: React.FC<Props> = ({
               ))}
             </div>
           </div>
-          {sigReceiptRequests.length === 0 ? (
+          {batches.length === 0 ? (
             <div className="py-16 text-center">
               <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
               <p className="text-sm font-bold text-slate-400">لا توجد جداول مُرسلة للتوقيع بعد.</p>
@@ -2507,7 +2626,7 @@ const ViewTabV3: React.FC<Props> = ({
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-start gap-3 mb-4">
                   <Eye size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
+                  <h4 className="font-black text-slate-800">معاينة</h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button

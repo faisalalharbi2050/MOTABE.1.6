@@ -28,6 +28,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     const [editingName, setEditingName] = useState('');
     const [menuState, setMenuState] = useState<MenuState>(null);
     const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+    const [calType, setCalType] = useState<'hijri' | 'gregorian'>('hijri');
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -57,9 +58,10 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
     const formatDateTime = (iso: string) => {
         const d = new Date(iso);
+        const dateLocale = calType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
         return {
             day: dayNames[d.getDay()],
-            date: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
+            date: new Intl.DateTimeFormat(dateLocale, {
                 year: 'numeric', month: '2-digit', day: '2-digit',
             }).format(d),
             time: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
@@ -197,7 +199,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
             )}
 
             <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div className="px-6 py-4 border-b border-slate-100 bg-white">
+                <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3">
                     <p className="text-sm font-black text-slate-800 flex items-center gap-2">
                         <BookOpenCheck size={18} className="text-[#655ac1]" />
                         الجداول المحفوظة
@@ -205,6 +207,23 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                             ({savedSchedules.length} / 10)
                         </span>
                     </p>
+                    <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5 shrink-0">
+                        {([
+                            { value: 'hijri', label: 'هجري' },
+                            { value: 'gregorian', label: 'ميلادي' },
+                        ] as const).map(option => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setCalType(option.value)}
+                                className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
+                                    calType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
+                                }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {savedSchedules.length === 0 ? (
@@ -240,10 +259,8 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                             className="hover:bg-accent/5 transition-all group"
                                             style={isActive ? { borderRight: '3px solid #655ac1' } : {}}
                                         >
-                                            <td className="px-6 py-3.5 text-center">
-                                                <span className="inline-flex w-7 h-7 rounded-lg items-center justify-center text-[11px] font-black border border-slate-300 bg-white text-[#655ac1]">
-                                                    {savedSchedules.length - index}
-                                                </span>
+                                            <td className="px-6 py-3.5 text-center text-slate-400 text-sm">
+                                                {savedSchedules.length - index}
                                             </td>
 
                                             <td className="px-6 py-3.5">
@@ -277,25 +294,26 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                             </td>
 
                                             <td className="px-6 py-3.5 text-center">
-                                                <div className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg">
-                                                    <span className="text-[12px] font-bold text-slate-700">{date}</span>
-                                                </div>
+                                                <span className="text-[12px] font-bold text-slate-700">{date}</span>
                                             </td>
 
                                             <td className="px-6 py-3.5 text-center">
-                                                <div className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg">
-                                                    <span className="text-[12px] font-bold text-slate-700">{time}</span>
-                                                </div>
+                                                <span className="text-[12px] font-bold text-slate-700">{time}</span>
                                             </td>
 
                                             <td className="px-6 py-3.5 text-center">
                                                 {isActive ? (
                                                     <span className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#655ac1]">
-                                                        <Check size={14} />
+                                                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white">
+                                                            <Check size={12} strokeWidth={3.5} />
+                                                        </span>
                                                         معتمد
                                                     </span>
                                                 ) : (
-                                                    <span className="text-[12px] font-semibold text-slate-400">
+                                                    <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-400">
+                                                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-400">
+                                                            <X size={12} strokeWidth={3} />
+                                                        </span>
                                                         غير معتمد
                                                     </span>
                                                 )}
@@ -384,7 +402,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                         }}
                                         className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
                                     >
-                                        <Check size={14} />
+                                        <CheckCircle2 size={14} />
                                         اعتماد
                                     </button>
                                 )}
@@ -395,9 +413,9 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                             setConfirmAction({ mode: 'unadopt', schedule });
                                             setMenuState(null);
                                         }}
-                                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-50 rounded-xl transition-colors"
+                                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
                                     >
-                                        <CheckCircle2 size={14} />
+                                        <X size={14} />
                                         إلغاء الاعتماد
                                     </button>
                                 )}
