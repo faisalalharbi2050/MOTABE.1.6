@@ -2674,7 +2674,7 @@ const ViewTabV3: React.FC<Props> = ({
                   value={exportScheduleType}
                   onChange={value => setExportScheduleType(value as ScheduleType)}
                   placeholder="اختر الجدول"
-                  options={scheduleTypeOptions}
+                  options={printScheduleTypeOptions}
                 />
               </div>
               <button
