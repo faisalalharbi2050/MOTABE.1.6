@@ -2668,9 +2668,6 @@ const ViewTabV3: React.FC<Props> = ({
                 <FileSpreadsheet size={20} className="text-[#655ac1]" />
                 <h4 className="font-black text-slate-800">تصدير الجدول EXCEL</h4>
               </div>
-              <p className="text-xs text-slate-500 font-medium text-right mb-5">
-                صدّر بيانات الجدول إلى ملف Excel جاهز للفتح والتعديل.
-              </p>
               <div className="[&_label]:hidden mb-5">
                 <SingleSelectDropdown
                   label="الجدول"
@@ -2695,9 +2692,6 @@ const ViewTabV3: React.FC<Props> = ({
                 <FileCode2 size={20} className="text-[#655ac1]" />
                 <h4 className="font-black text-slate-800">تصدير الجدول XML</h4>
               </div>
-              <p className="text-xs text-slate-500 font-medium text-right mb-5">
-                صدّر بيانات الجدول بصيغة XML لاستخدامها في أنظمة خارجية.
-              </p>
               <div className="flex-1" />
               <button
                 onClick={handleExportXML}
