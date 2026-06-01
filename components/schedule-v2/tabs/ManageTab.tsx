@@ -260,7 +260,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                             style={isActive ? { borderRight: '3px solid #655ac1' } : {}}
                                         >
                                             <td className="px-6 py-3.5 text-center">
-                                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold">
+                                                <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">
                                                     {savedSchedules.length - index}
                                                 </span>
                                             </td>
