@@ -75,9 +75,8 @@ const WaitingTabV3: React.FC<Props> = ({
   const teacherSelectorPanelRef = useRef<HTMLDivElement>(null);
   const [showUnlockConfirm, setShowUnlockConfirm] = useState(false);
   const [showRedistributeConfirm, setShowRedistributeConfirm] = useState(false);
-  const [showMethodChangeConfirm, setShowMethodChangeConfirm] = useState(false);
   const [showPreviewSkipConfirm, setShowPreviewSkipConfirm] = useState(false);
-  const [pendingConfig, setPendingConfig] = useState<SubstitutionConfig | null>(null);
+  const [showMethodCreateConfirm, setShowMethodCreateConfirm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
@@ -146,9 +145,11 @@ const WaitingTabV3: React.FC<Props> = ({
 
   const substitutionConfig = (scheduleSettings.substitution || {}) as SubstitutionConfig & { manualReady?: boolean };
   const currentMethod = substitutionConfig.method || 'auto';
+  const generatedMethod = (substitutionConfig as any).generatedMethod as SubstitutionConfig['method'] | undefined;
   const isManualMode = currentMethod === 'manual';
   const isManualReady = Boolean(substitutionConfig.manualReady);
   const isDistributionPrepared = hasWaiting || (isManualMode && isManualReady);
+  const hasGeneratedWaiting = hasWaiting || Boolean(substitutionConfig.manualReady) || Boolean(generatedMethod);
 
   const specializationNames = useMemo(
     () => Object.fromEntries(specializations.map(item => [item.id, item.name])),
@@ -246,6 +247,7 @@ const WaitingTabV3: React.FC<Props> = ({
           maxDailyTotal: (prev.substitution as any)?.maxDailyTotal || defaultSubstitutionConfig.maxDailyTotal,
           fixedPerPeriod: (prev.substitution as any)?.fixedPerPeriod || defaultSubstitutionConfig.fixedPerPeriod,
           manualReady: true,
+          generatedMethod: 'manual',
         } as any,
         waitingGenerationCount: (prev.waitingGenerationCount || 0) + 1,
       }));
@@ -257,8 +259,8 @@ const WaitingTabV3: React.FC<Props> = ({
     }, 50);
   };
 
-  const execAutomaticOrFixedDistribution = () => {
-    const baseTimetable = scheduleSettings.timetable;
+  const execAutomaticOrFixedDistribution = (baseTimetableOverride?: ScheduleSettingsData['timetable']) => {
+    const baseTimetable = baseTimetableOverride || scheduleSettings.timetable;
     if (!baseTimetable) {
       showToast('لا يوجد جدول حصص لتوزيع الانتظار عليه', 'error');
       return;
@@ -280,6 +282,7 @@ const WaitingTabV3: React.FC<Props> = ({
           substitution: {
             ...(prev.substitution || defaultSubstitutionConfig),
             manualReady: false,
+            generatedMethod: currentMethod,
           } as any,
           waitingGenerationCount: (prev.waitingGenerationCount || 0) + 1,
         }));
@@ -297,6 +300,10 @@ const WaitingTabV3: React.FC<Props> = ({
   };
 
   const handleCreateWaiting = () => {
+    if (hasGeneratedWaiting && generatedMethod && generatedMethod !== currentMethod) {
+      setShowMethodCreateConfirm(true);
+      return;
+    }
     if (isManualMode) {
       if (hasWaiting) {
         setShowRedistributeConfirm(true);
@@ -410,22 +417,13 @@ const WaitingTabV3: React.FC<Props> = ({
                 periodsPerDay={Math.max(...(Object.values(getTimingConfig().periodCounts || {}) as number[]))}
                 warnings={waitingWarnings}
                 onChange={config => {
-                  const previousMethod = substitutionConfig.method;
-                  if (previousMethod === 'manual' && config.method !== 'manual') {
-                    const hasPlacedWaiting = Object.values(scheduleSettings.timetable || {}).some(
-                      (slot: any) => slot.type === 'waiting'
-                    );
-                    if (hasPlacedWaiting) {
-                      setPendingConfig({ ...(config as any), manualReady: false } as any);
-                      setShowMethodChangeConfirm(true);
-                      return;
-                    }
-                  }
                   setScheduleSettings(prev => ({
                     ...prev,
                     substitution: {
+                      ...(prev.substitution || {}),
                       ...(config as any),
-                      manualReady: config.method === 'manual' ? ((prev.substitution as any)?.manualReady || false) : false,
+                      manualReady: (prev.substitution as any)?.manualReady || false,
+                      generatedMethod: (prev.substitution as any)?.generatedMethod,
                     } as any,
                   }));
                 }}
@@ -696,26 +694,34 @@ const WaitingTabV3: React.FC<Props> = ({
         }}
       />
 
-      {/* تأكيد تغيير طريقة التوزيع */}
+      {/* تأكيد تغيير آلية التوزيع عند الإنشاء فقط */}
       <ConfirmDialog
-        isOpen={showMethodChangeConfirm}
-        title="تغيير طريقة التوزيع"
-        message="لديك حصص انتظار موزعة أو مجهزة يدويًا. تغيير الطريقة سيحذفها نهائيًا. هل تريد المتابعة؟"
-        confirmLabel="حذف والمتابعة"
+        isOpen={showMethodCreateConfirm}
+        title="تغيير آلية التوزيع"
+        message="سيتم حذف توزيع الانتظار الذي أنشأته، هل تريد تغيير آلية التوزيع؟"
+        confirmLabel="تغيير الآلية"
         cancelLabel="إلغاء"
         tone="danger"
-        onCancel={() => { setShowMethodChangeConfirm(false); setPendingConfig(null); }}
+        onCancel={() => setShowMethodCreateConfirm(false)}
         onConfirm={() => {
           const newTimetable = Object.fromEntries(
-            Object.entries(scheduleSettings.timetable || {}).filter(([, slot]: any) => slot.type !== 'waiting')
+            Object.entries(scheduleSettings.timetable || {}).filter(([, slot]: any) => slot.type !== 'waiting' && !slot.isSubstitution)
           );
           setScheduleSettings(prev => ({
             ...prev,
-            substitution: { ...(pendingConfig as any), manualReady: false } as any,
             timetable: newTimetable,
+            substitution: {
+              ...(prev.substitution || defaultSubstitutionConfig),
+              manualReady: false,
+              generatedMethod: undefined,
+            } as any,
           }));
-          setShowMethodChangeConfirm(false);
-          setPendingConfig(null);
+          setShowMethodCreateConfirm(false);
+          if (isManualMode) {
+            setTimeout(() => prepareManualWaiting(), 0);
+          } else {
+            execAutomaticOrFixedDistribution(newTimetable as ScheduleSettingsData['timetable']);
+          }
         }}
       />
     </div>
