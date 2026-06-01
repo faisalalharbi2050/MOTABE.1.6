@@ -28,7 +28,6 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     const [editingName, setEditingName] = useState('');
     const [menuState, setMenuState] = useState<MenuState>(null);
     const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-    const [calType, setCalType] = useState<'hijri' | 'gregorian'>('hijri');
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -58,12 +57,11 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
     const formatDateTime = (iso: string) => {
         const d = new Date(iso);
-        const dateLocale = calType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
+        const dateOpts: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
         return {
             day: dayNames[d.getDay()],
-            date: new Intl.DateTimeFormat(dateLocale, {
-                year: 'numeric', month: '2-digit', day: '2-digit',
-            }).format(d),
+            dateHijri: new Intl.DateTimeFormat('ar-SA-u-ca-islamic-nu-latn', dateOpts).format(d),
+            dateGregorian: new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', dateOpts).format(d),
             time: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
                 hour: '2-digit', minute: '2-digit', hour12: true,
             }).format(d),
@@ -199,7 +197,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
             )}
 
             <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden" style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3">
+                <div className="px-6 py-4 border-b border-slate-100 bg-white">
                     <p className="text-sm font-black text-slate-800 flex items-center gap-2">
                         <BookOpenCheck size={18} className="text-[#655ac1]" />
                         الجداول المحفوظة
@@ -207,23 +205,6 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                             ({savedSchedules.length} / 10)
                         </span>
                     </p>
-                    <div className="inline-flex rounded-lg bg-white border border-slate-200 p-0.5 shrink-0">
-                        {([
-                            { value: 'hijri', label: 'هجري' },
-                            { value: 'gregorian', label: 'ميلادي' },
-                        ] as const).map(option => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setCalType(option.value)}
-                                className={`px-2 py-1 rounded-md text-[10px] font-black transition-all ${
-                                    calType === option.value ? 'bg-[#655ac1] text-white' : 'text-slate-500 hover:text-[#655ac1]'
-                                }`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
                 {savedSchedules.length === 0 ? (
@@ -252,7 +233,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                 {savedSchedules.map((schedule, index) => {
                                     const isActive = schedule.id === activeScheduleId;
                                     const isEditing = editingId === schedule.id;
-                                    const { day, date, time } = formatDateTime(schedule.createdAt);
+                                    const { day, dateHijri, dateGregorian, time } = formatDateTime(schedule.createdAt);
                                     return (
                                         <tr
                                             key={schedule.id}
@@ -296,7 +277,10 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                             </td>
 
                                             <td className="px-6 py-3.5 text-center">
-                                                <span className="text-[12px] font-bold text-slate-700">{date}</span>
+                                                <div className="flex flex-col items-center leading-tight">
+                                                    <span className="text-[12px] font-bold text-slate-700">{dateHijri}</span>
+                                                    <span className="text-[12px] font-normal text-slate-400 mt-0.5">{dateGregorian}</span>
+                                                </div>
                                             </td>
 
                                             <td className="px-6 py-3.5 text-center">
