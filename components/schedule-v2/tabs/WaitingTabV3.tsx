@@ -578,7 +578,7 @@ const WaitingTabV3: React.FC<Props> = ({
                   setScheduleSettings(prev => ({
                     ...prev,
                     timetable: Object.fromEntries(
-                      Object.entries(prev.timetable || {}).filter(([, v]: any) => v?.type !== 'waiting')
+                      Object.entries(prev.timetable || {}).filter(([, v]: any) => v?.type !== 'waiting' && !v?.isSubstitution)
                     ),
                   }));
                   showToast('تم حذف جميع حصص الانتظار من الجدول', 'success');

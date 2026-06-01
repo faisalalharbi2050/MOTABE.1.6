@@ -203,9 +203,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isFullScreenEditMode, setIsFullScreenEditMode] = useState(false);
-    const [waitingDeleteKey, setWaitingDeleteKey] = useState<string | null>(null);
     const [confirmDeleteAllWaiting, setConfirmDeleteAllWaiting] = useState(false);
     const [badgePopupSlot, setBadgePopupSlot] = useState<string | null>(null);
+    const [deletedWaitingCredits, setDeletedWaitingCredits] = useState<Record<string, number>>({});
     useEffect(() => {
         if (!badgePopupSlot) return;
         const close = () => setBadgePopupSlot(null);
@@ -325,7 +325,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     }) => {
         const small = compact;
         return (
-            <div className="relative flex items-center justify-center" style={{ width:'100%', height:'100%' }}>
+            <div className="group/waiting-card relative flex items-center justify-center" style={{ width:'100%', height:'100%' }}>
                 {stacked && (
                     <div
                         aria-hidden="true"
@@ -354,6 +354,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 >
                     {onDelete && (
                         <button
+                            className="opacity-0 transition-all duration-150 group-hover/waiting-card:opacity-100 focus-visible:opacity-100"
                             onMouseDown={e => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -380,7 +381,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 boxShadow: '0 1px 4px rgba(244,63,94,0.35)',
                             }}
                         >
-                            ✕
+                            ×
                         </button>
                     )}
                     <span style={{ fontSize: small ? '13px' : '17px', fontWeight:900, lineHeight:1, color:'#655ac1', marginBottom: small ? '1px' : '3px' }}>م</span>
@@ -519,7 +520,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         onDelete?: () => void;
     }) => {
         return (
-            <div className="relative flex items-center justify-center" style={{ width:'100%', height:'100%' }}>
+            <div className="group/waiting-card relative flex items-center justify-center" style={{ width:'100%', height:'100%' }}>
                 <div
                     className="relative flex flex-col items-center justify-center select-none"
                     style={{
@@ -534,6 +535,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 >
                     {onDelete && (
                         <button
+                            className="opacity-0 transition-all duration-150 group-hover/waiting-card:opacity-100 focus-visible:opacity-100"
                             onMouseDown={e => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -560,7 +562,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 boxShadow: '0 1px 4px rgba(244,63,94,0.35)',
                             }}
                         >
-                            ✕
+                            ×
                         </button>
                     )}
                     <div
@@ -574,12 +576,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             flexDirection:'column',
                             alignItems:'center',
                             justifyContent:'center',
-                            gap: compact ? '2px' : '4px',
+                            gap: compact ? '3px' : '4px',
                             color:'#5b50b8',
                         }}
                     >
-                        <span style={{ fontSize: compact ? '13px' : '19px', fontWeight:900, lineHeight:1, marginBottom: compact ? '1px' : '3px' }}>م</span>
-                        <span style={{ fontSize: compact ? '6px' : '10px', fontWeight:900, lineHeight:1 }}>انتظار</span>
+                        <span style={{ fontSize: compact ? '15px' : '19px', fontWeight:900, lineHeight:1, marginBottom: compact ? '0' : '3px' }}>م</span>
+                        <span style={{ fontSize: compact ? '8px' : '10px', fontWeight:900, lineHeight:1 }}>انتظار</span>
                     </div>
                 </div>
             </div>
@@ -764,7 +766,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     const isGeneral = type.startsWith('general_');
     const isInteractiveGeneralTeachers = type === 'general_teachers' && !!onUpdateSettings && (interactive || isFullScreenEditMode);
     const canEditWaitingNow = !inlineWaitingReadOnly || isFullScreen;
-    const effectiveWaitingOk = (isManualMode && isManualReady) || forceWaitingInteractive;
+    const hasDeletedWaitingCredits = Object.values(deletedWaitingCredits).some(count => count > 0);
+    const canUseWaitingCards = (isManualMode && isManualReady) || forceWaitingInteractive || (!isManualMode && hasDeletedWaitingCredits);
+    const effectiveWaitingOk = canUseWaitingCards;
     const isManualWaitingInteractive = type === 'general_teachers' && showWaitingManagement && isManualMode && isManualReady && !!onUpdateSettings && canEditWaitingNow;
     const showInlineTeacherHeaderCards = !isFullScreen && isGeneral && showInlineGeneralHeader;
 
@@ -787,8 +791,64 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 timetable: { ...fullScreenEditSnapshotRef.current },
             });
         }
+        setDeletedWaitingCredits({});
         fullScreenEditSnapshotRef.current = null;
         setIsFullScreenEditMode(false);
+    };
+
+    const addDeletedWaitingCredit = (teacherId: string, count = 1) => {
+        if (!teacherId || isManualMode) return;
+        setDeletedWaitingCredits(prev => ({
+            ...prev,
+            [teacherId]: Math.max(0, (prev[teacherId] || 0) + count),
+        }));
+    };
+
+    const consumeDeletedWaitingCredit = (teacherId: string) => {
+        if (!teacherId || isManualMode) return;
+        setDeletedWaitingCredits(prev => {
+            const nextCount = Math.max(0, (prev[teacherId] || 0) - 1);
+            const next = { ...prev };
+            if (nextCount > 0) next[teacherId] = nextCount;
+            else delete next[teacherId];
+            return next;
+        });
+    };
+
+    const deleteWaitingSlot = (slotKey: string | null) => {
+        if (!slotKey || !onUpdateSettings) return;
+        const slot = (settings.timetable || {})[slotKey] as any;
+        const teacherId = slot?.teacherId || slotKey.split('-').slice(0, -2).join('-');
+        const newTimetable = { ...(settings.timetable || {}) };
+        delete newTimetable[slotKey];
+        addDeletedWaitingCredit(teacherId);
+        onUpdateSettings({ ...settings, timetable: newTimetable });
+    };
+
+    const deleteAllWaitingSlots = () => {
+        const currentTimetable = settings.timetable || {};
+        const removedByTeacher: Record<string, number> = {};
+        const kept = Object.fromEntries(
+            Object.entries(currentTimetable).filter(([key, slot]: any) => {
+                const isWaitingSlot = slot?.type === 'waiting' || slot?.isSubstitution;
+                if (isWaitingSlot) {
+                    const teacherId = slot?.teacherId || key.split('-').slice(0, -2).join('-');
+                    if (teacherId && !isManualMode) removedByTeacher[teacherId] = (removedByTeacher[teacherId] || 0) + 1;
+                }
+                return !isWaitingSlot;
+            })
+        );
+        if (!isManualMode && Object.keys(removedByTeacher).length > 0) {
+            setDeletedWaitingCredits(prev => {
+                const next = { ...prev };
+                Object.entries(removedByTeacher).forEach(([teacherId, count]) => {
+                    next[teacherId] = (next[teacherId] || 0) + count;
+                });
+                return next;
+            });
+        }
+        if (onUpdateSettings) onUpdateSettings({ ...settings, timetable: kept });
+        onDeleteAllWaiting?.();
     };
 
     const showSwapNotice = (type: 'simple' | 'chain', text: string) => {
@@ -892,7 +952,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             (draggingWaiting === 'card' ? (draggingTeacherRowId || '') : '') ||
             (draggingWaiting === 'slot' ? (draggingSlotKey?.split('-')[0] || '') : '');
         if (dragType === 'waitingCard') {
-            if (!isManualMode || !isManualReady) return;
+            if (!canUseWaitingCards) return;
             if (waitingTeacherId && waitingTeacherId !== targetTeacherId) return;
             if (hasSlot) return;
             e.preventDefault();
@@ -926,8 +986,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             const teacherId = e.dataTransfer.getData('teacherId') || draggingTeacherRowId || '';
             setDraggingWaiting(null);
             setDraggingTeacherRowId(null);
-            if (!isManualMode || teacherId !== targetTeacherId || hasSlot) return;
+            if (!canUseWaitingCards || teacherId !== targetTeacherId || hasSlot) return;
             onUpdateSettings({ ...settings, timetable: { ...timetable, [targetKey]: { teacherId: targetTeacherId, type: 'waiting' as const } } });
+            consumeDeletedWaitingCredit(targetTeacherId);
             return;
         }
 
@@ -1461,7 +1522,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 {renderPlacedWaitingCard({
                                     compact: true,
                                     highlighted: hoverTarget === slotKey,
-                                    onDelete: canEditSlot ? () => setWaitingDeleteKey(slotKey) : undefined,
+                                    onDelete: canEditSlot ? () => deleteWaitingSlot(slotKey) : undefined,
                                 })}
                             </div>
                         </div>
@@ -1472,7 +1533,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         return (
                             <div className="group/cell relative flex items-center justify-center overflow-visible" style={{width:`${dynamicPeriodBox}px`, height:`${dynamicPeriodBoxH}px`, margin:'0 auto'}}>
                                 <div style={{ width:`${dynamicPeriodCard}px`, height:`${dynamicPeriodCardH}px` }}>
-                                    {renderWaitingCard({ compact: true })}
+                                    {renderPlacedWaitingCard({ compact: true })}
                                 </div>
                             </div>
                         );
@@ -1556,7 +1617,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             fontSize: D.thPeriodFontSize,
             textAlign: 'center',
             verticalAlign: 'middle',
-            padding: D.thPeriodPadding,
+            padding: showWaitingCounts ? (density === 'expanded' ? '7px 2px 18px' : '6px 1px 16px') : D.thPeriodPadding,
             position: 'sticky',
             top: D.thPeriodTopOffset,
             zIndex: 20,
@@ -1717,8 +1778,9 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                             {pi+1}
                                             {showWaitingCounts && (isTeachers||isWaiting) && periodWaitingCounts[di][pi] > 0 && (
                                                 <span
-                                                    className="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-full border border-[#f3d3d3] bg-white px-2 py-[2px] font-black leading-none text-red-500 shadow-sm"
-                                                    style={{lineHeight:1, fontSize: density === 'expanded' ? '11px' : '9px'}}>
+                                                    title={`عدد المنتظرين في الحصة ${pi + 1}: ${periodWaitingCounts[di][pi]}`}
+                                                    className="absolute left-1/2 -translate-x-1/2 inline-flex min-w-[22px] items-center justify-center rounded-full border border-[#d8d0ff] bg-[#f7f5ff] px-2 py-[3px] font-black leading-none text-[#655ac1] shadow-sm ring-2 ring-white"
+                                                    style={{lineHeight:1, fontSize: density === 'expanded' ? '11px' : '9px', top: density === 'expanded' ? '18px' : '15px'}}>
                                                     {periodWaitingCounts[di][pi]}
                                                 </span>
                                             )}
@@ -1773,14 +1835,18 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                              style={{...infoCardBase, justifyContent:'flex-start', paddingRight:'6px', paddingLeft:'3px', background: row.id === draggingTeacherRowId ? 'rgba(255,251,235,0.7)' : infoCardBase.background, borderColor: row.id === draggingTeacherRowId ? 'transparent' : '#e8eaf2', backgroundImage: row.id === draggingTeacherRowId ? UNASSIGNED_DASH_SVG : undefined}}>
                                              <div className="flex items-center justify-between gap-2 w-full">
                                                 <span style={{color:'#1e293b', fontSize: isCompactTeacherEdit ? '11px' : '13px', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', direction:'rtl', textAlign:'right', flex:1}}>{row.name}</span>
-                                                {showWaitingManagement && isTeachers && isManualMode && isManualReady && (row.quota2 || 0) > 0 && Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0) > 0 && (
+                                                {(() => {
+                                                    const manualRemaining = Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0);
+                                                    const waitingCardCount = isManualMode ? manualRemaining : (deletedWaitingCredits[row.id] || 0);
+                                                    const canDragWaitingCard = isFullScreenEditMode && canUseWaitingCards && waitingCardCount > 0;
+                                                    return showWaitingManagement && isTeachers && (row.quota2 || 0) > 0 && waitingCardCount > 0 ? (
                                                     <div className="group/waiting-trigger relative flex items-center gap-2 shrink-0 rounded-xl px-1.5 py-1 transition-all duration-200">
                                                         <div
                                                             role="button"
                                                             tabIndex={0}
-                                                            draggable={isManualWaitingInteractive}
+                                                            draggable={canDragWaitingCard}
                                                             onDragStart={e => {
-                                                                if (!isManualWaitingInteractive) return;
+                                                                if (!canDragWaitingCard) return;
                                                                 setWaitingDragImage(e);
                                                                 e.dataTransfer.setData('text/plain', `waiting-${row.id}`);
                                                                 e.dataTransfer.setData('dragType', 'waitingCard');
@@ -1796,7 +1862,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                                 width:'46px',
                                                                 height:'47px',
                                                                 flexShrink:0,
-                                                                cursor: isManualWaitingInteractive ? 'grab' : 'default',
+                                                                cursor: canDragWaitingCard ? 'grab' : 'default',
                                                                 filter: draggingTeacherRowId === row.id
                                                                     ? 'drop-shadow(0 10px 18px rgba(101,90,193,0.18))'
                                                                     : 'drop-shadow(0 4px 10px rgba(101,90,193,0.10))',
@@ -1806,7 +1872,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                         >
                                                             <div className="transition-transform duration-200">
                                                                 {renderWaitingDeck({
-                                                                    count: Math.max((row.quota2 || 0) - (placedWaitingPerTeacher.get(row.id) || 0), 0),
+                                                                    count: waitingCardCount,
                                                                     compact: false,
                                                                     draggable: false,
                                                                 })}
@@ -1819,7 +1885,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                             اسحب حصة الانتظار
                                                         </span>
                                                     </div>
-                                                )}
+                                                    ) : null;
+                                                })()}
                                              </div>
                                         </div>
                                     </td>
@@ -2282,7 +2349,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                                       }}>
                                                     {renderPlacedWaitingCard({
                                                         highlighted: (canDropOnWaiting || (canDropLesson && isDraggingLesson)) && isHovered,
-                                                        onDelete: isTeacher && onUpdateSettings && canEditWaitingNow ? () => setWaitingDeleteKey(slotKey) : undefined,
+                                                        onDelete: isTeacher && onUpdateSettings && canEditWaitingNow ? () => deleteWaitingSlot(slotKey) : undefined,
                                                     })}
                                                 </div>
                                             );
@@ -2469,6 +2536,13 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
        WRAPPER
     ════════════════════════════════════════════════════ */
     const handleCloseFullScreen = () => {
+        if (isFullScreenEditMode) {
+            setEditModeToast('احفظ التعديلات أو اضغط إلغاء قبل الرجوع');
+            window.setTimeout(() => {
+                setEditModeToast(current => current === 'احفظ التعديلات أو اضغط إلغاء قبل الرجوع' ? null : current);
+            }, 2600);
+            return;
+        }
         setIsFullScreen(false);
         setIsFullScreenEditMode(false);
     };
@@ -2649,6 +2723,12 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                             {type === 'general_teachers' && onUpdateSettings && (
                                 <>
                                     {isFullScreenEditMode && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-black text-emerald-700">
+                                            <CheckCircle2 size={14} />
+                                            وضع التعديل مفعل
+                                        </span>
+                                    )}
+                                    {isFullScreenEditMode && (
                                         <button
                                             onClick={cancelFullScreenEditMode}
                                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all hover:bg-slate-50 active:scale-95"
@@ -2685,22 +2765,20 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         </div>
                     )}
                     {onDeleteAllWaiting && (() => {
-                        const wCount = Object.values(settings.timetable || {}).filter((s: any) => s?.type === 'waiting').length;
+                        const wCount = Object.values(settings.timetable || {}).filter((s: any) => s?.type === 'waiting' || s?.isSubstitution).length;
                         return wCount > 0 ? (
                             <div className="mt-3 flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-9 h-9 shrink-0 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center">
-                                        <AlertTriangle size={16} className="text-amber-600" />
-                                    </div>
+                                    <AlertTriangle size={18} className="text-amber-600 shrink-0" />
                                     <p className="text-sm font-bold text-amber-800 leading-snug">
                                         يوجد <span className="font-black text-amber-900">{wCount}</span> حصة انتظار موزعة في الجدول — يمكنك حذفها جميعاً إذا أردت إعادة التوزيع
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setConfirmDeleteAllWaiting(true)}
-                                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-200 transition-all active:scale-95"
+                                    className="shrink-0 inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
                                 >
-                                    <Trash2 size={13} />
+                                    <Trash2 size={13} className="text-rose-600" />
                                     حذف جميع حصص الانتظار
                                 </button>
                             </div>
@@ -2734,66 +2812,22 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 {showFsSortModal && renderFsSortModal()}
                 {showFsSpecSortModal && renderFsSpecSortModal()}
 
-                {waitingDeleteKey && (
-                    <div className="fixed inset-0 z-[320] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in" dir="rtl">
-                        <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95">
-                            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
-                                        <AlertTriangle size={20} className="text-rose-500" />
-                                    </div>
-                                    <h3 className="font-black text-slate-800">حذف حصة الانتظار</h3>
-                                </div>
-                                <button onClick={() => setWaitingDeleteKey(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
-                                    <X size={16} />
-                                </button>
-                            </div>
-                            <div className="p-5 text-sm text-slate-600 font-medium leading-relaxed">
-                                هل تريد حذف هذه الحصة؟ لا يمكن التراجع عن هذا الإجراء.
-                            </div>
-                            <div className="px-5 pb-5 flex gap-3">
-                                <button
-                                    onClick={() => setWaitingDeleteKey(null)}
-                                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
-                                >
-                                    إلغاء
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (!waitingDeleteKey || !onUpdateSettings) return;
-                                        const newTimetable = { ...settings.timetable };
-                                        delete newTimetable[waitingDeleteKey];
-                                        onUpdateSettings({ ...settings, timetable: newTimetable });
-                                        setWaitingDeleteKey(null);
-                                    }}
-                                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors"
-                                >
-                                    حذف
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {confirmDeleteAllWaiting && (
                     <div className="fixed inset-0 z-[340] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in" dir="rtl">
                         <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
                             <div className="flex items-center justify-between p-6 border-b border-slate-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-11 h-11 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
-                                        <AlertTriangle size={22} className="text-rose-500" />
-                                    </div>
+                                    <div className="flex items-center justify-center text-rose-500"><AlertTriangle size={22} /></div>
                                     <div>
                                         <h3 className="font-black text-xl text-slate-800">حذف جميع حصص الانتظار</h3>
-                                        <p className="text-sm font-bold text-slate-500 mt-0.5">سيتم إزالة جميع حصص الانتظار من الجدول.</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setConfirmDeleteAllWaiting(false)} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all">
+                                <button onClick={() => setConfirmDeleteAllWaiting(false)} className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all">
                                     <X size={18} />
                                 </button>
                             </div>
                             <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
-                                هذا الإجراء سيحذف جميع حصص الانتظار الموزعة في الجدول نهائيًا ولا يمكن التراجع عنه.
+                                سيتم إزالة جميع حصص الانتظار الموزعة في الجدول نهائيًا ولا يمكن التراجع عنه.
                             </div>
                             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
                                 <button
@@ -2805,7 +2839,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                 <button
                                     onClick={() => {
                                         setConfirmDeleteAllWaiting(false);
-                                        onDeleteAllWaiting?.();
+                                        deleteAllWaitingSlots();
                                     }}
                                     className="px-5 py-2.5 rounded-xl text-sm font-black text-white bg-rose-500 hover:bg-rose-600 transition-colors"
                                 >
@@ -2889,47 +2923,6 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
             {showFsSortModal && renderFsSortModal()}
             {showFsSpecSortModal && renderFsSpecSortModal()}
 
-            {/* تأكيد حذف حصة الانتظار */}
-            {waitingDeleteKey && (
-                <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in" dir="rtl">
-                    <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
-                                    <AlertTriangle size={20} className="text-rose-500" />
-                                </div>
-                                <h3 className="font-black text-slate-800">حذف حصة الانتظار</h3>
-                            </div>
-                            <button onClick={() => setWaitingDeleteKey(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="p-5 text-sm text-slate-600 font-medium leading-relaxed">
-                            هل تريد حذف هذه الحصة؟ لا يمكن التراجع عن هذا الإجراء.
-                        </div>
-                        <div className="px-5 pb-5 flex gap-3">
-                            <button
-                                onClick={() => setWaitingDeleteKey(null)}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
-                            >
-                                إلغاء
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (!waitingDeleteKey || !onUpdateSettings) return;
-                                    const newTimetable = { ...settings.timetable };
-                                    delete newTimetable[waitingDeleteKey];
-                                    onUpdateSettings({ ...settings, timetable: newTimetable });
-                                    setWaitingDeleteKey(null);
-                                }}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors"
-                            >
-                                حذف
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
