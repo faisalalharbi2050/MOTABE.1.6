@@ -721,9 +721,20 @@ const SignaturePrintWorkspace: React.FC<{
 
       <div id="signature-print-root" className="bg-white p-6 space-y-8">
         {teacherIds.map(teacherId => {
-          const teacher = teachers.find(item => item.id === teacherId);
-          if (!teacher) return null;
           const sigRequest = sigRequests.find(r => r.teacherId === teacherId);
+          const teacher =
+            teachers.find(item => item.id === teacherId) ||
+            (sigRequest?.teacherName ? teachers.find(item => item.name === sigRequest.teacherName) : undefined);
+          if (!teacher) {
+            return (
+              <div key={teacherId || sigRequest?.token || 'missing-teacher'} className="signature-print-page rounded-[2rem] border border-amber-200 bg-amber-50 p-8 text-center">
+                <p className="text-base font-black text-amber-800">تعذر عرض نموذج الاستلام</p>
+                <p className="text-sm font-bold text-amber-700 mt-2">
+                  لم يتم العثور على المعلم {sigRequest?.teacherName || 'المحدد'} في قائمة المعلمين الحالية.
+                </p>
+              </div>
+            );
+          }
           const isSigned = sigRequest?.status === 'signed';
 
           return (
@@ -992,6 +1003,7 @@ const ViewTabV3: React.FC<Props> = ({
   const [recipientsListLink, setRecipientsListLink] = useState<GeneratedLink | null>(null);
 
   const [sendModalResults, setSendModalResults] = useState<Array<{id: string; name: string; phone: string; status: 'sent'|'failed'; channel: string; timestamp: string; failureReason?: string}>>([]);
+  const [showSendResultsModal, setShowSendResultsModal] = useState(false);
   const [isSendingNow, setIsSendingNow] = useState(false);
   const [modalMessageContent, setModalMessageContent] = useState('');
   const [sigFilter, setSigFilter] = useState<'all' | 'signed' | 'pending'>('all');
@@ -1013,6 +1025,26 @@ const ViewTabV3: React.FC<Props> = ({
     ((schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri') as 'hijri' | 'gregorian')
   );
   const smsStats = useMemo(() => calculateSmsSegments(modalMessageContent), [modalMessageContent]);
+  const sendResultsStats = useMemo(() => {
+    const base = {
+      whatsapp: { sent: 0, failed: 0, total: 0 },
+      sms: { sent: 0, failed: 0, total: 0 },
+    };
+
+    sendModalResults.forEach(result => {
+      const channel = result.channel === 'sms' ? 'sms' : 'whatsapp';
+      base[channel].total += 1;
+      if (result.status === 'sent') base[channel].sent += 1;
+      else base[channel].failed += 1;
+    });
+
+    return {
+      ...base,
+      sent: sendModalResults.filter(result => result.status === 'sent').length,
+      failed: sendModalResults.filter(result => result.status === 'failed').length,
+      total: sendModalResults.length,
+    };
+  }, [sendModalResults]);
 
   const hasSchedule = !!scheduleSettings.timetable && Object.keys(scheduleSettings.timetable).length > 0;
   const sortedClasses = useMemo(
@@ -1679,6 +1711,7 @@ const ViewTabV3: React.FC<Props> = ({
       });
     }
     setSendModalResults(results);
+    setShowSendResultsModal(true);
     setIsSendingNow(false);
     setSigReceiptRequests(readScheduleSignatureRequests());
     const sentCount = results.filter(r => r.status === 'sent').length;
@@ -2625,31 +2658,76 @@ const ViewTabV3: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* نتائج الإرسال المباشر */}
-          {sendModalResults.length > 0 && (
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-              <div className="flex items-center gap-3 mb-2">
-                <CheckCircle2 size={20} className="text-emerald-500" />
-                <h4 className="font-black text-slate-800">نتائج الإرسال</h4>
+          {showSendResultsModal && sendModalResults.length > 0 && createPortal(
+            <div
+              className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in"
+              dir="rtl"
+              onClick={() => setShowSendResultsModal(false)}
+            >
+              <div
+                className="w-full max-w-xl bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden"
+                onClick={event => event.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Send size={22} className="text-[#655ac1] shrink-0" />
+                    <div className="min-w-0">
+                      <h4 className="font-black text-slate-800 text-base">نتائج الإرسال</h4>
+                      <p className="text-xs font-bold text-slate-400 mt-0.5">تم تسجيل هذه العملية في أرشيف الرسائل.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    title="إغلاق"
+                    aria-label="إغلاق"
+                    onClick={() => setShowSendResultsModal(false)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-transparent text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1] transition-all"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                      <div className="text-[10px] font-bold text-[#655ac1] mb-1">تم الإرسال</div>
+                      <div className="text-xl font-extrabold text-[#655ac1] tabular-nums">{sendResultsStats.sent.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                      <div className="text-[10px] font-bold text-rose-600 mb-1">فشل الإرسال</div>
+                      <div className="text-xl font-extrabold text-rose-600 tabular-nums">{sendResultsStats.failed.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                      <div className="text-[10px] font-bold text-slate-500 mb-1">الإجمالي</div>
+                      <div className="text-xl font-extrabold text-slate-800 tabular-nums">{sendResultsStats.total.toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                        {sendChannel === 'whatsapp' ? <WhatsAppIcon size={18} /> : <MessageSquare size={16} className="text-[#007AFF]" />}
+                        <span>قناة الإرسال: {sendChannelLabel}</span>
+                      </div>
+                      <div className="text-xs font-black text-slate-500">
+                        {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(sendModalResults[0]?.timestamp || Date.now()))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-5 py-4 border-t border-slate-100 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowSendResultsModal(false)}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 bg-transparent text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+                  >
+                    إغلاق
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-                  <p className="text-2xl font-black text-emerald-800">{sendModalResults.filter(r => r.status === 'sent').length}</p>
-                  <p className="text-xs text-emerald-600 mt-1">تم الإرسال</p>
-                </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-3 text-center">
-                  <p className="text-2xl font-black text-rose-800">{sendModalResults.filter(r => r.status === 'failed').length}</p>
-                  <p className="text-xs text-rose-600 mt-1">فشل</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
-                  <p className="text-2xl font-black text-slate-800">{sendModalResults.length}</p>
-                  <p className="text-xs text-slate-500 mt-1">الإجمالي</p>
-                </div>
-              </div>
-              <p className="text-xs font-medium text-slate-500 rounded-xl border border-[#e5e1fe] bg-[#f8f7ff] px-3 py-2">
-                تم تسجيل هذه العملية في أرشيف الرسائل.
-              </p>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
         </SendPanelErrorBoundary>
