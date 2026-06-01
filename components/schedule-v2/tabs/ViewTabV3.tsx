@@ -208,11 +208,11 @@ const SCHEDULE_TYPES: Array<{
   icon: React.ComponentType<any>;
   isGeneral: boolean;
 }> = [
+  { id: 'general_teachers', label: 'الجدول العام للمعلمين', icon: Users, isGeneral: true },
+  { id: 'general_waiting', label: 'الجدول العام للانتظار', icon: CalendarClock, isGeneral: true },
+  { id: 'general_classes', label: 'الجدول العام للفصول', icon: LayoutGrid, isGeneral: true },
   { id: 'individual_teacher', label: 'جدول معلم', icon: User, isGeneral: false },
   { id: 'individual_class', label: 'جدول فصل', icon: BookOpen, isGeneral: false },
-  { id: 'general_teachers', label: 'الجدول العام للمعلمين', icon: Users, isGeneral: true },
-  { id: 'general_classes', label: 'الجدول العام للفصول', icon: LayoutGrid, isGeneral: true },
-  { id: 'general_waiting', label: 'الجدول العام للانتظار', icon: CalendarClock, isGeneral: true },
 ];
 
 const GENERAL_SCHEDULES = SCHEDULE_TYPES.filter(item => item.isGeneral);
