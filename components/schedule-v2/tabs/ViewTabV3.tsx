@@ -2217,7 +2217,7 @@ const ViewTabV3: React.FC<Props> = ({
             <div className="flex flex-wrap items-end gap-4">
               <div className="min-w-[260px]">
                 <SingleSelectDropdown
-                  label="نوع الجدول"
+                  label=""
                   value={previewScheduleType}
                   onChange={value => setPreviewScheduleType(value as ScheduleType)}
                   placeholder="اختر نوع الجدول"
