@@ -434,7 +434,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
       {/* ── Add / Edit modal ────────────────────────────────────────────────── */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white/25 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={closeModal}
         >
           <div
@@ -630,29 +630,28 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
       {/* ── Delete confirmation ─────────────────────────────────────────────── */}
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={() => setDeleteTarget(null)}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-xs p-6 text-center animate-in fade-in duration-200"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 text-center animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
-            <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Trash2 size={22} className="text-rose-500" />
+            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={32} className="text-rose-500" />
             </div>
-            <h3 className="text-sm font-extrabold text-slate-800 mb-1.5">حذف المهمة</h3>
-            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-              هل أنت متأكد من حذف<br />
-              <span className="font-bold text-slate-700">"{deleteTarget.title}"</span>؟
+            <h3 className="text-xl font-black text-slate-800 mb-2">حذف المهمة</h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              هل أنت متأكد من حذف <span className="font-black text-slate-800">"{deleteTarget.title}"</span>؟ لا يمكن التراجع عن هذا الإجراء.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors"
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
               >إلغاء</button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-2xl transition-colors"
+                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-rose-500/20"
               >حذف</button>
             </div>
           </div>

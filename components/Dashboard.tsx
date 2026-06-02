@@ -229,9 +229,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                </h4>
               <button
                  onClick={() => onNavigate('messages_subscriptions')}
-                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                 className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
                >
-                 <PackagePlus size={14} strokeWidth={1.8} className="text-slate-400 transition-colors" />
+                 <PackagePlus size={14} strokeWidth={1.8} className="text-slate-400 transition-colors group-hover:text-white" />
                  شراء / شحن باقة
                </button>
              </div>
@@ -306,9 +306,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               </h4>
               <button
                 onClick={() => onNavigate('subscription_pricing')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
               >
-                <BadgePlus size={14} strokeWidth={1.8} className="text-slate-400 transition-colors" />
+                <BadgePlus size={14} strokeWidth={1.8} className="text-slate-400 transition-colors group-hover:text-white" />
                 اشتراك / ترقية
               </button>
             </div>
