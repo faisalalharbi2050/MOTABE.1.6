@@ -2463,7 +2463,7 @@ const ViewTabV3: React.FC<Props> = ({
                 <h4 className="font-black text-slate-800">نموذج تسليم جدول معلم للتوقيع</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium text-right mb-5">
-                اطبع نموذج التسليم الورقي الرسمي لمعلم واحد أو عدة معلمين أو جميع المعلمين.
+                اطبع نموذج التسليم الورقي الرسمي لمعلم أو لجميع المعلمين
               </p>
               <div className="space-y-4 flex-1">
                 <MultiSelectDropdown
