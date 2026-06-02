@@ -434,7 +434,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
       {/* ── Add / Edit modal ────────────────────────────────────────────────── */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={closeModal}
         >
           <div
@@ -630,7 +630,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
       {/* ── Delete confirmation ─────────────────────────────────────────────── */}
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={() => setDeleteTarget(null)}
         >
           <div

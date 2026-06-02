@@ -399,7 +399,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
   return (
     <div className="space-y-6">
 
-      {/* ── Save success toast ─────────────────────────────────────────────── */}
+      {/* Save success toast */}
       {saveSuccess && (
         <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl animate-in slide-in-from-top-2 duration-300">
           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
@@ -425,7 +425,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
               setShowForm(true);
               setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[#655ac1] transition-all hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-[#655ac1]"
           >
             <Plus size={16} />
             إضافة فصل دراسي آخر
@@ -433,7 +433,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {!showForm && semesters.length === 0 ? (
           <div className="col-span-full rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-10 text-center">
             <p className="text-sm text-slate-500">لم يتم إضافة العام والفصول الدراسية بعد</p>
@@ -452,21 +452,20 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
           semesters.map(semester => (
             <div
               key={semester.id}
-              className="rounded-[1.25rem] border border-slate-300 bg-white p-4 transition-all hover:border-slate-400 hover:shadow-sm"
+              className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/50 transition-all hover:border-[#8779fb]/40 hover:shadow-md"
             >
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-                  {/* Badge الفصل الحالي — تلقائي */}
-                  <div>
+              <div className="flex h-full flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex flex-wrap items-center gap-2">
+                    <p className="text-base font-black text-slate-800 truncate">{formatSemesterNameForCard(semester.name)}</p>
                     {semester.id === currentSemesterId && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-slate-200 text-xs font-black text-[#655ac1]">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-transparent border border-slate-300 text-xs font-black text-[#655ac1]">
                         <CalendarDays size={12} className="text-[#8779fb]" />
                         الفصل الحالي
                       </span>
                     )}
                   </div>
-                  {/* أزرار الإجراءات */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
                     <button
                       onClick={() => setPreviewingSemester(semester)}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50"
@@ -501,20 +500,20 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   </div>
                 </div>
 
-                {/* بطاقة معلومات الفصل — تصميم حديث */}
-                <div className="px-4 py-3 space-y-3">
-                  <p className="text-base font-black text-[#655ac1]">{formatSemesterNameForCard(semester.name)}</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600">
-                      يبدأ من {formatDateForDisplay(semester.startDate, semester.calendarType)}
-                    </span>
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600">
-                      ينتهي في {formatDateForDisplay(semester.endDate, semester.calendarType)}
-                    </span>
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600">
-                      {semester.weeksCount} أسبوع
-                    </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+                    <p className="text-[11px] font-black text-slate-400 mb-1">بداية الفصل</p>
+                    <p className="text-xs font-black text-slate-700 leading-5">{formatDateForDisplay(semester.startDate, semester.calendarType)}</p>
                   </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+                    <p className="text-[11px] font-black text-slate-400 mb-1">نهاية الفصل</p>
+                    <p className="text-xs font-black text-slate-700 leading-5">{formatDateForDisplay(semester.endDate, semester.calendarType)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-auto flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <span className="text-xs font-black text-slate-500">مدة الفصل الدراسي</span>
+                  <span className="text-sm font-black text-[#655ac1]">{semester.weeksCount} أسبوع</span>
                 </div>
               </div>
             </div>
@@ -757,7 +756,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                       </div>
                                       <div className={`text-sm font-black text-right ${isFullHoliday ? 'text-rose-400' : 'text-[#8779fb]'}`}>
                                         <bdi dir="ltr">{firstDay.dateObj.format('M/D')}</bdi>
-                                        <span className="opacity-40 mx-1">—</span>
+                                        <span className="opacity-40 mx-1">-</span>
                                         <bdi dir="ltr">{lastDay.dateObj.format('M/D')}</bdi>
                                      </div>
                                   </div>
@@ -898,7 +897,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                                         isFullHoliday ? 'text-rose-500' : 'text-[#8779fb]'
                                       }`}>
                                         <bdi dir="ltr">{firstDay.dateObj.format('M/D')}</bdi>
-                                        <span className="opacity-50 mx-1">—</span>
+                                        <span className="opacity-50 mx-1">-</span>
                                         <bdi dir="ltr">{lastDay.dateObj.format('M/D')}</bdi>
                                       </div>
                                     </div>
@@ -969,32 +968,44 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
 
       {/* Delete Confirmation Modal */}
       {deletingId && createPortal(
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-              <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="w-12 h-12 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
-                      <AlertCircle className="text-rose-500" size={24} />
-                  </div>
-                  
-                  <h3 className="text-lg font-bold text-slate-800 mb-2 text-center">تأكيد الحذف</h3>
-                  
-                  <p className="text-sm text-slate-500 mb-6 text-center leading-relaxed">
-                      هل أنت متأكد من حذف هذا الفصل الدراسي؟ لا يمكن التراجع عن هذا الإجراء وسيتم مسح كافة البيانات المرتبطة به.
-                  </p>
-                  
-                  <div className="flex gap-3">
-                      <button 
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+                  <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                      <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-rose-50 text-rose-600 border border-rose-100">
+                              <AlertCircle size={22} />
+                          </div>
+                          <div>
+                              <h3 className="font-black text-xl text-slate-800">تأكيد الحذف</h3>
+                              <p className="text-sm font-bold text-slate-500 mt-0.5">سيتم حذف الفصل الدراسي المحدد من التقويم.</p>
+                          </div>
+                      </div>
+                      <button
                           onClick={() => setDeletingId(null)}
-                          className="flex-1 py-2.5 px-4 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                      >
+                          <X size={18} />
+                      </button>
+                  </div>
+
+                  <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
+                      هل تريد حذف هذا الفصل الدراسي؟ لا يمكن التراجع عن هذا الإجراء وسيتم مسح كافة البيانات المرتبطة به.
+                  </div>
+
+                  <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+                      <button
+                          onClick={() => setDeletingId(null)}
+                          className="px-5 py-2.5 rounded-xl text-sm font-black text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                       >
                           إلغاء
                       </button>
-                      <button 
+                      <button
                           onClick={() => {
                               if (deletingId) handleDeleteSemester(deletingId);
                           }}
-                          className="flex-1 py-2.5 px-4 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors shadow-sm shadow-rose-500/20"
+                          className="px-5 py-2.5 rounded-xl text-sm font-black text-white bg-rose-500 hover:bg-rose-600 transition-colors"
                       >
-                          حذف نهائي
+                          تأكيد
                       </button>
                   </div>
               </div>

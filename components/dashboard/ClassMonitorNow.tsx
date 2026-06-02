@@ -23,7 +23,7 @@ const DAY_LABELS: Record<string, string> = {
   saturday: 'السبت',
 };
 
-const getClassLabel = (item: ClassInfo) => item.name || `${item.grade}/${item.section}`;
+const getClassLabel = (item: ClassInfo) => `فصل ${item.grade} / ${item.section}`;
 
 interface DropdownOption {
   value: string;
@@ -122,7 +122,8 @@ const CheckDropdown: React.FC<{
 const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, teachers, subjects, timetable }) => {
   const hasShared = (schoolInfo.sharedSchools?.length || 0) > 0;
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
-  const [search, setSearch] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [teacherSearch, setTeacherSearch] = useState('');
   const [followLive, setFollowLive] = useState(true);
 
   // تحديث كل دقيقة لمتابعة الحصة الحالية حيًّا
@@ -183,7 +184,7 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
     if (live.periodIndex) setSelectedPeriod(live.periodIndex);
   };
 
-  // فصول المدرسة الفعّالة (فصول فعلية فقط — تُستبعد المرافق)
+  // فصول المدرسة الفعّالة (فصول فعلية فقط - تُستبعد المرافق)
   const schoolClasses = useMemo(
     () =>
       classes
@@ -230,19 +231,19 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
 
   // تجميع حسب الصف + تطبيق البحث
   const groups = useMemo(() => {
-    const q = search.trim();
+    const q = teacherSearch.trim();
     const map = new Map<string, { label: string; items: ClassInfo[] }>();
     schoolClasses.forEach(c => {
-      const label = getClassLabel(c);
       const teacher = teacherName(slotByClass.lessons.get(c.id)?.teacherId || slotByClass.covers.get(c.id)?.teacherId);
-      if (q && !label.includes(q) && !teacher.includes(q)) return;
+      if (selectedClassId && c.id !== selectedClassId) return;
+      if (q && !teacher.includes(q)) return;
       const key = `${c.phase}-${c.grade}`;
       const groupLabel = gradeLabelMap[`${c.phase}-${c.grade}`] || `الصف ${c.grade}`;
       if (!map.has(key)) map.set(key, { label: groupLabel, items: [] });
       map.get(key)!.items.push(c);
     });
     return Array.from(map.values());
-  }, [schoolClasses, slotByClass, search, gradeLabelMap, teachers]);
+  }, [schoolClasses, slotByClass, teacherSearch, selectedClassId, gradeLabelMap, teachers]);
 
   const totalShown = groups.reduce((sum, g) => sum + g.items.length, 0);
 
@@ -288,7 +289,7 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2 min-w-0">
           <LayoutGrid size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-          <h3 className="font-bold text-slate-700 text-lg truncate">متابعة الفصول الآن</h3>
+          <h3 className="font-bold text-slate-700 text-lg truncate">الفصول</h3>
         </div>
         <button
           onClick={jumpToNow}
@@ -316,8 +317,8 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
                 onClick={() => setActiveSchoolId(s.id)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all max-w-[180px] ${
                   active
-                    ? 'bg-[#f0edff] text-[#655ac1] border-[#cfc8ff]'
-                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                    ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-sm shadow-[#655ac1]/20'
+                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-[#655ac1]'
                 }`}
               >
                 <Icon size={13} className="shrink-0" />
@@ -360,9 +361,9 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
       {/* اختيار فصل سريع + بحث نصي */}
       <div className="flex items-center gap-2 mb-3">
         <CheckDropdown
-          value={classOptions.find(o => o.label === search)?.value || ''}
+          value={selectedClassId}
           options={classOptions}
-          onChange={v => setSearch(v ? (classOptions.find(o => o.value === v)?.label || '') : '')}
+          onChange={setSelectedClassId}
           minWidthClass="min-w-[120px]"
           accentOptions
         />
@@ -370,9 +371,9 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input
             type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="ابحث عن فصل أو معلم..."
+            value={teacherSearch}
+            onChange={e => setTeacherSearch(e.target.value)}
+            placeholder="ابحث عن معلم..."
             className="w-full pr-9 pl-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-slate-300 transition-all placeholder:font-normal placeholder:text-slate-300"
           />
         </div>

@@ -690,10 +690,10 @@ const Header: React.FC<HeaderProps> = ({
                      className={`mr-2 px-2.5 py-1 rounded-full text-[11px] font-black border transition-colors ${
                        currentWeek
                          ? 'bg-[#655ac1] text-white border-[#655ac1] hover:bg-[#5548b0]'
-                         : 'bg-white text-[#655ac1] border-[#d8d2ff] hover:bg-[#f6f4ff]'
+                         : 'bg-white text-[#655ac1] border-slate-300 hover:bg-slate-50 hover:border-slate-400'
                      }`}
                    >
-                     {currentWeek ? `الأسبوع ${currentWeek}` : 'إعداد التقويم'}
+                     {currentWeek ? `الأسبوع ${currentWeek}` : 'إعداد التقويم الدراسي'}
                    </button>
                </div>
           </div>

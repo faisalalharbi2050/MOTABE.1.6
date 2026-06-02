@@ -193,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="lg:col-span-5 min-h-[360px] lg:h-full">
           <DailySchedule
             schedule={todaySchedule}
-            title={`جدول يوم ${todayName}`}
+            title={`ملخص يوم ${todayName}`}
             officialLeaveText={todayOfficialLeaveText}
           />
         </div>

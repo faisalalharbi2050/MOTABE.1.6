@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertCircle, CalendarDays, Check, CheckCircle2, ChevronRight, Settings2 } from 'lucide-react';
+import { CalendarDays, Check, CheckCircle2, ChevronRight, Settings2 } from 'lucide-react';
 import { SchoolInfo } from '../../types';
 import SemesterManager from '../wizard/SemesterManager';
 import PrintCalendarModal from '../dashboard/PrintCalendarModal';
@@ -74,14 +74,6 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12">إعداد صيغة التواريخ والتقويم الدراسي للفصول</p>
           </div>
-          <button
-            onClick={saveCurrentSettings}
-            className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all shadow-sm self-start md:self-center ${
-              saved ? 'bg-emerald-500 text-white' : 'bg-[#655ac1] text-white hover:bg-[#5548b0]'
-            }`}
-          >
-            {saved ? 'تم الحفظ' : 'حفظ'}
-          </button>
         </div>
       </div>
 
@@ -90,6 +82,7 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
           <Settings2 size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
           صيغة عرض التواريخ
         </h3>
+        <p className="text-[11px] font-bold text-slate-400 mb-4 -mt-2 leading-5">تُطبَّق هذه الصيغة على عرض جميع التواريخ في كل الصفحات.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
           {([
             { value: 'hijri', label: 'هجري' },
@@ -116,9 +109,6 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
             );
           })}
         </div>
-        <p className="text-[11px] font-bold text-slate-400 mt-4 leading-5">
-          تُطبَّق هذه الصيغة على عرض جميع التواريخ في كل الصفحات.
-        </p>
       </section>
 
       <section className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
@@ -218,25 +208,12 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
 
           {screen === 'manager' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center gap-3">
-                <button
-                  onClick={() => setScreen('choose')}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 border border-slate-200 bg-white rounded-xl px-3 py-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                >
-                  <ChevronRight size={13} />
-                  تغيير / إضافة التقويم
-                </button>
-                {!hasData && (
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                    <AlertCircle size={13} />
-                    لم يتم إعداد التقويم الدراسي بعد
-                  </span>
-                )}
-              </div>
-
               <SemesterManager
                 semesters={schoolInfo.semesters || []}
-                setSemesters={(semesters) => setSchoolInfo(prev => ({ ...prev, semesters }))}
+                setSemesters={(semesters) => {
+                  setSchoolInfo(prev => ({ ...prev, semesters }));
+                  if (semesters.length === 0) setScreen('choose');
+                }}
                 currentSemesterId={schoolInfo.currentSemesterId}
                 setCurrentSemesterId={(id) => setSchoolInfo(prev => ({ ...prev, currentSemesterId: id }))}
                 academicYear={schoolInfo.academicYear || ''}
@@ -250,16 +227,19 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <span className="text-xs font-bold text-slate-400">
             {hasData ? 'يمكن تحديد الفصل الحالي وطباعة التقويم من إدارة الفصول.' : 'ابدأ بتقويم جاهز أو تقويم مخصص.'}
           </span>
-          {saved && (
-            <span className="flex items-center gap-1.5 text-xs font-black text-emerald-600">
-              <CheckCircle2 size={14} />
-              تم الحفظ
-            </span>
-          )}
+          <button
+            onClick={saveCurrentSettings}
+            className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all shadow-sm ${
+              saved ? 'bg-emerald-500 text-white' : 'bg-[#655ac1] text-white hover:bg-[#5548b0] shadow-[#655ac1]/20'
+            }`}
+          >
+            <CheckCircle2 size={16} />
+            {saved ? 'تم الحفظ' : 'حفظ'}
+          </button>
         </div>
       </section>
 
