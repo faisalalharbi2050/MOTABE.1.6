@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, X, Pen, Trash2, Bell, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react';
 import { CalendarEvent, SchoolInfo } from '../../types';
 
@@ -115,7 +116,8 @@ interface CalendarWidgetProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
+const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
+  const calendarType: 'hijri' | 'gregorian' = schoolInfo?.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
   const [tasks, setTasks] = useState<Task[]>(loadTasks);
 
   // Add / edit modal
@@ -124,7 +126,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
   const [taskTitles,    setTaskTitles]    = useState<string[]>([EMPTY_REMINDER]);
   const [taskDate,      setTaskDate]      = useState('');
   const [taskColor,     setTaskColor]     = useState<Task['color']>('green');
-  const [modalDateType, setModalDateType] = useState<'hijri' | 'gregorian'>('hijri');
 
   // Hijri date picker fields
   const [hijriPickerY, setHijriPickerY] = useState(1447);
@@ -243,7 +244,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
     const next: Task[] = editingTask
       ? tasks.map(t => t.id === editingTask.id
-          ? { ...t, title: trimmedTitles[0], date: taskDate, color: taskColor, dateType: modalDateType }
+          ? { ...t, title: trimmedTitles[0], date: taskDate, color: taskColor, dateType: calendarType }
           : t)
       : [
           ...tasks,
@@ -252,7 +253,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
             title,
             date: taskDate,
             color: taskColor,
-            dateType: modalDateType
+            dateType: calendarType
           }))
         ];
     setTasks(next);
@@ -355,10 +356,10 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
         <button
           onClick={openAdd}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-white text-[#655ac1] border border-slate-200 rounded-2xl hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] active:scale-95 transition-all text-sm font-bold"
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-white text-slate-500 border border-slate-200 rounded-2xl hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] active:scale-95 transition-all text-sm font-bold"
         >
           <Plus size={15} strokeWidth={2.5} />
-          إضافة تذكير
+          إضافة
         </button>
       </div>
 
@@ -370,7 +371,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
           /* Empty state */
           <div className="flex-1 flex flex-col items-center justify-center py-10 text-center select-none">
             <div className="flex items-center justify-center mb-4">
-              <ClipboardList size={28} className="text-[#655ac1]" />
+              <ClipboardList size={28} className="text-slate-300" />
             </div>
             <p className="text-sm font-bold text-slate-400">لا توجد مهام تذكيرية بعد</p>
             <p className="text-xs text-slate-300 mt-1 font-medium">
@@ -433,11 +434,11 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
       {/* ── Add / Edit modal ────────────────────────────────────────────────── */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-fade-in"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in fade-in duration-200"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -450,9 +451,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
               </div>
               <button
                 onClick={closeModal}
-                className="p-1.5 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+                className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
@@ -491,7 +492,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
                     <button
                       type="button"
                       onClick={addTaskTitleField}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] hover:text-[#5448b0] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-500 text-xs font-bold hover:bg-slate-50 transition-colors"
                     >
                       <Plus size={14} strokeWidth={2.4} />
                       إضافة تذكير آخر
@@ -500,19 +501,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
                 </div>
               </div>
 
-              {/* Date type toggle */}
+              {/* Date (calendar type follows the global setting) */}
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-1.5">تاريخ التذكير</label>
-                <div className="flex bg-slate-50 rounded-2xl p-0.5 text-xs font-bold border border-slate-200 mb-2.5 w-fit">
-                  <button
-                    onClick={() => setModalDateType('hijri')}
-                    className={`px-3 py-1.5 rounded-xl border transition-all ${modalDateType === 'hijri' ? 'bg-white text-[#655ac1] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
-                  >هجري</button>
-                  <button
-                    onClick={() => setModalDateType('gregorian')}
-                    className={`px-3 py-1.5 rounded-xl border transition-all ${modalDateType === 'gregorian' ? 'bg-white text-[#655ac1] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'}`}
-                  >ميلادي</button>
-                </div>
 
                 {/* Weekday badge — inline in same row as selectors */}
                 {(() => {
@@ -525,7 +516,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
                     </span>
                   );
 
-                  return modalDateType === 'gregorian' ? (
+                  return calendarType === 'gregorian' ? (
                     /* Gregorian pickers */
                     <div className="flex gap-2 items-center">
                       <select
@@ -622,7 +613,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={closeModal}
-                className="flex-1 py-2.5 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors"
+                className="flex-1 py-2.5 text-sm font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 rounded-2xl transition-colors"
               >إلغاء</button>
               <button
                 onClick={saveTask}
@@ -639,11 +630,11 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
       {/* ── Delete confirmation ─────────────────────────────────────────────── */}
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
           onClick={() => setDeleteTarget(null)}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-xs p-6 text-center animate-fade-in"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-xs p-6 text-center animate-in fade-in duration-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -670,7 +661,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = () => {
 
       {/* ── Daily reminder toast (top-center) ──────────────────────────────── */}
       {showReminder && reminderTasks.length > 0 && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] w-[90vw] max-w-sm animate-fade-in">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] w-[90vw] max-w-sm animate-in fade-in duration-200">
           <div className="bg-gradient-to-l from-[#655ac1] to-[#8779fb] text-white rounded-2xl shadow-2xl shadow-[#655ac1]/40 p-4 flex items-start gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 mt-0.5">
               <Bell size={18} className="text-white" />

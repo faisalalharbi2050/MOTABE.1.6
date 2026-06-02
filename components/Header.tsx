@@ -267,6 +267,58 @@ const Header: React.FC<HeaderProps> = ({
     hour12: true
   }).format(currentTime);
 
+  const activeSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
+    ?? schoolInfo.semesters?.[0];
+
+  const getCurrentWeek = () => {
+    if (!activeSemester) return null;
+
+    const start = new Date(activeSemester.startDate + 'T00:00:00');
+    const semesterEnd = new Date(activeSemester.endDate + 'T00:00:00');
+    const today = new Date(currentTime);
+    today.setHours(0, 0, 0, 0);
+
+    if (today < start) return 1;
+
+    const effectiveEnd = today > semesterEnd ? semesterEnd : today;
+    const workDaysStart = activeSemester.workDaysStart ?? 0;
+    const workDaysEnd = activeSemester.workDaysEnd ?? 4;
+    const holidays = new Set(activeSemester.holidays ?? []);
+    const countedWeeks = new Set<string>();
+
+    const toLocalDateKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const isWorkingDay = (day: number) => {
+      if (workDaysStart <= workDaysEnd) {
+        return day >= workDaysStart && day <= workDaysEnd;
+      }
+      return day >= workDaysStart || day <= workDaysEnd;
+    };
+
+    const getWeekStartKey = (date: Date) => {
+      const weekStart = new Date(date);
+      const offset = (weekStart.getDay() - workDaysStart + 7) % 7;
+      weekStart.setDate(weekStart.getDate() - offset);
+      return toLocalDateKey(weekStart);
+    };
+
+    for (const cursor = new Date(start); cursor <= effectiveEnd; cursor.setDate(cursor.getDate() + 1)) {
+      const dateKey = toLocalDateKey(cursor);
+      if (!isWorkingDay(cursor.getDay()) || holidays.has(dateKey)) continue;
+      countedWeeks.add(getWeekStartKey(cursor));
+    }
+
+    return Math.max(1, Math.min(countedWeeks.size || 1, activeSemester.weeksCount));
+  };
+
+  const currentWeek = getCurrentWeek();
+  const selectedDate = (schoolInfo.calendarType || 'hijri') === 'hijri' ? hijriDate : gregorianDate;
+
   // ── Edit helpers ────────────────────────────────────────────────────
   const openEditMode = () => {
     setDraftName(profile.name);
@@ -632,9 +684,17 @@ const Header: React.FC<HeaderProps> = ({
                <div className="flex items-center gap-2">
                    <Calendar size={18} className="text-[#655ac1]" />
                    <span className="text-xs font-bold text-slate-600">{dayName}</span>
-                   <span className="text-xs font-bold text-slate-600">{hijriDate}</span>
-                   <span className="text-xs text-slate-300 mx-1">-</span>
-                   <span className="text-xs font-bold text-slate-500">{gregorianDate}</span>
+                   <span className="text-xs font-bold text-slate-600">{selectedDate}</span>
+                   <button
+                     onClick={() => onNavigate('settings_calendar')}
+                     className={`mr-2 px-2.5 py-1 rounded-full text-[11px] font-black border transition-colors ${
+                       currentWeek
+                         ? 'bg-[#655ac1] text-white border-[#655ac1] hover:bg-[#5548b0]'
+                         : 'bg-white text-[#655ac1] border-[#d8d2ff] hover:bg-[#f6f4ff]'
+                     }`}
+                   >
+                     {currentWeek ? `الأسبوع ${currentWeek}` : 'إعداد التقويم'}
+                   </button>
                </div>
           </div>
 

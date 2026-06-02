@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Home,
   Settings,
@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       setIsScheduleExpanded(true);
       if (isCollapsed) setIsCollapsed(false); // Auto-open sidebar if a sub-item is active (e.g. on load)
     }
-    const settingsTabs = ['settings_basic', 'settings_timing', 'settings_subjects', 'settings_classes', 'settings_teachers', 'settings_admins', 'settings_students'];
+    const settingsTabs = ['settings_basic', 'settings_timing', 'settings_calendar', 'settings_subjects', 'settings_classes', 'settings_teachers', 'settings_admins', 'settings_students'];
     if (settingsTabs.includes(activeTab)) {
       setIsSettingsExpanded(true);
       if (isCollapsed) setIsCollapsed(false);
@@ -245,6 +245,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                    inverted={true}
                 />
                 <SubNavItem
+                   active={activeTab === "settings_calendar"}
+                   onClick={() => handleTabClick("settings_calendar")}
+                   label="التقويم"
+                   icon={<CalendarCheck size={18} />}
+                   inverted={true}
+                />
+                <SubNavItem
                    active={activeTab === "settings_timing"}
                    onClick={() => handleTabClick("settings_timing")}
                    label="التوقيت"
@@ -370,7 +377,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                {/* Tooltip for Collapsed */}
                {isCollapsed && (
                   <div className="absolute left-full ml-4 px-3 py-2 bg-[#483d8b] text-white text-sm font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
-                     الإشراف والمناوبة
+                    الإشراف والمناوبة
                      {/* Arrow */}
                      <div className="absolute top-1/2 right-full -mt-1 -mr-1 border-4 border-transparent border-r-[#483d8b]"></div>
                   </div>
@@ -379,7 +386,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                <div className={`flex items-center gap-4 ${isCollapsed ? "" : ""}`}>
                   <ShieldCheck size={22} className={isSupervisionExpanded && !isCollapsed ? "text-[#655ac1]" : "text-white/70 group-hover:text-white"} />
                   {!isCollapsed && (
-                      <span className={`text-base font-bold ${isSupervisionExpanded ? "text-[#655ac1]" : ""}`}>الإشراف والمناوبة</span>
+                     <span className={`text-base font-bold ${isSupervisionExpanded ? "text-[#655ac1]" : ""}`}>الإشراف والمناوبة</span>
                   )}
                </div>
                
@@ -467,7 +474,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer */}
         <div className={`p-6 text-center shrink-0 transition-opacity duration-300 ${isCollapsed ? "opacity-0 hidden" : "opacity-100"}`}>
           <p className="text-[10px] font-medium text-white/40">
-           v1.5.0 © 2024 Motabe System
+           v1.5.0 آ© 2024 Motabe System
           </p>
         </div>
       </aside>

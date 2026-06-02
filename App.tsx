@@ -17,6 +17,7 @@ import Step5Students from './components/wizard/steps/Step5Students';
 import Step6Teachers from './components/wizard/steps/Step6Teachers';
 import Step7Admins from './components/wizard/steps/Step7Admins';
 import TimingSettings from './components/settings/TimingSettings';
+import CalendarSettings from './components/settings/CalendarSettings';
 import ScheduleV2Preview from './components/schedule-v2/ScheduleV2Preview';
 
 
@@ -293,7 +294,7 @@ const App: React.FC = () => {
     teacherConstraints: [],
     substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual_v2' | 'schedule_v3' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_calendar' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual_v2' | 'schedule_v3' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
     // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -500,7 +501,7 @@ const App: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} classes={classes} messages={messages} events={events} todaySchedule={todaySchedule} subscription={subscription} onNavigate={(tab) => {
+      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} classes={classes} subjects={subjects} scheduleSettings={scheduleSettings} messages={messages} events={events} todaySchedule={todaySchedule} subscription={subscription} onNavigate={(tab) => {
         if (tab === 'subscription_pricing') { setSubscriptionInitialTab('pricing'); setActiveTab('subscription'); }
         else if (tab === 'messages_subscriptions') { setMessagesInitialTab('subscriptions'); setActiveTab('messages'); }
         else if (tab === 'messages_archive') { setMessagesInitialTab('archive'); setActiveTab('messages'); }
@@ -521,6 +522,7 @@ const App: React.FC = () => {
         />
       );
       case 'settings_timing': return <TimingSettings schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
+      case 'settings_calendar': return <CalendarSettings schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 'settings_classes': return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 'settings_subjects': return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} phaseDepartmentMap={phaseDepartmentMap} setPhaseDepartmentMap={setPhaseDepartmentMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 'settings_students': return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;

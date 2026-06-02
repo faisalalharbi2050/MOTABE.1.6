@@ -73,7 +73,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
           };
         })
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, 5);
+        .slice(0, 8);
     }
 
     const fallbackSender = getCurrentSenderName();
@@ -98,7 +98,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
           <p className="text-xs font-bold">لا توجد رسائل</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden rounded-2xl border border-slate-100">
+        <div className="flex-1 overflow-y-auto custom-scrollbar rounded-2xl border border-slate-100">
           <table className="w-full table-fixed text-sm">
             <colgroup>
               <col className="w-[12%]" />

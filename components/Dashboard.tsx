@@ -2,38 +2,29 @@
 import {
   Users,
   GraduationCap,
-  School,
-  UserCheck,
   MessageSquare,
   CreditCard,
-  Calendar,
-  CalendarCheck,
-  CalendarX2,
-  CalendarDays,
-  Layers,
-  MoreVertical,
-  Minus,
-  Plus,
   UserCog,
   LayoutGrid,
   BarChart3,
-  Settings2
 } from 'lucide-react';
-import { 
-  SchoolInfo, 
-  Teacher, 
-  ClassInfo, 
-  Message, 
-  CalendarEvent, 
-  DailyScheduleItem, 
-  SubscriptionInfo 
+import {
+  SchoolInfo,
+  Teacher,
+  ClassInfo,
+  Message,
+  CalendarEvent,
+  DailyScheduleItem,
+  SubscriptionInfo,
+  Subject,
+  ScheduleSettingsData
 } from '../types';
 import StatsCard from './dashboard/StatsCard';
 import QuickActions from './dashboard/QuickActions';
 import CalendarWidget from './dashboard/CalendarWidget';
 import DailySchedule from './dashboard/DailySchedule';
 import RecentMessages from './dashboard/RecentMessages';
-import AcademicCalendarModal from './dashboard/AcademicCalendarModal';
+import ClassMonitorNow from './dashboard/ClassMonitorNow';
 import { useMessageArchive } from './messaging/MessageArchiveContext';
 import { PACKAGE_NAMES } from './subscription/packages';
 
@@ -63,6 +54,8 @@ interface DashboardProps {
   setSchoolInfo: React.Dispatch<React.SetStateAction<SchoolInfo>>;
   teachers: Teacher[];
   classes: ClassInfo[];
+  subjects: Subject[];
+  scheduleSettings: ScheduleSettingsData;
   messages: Message[];
   events: CalendarEvent[];
   todaySchedule: DailyScheduleItem[];
@@ -75,65 +68,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   setSchoolInfo,
   teachers,
   classes,
+  subjects,
+  scheduleSettings,
   messages,
   events,
   todaySchedule,
   subscription,
   onNavigate
 }) => {
-  // Academic calendar modal
-  const [showAcademicCalendar, setShowAcademicCalendar] = useState(false);
-
   // Current semester info
   const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
     ?? schoolInfo.semesters?.[0];
-  const hasAcademicCalendar = !!(schoolInfo.semesters && schoolInfo.semesters.length > 0);
-  const getCurrentWeek = () => {
-    if (!currentSemester) return null;
-
-    const start = new Date(currentSemester.startDate + 'T00:00:00');
-    const semesterEnd = new Date(currentSemester.endDate + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (today < start) return 1;
-
-    const effectiveEnd = today > semesterEnd ? semesterEnd : today;
-    const workDaysStart = currentSemester.workDaysStart ?? 0;
-    const workDaysEnd = currentSemester.workDaysEnd ?? 4;
-    const holidays = new Set(currentSemester.holidays ?? []);
-    const countedWeeks = new Set<string>();
-
-    const toLocalDateKey = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
-    const isWorkingDay = (day: number) => {
-      if (workDaysStart <= workDaysEnd) {
-        return day >= workDaysStart && day <= workDaysEnd;
-      }
-      return day >= workDaysStart || day <= workDaysEnd;
-    };
-
-    const getWeekStartKey = (date: Date) => {
-      const weekStart = new Date(date);
-      const offset = (weekStart.getDay() - workDaysStart + 7) % 7;
-      weekStart.setDate(weekStart.getDate() - offset);
-      return toLocalDateKey(weekStart);
-    };
-
-    for (const cursor = new Date(start); cursor <= effectiveEnd; cursor.setDate(cursor.getDate() + 1)) {
-      const dateKey = toLocalDateKey(cursor);
-      if (!isWorkingDay(cursor.getDay()) || holidays.has(dateKey)) continue;
-      countedWeeks.add(getWeekStartKey(cursor));
-    }
-
-    return Math.max(1, Math.min(countedWeeks.size || 1, currentSemester.weeksCount));
-  };
-  const currentWeek = getCurrentWeek();
   const getTodayOfficialLeaveText = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -203,16 +148,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       }).format(new Date(dateStr));
     } catch { return dateStr; }
   };
-
-  // مؤشر عدد الفصول الدراسية بالعربية
-  const semesterCountLabel = (count: number) => {
-    if (count === 1) return 'فصل دراسي';
-    if (count === 2) return 'فصلان دراسيان';
-    if (count === 3) return 'ثلاثة فصول دراسية';
-    if (count === 4) return 'أربعة فصول دراسية';
-    return `${count} فصول دراسية`;
-  };
-
   return (
     <div className="space-y-10 animate-fade-in pb-10">
       
@@ -250,160 +185,55 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* 2. Quick Actions & Calendar (Row 2) */}
+      {/* 2. Quick Actions (full-width row) */}
+      <QuickActions onNavigate={onNavigate} />
+
+      {/* 3. Today schedule (right) + Live class monitor (left) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch lg:h-[450px]">
-        <div className="lg:col-span-4 min-h-[260px] lg:h-full">
-           <QuickActions onNavigate={onNavigate} />
-        </div>
-        <div className="lg:col-span-8 min-h-[320px] lg:h-full">
-           <CalendarWidget 
-             events={events} 
-             onAddEvent={() => console.log('Add event')} 
-             schoolInfo={schoolInfo}
-             setSchoolInfo={setSchoolInfo}
-           />
-        </div>
-      </div>
-
-      {/* 3 & 4. Unified two-column section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-        {/* Left: Today schedule */}
-        <div className="order-2 lg:order-1 lg:col-span-8 space-y-6">
+        <div className="lg:col-span-5 min-h-[360px] lg:h-full">
           <DailySchedule
             schedule={todaySchedule}
             title={`جدول يوم ${todayName}`}
             officialLeaveText={todayOfficialLeaveText}
           />
-          <RecentMessages messages={messages} onOpenArchive={() => onNavigate('messages_archive')} />
         </div>
+        <div className="lg:col-span-7 min-h-[360px] lg:h-full">
+          <ClassMonitorNow
+            schoolInfo={schoolInfo}
+            classes={classes}
+            teachers={teachers}
+            subjects={subjects}
+            timetable={scheduleSettings.timetable || {}}
+          />
+        </div>
+      </div>
 
-        {/* Right: sidebar stacked */}
-        <div className="order-1 lg:order-2 lg:col-span-4 space-y-4">
-
-          {/* ─── Calendar Display Format (Master Switch) ─── */}
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h4 className="font-bold text-slate-800 text-base flex items-center gap-2">
-                <CalendarDays size={18} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-                صيغة عرض التقويم
-              </h4>
-              <div className="flex bg-slate-100 rounded-xl p-1">
-                {([
-                  { value: 'hijri', label: 'هجري' },
-                  { value: 'gregorian', label: 'ميلادي' },
-                ] as const).map(option => (
-                  <button
-                    key={option.value}
-                    onClick={() => setSchoolInfo(prev => ({ ...prev, calendarType: option.value }))}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${
-                      (schoolInfo.calendarType || 'hijri') === option.value
-                        ? 'bg-[#655ac1] text-white shadow-sm'
-                        : 'text-slate-500 hover:text-[#655ac1]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="text-[11px] font-bold text-slate-400 mt-3 leading-5">
-              تُطبَّق هذه الصيغة على عرض جميع التواريخ في كل صفحات البرنامج.
-            </p>
-          </div>
-
-          {/* ─── Academic Calendar Card ─── */}
-          <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 min-h-[280px] hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <CalendarDays size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-                التقويم الدراسي
-              </h4>
-              {hasAcademicCalendar && (
-              <button
-                onClick={() => setShowAcademicCalendar(true)}
-                className="px-2.5 py-1.5 text-xs font-bold text-[#8779fb] hover:text-[#655ac1] bg-white border border-slate-200 hover:border-slate-300 rounded-lg flex items-center gap-1 transition-colors"
-                >
-                  تعديل/إضافة
-                </button>
-              )}
-            </div>
-
-            {hasAcademicCalendar && currentSemester ? (
-              <div className="space-y-5">
-                {/* اسم الفصل + العام + عدد الفصول */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-[#655ac1]">{currentSemester.name}</span>
-                    <span className="text-xs font-bold text-[#655ac1] bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                      {schoolInfo.academicYear}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-px bg-slate-100 my-1"></div>
-
-                {currentWeek && (
-                  <div className="flex justify-start">
-                    <span className="text-xs font-black text-white bg-[#655ac1] px-2.5 py-1 rounded-full shadow-sm">
-                      الأسبوع {currentWeek}
-                    </span>
-                  </div>
-                )}
-
-                {/* تاريخ البداية */}
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <CalendarCheck size={12} className="text-[#8779fb] shrink-0" />
-                  <span>يبدأ من: {new Intl.DateTimeFormat(
-                    (schoolInfo.calendarType || 'hijri') === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
-                    { day: 'numeric', month: 'long', year: 'numeric' }
-                  ).format(new Date(currentSemester.startDate + 'T00:00:00'))}</span>
-                </div>
-
-                <div className="h-1"></div>
-                {/* تاريخ النهاية */}
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <CalendarX2 size={12} className="text-[#8779fb] shrink-0" />
-                  <span>ينتهي في: {new Intl.DateTimeFormat(
-                    (schoolInfo.calendarType || 'hijri') === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA',
-                    { day: 'numeric', month: 'long', year: 'numeric' }
-                  ).format(new Date(currentSemester.endDate + 'T00:00:00'))}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-4 gap-3">
-                <p className="text-xs text-slate-400 font-bold text-center">لم يتم إعداد التقويم الدراسي بعد</p>
-                <button
-                  onClick={() => setShowAcademicCalendar(true)}
-                  className="px-4 py-2 bg-white text-[#655ac1] border border-slate-200 rounded-xl text-xs font-bold hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
-                >
-                  البدء بالإعداد
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* ─── Recent Messages ─── */}
-
-          {/* Widgets (stacked below) */}
-          <div className="space-y-4">
+      {/* 4. Reminders, balance, package (right) + recent messages (left) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-5 space-y-4">
+          <CalendarWidget
+            events={events}
+            onAddEvent={() => console.log('Add event')}
+            schoolInfo={schoolInfo}
+            setSchoolInfo={setSchoolInfo}
+          />
 
            {/* ─── Message Balance Card ─── */}
-           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow">
-             <div className="flex items-center justify-between mb-4">
+           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow lg:h-[180px]">
+             <div className="flex items-center justify-between mb-3">
                <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
-                 <MessageSquare size={15} className="text-slate-400" />
+                 <MessageSquare size={20} strokeWidth={1.8} className="text-[#8779fb]" />
                  رصيد الرسائل
                </h4>
                <button
                  onClick={() => onNavigate('messages_subscriptions')}
-                 className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] transition-colors"
+                 className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
                >
                  شراء / شحن باقة
                </button>
              </div>
 
-             <div className="flex items-center justify-around py-1">
+             <div className="flex items-center justify-around py-0">
 
                {/* WhatsApp Donut Ring */}
                <div className="flex flex-col items-center gap-2">
@@ -430,7 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                  </div>
                </div>
 
-               <div className="w-px h-20 bg-slate-100 rounded-full" />
+               <div className="w-px h-20 bg-slate-200 rounded-full" />
 
                {/* SMS Donut Ring */}
                <div className="flex flex-col items-center gap-2">
@@ -458,85 +288,79 @@ const Dashboard: React.FC<DashboardProps> = ({
              </div>
            </div>
 
-           {/* ─── Current Package Card ─── */}
-           <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow">
-             <div className="flex items-center justify-between mb-2">
-               <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
-                 <CreditCard size={15} className="text-slate-400" />
-                 الباقة الحالية
-               </h4>
-               <button
-                 onClick={() => onNavigate('subscription_pricing')}
-                 className="text-xs font-bold text-[#8779fb] hover:text-[#655ac1] transition-colors"
-               >
-                 اشتراك / ترقية
-               </button>
-             </div>
+        </div>
+        <div className="lg:col-span-7 space-y-4">
+          <div className="h-[450px]">
+            <RecentMessages messages={messages} onOpenArchive={() => onNavigate('messages_archive')} />
+          </div>
 
-             <div className="flex flex-col items-center">
+          {/* ─── Current Package Card ─── */}
+          <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow lg:h-[180px]">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
+                <CreditCard size={20} strokeWidth={1.8} className="text-[#8779fb]" />
+                الباقة الحالية
+              </h4>
+              <button
+                onClick={() => onNavigate('subscription_pricing')}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+              >
+                اشتراك / ترقية
+              </button>
+            </div>
 
-               {/* Semicircle gauge */}
-               <div className="relative flex justify-center" style={{ width: 180, height: 100 }}>
-                 <svg width="180" height="100" viewBox="0 0 120 70">
-                   {/* Track */}
-                   <path d="M 10,60 A 50,50 0 0 1 110,60"
-                     stroke={pkgTrackColor} strokeWidth="7" fill="none" strokeLinecap="round" />
-                   {/* Progress */}
-                   <path d="M 10,60 A 50,50 0 0 1 110,60"
-                     stroke={pkgArcColor} strokeWidth="7" fill="none" strokeLinecap="round"
-                     strokeDasharray={ARC_LEN}
-                     strokeDashoffset={ARC_LEN * (1 - pkgRemainingPct)}
-                     style={{ transition: 'stroke-dashoffset 1s ease' }}
-                   />
-                 </svg>
-                 {/* Center label */}
-                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-                   <span className="text-3xl font-black leading-none" style={{ color: pkgArcColor }}>
-                     {isExpired ? '∞' : daysRemaining}
-                   </span>
-                   <span className="text-[10px] font-bold text-slate-400 mt-0.5">
-                     {isExpired ? 'انتهى الاشتراك' : 'يوم متبقي'}
-                   </span>
-                 </div>
-               </div>
+            <div className="flex flex-col items-center">
 
-               {/* Package name + trial badge */}
-               <div className="flex items-center justify-center gap-2 mt-2 mb-2">
-                 <span className="text-sm font-black text-slate-800">
-                   {PACKAGE_NAMES[subscription.packageTier] || subscription.planName}
-                 </span>
-                 {subscription.isTrial && (
-                   <span className="text-[10px] font-bold text-[#655ac1] bg-[#f3f0ff] px-2 py-0.5 rounded-full border border-[#e5e1fe] whitespace-nowrap">
-                     تجريبية
-                   </span>
-                 )}
-               </div>
+              {/* Semicircle gauge */}
+              <div className="relative flex justify-center" style={{ width: 150, height: 74 }}>
+                <svg width="150" height="74" viewBox="0 0 120 70">
+                  {/* Track */}
+                  <path d="M 10,60 A 50,50 0 0 1 110,60"
+                    stroke={pkgTrackColor} strokeWidth="7" fill="none" strokeLinecap="round" />
+                  {/* Progress */}
+                  <path d="M 10,60 A 50,50 0 0 1 110,60"
+                    stroke={pkgArcColor} strokeWidth="7" fill="none" strokeLinecap="round"
+                    strokeDasharray={ARC_LEN}
+                    strokeDashoffset={ARC_LEN * (1 - pkgRemainingPct)}
+                    style={{ transition: 'stroke-dashoffset 1s ease' }}
+                  />
+                </svg>
+                {/* Center label */}
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-0">
+                  <span className="text-2xl font-black leading-none" style={{ color: pkgArcColor }}>
+                    {isExpired ? '∞' : daysRemaining}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 mt-0.5">
+                    {isExpired ? 'انتهى الاشتراك' : 'يوم متبقي'}
+                  </span>
+                </div>
+              </div>
 
-               {/* Date range in Hijri */}
-               <div className="flex flex-col items-center gap-0.5 mt-0.5">
-                 <div className="flex items-center gap-2 text-xs font-bold">
-                   <span className="text-slate-400">{toHijri(subscription.startDate)}</span>
-                   <span className="text-slate-300">—</span>
-                   <span className={isExpired ? 'text-rose-500 font-black' : 'text-slate-600 font-bold'}>{toHijri(subscription.endDate)}</span>
-                 </div>
-               </div>
+              {/* Package name + trial badge */}
+              <div className="flex items-center justify-center gap-2 mt-1 mb-1">
+                <span className="text-sm font-black text-slate-800">
+                  {PACKAGE_NAMES[subscription.packageTier] || subscription.planName}
+                </span>
+                {subscription.isTrial && (
+                  <span className="text-[10px] font-bold text-[#655ac1] bg-[#f3f0ff] px-2 py-0.5 rounded-full border border-[#e5e1fe] whitespace-nowrap">
+                    تجريبية
+                  </span>
+                )}
+              </div>
 
-             </div>
-           </div>
+              {/* Date range in Hijri */}
+              <div className="flex flex-col items-center gap-0.5 mt-0">
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <span className="text-slate-400">{toHijri(subscription.startDate)}</span>
+                  <span className="text-slate-300">—</span>
+                  <span className={isExpired ? 'text-rose-500 font-black' : 'text-slate-600 font-bold'}>{toHijri(subscription.endDate)}</span>
+                </div>
+              </div>
 
-         </div>
-
+            </div>
+          </div>
         </div>
       </div>
-
-      {showAcademicCalendar && (
-        <AcademicCalendarModal
-          isOpen={showAcademicCalendar}
-          onClose={() => setShowAcademicCalendar(false)}
-          schoolInfo={schoolInfo}
-          setSchoolInfo={setSchoolInfo}
-        />
-      )}
     </div>
   );
 };
