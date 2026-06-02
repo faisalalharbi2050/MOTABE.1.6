@@ -54,22 +54,28 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 w-full">
+        <div role="tablist" className="grid grid-cols-3 gap-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-1">
           <button
+            role="tab"
+            aria-selected={activeTab === 'absence'}
             onClick={() => setActiveTab('absence')}
-            className={`px-2 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all border ${activeTab === 'absence' ? 'bg-[#655ac1] text-white shadow-sm border-[#655ac1]' : 'bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#cfc8ff] border-slate-200'}`}
+            className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'absence' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'}`}
           >
             {TAB_LABELS.absence}
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'supervision'}
             onClick={() => setActiveTab('supervision')}
-            className={`px-2 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all border ${activeTab === 'supervision' ? 'bg-[#655ac1] text-white shadow-sm border-[#655ac1]' : 'bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#cfc8ff] border-slate-200'}`}
+            className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'supervision' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'}`}
           >
             {TAB_LABELS.supervision}
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'duty'}
             onClick={() => setActiveTab('duty')}
-            className={`px-2 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all border ${activeTab === 'duty' ? 'bg-[#655ac1] text-white shadow-sm border-[#655ac1]' : 'bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#cfc8ff] border-slate-200'}`}
+            className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'duty' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'}`}
           >
             {TAB_LABELS.duty}
           </button>

@@ -4,6 +4,8 @@ import {
   GraduationCap,
   MessageSquare,
   CreditCard,
+  PackagePlus,
+  BadgePlus,
   UserCog,
   LayoutGrid,
   BarChart3,
@@ -193,7 +195,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="lg:col-span-5 min-h-[360px] lg:h-full">
           <DailySchedule
             schedule={todaySchedule}
-            title={`ملخص يوم ${todayName}`}
+            title={`متابعة يوم ${todayName}`}
             officialLeaveText={todayOfficialLeaveText}
           />
         </div>
@@ -225,10 +227,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                  <MessageSquare size={20} strokeWidth={1.8} className="text-[#8779fb]" />
                  رصيد الرسائل
                </h4>
-               <button
+              <button
                  onClick={() => onNavigate('messages_subscriptions')}
-                 className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
                >
+                 <PackagePlus size={14} strokeWidth={1.8} className="text-slate-400 transition-colors" />
                  شراء / شحن باقة
                </button>
              </div>
@@ -303,8 +306,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               </h4>
               <button
                 onClick={() => onNavigate('subscription_pricing')}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-500 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
               >
+                <BadgePlus size={14} strokeWidth={1.8} className="text-slate-400 transition-colors" />
                 اشتراك / ترقية
               </button>
             </div>

@@ -333,7 +333,7 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
         <span
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border ${
             liveBanner.tone === 'live'
-              ? 'bg-[#f0edff] text-[#655ac1] border-[#cfc8ff]'
+              ? 'bg-transparent text-[#655ac1] border-slate-300'
               : 'bg-transparent text-slate-500 border-slate-200'
           }`}
         >
