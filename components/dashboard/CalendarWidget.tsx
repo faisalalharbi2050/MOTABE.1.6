@@ -432,9 +432,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
       </div>
 
       {/* ── Add / Edit modal ────────────────────────────────────────────────── */}
-      {showModal && (
+      {showModal && createPortal((
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4"
           onClick={closeModal}
         >
           <div
@@ -625,12 +625,12 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* ── Delete confirmation ─────────────────────────────────────────────── */}
-      {deleteTarget && (
+      {deleteTarget && createPortal((
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4"
           onClick={() => setDeleteTarget(null)}
         >
           <div
@@ -656,7 +656,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* ── Daily reminder toast (top-center) ──────────────────────────────── */}
       {showReminder && reminderTasks.length > 0 && (
@@ -693,3 +693,4 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
 };
 
 export default CalendarWidget;
+

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Phase, ClassInfo, Subject, SchoolInfo, EntityType } from '../../../types';
 import { PHASE_CONFIG } from '../../../constants';
@@ -2101,7 +2101,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
         {/* ══════ Subject Customization Modal (GradeDetailsModal Style) ══════ */}
       {(editingSubjectsClassId || editingSubjectsGrade !== null) && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100">
@@ -2576,7 +2576,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
     {/* ═══ Delete All Confirmation Modal ═══ */}
     {showDeleteAllConfirm && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
           <div className="p-6 flex items-start gap-3">
             <Trash2 size={28} className="text-rose-500 mt-0.5" />
@@ -2609,7 +2609,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     {facilityDeleteConfirmId && (() => {
       const targetFacility = classes.find(c => c.id === facilityDeleteConfirmId);
       return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 flex items-start gap-3">
               <Trash2 size={28} className="text-rose-500 mt-0.5" />
@@ -2704,7 +2704,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       if (!cls) return null;
       const displayName = cls.name || getClassroomDisplayName(cls);
       return (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onClick={() => setCustomPeriodClassId(null)}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => setCustomPeriodClassId(null)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
               <div>
@@ -2757,7 +2757,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
          MODAL: Create Classes Wizard (3 Steps)
        ════════════════════════════════════════════════════ */}
     {wizardOpen && (
-      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-slate-100">
@@ -2979,7 +2979,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       const targetClass = classes.find(c => c.id === deleteConfirmClassId);
       const displayName = targetClass ? getClassroomDisplayName(targetClass) : '';
       return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 flex items-start gap-3">
               <Trash2 size={28} className="text-rose-500 mt-0.5" />
@@ -3068,7 +3068,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       };
 
       return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 print:hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div>
@@ -3201,7 +3201,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             </div>
 
             {showBulkDeleteConfirm && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="absolute inset-0 z-[20] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
                 <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
                   <div className="p-6 flex items-start gap-3">
                     <Trash2 size={28} className="text-rose-500 mt-0.5" />
@@ -3238,3 +3238,4 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   );
 };
 export default Step4Classes;
+
