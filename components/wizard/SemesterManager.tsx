@@ -41,6 +41,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [previewingSemester, setPreviewingSemester] = useState<SemesterInfo | null>(null);
   const formRef = React.useRef<HTMLDivElement>(null);
+  const previewRef = React.useRef<HTMLDivElement>(null);
   const [syncAlert, setSyncAlert] = useState<{message: string; key: number} | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<'add' | 'edit' | null>(null);
 
@@ -354,6 +355,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
   };
 
   const handleEditSemester = (semester: SemesterInfo) => {
+    setPreviewingSemester(null);
     setNewSemester({
        name: semester.name,
        calendarType: semester.calendarType,
@@ -368,6 +370,13 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     setShowForm(true);
     // Scroll to form
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  };
+
+  const handlePreviewSemester = (semester: SemesterInfo) => {
+    setEditingId(null);
+    setShowForm(false);
+    setPreviewingSemester(semester);
+    setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   };
 
   const handleCancel = () => {
@@ -414,6 +423,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
           <button
             onClick={() => {
               setEditingId(null);
+              setPreviewingSemester(null);
               setNewSemester({
                 name: getNextSemesterName(semesters.length),
                 calendarType: 'hijri',
@@ -467,7 +477,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-1.5">
                     <button
-                      onClick={() => setPreviewingSemester(semester)}
+                      onClick={() => handlePreviewSemester(semester)}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50"
                     >
                       <Eye size={13} />
@@ -813,9 +823,8 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
           </div>
       )}
 
-      {previewingSemester && createPortal(
-          <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-              <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-200">
+      {previewingSemester && (
+          <div ref={previewRef} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                       <div>
                           <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -856,7 +865,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                       </div>
                   </div>
 
-                  <div className="max-h-[55vh] overflow-y-auto">
+                  <div className="max-h-[55vh] overflow-y-auto custom-scrollbar">
                       {previewGeneratedWeeks.length > 0 && (
                         <div className="overflow-hidden">
                           <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 bg-slate-50/30">
@@ -945,15 +954,6 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                         </span>
                       </div>
                       <div className="flex gap-2">
-                        {onPrintSemester && (
-                          <button
-                            onClick={() => { onPrintSemester(previewingSemester); setPreviewingSemester(null); }}
-                            className="inline-flex items-center gap-2 justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:border-[#8779fb] hover:text-[#8779fb] hover:bg-slate-50"
-                          >
-                            <Printer size={15} />
-                            طباعة
-                          </button>
-                        )}
                         <button
                             onClick={() => setPreviewingSemester(null)}
                             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800"
@@ -963,8 +963,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                       </div>
                   </div>
               </div>
-          </div>
-      , document.body)}
+      )}
 
       {/* Delete Confirmation Modal */}
       {deletingId && createPortal(
@@ -972,17 +971,16 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
               <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
                   <div className="flex items-center justify-between p-6 border-b border-slate-100">
                       <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-rose-50 text-rose-600 border border-rose-100">
+                          <div className="w-11 h-11 flex items-center justify-center text-rose-600">
                               <AlertCircle size={22} />
                           </div>
                           <div>
                               <h3 className="font-black text-xl text-slate-800">تأكيد الحذف</h3>
-                              <p className="text-sm font-bold text-slate-500 mt-0.5">سيتم حذف الفصل الدراسي المحدد من التقويم.</p>
                           </div>
                       </div>
                       <button
                           onClick={() => setDeletingId(null)}
-                          className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                          className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
                       >
                           <X size={18} />
                       </button>

@@ -1,5 +1,4 @@
 import React from 'react';
-import { X, Printer, CalendarCheck, CalendarX2, CalendarDays } from 'lucide-react';
 import { SemesterInfo, SchoolInfo } from '../../types';
 import { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
@@ -176,84 +175,23 @@ const PrintCalendarModal: React.FC<PrintCalendarModalProps> = ({
   schoolInfo,
   defaultSemesterId,
 }) => {
-  if (!isOpen) return null;
+  const printedRef = React.useRef(false);
 
   const semester = semesters.find(s => s.id === defaultSemesterId) ?? semesters[0];
-  if (!semester) return null;
 
-  const activeWeeks  = countActiveWeeks(semester);
-  const holidayCount = semester.holidays?.length || 0;
-
-  const handlePrint = () => {
+  React.useEffect(() => {
+    if (!isOpen || !semester) return;
+    if (printedRef.current) return;
+    printedRef.current = true;
     const html = buildPrintHTML(semester, academicYear, schoolInfo);
     const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) return;
-    win.document.documentElement.innerHTML = html;
-  };
+    if (win) {
+      win.document.documentElement.innerHTML = html;
+    }
+    onClose();
+  }, [isOpen, semester, academicYear, schoolInfo, onClose]);
 
-  return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-      dir="rtl"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white w-full max-w-sm flex flex-col animate-in zoom-in-95 duration-300 overflow-hidden"
-        style={{ borderRadius: '24px', boxShadow: '0 32px 80px rgba(101,90,193,0.22), 0 8px 24px rgba(0,0,0,0.12)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-          <div className="flex items-center gap-3">
-            <Printer size={22} className="text-[#8779fb]" strokeWidth={1.6} />
-            <h3 className="text-base font-black text-slate-800">طباعة التقويم الدراسي</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Semester Info */}
-        <div className="p-6 space-y-4">
-          <div className="border border-slate-200 rounded-2xl p-4 space-y-3">
-            <p className="text-sm font-black text-[#655ac1]">{semester.name}</p>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              <CalendarCheck size={12} className="text-[#8779fb] shrink-0" />
-              يبدأ من {formatDateDisplay(semester.startDate, semester.calendarType)}
-            </div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              <CalendarX2 size={12} className="text-[#8779fb] shrink-0" />
-              ينتهي في {formatDateDisplay(semester.endDate, semester.calendarType)}
-            </div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-              <CalendarDays size={12} className="text-[#8779fb] shrink-0" />
-              {activeWeeks} أسبوع فعّال · {holidayCount} يوم إجازة
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 pb-6 flex gap-2 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
-          >
-            إلغاء
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#655ac1] text-white rounded-xl text-sm font-black hover:bg-[#5548b0] transition-all shadow-sm hover:-translate-y-0.5"
-          >
-            <Printer size={15} />
-            طباعة
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 };
 
 export default PrintCalendarModal;

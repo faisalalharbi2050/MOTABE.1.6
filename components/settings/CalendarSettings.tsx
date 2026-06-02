@@ -228,9 +228,9 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <span className="text-xs font-bold text-slate-400">
-            {hasData ? 'يمكن تحديد الفصل الحالي وطباعة التقويم من إدارة الفصول.' : 'ابدأ بتقويم جاهز أو تقويم مخصص.'}
-          </span>
+          {!hasData && (
+            <span className="text-xs font-bold text-slate-400">ابدأ بتقويم جاهز أو تقويم مخصص.</span>
+          )}
           <button
             onClick={saveCurrentSettings}
             className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all shadow-sm ${
