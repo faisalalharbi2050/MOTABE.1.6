@@ -4,6 +4,7 @@ import {
     FileText, AlignJustify, SlidersHorizontal, Settings2, Maximize2, Check
 } from 'lucide-react';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject, SchoolInfo, Specialization } from '../../types';
+import { getClassLabel } from '../../utils/classLabels';
 import PrintableSchedule from './PrintableSchedule';
 
 type PrintType = 'general_teachers' | 'general_classes' | 'individual_teacher' | 'individual_class' | 'general_waiting';
@@ -370,7 +371,7 @@ const PrintOptionsModal: React.FC<PrintOptionsModalProps> = ({
                                                     <input type="checkbox" checked={checked}
                                                         onChange={() => toggleId(c.id, selectedClassIds, setSelectedClassIds)}
                                                         className="sr-only" />
-                                                    <span className="text-xs font-normal text-slate-700 flex-1">{c.name || `${c.grade}/${c.section}`}</span>
+                                                    <span className="text-xs font-normal text-slate-700 flex-1">{getClassLabel(c)}</span>
                                                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                                                         checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                                                     }`}>

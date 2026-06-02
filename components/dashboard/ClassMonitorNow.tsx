@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { LayoutGrid, Search, ChevronDown, Check, School, Building2, Radio, UserX } from 'lucide-react';
 import { SchoolInfo, ClassInfo, Teacher, Subject, TimetableData, TimetableSlot } from '../../types';
 import { detectCurrentPeriod, getPeriodNumbers, getOrdinal } from '../../utils/timingSchedule';
+import { getClassLabel } from '../../utils/classLabels';
 
 interface ClassMonitorNowProps {
   schoolInfo: SchoolInfo;
@@ -22,8 +23,6 @@ const DAY_LABELS: Record<string, string> = {
   friday: 'الجمعة',
   saturday: 'السبت',
 };
-
-const getClassLabel = (item: ClassInfo) => `فصل ${item.grade} / ${item.section}`;
 
 interface DropdownOption {
   value: string;

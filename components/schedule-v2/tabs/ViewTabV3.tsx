@@ -65,6 +65,7 @@ import {
 } from '../../../utils/scheduleShare';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
+import { getClassLabel } from '../../../utils/classLabels';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -241,8 +242,6 @@ const DAY_LABELS: Record<string, string> = {
   friday: 'الجمعة',
   saturday: 'السبت',
 };
-
-const getClassLabel = (item: ClassInfo) => item.name || `${item.grade}/${item.section}`;
 
 const sanitizeSheetName = (input: string) =>
   input.replace(/[\\/?*:[\]]/g, ' ').slice(0, 31) || 'Sheet';

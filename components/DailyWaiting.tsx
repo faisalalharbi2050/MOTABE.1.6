@@ -22,6 +22,7 @@ import {
 import DailyWaitingPrintModal from './DailyWaitingPrintModal';
 import { useMessageArchive } from './messaging/MessageArchiveContext';
 import LoadingLogo from './ui/LoadingLogo';
+import { getClassLabel } from '../utils/classLabels';
 
 // ===== Local Type Definitions =====
 
@@ -763,7 +764,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         periodNumber: p,
         classId: slot.classId || '',
         className: classInfo
-          ? (classInfo.name || `${classInfo.grade}/${classInfo.section}`)
+          ? getClassLabel(classInfo)
           : (slot.classId || `فصل ${p}`),
         subjectId: slot.subjectId || '',
         subjectName: subjectInfo?.name || 'مادة',

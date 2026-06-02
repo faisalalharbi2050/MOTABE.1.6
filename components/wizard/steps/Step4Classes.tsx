@@ -19,6 +19,7 @@ import {
   reorderClassroom,
   printClassrooms,
 } from '../../../utils/classroomUtils';
+import { getClassLabel } from '../../../utils/classLabels';
 import SchoolTabs from '../SchoolTabs';
 
 // ─── Wizard Constants ──────────────────────────────────────────────────────────
@@ -1297,10 +1298,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
                     {/* Grade content */}
                       <div className="bg-white p-4 flex-1">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {gradeClasses.map(cls => {
                               const isSelected = selectedClasses.has(cls.id);
-                              const displayName = cls.name || getClassroomDisplayName(cls);
+                              const displayName = getClassLabel(cls);
                               return (
                                 <div
                                   key={cls.id}
@@ -1344,7 +1345,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                         </button>
                                       </div>
                                     ) : (
-                                      <span className="block text-sm font-black text-[#655ac1] truncate">{displayName}</span>
+                                      <span className="inline-flex shrink-0 min-w-[44px] justify-center rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-center text-xs font-black text-[#655ac1]">
+                                        {displayName}
+                                      </span>
                                     )}
                                   </div>
                                 </div>
@@ -2313,7 +2316,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           <td className="px-3 py-3 font-black text-[#655ac1] text-center">{cls.section}</td>
                           <td className="px-3 py-2 text-center">
                             <span className="inline-flex min-h-[34px] w-full items-center justify-center rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
-                              {cls.name || getClassroomDisplayName(cls)}
+                              {getClassLabel(cls)}
                             </span>
                           </td>
                           <td className="px-3 py-2">
@@ -2441,7 +2444,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               <td className="px-4 py-3 text-center align-middle">
                                 <span className="text-slate-900 text-sm font-black">{getGradeLabelEx(cls.grade)}</span>
                               </td>
-                              <td className="px-4 py-3 text-sm font-bold text-slate-600 text-center align-middle">{cls.name || getClassroomDisplayName(cls)}</td>
+                              <td className="px-4 py-3 text-center align-middle">
+                                <span className="inline-flex min-w-[44px] justify-center rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-xs font-black text-[#655ac1]">
+                                  {getClassLabel(cls)}
+                                </span>
+                              </td>
                               <td className="px-4 py-3 text-sm font-black text-slate-800 text-center align-middle">{buildClassNameByMode(cls, globalRenameMode)}</td>
                             </tr>
                           );
@@ -3014,7 +3021,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         ...(deleteModalGrade
           ? currentSchoolClasses.filter(c => c.grade === parseInt(deleteModalGrade))
           : currentSchoolClasses
-        ).map(c => ({ value: c.id, label: c.name || getClassroomDisplayName(c) })),
+        ).map(c => ({ value: c.id, label: getClassLabel(c) })),
       ];
       const filteredForDelete = currentSchoolClasses.filter(c => {
         const matchesGrade = !deleteModalGrade || c.grade === parseInt(deleteModalGrade);

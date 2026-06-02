@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { Admin, ClassInfo, Student, Teacher, CentralMessage, SchoolInfo } from '../../types';
+import { getClassLabel } from '../../utils/classLabels';
 import { useMessageArchive } from '../messaging/MessageArchiveContext';
 import { useToast } from '../ui/ToastProvider';
 import {
@@ -188,7 +189,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
     if (selectedSchedule === 'individual_class') {
       return sortedClasses.map(classItem => ({
         id: classItem.id,
-        title: classItem.name || `${classItem.grade}/${classItem.section}`,
+        title: getClassLabel(classItem),
         subtitle: `الصف ${classItem.grade}`,
       }));
     }
@@ -241,9 +242,9 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
             phone: student.parentPhone || '',
             role: 'guardian' as const,
             classId: student.classId,
-            classLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
+            classLabel: classItem ? getClassLabel(classItem) : '',
             studentName: student.name,
-            relatedLabel: classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}`,
+            relatedLabel: classItem ? getClassLabel(classItem) : '',
           };
         });
 
@@ -335,7 +336,7 @@ const SendScheduleModal: React.FC<SendScheduleModalProps> = ({
     const teacher = teachers.find(item => item.id === targetId);
     if (teacher) return teacher.name;
     const classItem = classes.find(item => item.id === targetId);
-    return classItem?.name || `${classItem?.grade || ''}/${classItem?.section || ''}` || targetId;
+    return classItem ? getClassLabel(classItem) : targetId;
   };
 
   const createLinks = () => {

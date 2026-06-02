@@ -1,6 +1,7 @@
 ﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ScheduleSettingsData, Teacher, ClassInfo, Subject, AuditLogEntry } from '../../types';
+import { getClassLabel } from '../../utils/classLabels';
 import { Maximize2, Users, CalendarClock, LayoutGrid, Pencil, ArrowRight, CheckCircle2, Shuffle, X, GripVertical, Check, AlertTriangle, Trash2, ChevronDown, Search, Settings2 } from 'lucide-react';
 import { getKey, tryMoveOrSwap, findChainSwap, SwapResult, buildRevertPatch } from '../../utils/scheduleInteractive';
 import { buildTeacherShortName, generateSubjectAbbreviation } from '../../utils/nameAbbreviations';
@@ -291,7 +292,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         const t = teachers.find(t => t.id === id);
         return t ? (t.shortName?.trim() || buildTeacherShortName(t.name)) : '';
     };
-    const cName       = (id: string) => { const c = classes.find(c => c.id === id); return c ? (c.name || `${c.grade}/${c.section}`) : ''; };
+    const cName       = (id: string) => { const c = classes.find(c => c.id === id); return c ? getClassLabel(c) : ''; };
     const tLQ  = (t: Teacher) => {
         const legacyWeeklyQuota = Number((t as any).weeklyQuota ?? 0);
         const schoolLessons = Array.isArray(t.schools)
@@ -2083,7 +2084,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div className="min-w-0 flex-1">
                                 <h3 className="text-lg font-black text-slate-800 truncate" dir="ltr" style={{textAlign:'right'}}>
-                                    {isTeacher ? (teacher?.name||'—') : (cls?.name || (cls ? `${cls.grade}/${cls.section}` : '—'))}
+                                    {isTeacher ? (teacher?.name||'—') : (cls ? getClassLabel(cls) : '—')}
                                 </h3>
                                 {isTeacher && (
                                     <div className="flex gap-2 mt-2 flex-wrap">
@@ -2143,7 +2144,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                                     {isTeacher ? 'المعلم' : 'الفصل'}
                                 </div>
                                 <div className={`font-black leading-tight truncate ${compactIndividual ? 'text-base' : 'text-lg'}`} dir="ltr" style={{textAlign:'right', color:'#1e293b'}}>
-                                    {isTeacher ? (teacher?.name||'—') : (cls?.name || (cls ? `${cls.grade}/${cls.section}` : '—'))}
+                                    {isTeacher ? (teacher?.name||'—') : (cls ? getClassLabel(cls) : '—')}
                                 </div>
                                 {isTeacher && teacher && (
                                     <div

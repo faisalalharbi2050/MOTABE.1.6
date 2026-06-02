@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Phase, ClassInfo, Subject, SchoolInfo } from '../types';
+import { getClassLabel } from '../utils/classLabels';
 import {
   School, ChevronDown, ChevronRight, Plus, MoreHorizontal,
   Trash2, Edit3, BookOpen, Clock, CheckCircle2, X,
@@ -139,6 +140,7 @@ const ClassSetup: React.FC<Props> = ({
   const getGradeLabel     = (grade: number) =>
     gradeLabelMap[`${activePhase}-${grade}`] || `الصف ${grade}`;
   const getClassName      = (c: ClassInfo) => c.name || `${c.grade}/${c.section}`;
+  const getClassDisplay   = (c: ClassInfo) => getClassLabel(c);
   const findClass         = (id: string)   => classes.find(c => c.id === id);
   const getSubjectsForGrade = (grade: number) =>
     subjects.filter(s =>
@@ -576,7 +578,9 @@ const ClassSetup: React.FC<Props> = ({
                                 </div>
                               </td>
                               <td className="py-3 px-4">
-                                <span className="text-sm font-bold text-slate-700">{getClassName(cls)}</span>
+                                <span className="shrink-0 min-w-[44px] text-center text-xs font-black text-[#655ac1] bg-transparent border border-slate-200 rounded-lg px-2 py-1">
+                                  {getClassDisplay(cls)}
+                                </span>
                               </td>
                               <td className="py-3 px-4 text-left">
                                 <button
@@ -746,7 +750,7 @@ const ClassSetup: React.FC<Props> = ({
               <div className="flex justify-between items-center p-6 border-b border-slate-100">
                 <div>
                   <h3 className="font-black text-slate-800">تخصيص الحصص</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{getClassName(cls)}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{getClassDisplay(cls)}</p>
                 </div>
                 <button
                   onClick={() => setPeriodModal(null)}
