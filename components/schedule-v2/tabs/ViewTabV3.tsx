@@ -2478,10 +2478,6 @@ const ViewTabV3: React.FC<Props> = ({
                   searchable
                   dropdownPlacement="top"
                 />
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-[#655ac1] leading-6 flex items-center gap-2">
-                  <AlertCircle size={16} className="text-[#655ac1] shrink-0" />
-                  <span>سيتم طباعة نموذج مستقل لكل معلم يحتوي على جدول المعلم وبياناته والتوقيع بالاستلام</span>
-                </div>
               </div>
               <button
                 type="button"
@@ -2847,6 +2843,9 @@ const ViewTabV3: React.FC<Props> = ({
                 <FileSpreadsheet size={20} className="text-[#655ac1]" />
                 <h4 className="font-black text-slate-800">تصدير الجدول EXCEL</h4>
               </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                اختر الجدول ثم صدّره إلى EXCEL
+              </p>
               <div className="[&_label]:hidden mb-5">
                 <SingleSelectDropdown
                   label="الجدول"
@@ -2871,6 +2870,9 @@ const ViewTabV3: React.FC<Props> = ({
                 <FileCode2 size={20} className="text-[#655ac1]" />
                 <h4 className="font-black text-slate-800">تصدير الجدول XML</h4>
               </div>
+              <p className="text-xs text-slate-500 font-medium text-right mb-5">
+                صدّر الجدول بصيغة XML للاستفادة منه في إضافات قوقل كروم.
+              </p>
               <div className="flex-1" />
               <button
                 onClick={handleExportXML}
