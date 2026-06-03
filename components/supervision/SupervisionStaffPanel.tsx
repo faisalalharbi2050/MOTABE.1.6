@@ -165,12 +165,12 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="w-full text-right">
+            <table className="w-full table-fixed text-right">
               <thead className="bg-white border-b border-slate-200 text-xs text-[#655ac1]">
                 <tr>
                   <th className="px-4 py-3.5 font-black w-16 text-center">م</th>
-                  <th className="px-4 py-3.5 font-black w-[260px]">اسم الموظف</th>
-                  <th className="px-4 py-3.5 font-black w-52">الصفة</th>
+                  <th className="px-4 py-3.5 font-black w-[36%]">اسم الموظف</th>
+                  <th className="px-4 py-3.5 font-black w-[34%]">الصفة</th>
                   <th className="px-4 py-3.5 font-black text-center">الحالة</th>
                 </tr>
               </thead>
@@ -182,19 +182,17 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
                       <td className="px-4 py-2.5 text-center">
                         <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-[13px] font-bold text-slate-700">{staff.name}</td>
-                      <td className="px-4 py-2.5 text-[13px] text-slate-600">{staff.title}</td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex justify-center">
-                          <SegmentedToggle<boolean>
-                            value={excluded}
-                            onChange={(v) => setExclusionState(staff.id, staff.type, v)}
-                            options={[
-                              { value: false, label: 'متاح', activeClass: 'bg-green-500 text-white shadow-sm' },
-                              { value: true, label: 'استثناء', activeClass: 'bg-rose-500 text-white shadow-sm' },
-                            ]}
-                          />
-                        </div>
+                      <td className="px-4 py-2.5 text-[13px] font-bold text-slate-700 truncate">{staff.name}</td>
+                      <td className="px-4 py-2.5 text-[13px] font-bold text-slate-700 truncate">{staff.title}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <SegmentedToggle<boolean>
+                          value={excluded}
+                          onChange={(v) => setExclusionState(staff.id, staff.type, v)}
+                          options={[
+                            { value: false, label: 'متاح', activeClass: 'bg-green-500 text-white shadow-sm' },
+                            { value: true, label: 'استثناء', activeClass: 'bg-rose-500 text-white shadow-sm' },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );

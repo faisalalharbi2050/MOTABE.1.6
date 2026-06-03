@@ -27,10 +27,10 @@ const INLINE_FIELD_CLASS = 'w-full px-3 py-1.5 border border-slate-200 rounded-l
 const EditIconButton: React.FC<{ onClick: () => void; title?: string }> = ({ onClick, title = 'تعديل' }) => (
   <button
     onClick={onClick}
-    className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1] transition-all"
     title={title}
   >
-    <Edit3 size={16} />
+    <Edit3 size={14} />
   </button>
 );
 
@@ -57,10 +57,10 @@ const CancelIconButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
 const DeleteIconButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     onClick={onClick}
-    className="p-1.5 rounded-xl border border-slate-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors"
+    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-all"
     title="حذف"
   >
-    <Trash2 size={16} />
+    <Trash2 size={14} />
   </button>
 );
 
@@ -358,7 +358,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
                             options={PERIOD_OPTIONS}
                           />
                         ) : (
-                          <span className="text-[13px] font-bold text-slate-800">{getPeriodLabel(period)}</span>
+                          <span className="text-[13px] font-medium text-slate-500">{getPeriodLabel(period)}</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5">
@@ -371,7 +371,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
                             className={`${INLINE_FIELD_CLASS} w-24`}
                           />
                         ) : (
-                          <span className="text-[13px] font-bold text-slate-700">{period.duration || periodMeta.get(period.id)?.duration || 20} دقيقة</span>
+                          <span className="text-[13px] font-medium text-slate-500">{period.duration || periodMeta.get(period.id)?.duration || 20} دقيقة</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5">

@@ -35,7 +35,7 @@ export function SegmentedToggle<T extends string | number | boolean>({
   fluid?: boolean;
 }) {
   return (
-    <div className={`${fluid ? 'flex w-full' : 'inline-flex shrink-0'} items-center gap-1 bg-slate-100 rounded-xl p-1 ${className}`}>
+    <div className={`${fluid ? 'flex w-full' : 'inline-flex shrink-0'} items-center gap-1 bg-slate-50 rounded-xl p-1 ${className}`}>
       {options.map(opt => {
         const active = value === opt.value;
         return (
