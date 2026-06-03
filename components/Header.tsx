@@ -8,7 +8,6 @@ import {
   Clock,
   Calendar,
   User,
-  Save,
   Trash2,
   Edit3,
   Phone,
@@ -28,7 +27,6 @@ import {
   Settings2,
   ChevronDown,
   KeyRound,
-  Lock,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -88,7 +86,13 @@ const AUTH_LABELS: Record<AuthMethod, string> = {
 const fmtDate = (iso?: string) => {
   if (!iso) return '—';
   try {
-    return new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
+    const parts = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-nu-latn', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+    }).formatToParts(new Date(iso));
+    const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find(part => part.type === type)?.value ?? '';
+    return `${getPart('day')} / ${getPart('month')} / ${getPart('year')}هـ`;
   } catch { return '—'; }
 };
 
@@ -419,6 +423,12 @@ const Header: React.FC<HeaderProps> = ({
     hour12: true
   }).format(currentTime);
 
+  const profileTimeString = new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(currentTime).replace('صباحًا', 'ص').replace('مساءً', 'م');
+
   const activeSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
     ?? schoolInfo.semesters?.[0];
 
@@ -650,32 +660,24 @@ const Header: React.FC<HeaderProps> = ({
                           </span>
                         </div>
                       </div>
-                      {!editMode && (
-                        <button
-                          onClick={openEditMode}
-                          className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
-                        >
-                          <Edit3 size={13} className="text-slate-500" /> تعديل
-                        </button>
-                      )}
                     </div>
 
                     {/* Account info strip */}
                     <div className="grid grid-cols-3 gap-2 px-4 py-3 bg-slate-50/60 border-b border-slate-100">
                       <div className="flex flex-col items-center text-center gap-0.5">
-                        <LogIn size={15} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400">طريقة الدخول</span>
-                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{AUTH_LABELS[profile.authMethod]}</span>
+                        <Calendar size={15} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-900">تاريخ الإنشاء</span>
+                        <span className="text-[11px] font-bold text-slate-500 leading-tight">{fmtDate(profile.createdAt)}</span>
                       </div>
                       <div className="flex flex-col items-center text-center gap-0.5 border-x border-slate-200/70">
-                        <Clock size={15} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400">آخر دخول</span>
-                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{fmtDate(profile.lastLogin)}</span>
+                        <LogIn size={15} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-900">آخر دخول</span>
+                        <span className="text-[11px] font-bold text-slate-500 leading-tight">{fmtDate(profile.lastLogin)}</span>
                       </div>
                       <div className="flex flex-col items-center text-center gap-0.5">
-                        <Calendar size={15} className="text-slate-400" />
-                        <span className="text-[10px] font-bold text-slate-400">تاريخ الإنشاء</span>
-                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{fmtDate(profile.createdAt)}</span>
+                        <Clock size={15} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-900">الوقت</span>
+                        <span className="text-[11px] font-bold text-slate-500 leading-tight dir-ltr">{profileTimeString}</span>
                       </div>
                     </div>
 
@@ -758,6 +760,19 @@ const Header: React.FC<HeaderProps> = ({
                         />
                       </div>
 
+                      {!editMode && (
+                        <button
+                          onClick={openEditMode}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                        >
+                          <span className="flex items-center gap-2 text-xs font-bold text-slate-600 group-hover:text-[#655ac1] transition-colors">
+                            <Edit3 size={14} className="text-[#655ac1]" />
+                            تعديل البيانات
+                          </span>
+                          <ChevronDown size={14} className="text-slate-400 rotate-90" />
+                        </button>
+                      )}
+
                       {/* ─ Password ─ */}
                       <button
                         onClick={() => setModal('passwordChange')}
@@ -770,22 +785,6 @@ const Header: React.FC<HeaderProps> = ({
                         <ChevronDown size={14} className="text-slate-400 rotate-90" />
                       </button>
                     </div>
-
-                    {/* Admin shortcut — delegated users */}
-                    {isPrimaryAdmin && (
-                      <div className="px-4 pb-2">
-                        <button
-                          onClick={() => { setIsProfileOpen(false); onNavigate('permissions'); }}
-                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
-                        >
-                          <span className="flex items-center gap-2 text-xs font-bold text-slate-600 group-hover:text-[#655ac1] transition-colors">
-                            <Lock size={14} className="text-[#655ac1]" />
-                            إدارة الصلاحيات
-                          </span>
-                          <ChevronDown size={14} className="text-slate-400 rotate-90" />
-                        </button>
-                      </div>
-                    )}
 
                     {/* Action buttons */}
                     <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
