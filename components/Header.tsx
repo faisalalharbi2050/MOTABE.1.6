@@ -28,7 +28,7 @@ import {
   Settings2,
   ChevronDown,
   KeyRound,
-  Users,
+  Lock,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -779,7 +779,7 @@ const Header: React.FC<HeaderProps> = ({
                           className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
                         >
                           <span className="flex items-center gap-2 text-xs font-bold text-slate-600 group-hover:text-[#655ac1] transition-colors">
-                            <Users size={14} className="text-[#655ac1]" />
+                            <Lock size={14} className="text-[#655ac1]" />
                             إدارة الصلاحيات
                           </span>
                           <ChevronDown size={14} className="text-slate-400 rotate-90" />
@@ -793,15 +793,18 @@ const Header: React.FC<HeaderProps> = ({
                         <div className="flex gap-2">
                           <button
                             onClick={cancelEdit}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors"
                           >
                             <X size={13} /> إلغاء
                           </button>
                           <button
                             onClick={handleSave}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors shadow-sm"
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors shadow-sm"
                           >
-                            <Save size={13} /> حفظ التغييرات
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                              <Check size={13} strokeWidth={3.2} className="text-white" />
+                            </span>
+                            حفظ
                           </button>
                         </div>
                       ) : (
