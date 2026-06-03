@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import {
-  AlertTriangle, Check, Clock, Edit3, MapPin, Plus, Power, Trash2, X
+  AlertTriangle, Check, Clock, Edit3, MapPin, Plus, Trash2, X
 } from 'lucide-react';
 import {
   SchoolInfo, SupervisionLocation, SupervisionPeriodConfig
 } from '../../types';
 import { getTimingConfig, hasTimingData } from '../../utils/supervisionUtils';
+import { Switch, CheckDropdown } from './controls';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const PERIOD_OPTIONS = [
   { value: 1, label: 'بعد الحصة الأولى' },
@@ -18,28 +20,47 @@ const PERIOD_OPTIONS = [
   { value: 8, label: 'بعد الحصة الثامنة' },
 ];
 
-const ToggleButton: React.FC<{ active: boolean; onClick: () => void }> = ({ active, onClick }) => (
+// حقل بنفس تصميمه الطبيعي مع تأثير تركيز خفيف للدلالة على الكتابة (لا رمادي ولا بنفسجي صريح)
+const FIELD_CLASS = 'w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#655ac1]/10 transition-all text-sm';
+const INLINE_FIELD_CLASS = 'w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-800 outline-none focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#655ac1]/10 transition-all';
+
+const EditIconButton: React.FC<{ onClick: () => void; title?: string }> = ({ onClick, title = 'تعديل' }) => (
   <button
     onClick={onClick}
-    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black transition-all active:scale-95 ${
-      active
-        ? 'bg-green-50 text-green-700 border-green-200 shadow-sm shadow-green-100 hover:bg-green-100'
-        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
-    }`}
-    title={active ? 'تعطيل' : 'تفعيل'}
+    className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+    title={title}
   >
-    <Power size={16} />
-    <span>{active ? 'مفعّل' : 'معطّل'}</span>
+    <Edit3 size={16} />
   </button>
 );
 
-const EditButton: React.FC<{ onClick: () => void; title?: string }> = ({ onClick, title = 'تعديل' }) => (
+const SaveIconButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     onClick={onClick}
-    className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-    title={title}
+    className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all"
+    title="حفظ"
   >
-    <Edit3 size={18} />
+    <Check size={16} strokeWidth={3} />
+  </button>
+);
+
+const CancelIconButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all"
+    title="إلغاء"
+  >
+    <X size={14} />
+  </button>
+);
+
+const DeleteIconButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="p-1.5 rounded-xl border border-slate-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors"
+    title="حذف"
+  >
+    <Trash2 size={16} />
   </button>
 );
 
@@ -47,10 +68,10 @@ const CardHeader: React.FC<{ icon: React.ElementType; title: string; description
   icon: Icon, title, description, action
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-    <div className="flex items-center gap-4">
-      <Icon size={28} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
+    <div className="flex items-center gap-3">
+      <Icon size={24} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
       <div>
-        <h3 className="text-lg font-black text-slate-800">{title}</h3>
+        <h3 className="text-base font-black text-slate-800">{title}</h3>
         <p className="text-xs font-medium text-slate-500 mt-1">{description}</p>
       </div>
     </div>
@@ -58,7 +79,11 @@ const CardHeader: React.FC<{ icon: React.ElementType; title: string; description
   </div>
 );
 
-const CARD_CLASS = "bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm border-2 border-slate-200";
+const CARD_CLASS = "bg-white rounded-[2rem] p-5 shadow-sm border-2 border-slate-200";
+const TH_CLASS = "px-4 py-3.5 font-black";
+const SerialBadge: React.FC<{ n: number }> = ({ n }) => (
+  <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{n}</span>
+);
 
 interface Props {
   activeView?: 'locations' | 'periods';
@@ -74,14 +99,21 @@ interface Props {
 const SupervisionLocationsPanel: React.FC<Props> = ({
   locations, setLocations, periods, setPeriods, schoolInfo, showToast, activeView, onNavigateToTiming
 }) => {
-  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
-  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
-  const [deleteLocationId, setDeleteLocationId] = useState<string | null>(null);
-  const [deletePeriodId, setDeletePeriodId] = useState<string | null>(null);
+  // الإضافة عبر نافذة
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
-  const [locationName, setLocationName] = useState('');
-  const [periodForm, setPeriodForm] = useState({ name: '', afterPeriod: 1, duration: 20 });
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newPeriodForm, setNewPeriodForm] = useState({ name: '', afterPeriod: 1, duration: 20 });
+
+  // التعديل داخل الصف
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [editLocationName, setEditLocationName] = useState('');
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
+  const [editPeriodForm, setEditPeriodForm] = useState({ name: '', afterPeriod: 1, duration: 20 });
+
+  // الحذف
+  const [deleteLocationId, setDeleteLocationId] = useState<string | null>(null);
+  const [deletePeriodId, setDeletePeriodId] = useState<string | null>(null);
 
   const timing = getTimingConfig(schoolInfo);
 
@@ -101,35 +133,31 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
     return PERIOD_OPTIONS.find(p => p.value === afterPeriod)?.label || 'غير محدد';
   };
 
-  const saveLocation = () => {
-    if (!locationName.trim()) {
-      showToast('يرجى إدخال اسم الموقع', 'warning');
-      return;
-    }
-
-    if (editingLocationId) {
-      setLocations(prev => prev.map(l => l.id === editingLocationId ? { ...l, name: locationName.trim() } : l));
-      showToast('تم تحديث الموقع', 'success');
-    } else {
-      setLocations(prev => [...prev, {
-        id: `loc-${Date.now()}`,
-        name: locationName.trim(),
-        category: 'custom',
-        isActive: true,
-        sortOrder: prev.length + 1,
-      }]);
-      showToast('تم إضافة الموقع', 'success');
-    }
-
-    setLocationName('');
-    setEditingLocationId(null);
+  // ── المواقع ──
+  const addLocation = () => {
+    if (!newLocationName.trim()) { showToast('يرجى إدخال اسم الموقع', 'warning'); return; }
+    setLocations(prev => [...prev, {
+      id: `loc-${Date.now()}`,
+      name: newLocationName.trim(),
+      category: 'custom',
+      isActive: true,
+      sortOrder: prev.length + 1,
+    }]);
+    showToast('تم إضافة الموقع', 'success');
+    setNewLocationName('');
     setShowLocationModal(false);
   };
 
-  const openEditLocation = (loc: SupervisionLocation) => {
+  const startEditLocation = (loc: SupervisionLocation) => {
     setEditingLocationId(loc.id);
-    setLocationName(loc.name);
-    setShowLocationModal(true);
+    setEditLocationName(loc.name);
+  };
+
+  const saveEditLocation = () => {
+    if (!editLocationName.trim()) { showToast('يرجى إدخال اسم الموقع', 'warning'); return; }
+    setLocations(prev => prev.map(l => l.id === editingLocationId ? { ...l, name: editLocationName.trim() } : l));
+    showToast('تم تحديث الموقع', 'success');
+    setEditingLocationId(null);
   };
 
   const deleteLocation = (id: string) => {
@@ -142,49 +170,41 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
     setLocations(prev => prev.map(l => l.id === id ? { ...l, isActive: !l.isActive } : l));
   };
 
-  const openPeriodModal = (period?: SupervisionPeriodConfig) => {
-    if (period) {
-      setEditingPeriodId(period.id);
-      setPeriodForm({
-        name: period.name,
-        afterPeriod: getAfterPeriod(period) || 1,
-        duration: period.duration || periodMeta.get(period.id)?.duration || 20,
-      });
-    } else {
-      setEditingPeriodId(null);
-      setPeriodForm({ name: '', afterPeriod: 1, duration: 20 });
-    }
-    setShowPeriodModal(true);
+  // ── المواعيد ──
+  const addPeriod = () => {
+    if (!newPeriodForm.name.trim()) { showToast('يرجى إدخال اسم الفعالية', 'warning'); return; }
+    setPeriods(prev => [...prev, {
+      id: `manual-${Date.now()}`,
+      type: 'break',
+      name: newPeriodForm.name.trim(),
+      isEnabled: true,
+      afterPeriod: newPeriodForm.afterPeriod,
+      duration: newPeriodForm.duration,
+    }]);
+    showToast('تم إضافة الفعالية', 'success');
+    setNewPeriodForm({ name: '', afterPeriod: 1, duration: 20 });
+    setShowPeriodModal(false);
   };
 
-  const savePeriod = () => {
-    if (!periodForm.name.trim()) {
-      showToast('يرجى إدخال اسم الفعالية', 'warning');
-      return;
-    }
+  const startEditPeriod = (period: SupervisionPeriodConfig) => {
+    setEditingPeriodId(period.id);
+    setEditPeriodForm({
+      name: period.name,
+      afterPeriod: getAfterPeriod(period) || 1,
+      duration: period.duration || periodMeta.get(period.id)?.duration || 20,
+    });
+  };
 
-    if (editingPeriodId) {
-      setPeriods(prev => prev.map(p => p.id === editingPeriodId ? {
-        ...p,
-        name: periodForm.name.trim(),
-        afterPeriod: periodForm.afterPeriod,
-        duration: periodForm.duration,
-      } : p));
-      showToast('تم تحديث الفعالية', 'success');
-    } else {
-      setPeriods(prev => [...prev, {
-        id: `manual-${Date.now()}`,
-        type: 'break',
-        name: periodForm.name.trim(),
-        isEnabled: true,
-        afterPeriod: periodForm.afterPeriod,
-        duration: periodForm.duration,
-      }]);
-      showToast('تم إضافة الفعالية', 'success');
-    }
-
+  const saveEditPeriod = () => {
+    if (!editPeriodForm.name.trim()) { showToast('يرجى إدخال اسم الفعالية', 'warning'); return; }
+    setPeriods(prev => prev.map(p => p.id === editingPeriodId ? {
+      ...p,
+      name: editPeriodForm.name.trim(),
+      afterPeriod: editPeriodForm.afterPeriod,
+      duration: editPeriodForm.duration,
+    } : p));
+    showToast('تم تحديث الفعالية', 'success');
     setEditingPeriodId(null);
-    setShowPeriodModal(false);
   };
 
   const deletePeriod = (id: string) => {
@@ -193,9 +213,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
     showToast('تم حذف الفعالية', 'success');
   };
 
-  const togglePeriod = (id: string) => {
-    setPeriods(prev => prev.map(p => p.id === id ? { ...p, isEnabled: !p.isEnabled } : p));
-  };
+  const addButtonClass = "flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all w-full sm:w-auto";
 
   return (
     <div className="flex flex-col gap-6">
@@ -206,10 +224,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
             title="مواقع الإشراف"
             description="إدارة وتصنيف أماكن الإشراف داخل المدرسة"
             action={
-              <button
-                onClick={() => { setEditingLocationId(null); setLocationName(''); setShowLocationModal(true); }}
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all w-full sm:w-auto"
-              >
+              <button onClick={() => { setNewLocationName(''); setShowLocationModal(true); }} className={addButtonClass}>
                 <Plus size={16} />
                 إضافة موقع
               </button>
@@ -218,31 +233,56 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
 
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
             <table className="w-full text-right">
-              <thead className="bg-white border-b text-sm text-[#655ac1]">
+              <thead className="bg-white border-b border-slate-200 text-xs text-[#655ac1]">
                 <tr>
-                  <th className="px-5 py-3 font-black w-16">م</th>
-                  <th className="px-5 py-3 font-black min-w-[240px]">الموقع</th>
-                  <th className="px-5 py-3 font-black text-center w-44">إجراءات</th>
+                  <th className={`${TH_CLASS} w-16 text-center`}>م</th>
+                  <th className={`${TH_CLASS} min-w-[240px]`}>الموقع</th>
+                  <th className={`${TH_CLASS} text-center w-48`}>إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {locations.map((loc, index) => (
-                  <tr key={loc.id} className={`${loc.isActive ? 'hover:bg-gray-50' : 'bg-slate-50/50 opacity-70 hover:opacity-100'} transition-colors`}>
-                    <td className="px-5 py-3 text-gray-400 text-sm">{index + 1}</td>
-                    <td className="px-5 py-3 text-sm font-bold text-gray-800">{loc.name}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <EditButton onClick={() => openEditLocation(loc)} />
-                        <ToggleButton active={loc.isActive} onClick={() => toggleLocation(loc.id)} />
-                        <button onClick={() => setDeleteLocationId(loc.id)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-colors" title="حذف">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-slate-50">
+                {locations.map((loc, index) => {
+                  const editing = editingLocationId === loc.id;
+                  return (
+                    <tr key={loc.id} className={`${loc.isActive ? 'hover:bg-[#e5e1fe]/10' : 'bg-slate-50/50 opacity-70 hover:opacity-100'} transition-colors`}>
+                      <td className="px-4 py-2.5 text-center"><SerialBadge n={index + 1} /></td>
+                      <td className="px-4 py-2.5">
+                        {editing ? (
+                          <input
+                            value={editLocationName}
+                            onChange={e => setEditLocationName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEditLocation(); if (e.key === 'Escape') setEditingLocationId(null); }}
+                            className={INLINE_FIELD_CLASS}
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="text-[13px] font-bold text-slate-800">{loc.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-center gap-1">
+                          {editing ? (
+                            <>
+                              <SaveIconButton onClick={saveEditLocation} />
+                              <CancelIconButton onClick={() => setEditingLocationId(null)} />
+                            </>
+                          ) : (
+                            <>
+                              <Switch checked={loc.isActive} onChange={() => toggleLocation(loc.id)} />
+                              <EditIconButton onClick={() => startEditLocation(loc)} />
+                              <DeleteIconButton onClick={() => setDeleteLocationId(loc.id)} />
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            {locations.length === 0 && (
+              <div className="text-center py-10 text-slate-400 text-sm">لا توجد مواقع مضافة</div>
+            )}
           </div>
         </div>
       )}
@@ -254,10 +294,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
             title="مواعيد الإشراف"
             description="ربط وتفعيل مواعيد الإشراف اليومي"
             action={
-              <button
-                onClick={() => openPeriodModal()}
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all w-full sm:w-auto"
-              >
+              <button onClick={() => { setNewPeriodForm({ name: '', afterPeriod: 1, duration: 20 }); setShowPeriodModal(true); }} className={addButtonClass}>
                 <Plus size={16} />
                 إضافة فعالية
               </button>
@@ -283,35 +320,78 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
             </div>
           )}
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-100">
+          <div className="rounded-2xl border border-slate-100">
             <table className="w-full text-right">
-              <thead className="bg-white border-b text-sm text-[#655ac1]">
+              <thead className="bg-white border-b border-slate-200 text-xs text-[#655ac1]">
                 <tr>
-                  <th className="px-5 py-3 font-black w-16">م</th>
-                  <th className="px-5 py-3 font-black min-w-[180px]">اسم الفعالية</th>
-                  <th className="px-5 py-3 font-black min-w-[170px]">موعد الفعالية</th>
-                  <th className="px-5 py-3 font-black w-36">مدة الفعالية</th>
-                  <th className="px-5 py-3 font-black text-center w-44">إجراءات</th>
+                  <th className={`${TH_CLASS} w-16 text-center`}>م</th>
+                  <th className={`${TH_CLASS} min-w-[180px]`}>اسم الفعالية</th>
+                  <th className={`${TH_CLASS} min-w-[180px]`}>موعد الفعالية</th>
+                  <th className={`${TH_CLASS} w-40`}>مدة الفعالية</th>
+                  <th className={`${TH_CLASS} text-center w-48`}>إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {periods.map((period, index) => (
-                  <tr key={period.id} className={`${period.isEnabled ? 'hover:bg-gray-50' : 'bg-slate-50/50 opacity-70 hover:opacity-100'} transition-colors`}>
-                    <td className="px-5 py-3 text-gray-400 text-sm">{index + 1}</td>
-                    <td className="px-5 py-3 text-sm font-bold text-gray-800">{period.name}</td>
-                    <td className="px-5 py-3 text-sm text-slate-600">{getPeriodLabel(period)}</td>
-                    <td className="px-5 py-3 text-sm font-bold text-slate-700">{period.duration || periodMeta.get(period.id)?.duration || 20} دقيقة</td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <EditButton onClick={() => openPeriodModal(period)} />
-                        <ToggleButton active={period.isEnabled} onClick={() => togglePeriod(period.id)} />
-                        <button onClick={() => setDeletePeriodId(period.id)} className="p-2 rounded-xl hover:bg-red-50 text-red-400 transition-colors" title="حذف">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-slate-50">
+                {periods.map((period, index) => {
+                  const editing = editingPeriodId === period.id;
+                  return (
+                    <tr key={period.id} className="hover:bg-[#e5e1fe]/10 transition-colors">
+                      <td className="px-4 py-2.5 text-center"><SerialBadge n={index + 1} /></td>
+                      <td className="px-4 py-2.5">
+                        {editing ? (
+                          <input
+                            value={editPeriodForm.name}
+                            onChange={e => setEditPeriodForm(prev => ({ ...prev, name: e.target.value }))}
+                            className={INLINE_FIELD_CLASS}
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="text-[13px] font-bold text-slate-800">{period.name}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {editing ? (
+                          <CheckDropdown<number>
+                            className="min-w-[170px]"
+                            value={editPeriodForm.afterPeriod}
+                            onChange={v => setEditPeriodForm(prev => ({ ...prev, afterPeriod: v }))}
+                            options={PERIOD_OPTIONS}
+                          />
+                        ) : (
+                          <span className="text-[13px] font-bold text-slate-800">{getPeriodLabel(period)}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {editing ? (
+                          <input
+                            type="number"
+                            min={1}
+                            value={editPeriodForm.duration}
+                            onChange={e => setEditPeriodForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                            className={`${INLINE_FIELD_CLASS} w-24`}
+                          />
+                        ) : (
+                          <span className="text-[13px] font-bold text-slate-700">{period.duration || periodMeta.get(period.id)?.duration || 20} دقيقة</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-center gap-1">
+                          {editing ? (
+                            <>
+                              <SaveIconButton onClick={saveEditPeriod} />
+                              <CancelIconButton onClick={() => setEditingPeriodId(null)} />
+                            </>
+                          ) : (
+                            <>
+                              <EditIconButton onClick={() => startEditPeriod(period)} />
+                              <DeleteIconButton onClick={() => setDeletePeriodId(period.id)} />
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {periods.length === 0 && (
@@ -321,13 +401,14 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
         </div>
       )}
 
+      {/* نافذة إضافة موقع */}
       {showLocationModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                {editingLocationId ? <Edit3 className="w-5 h-5 text-[#655ac1]" /> : <Plus className="w-5 h-5 text-[#655ac1]" />}
-                {editingLocationId ? 'تعديل موقع' : 'إضافة موقع'}
+                <Plus className="w-5 h-5 text-[#655ac1]" />
+                إضافة موقع
               </h2>
               <button onClick={() => setShowLocationModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
                 <X className="w-5 h-5" />
@@ -336,31 +417,33 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
             <label className="block text-sm font-bold mb-1">اسم الموقع</label>
             <input
               type="text"
-              value={locationName}
-              onChange={e => setLocationName(e.target.value)}
-              className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#655ac1] outline-none"
+              value={newLocationName}
+              onChange={e => setNewLocationName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addLocation(); }}
+              className={FIELD_CLASS}
               autoFocus
             />
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <button onClick={() => setShowLocationModal(false)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50">إغلاق</button>
-              <button onClick={saveLocation} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5046a0] flex items-center gap-2">
+              <button onClick={addLocation} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5046a0] flex items-center gap-2">
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
                   <Check size={13} strokeWidth={3.2} className="text-white" />
                 </span>
-                حفظ
+                إضافة
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* نافذة إضافة فعالية */}
       {showPeriodModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                {editingPeriodId ? <Edit3 className="w-5 h-5 text-[#655ac1]" /> : <Plus className="w-5 h-5 text-[#655ac1]" />}
-                {editingPeriodId ? 'تعديل فعالية' : 'إضافة فعالية'}
+                <Plus className="w-5 h-5 text-[#655ac1]" />
+                إضافة فعالية
               </h2>
               <button onClick={() => setShowPeriodModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
                 <X className="w-5 h-5" />
@@ -371,70 +454,65 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
                 <label className="block text-sm font-bold mb-1">اسم الفعالية</label>
                 <input
                   type="text"
-                  value={periodForm.name}
-                  onChange={e => setPeriodForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#655ac1] outline-none"
+                  value={newPeriodForm.name}
+                  onChange={e => setNewPeriodForm(prev => ({ ...prev, name: e.target.value }))}
+                  className={FIELD_CLASS}
+                  autoFocus
                 />
               </div>
               <div>
                 <label className="block text-sm font-bold mb-1">موعد الفعالية</label>
-                <select
-                  value={periodForm.afterPeriod}
-                  onChange={e => setPeriodForm(prev => ({ ...prev, afterPeriod: Number(e.target.value) }))}
-                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#655ac1] outline-none bg-white"
-                >
-                  {PERIOD_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
+                <CheckDropdown<number>
+                  value={newPeriodForm.afterPeriod}
+                  onChange={v => setNewPeriodForm(prev => ({ ...prev, afterPeriod: v }))}
+                  options={PERIOD_OPTIONS}
+                />
               </div>
               <div>
                 <label className="block text-sm font-bold mb-1">مدة الفعالية</label>
                 <input
                   type="number"
                   min={1}
-                  value={periodForm.duration}
-                  onChange={e => setPeriodForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-[#655ac1] outline-none"
+                  value={newPeriodForm.duration}
+                  onChange={e => setNewPeriodForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                  className={FIELD_CLASS}
                 />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <button onClick={() => setShowPeriodModal(false)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50">إغلاق</button>
-              <button onClick={savePeriod} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5046a0] flex items-center gap-2">
+              <button onClick={addPeriod} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5046a0] flex items-center gap-2">
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
                   <Check size={13} strokeWidth={3.2} className="text-white" />
                 </span>
-                حفظ
+                إضافة
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {(deleteLocationId || deletePeriodId) && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center">
-            <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={28} className="text-rose-500" />
-            </div>
-            <h2 className="text-xl font-black text-slate-800 mb-2">تأكيد الحذف</h2>
-            <p className="text-sm font-medium text-slate-500 leading-7">هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع عن هذا الإجراء.</p>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => { setDeleteLocationId(null); setDeletePeriodId(null); }}
-                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={() => deleteLocationId ? deleteLocation(deleteLocationId) : deletePeriodId && deletePeriod(deletePeriodId)}
-                className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition-colors"
-              >
-                حذف
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!deleteLocationId}
+        tone="danger"
+        title="تأكيد حذف الموقع"
+        message="هل أنت متأكد من حذف هذا الموقع؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="حذف"
+        cancelLabel="إلغاء"
+        onConfirm={() => deleteLocationId && deleteLocation(deleteLocationId)}
+        onCancel={() => setDeleteLocationId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletePeriodId}
+        tone="danger"
+        title="تأكيد حذف الفعالية"
+        message="هل أنت متأكد من حذف هذه الفعالية؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmLabel="حذف"
+        cancelLabel="إلغاء"
+        onConfirm={() => deletePeriodId && deletePeriod(deletePeriodId)}
+        onCancel={() => setDeletePeriodId(null)}
+      />
     </div>
   );
 };

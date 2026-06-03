@@ -62,7 +62,7 @@ const SupervisionSettingsPage: React.FC<Props> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 border ${
+                className={`flex items-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 border ${
                   isActive
                     ? 'bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 border-[#655ac1]'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-slate-200 bg-white'

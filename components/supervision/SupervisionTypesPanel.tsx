@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Check, Lightbulb, ListTree, Plus, Trash2, X } from 'lucide-react';
+import { Check, Lightbulb, ListTree, Plus, Trash2 } from 'lucide-react';
 import { SupervisionType } from '../../types';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const CARD_CLASS = 'bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm border-2 border-slate-200';
 const MAIN_TABLE_ID = '__main__';
@@ -190,7 +191,7 @@ const SupervisionTypesPanel: React.FC<Props> = ({
         </div>
         <button
           onClick={addTable}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all w-full sm:w-auto"
         >
           <Plus size={16} />
           إضافة جدول إشراف آخر
@@ -293,35 +294,16 @@ const SupervisionTypesPanel: React.FC<Props> = ({
         </span>
       </div>
 
-      {tableToDelete && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setTableToDelete(null)}>
-          <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-md" onClick={event => event.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
-                <AlertTriangle size={24} className="text-rose-500" />
-              </div>
-              <h3 className="text-lg font-black text-slate-800">تأكيد حذف الجدول</h3>
-            </div>
-            <p className="text-sm text-slate-600 font-medium leading-relaxed mb-5">
-              هل أنت متأكد من حذف هذا الجدول؟ سيتم إلغاء اختيار أنواع الإشراف الموجودة فيه.
-            </p>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => setTableToDelete(null)}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={confirmRemoveTable}
-                className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
-              >
-                حذف
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!tableToDelete}
+        tone="danger"
+        title="تأكيد حذف الجدول"
+        message="هل أنت متأكد من حذف هذا الجدول؟ سيتم إلغاء اختيار أنواع الإشراف الموجودة فيه."
+        confirmLabel="حذف"
+        cancelLabel="إلغاء"
+        onConfirm={confirmRemoveTable}
+        onCancel={() => setTableToDelete(null)}
+      />
     </div>
   );
 };

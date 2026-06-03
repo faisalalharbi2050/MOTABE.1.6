@@ -208,6 +208,20 @@ const SupervisionV2Container: React.FC<Props> = ({
     }
   }, [schoolInfo.timing]);
 
+  // عند تفعيل/تعطيل «استثناء المعلمين عند 5 إداريين»: استثناء/إتاحة كل المعلمين مباشرةً.
+  const prevAutoExcludeRef = React.useRef(supervisionData.settings.autoExcludeTeachersWhen5Admins);
+  useEffect(() => {
+    const cur = supervisionData.settings.autoExcludeTeachersWhen5Admins;
+    if (prevAutoExcludeRef.current === cur) return;
+    prevAutoExcludeRef.current = cur;
+    setSupervisionData(prev => {
+      const teacherIds = new Set(teachers.map(t => t.id));
+      const others = prev.exclusions.filter(e => !teacherIds.has(e.staffId));
+      const teacherExclusions = teachers.map(t => ({ staffId: t.id, staffType: 'teacher' as const, isExcluded: cur }));
+      return { ...prev, exclusions: [...others, ...teacherExclusions] };
+    });
+  }, [supervisionData.settings.autoExcludeTeachersWhen5Admins]);
+
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -322,7 +336,7 @@ const SupervisionV2Container: React.FC<Props> = ({
     id: StageId; n: number; label: string; hint: string;
     icon: React.ComponentType<any>; complete: boolean;
   }> = [
-    { id: 'settings', n: 1, label: 'إعدادات الإشراف', hint: 'اضبط إعدادات الفترات والمشرفون', icon: Settings, complete: settingsComplete },
+    { id: 'settings', n: 1, label: 'إعدادات الإشراف', hint: 'اضبط إعداد الفترات والمشرفين', icon: Settings, complete: settingsComplete },
     { id: 'create', n: 2, label: 'إنشاء الجدول', hint: 'وزّع المشرفين على الفترات', icon: Sparkles, complete: scheduleComplete },
     { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
     { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'أدر الإشراف وتقاريره', icon: BarChart3, complete: false },

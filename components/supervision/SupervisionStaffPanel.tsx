@@ -1,39 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Bell, MessageSquare, Power, RefreshCw, Search, Settings, Users } from 'lucide-react';
+import { Bell, MessageSquare, RefreshCw, Search, Settings, Users } from 'lucide-react';
 import {
   Teacher, Admin, SchoolInfo, SupervisionStaffExclusion, SupervisionSettings
 } from '../../types';
-
-const Toggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
-  <div className="flex items-center gap-2 shrink-0">
-    <span className={`text-xs font-bold transition-colors duration-200 min-w-[2rem] text-center ${checked ? 'text-green-600' : 'text-slate-400'}`}>
-      {checked ? 'مفعّل' : 'معطّل'}
-    </span>
-    <button
-      onClick={onChange}
-      className={`relative h-6 w-10 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-        checked ? 'bg-green-500 focus:ring-green-400' : 'bg-slate-200 focus:ring-slate-300'
-      }`}
-    >
-      <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${checked ? 'right-1' : 'left-1'}`} />
-    </button>
-  </div>
-);
-
-const PowerToggle: React.FC<{ checked: boolean; onChange: () => void }> = ({ checked, onChange }) => (
-  <button
-    onClick={onChange}
-    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-black transition-all active:scale-95 ${
-      checked
-        ? 'bg-green-50 text-green-700 border-green-200 shadow-sm shadow-green-100 hover:bg-green-100'
-        : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 hover:text-slate-600'
-    }`}
-    title={checked ? 'تعطيل' : 'تفعيل'}
-  >
-    <Power size={16} />
-    <span>{checked ? 'مفعّل' : 'معطّل'}</span>
-  </button>
-);
+import { Switch, SegmentedToggle } from './controls';
 
 const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="#25D366">
@@ -45,10 +15,10 @@ const CardHeader: React.FC<{ icon: React.ElementType; title: string; description
   icon: Icon, title, description, action
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-    <div className="flex items-center gap-4">
-      <Icon size={28} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
+    <div className="flex items-center gap-3">
+      <Icon size={24} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
       <div>
-        <h3 className="text-lg font-black text-slate-800">{title}</h3>
+        <h3 className="text-base font-black text-slate-800">{title}</h3>
         <p className="text-xs font-medium text-slate-500 mt-1">{description}</p>
       </div>
     </div>
@@ -56,12 +26,12 @@ const CardHeader: React.FC<{ icon: React.ElementType; title: string; description
   </div>
 );
 
-const CARD_CLASS = "bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm border-2 border-slate-200";
+const CARD_CLASS = "bg-white rounded-[2rem] p-5 shadow-sm border-2 border-slate-200";
 
 const SettingRow: React.FC<{ title: string; hint?: string; children: React.ReactNode; disabled?: boolean }> = ({
   title, hint, children, disabled
 }) => (
-  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-slate-100 last:border-b-0 transition-colors ${disabled ? 'opacity-50' : ''}`}>
+  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-slate-100 last:border-b-0 transition-colors ${disabled ? 'opacity-50' : ''}`}>
     <div>
       <p className="text-sm font-bold text-slate-700">{title}</p>
       {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
@@ -93,8 +63,8 @@ const SupervisionStaffPanel: React.FC<Props> = ({
   const [filterType, setFilterType] = useState<'all' | 'teachers' | 'admins'>('all');
 
   const allStaff = useMemo(() => ([
-    ...teachers.map(t => ({ id: t.id, name: t.name, type: 'teacher' as const })),
-    ...admins.map(a => ({ id: a.id, name: a.name, type: 'admin' as const })),
+    ...teachers.map(t => ({ id: t.id, name: t.name, type: 'teacher' as const, title: 'معلم' })),
+    ...admins.map(a => ({ id: a.id, name: a.name, type: 'admin' as const, title: ((a as any).role || '').trim() || 'إداري' })),
   ]), [teachers, admins]);
 
   const counts = {
@@ -141,6 +111,9 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
     });
   };
 
+  const excludedCount = allStaff.filter(s => isExcluded(s.id)).length;
+  const availableManualCount = allStaff.length - excludedCount;
+
   return (
     <div className="space-y-6">
       {activeView === 'staff' && (
@@ -149,6 +122,16 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
             icon={Users}
             title="المشرفون"
             description="البحث واستثناء الموظفين من الإشراف اليومي"
+            action={
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-500">
+                  المتاحون <span className="font-black text-[#655ac1]">{availableManualCount}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-500">
+                  المستثنون <span className="font-black text-[#655ac1]">{excludedCount}</span>
+                </span>
+              </div>
+            }
           />
 
           <div className="flex flex-col lg:flex-row gap-3 mb-4">
@@ -158,8 +141,8 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
                 type="text"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                placeholder="بحث بالاسم"
-                className="w-full pr-10 pl-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1] outline-none transition-all placeholder:text-slate-400 bg-white"
+                placeholder="ابحث"
+                className="w-full pr-10 pl-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-slate-200 focus:border-slate-300 outline-none transition-all placeholder:text-slate-400 bg-white"
               />
             </div>
             <div className="grid grid-cols-3 gap-1 bg-slate-50 p-1 rounded-xl flex-1">
@@ -172,10 +155,10 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
                   key={tab.id}
                   onClick={() => setFilterType(tab.id as typeof filterType)}
                   className={`px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all border ${
-                    filterType === tab.id ? 'bg-white text-[#8779fb] shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'
+                    filterType === tab.id ? 'bg-white text-slate-900 shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'
                   }`}
                 >
-                  {tab.label} <span className="font-black">({tab.count})</span>
+                  {tab.label} <span className={`font-black ${filterType === tab.id ? 'text-[#655ac1]' : ''}`}>({tab.count})</span>
                 </button>
               ))}
             </div>
@@ -183,44 +166,34 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
 
           <div className="overflow-x-auto rounded-2xl border border-slate-100">
             <table className="w-full text-right">
-              <thead className="bg-white border-b text-sm text-[#655ac1]">
+              <thead className="bg-white border-b border-slate-200 text-xs text-[#655ac1]">
                 <tr>
-                  <th className="px-5 py-3 font-black w-16">م</th>
-                  <th className="px-5 py-3 font-black w-[260px]">اسم الموظف</th>
-                  <th className="px-5 py-3 font-black w-28">الصفة</th>
-                  <th className="px-5 py-3 font-black text-left w-40">الحالة</th>
+                  <th className="px-4 py-3.5 font-black w-16 text-center">م</th>
+                  <th className="px-4 py-3.5 font-black w-[260px]">اسم الموظف</th>
+                  <th className="px-4 py-3.5 font-black w-52">الصفة</th>
+                  <th className="px-4 py-3.5 font-black text-center">الحالة</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-slate-50">
                 {filteredStaff.map((staff, index) => {
                   const excluded = isExcluded(staff.id);
                   return (
-                    <tr key={staff.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3 text-gray-400 text-sm">{index + 1}</td>
-                      <td className="px-5 py-3 text-sm font-bold text-gray-800">{staff.name}</td>
-                      <td className="px-5 py-3 text-sm text-slate-600">{staff.type === 'teacher' ? 'معلم' : 'إداري'}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-end gap-4">
-                          <label className="inline-flex items-center gap-1.5 text-xs font-black text-green-700 cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`staff-exclusion-${staff.id}`}
-                              checked={!excluded}
-                              onChange={() => setExclusionState(staff.id, staff.type, false)}
-                              className="w-4 h-4 text-green-600 focus:ring-green-500"
-                            />
-                            متاح
-                          </label>
-                          <label className="inline-flex items-center gap-1.5 text-xs font-black text-rose-700 cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`staff-exclusion-${staff.id}`}
-                              checked={excluded}
-                              onChange={() => setExclusionState(staff.id, staff.type, true)}
-                              className="w-4 h-4 text-rose-600 focus:ring-rose-500"
-                            />
-                            استثناء
-                          </label>
+                    <tr key={staff.id} className="hover:bg-[#e5e1fe]/10 transition-colors">
+                      <td className="px-4 py-2.5 text-center">
+                        <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-[13px] font-bold text-slate-700">{staff.name}</td>
+                      <td className="px-4 py-2.5 text-[13px] text-slate-600">{staff.title}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex justify-center">
+                          <SegmentedToggle<boolean>
+                            value={excluded}
+                            onChange={(v) => setExclusionState(staff.id, staff.type, v)}
+                            options={[
+                              { value: false, label: 'متاح', activeClass: 'bg-green-500 text-white shadow-sm' },
+                              { value: true, label: 'استثناء', activeClass: 'bg-rose-500 text-white shadow-sm' },
+                            ]}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -245,7 +218,7 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
 
           <div className="space-y-4">
             <SettingRow title="استثناء المعلمين من الإشراف عند وجود أكثر من 5 مساعدين إداريين">
-              <PowerToggle
+              <Switch
                 checked={settings.autoExcludeTeachersWhen5Admins}
                 onChange={() => setSettings(prev => ({ ...prev, autoExcludeTeachersWhen5Admins: !prev.autoExcludeTeachersWhen5Admins }))}
               />
@@ -256,23 +229,15 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
               hint={!hasSharedSchools ? 'يتطلب إضافة مدرسة مشتركة في قسم معلومات عامة' : undefined}
               disabled={!hasSharedSchools}
             >
-              <div className={`flex gap-1.5 bg-slate-100 rounded-xl p-1 shrink-0 ${!hasSharedSchools ? 'pointer-events-none' : ''}`}>
-                {[
-                  { value: 'unified', label: 'موحد' },
-                  { value: 'separate', label: 'منفصل' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setSettings(prev => ({ ...prev, sharedSchoolMode: opt.value as any }))}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                      settings.sharedSchoolMode === opt.value
-                        ? 'bg-white text-[#655ac1] shadow-sm ring-1 ring-slate-200/50'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+              <div className={!hasSharedSchools ? 'pointer-events-none' : ''}>
+                <SegmentedToggle<string>
+                  value={settings.sharedSchoolMode || 'unified'}
+                  onChange={(v) => setSettings(prev => ({ ...prev, sharedSchoolMode: v as any }))}
+                  options={[
+                    { value: 'unified', label: 'موحّد', activeClass: 'bg-[#655ac1] text-white shadow-sm' },
+                    { value: 'separate', label: 'منفصل', activeClass: 'bg-[#655ac1] text-white shadow-sm' },
+                  ]}
+                />
               </div>
             </SettingRow>
           </div>
@@ -285,93 +250,78 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} - ${today
             icon={Bell}
             title="الإشعارات التلقائية"
             description="إعداد الإشعارات اليومية للمشرفين"
+            action={
+              <SegmentedToggle<boolean>
+                value={!!settings.autoSendReminder}
+                onChange={(v) => setSettings(prev => ({ ...prev, autoSendReminder: v }))}
+                options={[
+                  { value: true, label: 'تلقائي', activeClass: 'bg-[#655ac1] text-white shadow-sm' },
+                  { value: false, label: 'يدوي', activeClass: 'bg-[#655ac1] text-white shadow-sm' },
+                ]}
+              />
+            }
           />
 
-          <div className="space-y-4">
-            <SettingRow title="آلية إرسال الإشعارات اليومية بالإشراف اليومي">
-              <div className="flex items-center gap-3">
-                {[
-                  { value: true, label: 'تلقائي' },
-                  { value: false, label: 'يدوي' },
-                ].map(opt => (
-                  <label key={String(opt.value)} className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                <input
-                      type="radio"
-                      name="supervisionAutoSendReminder"
-                      checked={settings.autoSendReminder === opt.value}
-                      onChange={() => setSettings(prev => ({ ...prev, autoSendReminder: opt.value }))}
-                      className="w-4 h-4 text-[#655ac1] focus:ring-[#655ac1]"
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            </SettingRow>
-
-            <SettingRow title="وقت إرسال الإشعارات اليومية التلقائية" disabled={!settings.autoSendReminder}>
-              <input
-                type="time"
-                value={settings.reminderSendTime || '07:00'}
-                onChange={(e) => setSettings(prev => ({ ...prev, reminderSendTime: e.target.value }))}
-                disabled={!settings.autoSendReminder}
-                className="px-4 py-1.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1] text-sm font-bold text-slate-700 disabled:bg-slate-100"
-              />
-            </SettingRow>
-
-            <SettingRow title="طريقة الإرسال المفضلة للإشعارات اليومية التلقائية" disabled={!settings.autoSendReminder}>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+          {settings.autoSendReminder ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">وقت الإرسال التلقائي</label>
                   <input
-                    type="radio"
-                    name="supervisionReminderChannel"
-                    checked={settings.reminderSendChannel === 'whatsapp'}
-                    onChange={() => setSettings(prev => ({ ...prev, reminderSendChannel: 'whatsapp' }))}
-                    disabled={!settings.autoSendReminder}
-                    className="w-4 h-4 text-[#25D366] focus:ring-[#25D366]"
+                    type="time"
+                    value={settings.reminderSendTime || '07:00'}
+                    onChange={(e) => setSettings(prev => ({ ...prev, reminderSendTime: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-sm font-bold text-slate-700 outline-none focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#655ac1]/10 transition-all"
                   />
-                  <WhatsAppIcon size={15} />
-                  واتساب
-                </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="supervisionReminderChannel"
-                    checked={settings.reminderSendChannel === 'sms'}
-                    onChange={() => setSettings(prev => ({ ...prev, reminderSendChannel: 'sms' }))}
-                    disabled={!settings.autoSendReminder}
-                    className="w-4 h-4 text-[#007AFF] focus:ring-[#007AFF]"
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">طريقة الإرسال المفضّلة</label>
+                  <SegmentedToggle<string>
+                    fluid
+                    value={settings.reminderSendChannel || 'whatsapp'}
+                    onChange={(v) => setSettings(prev => ({ ...prev, reminderSendChannel: v as any }))}
+                    options={[
+                      { value: 'whatsapp', label: (<><WhatsAppIcon size={15} /> واتساب</>), activeClass: 'bg-white text-[#1c8a4e] shadow-sm ring-1 ring-green-200' },
+                      { value: 'sms', label: (<><MessageSquare size={15} className="text-[#007AFF]" /> نصية</>), activeClass: 'bg-white text-[#007AFF] shadow-sm ring-1 ring-blue-200' },
+                    ]}
                   />
-                  <MessageSquare size={15} className="text-[#007AFF]" />
-                  نصية
-                </label>
+                </div>
               </div>
-            </SettingRow>
 
-            <SettingRow title="رسالة التذكير التلقائية" disabled={!settings.autoSendReminder}>
-              <div className="w-full sm:max-w-xl">
-                <div className="flex justify-end mb-2">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-bold text-slate-700">رسالة التذكير</label>
                   <button
                     type="button"
                     title="استعادة النص الافتراضي"
                     aria-label="استعادة النص الافتراضي"
                     onClick={() => setSettings(prev => ({ ...prev, reminderMessageTemplate: defaultReminderTemplate }))}
-                    disabled={!settings.autoSendReminder}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-600 transition-all"
                   >
-                    <RefreshCw size={14} className="text-[#655ac1]" />
+                    <RefreshCw size={13} className="text-[#655ac1]" />
+                    استعادة الافتراضي
                   </button>
                 </div>
                 <textarea
                   value={reminderTemplateValue}
                   onChange={e => setSettings(prev => ({ ...prev, reminderMessageTemplate: e.target.value }))}
-                  disabled={!settings.autoSendReminder}
                   rows={5}
-                  className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors disabled:bg-slate-100 disabled:text-slate-400"
+                  className="w-full bg-white border border-slate-200 rounded-xl p-4 outline-none focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#655ac1]/10 resize-none text-sm leading-relaxed transition-all"
                   dir="rtl"
                 />
               </div>
-            </SettingRow>
-          </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                <Bell size={22} className="text-slate-400" />
+              </div>
+              <p className="text-sm font-bold text-slate-600">الإرسال يدوي</p>
+              <p className="text-xs font-medium text-slate-400 mt-1 leading-relaxed">
+                لن تُرسل إشعارات تلقائية. فعّل وضع «تلقائي» لضبط وقت الإرسال والقناة ونص رسالة التذكير.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
