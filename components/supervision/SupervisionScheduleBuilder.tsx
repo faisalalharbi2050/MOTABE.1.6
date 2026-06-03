@@ -483,31 +483,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     showToast('تم تطبيق المواقع على الأعمدة المحددة في كل الأيام', 'success');
   };
 
-  const clearLocations = (day?: string) => {
-    const targetTypeIds = getBulkTargetTypeIds();
-    setSupervisionData(prev => {
-      const next = {
-        ...prev,
-        dayAssignments: prev.dayAssignments.map(da => {
-          if (day && da.day !== day) return da;
-          return {
-            ...da,
-            staffAssignments: da.staffAssignments.map(sa => (
-              targetTypeIds.includes(sa.contextTypeId) ? { ...sa, locationIds: [] } : sa
-            )),
-          };
-        }),
-      };
-      return syncActiveSavedSchedule(prev, next);
-    });
-    if (!day) {
-      setBulkLocationIds([]);
-      setShowBulkLocationPicker(false);
-      setShowDayDropdown(false);
-    }
-    showToast(day ? `تم مسح المواقع ليوم ${DAY_NAMES[day]}` : 'تم مسح كل المواقع', 'success');
-  };
-
   const applyLocationsToSelectedStaff = () => {
     if (bulkStaffKeys.length === 0) {
       showToast('اختر مشرفًا واحدًا على الأقل', 'warning');
@@ -836,8 +811,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-right flex flex-col min-h-[220px]"
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <MapPinned size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-                  <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
+                  <MapPinned size={22} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
+                  <h4 className="text-base font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
                 </div>
                 <div className="mb-4 space-y-2.5 w-full">
                   {[
@@ -846,7 +821,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     'طبّق على كل الأيام أو على يوم محدد.',
                   ].map((step, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-right">
-                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-[#655ac1]/10 text-[#655ac1] text-[10px] font-black flex items-center justify-center">
+                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full border border-slate-300 text-slate-500 text-[10px] font-black flex items-center justify-center">
                         {i + 1}
                       </span>
                       <span className="text-xs font-medium text-slate-600 leading-relaxed">{step}</span>
@@ -864,8 +839,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-right flex flex-col min-h-[220px]"
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <UserRoundCheck size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
-                  <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
+                  <UserRoundCheck size={22} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
+                  <h4 className="text-base font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
                 </div>
                 <div className="mb-4 space-y-2.5 w-full">
                   {[
@@ -874,7 +849,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     'اضغط «تطبيق».',
                   ].map((step, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-right">
-                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-[#655ac1]/10 text-[#655ac1] text-[10px] font-black flex items-center justify-center">
+                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full border border-slate-300 text-slate-500 text-[10px] font-black flex items-center justify-center">
                         {i + 1}
                       </span>
                       <span className="text-xs font-medium text-slate-600 leading-relaxed">{step}</span>
@@ -934,16 +909,14 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </button>
 
               {showBulkLocationPicker && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowBulkLocationPicker(false)} />
-                  <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-full bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden">
+                  <div className="mt-2 w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
                     <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                       <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
                       <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
                         {bulkLocationIds.length} محدد
                       </span>
                     </div>
-                    <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                    <div className="max-h-56 overflow-y-auto p-2 space-y-1">
                       {activeLocations.map(loc => {
                         const isSel = bulkLocationIds.includes(loc.id);
                         return (
@@ -961,19 +934,18 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       })}
                     </div>
                   </div>
-                </>
               )}
             </div>
 
           </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto mt-4">
               <button
                 onClick={copyLocationToAllDays}
                 disabled={bulkLocationIds.length === 0}
                 className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                   bulkLocationIds.length > 0
-                    ? 'bg-gradient-to-b from-white to-[#f5f3ff] border-[#d7d0ff] text-[#655ac1] shadow-sm hover:border-[#b9afff] hover:-translate-y-0.5'
+                    ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:-translate-y-0.5'
                     : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
               >
@@ -986,7 +958,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   disabled={bulkLocationIds.length === 0}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                     bulkLocationIds.length > 0
-                      ? 'bg-gradient-to-b from-white to-[#f5f3ff] border-[#d7d0ff] text-[#655ac1] shadow-sm hover:border-[#b9afff] hover:-translate-y-0.5'
+                      ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:-translate-y-0.5'
                       : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
@@ -1013,15 +985,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 )}
               </div>
 
-              {dayAssignments.some(da => da.staffAssignments.some(sa => sa.locationIds.length > 0)) && (
-                <button
-                  onClick={() => clearLocations()}
-                  className="p-2.5 bg-white text-rose-600 hover:text-rose-700 rounded-xl border border-rose-200 hover:bg-rose-50 transition-all"
-                  title="مسح كل المواقع"
-                >
-                  <RotateCcw size={18} />
-                </button>
-              )}
             </div>
           </div>
           )}
@@ -1043,11 +1006,12 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     <button
                       key={tab.id}
                       onClick={() => setBulkStaffTab(tab.id)}
-                      className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
-                        bulkStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      className={`px-3 py-2 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
+                        bulkStaffTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'
                       }`}
                     >
-                      {tab.label} ({tab.count})
+                      <span className="text-slate-800">{tab.label}</span>
+                      <span className="text-[#655ac1]">({tab.count})</span>
                     </button>
                   ))}
                 </div>
@@ -1058,8 +1022,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     type="text"
                     value={bulkStaffSearch}
                     onChange={e => setBulkStaffSearch(e.target.value)}
-                    placeholder="بحث عن مشرف مسند..."
-                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
+                    placeholder="ابحث"
+                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
                   />
                 </div>
 
@@ -1075,14 +1039,14 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           onClick={() => toggleBulkStaff(staff.key)}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors"
                         >
+                          <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug">{staff.name}</span>
+                          <span className="text-[10px] font-black text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
+                            {staff.count}
+                          </span>
                           <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                             selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                           }`}>
                             {selected && <Check size={13} strokeWidth={3.5} />}
-                          </span>
-                          <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug">{staff.name}</span>
-                          <span className="text-[10px] font-black text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full">
-                            {staff.count}
                           </span>
                         </button>
                       );
@@ -1109,16 +1073,14 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   </button>
 
                   {showBulkStaffLocationPicker && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowBulkStaffLocationPicker(false)} />
-                      <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-full bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden">
+                      <div className="mt-2 w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
                         <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                           <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
                           <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
                             {bulkStaffLocationIds.length} محدد
                           </span>
                         </div>
-                        <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                        <div className="max-h-56 overflow-y-auto p-2 space-y-1">
                           {activeLocations.map(loc => {
                             const isSel = bulkStaffLocationIds.includes(loc.id);
                             return (
@@ -1136,7 +1098,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           })}
                         </div>
                       </div>
-                    </>
                   )}
                 </div>
 
@@ -1149,43 +1110,50 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
-                  <Check size={16} /> تطبيق
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                    <Check size={13} strokeWidth={3.2} className="text-white" />
+                  </span>
+                  تطبيق
                 </button>
               </div>
             </div>
           </div>
           )}
-            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
-              {locationModalView !== 'cards' && (
-                <button
-                  onClick={() => {
-                    setLocationModalView('cards');
-                    setShowBulkLocationPicker(false);
-                    setShowBulkStaffLocationPicker(false);
-                    setShowDayDropdown(false);
-                  }}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
-                >
-                  عودة
-                </button>
-              )}
-              <button
-                onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                إغلاق
-              </button>
-              {locationModalView !== 'cards' && (
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div>
+                {locationModalView !== 'cards' && (
+                  <button
+                    onClick={() => {
+                      setLocationModalView('cards');
+                      setShowBulkLocationPicker(false);
+                      setShowBulkStaffLocationPicker(false);
+                      setShowDayDropdown(false);
+                    }}
+                    className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    عودة
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
                 >
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                    <Check size={13} strokeWidth={3.2} className="text-white" />
-                  </span>
-                  حفظ
+                  إغلاق
                 </button>
-              )}
+                {locationModalView !== 'cards' && (
+                  <button
+                    onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
+                  >
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                      <Check size={13} strokeWidth={3.2} className="text-white" />
+                    </span>
+                    حفظ
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
