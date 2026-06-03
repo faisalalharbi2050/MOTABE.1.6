@@ -346,11 +346,21 @@ const Header: React.FC<HeaderProps> = ({
   ];
 
   const unreadCount = NOTIFICATIONS.filter(n => !readNotifs.has(n.id)).length;
+  const todaysNotificationsCount = NOTIFICATIONS.length;
 
   const markAllRead = () => {
     const all = new Set(NOTIFICATIONS.map(n => n.id));
     setReadNotifs(all);
     localStorage.setItem('motabe_read_notifs', JSON.stringify([...all]));
+  };
+
+  const markNotificationRead = (id: number) => {
+    setReadNotifs(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem('motabe_read_notifs', JSON.stringify([...next]));
+      return next;
+    });
   };
 
   // ── Profile state ──────────────────────────────────────────────────
@@ -667,17 +677,17 @@ const Header: React.FC<HeaderProps> = ({
                       <div className="flex flex-col items-center text-center gap-0.5">
                         <Calendar size={15} className="text-slate-400" />
                         <span className="text-[10px] font-bold text-slate-900">تاريخ الإنشاء</span>
-                        <span className="text-[11px] font-bold text-slate-500 leading-tight">{fmtDate(profile.createdAt)}</span>
+                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{fmtDate(profile.createdAt)}</span>
                       </div>
                       <div className="flex flex-col items-center text-center gap-0.5 border-x border-slate-200/70">
                         <LogIn size={15} className="text-slate-400" />
                         <span className="text-[10px] font-bold text-slate-900">آخر دخول</span>
-                        <span className="text-[11px] font-bold text-slate-500 leading-tight">{fmtDate(profile.lastLogin)}</span>
+                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{fmtDate(profile.lastLogin)}</span>
                       </div>
                       <div className="flex flex-col items-center text-center gap-0.5">
                         <Clock size={15} className="text-slate-400" />
                         <span className="text-[10px] font-bold text-slate-900">الوقت</span>
-                        <span className="text-[11px] font-bold text-slate-500 leading-tight dir-ltr">{profileTimeString}</span>
+                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight dir-ltr">{profileTimeString}</span>
                       </div>
                     </div>
 
@@ -866,70 +876,91 @@ const Header: React.FC<HeaderProps> = ({
 
                  {/* ── Notifications Panel ─────────────────────────── */}
                  {isNotifOpen && (
-                   <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-fade-in">
-                     {/* Panel header */}
-                     <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                       <div className="flex items-center gap-2">
-                         <Bell size={16} className="text-[#655ac1]" />
-                         <span className="text-sm font-bold text-slate-800">الإشعارات</span>
-                         {unreadCount > 0 && (
-                           <span className="text-[10px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded-full">{unreadCount}</span>
-                         )}
+                   <div className="absolute top-full left-0 mt-2 w-[23rem] bg-white rounded-[1.75rem] shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-fade-in">
+                     <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
+                       <div className="flex items-center gap-3 min-w-0">
+                         <div className="w-11 h-11 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[#655ac1] shrink-0">
+                           <Bell size={22} />
+                         </div>
+                         <div className="min-w-0">
+                           <p className="text-sm font-bold text-slate-800 truncate">الإشعارات</p>
+                         </div>
                        </div>
-                       <div className="flex items-center gap-2">
-                         {unreadCount > 0 && (
-                           <button
-                             onClick={markAllRead}
-                             className="flex items-center gap-1 text-[10px] font-bold text-[#655ac1] hover:underline"
-                           >
-                             <CheckCheck size={11} /> تحديد الكل كمقروء
-                           </button>
-                         )}
-                         <button
-                           onClick={() => setIsNotifOpen(false)}
-                           className="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600"
-                           title="إغلاق"
-                         >
-                           <X size={14} />
-                         </button>
+                       <button
+                         onClick={() => setIsNotifOpen(false)}
+                         className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shrink-0"
+                         title="إغلاق"
+                       >
+                         <X size={14} />
+                       </button>
+                     </div>
+
+                     <div className="grid grid-cols-3 gap-2 px-4 py-3 bg-slate-50/60 border-b border-slate-100">
+                       <div className="flex flex-col items-center text-center gap-0.5">
+                         <Bell size={15} className="text-slate-400" />
+                         <span className="text-[10px] font-bold text-slate-900">غير مقروءة</span>
+                         <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{unreadCount}</span>
+                       </div>
+                       <div className="flex flex-col items-center text-center gap-0.5 border-x border-slate-200/70">
+                         <Calendar size={15} className="text-slate-400" />
+                         <span className="text-[10px] font-bold text-slate-900">اليوم</span>
+                         <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{todaysNotificationsCount}</span>
+                       </div>
+                       <div className="flex flex-col items-center text-center gap-0.5">
+                         <Clock size={15} className="text-slate-400" />
+                         <span className="text-[10px] font-bold text-slate-900">آخر تحديث</span>
+                         <span className="text-[11px] font-bold text-[#655ac1] leading-tight dir-ltr">{profileTimeString}</span>
                        </div>
                      </div>
-                     {/* Notification items */}
-                     <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
-                       {NOTIFICATIONS.map(n => {
-                         const isRead = readNotifs.has(n.id);
-                         const Icon = n.icon;
-                         return (
-                           <div
-                             key={n.id}
-                             onClick={() => {
-                               setReadNotifs(prev => {
-                                 const next = new Set(prev);
-                                 next.add(n.id);
-                                 localStorage.setItem('motabe_read_notifs', JSON.stringify([...next]));
-                                 return next;
-                               });
-                             }}
-                             className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 ${isRead ? 'opacity-60' : 'bg-violet-50/30'}`}
-                           >
-                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${n.color}`}>
-                               <Icon size={15} />
-                             </div>
-                             <div className="flex-1 min-w-0">
-                               <div className="flex items-center justify-between gap-2">
-                                 <p className="text-xs font-bold text-slate-800 truncate">{n.title}</p>
-                                 {!isRead && <span className="w-2 h-2 bg-violet-500 rounded-full shrink-0" />}
+
+                     <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
+                       {NOTIFICATIONS.length > 0 ? (
+                         NOTIFICATIONS.map(n => {
+                           const isRead = readNotifs.has(n.id);
+                           const Icon = n.icon;
+                           return (
+                             <button
+                               key={n.id}
+                               onClick={() => markNotificationRead(n.id)}
+                               className="w-full flex items-start gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white text-right transition-colors group hover:bg-slate-50"
+                             >
+                               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-[#655ac1]">
+                                 <Icon size={16} />
                                </div>
-                               <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{n.desc}</p>
-                               <p className="text-[9px] text-slate-400 mt-1 font-medium">{n.time}</p>
-                             </div>
+                               <div className="flex-1 min-w-0">
+                                 <div className="flex items-center justify-between gap-2">
+                                   <p className={`text-xs font-bold truncate ${isRead ? 'text-slate-600' : 'text-slate-800'}`}>{n.title}</p>
+                                   {!isRead && <span className="w-2 h-2 bg-[#655ac1] rounded-full shrink-0" />}
+                                 </div>
+                                 <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed line-clamp-2">{n.desc}</p>
+                                 <p className="text-[9px] text-slate-400 mt-1 font-bold">{n.time}</p>
+                               </div>
+                             </button>
+                           );
+                         })
+                       ) : (
+                         <div className="flex flex-col items-center justify-center text-center py-8">
+                           <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 mb-3">
+                             <Bell size={22} />
                            </div>
-                         );
-                       })}
+                           <p className="text-xs font-bold text-slate-700">لا توجد إشعارات</p>
+                           <p className="text-[10px] text-slate-400 mt-1">ستظهر التنبيهات الجديدة هنا فور وصولها</p>
+                         </div>
+                       )}
                      </div>
-                     {/* Footer */}
-                     <div className="p-3 border-t border-slate-100 text-center">
-                       <p className="text-[10px] text-slate-400 font-medium">آخر تحديث: اليوم</p>
+
+                     <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
+                       {unreadCount > 0 ? (
+                         <button
+                           onClick={markAllRead}
+                           className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors"
+                         >
+                           <CheckCheck size={14} className="text-[#655ac1]" />
+                           تحديد الكل كمقروء
+                         </button>
+                       ) : (
+                         <p className="text-[10px] text-slate-400 font-medium text-center py-2">كل الإشعارات مقروءة</p>
+                       )}
                      </div>
                    </div>
                  )}
