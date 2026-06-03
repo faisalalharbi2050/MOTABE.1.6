@@ -277,6 +277,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                   onAcademicYearChange={(year) =>
                     setSchoolInfo(prev => ({ ...prev, academicYear: year }))
                   }
+                  calendarType={schoolInfo.calendarType || 'hijri'}
                   onPrintSemester={(sem) => {
                     setPrintDefaultId(sem.id);
                     setShowPrint(true);

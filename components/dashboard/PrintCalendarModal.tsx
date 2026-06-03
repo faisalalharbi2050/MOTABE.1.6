@@ -69,56 +69,45 @@ function buildWeeks(semester: SemesterInfo) {
   return result;
 }
 
-function countActiveWeeks(semester: SemesterInfo): number {
-  return buildWeeks(semester).filter(w => w.days.some(d => d.isWorkingDay && !d.isHoliday)).length;
-}
-
 function buildPrintHTML(semester: SemesterInfo, academicYear: string, schoolInfo: SchoolInfo): string {
   const weeks     = buildWeeks(semester);
   const printDate = new Intl.DateTimeFormat('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
-  const activeWeeksCount = countActiveWeeks(semester);
-  const holidayCount     = semester.holidays?.length || 0;
 
-  const weekCards = weeks.map(week => {
-    const activeDays    = week.days.filter(d => d.isWorkingDay);
-    if (activeDays.length === 0) return '';
-    const allHoliday    = activeDays.every(d => d.isHoliday);
-    const firstDay      = activeDays[0];
-    const lastDay       = activeDays[activeDays.length - 1];
+  const renderable   = weeks.filter(w => w.days.some(d => d.isWorkingDay));
+  const totalWeeks   = renderable.length;
+  const holidayCount = semester.holidays?.length || 0;
+  const studyDays    = weeks.reduce((s, w) => s + w.days.filter(d => d.isWorkingDay && !d.isHoliday).length, 0);
 
-    const cardBorder    = allHoliday ? 'border:2px solid #fca5a5;' : 'border:1px solid #ddd6fe;';
-    const headerBg      = allHoliday ? 'background:#fff;' : 'background:linear-gradient(to left, rgba(101,90,193,0.06), rgba(135,121,251,0.10));';
-    const weekNumColor  = allHoliday ? '#ef4444' : '#655ac1';
-    const dateColor     = allHoliday ? '#f87171' : '#8779fb';
-
-    const holidayBadge  = allHoliday
-      ? `<span style="font-size:10px; font-weight:700; color:#ef4444;">إجازة</span>` : '';
+  const weekRows = renderable.map(week => {
+    const activeDays = week.days.filter(d => d.isWorkingDay);
+    const allHoliday = activeDays.length > 0 && activeDays.every(d => d.isHoliday);
+    const firstDay   = activeDays[0];
+    const lastDay    = activeDays[activeDays.length - 1];
 
     const daysHtml = activeDays.map(d => `
-      <div style="font-size:11px; padding:5px 8px; border-radius:8px; border:${d.isHoliday && !allHoliday ? '2px solid #fca5a5' : '1px solid #e2e8f0'}; display:flex; justify-content:space-between; align-items:center; background:#fff; margin-bottom:5px;">
-        <span style="font-weight:700; color:#374151; display:flex; align-items:center; gap:4px;">
-          ${d.isHoliday && !allHoliday ? '<span style="color:#f87171; font-size:10px;">✕</span>' : ''}
-          ${d.label}
-        </span>
-        <span style="color:#9ca3af; font-size:10px; direction:ltr;">${d.dateObj.format('MM/DD')}</span>
+      <div style="flex:1; border:1px solid ${d.isHoliday ? '#fecaca' : '#e2e8f0'}; border-radius:10px; padding:6px 4px; text-align:center; position:relative; background:#fff; min-height:46px;">
+        ${d.isHoliday ? '<span style="position:absolute; top:3px; left:3px; font-size:8px; font-weight:900; color:#dc2626; background:#fee2e2; border-radius:4px; padding:1px 4px; line-height:1;">إجازة</span>' : ''}
+        <div style="font-size:11px; font-weight:900; color:#374151;">${d.label}</div>
+        <div style="font-size:10px; font-weight:900; color:#655ac1; direction:ltr; margin-top:3px;">${d.dateObj.format('M/D')}</div>
       </div>`).join('');
 
     return `
-      <div style="border-radius:14px; overflow:hidden; ${cardBorder} display:flex; flex-direction:column; break-inside:avoid;">
-        <div style="${headerBg} padding:8px 10px; cursor:default;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span style="font-size:18px; font-weight:900; color:${weekNumColor}; line-height:1;">${week.weekNumber}</span>
-            ${holidayBadge}
+      <div style="display:flex; align-items:stretch; padding:8px 10px; border-bottom:1px solid #f1f5f9; ${allHoliday ? 'background:#fff1f2;' : ''} break-inside:avoid;">
+        <div style="width:110px; flex-shrink:0; padding-left:10px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:14px; font-weight:900; color:#0f172a;">الأسبوع ${week.weekNumber}</span>
+            ${allHoliday ? '<span style="font-size:9px; font-weight:900; color:#dc2626; background:#fee2e2; border-radius:4px; padding:1px 5px; line-height:1.4;">إجازة</span>' : ''}
           </div>
-          <div style="font-size:12px; font-weight:700; color:${dateColor}; direction:ltr; text-align:right;">
-            ${firstDay.dateObj.format('M/D')} — ${lastDay.dateObj.format('M/D')}
-          </div>
+          <div style="font-size:12px; font-weight:900; color:#655ac1; direction:ltr; margin-top:3px;">${firstDay.dateObj.format('M/D')} - ${lastDay.dateObj.format('M/D')}</div>
         </div>
-        <div style="padding:6px 8px; flex:1; background:#fafafa;">
-          ${daysHtml}
-        </div>
+        <div style="width:1px; background:#e2e8f0; margin:0 10px;"></div>
+        <div style="flex:1; display:flex; gap:6px;">${daysHtml}</div>
       </div>`;
   }).join('');
+
+  const logoHtml = schoolInfo.logo
+    ? `<img src="${schoolInfo.logo}" alt="شعار" style="width:70px; height:70px; object-fit:contain;" />`
+    : `<div style="width:70px; height:70px; border:1px dashed #cbd5e1; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:11px;">شعار</div>`;
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -133,30 +122,37 @@ function buildPrintHTML(semester: SemesterInfo, academicYear: string, schoolInfo
   </style>
 </head>
 <body>
-  <!-- رأس الصفحة -->
-  <div style="text-align:center; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e2e8f0;">
-    <div style="font-size:18px; font-weight:900; color:#1e293b;">${schoolInfo.schoolName || ''}</div>
-    ${schoolInfo.educationAdministration ? `<div style="font-size:12px; color:#64748b; margin-top:4px;">${schoolInfo.educationAdministration}</div>` : ''}
-    <div style="font-size:14px; font-weight:700; color:#655ac1; margin-top:6px;">التقويم الدراسي — العام ${academicYear || ''}</div>
-  </div>
-
-  <!-- معلومات الفصل -->
-  <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
-    <div>
-      <div style="font-size:15px; font-weight:900; color:#655ac1;">${semester.name}</div>
-      <div style="font-size:11px; color:#8779fb; margin-top:3px;">
-        ${formatDateDisplay(semester.startDate, semester.calendarType)} — ${formatDateDisplay(semester.endDate, semester.calendarType)}
-      </div>
+  <!-- الترويسة الرسمية -->
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:16px;">
+    <div style="text-align:right; font-size:12px; line-height:1.9; font-weight:700; color:#1e293b;">
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${schoolInfo.region || 'إدارة التعليم بالمنطقة'}</div>
+      <div>مدرسة ${schoolInfo.schoolName || '..........'}</div>
     </div>
-    <div style="text-align:left; font-size:11px; color:#6b7280;">
-      <div>${activeWeeksCount} أسبوع فعّال</div>
-      <div style="color:#f87171; margin-top:2px;">${holidayCount} يوم إجازة</div>
+    <div style="text-align:center;">${logoHtml}</div>
+    <div style="text-align:left; font-size:12px; line-height:1.9; font-weight:700; color:#1e293b;">
+      <div>التاريخ: ${printDate}</div>
+      <div>العام الدراسي: ${academicYear || ''}</div>
     </div>
   </div>
 
-  <!-- شبكة البطاقات -->
-  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; direction:rtl;">
-    ${weekCards}
+  <!-- العنوان -->
+  <div style="text-align:center; margin-bottom:16px;">
+    <div style="font-size:22px; font-weight:900; color:#655ac1;">التقويم الدراسي</div>
+    <div style="font-size:13px; font-weight:700; color:#475569; margin-top:5px;">العام الدراسي: ${academicYear || ''} — ${semester.name}</div>
+  </div>
+
+  <!-- شريط الإحصاءات -->
+  <div style="display:flex; justify-content:center; gap:28px; flex-wrap:wrap; border:1px solid #e2e8f0; border-radius:10px; padding:9px 14px; margin-bottom:16px; font-size:12px; font-weight:700; color:#475569;">
+    <span>${totalWeeks} أسبوع دراسي</span>
+    <span>${holidayCount} يوم إجازة</span>
+    <span>الأيام الدراسية: ${studyDays} يوم</span>
+  </div>
+
+  <!-- جدول الأسابيع الدراسية -->
+  <div style="border:1px solid #e2e8f0; border-radius:14px; overflow:hidden;">
+    ${weekRows}
   </div>
 
   <div style="margin-top:24px; padding-top:10px; border-top:1px solid #e2e8f0; text-align:center; font-size:10px; color:#94a3b8;">

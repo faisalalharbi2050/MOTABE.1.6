@@ -51,6 +51,7 @@ const AcademicYearPopup: React.FC<Props> = ({ schoolInfo, setSchoolInfo, onClose
               setCurrentSemesterId={(id) => setSchoolInfo(prev => ({ ...prev, currentSemesterId: id }))}
               academicYear={schoolInfo.academicYear || ''}
               onAcademicYearChange={(year) => setSchoolInfo(prev => ({ ...prev, academicYear: year }))}
+              calendarType={schoolInfo.calendarType || 'hijri'}
             />
           </div>
         </div>

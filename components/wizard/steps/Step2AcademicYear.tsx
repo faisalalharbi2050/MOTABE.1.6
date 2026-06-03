@@ -70,6 +70,7 @@ const Step2AcademicYear: React.FC<Step2Props> = ({ schoolInfo, setSchoolInfo }) 
                       setCurrentSemesterId={(id) => setSchoolInfo(prev => ({ ...prev, currentSemesterId: id }))}
                       academicYear={schoolInfo.academicYear || ''}
                       onAcademicYearChange={(year) => setSchoolInfo(prev => ({ ...prev, academicYear: year }))}
+                      calendarType={schoolInfo.calendarType || 'hijri'}
                     />
                  </div>
               </div>
