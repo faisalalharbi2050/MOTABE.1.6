@@ -139,7 +139,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                 <button
                   type="button"
                   onClick={() => goToStage(s)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
                     isActive
                       ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20'
                       : 'hover:bg-slate-50'
@@ -171,7 +171,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                   </span>
                 </button>
                 {i < stages.length - 1 && (
-                  <div className="flex items-center px-0.5 shrink-0">
+                  <div className="flex items-center px-2 shrink-0">
                     <ChevronLeft size={20} className="text-slate-300" strokeWidth={2.5} />
                   </div>
                 )}
