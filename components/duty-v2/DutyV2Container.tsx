@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Eye, Settings, BarChart3, ShieldCheck,
+  Settings, BarChart3, ShieldCheck,
   CheckCircle, AlertTriangle, AlertCircle,
-  RefreshCw, X, Info, Sparkles, FileOutput, Send, Table,
+  RefreshCw, X, Info, Sparkles, FileOutput, Send,
+  Check, Printer, Archive,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -59,30 +60,48 @@ interface Props {
   onNavigateToDashboard?: () => void;
 }
 
-type TabId = 'settings' | 'create' | 'printsend' | 'send' | 'monitoring' | 'manage';
+type StageId = 'settings' | 'create' | 'output' | 'monitoring';
+type OutputMode = 'print' | 'send' | 'manage';
 
+const STAGE_STORAGE_KEY = 'motabe:duty_v2:stage';
 const TAB_STORAGE_KEY = 'motabe:duty_v2:lastTab';
 const DUTY_ONE_TIME_RESET_MARKER = 'duty_data_reset_2026_04_04_done';
 
 const DutyV2Container: React.FC<Props> = ({
   schoolInfo, setSchoolInfo, teachers, admins, scheduleSettings,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
+  const [stage, setStage] = useState<StageId>(() => {
     try {
       if (sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1') {
-        return 'send';
+        return 'output';
       }
-      const saved = localStorage.getItem(TAB_STORAGE_KEY);
-      if (saved === 'settings' || saved === 'create' || saved === 'printsend' || saved === 'send' || saved === 'monitoring' || saved === 'manage') {
-        return saved as TabId;
+      const saved = localStorage.getItem(STAGE_STORAGE_KEY);
+      if (saved === 'settings' || saved === 'create' || saved === 'output' || saved === 'monitoring') {
+        return saved as StageId;
       }
+      // Migrate legacy flat-tab value onto the new stages.
+      const legacy = localStorage.getItem(TAB_STORAGE_KEY);
+      if (legacy === 'printsend' || legacy === 'send' || legacy === 'manage') return 'output';
+      if (legacy === 'create' || legacy === 'monitoring' || legacy === 'settings') return legacy as StageId;
     } catch {}
     return 'settings';
   });
 
+  const [outputMode, setOutputMode] = useState<OutputMode>(() => {
+    try {
+      if (sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1') {
+        return 'send';
+      }
+      const legacy = localStorage.getItem(TAB_STORAGE_KEY);
+      if (legacy === 'send') return 'send';
+      if (legacy === 'manage') return 'manage';
+    } catch {}
+    return 'print';
+  });
+
   useEffect(() => {
-    try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch {}
-  }, [activeTab]);
+    try { localStorage.setItem(STAGE_STORAGE_KEY, stage); } catch {}
+  }, [stage]);
 
   const [activeSchoolTab, setActiveSchoolTab] = useState<string>('main');
   const [showAcademicCalendarModal, setShowAcademicCalendarModal] = useState(false);
@@ -271,13 +290,23 @@ const DutyV2Container: React.FC<Props> = ({
     }
   };
 
-  const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
-    { id: 'settings', label: 'إعدادات المناوبة', icon: Settings },
-    { id: 'create', label: 'إنشاء جدول المناوبة', icon: Sparkles },
-    { id: 'printsend', label: 'طباعة المناوبة', icon: FileOutput },
+  const settingsComplete = availableStaff.length > 0;
+  const scheduleComplete = dutyData.dayAssignments.length > 0;
+
+  const stages: Array<{
+    id: StageId; n: number; label: string; hint: string;
+    icon: React.ComponentType<any>; complete: boolean;
+  }> = [
+    { id: 'settings', n: 1, label: 'إعدادات المناوبة', hint: 'اضبط الاستثناءات والإعدادات', icon: Settings, complete: settingsComplete },
+    { id: 'create', n: 2, label: 'إنشاء الجدول', hint: 'وزّع المناوبين على الأيام', icon: Sparkles, complete: scheduleComplete },
+    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - الجداول المحفوظة', icon: FileOutput, complete: false },
+    { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'تابع المناوبة وقيّم الأداء', icon: BarChart3, complete: false },
+  ];
+
+  const outputModes: Array<{ id: OutputMode; label: string; icon: React.ComponentType<any> }> = [
+    { id: 'print', label: 'طباعة', icon: Printer },
     { id: 'send', label: 'إرسال المناوبة', icon: Send },
-    { id: 'monitoring', label: 'المتابعة وتقارير الأداء', icon: BarChart3 },
-    { id: 'manage', label: 'إدارة الجداول', icon: Table },
+    { id: 'manage', label: 'الجداول المحفوظة', icon: Archive },
   ];
 
   return (
@@ -306,22 +335,59 @@ const DutyV2Container: React.FC<Props> = ({
         />
       )}
 
-      {/* ══════ Tabs Bar ══════ */}
-      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex gap-2 overflow-x-auto custom-scrollbar">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all flex-1 justify-center text-sm ${
-              activeTab === tab.id
-                ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
-                : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <tab.icon size={17} />
-            {tab.label}
-          </button>
-        ))}
+      {/* ══════ Stepper ══════ */}
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-200">
+        <div className="flex items-stretch gap-1 overflow-x-auto custom-scrollbar">
+          {stages.map((s, i) => {
+            const isActive = stage === s.id;
+            const prevComplete = i > 0 && stages[i - 1].complete;
+            return (
+              <React.Fragment key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => setStage(s.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
+                    isActive
+                      ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <span className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black border-2 transition-all ${
+                    s.complete
+                      ? 'bg-white border-slate-200'
+                      : isActive
+                        ? 'bg-white border-white text-[#655ac1]'
+                        : 'bg-white border-slate-200 text-[#655ac1]'
+                  }`}>
+                    {s.complete ? (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white">
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    ) : s.n}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`flex items-center gap-1.5 font-black text-sm leading-tight ${
+                      isActive ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      <s.icon size={15} className={isActive ? 'text-white' : 'text-[#655ac1]'} />
+                      {s.label}
+                    </span>
+                    <span className={`block text-[11px] font-bold mt-0.5 truncate ${
+                      isActive ? 'text-white/80' : 'text-slate-400'
+                    }`}>
+                      {s.hint}
+                    </span>
+                  </span>
+                </button>
+                {i < stages.length - 1 && (
+                  <div className="flex items-center px-1 shrink-0">
+                    <span className={`w-6 h-0.5 rounded-full transition-all ${prevComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
       {/* ══════ Banners ══════ */}
@@ -387,11 +453,11 @@ const DutyV2Container: React.FC<Props> = ({
         </div>
       )}
 
-      {/* ══════ Tab Content ══════ */}
+      {/* ══════ Stage Content ══════ */}
       <div className="min-h-[400px]">
-        {activeTab === 'settings' && (
+        {stage === 'settings' && (
           <DutySettingsPage
-            onBack={() => setActiveTab('create')}
+            onBack={() => setStage('create')}
             onSave={() => { showToast('تم حفظ إعدادات المناوبة بنجاح', 'success'); }}
             teachers={teachers}
             admins={admins}
@@ -413,7 +479,7 @@ const DutyV2Container: React.FC<Props> = ({
             showToast={showToast}
           />
         )}
-        {activeTab === 'create' && (
+        {stage === 'create' && (
           <CreateTab
             dutyData={dutyData}
             setDutyData={setDutyData}
@@ -425,7 +491,7 @@ const DutyV2Container: React.FC<Props> = ({
             showToast={showToast}
           />
         )}
-        {activeTab === 'monitoring' && (
+        {stage === 'monitoring' && (
           <MonitoringTab
             dutyData={dutyData}
             setDutyData={setDutyData}
@@ -433,32 +499,49 @@ const DutyV2Container: React.FC<Props> = ({
             showToast={showToast}
           />
         )}
-        {activeTab === 'printsend' && (
-          <PrintSendTab
-            dutyData={dutyData}
-            schoolInfo={schoolInfo}
-            onOpenLegacyPrint={() => setIsPrintOpen(true)}
-            onOpenLegacySend={() => setIsMessagingOpen(true)}
-            showToast={showToast}
-            mode="print"
-          />
-        )}
-        {activeTab === 'send' && (
-          <PrintSendTab
-            dutyData={dutyData}
-            schoolInfo={schoolInfo}
-            onOpenLegacyPrint={() => setIsPrintOpen(true)}
-            onOpenLegacySend={() => setIsMessagingOpen(true)}
-            showToast={showToast}
-            mode="send"
-          />
-        )}
-        {activeTab === 'manage' && (
-          <ManageTab
-            dutyData={dutyData}
-            setDutyData={setDutyData}
-            showToast={showToast}
-          />
+        {stage === 'output' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-[2rem] px-4 py-3 border border-slate-100 shadow-sm">
+              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+                {outputModes.map(m => {
+                  const active = outputMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setOutputMode(m.id)}
+                      className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 border ${
+                        active
+                          ? 'bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 border-[#655ac1]'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-slate-200 bg-white'
+                      }`}
+                    >
+                      <m.icon size={16} />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {outputMode === 'manage' ? (
+              <ManageTab
+                dutyData={dutyData}
+                setDutyData={setDutyData}
+                showToast={showToast}
+              />
+            ) : (
+              <PrintSendTab
+                key={outputMode}
+                dutyData={dutyData}
+                schoolInfo={schoolInfo}
+                onOpenLegacyPrint={() => setIsPrintOpen(true)}
+                onOpenLegacySend={() => setIsMessagingOpen(true)}
+                showToast={showToast}
+                mode={outputMode === 'send' ? 'send' : 'print'}
+              />
+            )}
+          </div>
         )}
       </div>
 
