@@ -49,7 +49,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({ onNavigate }) => {
   return (
     <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
       <div className="flex items-center gap-2 mb-5">
-        <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
+        <div className="w-1 h-6 bg-[#655ac1] rounded-full"></div>
         <h3 className="text-lg font-bold text-slate-800">إجراءات سريعة</h3>
       </div>
 
@@ -62,7 +62,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({ onNavigate }) => {
               onClick={() => navWithAction(onNavigate, action.tab, action.action)}
               className="group flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border border-slate-200/70 transition-all bg-transparent hover:border-slate-300"
             >
-              <div className={`w-10 h-10 flex items-center justify-center text-[#8779fb] group-hover:scale-110 transition-transform duration-200 ${action.rotate ? 'rotate-[20deg]' : ''}`}>
+              <div className={`w-10 h-10 flex items-center justify-center text-[#655ac1] group-hover:scale-110 transition-transform duration-200 ${action.rotate ? 'rotate-[20deg]' : ''}`}>
                 <Icon size={24} strokeWidth={1.8} />
               </div>
               <span className="text-xs font-bold text-slate-500 group-hover:text-[#655ac1] transition-colors text-center leading-tight">

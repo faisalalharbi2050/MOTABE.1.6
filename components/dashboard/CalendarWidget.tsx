@@ -342,7 +342,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-1 h-6 bg-[#8779fb] rounded-full"></div>
+          <div className="w-1 h-6 bg-[#655ac1] rounded-full"></div>
           <div>
             <h3 className="font-extrabold text-slate-800 text-base leading-tight">المهام التذكيرية</h3>
             {hasAnyTask && (

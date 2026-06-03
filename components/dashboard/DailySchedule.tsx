@@ -35,7 +35,7 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
       <div className="flex flex-col items-start gap-4 mb-6">
         <div className="w-full flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <Calendar size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+            <Calendar size={20} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
             <h3 className="font-bold text-slate-700 text-lg">{title}</h3>
           </div>
 

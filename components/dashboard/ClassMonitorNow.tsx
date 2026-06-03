@@ -287,7 +287,7 @@ const ClassMonitorNow: React.FC<ClassMonitorNowProps> = ({ schoolInfo, classes, 
       {/* رأس البطاقة */}
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2 min-w-0">
-          <LayoutGrid size={20} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+          <LayoutGrid size={20} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
           <h3 className="font-bold text-slate-700 text-lg truncate">الفصول</h3>
         </div>
         <button

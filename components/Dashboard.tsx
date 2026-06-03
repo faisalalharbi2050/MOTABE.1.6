@@ -3,6 +3,7 @@ import {
   Users,
   GraduationCap,
   MessageSquare,
+  Wallet,
   CreditCard,
   PackagePlus,
   BadgePlus,
@@ -13,6 +14,8 @@ import {
 import {
   SchoolInfo,
   Teacher,
+  Admin,
+  Student,
   ClassInfo,
   Message,
   CalendarEvent,
@@ -55,6 +58,8 @@ interface DashboardProps {
   schoolInfo: SchoolInfo;
   setSchoolInfo: React.Dispatch<React.SetStateAction<SchoolInfo>>;
   teachers: Teacher[];
+  admins: Admin[];
+  students: Student[];
   classes: ClassInfo[];
   subjects: Subject[];
   scheduleSettings: ScheduleSettingsData;
@@ -69,6 +74,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   schoolInfo,
   setSchoolInfo,
   teachers,
+  admins,
+  students,
   classes,
   subjects,
   scheduleSettings,
@@ -106,10 +113,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
   const todayOfficialLeaveText = getTodayOfficialLeaveText();
 
-  // Calculated stats
+  // Calculated stats (counts across all schools, matching settings pages)
+  // Facilities (labs, gyms, libraries...) are stored in the same `classes`
+  // array but must be excluded from the classrooms total, just like the
+  // settings page does.
+  const FACILITY_TYPES = ['lab', 'computer_lab', 'gym', 'playground', 'library', 'learning_resources', 'other'];
+  const isFacility = (type?: string) => !!type && FACILITY_TYPES.includes(type);
   const teacherCount = teachers.length;
-  const classCount = classes.length;
-  const staffCount = 0; // Placeholder
+  const classCount = classes.filter(c => !isFacility(c.type)).length;
+  const staffCount = admins.length;
+  const studentCount = students.length;
   const todayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(new Date());
 
   // Message stats from context
@@ -174,7 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             />
             <StatsCard 
             title="الطلاب" 
-            value={schoolInfo.schoolName ? "1200" : "0"} 
+            value={studentCount}
             icon={GraduationCap} 
             color="bg-slate-100" 
             />
@@ -224,7 +237,7 @@ const Dashboard: React.FC<DashboardProps> = ({
            <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow lg:h-[180px]">
              <div className="flex items-center justify-between mb-3">
                <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
-                 <MessageSquare size={20} strokeWidth={1.8} className="text-[#8779fb]" />
+                 <Wallet size={20} strokeWidth={1.8} className="text-[#655ac1]" />
                  رصيد الرسائل
                </h4>
               <button
@@ -301,7 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden hover:shadow-md transition-shadow lg:h-[180px]">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-bold text-slate-500 flex items-center gap-2">
-                <CreditCard size={20} strokeWidth={1.8} className="text-[#8779fb]" />
+                <CreditCard size={20} strokeWidth={1.8} className="text-[#655ac1]" />
                 الباقة الحالية
               </h4>
               <button

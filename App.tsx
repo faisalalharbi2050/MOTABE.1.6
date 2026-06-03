@@ -501,7 +501,7 @@ const App: React.FC = () => {
     }
 
     switch (activeTab) {
-      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} classes={classes} subjects={subjects} scheduleSettings={scheduleSettings} messages={messages} events={events} todaySchedule={todaySchedule} subscription={subscription} onNavigate={(tab) => {
+      case 'dashboard': return <Dashboard schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} teachers={teachers} admins={admins} students={students} classes={classes} subjects={subjects} scheduleSettings={scheduleSettings} messages={messages} events={events} todaySchedule={todaySchedule} subscription={subscription} onNavigate={(tab) => {
         if (tab === 'subscription_pricing') { setSubscriptionInitialTab('pricing'); setActiveTab('subscription'); }
         else if (tab === 'messages_subscriptions') { setMessagesInitialTab('subscriptions'); setActiveTab('messages'); }
         else if (tab === 'messages_archive') { setMessagesInitialTab('archive'); setActiveTab('messages'); }

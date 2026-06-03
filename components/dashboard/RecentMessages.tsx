@@ -84,7 +84,7 @@ const RecentMessages: React.FC<RecentMessagesProps> = ({ messages = [], onOpenAr
     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col h-full hover:shadow-md transition-shadow" dir="rtl">
       <div className="flex justify-between items-center mb-5">
         <div className="flex items-center gap-2">
-          <MessageSquare size={20} className="text-[#8779fb]" strokeWidth={1.8} />
+          <MessageSquare size={20} className="text-[#655ac1]" strokeWidth={1.8} />
           <h3 className="font-bold text-slate-800 text-lg">آخر الرسائل</h3>
         </div>
         <span className="text-sm font-black text-[#655ac1] bg-white px-3 py-1 rounded-full shadow shadow-slate-300">
