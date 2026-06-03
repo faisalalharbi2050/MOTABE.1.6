@@ -320,7 +320,7 @@ const DutyV2Container: React.FC<Props> = ({
               المناوبة اليومية
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">
-              إنشاء وإدارة جدول المناوبة اليومية عبر واجهة تفاعلية بطريق منظّمة
+              نظّم توزيع المناوبين بخطوات سهلة، وعدّل الجدول وشاركه.
             </p>
           </div>
         </div>

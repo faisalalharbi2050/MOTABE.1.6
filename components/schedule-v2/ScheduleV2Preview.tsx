@@ -124,7 +124,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
             إدارة الحصص والانتظار
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12">
-            إدارة جدول الحصص والانتظار من الإنشاء حتى الاعتماد والمشاركة.
+            أنشئ جدول الحصص ووزّع الانتظار بخطوات سهلة، وعدّله وشاركه.
           </p>
         </div>
       </div>

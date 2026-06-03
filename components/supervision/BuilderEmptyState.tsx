@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, PenLine, Wand2, ArrowLeft, Users } from 'lucide-react';
+import { Sparkles, PenLine, Wand2, ArrowLeft, Users, UserCog } from 'lucide-react';
 
 interface Props {
   onAutoGenerate: () => void;
@@ -33,33 +33,42 @@ const BuilderEmptyState: React.FC<Props> = ({
         >
           {availableCount !== undefined && (
             <div className="absolute top-4 left-4">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8779fb] bg-white border border-slate-300 rounded-full px-3 py-1.5">
-                <Users size={12} className="text-[#8779fb]" />
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] bg-white rounded-full px-3 py-1.5">
+                <Users size={12} className="text-[#655ac1]" />
                 {availableCount} مشرف متاح
               </span>
             </div>
           )}
           <div className="flex items-center gap-3 mb-4 pl-28">
-            <Wand2 size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+            <Wand2 size={22} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
             <h3 className="text-lg font-black text-slate-800">إنشاء جدول آلي</h3>
           </div>
 
-          <div className="text-xs font-medium text-slate-600 leading-relaxed mb-4 space-y-2">
-            <p className="font-bold text-slate-700">يقوم النظام بتوزيع المشرفين آلياً :</p>
-            <ul className="space-y-1.5 pr-4 list-disc marker:text-[#8779fb]">
-              <li>
-                <span className="font-bold text-slate-700">المعلمون:</span>
-                <ul className="mt-1 space-y-1 pr-4 list-disc marker:text-slate-300">
-                  <li>للفسحة: يتم اختيار من لديه حصة فارغة قبل الفسحة أو بعدها.</li>
-                  <li>لإشراف الصلاة: يتم اختيار من لديه حصة أخيرة أو قبل الأخيرة.</li>
-                </ul>
-              </li>
-              <li>
-                <span className="font-bold text-slate-700">الإداريون:</span>{' '}
-                يتم توزيعهم عشوائيًا في الأيام الأقل عددًا.
-              </li>
-            </ul>
-            <p className="font-bold text-slate-700">يمكنك التعديل بسهولة بعد التوزيع.</p>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 mb-4 space-y-3">
+            <p className="text-xs font-bold text-slate-700">يوزّع النظام المشرفين تلقائياً وفق التالي:</p>
+
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 shrink-0 w-6 h-6 text-[#655ac1] flex items-center justify-center">
+                <Users size={14} strokeWidth={2} />
+              </span>
+              <div className="text-[11px] leading-relaxed text-slate-600">
+                <span className="font-bold text-slate-700">المعلمون:</span> للفسحة يُختار من لديه حصة فارغة قبلها أو بعدها، ولإشراف الصلاة من لديه الحصة الأخيرة أو ما قبلها، قدر الإمكان.
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 shrink-0 w-6 h-6 text-[#655ac1] flex items-center justify-center">
+                <UserCog size={14} strokeWidth={2} />
+              </span>
+              <div className="text-[11px] leading-relaxed text-slate-600">
+                <span className="font-bold text-slate-700">الإداريون:</span> يوزَّعون بالتناوب على الأيام الأقل عددًا.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/70 text-[11px] font-bold text-[#655ac1]">
+              <PenLine size={12} strokeWidth={2.2} className="shrink-0" />
+              يمكنك تعديل التوزيع بسهولة بعد إنشائه.
+            </div>
           </div>
 
           <button
@@ -85,14 +94,14 @@ const BuilderEmptyState: React.FC<Props> = ({
         <div className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex flex-col">
           {availableCount !== undefined && (
             <div className="absolute top-4 left-4">
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8779fb] bg-white border border-slate-300 rounded-full px-3 py-1.5">
-                <Users size={12} className="text-[#8779fb]" />
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] bg-white rounded-full px-3 py-1.5">
+                <Users size={12} className="text-[#655ac1]" />
                 {availableCount} مشرف متاح
               </span>
             </div>
           )}
           <div className="flex items-center gap-3 mb-4 pl-28">
-            <PenLine size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+            <PenLine size={20} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
             <h3 className="text-lg font-black text-slate-800">إنشاء جدول يدوي</h3>
           </div>
 

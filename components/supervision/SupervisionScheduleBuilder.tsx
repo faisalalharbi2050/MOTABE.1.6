@@ -723,7 +723,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="flex flex-wrap items-center gap-2 justify-start">
             <button
               onClick={() => setShowLocationsModal(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="تعيين مواقع الإشراف"
             >
               <MapPin size={16} />
@@ -732,7 +732,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             <div className="relative">
               <button
                 onClick={() => setShowFollowUpMenu(prev => !prev)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
                 title="تعيين المشرف المتابع"
               >
                 <Shield size={16} />
@@ -774,7 +774,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
             <button
               onClick={() => setShowReportModal(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="عرض تقرير توزيع المشرفين"
             >
               <BarChart3 size={16} />
@@ -782,7 +782,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="إعادة الإنشاء"
             >
               <RotateCcw size={16} />
@@ -790,10 +790,10 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setShowDeleteAllConfirm(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-rose-200 text-rose-600 hover:border-rose-400 hover:bg-rose-50 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="حذف كل الإسنادات"
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} className="text-rose-600" />
               حذف الكل
             </button>
           </div>
@@ -839,9 +839,20 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   <MapPinned size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
                   <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
                 </div>
-                <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
-                  اختر نوع الإشراف ( مثال : الفسحة ) ثم اختر المواقع المطلوب توزيع المشرفين عليها ثم اختر التطبيق على كل الأيام أو أيام محددة.
-                </p>
+                <div className="mb-4 space-y-2.5 w-full">
+                  {[
+                    'اختر نوع الإشراف (مثال: الفسحة).',
+                    'حدّد المواقع المطلوب توزيع المشرفين عليها.',
+                    'طبّق على كل الأيام أو على يوم محدد.',
+                  ].map((step, i) => (
+                    <div key={i} className="flex items-start gap-2.5 text-right">
+                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-[#655ac1]/10 text-[#655ac1] text-[10px] font-black flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="text-xs font-medium text-slate-600 leading-relaxed">{step}</span>
+                    </div>
+                  ))}
+                </div>
                 <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
                   تعيين
                 </span>
@@ -856,9 +867,20 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   <UserRoundCheck size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
                   <h4 className="text-lg font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
                 </div>
-                <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
-                  اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم تطبيق.
-                </p>
+                <div className="mb-4 space-y-2.5 w-full">
+                  {[
+                    'اختر مجموعة من المشرفين.',
+                    'حدّد لهم المواقع المناسبة.',
+                    'اضغط «تطبيق».',
+                  ].map((step, i) => (
+                    <div key={i} className="flex items-start gap-2.5 text-right">
+                      <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-[#655ac1]/10 text-[#655ac1] text-[10px] font-black flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="text-xs font-medium text-slate-600 leading-relaxed">{step}</span>
+                    </div>
+                  ))}
+                </div>
                 <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
                   تعيين
                 </span>

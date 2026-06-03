@@ -359,7 +359,7 @@ const SupervisionV2Container: React.FC<Props> = ({
               الإشراف اليومي
             </h3>
             <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">
-              إنشاء وإدارة جدول الإشراف اليومي أثناء اليوم الدراسي عبر واجهة تفاعلية بطريقة منظّمة.
+              نظّم توزيع المشرفين على الفسح والصلاة بخطوات سهلة، وعدّل الجدول وشاركه.
             </p>
           </div>
         </div>
