@@ -9,7 +9,6 @@ import {
   BadgePlus,
   UserCog,
   LayoutGrid,
-  BarChart3,
 } from 'lucide-react';
 import {
   SchoolInfo,
@@ -166,12 +165,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-10 animate-fade-in pb-10">
       
-      {/* 1. General Stats Title & Cards */}
+      {/* 1. General Stats Cards */}
       <div>
-        <h2 className="text-lg font-bold text-slate-700 mb-4 px-2 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-[#655ac1]" />
-          الإحصائيات العامة
-        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <StatsCard 
             title="المعلمون" 
