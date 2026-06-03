@@ -3,7 +3,7 @@ import {
   Settings, BarChart3, ShieldCheck,
   CheckCircle, AlertTriangle, AlertCircle,
   RefreshCw, X, Info, Sparkles, FileOutput, Send,
-  Check, Printer, Archive,
+  Check, Printer, Archive, ChevronLeft,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -297,10 +297,10 @@ const DutyV2Container: React.FC<Props> = ({
     id: StageId; n: number; label: string; hint: string;
     icon: React.ComponentType<any>; complete: boolean;
   }> = [
-    { id: 'settings', n: 1, label: 'إعدادات المناوبة', hint: 'اضبط الاستثناءات والإعدادات', icon: Settings, complete: settingsComplete },
+    { id: 'settings', n: 1, label: 'إعدادات المناوبة', hint: 'اضبط إعدادات المناوبة والمناوبون', icon: Settings, complete: settingsComplete },
     { id: 'create', n: 2, label: 'إنشاء الجدول', hint: 'وزّع المناوبين على الأيام', icon: Sparkles, complete: scheduleComplete },
-    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - الجداول المحفوظة', icon: FileOutput, complete: false },
-    { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'تابع المناوبة وقيّم الأداء', icon: BarChart3, complete: false },
+    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
+    { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'أدر المناوبة وتقاريرها', icon: BarChart3, complete: false },
   ];
 
   const outputModes: Array<{ id: OutputMode; label: string; icon: React.ComponentType<any> }> = [
@@ -340,7 +340,6 @@ const DutyV2Container: React.FC<Props> = ({
         <div className="flex items-stretch gap-1 overflow-x-auto custom-scrollbar">
           {stages.map((s, i) => {
             const isActive = stage === s.id;
-            const prevComplete = i > 0 && stages[i - 1].complete;
             return (
               <React.Fragment key={s.id}>
                 <button
@@ -352,24 +351,26 @@ const DutyV2Container: React.FC<Props> = ({
                       : 'hover:bg-slate-50'
                   }`}
                 >
-                  <span className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black border-2 transition-all ${
-                    s.complete
-                      ? 'bg-white border-slate-200'
-                      : isActive
-                        ? 'bg-white border-white text-[#655ac1]'
-                        : 'bg-white border-slate-200 text-[#655ac1]'
-                  }`}>
-                    {s.complete ? (
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white">
-                        <Check size={12} strokeWidth={3.5} />
+                  <span className="relative shrink-0">
+                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${
+                      isActive
+                        ? 'bg-white border-white'
+                        : s.complete
+                          ? 'bg-transparent border-emerald-200'
+                          : 'bg-transparent border-slate-200'
+                    }`}>
+                      <s.icon size={19} className="text-[#655ac1]" />
+                    </span>
+                    {s.complete && (
+                      <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                        <Check size={9} strokeWidth={4} />
                       </span>
-                    ) : s.n}
+                    )}
                   </span>
                   <span className="min-w-0">
-                    <span className={`flex items-center gap-1.5 font-black text-sm leading-tight ${
+                    <span className={`block font-black text-sm leading-tight ${
                       isActive ? 'text-white' : 'text-slate-800'
                     }`}>
-                      <s.icon size={15} className={isActive ? 'text-white' : 'text-[#655ac1]'} />
                       {s.label}
                     </span>
                     <span className={`block text-[11px] font-bold mt-0.5 truncate ${
@@ -380,8 +381,8 @@ const DutyV2Container: React.FC<Props> = ({
                   </span>
                 </button>
                 {i < stages.length - 1 && (
-                  <div className="flex items-center px-1 shrink-0">
-                    <span className={`w-6 h-0.5 rounded-full transition-all ${prevComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                  <div className="flex items-center px-0.5 shrink-0">
+                    <ChevronLeft size={20} className="text-slate-300" strokeWidth={2.5} />
                   </div>
                 )}
               </React.Fragment>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck, PenLine, FileOutput, Send, Shuffle, Sparkles,
-  Check, Archive, Eye, Printer, FileDown,
+  Check, Archive, Eye, Printer, FileDown, ChevronLeft,
 } from 'lucide-react';
 import {
   SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin,
@@ -99,7 +99,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
     { id: 'create', n: 1, label: 'إنشاء الجدول', hint: 'ابنِ جدول الحصص', icon: Sparkles, complete: hasSchedule },
     { id: 'review', n: 2, label: 'المراجعة والتعديل', hint: 'راجع وعدّل الجدول', icon: PenLine, complete: false },
     { id: 'waiting', n: 3, label: 'توزيع الانتظار', hint: 'وزّع حصص الانتظار', icon: Shuffle, complete: distributionPrepared },
-    { id: 'output', n: 4, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - صدّر - أرسل', icon: FileOutput, complete: false },
+    { id: 'output', n: 4, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - صدّر - أرسل - أدر', icon: FileOutput, complete: false },
   ];
 
   const goToStage = (s: typeof stages[number]) => {
@@ -134,7 +134,6 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
         <div className="flex items-stretch gap-1 overflow-x-auto custom-scrollbar">
           {stages.map((s, i) => {
             const isActive = stage === s.id;
-            const prevComplete = i > 0 && stages[i - 1].complete;
             return (
               <React.Fragment key={s.id}>
                 <button
@@ -146,24 +145,26 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                       : 'hover:bg-slate-50'
                   }`}
                 >
-                  <span className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black border-2 transition-all ${
-                    s.complete
-                      ? 'bg-white border-slate-200'
-                      : isActive
-                        ? 'bg-white border-white text-[#655ac1]'
-                        : 'bg-white border-slate-200 text-[#655ac1]'
-                  }`}>
-                    {s.complete ? (
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white">
-                        <Check size={12} strokeWidth={3.5} />
+                  <span className="relative shrink-0">
+                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${
+                      isActive
+                        ? 'bg-white border-white'
+                        : s.complete
+                          ? 'bg-transparent border-emerald-200'
+                          : 'bg-transparent border-slate-200'
+                    }`}>
+                      <s.icon size={19} className="text-[#655ac1]" />
+                    </span>
+                    {s.complete && (
+                      <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                        <Check size={9} strokeWidth={4} />
                       </span>
-                    ) : s.n}
+                    )}
                   </span>
                   <span className="min-w-0">
-                    <span className={`flex items-center gap-1.5 font-black text-sm leading-tight ${
+                    <span className={`block font-black text-sm leading-tight ${
                       isActive ? 'text-white' : 'text-slate-800'
                     }`}>
-                      <s.icon size={15} className={isActive ? 'text-white' : 'text-[#655ac1]'} />
                       {s.label}
                     </span>
                     <span className={`block text-[11px] font-bold mt-0.5 truncate ${
@@ -174,8 +175,8 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
                   </span>
                 </button>
                 {i < stages.length - 1 && (
-                  <div className="flex items-center px-1 shrink-0">
-                    <span className={`w-6 h-0.5 rounded-full transition-all ${prevComplete ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                  <div className="flex items-center px-0.5 shrink-0">
+                    <ChevronLeft size={20} className="text-slate-300" strokeWidth={2.5} />
                   </div>
                 )}
               </React.Fragment>
