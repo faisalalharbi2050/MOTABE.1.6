@@ -345,21 +345,17 @@ const DutyV2Container: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setStage(s.id)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
                     isActive
                       ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20'
                       : 'hover:bg-slate-50'
                   }`}
                 >
                   <span className="relative shrink-0">
-                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${
-                      isActive
-                        ? 'bg-white border-white'
-                        : s.complete
-                          ? 'bg-transparent border-emerald-200'
-                          : 'bg-transparent border-slate-200'
+                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${
+                      isActive ? 'bg-white border-white' : 'bg-transparent border-slate-200'
                     }`}>
-                      <s.icon size={19} className="text-[#655ac1]" />
+                      <s.icon size={17} className="text-[#655ac1]" />
                     </span>
                     {s.complete && (
                       <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white ring-2 ring-white">
