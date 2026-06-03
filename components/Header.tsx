@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  LogOut, 
-  Menu, 
-  X, 
+  LogOut,
+  Menu,
+  X,
   Bell,
   Clock,
   Calendar,
@@ -15,8 +15,10 @@ import {
   Mail,
   AlertCircle,
   CheckCircle,
+  Check,
   Info,
   Shield,
+  ShieldCheck,
   Send,
   UserPlus,
   CreditCard,
@@ -24,19 +26,32 @@ import {
   LogIn,
   CheckCheck,
   Settings2,
-  ChevronDown
+  ChevronDown,
+  KeyRound,
+  Users,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { SchoolInfo } from '../types';
 
 // ─── localStorage keys ───────────────────────────────────────────────
-const LS_PROFILE      = 'motabe_profile';
-const LS_NAME_CHANGED = 'motabe_name_changed';
-const LS_EMAIL_CHANGED = 'motabe_email_changed';
+const LS_PROFILE       = 'motabe_profile';
+const LS_EMAIL_CHANGES = 'motabe_email_changes'; // ISO timestamps of email changes
+const LS_PHONE_CHANGED = 'motabe_phone_changed';
+
+// Business rule: email can change twice within a rolling 12 months,
+// the 3rd change requires support approval.
+const EMAIL_CHANGES_PER_YEAR = 2;
+
+type AuthMethod = 'manual' | 'google' | 'apple';
 
 const DEFAULT_PROFILE = {
   name:  'فيصل الحربي',
   phone: '0504777058',
   email: 'faisal_alsobhi2050@gmail.com',
+  authMethod: 'manual' as AuthMethod,
+  createdAt: '2025-09-01T08:00:00.000Z',
+  lastLogin: new Date().toISOString(),
 };
 
 function loadProfile() {
@@ -46,7 +61,38 @@ function loadProfile() {
   } catch { return { ...DEFAULT_PROFILE }; }
 }
 
-// ─── Modal helper ────────────────────────────────────────────────────
+// Count email changes within the last rolling 12 months
+function getEmailChangesThisYear(): number {
+  try {
+    const raw = localStorage.getItem(LS_EMAIL_CHANGES);
+    const arr: string[] = raw ? JSON.parse(raw) : [];
+    const yearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    return arr.filter(t => new Date(t).getTime() >= yearAgo).length;
+  } catch { return 0; }
+}
+function recordEmailChange() {
+  try {
+    const raw = localStorage.getItem(LS_EMAIL_CHANGES);
+    const arr: string[] = raw ? JSON.parse(raw) : [];
+    arr.push(new Date().toISOString());
+    localStorage.setItem(LS_EMAIL_CHANGES, JSON.stringify(arr));
+  } catch {}
+}
+
+const AUTH_LABELS: Record<AuthMethod, string> = {
+  manual: 'تسجيل يدوي',
+  google: 'حساب Google',
+  apple:  'حساب Apple',
+};
+
+const fmtDate = (iso?: string) => {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso));
+  } catch { return '—'; }
+};
+
+// ─── Confirm Modal helper ────────────────────────────────────────────
 interface ModalProps {
   title: string;
   message: string;
@@ -62,17 +108,19 @@ const ConfirmModal: React.FC<ModalProps> = ({
   onConfirm, onCancel, confirmDanger = false
 }) => (
   <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onCancel}>
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center animate-fade-in" onClick={e => e.stopPropagation()}>
-      {icon && <div className="flex justify-center mb-3">{icon}</div>}
-      <h3 className="text-base font-bold text-slate-800 mb-2">{title}</h3>
+    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-3 mb-3">
+        {icon}
+        <h3 className="text-base font-bold text-slate-800">{title}</h3>
+      </div>
       <p className="text-sm text-slate-500 leading-relaxed mb-5">{message}</p>
       <div className="flex gap-2 justify-center">
         <button onClick={onCancel}
-          className="flex-1 px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+          className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors"
         >{cancelLabel}</button>
         {onConfirm && (
           <button onClick={onConfirm}
-            className={`flex-1 px-4 py-2 text-sm font-bold text-white rounded-xl transition-colors ${confirmDanger ? 'bg-rose-500 hover:bg-rose-600' : 'bg-[#655ac1] hover:bg-[#5448b0]'}`}
+            className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl transition-colors ${confirmDanger ? 'bg-rose-500 hover:bg-rose-600' : 'bg-[#655ac1] hover:bg-[#5448b0]'}`}
           >{confirmLabel}</button>
         )}
       </div>
@@ -87,64 +135,167 @@ const Toast: React.FC<{ message: string; visible: boolean }> = ({ message, visib
   </div>
 );
 
-// ─── Delete Request Modal ─────────────────────────────────────────────
-interface DeleteRequestModalProps {
-  defaultName: string;
-  defaultPhone: string;
-  defaultEmail: string;
-  defaultSchool: string;
-  onConfirm: (data: { name: string; phone: string; email: string; school: string }) => void;
+// ─── Change Password Modal ───────────────────────────────────────────
+interface PasswordModalProps {
+  authMethod: AuthMethod;
+  onConfirm: () => void;
   onCancel: () => void;
 }
-const DeleteRequestModal: React.FC<DeleteRequestModalProps> = ({
-  defaultName, defaultPhone, defaultEmail, defaultSchool, onConfirm, onCancel
-}) => {
-  const [name, setName]   = React.useState(defaultName);
-  const [phone, setPhone] = React.useState(defaultPhone);
-  const [email, setEmail] = React.useState(defaultEmail);
-  const [school, setSchool] = React.useState(defaultSchool);
+const PasswordModal: React.FC<PasswordModalProps> = ({ authMethod, onConfirm, onCancel }) => {
+  const isOAuth = authMethod !== 'manual';
+  const [current, setCurrent] = useState('');
+  const [next, setNext]       = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw]   = useState(false);
+  const [error, setError]     = useState('');
 
-  const inputClass = "w-full text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-rose-400 transition-colors bg-white";
+  const inputClass = "w-full text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-[#655ac1] transition-colors bg-white pl-10";
   const labelClass = "text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1";
+
+  const submit = () => {
+    if (next.length < 8) { setError('كلمة المرور يجب ألا تقل عن 8 أحرف'); return; }
+    if (next !== confirm) { setError('كلمتا المرور غير متطابقتين'); return; }
+    setError('');
+    onConfirm();
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center mb-3">
-          <Trash2 size={36} className="text-rose-500" />
-        </div>
-        <h3 className="text-base font-bold text-slate-800 mb-2 text-center">تأكيد طلب حذف الحساب</h3>
-        <p className="text-xs text-slate-500 leading-relaxed mb-4 text-center">
-          سيُرسل طلب حذف حسابك مباشرةً إلى فريق الدعم، يرجى التأكيد وتعبئة الطلب. علمًا بأنه سيتم معالجة الطلب خلال 3 أيام عمل.
-        </p>
-
-        <div className="space-y-3 mb-5">
-          <div>
-            <label className={labelClass}><User size={11} /> اسم المستخدم</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}><Phone size={11} /> رقم الجوال</label>
-            <input type="text" value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" className={inputClass + " text-right"} />
-          </div>
-          <div>
-            <label className={labelClass}><Mail size={11} /> البريد الإلكتروني</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} dir="ltr" className={inputClass + " text-right"} />
-          </div>
-          <div>
-            <label className={labelClass}><Shield size={11} /> اسم المدرسة</label>
-            <input type="text" value={school} onChange={e => setSchool(e.target.value)} className={inputClass} />
-          </div>
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-3">
+          <KeyRound size={24} className="text-[#655ac1]" />
+          <h3 className="text-base font-bold text-slate-800">
+            {isOAuth ? 'تعيين كلمة مرور' : 'تغيير كلمة المرور'}
+          </h3>
         </div>
 
-        <div className="flex gap-2">
+        {isOAuth && (
+          <div className="flex items-start gap-2 text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 mb-4 leading-relaxed">
+            <Info size={13} className="text-[#655ac1] shrink-0 mt-0.5" />
+            <span>أنت تسجّل الدخول عبر <b>{AUTH_LABELS[authMethod]}</b>. يمكنك تعيين كلمة مرور لتفعيل الدخول اليدوي أيضًا.</span>
+          </div>
+        )}
+
+        <div className="space-y-3 mb-2">
+          {!isOAuth && (
+            <div>
+              <label className={labelClass}><KeyRound size={11} /> كلمة المرور الحالية</label>
+              <div className="relative">
+                <input type={showPw ? 'text' : 'password'} value={current} onChange={e => setCurrent(e.target.value)} className={inputClass} dir="ltr" />
+              </div>
+            </div>
+          )}
+          <div>
+            <label className={labelClass}><KeyRound size={11} /> كلمة المرور الجديدة</label>
+            <div className="relative">
+              <input type={showPw ? 'text' : 'password'} value={next} onChange={e => setNext(e.target.value)} className={inputClass} dir="ltr" />
+              <button type="button" onClick={() => setShowPw(v => !v)} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}><KeyRound size={11} /> تأكيد كلمة المرور</label>
+            <div className="relative">
+              <input type={showPw ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} className={inputClass} dir="ltr" />
+            </div>
+          </div>
+        </div>
+
+        {error && <p className="text-[11px] font-bold text-rose-500 mb-3 flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
+
+        <div className="flex gap-2 mt-4">
           <button onClick={onCancel}
-            className="flex-1 px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+            className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors">
             إلغاء
           </button>
-          <button onClick={() => onConfirm({ name, phone, email, school })}
-            className="flex-1 px-4 py-2 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors">
-            تأكيد وإرسال
+          <button onClick={submit}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+              <Check size={13} strokeWidth={3.2} className="text-white" />
+            </span>
+            {isOAuth ? 'تعيين' : 'حفظ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Delete Account (with reasons) Modal ─────────────────────────────
+const DELETE_REASONS = [
+  'لم أعد بحاجة للمنصة',
+  'انتقلت إلى منصة أخرى',
+  'السعر مرتفع',
+  'صعوبة في الاستخدام',
+  'مشكلات تقنية',
+  'انتهاء عملي بالمدرسة',
+  'أخرى',
+];
+
+interface DeleteReasonsModalProps {
+  isPrimaryAdmin: boolean;
+  onConfirm: (reason: string) => void;
+  onCancel: () => void;
+}
+const DeleteReasonsModal: React.FC<DeleteReasonsModalProps> = ({ isPrimaryAdmin, onConfirm, onCancel }) => {
+  const [reason, setReason] = useState('');
+  const [other, setOther]   = useState('');
+
+  const finalReason = reason === 'أخرى' ? (other.trim() || 'أخرى') : reason;
+  const canSubmit = !!reason && (reason !== 'أخرى' || other.trim().length > 0);
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onCancel}>
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-3">
+          <Trash2 size={24} className="text-rose-500" />
+          <h3 className="text-base font-bold text-slate-800">طلب حذف الحساب</h3>
+        </div>
+        <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
+          {isPrimaryAdmin
+            ? 'سيتم حذف حساب المدرسة بالكامل وسيتم حذف كامل البيانات، هذا الإجراء لا يمكن التراجع عنه.'
+            : 'سيتم حذف وصولك أنت فقط من المنصة. لن تتأثر بيانات المدرسة.'}
+        </p>
+
+        <p className="text-[11px] font-bold text-slate-500 mb-2">ما سبب رغبتك في الحذف؟</p>
+        <div className="space-y-1.5 mb-3 max-h-56 overflow-y-auto">
+          {DELETE_REASONS.map(r => (
+            <button
+              key={r}
+              onClick={() => setReason(r)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-right transition-colors hover:border-slate-300 ${
+                reason === r ? 'text-rose-600' : 'text-slate-600'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${reason === r ? 'border-rose-500' : 'border-slate-300'}`}>
+                {reason === r && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+              </span>
+              {r}
+            </button>
+          ))}
+        </div>
+
+        {reason === 'أخرى' && (
+          <textarea
+            value={other}
+            onChange={e => setOther(e.target.value)}
+            placeholder="اكتب السبب..."
+            rows={2}
+            className="w-full text-sm font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-rose-400 transition-colors bg-white mb-3 resize-none"
+          />
+        )}
+
+        <div className="flex gap-2 mt-1">
+          <button onClick={onCancel}
+            className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors">
+            إلغاء
+          </button>
+          <button
+            onClick={() => canSubmit && onConfirm(finalReason)}
+            disabled={!canSubmit}
+            className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            تأكيد وإرسال الطلب
           </button>
         </div>
       </div>
@@ -162,10 +313,10 @@ interface HeaderProps {
   isPrimaryAdmin?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-  schoolInfo, 
-  isSidebarOpen, 
-  setIsSidebarOpen, 
+const Header: React.FC<HeaderProps> = ({
+  schoolInfo,
+  isSidebarOpen,
+  setIsSidebarOpen,
   onNavigate,
   onLogout,
   isPrimaryAdmin = true,
@@ -202,24 +353,25 @@ const Header: React.FC<HeaderProps> = ({
   const [profile, setProfile]     = useState(loadProfile);
   const [editMode, setEditMode]   = useState(false);
   const [draftName, setDraftName]   = useState(profile.name);
-  const [draftPhone, setDraftPhone] = useState(profile.phone);
   const [draftEmail, setDraftEmail] = useState(profile.email);
 
-  const nameChanged  = localStorage.getItem(LS_NAME_CHANGED)  === 'true';
-  const emailChanged = localStorage.getItem(LS_EMAIL_CHANGED) === 'true';
+  const phoneChanged     = localStorage.getItem(LS_PHONE_CHANGED) === 'true';
+  const emailChangesUsed = getEmailChangesThisYear();
+  const emailLocked      = emailChangesUsed >= EMAIL_CHANGES_PER_YEAR;
 
   // ── Modal state ────────────────────────────────────────────────────
   type ModalKey =
-    | 'nameWarn' | 'emailWarn'
-    | 'phoneAdmin' | 'phoneSub'
-    | 'deleteAdmin' | 'deleteSub'
-    | 'saveSuccess' | null;
+    | 'emailWarn'
+    | 'phoneChange'
+    | 'passwordChange'
+    | 'deleteReasons'
+    | null;
   const [modal, setModal] = useState<ModalKey>(null);
-  const [toast, setToast] = useState(false);
+  const [toast, setToast] = useState('');
 
-  const showToast = (msg?: string) => {
-    setToast(true);
-    setTimeout(() => setToast(false), 3000);
+  const showToast = (msg = 'تم الحفظ بنجاح ✓') => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
   };
 
   useEffect(() => {
@@ -322,27 +474,18 @@ const Header: React.FC<HeaderProps> = ({
   // ── Edit helpers ────────────────────────────────────────────────────
   const openEditMode = () => {
     setDraftName(profile.name);
-    setDraftPhone(profile.phone);
     setDraftEmail(profile.email);
     setEditMode(true);
   };
 
   const cancelEdit = () => setEditMode(false);
 
-  // Called when user tries to change name field while in edit mode
-  const handleNameChange = (val: string) => {
-    if (nameChanged && val !== profile.name) {
-      // Already changed once — block further changes silently by reverting
-      setDraftName(profile.name);
-      setModal('nameWarn');
-    } else {
-      setDraftName(val);
-    }
-  };
+  // Username is freely editable (display name only).
+  const handleNameChange = (val: string) => setDraftName(val);
 
-  // Called when user tries to change email field while in edit mode
+  // Email — gated by yearly budget
   const handleEmailChange = (val: string) => {
-    if (emailChanged && val !== profile.email) {
+    if (emailLocked && val !== profile.email) {
       setDraftEmail(profile.email);
       setModal('emailWarn');
     } else {
@@ -350,152 +493,119 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Phone click — open appropriate flow
+  // Phone — open change flow
   const handlePhoneEdit = () => {
     if (!editMode) return;
-    if (isPrimaryAdmin) {
-      setModal('phoneAdmin');
-    } else {
-      setModal('phoneSub');
-    }
+    setModal('phoneChange');
   };
 
   // Save changes
   const handleSave = () => {
-    const updated = {
-      name:  draftName.trim()  || profile.name,
-      phone: draftPhone.trim() || profile.phone,
-      email: draftEmail.trim() || profile.email,
-    };
+    const newName  = draftName.trim()  || profile.name;
+    const newEmail = draftEmail.trim() || profile.email;
+    const emailDidChange = newEmail !== profile.email;
 
-    // Track once-only changes
-    if (updated.name  !== profile.name)  localStorage.setItem(LS_NAME_CHANGED,  'true');
-    if (updated.email !== profile.email) localStorage.setItem(LS_EMAIL_CHANGED, 'true');
+    if (emailDidChange) recordEmailChange();
 
-    // Persist
+    const updated = { ...profile, name: newName, email: newEmail };
     localStorage.setItem(LS_PROFILE, JSON.stringify(updated));
     setProfile(updated);
     setEditMode(false);
-    showToast();
+    showToast('تم حفظ التغييرات بنجاح ✓');
   };
 
-  // Delete account
-  const handleDeleteRequest = () => {
-    if (isPrimaryAdmin) {
-      setModal('deleteAdmin');
+  // ── Modal-driven handlers ───────────────────────────────────────────
+  const phoneSelfServiceAllowed = !phoneChanged && isPrimaryAdmin;
+
+  const confirmPhoneChange = () => {
+    if (phoneSelfServiceAllowed) {
+      // First self-service change (front-end placeholder; OTP wired later)
+      localStorage.setItem(LS_PHONE_CHANGED, 'true');
+      setModal(null);
+      showToast('سيتم إرسال رمز التحقق إلى الرقم الجديد');
     } else {
-      setModal('deleteSub');
+      // Needs support / admin approval
+      setModal(null);
+      if (isPrimaryAdmin) { setIsProfileOpen(false); onNavigate('support'); }
+      else { showToast('تم إرسال الطلب إلى مسؤول النظام ✓'); }
     }
   };
 
-  // Send delete request directly to platform owner via email
-  const handleDeleteConfirmAdmin = (data: { name: string; phone: string; email: string; school: string }) => {
-    const subject = encodeURIComponent('طلب حذف الحساب — منصة متابع');
-    const body = encodeURIComponent(
-      `السلام عليكم،\n\nأرغب في طلب حذف حسابي من منصة متابع.\n\n` +
-      `—— بيانات الحساب ——\n` +
-      `الاسم: ${data.name}\n` +
-      `رقم الجوال: ${data.phone}\n` +
-      `البريد الإلكتروني: ${data.email}\n` +
-      `المدرسة: ${data.school}\n` +
-      `تاريخ الطلب: ${new Date().toLocaleDateString('ar-SA')}\n\n` +
-      `يرجى اتخاذ الإجراء اللازم لحذف الحساب المذكور أعلاه.\n\nشكراً`
-    );
-    window.location.href = `mailto:support@motabe.sa?subject=${subject}&body=${body}`;
+  const confirmDelete = (_reason: string) => {
     setModal(null);
     setIsProfileOpen(false);
-    showToast();
+    showToast('تم رفع طلب الحذف بنجاح ✓');
   };
+
+  const roleLabel = isPrimaryAdmin ? 'مدير النظام' : 'مستخدم مفوَّض';
 
   return (
     <>
     {/* ── Global Modals ─────────────────────────────────────────────── */}
 
-    {/* Name already changed */}
-    {modal === 'nameWarn' && (
-      <ConfirmModal
-        title="لا يمكن تغيير الاسم مجدداً"
-        message="يُسمح بتغيير اسم المستخدم مرة واحدة فقط. لقد استنفدت هذه الميزة مسبقاً."
-        icon={<AlertCircle size={36} className="text-amber-500" />}
-        onCancel={() => setModal(null)}
-        cancelLabel="حسناً، فهمت"
-      />
-    )}
-
-    {/* Email already changed */}
+    {/* Email budget exhausted */}
     {modal === 'emailWarn' && (
       <ConfirmModal
-        title="لا يمكن تغيير البريد مجدداً"
-        message="يُسمح بتغيير البريد الإلكتروني مرة واحدة فقط. لقد استنفدت هذه الميزة مسبقاً."
-        icon={<AlertCircle size={36} className="text-amber-500" />}
-        onCancel={() => setModal(null)}
-        cancelLabel="حسناً، فهمت"
-      />
-    )}
-
-    {/* Phone — primary admin needs support */}
-    {modal === 'phoneAdmin' && (
-      <ConfirmModal
-        title="تغيير رقم الجوال"
-        message="تغيير رقم جوال مدير النظام يتطلب موافقة فريق الدعم الفني لمنصة متابع. سيتم تحويلك لصفحة الدعم الفني لرفع طلب."
-        icon={<Shield size={36} className="text-[#655ac1]" />}
-        confirmLabel="انتقل إلى الدعم الفني"
-        cancelLabel="إلغاء"
+        title="تجاوزت عدد مرات تغيير البريد"
+        message={`يُسمح بتغيير البريد الإلكتروني ${EMAIL_CHANGES_PER_YEAR} مرتين خلال السنة. للتغيير الإضافي يلزم رفع طلب لفريق الدعم الفني.`}
+        icon={<AlertCircle size={22} className="text-amber-500 shrink-0" />}
+        confirmLabel="الانتقال إلى الدعم"
+        cancelLabel="حسناً"
         onCancel={() => setModal(null)}
         onConfirm={() => { setModal(null); setIsProfileOpen(false); onNavigate('support'); }}
       />
     )}
 
-    {/* Phone — sub-user sends request to admin */}
-    {modal === 'phoneSub' && (
+    {/* Phone change */}
+    {modal === 'phoneChange' && (
       <ConfirmModal
-        title="إرسال طلب تغيير الجوال"
-        message="سيُرسل طلب تغيير رقم الجوال إلى مسؤول النظام (المستخدم الأول) للموافقة عليه. هل تريد إرسال الطلȿ"
-        icon={<Send size={36} className="text-blue-500" />}
-        confirmLabel="إرسال الطلب"
+        title="تغيير رقم الجوال"
+        message={
+          phoneSelfServiceAllowed
+            ? 'يمكنك تغيير رقم الجوال لمرة واحدة بشكل ذاتي عبر التحقق برمز يُرسل إلى الرقم الجديد. هل تريد المتابعة؟'
+            : isPrimaryAdmin
+              ? 'لقد استخدمت التغيير الذاتي مسبقاً. أي تغيير إضافي يتطلب موافقة فريق الدعم الفني.'
+              : 'سيُرسل طلب تغيير رقم الجوال إلى مسؤول النظام (المستخدم الأول) للموافقة عليه.'
+        }
+        icon={phoneSelfServiceAllowed
+          ? <Phone size={22} className="text-[#655ac1] shrink-0" />
+          : isPrimaryAdmin ? <Shield size={22} className="text-[#655ac1] shrink-0" /> : <Send size={22} className="text-blue-500 shrink-0" />}
+        confirmLabel={phoneSelfServiceAllowed ? 'متابعة' : isPrimaryAdmin ? 'الانتقال إلى الدعم' : 'إرسال الطلب'}
         cancelLabel="إلغاء"
         onCancel={() => setModal(null)}
-        onConfirm={() => { setModal(null); showToast(); }}
+        onConfirm={confirmPhoneChange}
       />
     )}
 
-    {/* Delete — primary admin */}
-    {modal === 'deleteAdmin' && (
-      <DeleteRequestModal
-        defaultName={profile.name}
-        defaultPhone={profile.phone}
-        defaultEmail={profile.email}
-        defaultSchool={schoolInfo.schoolName || ''}
+    {/* Change / set password */}
+    {modal === 'passwordChange' && (
+      <PasswordModal
+        authMethod={profile.authMethod}
         onCancel={() => setModal(null)}
-        onConfirm={handleDeleteConfirmAdmin}
+        onConfirm={() => { setModal(null); showToast('تم تحديث كلمة المرور ✓'); }}
       />
     )}
 
-    {/* Delete — sub-user */}
-    {modal === 'deleteSub' && (
-      <ConfirmModal
-        title="تأكيد طلب حذف الحساب"
-        message="سيُرسل طلب حذف حسابك إلى مسؤول النظام (المستخدم الأول) للمراجعة والموافقة. هل أنت متأكد من إرسال هذا الطلب؟"
-        icon={<Trash2 size={36} className="text-rose-500" />}
-        confirmLabel="تأكيد وإرسال الطلب"
-        cancelLabel="إلغاء"
-        confirmDanger
+    {/* Delete account with reasons */}
+    {modal === 'deleteReasons' && (
+      <DeleteReasonsModal
+        isPrimaryAdmin={isPrimaryAdmin}
         onCancel={() => setModal(null)}
-        onConfirm={() => { setModal(null); showToast(); }}
+        onConfirm={confirmDelete}
       />
     )}
 
     {/* Toast */}
-    <Toast message="تم إرسال الطلب بنجاح ✓" visible={toast} />
+    <Toast message={toast || 'تم'} visible={!!toast} />
 
     <header className="sticky top-0 z-40 bg-[#fcfbff] px-4 pt-4 pb-2">
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm px-4 md:px-6 py-3 flex justify-between items-center relative">
-          
+
           {/* SECTION 1: User Greeting & Mobile Menu (Start/Right) */}
           <div className="flex items-center gap-3 md:gap-4">
              {/* Mobile Menu Button */}
-             <button 
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+             <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="lg:hidden p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-600"
               >
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
@@ -503,7 +613,7 @@ const Header: React.FC<HeaderProps> = ({
 
              {/* User Info & Profile Popover */}
              <div className="relative" ref={profileRef}>
-                <button 
+                <button
                   onClick={() => { setIsProfileOpen(!isProfileOpen); setEditMode(false); }}
                   className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-xl transition-colors text-right"
                 >
@@ -519,62 +629,75 @@ const Header: React.FC<HeaderProps> = ({
 
                 {/* ── Profile Popover ───────────────────────────────── */}
                 {isProfileOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-[22rem] bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-fade-in">
-                    
-                    {/* Header row */}
-                    <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-l from-slate-50 to-white">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#655ac1]/10 flex items-center justify-center text-[#655ac1]">
-                          <User size={20} />
+                  <div className="absolute top-full right-0 mt-2 w-[23rem] bg-white rounded-[1.75rem] shadow-2xl ring-1 ring-slate-200 z-50 overflow-hidden animate-fade-in">
+
+                    {/* Header row — neutral (no purple background) */}
+                    <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-[#655ac1] shrink-0">
+                          <User size={22} />
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">{profile.name}</p>
-                          <p className="text-[10px] text-slate-400 font-medium">
-                            {isPrimaryAdmin ? 'مدير النظام' : 'مستخدم مفوَّض'}
-                          </p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{profile.name}</p>
+                          {/* Role badge */}
+                          <span className={`inline-flex items-center gap-1 mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            isPrimaryAdmin
+                              ? 'text-[#655ac1] bg-[#655ac1]/8 border-[#655ac1]/15'
+                              : 'text-slate-500 bg-slate-100 border-slate-200'
+                          }`}>
+                            {isPrimaryAdmin ? <ShieldCheck size={11} /> : <User size={11} />}
+                            {roleLabel}
+                          </span>
                         </div>
                       </div>
                       {!editMode && (
                         <button
                           onClick={openEditMode}
-                          className="flex items-center gap-1.5 text-[11px] font-bold text-[#655ac1] bg-[#655ac1]/8 hover:bg-[#655ac1]/15 px-3 py-1.5 rounded-lg transition-colors"
+                          className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
                         >
-                          <Edit3 size={13} /> تعديل
+                          <Edit3 size={13} className="text-slate-500" /> تعديل
                         </button>
                       )}
+                    </div>
+
+                    {/* Account info strip */}
+                    <div className="grid grid-cols-3 gap-2 px-4 py-3 bg-slate-50/60 border-b border-slate-100">
+                      <div className="flex flex-col items-center text-center gap-0.5">
+                        <LogIn size={15} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-400">طريقة الدخول</span>
+                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{AUTH_LABELS[profile.authMethod]}</span>
+                      </div>
+                      <div className="flex flex-col items-center text-center gap-0.5 border-x border-slate-200/70">
+                        <Clock size={15} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-400">آخر دخول</span>
+                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{fmtDate(profile.lastLogin)}</span>
+                      </div>
+                      <div className="flex flex-col items-center text-center gap-0.5">
+                        <Calendar size={15} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-400">تاريخ الإنشاء</span>
+                        <span className="text-[11px] font-bold text-[#655ac1] leading-tight">{fmtDate(profile.createdAt)}</span>
+                      </div>
                     </div>
 
                     {/* Fields */}
                     <div className="p-4 space-y-3">
 
-                      {/* ─ Username ─ */}
+                      {/* ─ Username (free) ─ */}
                       <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                            <User size={11} /> اسم المستخدم
-                          </label>
-                          {nameChanged && (
-                            <span className="text-[9px] font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">
-                              لا يمكن تغييره
-                            </span>
-                          )}
-                        </div>
+                        <label className="text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                          <User size={11} /> اسم المستخدم
+                        </label>
                         <input
                           type="text"
                           value={editMode ? draftName : profile.name}
-                          readOnly={!editMode || nameChanged}
+                          readOnly={!editMode}
                           onChange={e => handleNameChange(e.target.value)}
                           className={`w-full text-xs font-bold text-slate-700 border rounded-lg px-3 py-2 outline-none transition-colors
-                            ${editMode && !nameChanged
+                            ${editMode
                               ? 'bg-white border-[#655ac1]/40 focus:border-[#655ac1] shadow-sm'
-                              : 'bg-slate-50 border-slate-100 cursor-not-allowed text-slate-400'
+                              : 'bg-slate-50 border-slate-100 cursor-default'
                             }`}
                         />
-                        {editMode && !nameChanged && (
-                          <p className="text-[9px] text-amber-600 mt-1 flex items-center gap-1">
-                            <AlertCircle size={9} /> يمكن تغيير الاسم مرة واحدة فقط
-                          </p>
-                        )}
                       </div>
 
                       {/* ─ Phone ─ */}
@@ -595,51 +718,74 @@ const Header: React.FC<HeaderProps> = ({
                               onClick={handlePhoneEdit}
                               className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-[#655ac1] hover:underline"
                             >
-                              {isPrimaryAdmin ? 'طلب التغيير' : 'إرسال طلب'}
+                              طلب تغيير
                             </button>
                           )}
                         </div>
                         {editMode && (
                           <p className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
                             <Info size={9} />
-                            {isPrimaryAdmin
-                              ? 'التغيير يتطلب موافقة الدعم الفني'
-                              : 'الطلب يُرسل إلى مسؤول النظام'}
+                            {phoneSelfServiceAllowed
+                              ? 'يمكن تغييره ذاتياً مرة واحدة عبر رمز تحقق'
+                              : isPrimaryAdmin ? 'التغيير الإضافي يتطلب موافقة الدعم' : 'الطلب يُرسل إلى مسؤول النظام'}
                           </p>
                         )}
                       </div>
 
-                      {/* ─ Email ─ */}
+                      {/* ─ Email (budget) ─ */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <label className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                             <Mail size={11} /> البريد الإلكتروني
                           </label>
-                          {emailChanged && (
-                            <span className="text-[9px] font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">
-                              لا يمكن تغييره
+                          {emailLocked && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full text-amber-500 bg-amber-50">
+                              يتطلب الدعم
                             </span>
                           )}
                         </div>
                         <input
                           type="email"
                           value={editMode ? draftEmail : profile.email}
-                          readOnly={!editMode || emailChanged}
+                          readOnly={!editMode || emailLocked}
                           onChange={e => handleEmailChange(e.target.value)}
                           dir="ltr"
                           className={`w-full text-xs font-bold text-right border rounded-lg px-3 py-2 outline-none transition-colors
-                            ${editMode && !emailChanged
+                            ${editMode && !emailLocked
                               ? 'bg-white border-[#655ac1]/40 focus:border-[#655ac1] shadow-sm text-slate-700'
-                              : 'bg-slate-50 border-slate-100 cursor-not-allowed text-slate-400'
+                              : 'bg-slate-50 border-slate-100 cursor-default text-slate-400'
                             }`}
                         />
-                        {editMode && !emailChanged && (
-                          <p className="text-[9px] text-amber-600 mt-1 flex items-center gap-1">
-                            <AlertCircle size={9} /> يمكن تغيير البريد مرة واحدة فقط
-                          </p>
-                        )}
                       </div>
+
+                      {/* ─ Password ─ */}
+                      <button
+                        onClick={() => setModal('passwordChange')}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                      >
+                        <span className="flex items-center gap-2 text-xs font-bold text-slate-600 group-hover:text-[#655ac1] transition-colors">
+                          <KeyRound size={14} className="text-[#655ac1]" />
+                          {profile.authMethod === 'manual' ? 'تغيير كلمة المرور' : 'تعيين كلمة مرور'}
+                        </span>
+                        <ChevronDown size={14} className="text-slate-400 rotate-90" />
+                      </button>
                     </div>
+
+                    {/* Admin shortcut — delegated users */}
+                    {isPrimaryAdmin && (
+                      <div className="px-4 pb-2">
+                        <button
+                          onClick={() => { setIsProfileOpen(false); onNavigate('permissions'); }}
+                          className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                        >
+                          <span className="flex items-center gap-2 text-xs font-bold text-slate-600 group-hover:text-[#655ac1] transition-colors">
+                            <Users size={14} className="text-[#655ac1]" />
+                            إدارة الصلاحيات
+                          </span>
+                          <ChevronDown size={14} className="text-slate-400 rotate-90" />
+                        </button>
+                      </div>
+                    )}
 
                     {/* Action buttons */}
                     <div className="px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
@@ -647,21 +793,21 @@ const Header: React.FC<HeaderProps> = ({
                         <div className="flex gap-2">
                           <button
                             onClick={cancelEdit}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                           >
                             <X size={13} /> إلغاء
                           </button>
                           <button
                             onClick={handleSave}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors shadow-sm"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors shadow-sm"
                           >
                             <Save size={13} /> حفظ التغييرات
                           </button>
                         </div>
                       ) : (
                         <button
-                          onClick={handleDeleteRequest}
-                          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-rose-100"
+                          onClick={() => setModal('deleteReasons')}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-slate-200"
                         >
                           <Trash2 size={14} />
                           {isPrimaryAdmin ? 'طلب حذف الحساب' : 'طلب حذف حسابي'}
@@ -703,7 +849,7 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 md:gap-3">
                {/* Notification */}
                <div className="relative" ref={notifRef}>
-                 <button 
+                 <button
                     onClick={() => setIsNotifOpen(v => !v)}
                     className="group relative w-12 h-12 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-600 hover:text-[#655ac1] transition-colors"
                     title="الإشعارات"
@@ -791,13 +937,13 @@ const Header: React.FC<HeaderProps> = ({
                <div className="h-10 w-px bg-slate-200 mx-1 hidden md:block"></div>
 
                {/* Logout */}
-               <button 
-                  onClick={onLogout} 
+               <button
+                  onClick={onLogout}
                   className="flex items-center gap-2 text-rose-500 hover:bg-rose-50 px-4 py-2 rounded-xl transition-all font-bold text-sm hover:shadow-sm"
                   title="تسجيل الخروج"
                >
                   <span className="hidden md:inline">خروج</span>
-                  <LogOut size={20} /> 
+                  <LogOut size={20} />
                </button>
           </div>
       </div>
