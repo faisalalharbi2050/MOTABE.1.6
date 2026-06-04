@@ -1035,7 +1035,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       <button
                         key={type.id}
                         onClick={() => toggleBulkTargetType(type.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-right transition-colors ${selected ? 'bg-[#655ac1]/5' : 'hover:bg-slate-50'}`}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-right transition-colors hover:bg-slate-50"
                       >
                         <span className={`text-sm font-bold ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{type.name}</span>
                         <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
@@ -1069,7 +1069,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         <button
                           key={loc.id}
                           onClick={() => toggleBulkLocation(loc.id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right transition-colors ${isSel ? 'bg-[#655ac1]/5' : 'hover:bg-slate-50'}`}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
                         >
                           <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
                           <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
@@ -1165,11 +1165,15 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4 sm:gap-5">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">2</span>
                   <p className="text-xs font-black text-slate-700">اختيار المشرفين</p>
+                  <span className="mr-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800">
+                    <AlertTriangle size={11} className="text-amber-600 shrink-0" />
+                    الرقم بجانب الاسم = عدد مهام الإشراف المسندة للمشرف.
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-1 bg-white border border-slate-200 p-1 rounded-xl mb-3">
+                <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl mb-3">
                   {[
                     { id: 'teacher' as const, label: 'المعلمون', count: assignedStaffForBulkLocations.filter(s => s.type === 'teacher').length },
                     { id: 'admin' as const, label: 'الإداريون', count: assignedStaffForBulkLocations.filter(s => s.type === 'admin').length },
@@ -1213,11 +1217,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800">
-                  <AlertTriangle size={12} className="text-amber-600 shrink-0" />
-                  <span>الرقم بجانب الاسم = عدد مهام الإشراف المسندة للمشرف.</span>
-                </div>
-
                 <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-64 overflow-y-auto">
                   {assignedStaffForBulkLocations
                     .filter(staff => staff.type === bulkStaffTab)
@@ -1252,7 +1251,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div className="min-w-0">
+              <div className="min-w-0 flex flex-col">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">3</span>
@@ -1263,8 +1262,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   </span>
                 </div>
                 <p className="text-[11px] font-medium text-slate-400 mb-2 pr-7">حدّد المواقع ثم اضغط «حفظ» لتطبيقها على المشرفين المحددين.</p>
-                <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                  <div className="max-h-56 overflow-y-auto p-2 space-y-1">
+                <div className="w-full flex-1 min-h-0 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="h-full overflow-y-auto p-2 space-y-1">
                     {activeLocations.map(loc => {
                       const isSel = bulkStaffLocationIds.includes(loc.id);
                       return (
