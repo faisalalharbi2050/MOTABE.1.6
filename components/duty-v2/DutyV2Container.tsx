@@ -388,35 +388,6 @@ const DutyV2Container: React.FC<Props> = ({
       </div>
 
       {/* ══════ Banners ══════ */}
-      {suggestExcludeTeachers && !dutyData.settings.autoExcludeTeachersWhen5Admins && (
-        <div className="bg-[#fcfbff] border-2 border-[#655ac1]/20 rounded-2xl p-5 flex items-start gap-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-1 bg-[#655ac1] h-full rounded-r-2xl" />
-          <div className="w-10 h-10 rounded-xl bg-[#e5e1fe] flex items-center justify-center shrink-0">
-            <Info size={22} className="text-[#655ac1]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-base font-black text-slate-800">
-              يوجد 5 إداريين أو أكثر - يُقترح استثناء المعلمين من المناوبة
-            </p>
-            <p className="text-sm font-medium text-slate-500 mt-1">
-              لتقليل العبء على المعلمين الممارسين للتدريس ينصح بتفعيل الاستثناء للوصول إلى إدارة أفضل ومريحة للجميع في المناوبة. يمكنك تفعيل هذا الخيار من إعدادات الاستثناءات.
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              setDutyData(prev => ({
-                ...prev,
-                settings: { ...prev.settings, autoExcludeTeachersWhen5Admins: true },
-              }));
-              showToast('تم تفعيل استثناء المعلمين من المناوبة', 'success');
-            }}
-            className="shrink-0 px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md mt-auto mb-auto hover:scale-105 active:scale-95"
-          >
-            تفعيل التلقائي
-          </button>
-        </div>
-      )}
-
       {scheduleChangeAlert && (
         <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-1 bg-amber-500 h-full rounded-r-2xl" />
