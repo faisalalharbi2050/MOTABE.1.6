@@ -874,15 +874,13 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       {loadingOverlay}
       <div className="space-y-6">
       {/* ═══ Top Toolbar ═══ */}
-      <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200 flex flex-col items-stretch gap-3">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-5">
-          <div className="flex items-center gap-3">
+      <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200">
+        <div dir="rtl" className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-3 shrink-0">
             <SlidersHorizontal size={22} className="text-[#655ac1]" />
-            <h3 className="text-base font-black text-slate-800">إجراءات جدول الإشراف اليومي</h3>
+            <h3 className="text-base font-black text-slate-800 whitespace-nowrap">إجراءات جدول الإشراف اليومي</h3>
           </div>
-        </div>
-        <div dir="rtl" className="mt-2 pt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2 justify-start">
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             <button
               onClick={openLocationsModal}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
@@ -899,8 +897,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               <Shield size={16} />
               المشرف المتابع
             </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
             <button
               onClick={() => setShowReportModal(true)}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
