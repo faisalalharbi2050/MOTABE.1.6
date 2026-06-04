@@ -1520,10 +1520,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     key={tab.id}
                     onClick={() => setAddStaffTab(tab.id)}
                     className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
-                      addStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      addStaffTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'
                     }`}
                   >
-                    {tab.label} ({tab.count})
+                    <span className="text-slate-900">{tab.label}</span>
+                    <span className="text-[#655ac1] mr-1">({tab.count})</span>
                   </button>
                 ))}
               </div>
@@ -1533,8 +1534,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   type="text" autoFocus
                   value={addSearch}
                   onChange={e => setAddSearch(e.target.value)}
-                  placeholder={addStaffTab === 'teacher' ? 'بحث عن اسم المعلم...' : 'بحث عن اسم الإداري...'}
-                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
+                  placeholder="ابحث"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
                 />
               </div>
             </div>
@@ -1562,7 +1563,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           <th className="px-4 py-3 font-black text-center w-16">م</th>
                           <th className="px-4 py-3 font-black">الاسم</th>
                           <th className="px-4 py-3 font-black w-28">الصفة</th>
-                          <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                          <th className="px-4 py-3 font-black text-center w-28">تحديد</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1572,17 +1573,17 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                             <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
                               <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
-                              <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : 'إداري'}</td>
+                              <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
                               <td className="px-4 py-3">
                                 <button
                                   type="button"
                                   onClick={() => toggleStaffSelection(staff.id)}
-                                  className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
-                                    isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                  className={`mx-auto w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                    isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]/60'
                                   }`}
-                                  title="اختيار"
+                                  title="تحديد"
                                 >
-                                  {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                  {isSel && <Check size={13} strokeWidth={3.5} />}
                                 </button>
                               </td>
                             </tr>
@@ -1642,10 +1643,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     key={tab.id}
                     onClick={() => setFollowUpTab(tab.id)}
                     className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
-                      followUpTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      followUpTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'
                     }`}
                   >
-                    {tab.label} ({tab.count})
+                    <span className="text-slate-900">{tab.label}</span>
+                    <span className="text-[#655ac1] mr-1">({tab.count})</span>
                   </button>
                 ))}
               </div>
@@ -1656,8 +1658,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   autoFocus
                   value={followUpSearch}
                   onChange={e => setFollowUpSearch(e.target.value)}
-                  placeholder={followUpTab === 'teacher' ? 'بحث عن اسم المعلم...' : 'بحث عن اسم الإداري...'}
-                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
+                  placeholder="ابحث"
+                  className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
                 />
               </div>
             </div>
@@ -1684,7 +1686,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           <th className="px-4 py-3 font-black text-center w-16">م</th>
                           <th className="px-4 py-3 font-black">الاسم</th>
                           <th className="px-4 py-3 font-black w-28">الصفة</th>
-                          <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                          <th className="px-4 py-3 font-black text-center w-28">تحديد</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1694,17 +1696,17 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                             <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
                               <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
-                              <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : 'إداري'}</td>
+                              <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
                               <td className="px-4 py-3">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedFollowUpId(isSel ? '' : staff.id)}
-                                  className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
-                                    isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                  className={`mx-auto w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                    isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]/60'
                                   }`}
-                                  title="اختيار"
+                                  title="تحديد"
                                 >
-                                  {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                  {isSel && <Check size={13} strokeWidth={3.5} />}
                                 </button>
                               </td>
                             </tr>
@@ -1917,7 +1919,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setPendingStaffRemoval(null)}>
           <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 <Trash2 size={24} className="text-rose-500" />
               </div>
               <h3 className="text-lg font-black text-slate-800">تأكيد الحذف</h3>
