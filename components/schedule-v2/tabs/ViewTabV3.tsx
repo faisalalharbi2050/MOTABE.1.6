@@ -1029,6 +1029,9 @@ const ViewTabV3: React.FC<Props> = ({
 
   const [sendScheduleType, setSendScheduleType] = useState<ScheduleType>('general_teachers');
   const [sendAudience, setSendAudience] = useState<SendAudience>('teachers');
+  // وضع إرسال جدول المعلم: مع التوقيع بالعلم (نموذج استلام) أو إرسال فقط للعرض.
+  // يبدأ فارغًا ليُجبر المستخدم على اختياره صراحةً قبل الإرسال.
+  const [teacherSendMode, setTeacherSendMode] = useState<'signature' | 'view' | ''>('');
   const [selectedSendTeacherIds, setSelectedSendTeacherIds] = useState<string[]>([]);
   const [selectedSendAdminIds, setSelectedSendAdminIds] = useState<string[]>([]);
   const [selectedSendClassIds, setSelectedSendClassIds] = useState<string[]>([]);
@@ -1190,9 +1193,9 @@ const ViewTabV3: React.FC<Props> = ({
     return safeSendAudience === 'teachers_admins' ? 2 : 1;
   }, [safeSendScheduleType, safeSendAudience, selectedSendTeacherIds.length, selectedSendClassIds.length]);
   const modelTypeSummary = safeSendScheduleType === 'individual_teacher' && safeSendAudience === 'teachers'
-    ? 'توقيع إلكتروني بالاستلام'
+    ? (teacherSendMode === '' ? 'اختر طريقة الإرسال' : teacherSendMode === 'view' ? 'اطلاع فقط' : 'توقيع إلكتروني بالاستلام')
     : safeSendScheduleType === 'individual_teacher' && safeSendAudience === 'teachers_admins'
-      ? 'توقيع إلكتروني للمعلمين واطلاع للإداريين'
+      ? (teacherSendMode === '' ? 'اختر طريقة الإرسال' : teacherSendMode === 'view' ? 'اطلاع فقط' : 'توقيع إلكتروني للمعلمين واطلاع للإداريين')
       : 'اطلاع فقط';
   const sendChannelLabel = sendChannel === 'whatsapp' ? 'واتساب' : 'رسالة نصية';
   const previewModelButtonLabel = `معاينة ${selectedScheduleLabel || 'النموذج'}`;
@@ -1232,7 +1235,7 @@ const ViewTabV3: React.FC<Props> = ({
       setSendAudience(allowed[0]);
     }
     setGeneratedLinks([]);
-  }, [sendAudience, sendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, selectedSendClassIds]);
+  }, [sendAudience, sendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, selectedSendClassIds, teacherSendMode]);
 
   const isPrintGeneral = SCHEDULE_TYPES.find(item => item.id === printScheduleType)?.isGeneral;
   const selectedPrintCount =
@@ -1451,6 +1454,14 @@ const ViewTabV3: React.FC<Props> = ({
       showToast('اختر المعلمين المطلوب إرسال جداولهم.');
       return false;
     }
+    if (
+      sendScheduleType === 'individual_teacher' &&
+      (sendAudience === 'teachers' || sendAudience === 'teachers_admins') &&
+      teacherSendMode === ''
+    ) {
+      showToast('اختر طريقة الإرسال للمعلم (مع التوقيع أو بدون).');
+      return false;
+    }
     if (sendScheduleType === 'individual_class' && selectedSendClassIds.length === 0) {
       showToast('اختر الفصول المطلوب إرسال جداولها.');
       return false;
@@ -1496,8 +1507,10 @@ const ViewTabV3: React.FC<Props> = ({
         if ((sendAudience === 'teachers' || sendAudience === 'teachers_admins') && teacherRecipients.length > 0) {
           links.push({
             label: `جدول ${targetLabel}`,
-            url: buildTeacherSignatureUrl(teacherId, persistSignatureRequests, batch),
-            teacherId,
+            url: teacherSendMode === 'view'
+              ? buildShareUrl('individual_teacher', 'teachers', teacherId, targetLabel, teacherRecipients, undefined, persistSignatureRequests)
+              : buildTeacherSignatureUrl(teacherId, persistSignatureRequests, batch),
+            ...(teacherSendMode === 'view' ? {} : { teacherId }),
             targetId: teacherId,
             targetLabel,
             recipients: teacherRecipients,
@@ -2539,6 +2552,18 @@ const ViewTabV3: React.FC<Props> = ({
                     onClear={() => setSelectedSendTeacherIds([])}
                     onSelectAll={() => setSelectedSendTeacherIds(teachers.map(item => item.id))}
                     searchable
+                  />
+                )}
+                {safeSendScheduleType === 'individual_teacher' && (safeSendAudience === 'teachers' || safeSendAudience === 'teachers_admins') && (
+                  <SingleSelectDropdown
+                    label="طريقة الإرسال للمعلم"
+                    value={teacherSendMode}
+                    onChange={value => setTeacherSendMode(value as 'signature' | 'view')}
+                    placeholder="اختر طريقة الإرسال"
+                    options={[
+                      { value: 'signature', label: 'مع التوقيع بالعلم' },
+                      { value: 'view', label: 'إرسال فقط بدون توقيع' },
+                    ]}
                   />
                 )}
                 {(safeSendAudience === 'admins' || safeSendAudience === 'teachers_admins') && (
