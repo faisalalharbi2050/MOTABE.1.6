@@ -1126,7 +1126,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
                     }`}
                   >
-                    {allVisibleStaffSelected() ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                    {allVisibleStaffSelected() ? 'إلغاء الكل' : 'اختيار الكل'}
                   </button>
                 </div>
 
