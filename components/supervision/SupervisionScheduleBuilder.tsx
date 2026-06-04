@@ -69,7 +69,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpDraft, setFollowUpDraft] = useState<SupervisionDayAssignment[] | null>(null);
   const [followUpEnabledDraft, setFollowUpEnabledDraft] = useState(true);
-  const [followUpPickTarget, setFollowUpPickTarget] = useState<string>('ALL');
+  // الأيام المحددة كأهداف للتعيين (يدعم تحديد عدة أيام)
+  const [followUpTargetDays, setFollowUpTargetDays] = useState<string[]>([]);
   const [pendingStaffRemoval, setPendingStaffRemoval] = useState<{ day: string; contextTypeId: string; staffId: string; staffName: string } | null>(null);
 
   // ═══════════ Derived data ═══════════
@@ -606,10 +607,12 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   }, [admins, teachers]);
 
   const setFollowUpSupervisor = (day: string, staffId: string, staffName: string) => {
+    const cand = followUpCandidates.find(c => c.id === staffId);
     updateDayAssignment(day, da => ({
       ...da,
       followUpSupervisorId: staffId,
       followUpSupervisorName: staffName,
+      followUpSupervisors: [{ staffId, staffName, staffType: cand?.type || 'teacher' }],
     }));
     setShowFollowUpPicker(null);
     setSelectedFollowUpId('');
@@ -621,19 +624,24 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       ...da,
       followUpSupervisorId: undefined,
       followUpSupervisorName: undefined,
+      followUpSupervisors: [],
     }));
   };
 
   const copyFollowUpToAllDays = (sourceDay: string) => {
     const da = getDayAssignment(sourceDay);
     if (!da.followUpSupervisorId || !da.followUpSupervisorName) return;
+    const sourceList = da.followUpSupervisors && da.followUpSupervisors.length > 0
+      ? da.followUpSupervisors
+      : [{ staffId: da.followUpSupervisorId, staffName: da.followUpSupervisorName, staffType: (followUpCandidates.find(c => c.id === da.followUpSupervisorId)?.type || 'teacher') as 'teacher' | 'admin' }];
     setSupervisionData(prev => {
       const newAssignments = activeDays.map(day => {
         const existing = prev.dayAssignments.find(d => d.day === day) || { day, staffAssignments: [] };
         return {
           ...existing,
-          followUpSupervisorId: da.followUpSupervisorId,
-          followUpSupervisorName: da.followUpSupervisorName,
+          followUpSupervisorId: sourceList[0].staffId,
+          followUpSupervisorName: sourceList[0].staffName,
+          followUpSupervisors: sourceList,
         };
       });
       const next = { ...prev, dayAssignments: newAssignments };
@@ -643,38 +651,76 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   };
 
   // ═══════════ نافذة إدارة المشرف المتابع (مسوّدة + حفظ) ═══════════
-  const followUpDraftAssignments = followUpDraft ?? dayAssignments;
-  const getDraftFollowUpName = (day: string): string | undefined =>
-    followUpDraftAssignments.find(d => d.day === day)?.followUpSupervisorName;
+  type FollowUpEntry = { staffId: string; staffName: string; staffType: 'teacher' | 'admin' };
 
-  // ضمان وجود عنصر لكل يوم فعّال في المسوّدة
+  const followUpDraftAssignments = followUpDraft ?? dayAssignments;
+
+  // قراءة قائمة المشرفين المتابعين ليوم (مع الترقية من الحقل المفرد القديم)
+  const getDraftFollowUps = (day: string): FollowUpEntry[] => {
+    const da = followUpDraftAssignments.find(d => d.day === day);
+    if (!da) return [];
+    if (da.followUpSupervisors && da.followUpSupervisors.length > 0) return da.followUpSupervisors;
+    if (da.followUpSupervisorId && da.followUpSupervisorName) {
+      const cand = followUpCandidates.find(c => c.id === da.followUpSupervisorId);
+      return [{ staffId: da.followUpSupervisorId, staffName: da.followUpSupervisorName, staffType: cand?.type || 'teacher' }];
+    }
+    return [];
+  };
+
+  // ضمان وجود عنصر لكل يوم فعّال + ترقية الحقل المفرد إلى قائمة
   const normalizeFollowUpDraft = (base: SupervisionDayAssignment[]): SupervisionDayAssignment[] => {
     const map = new Map(base.map(d => [d.day, d]));
     activeDays.forEach(day => { if (!map.has(day)) map.set(day, { day, staffAssignments: [] }); });
-    return activeDays.map(day => map.get(day)!).concat(base.filter(d => !activeDays.includes(d.day)));
+    const upgrade = (da: SupervisionDayAssignment): SupervisionDayAssignment => {
+      if (da.followUpSupervisors) return da;
+      if (da.followUpSupervisorId && da.followUpSupervisorName) {
+        const cand = followUpCandidates.find(c => c.id === da.followUpSupervisorId);
+        return { ...da, followUpSupervisors: [{ staffId: da.followUpSupervisorId, staffName: da.followUpSupervisorName, staffType: cand?.type || 'teacher' }] };
+      }
+      return { ...da, followUpSupervisors: [] };
+    };
+    return Array.from(map.values()).map(upgrade);
   };
 
-  const assignFollowUpDraft = (staffId: string, staffName: string) => {
-    const days = followUpPickTarget === 'ALL' ? activeDays : [followUpPickTarget];
+  // مزامنة الحقل المفرد القديم مع أول عنصر (للتوافق مع الطباعة/التقارير)
+  const syncLegacyFollowUp = (da: SupervisionDayAssignment): SupervisionDayAssignment => {
+    const list = da.followUpSupervisors ?? [];
+    return { ...da, followUpSupervisorId: list[0]?.staffId, followUpSupervisorName: list[0]?.staffName };
+  };
+
+  // إضافة/إزالة مشرف على كل الأيام المحددة (تبديل)
+  const toggleFollowUpForTargets = (staff: FollowUpEntry) => {
+    if (followUpTargetDays.length === 0) {
+      showToast('اختر يوماً واحداً على الأقل من قائمة الأيام', 'warning');
+      return;
+    }
+    setFollowUpDraft(prev => normalizeFollowUpDraft(prev ?? dayAssignments).map(da => {
+      if (!followUpTargetDays.includes(da.day)) return da;
+      const list = da.followUpSupervisors ?? [];
+      const exists = list.some(s => s.staffId === staff.staffId);
+      const nextList = exists ? list.filter(s => s.staffId !== staff.staffId) : [...list, staff];
+      return syncLegacyFollowUp({ ...da, followUpSupervisors: nextList });
+    }));
+  };
+
+  // مسح كل المشرفين المتابعين ليوم
+  const clearFollowUpDay = (day: string) => {
     setFollowUpDraft(prev => normalizeFollowUpDraft(prev ?? dayAssignments).map(da => (
-      days.includes(da.day)
-        ? { ...da, followUpSupervisorId: staffId, followUpSupervisorName: staffName }
-        : da
+      da.day === day ? syncLegacyFollowUp({ ...da, followUpSupervisors: [] }) : da
     )));
   };
 
-  const removeFollowUpDraft = (day: string) => {
-    setFollowUpDraft(prev => normalizeFollowUpDraft(prev ?? dayAssignments).map(da => (
-      da.day === day
-        ? { ...da, followUpSupervisorId: undefined, followUpSupervisorName: undefined }
-        : da
-    )));
-  };
+  const toggleTargetDay = (day: string) =>
+    setFollowUpTargetDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+
+  const allTargetDaysSelected = activeDays.length > 0 && activeDays.every(d => followUpTargetDays.includes(d));
+  const toggleAllTargetDays = () =>
+    setFollowUpTargetDays(allTargetDaysSelected ? [] : [...activeDays]);
 
   const openFollowUpModal = () => {
-    setFollowUpDraft(supervisionData.dayAssignments);
+    setFollowUpDraft(normalizeFollowUpDraft(supervisionData.dayAssignments));
     setFollowUpEnabledDraft(supervisionData.settings.enableFollowUpSupervisor !== false);
-    setFollowUpPickTarget('ALL');
+    setFollowUpTargetDays([...activeDays]);
     setFollowUpTab('teacher');
     setFollowUpSearch('');
     setShowFollowUpModal(true);
@@ -688,7 +734,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
   const saveFollowUpModal = () => {
     setSupervisionData(prev => {
-      const base = followUpDraft ?? prev.dayAssignments;
+      const base = (followUpDraft ?? prev.dayAssignments).map(syncLegacyFollowUp);
       const next = {
         ...prev,
         settings: { ...prev.settings, enableFollowUpSupervisor: followUpEnabledDraft },
@@ -1329,12 +1375,17 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       {showFollowUpSupervisor && (
                         <td className="p-3 align-top border-l border-slate-200/80">
                           <div className="relative w-full h-full flex flex-col justify-center min-h-[60px]">
-                            {da.followUpSupervisorId ? (
+                            {(da.followUpSupervisorId || (da.followUpSupervisors && da.followUpSupervisors.length > 0)) ? (
                               <div className="bg-[#e5e1fe]/40 border border-[#655ac1]/20 rounded-xl p-3 group relative text-center">
                                 <p className="text-[10px] font-bold text-[#655ac1] mb-1 flex items-center justify-center gap-1">
-                                  <Shield size={10} /> المشرف المتابع
+                                  <Shield size={10} /> {(da.followUpSupervisors && da.followUpSupervisors.length > 1) ? 'المشرفون المتابعون' : 'المشرف المتابع'}
                                 </p>
-                                <p className="text-sm font-black text-slate-800 truncate">{da.followUpSupervisorName}</p>
+                                {((da.followUpSupervisors && da.followUpSupervisors.length > 0)
+                                  ? da.followUpSupervisors.map(s => s.staffName)
+                                  : [da.followUpSupervisorName].filter(Boolean) as string[]
+                                ).map((nm, i) => (
+                                  <p key={i} className="text-sm font-black text-slate-800 truncate">{nm}</p>
+                                ))}
                                 <button
                                   onClick={() => {
                                     setShowFollowUpPicker(day);
@@ -1733,89 +1784,121 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 </div>
               </div>
 
-              {followUpEnabledDraft && (
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4">
-                  {/* قائمة الأيام */}
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-slate-600 mb-2">الأيام</p>
-                    <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
-                      <button
-                        onClick={() => setFollowUpPickTarget('ALL')}
-                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-right transition-colors ${
-                          followUpPickTarget === 'ALL' ? 'bg-[#e5e1fe]/50' : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className={`text-sm font-black ${followUpPickTarget === 'ALL' ? 'text-[#655ac1]' : 'text-slate-700'}`}>كل الأيام</span>
-                        <span className="text-[10px] font-bold text-slate-400">تعيين موحّد</span>
-                      </button>
-                      {activeDays.map(day => {
-                        const name = getDraftFollowUpName(day);
-                        const isTarget = followUpPickTarget === day;
-                        return (
-                          <div key={day} className={`flex items-center justify-between gap-2 px-3 py-2.5 ${isTarget ? 'bg-[#e5e1fe]/50' : ''}`}>
-                            <button onClick={() => setFollowUpPickTarget(day)} className="flex-1 min-w-0 text-right">
-                              <span className={`block text-sm font-bold ${isTarget ? 'text-[#655ac1]' : 'text-slate-700'}`}>{DAY_NAMES[day]}</span>
-                              <span className={`block text-[11px] font-bold truncate ${name ? 'text-slate-500' : 'text-slate-300'}`}>{name || 'لم يُعيَّن'}</span>
-                            </button>
-                            {name && (
-                              <button onClick={() => removeFollowUpDraft(day)} className="p-1.5 rounded-lg border border-rose-100 text-rose-500 hover:bg-rose-50 transition-colors shrink-0" title="حذف">
-                                <X size={12} />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+              {/* تنبيه إرشادي بلون تنبيهي */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800">
+                <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                <span>حدّد الأيام (أو «كل الأيام») ثم اضغط على أسماء المشرفين لتعيينهم — يمكن اختيار أكثر من مشرف. لا يُنفَّذ إلا بعد «حفظ».</span>
+              </div>
 
-                  {/* مختار المشرف */}
-                  <div className="min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="text-xs font-black text-slate-600">اختر المشرف المتابع</p>
-                      <span className="text-[11px] font-bold text-[#655ac1] bg-[#e5e1fe]/60 border border-[#655ac1]/20 rounded-full px-2.5 py-0.5">
-                        {followUpPickTarget === 'ALL' ? 'لكل الأيام' : DAY_NAMES[followUpPickTarget]}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl mb-2">
-                      {[
-                        { id: 'teacher' as const, label: 'المعلمون', count: followUpCandidates.filter(s => s.type === 'teacher').length },
-                        { id: 'admin' as const, label: 'الإداريون', count: followUpCandidates.filter(s => s.type === 'admin').length },
-                      ].map(tab => (
-                        <button key={tab.id} onClick={() => setFollowUpTab(tab.id)} className={`px-3 py-2 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-1.5 ${followUpTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}>
-                          <span className="text-slate-800">{tab.label}</span>
-                          <span className="text-[#655ac1]">({tab.count})</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="relative mb-2">
-                      <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input type="text" value={followUpSearch} onChange={e => setFollowUpSearch(e.target.value)} placeholder="ابحث" className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30" />
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-60 overflow-y-auto">
-                      {followUpCandidates
-                        .filter(s => s.type === followUpTab)
-                        .filter(s => !followUpSearch.trim() || s.name.includes(followUpSearch.trim()))
-                        .map(staff => {
-                          const isCurrent = followUpPickTarget !== 'ALL' && getDraftFollowUpName(followUpPickTarget) === staff.name;
+              {/* منطقة المحتوى — يبقى ارتفاعها ثابتًا سواء فُعّل العمود أو عُطّل */}
+              <div className="min-h-[420px]">
+                {followUpEnabledDraft ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4">
+                    {/* قائمة الأيام */}
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-600 mb-2">الأيام</p>
+                      <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
+                        {/* صف كل الأيام */}
+                        <div className={`flex items-center justify-between gap-2 px-3 py-2.5 ${allTargetDaysSelected ? 'bg-[#e5e1fe]/30' : ''}`}>
+                          <button onClick={toggleAllTargetDays} className="flex items-center gap-2.5 flex-1 min-w-0 text-right">
+                            <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${allTargetDaysSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                              <Check size={12} strokeWidth={3.5} />
+                            </span>
+                            <span className={`text-sm font-black ${allTargetDaysSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>كل الأيام</span>
+                          </button>
+                          <span className="text-[10px] font-bold text-slate-400 shrink-0">تحديد موحّد</span>
+                        </div>
+
+                        {activeDays.map(day => {
+                          const entries = getDraftFollowUps(day);
+                          const isTarget = followUpTargetDays.includes(day);
                           return (
-                            <button key={staff.id} onClick={() => assignFollowUpDraft(staff.id, staff.name)} className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors">
-                              <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug truncate">{staff.name}</span>
-                              <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isCurrent ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-                                {isCurrent && <Check size={13} strokeWidth={3.5} />}
-                              </span>
-                            </button>
+                            <div key={day} className={`px-3 py-2.5 ${isTarget ? 'bg-[#e5e1fe]/30' : ''}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <button onClick={() => toggleTargetDay(day)} className="flex items-center gap-2.5 flex-1 min-w-0 text-right">
+                                  <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isTarget ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                    <Check size={12} strokeWidth={3.5} />
+                                  </span>
+                                  <span className={`text-sm font-bold ${isTarget ? 'text-[#655ac1]' : 'text-slate-700'}`}>{DAY_NAMES[day]}</span>
+                                </button>
+                                {entries.length > 0 && (
+                                  <button onClick={() => clearFollowUpDay(day)} title="إلغاء تعيين هذا اليوم"
+                                    className="w-5 h-5 rounded-full border border-rose-300 text-rose-500 flex items-center justify-center hover:bg-rose-50 transition-colors shrink-0">
+                                    <X size={12} strokeWidth={3.5} />
+                                  </button>
+                                )}
+                              </div>
+                              {entries.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mt-1.5 pr-7">
+                                  {entries.map(e => (
+                                    <span key={e.staffId} className="inline-flex items-center text-[10px] font-bold text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
+                                      {e.staffName}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-[11px] font-bold text-slate-300 mt-1.5 pr-7">لم يُعيَّن</p>
+                              )}
+                            </div>
                           );
                         })}
-                      {followUpCandidates.filter(s => s.type === followUpTab).length === 0 && (
-                        <div className="p-5 text-center text-xs font-bold text-slate-400">لا يوجد مشرفون متاحون</div>
-                      )}
+                      </div>
                     </div>
-                    <p className="text-[11px] font-medium text-slate-400 mt-2">
-                      اختر الجهة من قائمة الأيام (أو «كل الأيام»)، ثم اضغط على اسم المشرف لتعيينه. لا يُنفَّذ إلا بعد «حفظ».
-                    </p>
+
+                    {/* مختار المشرف */}
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-xs font-black text-slate-600">اختر المشرف المتابع</p>
+                        <span className="text-[11px] font-bold text-[#655ac1] bg-white border border-slate-300 rounded-full px-2.5 py-0.5">
+                          {allTargetDaysSelected ? 'كل الأيام' : (followUpTargetDays.length === 0 ? 'لم تُحدَّد أيام' : `${followUpTargetDays.length} يوم`)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl mb-2">
+                        {[
+                          { id: 'teacher' as const, label: 'المعلمون', count: followUpCandidates.filter(s => s.type === 'teacher').length },
+                          { id: 'admin' as const, label: 'الإداريون', count: followUpCandidates.filter(s => s.type === 'admin').length },
+                        ].map(tab => (
+                          <button key={tab.id} onClick={() => setFollowUpTab(tab.id)} className={`px-3 py-2 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-1.5 ${followUpTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}>
+                            <span className="text-slate-800">{tab.label}</span>
+                            <span className="text-[#655ac1]">({tab.count})</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="relative mb-2">
+                        <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input type="text" value={followUpSearch} onChange={e => setFollowUpSearch(e.target.value)} placeholder="ابحث" className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30" />
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-56 overflow-y-auto">
+                        {followUpCandidates
+                          .filter(s => s.type === followUpTab)
+                          .filter(s => !followUpSearch.trim() || s.name.includes(followUpSearch.trim()))
+                          .map(staff => {
+                            const inAll = followUpTargetDays.length > 0 && followUpTargetDays.every(day => getDraftFollowUps(day).some(s => s.staffId === staff.id));
+                            const inSome = !inAll && followUpTargetDays.some(day => getDraftFollowUps(day).some(s => s.staffId === staff.id));
+                            return (
+                              <button key={staff.id} onClick={() => toggleFollowUpForTargets({ staffId: staff.id, staffName: staff.name, staffType: staff.type })} className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors">
+                                <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug truncate">{staff.name}</span>
+                                <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${inAll ? 'bg-[#655ac1] border-[#655ac1] text-white' : inSome ? 'bg-white border-[#655ac1]' : 'bg-white border-slate-300 text-transparent'}`}>
+                                  {inAll ? <Check size={13} strokeWidth={3.5} /> : inSome ? <span className="w-2 h-2 rounded-full bg-[#655ac1]" /> : null}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        {followUpCandidates.filter(s => s.type === followUpTab).length === 0 && (
+                          <div className="p-5 text-center text-xs font-bold text-slate-400">لا يوجد مشرفون متاحون</div>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-400 mt-2">
+                        النقر يضيف/يزيل المشرف على كل الأيام المحددة. يمكن تعيين أكثر من مشرف لليوم نفسه.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="h-[420px] flex items-center justify-center text-center">
+                    <p className="text-sm font-bold text-slate-400">عمود المشرف المتابع مُعطّل — فعّله لإدارة التعيينات.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">

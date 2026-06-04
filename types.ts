@@ -596,8 +596,10 @@ export interface SupervisionStaffExclusion {
 export interface SupervisionDayAssignment {
   day: string; // sunday, monday, etc.
   staffAssignments: SupervisionStaffAssignment[];
-  followUpSupervisorId?: string; // المشرف المتابع
+  followUpSupervisorId?: string; // المشرف المتابع (الأساسي — يُبقى للتوافق مع الطباعة والتقارير)
   followUpSupervisorName?: string;
+  // قائمة المشرفين المتابعين لليوم (يدعم أكثر من مشرف). العنصر الأول يُطابق الحقلين أعلاه.
+  followUpSupervisors?: { staffId: string; staffName: string; staffType: 'teacher' | 'admin' }[];
   // Digital signature fields for follow-up supervisor
   followUpSignatureData?: string;   // base64 PNG
   followUpSignatureStatus?: 'not-sent' | 'pending' | 'signed';
