@@ -1018,126 +1018,131 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           )}
 
           {locationModalView === 'type' && (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4">
-            <div className="mb-4">
-              <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
-            </div>
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 w-full">
-            <div>
-              <p className="text-xs font-black text-slate-600">أعمدة الإشراف المستهدفة</p>
-              <p className="text-[11px] font-medium text-slate-400 mt-1 mb-2">اختر نوع إشراف واحد فقط لتطبيق المواقع عليه.</p>
-              <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
-                {locationTargetTypes.map((type, index) => {
-                  const selected = (bulkTargetTypeIds[0] || locationTargetTypes[0]?.id) === type.id;
-                  return (
-                    <button
-                      key={type.id}
-                      onClick={() => toggleBulkTargetType(type.id)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors"
-                    >
-                      <span className="text-sm font-bold text-slate-700">{type.name}</span>
-                      <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                        selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
-                      }`}>
-                        {selected && <Check size={14} strokeWidth={3.5} />}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="w-full">
-              <p className="text-[11px] font-medium text-slate-500 mb-3 leading-relaxed">
-                اختر المواقع أولاً، ثم اضغط على اليوم لتطبيقها عليه، أو «تطبيق الكل» للتطبيق دفعة واحدة، ثم اضغط «حفظ» للتنفيذ.
-              </p>
-              <p className="text-xs font-black text-slate-600 mb-2">المواقع المختارة</p>
-              <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
-                  <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
-                    {bulkLocationIds.length} محدد
-                  </span>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5">
+            {/* الخطوتان جنباً إلى جنب: نوع الإشراف ثم المواقع */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+              {/* ① نوع الإشراف المستهدف */}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">1</span>
+                  <p className="text-xs font-black text-slate-700">نوع الإشراف المستهدف</p>
                 </div>
-                <div className="max-h-56 overflow-y-auto p-2 space-y-1">
-                  {activeLocations.map(loc => {
-                    const isSel = bulkLocationIds.includes(loc.id);
+                <p className="text-[11px] font-medium text-slate-400 mb-2 pr-7">اختر نوع إشراف واحد فقط لتطبيق المواقع عليه.</p>
+                <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-72 overflow-y-auto">
+                  {locationTargetTypes.map((type) => {
+                    const selected = (bulkTargetTypeIds[0] || locationTargetTypes[0]?.id) === type.id;
                     return (
                       <button
-                        key={loc.id}
-                        onClick={() => toggleBulkLocation(loc.id)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
+                        key={type.id}
+                        onClick={() => toggleBulkTargetType(type.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-right transition-colors ${selected ? 'bg-[#655ac1]/5' : 'hover:bg-slate-50'}`}
                       >
-                        <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                        <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
-                          {isSel && <Check size={12} />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* تطبيق مواقع الإشراف على الأيام — أزرار ظاهرة أسفل القائمة */}
-              <div className="mt-4">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-xs font-black text-slate-600">تطبيق مواقع الإشراف على كل الأيام</p>
-                  <button
-                    onClick={toggleLocationForAllDaysDraft}
-                    disabled={bulkLocationIds.length === 0}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                      bulkLocationIds.length > 0
-                        ? 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
-                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
-                  >
-                    {areAllDaysApplied() ? 'إلغاء الكل' : 'تطبيق الكل'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] gap-2">
-                  {activeDays.map(day => {
-                    const applied = dayHasSelectedLocations(day);
-                    return (
-                      <button
-                        key={day}
-                        onClick={() => toggleLocationForDayDraft(day)}
-                        disabled={bulkLocationIds.length === 0}
-                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
-                          bulkLocationIds.length === 0
-                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                            : applied
-                              ? 'bg-white border-slate-300 text-[#655ac1]'
-                              : 'bg-white border-slate-200 text-slate-700 hover:border-[#655ac1]/50 hover:-translate-y-0.5'
-                        }`}
-                      >
-                        <span>{DAY_NAMES[day]}</span>
-                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                          applied ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'
+                        <span className={`text-sm font-bold ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{type.name}</span>
+                        <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                          selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                         }`}>
-                          <Check size={13} strokeWidth={3.5} />
+                          {selected && <Check size={14} strokeWidth={3.5} />}
                         </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
+
+              {/* ② المواقع المراد توزيعها */}
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">2</span>
+                    <p className="text-xs font-black text-slate-700">المواقع المراد توزيعها</p>
+                  </div>
+                  <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold shrink-0">
+                    {bulkLocationIds.length} محدد
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-slate-400 mb-2 pr-7">اختر المواقع التي سيوزَّع عليها المشرفون.</p>
+                <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+                    {activeLocations.map(loc => {
+                      const isSel = bulkLocationIds.includes(loc.id);
+                      return (
+                        <button
+                          key={loc.id}
+                          onClick={() => toggleBulkLocation(loc.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right transition-colors ${isSel ? 'bg-[#655ac1]/5' : 'hover:bg-slate-50'}`}
+                        >
+                          <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                          <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
+                            {isSel && <Check size={12} />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
 
-          </div>
+            {/* ③ تطبيق على الأيام — صف بعرض كامل ليبقى في سطر واحد */}
+            <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">3</span>
+                  <p className="text-xs font-black text-slate-700">تطبيق على الأيام</p>
+                </div>
+                <button
+                  onClick={toggleLocationForAllDaysDraft}
+                  disabled={bulkLocationIds.length === 0}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                    bulkLocationIds.length > 0
+                      ? 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  {areAllDaysApplied() ? 'إلغاء الكل' : 'تطبيق الكل'}
+                </button>
+              </div>
+              <p className="text-[11px] font-medium text-slate-400 mb-2 pr-7">اضغط على اليوم لتطبيق المواقع عليه، أو «تطبيق الكل» دفعةً واحدة، ثم «حفظ» للتنفيذ.</p>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(92px,1fr))] gap-2">
+                {activeDays.map(day => {
+                  const applied = dayHasSelectedLocations(day);
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => toggleLocationForDayDraft(day)}
+                      disabled={bulkLocationIds.length === 0}
+                      className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
+                        bulkLocationIds.length === 0
+                          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                          : applied
+                            ? 'bg-white border-slate-300 text-[#655ac1]'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-[#655ac1]/50 hover:-translate-y-0.5'
+                      }`}
+                    >
+                      <span>{DAY_NAMES[day]}</span>
+                      <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                        applied ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'
+                      }`}>
+                        <Check size={13} strokeWidth={3.5} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           )}
 
           {locationModalView === 'staff' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-4">
-              <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر عمود الإشراف أولاً، ثم المشرفين، ثم المواقع المناسبة ثم حفظ.</p>
-            </div>
-
-            {/* محدِّد عمود الإشراف المستهدف */}
-            <div className="mb-4">
-              <p className="text-xs font-black text-slate-600 mb-2">عمود الإشراف المستهدف</p>
-              <div className="flex flex-wrap gap-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5">
+            {/* ① عمود الإشراف المستهدف */}
+            <div className="mb-4 pb-4 border-b border-slate-200">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">1</span>
+                <p className="text-xs font-black text-slate-700">عمود الإشراف المستهدف</p>
+              </div>
+              <p className="text-[11px] font-medium text-slate-400 mb-2 pr-7">تُطبَّق المواقع على إسنادات هذا العمود فقط للمشرفين المحددين.</p>
+              <div className="flex flex-wrap gap-2 pr-7">
                 {locationTargetTypes.map(type => {
                   const selected = (bulkTargetTypeIds[0] || locationTargetTypes[0]?.id) === type.id;
                   return (
@@ -1156,12 +1161,15 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   );
                 })}
               </div>
-              <p className="text-[11px] font-medium text-slate-400 mt-2">تُطبَّق المواقع على إسنادات هذا العمود فقط للمشرفين المحددين.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4 sm:gap-5">
               <div className="min-w-0">
-                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">2</span>
+                  <p className="text-xs font-black text-slate-700">اختيار المشرفين</p>
+                </div>
+                <div className="grid grid-cols-2 gap-1 bg-white border border-slate-200 p-1 rounded-xl mb-3">
                   {[
                     { id: 'teacher' as const, label: 'المعلمون', count: assignedStaffForBulkLocations.filter(s => s.type === 'teacher').length },
                     { id: 'admin' as const, label: 'الإداريون', count: assignedStaffForBulkLocations.filter(s => s.type === 'admin').length },
@@ -1245,14 +1253,17 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </div>
 
               <div className="min-w-0">
-                <p className="text-xs font-black text-slate-600 mb-2">المواقع المختارة للمجموعة</p>
-                <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                  <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
-                    <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
-                      {bulkStaffLocationIds.length} محدد
-                    </span>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0">3</span>
+                    <p className="text-xs font-black text-slate-700">المواقع المخصّصة للمجموعة</p>
                   </div>
+                  <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold shrink-0">
+                    {bulkStaffLocationIds.length} محدد
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-slate-400 mb-2 pr-7">حدّد المواقع ثم اضغط «حفظ» لتطبيقها على المشرفين المحددين.</p>
+                <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
                   <div className="max-h-56 overflow-y-auto p-2 space-y-1">
                     {activeLocations.map(loc => {
                       const isSel = bulkStaffLocationIds.includes(loc.id);
