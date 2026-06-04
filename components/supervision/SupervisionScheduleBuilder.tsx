@@ -1436,18 +1436,14 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       )}
 
       {/* ═══ Separate Type Tables ═══ */}
-      {separateTypeGroups.map(group => (
+      {separateTypeGroups.map(group => {
+        const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
+        const tableName = isAutoId ? group.types.map(t => t.name).join('، ') : group.id;
+        return (
         <div key={group.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-400 bg-[#a59bf0] text-white flex items-center gap-3">
             <ClipboardList size={18} />
-            <h3 className="text-sm font-black">
-              جدول الإشراف اليومي
-            </h3>
-            <span className="text-[10px] font-bold text-[#655ac1] bg-white border border-white/50 px-2 py-0.5 rounded-full">
-              {group.id.startsWith('solo-') || /^table-\d+$/.test(group.id)
-                ? group.types.map(t => t.name).join('، ')
-                : group.id}
-            </span>
+            <h3 className="text-sm font-black">{tableName}</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right border-collapse">
@@ -1489,7 +1485,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </table>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* ═══ Add Staff Modal ═══ */}
       {addPanel && (
