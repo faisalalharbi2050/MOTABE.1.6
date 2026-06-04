@@ -65,7 +65,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [locationModalView, setLocationModalView] = useState<'cards' | 'type' | 'staff'>('cards');
   // مسوّدة محلية لمواقع الإشراف — لا تُنفَّذ على البيانات الفعلية إلا بعد الضغط على «حفظ»
   const [locationDraft, setLocationDraft] = useState<SupervisionDayAssignment[] | null>(null);
-  const [showFollowUpMenu, setShowFollowUpMenu] = useState(false);
+  // نافذة إدارة المشرف المتابع (بمسوّدة لا تُنفَّذ إلا بالحفظ)
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpDraft, setFollowUpDraft] = useState<SupervisionDayAssignment[] | null>(null);
+  const [followUpEnabledDraft, setFollowUpEnabledDraft] = useState(true);
+  const [followUpPickTarget, setFollowUpPickTarget] = useState<string>('ALL');
   const [pendingStaffRemoval, setPendingStaffRemoval] = useState<{ day: string; contextTypeId: string; staffId: string; staffName: string } | null>(null);
 
   // ═══════════ Derived data ═══════════
@@ -638,6 +642,66 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     showToast('تم تعيين المشرف المتابع لجميع الأيام', 'success');
   };
 
+  // ═══════════ نافذة إدارة المشرف المتابع (مسوّدة + حفظ) ═══════════
+  const followUpDraftAssignments = followUpDraft ?? dayAssignments;
+  const getDraftFollowUpName = (day: string): string | undefined =>
+    followUpDraftAssignments.find(d => d.day === day)?.followUpSupervisorName;
+
+  // ضمان وجود عنصر لكل يوم فعّال في المسوّدة
+  const normalizeFollowUpDraft = (base: SupervisionDayAssignment[]): SupervisionDayAssignment[] => {
+    const map = new Map(base.map(d => [d.day, d]));
+    activeDays.forEach(day => { if (!map.has(day)) map.set(day, { day, staffAssignments: [] }); });
+    return activeDays.map(day => map.get(day)!).concat(base.filter(d => !activeDays.includes(d.day)));
+  };
+
+  const assignFollowUpDraft = (staffId: string, staffName: string) => {
+    const days = followUpPickTarget === 'ALL' ? activeDays : [followUpPickTarget];
+    setFollowUpDraft(prev => normalizeFollowUpDraft(prev ?? dayAssignments).map(da => (
+      days.includes(da.day)
+        ? { ...da, followUpSupervisorId: staffId, followUpSupervisorName: staffName }
+        : da
+    )));
+  };
+
+  const removeFollowUpDraft = (day: string) => {
+    setFollowUpDraft(prev => normalizeFollowUpDraft(prev ?? dayAssignments).map(da => (
+      da.day === day
+        ? { ...da, followUpSupervisorId: undefined, followUpSupervisorName: undefined }
+        : da
+    )));
+  };
+
+  const openFollowUpModal = () => {
+    setFollowUpDraft(supervisionData.dayAssignments);
+    setFollowUpEnabledDraft(supervisionData.settings.enableFollowUpSupervisor !== false);
+    setFollowUpPickTarget('ALL');
+    setFollowUpTab('teacher');
+    setFollowUpSearch('');
+    setShowFollowUpModal(true);
+  };
+
+  const discardFollowUpModal = () => {
+    setShowFollowUpModal(false);
+    setFollowUpDraft(null);
+    setFollowUpSearch('');
+  };
+
+  const saveFollowUpModal = () => {
+    setSupervisionData(prev => {
+      const base = followUpDraft ?? prev.dayAssignments;
+      const next = {
+        ...prev,
+        settings: { ...prev.settings, enableFollowUpSupervisor: followUpEnabledDraft },
+        dayAssignments: base,
+      };
+      return syncActiveSavedSchedule(prev, next);
+    });
+    setShowFollowUpModal(false);
+    setFollowUpDraft(null);
+    setFollowUpSearch('');
+    showToast('تم حفظ إعدادات المشرف المتابع', 'success');
+  };
+
   // ═══════════ Loading overlay (auto-generate) ═══════════
   const loadingOverlay = isGenerating ? (
     <div className="fixed inset-0 z-[100000] bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-5">
@@ -783,47 +847,14 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               <MapPin size={16} />
               تعيين مواقع الإشراف
             </button>
-            <div className="relative">
-              <button
-                onClick={() => setShowFollowUpMenu(prev => !prev)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
-                title="تعيين المشرف المتابع"
-              >
-                <Shield size={16} />
-                تعيين مشرف متابع
-                <ChevronDown size={14} className="text-slate-400" />
-              </button>
-              {showFollowUpMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowFollowUpMenu(false)} />
-                  <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 w-44 bg-white border border-slate-200 rounded-2xl overflow-hidden p-1">
-                    {[
-                      { value: true, label: 'تعيين' },
-                      { value: false, label: 'عدم تعيين' },
-                    ].map(opt => (
-                      <button
-                        key={String(opt.value)}
-                        onClick={() => {
-                          setSupervisionData(prev => ({
-                            ...prev,
-                            settings: { ...prev.settings, enableFollowUpSupervisor: opt.value },
-                          }));
-                          setShowFollowUpMenu(false);
-                        }}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-right text-xs font-black text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        <span>{opt.label}</span>
-                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          showFollowUpSupervisor === opt.value ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
-                        }`}>
-                          {showFollowUpSupervisor === opt.value && <Check size={10} strokeWidth={3.5} />}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <button
+              onClick={openFollowUpModal}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
+              title="إدارة المشرف المتابع"
+            >
+              <Shield size={16} />
+              المشرف المتابع
+            </button>
           </div>
           <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
             <button
@@ -1658,6 +1689,146 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </div>
           </div>
         </>
+      )}
+
+      {/* ═══ Follow-up Supervisor Management Modal ═══ */}
+      {showFollowUpModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={discardFollowUpModal}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <Shield size={24} className="text-[#655ac1]" />
+                <div>
+                  <h3 className="text-base font-black text-slate-800">إدارة المشرف المتابع</h3>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">عيّن المشرف المتابع ليوم محدد أو لجميع الأيام دفعة واحدة</p>
+                </div>
+              </div>
+              <button onClick={discardFollowUpModal} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
+              {/* مفتاح إظهار العمود */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5">
+                <div>
+                  <p className="text-sm font-black text-slate-800">إظهار عمود المشرف المتابع</p>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">يتحكم بظهور العمود في جدول الإشراف.</p>
+                </div>
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shrink-0">
+                  {[
+                    { value: true, label: 'مُفعّل' },
+                    { value: false, label: 'مُعطّل' },
+                  ].map(opt => (
+                    <button
+                      key={String(opt.value)}
+                      onClick={() => setFollowUpEnabledDraft(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        followUpEnabledDraft === opt.value ? 'bg-[#655ac1] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {followUpEnabledDraft && (
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4">
+                  {/* قائمة الأيام */}
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-slate-600 mb-2">الأيام</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
+                      <button
+                        onClick={() => setFollowUpPickTarget('ALL')}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-right transition-colors ${
+                          followUpPickTarget === 'ALL' ? 'bg-[#e5e1fe]/50' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className={`text-sm font-black ${followUpPickTarget === 'ALL' ? 'text-[#655ac1]' : 'text-slate-700'}`}>كل الأيام</span>
+                        <span className="text-[10px] font-bold text-slate-400">تعيين موحّد</span>
+                      </button>
+                      {activeDays.map(day => {
+                        const name = getDraftFollowUpName(day);
+                        const isTarget = followUpPickTarget === day;
+                        return (
+                          <div key={day} className={`flex items-center justify-between gap-2 px-3 py-2.5 ${isTarget ? 'bg-[#e5e1fe]/50' : ''}`}>
+                            <button onClick={() => setFollowUpPickTarget(day)} className="flex-1 min-w-0 text-right">
+                              <span className={`block text-sm font-bold ${isTarget ? 'text-[#655ac1]' : 'text-slate-700'}`}>{DAY_NAMES[day]}</span>
+                              <span className={`block text-[11px] font-bold truncate ${name ? 'text-slate-500' : 'text-slate-300'}`}>{name || 'لم يُعيَّن'}</span>
+                            </button>
+                            {name && (
+                              <button onClick={() => removeFollowUpDraft(day)} className="p-1.5 rounded-lg border border-rose-100 text-rose-500 hover:bg-rose-50 transition-colors shrink-0" title="حذف">
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* مختار المشرف */}
+                  <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-xs font-black text-slate-600">اختر المشرف المتابع</p>
+                      <span className="text-[11px] font-bold text-[#655ac1] bg-[#e5e1fe]/60 border border-[#655ac1]/20 rounded-full px-2.5 py-0.5">
+                        {followUpPickTarget === 'ALL' ? 'لكل الأيام' : DAY_NAMES[followUpPickTarget]}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl mb-2">
+                      {[
+                        { id: 'teacher' as const, label: 'المعلمون', count: followUpCandidates.filter(s => s.type === 'teacher').length },
+                        { id: 'admin' as const, label: 'الإداريون', count: followUpCandidates.filter(s => s.type === 'admin').length },
+                      ].map(tab => (
+                        <button key={tab.id} onClick={() => setFollowUpTab(tab.id)} className={`px-3 py-2 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-1.5 ${followUpTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}>
+                          <span className="text-slate-800">{tab.label}</span>
+                          <span className="text-[#655ac1]">({tab.count})</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative mb-2">
+                      <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input type="text" value={followUpSearch} onChange={e => setFollowUpSearch(e.target.value)} placeholder="ابحث" className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30" />
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-60 overflow-y-auto">
+                      {followUpCandidates
+                        .filter(s => s.type === followUpTab)
+                        .filter(s => !followUpSearch.trim() || s.name.includes(followUpSearch.trim()))
+                        .map(staff => {
+                          const isCurrent = followUpPickTarget !== 'ALL' && getDraftFollowUpName(followUpPickTarget) === staff.name;
+                          return (
+                            <button key={staff.id} onClick={() => assignFollowUpDraft(staff.id, staff.name)} className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors">
+                              <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug truncate">{staff.name}</span>
+                              <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isCurrent ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                {isCurrent && <Check size={13} strokeWidth={3.5} />}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      {followUpCandidates.filter(s => s.type === followUpTab).length === 0 && (
+                        <div className="p-5 text-center text-xs font-bold text-slate-400">لا يوجد مشرفون متاحون</div>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-400 mt-2">
+                      اختر الجهة من قائمة الأيام (أو «كل الأيام»)، ثم اضغط على اسم المشرف لتعيينه. لا يُنفَّذ إلا بعد «حفظ».
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button onClick={discardFollowUpModal} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">إغلاق</button>
+              <button onClick={saveFollowUpModal} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ═══ Remove Staff Confirm Modal ═══ */}
