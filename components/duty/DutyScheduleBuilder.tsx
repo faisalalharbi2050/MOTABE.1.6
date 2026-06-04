@@ -898,16 +898,17 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                                   key={tab.id}
                                                   onClick={() => setAddStaffTab(tab.id)}
                                                   className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
-                                                    addStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                                    addStaffTab === tab.id ? 'bg-white shadow-sm' : 'hover:bg-white/60'
                                                   }`}
                                                 >
-                                                  {tab.label} ({tab.count})
+                                                  <span className="text-slate-900">{tab.label}</span>
+                                                  <span className="text-[#655ac1] mr-1">({tab.count})</span>
                                                 </button>
                                               ))}
                                             </div>
                                             <div className="relative">
                                               <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                              <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder={addStaffTab === 'teacher' ? 'بحث عن اسم المعلم...' : 'بحث عن اسم الإداري...'} className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30" />
+                                              <input type="text" autoFocus value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder="ابحث" className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30" />
                                             </div>
                                           </div>
                                           <div className="flex-1 overflow-y-auto p-4 bg-white">
@@ -926,13 +927,13 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                               }
                                               return (
                                                 <div className="overflow-hidden rounded-2xl border border-slate-200">
-                                                  <table className="w-full text-right text-sm">
+                                                  <table className="w-full table-fixed text-right text-sm">
                                                     <thead className="bg-slate-50 text-[#655ac1]">
                                                       <tr>
-                                                        <th className="px-4 py-3 font-black text-center w-16">م</th>
-                                                        <th className="px-4 py-3 font-black">الاسم</th>
-                                                        <th className="px-4 py-3 font-black w-28">الصفة</th>
-                                                        <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                                                        <th className="px-4 py-3 font-black text-center w-[12%]">م</th>
+                                                        <th className="px-4 py-3 font-black w-[32%]">الاسم</th>
+                                                        <th className="px-4 py-3 font-black text-center w-[34%]">الصفة</th>
+                                                        <th className="px-4 py-3 font-black text-center w-[22%]">تحديد</th>
                                                       </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-100">
@@ -941,17 +942,18 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                                         return (
                                                           <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
                                                             <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                                                            <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
-                                                            <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : 'إداري'}</td>
+                                                            <td className="px-4 py-3 font-bold text-slate-800 truncate">{staff.name}</td>
+                                                            <td className="px-4 py-3 font-bold text-slate-500 text-center whitespace-nowrap">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
                                                             <td className="px-4 py-3">
                                                               <button
                                                                 type="button"
                                                                 onClick={() => toggleStaffSelection(staff.id)}
-                                                                className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
-                                                                  isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                                                className={`mx-auto w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                                                  isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]/60'
                                                                 }`}
+                                                                title="تحديد"
                                                               >
-                                                                {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                                                {isSel && <Check size={13} strokeWidth={3.5} />}
                                                               </button>
                                                             </td>
                                                           </tr>
@@ -967,7 +969,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                             <button onClick={closeAddPanel} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">
                                               إغلاق
                                             </button>
-                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all">
+                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all">
                                               حفظ{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
                                             </button>
                                           </div>
