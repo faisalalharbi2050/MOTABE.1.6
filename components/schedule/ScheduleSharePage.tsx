@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { ClassInfo, ScheduleSettingsData, SchoolInfo, Specialization, Subject, Teacher } from '../../types';
 import InlineScheduleView from './InlineScheduleView';
-import PrintableSchedule from './PrintableSchedule';
 import { MinistryLogo } from './ScheduleSignatureDocument';
 import { APP_STORAGE_KEY, readScheduleShares } from '../../utils/scheduleShare';
 
@@ -134,20 +133,19 @@ const ScheduleSharePage: React.FC<Props> = ({ token }) => {
                   ))}
                 </div>
               ) : (
-                <PrintableSchedule
-                  type={request.type}
-                  settings={appData.scheduleSettings}
-                  teachers={appData.teachers}
-                  classes={appData.classes}
-                  subjects={appData.subjects}
-                  specializations={appData.specializations}
-                  targetId={request.targetId}
-                  schoolInfo={appData.schoolInfo}
-                  onClose={() => {}}
-                  hideSignature={request.audience === 'guardians'}
-                  sentAt={request.createdAt}
-                  hideHeader
-                />
+                <div className="bg-white p-3">
+                  <InlineScheduleView
+                    type={request.type}
+                    settings={appData.scheduleSettings}
+                    teachers={appData.teachers}
+                    classes={appData.classes}
+                    subjects={appData.subjects}
+                    specializationNames={specializationNames}
+                    showWaitingManagement={false}
+                    hideHeaderActionButton
+                    hideGeneralFilterToolbar
+                  />
+                </div>
               )}
             </div>
           </div>

@@ -169,6 +169,12 @@ interface InlineScheduleViewProps {
     forceWaitingInteractive?: boolean;
     hideHeaderActionButton?: boolean;
     /**
+     * إخفاء شريط خيارات العرض (الفلاتر: الأيام/المعلمون/الترتيب) في الجداول
+     * العامة. يُستخدم في العرض الثابت للمستلم (صفحة المشاركة) حيث لا حاجة
+     * للتفاعل. مُطفأ افتراضيًا حتى لا يتغيّر سلوك الصفحات القائمة.
+     */
+    hideGeneralFilterToolbar?: boolean;
+    /**
      * عند تفعيله: يُسمح بإسقاط حصة فوق خانة فيها انتظار. تأخذ الحصة مكانها
      * ويُزال انتظار تلك الخانة، فيعود تلقائيًا كـ"كرت انتظار" في المخزن
      * (لأن عدد الكروت = النصاب − الموزّع). مُطفأ افتراضيًا حتى لا يتغيّر سلوك
@@ -200,6 +206,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     waitingCountPerSlot = {},
     forceWaitingInteractive = false,
     hideHeaderActionButton = false,
+    hideGeneralFilterToolbar = false,
     allowLessonOverWaiting = false,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -1657,7 +1664,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
         return (
             <div className="w-full relative flex flex-col flex-1 min-h-0">
                 <div className="mb-3 space-y-3">
-                    {!showInlineTeacherHeaderCards && !isFullScreen && (isTeachers || isWaiting) && renderGeneralFilterToolbar(false)}
+                    {!hideGeneralFilterToolbar && !showInlineTeacherHeaderCards && !isFullScreen && (isTeachers || isWaiting) && renderGeneralFilterToolbar(false)}
                     {isTeachers && generalTopControls}
                 </div>
                 {/* Table wrapper — flex-1+min-h-0 يجعل هذه الحاوية تأخذ الارتفاع المتبقي في الوضع الكامل */}
