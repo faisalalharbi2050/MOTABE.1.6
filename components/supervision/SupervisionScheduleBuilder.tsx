@@ -1062,6 +1062,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   />
                 </div>
 
+                <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800">
+                  <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                  <span>الرقم بجانب الاسم = عدد مهام الإشراف المسندة للمشرف.</span>
+                </div>
+
                 <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden max-h-64 overflow-y-auto">
                   {assignedStaffForBulkLocations
                     .filter(staff => staff.type === bulkStaffTab)
@@ -1076,7 +1081,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm font-bold text-slate-700 leading-snug truncate">{staff.name}</span>
-                            <span className="shrink-0 text-[10px] font-black text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
+                            <span title="عدد مهام الإشراف المسندة" className="shrink-0 text-[10px] font-black text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
                               {staff.count}
                             </span>
                           </div>
