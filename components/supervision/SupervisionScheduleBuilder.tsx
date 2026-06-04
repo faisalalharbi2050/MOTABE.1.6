@@ -550,19 +550,47 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       return;
     }
 
+    const targetTypeIds = getBulkTargetTypeIds();
     const selectedKeys = new Set(bulkStaffKeys);
+    let affected = 0;
     setLocationDraft(prev => (prev ?? dayAssignments).map(da => ({
       ...da,
       staffAssignments: da.staffAssignments.map(sa => {
         const key = `${sa.staffType}-${sa.staffId}`;
         if (!selectedKeys.has(key)) return sa;
+        if (!targetTypeIds.includes(sa.contextTypeId)) return sa; // العمود المستهدف فقط
+        affected += 1;
         return {
           ...sa,
           locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
         };
       }),
     })));
+    if (affected === 0) {
+      showToast('لا يوجد للمشرفين المحددين إسناد في العمود المختار', 'warning');
+      return;
+    }
     showToast('تم تجهيز المواقع — اضغط «حفظ» للتنفيذ', 'success');
+  };
+
+  // ═══════════ تحديد كل المشرفين الظاهرين في التبويب الحالي ═══════════
+  const visibleBulkStaff = () =>
+    assignedStaffForBulkLocations
+      .filter(staff => staff.type === bulkStaffTab)
+      .filter(staff => !bulkStaffSearch.trim() || staff.name.includes(bulkStaffSearch.trim()));
+
+  const allVisibleStaffSelected = () => {
+    const vis = visibleBulkStaff();
+    return vis.length > 0 && vis.every(staff => bulkStaffKeys.includes(staff.key));
+  };
+
+  const toggleSelectAllVisibleStaff = () => {
+    const keys = visibleBulkStaff().map(staff => staff.key);
+    if (keys.length === 0) return;
+    setBulkStaffKeys(prev => {
+      const allSel = keys.every(k => prev.includes(k));
+      return allSel ? prev.filter(k => !keys.includes(k)) : Array.from(new Set([...prev, ...keys]));
+    });
   };
 
   // ═══════════ Follow-up handlers ═══════════
@@ -1028,7 +1056,32 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-4">
               <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر المشرفين أولاً ، ثم اختر لهم المواقع المناسبة ثم تطبيق.</p>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر عمود الإشراف أولاً، ثم المشرفين، ثم المواقع المناسبة ثم تطبيق.</p>
+            </div>
+
+            {/* محدِّد عمود الإشراف المستهدف */}
+            <div className="mb-4">
+              <p className="text-xs font-black text-slate-600 mb-2">عمود الإشراف المستهدف</p>
+              <div className="flex flex-wrap gap-2">
+                {locationTargetTypes.map(type => {
+                  const selected = (bulkTargetTypeIds[0] || locationTargetTypes[0]?.id) === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => toggleBulkTargetType(type.id)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        selected
+                          ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/50'
+                      }`}
+                    >
+                      {selected && <Check size={12} strokeWidth={3} />}
+                      {type.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] font-medium text-slate-400 mt-2">تُطبَّق المواقع على إسنادات هذا العمود فقط للمشرفين المحددين.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4">
@@ -1060,6 +1113,21 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     placeholder="ابحث"
                     className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
                   />
+                </div>
+
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-black text-slate-600">المشرفون</p>
+                  <button
+                    onClick={toggleSelectAllVisibleStaff}
+                    disabled={visibleBulkStaff().length === 0}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      visibleBulkStaff().length === 0
+                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                        : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                    }`}
+                  >
+                    {allVisibleStaffSelected() ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800">
