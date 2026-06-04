@@ -1321,9 +1321,46 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         </div>
       )}
 
+      {/* ═══ Table Switcher (sticky) — يظهر فقط عند وجود جداول مستقلة ═══ */}
+      {separateTypeGroups.length > 0 && (
+        <div className="sticky top-2 z-20">
+          <div className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 backdrop-blur px-2 py-2 shadow-sm">
+            <span className="text-[11px] font-black text-slate-400 shrink-0 px-1">الجداول:</span>
+            {inlineTypes.length > 0 && (
+              <button
+                onClick={() => document.getElementById('sup-table-main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:border-[#655ac1]/50 hover:bg-[#655ac1]/5 transition-all"
+              >
+                <ClipboardList size={13} className="text-[#655ac1]" />
+                الجدول الرئيسي
+                <span className="text-[#655ac1]">
+                  ({activeDays.reduce((acc, day) => acc + inlineTypes.reduce((a, t) => a + getStaffForCell(day, t.id).length, 0), 0)})
+                </span>
+              </button>
+            )}
+            {separateTypeGroups.map((group, index) => {
+              const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
+              const name = isAutoId ? group.types.map(t => t.name).join('، ') : group.id;
+              const count = activeDays.reduce((acc, day) => acc + group.types.reduce((a, t) => a + getStaffForCell(day, t.id).length, 0), 0);
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => document.getElementById(`sup-table-sep-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:border-[#655ac1]/50 hover:bg-[#655ac1]/5 transition-all"
+                >
+                  <ClipboardList size={13} className="text-[#655ac1]" />
+                  {name}
+                  <span className="text-[#655ac1]">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ═══ Main Schedule Table ═══ */}
       {inlineTypes.length > 0 && (
-        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+        <div id="sup-table-main" className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden scroll-mt-20">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-right border-collapse">
               <thead>
@@ -1436,11 +1473,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       )}
 
       {/* ═══ Separate Type Tables ═══ */}
-      {separateTypeGroups.map(group => {
+      {separateTypeGroups.map((group, index) => {
         const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
         const tableName = isAutoId ? group.types.map(t => t.name).join('، ') : group.id;
         return (
-        <div key={group.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+        <div key={group.id} id={`sup-table-sep-${index}`} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden scroll-mt-20">
           <div className="px-5 py-3 border-b border-slate-400 bg-[#a59bf0] text-white flex items-center gap-3">
             <ClipboardList size={18} />
             <h3 className="text-sm font-black">{tableName}</h3>
