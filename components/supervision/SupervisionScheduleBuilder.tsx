@@ -1557,13 +1557,13 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
                 return (
                   <div className="overflow-hidden rounded-2xl border border-slate-200">
-                    <table className="w-full text-right text-sm">
+                    <table className="w-full table-fixed text-right text-sm">
                       <thead className="bg-slate-50 text-[#655ac1]">
                         <tr>
-                          <th className="px-4 py-3 font-black text-center w-16">م</th>
-                          <th className="px-4 py-3 font-black">الاسم</th>
-                          <th className="px-4 py-3 font-black w-28">الصفة</th>
-                          <th className="px-4 py-3 font-black text-center w-28">تحديد</th>
+                          <th className="px-4 py-3 font-black text-center w-[12%]">م</th>
+                          <th className="px-4 py-3 font-black w-[32%]">الاسم</th>
+                          <th className="px-4 py-3 font-black text-center w-[34%]">الصفة</th>
+                          <th className="px-4 py-3 font-black text-center w-[22%]">تحديد</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1572,8 +1572,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           return (
                             <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                              <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
-                              <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
+                              <td className="px-4 py-3 font-bold text-slate-800 truncate">{staff.name}</td>
+                              <td className="px-4 py-3 font-bold text-slate-500 text-center whitespace-nowrap">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
                               <td className="px-4 py-3">
                                 <button
                                   type="button"
@@ -1604,7 +1604,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </button>
               <button
                 onClick={saveSelectedStaff}
-                className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
+                className="inline-flex items-center gap-2 bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
               >
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
                   <Check size={13} strokeWidth={3.2} className="text-white" />
@@ -1680,13 +1680,13 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
                 return (
                   <div className="overflow-hidden rounded-2xl border border-slate-200">
-                    <table className="w-full text-right text-sm">
+                    <table className="w-full table-fixed text-right text-sm">
                       <thead className="bg-slate-50 text-[#655ac1]">
                         <tr>
-                          <th className="px-4 py-3 font-black text-center w-16">م</th>
-                          <th className="px-4 py-3 font-black">الاسم</th>
-                          <th className="px-4 py-3 font-black w-28">الصفة</th>
-                          <th className="px-4 py-3 font-black text-center w-28">تحديد</th>
+                          <th className="px-4 py-3 font-black text-center w-[12%]">م</th>
+                          <th className="px-4 py-3 font-black w-[32%]">الاسم</th>
+                          <th className="px-4 py-3 font-black text-center w-[34%]">الصفة</th>
+                          <th className="px-4 py-3 font-black text-center w-[22%]">تحديد</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1695,8 +1695,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           return (
                             <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                              <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
-                              <td className="px-4 py-3 font-bold text-slate-500">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
+                              <td className="px-4 py-3 font-bold text-slate-800 truncate">{staff.name}</td>
+                              <td className="px-4 py-3 font-bold text-slate-500 text-center whitespace-nowrap">{staff.type === 'teacher' ? 'معلم' : (staff.role || 'إداري')}</td>
                               <td className="px-4 py-3">
                                 <button
                                   type="button"
@@ -1732,7 +1732,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   setFollowUpSupervisor(showFollowUpPicker, selected.id, selected.name);
                 }}
                 disabled={!selectedFollowUpId}
-                className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
                   <Check size={13} strokeWidth={3.2} className="text-white" />
