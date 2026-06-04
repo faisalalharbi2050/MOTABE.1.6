@@ -307,22 +307,22 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
                                             <td className="px-6 py-3.5 text-center">
                                                 {isEditing ? (
-                                                    <div className="flex items-center justify-center gap-2">
+                                                    <div className="flex items-center justify-center gap-1.5">
                                                         <button
                                                             onClick={() => handleRenameSave(schedule.id, editingName)}
-                                                            className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-colors"
-                                                            style={{ background: '#655ac1' }}
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all"
+                                                            title="حفظ"
                                                         >
-                                                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                                                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500">
                                                                 <Check size={13} strokeWidth={3.2} className="text-white" />
                                                             </span>
-                                                            حفظ
                                                         </button>
                                                         <button
                                                             onClick={() => { setEditingId(null); setEditingName(''); }}
-                                                            className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
+                                                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all"
+                                                            title="إلغاء"
                                                         >
-                                                            إلغاء
+                                                            <X size={14} />
                                                         </button>
                                                     </div>
                                                 ) : (
