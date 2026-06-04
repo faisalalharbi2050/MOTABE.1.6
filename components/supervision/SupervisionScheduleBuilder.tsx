@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo } from 'react';
 import {
-  Calendar, MapPin, Plus, X, Copy, Trash2, RotateCcw,
+  MapPin, Plus, X, Copy, Trash2, RotateCcw,
   ChevronDown, Check, AlertTriangle, Search, Shield,
   BarChart3, Users, ClipboardList, SlidersHorizontal, Edit3,
   MapPinned, UserRoundCheck,
@@ -504,20 +504,38 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     )));
   };
 
-  // تطبيق المواقع المختارة على كل الأيام ضمن المسوّدة
-  const copyLocationToAllDays = () => {
+  // الأيام التي تملك إسنادات لنوع الإشراف المستهدف (القابلة لاستقبال المواقع)
+  const daysApplicableForTarget = (): string[] => {
+    const targetTypeIds = getBulkTargetTypeIds();
+    return activeDays.filter(day => {
+      const da = draftAssignments.find(d => d.day === day);
+      return !!da && da.staffAssignments.some(sa => targetTypeIds.includes(sa.contextTypeId));
+    });
+  };
+
+  // هل المواقع المختارة مطبّقة على كل الأيام القابلة؟
+  const areAllDaysApplied = (): boolean => {
+    if (bulkLocationIds.length === 0) return false;
+    const applicable = daysApplicableForTarget();
+    return applicable.length > 0 && applicable.every(day => dayHasSelectedLocations(day));
+  };
+
+  // تبديل تطبيق المواقع المختارة على كل الأيام ضمن المسوّدة (تطبيق/إلغاء من نفس الزر)
+  const toggleLocationForAllDaysDraft = () => {
     if (bulkLocationIds.length === 0) {
       showToast('اختر موقعاً واحداً على الأقل', 'warning');
       return;
     }
     const targetTypeIds = getBulkTargetTypeIds();
+    const allApplied = areAllDaysApplied();
     setLocationDraft(prev => (prev ?? dayAssignments).map(da => ({
       ...da,
-      staffAssignments: da.staffAssignments.map(sa => (
-        targetTypeIds.includes(sa.contextTypeId)
-          ? { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) }
-          : sa
-      )),
+      staffAssignments: da.staffAssignments.map(sa => {
+        if (!targetTypeIds.includes(sa.contextTypeId)) return sa;
+        return allApplied
+          ? { ...sa, locationIds: sa.locationIds.filter(id => !bulkLocationIds.includes(id)) }
+          : { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) };
+      }),
     })));
   };
 
@@ -962,7 +980,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <p className="text-xs font-black text-slate-600">تطبيق مواقع الإشراف على كل الأيام</p>
                   <button
-                    onClick={copyLocationToAllDays}
+                    onClick={toggleLocationForAllDaysDraft}
                     disabled={bulkLocationIds.length === 0}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                       bulkLocationIds.length > 0
@@ -970,7 +988,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                   >
-                    <Calendar size={14} /> تطبيق الكل
+                    {areAllDaysApplied() ? 'إلغاء الكل' : 'تطبيق الكل'}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
