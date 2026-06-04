@@ -57,9 +57,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [bulkStaffKeys, setBulkStaffKeys] = useState<string[]>([]);
   const [bulkStaffTab, setBulkStaffTab] = useState<'teacher' | 'admin'>('teacher');
   const [bulkStaffSearch, setBulkStaffSearch] = useState('');
-  const [showDayDropdown, setShowDayDropdown] = useState(false);
-  const [showBulkLocationPicker, setShowBulkLocationPicker] = useState(false);
-  const [showBulkStaffLocationPicker, setShowBulkStaffLocationPicker] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
@@ -443,6 +440,16 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const getBulkTargetTypeIds = () =>
     bulkTargetTypeIds.length > 0 ? bulkTargetTypeIds : (locationTargetTypes[0] ? [locationTargetTypes[0].id] : []);
 
+  /** هل المواقع المختارة مطبّقة بالكامل على إسنادات نوع الإشراف المستهدف في يوم معيّن؟ */
+  const dayHasSelectedLocations = (day: string): boolean => {
+    if (bulkLocationIds.length === 0) return false;
+    const targetTypeIds = getBulkTargetTypeIds();
+    const da = getDayAssignment(day);
+    const typeAssignments = da.staffAssignments.filter(sa => targetTypeIds.includes(sa.contextTypeId));
+    if (typeAssignments.length === 0) return false;
+    return typeAssignments.every(sa => bulkLocationIds.every(id => sa.locationIds.includes(id)));
+  };
+
   const copyLocationToAllInDay = (day: string) => {
     if (bulkLocationIds.length === 0) {
       showToast('اختر موقعاً واحداً على الأقل', 'warning');
@@ -788,7 +795,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
       {/* ═══ Bulk Location Modal ═══ */}
       {showLocationsModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); setShowBulkLocationPicker(false); setShowBulkStaffLocationPicker(false); setShowDayDropdown(false); }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}>
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -896,96 +903,83 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </p>
             </div>
 
-            <div className="relative w-full">
+            <div className="w-full">
               <p className="text-xs font-black text-slate-600 mb-2">المواقع المختارة</p>
-              <button
-                onClick={() => setShowBulkLocationPicker(prev => !prev)}
-                className="w-full bg-white border-2 border-slate-300 hover:border-[#655ac1] text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2"
-              >
-                <span className={bulkLocationIds.length > 0 ? 'text-slate-700' : 'text-slate-400'}>
-                  {bulkLocationIds.length > 0 ? getLocationSummary(bulkLocationIds) : 'اختر موقعاً...'}
-                </span>
-                <ChevronDown size={14} className="text-slate-400 shrink-0" />
-              </button>
+              <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
+                  <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
+                    {bulkLocationIds.length} محدد
+                  </span>
+                </div>
+                <div className="max-h-56 overflow-y-auto p-2 space-y-1">
+                  {activeLocations.map(loc => {
+                    const isSel = bulkLocationIds.includes(loc.id);
+                    return (
+                      <button
+                        key={loc.id}
+                        onClick={() => toggleBulkLocation(loc.id)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
+                      >
+                        <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                        <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
+                          {isSel && <Check size={12} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-              {showBulkLocationPicker && (
-                  <div className="mt-2 w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                    <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
-                      <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
-                        {bulkLocationIds.length} محدد
-                      </span>
-                    </div>
-                    <div className="max-h-56 overflow-y-auto p-2 space-y-1">
-                      {activeLocations.map(loc => {
-                        const isSel = bulkLocationIds.includes(loc.id);
-                        return (
-                          <button
-                            key={loc.id}
-                            onClick={() => toggleBulkLocation(loc.id)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
-                          >
-                            <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                            <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
-                              {isSel && <Check size={12} />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-              )}
+              {/* تطبيق المواقع على الأيام — أزرار ظاهرة أسفل القائمة */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-black text-slate-600">تطبيق المواقع على الأيام</p>
+                  <button
+                    onClick={copyLocationToAllDays}
+                    disabled={bulkLocationIds.length === 0}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                      bulkLocationIds.length > 0
+                        ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20 hover:-translate-y-0.5'
+                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <Calendar size={14} /> كل الأيام
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {activeDays.map(day => {
+                    const applied = dayHasSelectedLocations(day);
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => copyLocationToAllInDay(day)}
+                        disabled={bulkLocationIds.length === 0}
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
+                          bulkLocationIds.length === 0
+                            ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                            : applied
+                              ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                              : 'bg-white border-slate-200 text-slate-700 hover:border-[#655ac1]/50 hover:-translate-y-0.5'
+                        }`}
+                      >
+                        <span>{DAY_NAMES[day]}</span>
+                        <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          applied ? 'bg-white/20 border-white text-white' : 'border-slate-300 text-transparent'
+                        }`}>
+                          <Check size={11} strokeWidth={3} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] font-medium text-slate-400 mt-2">
+                  اختر المواقع أولاً، ثم اضغط على اليوم لتطبيقها عليه، أو «كل الأيام» للتطبيق دفعة واحدة. الأيام المطبَّقة تظهر بلون بنفسجي.
+                </p>
+              </div>
             </div>
 
           </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto mt-4">
-              <button
-                onClick={copyLocationToAllDays}
-                disabled={bulkLocationIds.length === 0}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
-                  bulkLocationIds.length > 0
-                    ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:-translate-y-0.5'
-                    : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                }`}
-              >
-                <Calendar size={16} /> لكل الأيام
-              </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setShowDayDropdown(prev => !prev)}
-                  disabled={bulkLocationIds.length === 0}
-                  className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
-                    bulkLocationIds.length > 0
-                      ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:-translate-y-0.5'
-                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  <ClipboardList size={16} /> ليوم محدد <ChevronDown size={14} />
-                </button>
-                {showDayDropdown && bulkLocationIds.length > 0 && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowDayDropdown(false)} />
-                    <div className="absolute top-[calc(100%+0.5rem)] right-0 z-50 bg-white border border-slate-200 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] overflow-hidden min-w-[140px]">
-                      {activeDays.map(day => (
-                        <button
-                          key={day}
-                          onClick={() => { copyLocationToAllInDay(day); setShowDayDropdown(false); }}
-                          className="group w-full flex items-center justify-between gap-3 text-right px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-[#e5e1fe] hover:text-[#655ac1] transition-colors"
-                        >
-                          <span>{DAY_NAMES[day]}</span>
-                          <span className="w-5 h-5 rounded-full border border-slate-300 bg-white flex items-center justify-center text-transparent group-hover:border-[#655ac1] group-hover:text-[#655ac1]">
-                            <Check size={13} strokeWidth={3} />
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-
-            </div>
           </div>
           )}
 
@@ -1039,11 +1033,13 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           onClick={() => toggleBulkStaff(staff.key)}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors"
                         >
-                          <span className="flex-1 min-w-0 text-sm font-bold text-slate-700 leading-snug">{staff.name}</span>
-                          <span className="text-[10px] font-black text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
-                            {staff.count}
-                          </span>
-                          <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-bold text-slate-700 leading-snug truncate">{staff.name}</span>
+                            <span className="shrink-0 text-[10px] font-black text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
+                              {staff.count}
+                            </span>
+                          </div>
+                          <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                             selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                           }`}>
                             {selected && <Check size={13} strokeWidth={3.5} />}
@@ -1061,44 +1057,30 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
               <div className="min-w-0">
                 <p className="text-xs font-black text-slate-600 mb-2">المواقع المختارة للمجموعة</p>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowBulkStaffLocationPicker(prev => !prev)}
-                    className="w-full bg-white border-2 border-slate-300 hover:border-[#655ac1] text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 transition-all text-right flex items-center justify-between gap-2 shadow-sm"
-                  >
-                    <span className={bulkStaffLocationIds.length > 0 ? 'text-slate-700' : 'text-[#655ac1]'}>
-                      {bulkStaffLocationIds.length > 0 ? getLocationSummary(bulkStaffLocationIds) : 'اختر موقعاً...'}
+                <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                  <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
+                    <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
+                      {bulkStaffLocationIds.length} محدد
                     </span>
-                    <ChevronDown size={14} className="text-[#655ac1] shrink-0" />
-                  </button>
-
-                  {showBulkStaffLocationPicker && (
-                      <div className="mt-2 w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                        <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-700">تحديد المواقع</span>
-                          <span className="text-[10px] text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full font-bold">
-                            {bulkStaffLocationIds.length} محدد
-                          </span>
-                        </div>
-                        <div className="max-h-56 overflow-y-auto p-2 space-y-1">
-                          {activeLocations.map(loc => {
-                            const isSel = bulkStaffLocationIds.includes(loc.id);
-                            return (
-                              <button
-                                key={loc.id}
-                                onClick={() => toggleBulkStaffLocation(loc.id)}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
-                              >
-                                <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
-                                <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
-                                  {isSel && <Check size={12} />}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                  )}
+                  </div>
+                  <div className="max-h-56 overflow-y-auto p-2 space-y-1">
+                    {activeLocations.map(loc => {
+                      const isSel = bulkStaffLocationIds.includes(loc.id);
+                      return (
+                        <button
+                          key={loc.id}
+                          onClick={() => toggleBulkStaffLocation(loc.id)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-right hover:bg-slate-50 transition-colors"
+                        >
+                          <span className={`text-sm font-bold ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{loc.name}</span>
+                          <div className={`mr-auto w-5 h-5 rounded-full flex items-center justify-center shrink-0 border ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300'}`}>
+                            {isSel && <Check size={12} />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <button
@@ -1123,12 +1105,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               <div>
                 {locationModalView !== 'cards' && (
                   <button
-                    onClick={() => {
-                      setLocationModalView('cards');
-                      setShowBulkLocationPicker(false);
-                      setShowBulkStaffLocationPicker(false);
-                      setShowDayDropdown(false);
-                    }}
+                    onClick={() => setLocationModalView('cards')}
                     className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
                   >
                     عودة
