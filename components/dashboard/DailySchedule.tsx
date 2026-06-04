@@ -22,6 +22,13 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
 
   const filteredItems = (schedule || []).filter(item => item.type === activeTab && !item.isOfficialLeave);
 
+  // العدد الفعلي لكل تبويب (يُعرض بجوار اسم التبويب)
+  const tabCounts: Record<'absence' | 'supervision' | 'duty', number> = {
+    absence: (schedule || []).filter(item => item.type === 'absence' && !item.isOfficialLeave).length,
+    supervision: (schedule || []).filter(item => item.type === 'supervision' && !item.isOfficialLeave).length,
+    duty: (schedule || []).filter(item => item.type === 'duty' && !item.isOfficialLeave).length,
+  };
+
   const displayItems = filteredItems.length > 0
     ? filteredItems
     : activeTab === 'supervision'
@@ -55,30 +62,18 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
         </div>
 
         <div role="tablist" className="grid grid-cols-3 gap-1 w-full rounded-xl border border-slate-200 bg-slate-50 p-1">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'absence'}
-            onClick={() => setActiveTab('absence')}
-            className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'absence' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'}`}
-          >
-            {TAB_LABELS.absence}
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'supervision'}
-            onClick={() => setActiveTab('supervision')}
-            className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'supervision' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'}`}
-          >
-            {TAB_LABELS.supervision}
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'duty'}
-            onClick={() => setActiveTab('duty')}
-            className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'duty' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-[#655ac1]'}`}
-          >
-            {TAB_LABELS.duty}
-          </button>
+          {(['absence', 'supervision', 'duty'] as const).map(tab => (
+            <button
+              key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === tab ? 'bg-white shadow-sm' : 'hover:bg-white/60'}`}
+            >
+              <span className="text-slate-800">{TAB_LABELS[tab]}</span>
+              <span className="text-[#655ac1]">({tabCounts[tab]})</span>
+            </button>
+          ))}
         </div>
       </div>
 
