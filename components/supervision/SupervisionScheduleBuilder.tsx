@@ -1798,38 +1798,41 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     <div className="min-w-0">
                       <p className="text-xs font-black text-slate-600 mb-2">الأيام</p>
                       <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
-                        {/* صف كل الأيام */}
-                        <div className={`flex items-center justify-between gap-2 px-3 py-2.5 ${allTargetDaysSelected ? 'bg-[#e5e1fe]/30' : ''}`}>
-                          <button onClick={toggleAllTargetDays} className="flex items-center gap-2.5 flex-1 min-w-0 text-right">
-                            <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${allTargetDaysSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-                              <Check size={12} strokeWidth={3.5} />
-                            </span>
+                        {/* صف كل الأيام — الشيك بوكس يسار */}
+                        <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                          <button onClick={toggleAllTargetDays} className="flex-1 min-w-0 text-right">
                             <span className={`text-sm font-black ${allTargetDaysSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>كل الأيام</span>
                           </button>
-                          <span className="text-[10px] font-bold text-slate-400 shrink-0">تحديد موحّد</span>
+                          <button onClick={toggleAllTargetDays} title="تحديد كل الأيام"
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${allTargetDaysSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                            <Check size={12} strokeWidth={3.5} />
+                          </button>
                         </div>
 
                         {activeDays.map(day => {
                           const entries = getDraftFollowUps(day);
                           const isTarget = followUpTargetDays.includes(day);
                           return (
-                            <div key={day} className={`px-3 py-2.5 ${isTarget ? 'bg-[#e5e1fe]/30' : ''}`}>
+                            <div key={day} className="px-3 py-2.5">
                               <div className="flex items-center justify-between gap-2">
-                                <button onClick={() => toggleTargetDay(day)} className="flex items-center gap-2.5 flex-1 min-w-0 text-right">
-                                  <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isTarget ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-                                    <Check size={12} strokeWidth={3.5} />
-                                  </span>
+                                <button onClick={() => toggleTargetDay(day)} className="flex-1 min-w-0 text-right">
                                   <span className={`text-sm font-bold ${isTarget ? 'text-[#655ac1]' : 'text-slate-700'}`}>{DAY_NAMES[day]}</span>
                                 </button>
-                                {entries.length > 0 && (
-                                  <button onClick={() => clearFollowUpDay(day)} title="إلغاء تعيين هذا اليوم"
-                                    className="w-5 h-5 rounded-full border border-rose-300 text-rose-500 flex items-center justify-center hover:bg-rose-50 transition-colors shrink-0">
-                                    <X size={12} strokeWidth={3.5} />
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button onClick={() => toggleTargetDay(day)} title="تحديد"
+                                    className={`w-5 h-5 rounded-full border flex items-center justify-center ${isTarget ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                    <Check size={12} strokeWidth={3.5} />
                                   </button>
-                                )}
+                                  {entries.length > 0 && (
+                                    <button onClick={() => clearFollowUpDay(day)} title="إلغاء تعيين هذا اليوم"
+                                      className="w-5 h-5 rounded-full border border-rose-300 text-rose-500 flex items-center justify-center hover:bg-rose-50 transition-colors">
+                                      <X size={12} strokeWidth={3.5} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               {entries.length > 0 ? (
-                                <div className="flex flex-wrap gap-1 mt-1.5 pr-7">
+                                <div className="flex flex-wrap gap-1 mt-1.5">
                                   {entries.map(e => (
                                     <span key={e.staffId} className="inline-flex items-center text-[10px] font-bold text-[#655ac1] bg-transparent border border-slate-300 px-2 py-0.5 rounded-full">
                                       {e.staffName}
@@ -1837,7 +1840,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                                   ))}
                                 </div>
                               ) : (
-                                <p className="text-[11px] font-bold text-slate-300 mt-1.5 pr-7">لم يُعيَّن</p>
+                                <p className="text-[11px] font-bold text-slate-300 mt-1.5">لم يُعيَّن</p>
                               )}
                             </div>
                           );
@@ -1847,12 +1850,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
                     {/* مختار المشرف */}
                     <div className="min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <p className="text-xs font-black text-slate-600">اختر المشرف المتابع</p>
-                        <span className="text-[11px] font-bold text-[#655ac1] bg-white border border-slate-300 rounded-full px-2.5 py-0.5">
-                          {allTargetDaysSelected ? 'كل الأيام' : (followUpTargetDays.length === 0 ? 'لم تُحدَّد أيام' : `${followUpTargetDays.length} يوم`)}
-                        </span>
-                      </div>
+                      <p className="text-xs font-black text-slate-600 mb-2">اختر المشرف المتابع</p>
                       <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl mb-2">
                         {[
                           { id: 'teacher' as const, label: 'المعلمون', count: followUpCandidates.filter(s => s.type === 'teacher').length },
