@@ -878,7 +878,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         <div dir="rtl" className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3 shrink-0">
             <SlidersHorizontal size={22} className="text-[#655ac1]" />
-            <h3 className="text-base font-black text-slate-800 whitespace-nowrap">إجراءات جدول الإشراف اليومي</h3>
+            <h3 className="text-base font-black text-slate-800 whitespace-nowrap">إدارة جدول الإشراف</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             <button
