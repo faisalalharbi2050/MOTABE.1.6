@@ -2117,10 +2117,30 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   </div>
                 )}
 
-                {gaps.length === 0 && totalAssignments > 0 && (
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
-                    ✓ التوزيع مكتمل — جميع خانات الإشراف تحتوي على مشرف واحد على الأقل.
-                  </div>
+                {totalAssignments > 0 && (
+                  gaps.length === 0 ? (
+                    <div className="rounded-2xl p-4 border border-slate-300 bg-white flex items-start gap-3">
+                      <span className="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shrink-0">
+                        <Check size={14} strokeWidth={3.5} />
+                      </span>
+                      <div className="space-y-1">
+                        <p className="text-sm font-black text-emerald-700">التوزيع مكتمل</p>
+                        <p className="text-sm font-medium text-emerald-700/90">
+                          جميع خانات الإشراف تحتوي على مشرف واحد على الأقل.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl p-4 border border-slate-300 bg-white flex items-start gap-3">
+                      <AlertTriangle size={22} className="mt-0.5 shrink-0 text-rose-500" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-black text-rose-700">التوزيع غير مكتمل</p>
+                        <p className="text-sm font-medium text-rose-600">
+                          توجد <span className="font-black text-base">{gaps.length}</span> خانة إشراف بلا مشرف. راجع جدول «بحاجة إلى إسناد» أعلاه وأسند مشرفًا لكل خانة.
+                        </p>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
               <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end">
