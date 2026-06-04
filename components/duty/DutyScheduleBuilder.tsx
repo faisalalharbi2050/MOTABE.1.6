@@ -969,7 +969,10 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                             <button onClick={closeAddPanel} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">
                                               إغلاق
                                             </button>
-                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all">
+                                            <button onClick={() => saveManualStaffAssignments(dayId)} className="inline-flex items-center gap-2 bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all">
+                                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                                                <Check size={13} strokeWidth={3.2} className="text-white" />
+                                              </span>
                                               حفظ{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
                                             </button>
                                           </div>
