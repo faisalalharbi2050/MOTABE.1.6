@@ -1948,7 +1948,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowResetConfirm(false)}>
           <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 <AlertTriangle size={24} className="text-rose-500" />
               </div>
               <h3 className="text-lg font-black text-slate-800">إعادة إنشاء جدول الإشراف</h3>
@@ -1979,7 +1979,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowDeleteAllConfirm(false)}>
           <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 <Trash2 size={24} className="text-rose-500" />
               </div>
               <h3 className="text-lg font-black text-slate-800">حذف كل الإسنادات</h3>
@@ -2024,9 +2024,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between p-5 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
-                    <BarChart3 size={20} className="text-[#655ac1]" />
-                  </div>
+                  <BarChart3 size={24} className="text-[#655ac1]" />
                   <div>
                     <h3 className="text-base font-black text-slate-800">تقرير التوزيع</h3>
                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">ملخص حالة جدول الإشراف الحالي</p>
