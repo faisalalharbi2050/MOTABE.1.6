@@ -1444,7 +1444,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               جدول الإشراف اليومي
             </h3>
             <span className="text-[10px] font-bold text-[#655ac1] bg-white border border-white/50 px-2 py-0.5 rounded-full">
-              {group.id.startsWith('solo-') ? group.types[0].name : group.id}
+              {group.id.startsWith('solo-') || /^table-\d+$/.test(group.id)
+                ? group.types.map(t => t.name).join('، ')
+                : group.id}
             </span>
           </div>
           <div className="overflow-x-auto">

@@ -81,7 +81,8 @@ const SupervisionTypesPanel: React.FC<Props> = ({
       if (!type.isEnabled || type.displayMode !== 'separate') return;
       const id = type.tableGroup || `solo-${type.id}`;
       if (!map.has(id)) {
-        map.set(id, { id, name: id.startsWith('solo-') ? type.name : id });
+        const isAutoId = id.startsWith('solo-') || /^table-\d+$/.test(id);
+        map.set(id, { id, name: isAutoId ? type.name : id });
       }
     });
 
@@ -117,8 +118,13 @@ const SupervisionTypesPanel: React.FC<Props> = ({
   };
 
   const addTable = () => {
-    const id = `table-${Date.now()}`;
-    setDraftTables(prev => [...prev, { id, name: 'جدول إشراف جديد' }]);
+    // الاسم نفسه هو معرّف الجدول، فنولّد اسماً مقروءاً وفريداً بدل رمز تقني مثل table-1780556942004
+    const base = 'جدول إشراف جديد';
+    const existing = new Set(tables.map(t => t.name));
+    let name = base;
+    let n = 2;
+    while (existing.has(name)) name = `${base} ${n++}`;
+    setDraftTables(prev => [...prev, { id: name, name }]);
     showToast('تمت إضافة جدول إشراف جديد', 'success');
   };
 
