@@ -63,6 +63,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [showLocationsModal, setShowLocationsModal] = useState(false);
   const [locationModalView, setLocationModalView] = useState<'cards' | 'type' | 'staff'>('cards');
+  // مسوّدة محلية لمواقع الإشراف — لا تُنفَّذ على البيانات الفعلية إلا بعد الضغط على «حفظ»
+  const [locationDraft, setLocationDraft] = useState<SupervisionDayAssignment[] | null>(null);
   const [showFollowUpMenu, setShowFollowUpMenu] = useState(false);
   const [pendingStaffRemoval, setPendingStaffRemoval] = useState<{ day: string; contextTypeId: string; staffId: string; staffName: string } | null>(null);
 
@@ -440,56 +442,86 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const getBulkTargetTypeIds = () =>
     bulkTargetTypeIds.length > 0 ? bulkTargetTypeIds : (locationTargetTypes[0] ? [locationTargetTypes[0].id] : []);
 
-  /** هل المواقع المختارة مطبّقة بالكامل على إسنادات نوع الإشراف المستهدف في يوم معيّن؟ */
+  // المسوّدة الحالية (إن وُجدت) أو البيانات الفعلية كأساس للقراءة داخل النافذة
+  const draftAssignments = locationDraft ?? dayAssignments;
+
+  /** هل المواقع المختارة مطبّقة بالكامل على إسنادات نوع الإشراف المستهدف في يوم معيّن (ضمن المسوّدة)؟ */
   const dayHasSelectedLocations = (day: string): boolean => {
     if (bulkLocationIds.length === 0) return false;
     const targetTypeIds = getBulkTargetTypeIds();
-    const da = getDayAssignment(day);
+    const da = draftAssignments.find(d => d.day === day);
+    if (!da) return false;
     const typeAssignments = da.staffAssignments.filter(sa => targetTypeIds.includes(sa.contextTypeId));
     if (typeAssignments.length === 0) return false;
     return typeAssignments.every(sa => bulkLocationIds.every(id => sa.locationIds.includes(id)));
   };
 
-  const copyLocationToAllInDay = (day: string) => {
+  // فتح النافذة وتهيئة المسوّدة من البيانات الحالية
+  const openLocationsModal = () => {
+    setLocationDraft(supervisionData.dayAssignments);
+    setLocationModalView('cards');
+    setShowLocationsModal(true);
+  };
+
+  // إغلاق النافذة وتجاهل المسوّدة دون تنفيذ
+  const discardLocationsModal = () => {
+    setLocationDraft(null);
+    setShowLocationsModal(false);
+    setLocationModalView('cards');
+  };
+
+  // حفظ المسوّدة وتنفيذها على البيانات الفعلية
+  const saveLocationsModal = () => {
+    setSupervisionData(prev => {
+      if (!locationDraft) return prev;
+      const next = { ...prev, dayAssignments: locationDraft };
+      return syncActiveSavedSchedule(prev, next);
+    });
+    setLocationDraft(null);
+    setShowLocationsModal(false);
+    setLocationModalView('cards');
+    showToast('تم حفظ مواقع الإشراف', 'success');
+  };
+
+  // تبديل تطبيق المواقع المختارة على يوم محدد ضمن المسوّدة (إضافة/إلغاء)
+  const toggleLocationForDayDraft = (day: string) => {
     if (bulkLocationIds.length === 0) {
-      showToast('اختر موقعاً واحداً على الأقل', 'warning');
+      showToast('اختر المواقع أولاً', 'warning');
       return;
     }
     const targetTypeIds = getBulkTargetTypeIds();
-    updateDayAssignment(day, da => ({
-      ...da,
-      staffAssignments: da.staffAssignments.map(sa => (
-        targetTypeIds.includes(sa.contextTypeId)
-          ? { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) }
-          : sa
-      )),
-    }));
-    showToast(`تم تطبيق المواقع للأعمدة المحددة في ${DAY_NAMES[day]}`, 'success');
+    const applied = dayHasSelectedLocations(day);
+    setLocationDraft(prev => (prev ?? dayAssignments).map(da => (
+      da.day !== day ? da : {
+        ...da,
+        staffAssignments: da.staffAssignments.map(sa => {
+          if (!targetTypeIds.includes(sa.contextTypeId)) return sa;
+          return applied
+            ? { ...sa, locationIds: sa.locationIds.filter(id => !bulkLocationIds.includes(id)) }
+            : { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) };
+        }),
+      }
+    )));
   };
 
+  // تطبيق المواقع المختارة على كل الأيام ضمن المسوّدة
   const copyLocationToAllDays = () => {
     if (bulkLocationIds.length === 0) {
       showToast('اختر موقعاً واحداً على الأقل', 'warning');
       return;
     }
     const targetTypeIds = getBulkTargetTypeIds();
-    setSupervisionData(prev => {
-      const next = {
-        ...prev,
-        dayAssignments: prev.dayAssignments.map(da => ({
-          ...da,
-          staffAssignments: da.staffAssignments.map(sa => (
-            targetTypeIds.includes(sa.contextTypeId)
-              ? { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) }
-              : sa
-          )),
-        })),
-      };
-      return syncActiveSavedSchedule(prev, next);
-    });
-    showToast('تم تطبيق المواقع على الأعمدة المحددة في كل الأيام', 'success');
+    setLocationDraft(prev => (prev ?? dayAssignments).map(da => ({
+      ...da,
+      staffAssignments: da.staffAssignments.map(sa => (
+        targetTypeIds.includes(sa.contextTypeId)
+          ? { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) }
+          : sa
+      )),
+    })));
   };
 
+  // تطبيق المواقع على المشرفين المحددين ضمن المسوّدة
   const applyLocationsToSelectedStaff = () => {
     if (bulkStaffKeys.length === 0) {
       showToast('اختر مشرفًا واحدًا على الأقل', 'warning');
@@ -501,24 +533,18 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     }
 
     const selectedKeys = new Set(bulkStaffKeys);
-    setSupervisionData(prev => {
-      const next = {
-        ...prev,
-        dayAssignments: prev.dayAssignments.map(da => ({
-          ...da,
-          staffAssignments: da.staffAssignments.map(sa => {
-            const key = `${sa.staffType}-${sa.staffId}`;
-            if (!selectedKeys.has(key)) return sa;
-            return {
-              ...sa,
-              locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
-            };
-          }),
-        })),
-      };
-      return syncActiveSavedSchedule(prev, next);
-    });
-    showToast('تم تطبيق المواقع على إسنادات المشرفين المحددين', 'success');
+    setLocationDraft(prev => (prev ?? dayAssignments).map(da => ({
+      ...da,
+      staffAssignments: da.staffAssignments.map(sa => {
+        const key = `${sa.staffType}-${sa.staffId}`;
+        if (!selectedKeys.has(key)) return sa;
+        return {
+          ...sa,
+          locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
+        };
+      }),
+    })));
+    showToast('تم تجهيز المواقع — اضغط «حفظ» للتنفيذ', 'success');
   };
 
   // ═══════════ Follow-up handlers ═══════════
@@ -704,7 +730,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         <div dir="rtl" className="mt-2 pt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2 justify-start">
             <button
-              onClick={() => setShowLocationsModal(true)}
+              onClick={openLocationsModal}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="تعيين مواقع الإشراف"
             >
@@ -795,7 +821,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
       {/* ═══ Bulk Location Modal ═══ */}
       {showLocationsModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={discardLocationsModal}>
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-slate-200 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -805,7 +831,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   <p className="text-[11px] font-medium text-slate-500 mt-0.5">طبّق المواقع حسب نوع الإشراف أو حسب مجموعة مشرفين</p>
                 </div>
               </div>
-              <button onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+              <button onClick={discardLocationsModal} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -874,11 +900,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4">
             <div className="mb-4">
               <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب نوع الإشراف</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر نوع الإشراف ( مثال : الفسحة ) ثم اختر المواقع المطلوب توزيع المشرفين عليها ثم اختر التطبيق على كل الأيام أو أيام محددة.</p>
             </div>
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-4 w-full">
             <div>
-              <p className="text-xs font-black text-slate-600 mb-2">أعمدة الإشراف المستهدفة</p>
+              <p className="text-xs font-black text-slate-600">أعمدة الإشراف المستهدفة</p>
+              <p className="text-[11px] font-medium text-slate-400 mt-1 mb-2">اختر نوع إشراف واحد فقط لتطبيق المواقع عليه.</p>
               <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
                 {locationTargetTypes.map((type, index) => {
                   const selected = (bulkTargetTypeIds[0] || locationTargetTypes[0]?.id) === type.id;
@@ -898,12 +924,12 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   );
                 })}
               </div>
-              <p className="text-[11px] font-medium text-slate-400 mt-2">
-                اختر نوع إشراف واحد فقط لتطبيق المواقع عليه.
-              </p>
             </div>
 
             <div className="w-full">
+              <p className="text-[11px] font-medium text-slate-500 mb-3 leading-relaxed">
+                اختر المواقع أولاً، ثم اضغط على اليوم لتطبيقها عليه، أو «تطبيق الكل» للتطبيق دفعة واحدة، ثم اضغط «حفظ» للتنفيذ.
+              </p>
               <p className="text-xs font-black text-slate-600 mb-2">المواقع المختارة</p>
               <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
@@ -931,20 +957,20 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* تطبيق المواقع على الأيام — أزرار ظاهرة أسفل القائمة */}
+              {/* تطبيق مواقع الإشراف على الأيام — أزرار ظاهرة أسفل القائمة */}
               <div className="mt-4">
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-xs font-black text-slate-600">تطبيق المواقع على الأيام</p>
+                  <p className="text-xs font-black text-slate-600">تطبيق مواقع الإشراف على كل الأيام</p>
                   <button
                     onClick={copyLocationToAllDays}
                     disabled={bulkLocationIds.length === 0}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                       bulkLocationIds.length > 0
-                        ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20 hover:-translate-y-0.5'
+                        ? 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
                         : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                   >
-                    <Calendar size={14} /> كل الأيام
+                    <Calendar size={14} /> تطبيق الكل
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -953,29 +979,26 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     return (
                       <button
                         key={day}
-                        onClick={() => copyLocationToAllInDay(day)}
+                        onClick={() => toggleLocationForDayDraft(day)}
                         disabled={bulkLocationIds.length === 0}
                         className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
                           bulkLocationIds.length === 0
                             ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                             : applied
-                              ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                              ? 'bg-white border-slate-300 text-[#655ac1]'
                               : 'bg-white border-slate-200 text-slate-700 hover:border-[#655ac1]/50 hover:-translate-y-0.5'
                         }`}
                       >
                         <span>{DAY_NAMES[day]}</span>
-                        <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                          applied ? 'bg-white/20 border-white text-white' : 'border-slate-300 text-transparent'
+                        <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                          applied ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'
                         }`}>
-                          <Check size={11} strokeWidth={3} />
+                          <Check size={13} strokeWidth={3.5} />
                         </span>
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-[11px] font-medium text-slate-400 mt-2">
-                  اختر المواقع أولاً، ثم اضغط على اليوم لتطبيقها عليه، أو «كل الأيام» للتطبيق دفعة واحدة. الأيام المطبَّقة تظهر بلون بنفسجي.
-                </p>
               </div>
             </div>
 
@@ -987,7 +1010,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-4">
               <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر مجموعة من المشرفين ، ثم اختر لهم المواقع المناسبة ثم تطبيق.</p>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر المشرفين أولاً ، ثم اختر لهم المواقع المناسبة ثم تطبيق.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-4">
@@ -1085,12 +1108,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
                 <button
                   onClick={applyLocationsToSelectedStaff}
-                  disabled={bulkStaffKeys.length === 0 || bulkStaffLocationIds.length === 0}
-                  className={`mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
-                    bulkStaffKeys.length > 0 && bulkStaffLocationIds.length > 0
-                      ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:bg-[#655ac1] hover:border-[#655ac1] hover:-translate-y-0.5'
-                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
+                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:bg-[#655ac1] hover:border-[#655ac1] hover:-translate-y-0.5 transition-all"
                 >
                   <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
                     <Check size={13} strokeWidth={3.2} className="text-white" />
@@ -1114,15 +1132,15 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
+                  onClick={discardLocationsModal}
                   className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
                 >
                   إغلاق
                 </button>
                 {locationModalView !== 'cards' && (
                   <button
-                    onClick={() => { setShowLocationsModal(false); setLocationModalView('cards'); }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#8779fb] text-white shadow-md shadow-[#655ac1]/20 transition-all"
+                    onClick={saveLocationsModal}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all"
                   >
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
                       <Check size={13} strokeWidth={3.2} className="text-white" />
