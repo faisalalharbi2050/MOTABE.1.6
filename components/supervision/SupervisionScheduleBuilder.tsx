@@ -1333,15 +1333,11 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               >
                 <Table2 size={13} className="text-[#655ac1]" />
                 الجدول الرئيسي
-                <span className="text-[#655ac1]">
-                  ({activeDays.reduce((acc, day) => acc + inlineTypes.reduce((a, t) => a + getStaffForCell(day, t.id).length, 0), 0)})
-                </span>
               </button>
             )}
             {separateTypeGroups.map((group, index) => {
               const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
               const name = isAutoId ? group.types.map(t => t.name).join('، ') : group.id;
-              const count = activeDays.reduce((acc, day) => acc + group.types.reduce((a, t) => a + getStaffForCell(day, t.id).length, 0), 0);
               return (
                 <button
                   key={group.id}
@@ -1350,7 +1346,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 >
                   <Table2 size={13} className="text-[#655ac1]" />
                   {name}
-                  <span className="text-[#655ac1]">({count})</span>
                 </button>
               );
             })}
