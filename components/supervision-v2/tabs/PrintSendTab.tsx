@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLayoutEffect } from 'react';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -40,6 +41,28 @@ type SendMode = 'electronic' | 'text' | 'reminder';
 type SendAudience = 'supervisors' | 'followups' | 'all';
 type SendChannel = 'whatsapp' | 'sms';
 type SigFilter = 'all' | 'signed' | 'pending';
+type ReceiptSnapshotRow = {
+  key: string;
+  staffId: string;
+  staffName: string;
+  staffType: 'teacher' | 'admin';
+  role: 'supervisor' | 'followup';
+  day: string;
+  days: string[];
+  contextTypeId?: string;
+  typeName: string;
+  status: 'signed' | 'pending';
+  sentAt?: string;
+  signedAt?: string;
+  signatureData?: string;
+  signatureToken?: string;
+};
+type ReceiptBatch = {
+  id: string;
+  sentAt: string;
+  receiptKeys: string[];
+  rows?: ReceiptSnapshotRow[];
+};
 const RECIPIENT_NAME_TOKEN = '{اسم_المستلم}';
 
 type DropdownOption = {
@@ -58,10 +81,15 @@ const WhatsAppIcon: React.FC<{ size?: number }> = ({ size = 28 }) => (
 const useDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
+  const onCloseRef = useRef(onClose);
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  onCloseRef.current = onClose;
 
-  useEffect(() => {
-    if (!open) return;
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return;
+    }
     const updatePosition = () => {
       if (!triggerRef.current) return;
       const rect = triggerRef.current.getBoundingClientRect();
@@ -78,7 +106,7 @@ const useDropdownPosition = (open: boolean, onClose: () => void) => {
       const target = event.target as Node;
       const inButton = triggerRef.current?.contains(target);
       const inPanel = panelRef.current?.contains(target);
-      if (!inButton && !inPanel) onClose();
+      if (!inButton && !inPanel) onCloseRef.current();
     };
     updatePosition();
     window.addEventListener('resize', updatePosition);
@@ -87,7 +115,7 @@ const useDropdownPosition = (open: boolean, onClose: () => void) => {
       window.removeEventListener('resize', updatePosition);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return { triggerRef, panelRef, position };
 };
@@ -120,7 +148,7 @@ const SingleSelectDropdown: React.FC<{
         <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && createPortal(
+      {open && position && createPortal(
         <div ref={panelRef} className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
           style={{ top: position.top, left: position.left, width: position.width }}>
           <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
@@ -161,8 +189,9 @@ const MultiSelectDropdown: React.FC<{
   onSelectAll?: () => void;
   selectedSummary?: string;
   searchable?: boolean;
+  compact?: boolean;
   minWidthClass?: string;
-}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, searchable = false, minWidthClass = 'min-w-[260px]' }) => {
+}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, searchable = false, compact = false, minWidthClass = 'min-w-[260px]' }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { triggerRef, panelRef, position } = useDropdownPosition(open, () => setOpen(false));
@@ -178,10 +207,10 @@ const MultiSelectDropdown: React.FC<{
       {label ? <label className="block text-xs font-black text-slate-500 mb-2">{label}</label> : null}
       <button ref={triggerRef} type="button" onClick={() => setOpen(c => !c)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2">
-        <span className="truncate">{selectedSummary || buttonLabel}</span>
+        <span className="truncate text-[12px] leading-tight">{selectedSummary || buttonLabel}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && createPortal(
+      {open && position && createPortal(
         <div ref={panelRef} className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
           style={{ top: position.top, left: position.left, width: position.width }}>
           {searchable && (
@@ -191,18 +220,26 @@ const MultiSelectDropdown: React.FC<{
                 className="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#655ac1]/20 font-medium" />
             </div>
           )}
-          <div className="flex items-center justify-between px-2 py-2 mb-2 border border-slate-100 bg-slate-50 rounded-xl">
-            {onSelectAll ? (
-              <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button>
-            ) : <span />}
-            <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={selectedValues.length === options.length && options.length > 0 ? onClear : onSelectAll}
+              disabled={options.length === 0}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                options.length === 0
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+              }`}
+            >
+              {selectedValues.length === options.length && options.length > 0 ? 'إلغاء الكل' : 'اختيار الكل'}
+            </button>
           </div>
-          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+          <div className={`${compact ? 'max-h-52' : 'max-h-60'} overflow-y-auto custom-scrollbar space-y-1 pr-1`}>
             {filteredOptions.map(option => {
               const isSelected = selectedValues.includes(option.value);
               return (
                 <button key={option.value} type="button" onClick={() => onToggle(option.value)}
-                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                  className={`w-full text-right px-3 ${compact ? 'py-2 text-xs' : 'py-2.5 text-sm'} font-bold rounded-xl transition-all flex items-center justify-between ${
                     isSelected ? 'bg-white text-[#655ac1]'
                       : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                   }`}>
@@ -235,7 +272,7 @@ const PrintSendTab: React.FC<Props> = ({
   onOpenLegacyPrint, onOpenLegacySend, onOpenMessagesArchive, showToast,
   mode = 'print',
 }) => {
-  const { sendMessage, scheduleMessage } = useMessageArchive();
+  const { scheduleMessage } = useMessageArchive();
   const openReminderFromDashboard = (() => {
     try { return sessionStorage.getItem('motabe:supervision_v2:open_send_reminder') === '1'; } catch { return false; }
   })();
@@ -269,7 +306,8 @@ const PrintSendTab: React.FC<Props> = ({
   const scheduleCalendarType = ((schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian');
   const [isSendingNow, setIsSendingNow] = useState(false);
   const smsStats = useMemo(() => calculateSmsSegments(messageText), [messageText]);
-  const [sendResults, setSendResults] = useState<{ name: string; status: 'sent' | 'failed' }[]>([]);
+  const [sendResults, setSendResults] = useState<{ name: string; status: 'sent' | 'failed'; reason?: string }[]>([]);
+  const [showSendResultsModal, setShowSendResultsModal] = useState(false);
   const [previewRow, setPreviewRow] = useState<SendRow | null>(null);
   const [previewReceiptRow, setPreviewReceiptRow] = useState<ReceiptRow | null>(null);
   const [recipientsPreviewOpen, setRecipientsPreviewOpen] = useState(false);
@@ -278,6 +316,20 @@ const PrintSendTab: React.FC<Props> = ({
   const [sigReceiptOpen, setSigReceiptOpen] = useState(false);
   const [sigFilter, setSigFilter] = useState<SigFilter>('all');
   const [sigSearch, setSigSearch] = useState('');
+  const receiptBatchesStorageKey = `${storageKey || 'supervision_data_v1'}:receipt-batches`;
+  const [receiptBatches, setReceiptBatches] = useState<ReceiptBatch[]>(() => {
+    try {
+      const stored = localStorage.getItem(`${storageKey || 'supervision_data_v1'}:receipt-batches`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [selectedReceiptBatchId, setSelectedReceiptBatchId] = useState('');
+
+  useEffect(() => {
+    try { localStorage.setItem(receiptBatchesStorageKey, JSON.stringify(receiptBatches)); } catch {}
+  }, [receiptBatches, receiptBatchesStorageKey]);
 
   const printData = useMemo(
     () => getSupervisionPrintData(supervisionData, schoolInfo),
@@ -286,6 +338,7 @@ const PrintSendTab: React.FC<Props> = ({
   const hasData = printData.days.some(d => d.supervisors.length > 0);
 
   const activeDays = useMemo(() => getTimingConfig(schoolInfo).activeDays || DAYS.slice(), [schoolInfo]);
+  const hasFollowUpSupervisorColumn = supervisionData.settings.enableFollowUpSupervisor !== false;
 
   const dayOptions: DropdownOption[] = useMemo(
     () => activeDays.map(d => ({ value: d, label: DAY_NAMES[d] || d })),
@@ -368,7 +421,7 @@ const PrintSendTab: React.FC<Props> = ({
           signatureToken: sa.signatureToken,
         });
       });
-      if (da.followUpSupervisorId && da.followUpSupervisorName) {
+      if (hasFollowUpSupervisorColumn && da.followUpSupervisorId && da.followUpSupervisorName) {
         const dayTypeIds = Array.from(new Set(da.staffAssignments.map(sa => sa.contextTypeId).filter(Boolean)));
         const asTeacher = teachers.find(t => t.id === da.followUpSupervisorId);
         const asAdmin = !asTeacher ? admins.find(a => a.id === da.followUpSupervisorId) : null;
@@ -396,7 +449,21 @@ const PrintSendTab: React.FC<Props> = ({
       (dayOrder.get(a.day) ?? 999) - (dayOrder.get(b.day) ?? 999) ||
       a.staffName.localeCompare(b.staffName, 'ar')
     );
-  }, [supervisionData, teachers, admins, activeDays]);
+  }, [supervisionData, teachers, admins, activeDays, hasFollowUpSupervisorColumn]);
+
+  useEffect(() => {
+    if (!hasFollowUpSupervisorColumn && sendAudience !== 'supervisors') {
+      setSendAudience('supervisors');
+    }
+  }, [hasFollowUpSupervisorColumn, sendAudience]);
+
+  const sendAudienceOptions: DropdownOption[] = hasFollowUpSupervisorColumn
+    ? [
+        { value: 'supervisors', label: 'المشرف' },
+        { value: 'followups', label: 'المشرف المتابع' },
+        { value: 'all', label: 'الكل (مشرف ومشرف متابع)' },
+      ]
+    : [{ value: 'supervisors', label: 'المشرف' }];
 
   const filteredSendRows = useMemo(() => {
     return sendRows.filter(r => {
@@ -408,23 +475,67 @@ const PrintSendTab: React.FC<Props> = ({
     });
   }, [sendRows, selectedDays, selectedSupervisionTypeId, sendAudience]);
 
-  const staffOptions: DropdownOption[] = useMemo(
-    () => filteredSendRows.map(r => ({
-      value: r.key,
-      label: `${r.typeName} - ${r.staffName} - ${DAY_NAMES[r.day] || r.day}${r.role === 'followup' ? ' (مشرف متابع)' : ''}`,
-    })),
-    [filteredSendRows]
-  );
+  const staffOptions: DropdownOption[] = useMemo(() => {
+    if (selectedSupervisionTypeId !== 'all') {
+      return filteredSendRows.map(r => ({
+        value: r.key,
+        label: `${r.typeName} - ${r.staffName} - ${DAY_NAMES[r.day] || r.day}${r.role === 'followup' ? ' (مشرف متابع)' : ''}`,
+      }));
+    }
+    const recipients = new Map<string, DropdownOption>();
+    filteredSendRows.forEach(row => {
+      const recipientKey = `${row.staffType}-${row.staffId}`;
+      if (!recipients.has(recipientKey)) {
+        recipients.set(recipientKey, {
+          value: row.key,
+          label: row.staffName,
+        });
+      }
+    });
+    return Array.from(recipients.values());
+  }, [filteredSendRows, selectedSupervisionTypeId]);
 
   useEffect(() => {
-    const validKeys = new Set(filteredSendRows.map(r => r.key));
+    const validKeys = new Set(staffOptions.map(option => option.value));
     setSelectedStaffKeys(curr => curr.filter(k => validKeys.has(k)));
-  }, [filteredSendRows]);
+  }, [staffOptions]);
 
-  const selectedRows = useMemo(
-    () => filteredSendRows.filter(r => selectedStaffKeys.includes(r.key)),
-    [filteredSendRows, selectedStaffKeys]
-  );
+  const selectedRows = useMemo(() => {
+    const directlySelected = filteredSendRows.filter(row => selectedStaffKeys.includes(row.key));
+    if (selectedSupervisionTypeId !== 'all') return directlySelected;
+    const selectedRecipients = new Set(directlySelected.map(row => `${row.staffType}-${row.staffId}`));
+    return filteredSendRows.filter(row => selectedRecipients.has(`${row.staffType}-${row.staffId}`));
+  }, [filteredSendRows, selectedStaffKeys, selectedSupervisionTypeId]);
+
+  type SendRecipient = {
+    key: string;
+    staffId: string;
+    staffName: string;
+    staffType: 'teacher' | 'admin';
+    phone?: string;
+    tasks: SendRow[];
+  };
+
+  const selectedRecipients: SendRecipient[] = useMemo(() => {
+    const recipients = new Map<string, SendRecipient>();
+    selectedRows.forEach(row => {
+      const key = `${row.staffType}-${row.staffId}`;
+      const existing = recipients.get(key);
+      if (existing) {
+        existing.tasks.push(row);
+      } else {
+        recipients.set(key, {
+          key,
+          staffId: row.staffId,
+          staffName: row.staffName,
+          staffType: row.staffType,
+          phone: row.phone,
+          tasks: [row],
+        });
+      }
+    });
+    return Array.from(recipients.values());
+  }, [selectedRows]);
 
   useEffect(() => {
     if (selectedRows.length === 0) { setMessageText(''); return; }
@@ -436,23 +547,15 @@ const PrintSendTab: React.FC<Props> = ({
     if (!selectedRows.some(row => row.key === previewRow.key)) setPreviewRow(null);
   }, [previewRow, selectedRows]);
 
-  const buildMessage = (row: SendRow): string => buildDetailedMessage(row);
-
   // ─── Receipt log rows ──────────────────────────────────────────────────
-  type ReceiptRow = {
-    key: string;
-    staffId: string;
-    staffName: string;
-    staffType: 'teacher' | 'admin';
-    role: 'supervisor' | 'followup';
-    day: string;
-    contextTypeId?: string;
-    typeName: string;
-    status: 'signed' | 'pending';
-    sentAt?: string;
-    signedAt?: string;
-    signatureData?: string;
-    signatureToken?: string;
+  type ReceiptRow = ReceiptSnapshotRow;
+
+  const getReceiptKey = (row: Pick<ReceiptRow, 'role' | 'staffType' | 'staffId'>) =>
+    `${row.role === 'supervisor' ? 'sup' : 'fu'}-${row.staffType}-${row.staffId}`;
+
+  const getStaffRoleLabel = (row: Pick<ReceiptRow, 'staffType' | 'staffId'>) => {
+    if (row.staffType === 'teacher') return 'معلم';
+    return admins.find(admin => admin.id === row.staffId)?.role || 'إداري';
   };
 
   const receiptRows: ReceiptRow[] = useMemo(() => {
@@ -532,22 +635,58 @@ const PrintSendTab: React.FC<Props> = ({
         });
       }
     });
-    return Array.from(rows.values()).sort((a, b) =>
+    return Array.from(rows.values()).filter(row => !!row.sentAt).sort((a, b) =>
       a.staffName.localeCompare(b.staffName, 'ar') ||
       (a.role === 'supervisor' ? 0 : 1) - (b.role === 'supervisor' ? 0 : 1)
     );
   }, [supervisionData, teachers]);
 
-  const totalAssignedSupervisors = receiptRows.length;
-  const signedCount = receiptRows.filter(r => r.status === 'signed').length;
-  const pendingCount = receiptRows.filter(r => r.status === 'pending').length;
-
   const filteredReceipts = useMemo(() => {
-    return receiptRows.filter(r =>
-      (sigFilter === 'all' || r.status === sigFilter) &&
-      (sigSearch.trim() === '' || r.staffName.includes(sigSearch.trim()))
-    );
-  }, [receiptRows, sigFilter, sigSearch]);
+    const selectedBatch = receiptBatches.find(batch => batch.id === selectedReceiptBatchId);
+    const rows = selectedBatch?.rows || receiptRows;
+    return rows
+      .filter(r =>
+        (!selectedBatch || selectedBatch.receiptKeys.includes(getReceiptKey(r))) &&
+        (sigFilter === 'all' || r.status === sigFilter) &&
+        (sigSearch.trim() === '' || r.staffName.includes(sigSearch.trim()))
+      )
+      .map(row => selectedBatch ? { ...row, sentAt: selectedBatch.sentAt } : row);
+  }, [receiptRows, receiptBatches, selectedReceiptBatchId, sigFilter, sigSearch]);
+
+  const displayReceiptBatches = useMemo(() => {
+    if (receiptBatches.length > 0) return receiptBatches;
+    const sentRows = receiptRows.filter(row => row.sentAt);
+    if (sentRows.length === 0) return [];
+    return [{
+      id: 'legacy',
+      sentAt: sentRows.map(row => row.sentAt!).sort()[0],
+      receiptKeys: sentRows.map(getReceiptKey),
+    }];
+  }, [receiptBatches, receiptRows]);
+
+  useEffect(() => {
+    if (displayReceiptBatches.length === 0) {
+      setSelectedReceiptBatchId('');
+      return;
+    }
+    if (!displayReceiptBatches.some(batch => batch.id === selectedReceiptBatchId)) {
+      setSelectedReceiptBatchId(displayReceiptBatches[0].id);
+    }
+  }, [displayReceiptBatches, selectedReceiptBatchId]);
+
+  const selectedBatchRows = useMemo(() => {
+    const selectedBatch = displayReceiptBatches.find(batch => batch.id === selectedReceiptBatchId);
+    if (!selectedBatch) return [];
+    if (selectedBatch.rows) return selectedBatch.rows;
+    return receiptRows.filter(row => selectedBatch.receiptKeys.includes(getReceiptKey(row)));
+  }, [displayReceiptBatches, selectedReceiptBatchId, receiptRows]);
+
+  const selectedBatchSignedCount = selectedBatchRows.filter(row => row.status === 'signed').length;
+  const selectedBatchPendingCount = selectedBatchRows.filter(row => row.status === 'pending').length;
+  const receiptBatchOptions: DropdownOption[] = displayReceiptBatches.map((batch, index) => ({
+    value: batch.id,
+    label: `جدول الإشراف المرسل ${displayReceiptBatches.length - index} · أُرسل ${formatHijriDateTime(batch.sentAt)}`,
+  }));
 
   // ─── Helpers ───────────────────────────────────────────────────────────
   const actionButtonClass = (active: boolean) =>
@@ -573,7 +712,7 @@ const PrintSendTab: React.FC<Props> = ({
     }).format(base);
   };
 
-  const formatHijriDateTime = (date?: string) => {
+  function formatHijriDateTime(date?: string) {
     if (!date) return '—';
     const parsed = new Date(date);
     if (isNaN(parsed.getTime())) return '—';
@@ -584,7 +723,7 @@ const PrintSendTab: React.FC<Props> = ({
       hour: '2-digit',
       minute: '2-digit',
     }).format(parsed);
-  };
+  }
 
   const refreshSupervisionDataFromStorage = () => {
     setSigSearch('');
@@ -593,12 +732,12 @@ const PrintSendTab: React.FC<Props> = ({
     try {
       const key = storageKey || 'supervision_data_v1';
       const raw = localStorage.getItem(key);
+      const storedBatches = localStorage.getItem(receiptBatchesStorageKey);
       if (raw) {
         setSupervisionData(JSON.parse(raw));
-        showToast?.('تم تحديث سجل الاستلام', 'success');
-      } else {
-        showToast?.('تم تحديث سجل الاستلام', 'success');
       }
+      if (storedBatches) setReceiptBatches(JSON.parse(storedBatches));
+      showToast?.('تم تحديث سجل الاستلام', 'success');
     } catch {
       showToast?.('تعذر تحديث سجل الاستلام', 'error');
     }
@@ -625,10 +764,10 @@ const PrintSendTab: React.FC<Props> = ({
     : selectedDays.map(day => DAY_NAMES[day] || day).join('، ');
 
   const notificationTypeLabel = sendMode === 'electronic'
-    ? 'رسالة تكليف بالإشراف مع توقيع الكتروني'
+    ? 'تكليف بالإشراف مع توقيع إلكتروني'
     : sendMode === 'text'
-      ? 'رسالة تكليف بالإشراف نصية'
-      : 'رسالة تذكير يومية بالإشراف';
+      ? 'تكليف نصي بالإشراف'
+      : 'تذكير يومي بالإشراف';
 
   const buildToken = (row: SendRow) =>
     row.signatureToken || `supv-${row.role}-${row.day}-${row.contextTypeId || 'all'}-${row.staffId}`;
@@ -677,28 +816,29 @@ const PrintSendTab: React.FC<Props> = ({
     return `المكرم/ ${recipientName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName}، شاكرين تعاونكم.\n${schoolName} - ${todayDayName} - ${todayHijri} - ${currentSemesterName}.`;
   };
 
-  const buildOutgoingMessage = (row: SendRow): string =>
-    (messageText.trim() ? messageText : buildMessage(row)).replace(/\{اسم_المستلم\}/g, row.staffName);
+  const buildRecipientTaskSummary = (recipient: SendRecipient) =>
+    recipient.tasks.map(task => {
+      const roleLabel = task.role === 'followup' ? 'مشرف متابع' : 'مشرف';
+      const locations = task.locationNames.length > 0 ? ` - المواقع: ${task.locationNames.join('، ')}` : '';
+      return `- ${DAY_NAMES[task.day] || task.day}: ${task.typeName} (${roleLabel})${locations}`;
+    }).join('\n');
 
-  const markSignaturePending = (rows: SendRow[]) => {
-    if (sendMode !== 'electronic' || !setSupervisionData) return;
-    const targets = new Map(rows.map(row => [row.key, buildToken(row)]));
-    const sentAt = new Date().toISOString();
-    setSupervisionData(prev => ({
-      ...prev,
-      dayAssignments: prev.dayAssignments.map(da => ({
-        ...da,
-        staffAssignments: da.staffAssignments.map(sa => {
-          const key = `sup-${da.day}-${sa.contextTypeId}-${sa.staffId}`;
-          const token = targets.get(key);
-          return token ? { ...sa, signatureStatus: 'pending' as const, signatureToken: token, signatureSentAt: sa.signatureSentAt || sentAt } : sa;
-        }),
-        ...(da.followUpSupervisorId ? (() => {
-          const match = rows.find(row => row.role === 'followup' && row.day === da.day && row.staffId === da.followUpSupervisorId);
-          return match ? { followUpSignatureStatus: 'pending' as const, followUpSignatureToken: buildToken(match), followUpSignatureSentAt: da.followUpSignatureSentAt || sentAt } : {};
-        })() : {}),
-      })),
-    }));
+  const buildRecipientMessage = (recipient: SendRecipient) => {
+    const firstTask = recipient.tasks[0];
+    const taskSummary = buildRecipientTaskSummary(recipient);
+    const customBase = selectedSupervisionTypeId !== 'all' && messageText.trim()
+      ? messageText.replace(/\{اسم_المستلم\}/g, recipient.staffName)
+      : '';
+    const heading = customBase || `المكرم/ ${recipient.staffName}\nنشعركم بمهام الإشراف اليومي المسندة لكم، شاكرين تعاونكم.`;
+    const links = sendMode === 'electronic'
+      ? Array.from(new Map(recipient.tasks.map(task => [buildSignatureLink(task), task])).entries())
+          .map(([link, task]) => `${DAY_NAMES[task.day] || task.day} - ${task.typeName}:\n${link}`)
+          .join('\n')
+      : '';
+    if (sendMode === 'reminder' && selectedSupervisionTypeId !== 'all') {
+      return buildDetailedMessage(firstTask, recipient.staffName);
+    }
+    return `${heading}\n\nالمهام المسندة:\n${taskSummary}${links ? `\n\nروابط التكليف والتوقيع:\n${links}` : ''}`;
   };
 
   const escapeHtml = (value: unknown) => String(value ?? '')
@@ -723,6 +863,7 @@ const PrintSendTab: React.FC<Props> = ({
 
     const printSignedVersion = options?.signed === true;
     const includeSignature = printSignatureMode === 'with' || printSignedVersion;
+    const includeFollowUp = supervisionData.settings.enableFollowUpSupervisor !== false;
     const finalFooter = showNotesField ? footerText.trim() : '';
     const activeTypes = (supervisionData.supervisionTypes || [])
       .filter(type => type.isEnabled)
@@ -769,7 +910,9 @@ const PrintSendTab: React.FC<Props> = ({
     };
     const renderTable = (types: typeof activeTypes) => {
       if (types.length === 0) return '';
-      const typeColWidth = includeSignature ? 56 / types.length : 78 / types.length;
+      const typeColWidth = includeSignature
+        ? (includeFollowUp ? 56 : 66) / types.length
+        : (includeFollowUp ? 78 : 88) / types.length;
       const signatureColWidth = includeSignature ? 22 / types.length : 0;
       return `
         <section class="schedule-section">
@@ -781,8 +924,8 @@ const PrintSendTab: React.FC<Props> = ({
                   <th style="width: ${typeColWidth}%;">${escapeHtml(type.name)}</th>
                   ${includeSignature ? `<th style="width: ${signatureColWidth}%;">التوقيع</th>` : ''}
                 `).join('')}
-                <th style="width: 10%;">المشرف المتابع</th>
-                ${includeSignature ? '<th style="width: 10%;">التوقيع</th>' : ''}
+                ${includeFollowUp ? '<th style="width: 10%;">المشرف المتابع</th>' : ''}
+                ${includeFollowUp && includeSignature ? '<th style="width: 10%;">التوقيع</th>' : ''}
               </tr>
             </thead>
             <tbody>
@@ -794,8 +937,8 @@ const PrintSendTab: React.FC<Props> = ({
                     <td>${renderStaffCell(day, type.id)}</td>
                     ${includeSignature ? `<td>${renderSignatureCell(day, type.id)}</td>` : ''}
                   `).join('')}
-                  <td class="followup">${escapeHtml(dayAssignment?.followUpSupervisorName || '—')}</td>
-                  ${includeSignature ? `<td class="followup-signature signature-cell">${printSignedVersion ? renderSignatureImage(dayAssignment?.followUpSignatureData) : ''}</td>` : ''}
+                  ${includeFollowUp ? `<td class="followup">${escapeHtml(dayAssignment?.followUpSupervisorName || '—')}</td>` : ''}
+                  ${includeFollowUp && includeSignature ? `<td class="followup-signature signature-cell">${printSignedVersion ? renderSignatureImage(dayAssignment?.followUpSignatureData) : ''}</td>` : ''}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -972,7 +1115,7 @@ const PrintSendTab: React.FC<Props> = ({
       </div>
       <div class="info-card">
         <div class="info-line"><span class="info-label">الاسم:</span><span class="info-value">${escapeHtml(row.staffName)}</span></div>
-        <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${row.staffType === 'teacher' ? 'معلم' : 'إداري'}</span></div>
+        <div class="info-line"><span class="info-label">الصفة:</span><span class="info-value">${escapeHtml(getStaffRoleLabel(row))}</span></div>
         <div class="info-line"><span class="info-label">التوقيع:</span><span class="info-value">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</span></div>
       </div>
       <table class="schedule">
@@ -1051,7 +1194,7 @@ const PrintSendTab: React.FC<Props> = ({
         <tr>
           <td>${index + 1}</td>
           <td>${escapeHtml(row.staffName)}</td>
-          <td>${row.staffType === 'teacher' ? 'معلم' : 'إداري'}</td>
+          <td>${escapeHtml(getStaffRoleLabel(row))}</td>
           <td>${escapeHtml(row.typeName)}</td>
           <td>${formatHijriDateTime(row.sentAt)}</td>
           <td class="${row.status === 'signed' ? 'signed' : 'pending'}">${row.status === 'signed' ? 'وقع' : 'لم يوقع'}</td>
@@ -1071,77 +1214,111 @@ const PrintSendTab: React.FC<Props> = ({
   };
 
   const validateSendSelection = (): boolean => {
-    if (selectedRows.length === 0) {
+    if (selectedRecipients.length === 0) {
       showToast?.('يرجى اختيار مستلم واحد على الأقل', 'warning');
       return false;
     }
     return true;
   };
 
+  const recordTestReceiptBatch = (rows: SendRow[]) => {
+    if (sendMode !== 'electronic' || rows.length === 0) return;
+    const sentAt = new Date().toISOString();
+    const batchId = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const snapshots = new Map<string, ReceiptSnapshotRow>();
+
+    rows.forEach(row => {
+      const key = getReceiptKey(row);
+      const existing = snapshots.get(key);
+      if (existing) {
+        existing.days = Array.from(new Set([...existing.days, row.day]));
+        existing.typeName = Array.from(new Set([...existing.typeName.split('، '), row.typeName])).join('، ');
+        return;
+      }
+      snapshots.set(key, {
+        key,
+        staffId: row.staffId,
+        staffName: row.staffName,
+        staffType: row.staffType,
+        role: row.role,
+        day: row.day,
+        days: [row.day],
+        contextTypeId: row.contextTypeId,
+        typeName: row.typeName,
+        status: 'pending',
+        sentAt,
+        signatureToken: buildToken(row),
+      });
+    });
+
+    const snapshotRows = Array.from(snapshots.values());
+    setReceiptBatches(current => [{
+      id: batchId,
+      sentAt,
+      receiptKeys: snapshotRows.map(row => row.key),
+      rows: snapshotRows,
+    }, ...current]);
+    setSelectedReceiptBatchId(batchId);
+  };
+
   const handleSendDirectly = async () => {
     if (!validateSendSelection()) return;
-
-    const archiveMessages = selectedRows.map(row => ({
-      source: 'supervision' as const,
-      recipientId: row.staffId,
-      recipientName: row.staffName,
-      recipientPhone: row.phone || '',
-      recipientRole: row.staffType,
-      content: buildOutgoingMessage(row),
-      channel: sendChannel,
-      senderRole: 'daily-supervision',
-      isScheduled: isSendScheduled,
-      scheduledFor: isSendScheduled && sendScheduleDate ? new Date(`${sendScheduleDate}T${sendScheduleTime}`).toISOString() : undefined,
-    }));
 
     if (isSendScheduled) {
       if (!sendScheduleDate) {
         showToast?.('يرجى تحديد تاريخ جدولة الإرسال', 'warning');
         return;
       }
+      const archiveMessages = selectedRecipients.map(recipient => ({
+        source: 'supervision' as const,
+        recipientId: recipient.staffId,
+        recipientName: recipient.staffName,
+        recipientPhone: recipient.phone || '',
+        recipientRole: recipient.staffType,
+        content: buildRecipientMessage(recipient),
+        channel: sendChannel,
+        senderRole: 'daily-supervision',
+        isScheduled: true,
+        scheduledFor: new Date(`${sendScheduleDate}T${sendScheduleTime}`).toISOString(),
+      }));
       scheduleMessage({
         scheduledFor: new Date(`${sendScheduleDate}T${sendScheduleTime}`).toISOString(),
         fallbackToSms: false,
         messages: archiveMessages,
       });
-      markSignaturePending(selectedRows);
-      setSendResults(selectedRows.map(row => ({ name: row.staffName, status: 'sent' as const })));
+      setSendResults(selectedRecipients.map(recipient => ({ name: recipient.staffName, status: 'sent' as const })));
+      recordTestReceiptBatch(selectedRows);
+      setShowSendResultsModal(true);
+      setIsSendingNow(false);
       return;
     }
 
     setIsSendingNow(true);
     setSendResults([]);
-    const results: { name: string; status: 'sent' | 'failed' }[] = [];
-
-    for (const row of selectedRows) {
-      const msg = buildOutgoingMessage(row);
-      const phone = row.phone || '';
-      try {
-        if (!phone) { results.push({ name: row.staffName, status: 'failed' }); continue; }
-        await sendMessage({
-          source: 'supervision',
-          recipientId: row.staffId,
-          recipientName: row.staffName,
-          recipientPhone: phone,
-          recipientRole: row.staffType,
-          content: msg,
-          channel: sendChannel,
-          senderRole: 'daily-supervision',
-        });
-        if (sendChannel === 'whatsapp') {
-          window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-        } else {
-          window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, '_blank');
-        }
-        results.push({ name: row.staffName, status: 'sent' });
-        await new Promise(r => setTimeout(r, 400));
-      } catch {
-        results.push({ name: row.staffName, status: 'failed' });
-      }
+    setShowSendResultsModal(false);
+    try {
+      await new Promise(resolve => window.setTimeout(resolve, 450));
+      const results = selectedRecipients.map(recipient => ({
+        name: recipient.staffName,
+        status: 'sent' as const,
+      }));
+      setSendResults(results);
+      recordTestReceiptBatch(selectedRows);
+      setShowSendResultsModal(true);
+    } catch (error) {
+      setSendResults([{
+        name: 'عملية الإرسال',
+        status: 'failed',
+        reason: error instanceof Error ? error.message : 'تعذر إكمال عملية الإرسال',
+      }]);
+      setShowSendResultsModal(true);
+    } finally {
+      setIsSendingNow(false);
     }
-    markSignaturePending(selectedRows.filter(row => results.some(result => result.name === row.staffName && result.status === 'sent')));
-    setSendResults(results);
-    setIsSendingNow(false);
+  };
+
+  const closeSendResults = () => {
+    setShowSendResultsModal(false);
   };
 
   const openPreviewMessage = () => {
@@ -1170,7 +1347,7 @@ const PrintSendTab: React.FC<Props> = ({
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالإشراف</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {signedCount} وقّع من أصل {totalAssignedSupervisors} مشرف
+                {selectedBatchSignedCount} وقّع من أصل {selectedBatchRows.length} مشرف
               </p>
             </div>
           </div>
@@ -1179,9 +1356,9 @@ const PrintSendTab: React.FC<Props> = ({
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'إجمالي المشرفين', value: String(totalAssignedSupervisors), icon: Users },
-            { label: 'وقّع', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يُوقّع', value: String(pendingCount), icon: AlertCircle },
+            { label: 'إجمالي المشرفين', value: String(selectedBatchRows.length), icon: Users },
+            { label: 'وقّع', value: String(selectedBatchSignedCount), icon: CheckCircle2 },
+            { label: 'لم يُوقّع', value: String(selectedBatchPendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1198,26 +1375,35 @@ const PrintSendTab: React.FC<Props> = ({
 
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-[220px_auto_auto_auto_auto] items-center justify-start gap-2">
+            <SingleSelectDropdown
+              label=""
+              value={selectedReceiptBatchId}
+              options={receiptBatchOptions}
+              placeholder="اختر الجدول المرسل"
+              onChange={setSelectedReceiptBatchId}
+              disabled={receiptBatchOptions.length === 0}
+              minWidthClass="min-w-0"
+            />
             <button type="button" onClick={refreshSupervisionDataFromStorage}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
               <RefreshCw size={15} />
               تحديث
             </button>
-            <button type="button" onClick={handlePrintReceiptReport} disabled={receiptRows.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+            <button type="button" onClick={handlePrintReceiptReport} disabled={filteredReceipts.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
               طباعة سجل الاستلام الإلكتروني
             </button>
-            <button type="button" onClick={() => handlePrintAssignmentForms(filteredReceipts)} disabled={receiptRows.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+            <button type="button" onClick={() => handlePrintAssignmentForms(filteredReceipts)} disabled={filteredReceipts.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
               طباعة نماذج التكليف الإلكترونية
             </button>
             <button type="button" onClick={() => handleDirectPrint({ signed: true })} disabled={!hasData}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة جدول الإشراف الإلكتروني
+              طباعة جدول الإشراف بعد التوقيع
             </button>
           </div>
         </div>
@@ -1258,7 +1444,7 @@ const PrintSendTab: React.FC<Props> = ({
             </div>
           </div>
 
-          {receiptRows.length === 0 ? (
+          {displayReceiptBatches.length === 0 ? (
             <div className="py-16 text-center">
               <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
               <p className="text-sm font-bold text-slate-400">لا توجد طلبات استلام مرسلة بعد.</p>
@@ -1288,8 +1474,8 @@ const PrintSendTab: React.FC<Props> = ({
                         </span>
                       </td>
                       <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={req.staffName}>{req.staffName}</td>
-                      <td className="px-3 py-3 text-slate-500 text-[11px] truncate">
-                        {req.staffType === 'teacher' ? 'معلم' : 'إداري'}
+                      <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={getStaffRoleLabel(req)}>
+                        {getStaffRoleLabel(req)}
                       </td>
                       <td className="px-3 py-3 text-slate-600 text-[11px] font-bold truncate" title={req.typeName}>{req.typeName}</td>
                       <td className="px-3 py-3 text-slate-500 text-[10px] truncate" title={formatHijriDateTime(req.sentAt)}>{formatHijriDateTime(req.sentAt)}</td>
@@ -1358,7 +1544,7 @@ const PrintSendTab: React.FC<Props> = ({
                     </div>
                     <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
                       <span className="text-slate-500 font-bold shrink-0">الصفة:</span>
-                      <span className="font-black text-[#655ac1]">{previewReceiptRow.staffType === 'teacher' ? 'معلم' : 'إداري'}</span>
+                      <span className="font-black text-slate-800">{getStaffRoleLabel(previewReceiptRow)}</span>
                     </div>
                     <div className="flex items-center justify-start gap-2">
                       <span className="text-slate-500 font-bold shrink-0">التوقيع:</span>
@@ -1485,7 +1671,7 @@ const PrintSendTab: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setShowNotesField(open => !open)}
-                  className="text-[#8779fb] hover:text-[#655ac1] underline underline-offset-4"
+                  className="text-[13px] font-black text-[#655ac1] hover:text-[#5046a0] underline underline-offset-4 transition-colors"
                 >
                   {showNotesField ? 'إلغاء' : 'انقر هنا'}
                 </button>
@@ -1496,7 +1682,7 @@ const PrintSendTab: React.FC<Props> = ({
                   onChange={e => setFooterText(e.target.value)}
                   placeholder={printData.footerText}
                   rows={3}
-                  className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors"
+                  className="w-full border-2 border-slate-200 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors"
                   dir="rtl"
                 />
               )}
@@ -1539,9 +1725,9 @@ const PrintSendTab: React.FC<Props> = ({
                   onChange={v => setSendMode(v as SendMode)}
                   placeholder="اختر النوع"
                   options={[
-                    { value: 'electronic', label: 'رسالة تكليف بالإشراف مع توقيع الكتروني' },
-                    { value: 'text', label: 'رسالة تكليف بالإشراف نصية' },
-                    { value: 'reminder', label: 'رسالة تذكير يومية بالإشراف' },
+                    { value: 'electronic', label: 'تكليف بالإشراف مع توقيع إلكتروني' },
+                    { value: 'text', label: 'تكليف نصي بالإشراف' },
+                    { value: 'reminder', label: 'تذكير يومي بالإشراف' },
                   ]}
                 />
                 <SingleSelectDropdown
@@ -1557,11 +1743,7 @@ const PrintSendTab: React.FC<Props> = ({
                   value={sendAudience}
                   onChange={v => setSendAudience(v as SendAudience)}
                   placeholder="اختر الجهة"
-                  options={[
-                    { value: 'supervisors', label: 'المشرفون' },
-                    { value: 'followups', label: 'المتابعون' },
-                    { value: 'all', label: 'الكل (المشرفون والمتابعون)' },
-                  ]}
+                  options={sendAudienceOptions}
                 />
                 <MultiSelectDropdown
                   label="الأيام المستهدفة"
@@ -1576,13 +1758,14 @@ const PrintSendTab: React.FC<Props> = ({
                 <MultiSelectDropdown
                   label="المشرفون المستلمون"
                   buttonLabel="اختر المشرفين"
-                  selectedSummary={selectedStaffKeys.length > 0 ? `${selectedStaffKeys.length} مستلم محدد` : undefined}
+                  selectedSummary={selectedRecipients.length > 0 ? `${selectedRecipients.length} مستلم محدد` : undefined}
                   options={staffOptions}
                   selectedValues={selectedStaffKeys}
                   onToggle={v => setSelectedStaffKeys(c => c.includes(v) ? c.filter(i => i !== v) : [...c, v])}
                   onClear={() => setSelectedStaffKeys([])}
-                  onSelectAll={() => setSelectedStaffKeys(filteredSendRows.map(r => r.key))}
+                  onSelectAll={() => setSelectedStaffKeys(staffOptions.map(option => option.value))}
                   searchable
+                  compact
                 />
               </div>
             </div>
@@ -1620,13 +1803,13 @@ const PrintSendTab: React.FC<Props> = ({
                   <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={openPreviewMessage} disabled={selectedRows.length === 0}
+                  <button type="button" onClick={openPreviewMessage} disabled={selectedRecipients.length === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <Eye size={15} /> {sendMode === 'electronic' ? 'معاينة التكليف الإلكتروني' : 'معاينة الرسالة'}
                   </button>
-                  <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRows.length === 0}
+                  <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRecipients.length === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Users size={15} /> معاينة المستلمين{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}
+                    <Users size={15} /> معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
                   </button>
                 </div>
               </div>
@@ -1712,7 +1895,7 @@ const PrintSendTab: React.FC<Props> = ({
                     </div>
                   )}
                 </div>
-                <button type="button" onClick={handleSendDirectly} disabled={isSendingNow}
+                <button type="button" onClick={event => { event.preventDefault(); event.stopPropagation(); void handleSendDirectly(); }} disabled={isSendingNow}
                   className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                   {isSendingNow ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   {isSendingNow ? 'جارٍ الإرسال...' : `إرسال عبر ${sendChannelLabel}`}
@@ -1746,7 +1929,7 @@ const PrintSendTab: React.FC<Props> = ({
                   </div>
                   <div className="flex items-center justify-start gap-2 border-b border-slate-100 pb-2">
                     <span className="text-slate-500 font-bold shrink-0">الصفة:</span>
-                    <span className="font-black text-[#655ac1]">{previewRow.staffType === 'teacher' ? 'معلم' : 'إداري'}</span>
+                    <span className="font-black text-slate-800">{getStaffRoleLabel(previewRow)}</span>
                   </div>
                   <div className="flex items-center justify-start gap-2">
                     <span className="text-slate-500 font-bold shrink-0">رقم الجوال:</span>
@@ -1828,17 +2011,22 @@ const PrintSendTab: React.FC<Props> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {selectedRows.length === 0 ? (
+                    {selectedRecipients.length === 0 ? (
                       <tr>
                         <td colSpan={sendMode === 'electronic' ? 6 : 4} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
                           لم يتم اختيار مستلمين بعد.
                         </td>
                       </tr>
-                    ) : selectedRows.map(row => {
-                      const link = sendMode === 'electronic' ? buildSignatureLink(row) : '';
+                    ) : selectedRecipients.map(recipient => {
+                      const firstTask = recipient.tasks[0];
+                      const daysLabel = Array.from(new Set(recipient.tasks.map(task => DAY_NAMES[task.day] || task.day))).join('، ');
+                      const typesLabel = Array.from(new Set(recipient.tasks.map(task => task.typeName))).join('، ');
+                      const links = sendMode === 'electronic'
+                        ? Array.from(new Set(recipient.tasks.map(buildSignatureLink))).join('\n')
+                        : '';
                       return (
-                        <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
-                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700 whitespace-nowrap truncate">{DAY_NAMES[row.day] || row.day}</td>
+                        <tr key={recipient.key} className="hover:bg-[#f8f7ff] transition-all">
+                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700 whitespace-nowrap truncate" title={daysLabel}>{daysLabel}</td>
                           <td className="px-3 py-3.5 text-center">
                             <span className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 whitespace-nowrap truncate">
                               {formatHijriDate(supervisionData.effectiveDate)}
@@ -1846,26 +2034,26 @@ const PrintSendTab: React.FC<Props> = ({
                           </td>
                           <td className="px-3 py-3.5 whitespace-nowrap min-w-0">
                             <div className="whitespace-nowrap">
-                              <p className="font-black text-[12px] text-slate-800 whitespace-nowrap truncate" title={row.staffName}>{row.staffName}</p>
-                              <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap truncate" title={row.typeName}>{row.typeName}</p>
+                              <p className="font-black text-[12px] text-slate-800 whitespace-nowrap truncate" title={recipient.staffName}>{recipient.staffName}</p>
+                              <p className="text-[10px] font-bold text-slate-400 whitespace-nowrap truncate" title={typesLabel}>{typesLabel}</p>
                             </div>
                           </td>
                           <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 whitespace-nowrap truncate" title={notificationTypeLabel}>{notificationTypeLabel}</td>
                           {sendMode === 'electronic' && (
                             <>
                               <td className="px-3 py-3.5 min-w-0">
-                                <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
-                                  {link}
+                                <div dir="ltr" title={links} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
+                                  {links}
                                 </div>
                               </td>
                               <td className="px-3 py-3.5 whitespace-nowrap">
                                 <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                                  <button type="button" onClick={() => setPreviewRow(row)}
+                                  <button type="button" onClick={() => setPreviewRow(firstTask)}
                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
                                     <Eye size={12} />
                                     عرض
                                   </button>
-                                  <button type="button" onClick={() => copyToClipboard(link)}
+                                  <button type="button" onClick={() => copyToClipboard(links)}
                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
                                     <Copy size={12} />
                                     نسخ
@@ -1892,55 +2080,70 @@ const PrintSendTab: React.FC<Props> = ({
         document.body
       )}
 
-      {sendResults.length > 0 && createPortal(
-        <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-xl overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl">
-            <div className="px-6 py-5 border-b border-slate-100 bg-[#f8f7ff] flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-white text-[#655ac1] flex items-center justify-center shadow-sm border border-[#e5e1fe]">
-                  <CheckCircle2 size={23} />
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-800 text-base">نتائج الإرسال</h3>
-                  <p className="text-xs font-bold text-slate-500 mt-0.5">تم تسجيل العملية في أرشيف الرسائل</p>
+      {showSendResultsModal && sendResults.length > 0 && createPortal(
+        <div
+          className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in"
+          dir="rtl"
+          onClick={closeSendResults}
+        >
+          <div
+            className="w-full max-w-xl bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <Send size={22} className="text-[#655ac1] shrink-0" />
+                <div className="min-w-0">
+                  <h4 className="font-black text-slate-800 text-base">نتائج الإرسال</h4>
+                  <p className="text-xs font-bold text-slate-400 mt-0.5">تم تسجيل هذه العملية في أرشيف الرسائل.</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setSendResults([])}
-                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+              <button
+                type="button"
+                title="إغلاق"
+                aria-label="إغلاق"
+                onClick={closeSendResults}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-transparent text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1] transition-all"
+              >
                 <X size={16} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
-                  <p className="text-3xl font-black text-emerald-800">{sendResults.filter(r => r.status === 'sent').length}</p>
-                  <p className="text-xs text-emerald-600 mt-1 font-bold">تم الإرسال</p>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                  <div className="text-[10px] font-bold text-[#655ac1] mb-1">تم الإرسال</div>
+                  <div className="text-xl font-extrabold text-[#655ac1] tabular-nums">{sendResults.filter(r => r.status === 'sent').length}</div>
                 </div>
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-center">
-                  <p className="text-3xl font-black text-rose-800">{sendResults.filter(r => r.status === 'failed').length}</p>
-                  <p className="text-xs text-rose-600 mt-1 font-bold">فشل</p>
+                <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                  <div className="text-[10px] font-bold text-rose-600 mb-1">فشل الإرسال</div>
+                  <div className="text-xl font-extrabold text-rose-600 tabular-nums">{sendResults.filter(r => r.status === 'failed').length}</div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
-                  <p className="text-3xl font-black text-slate-800">{sendResults.length}</p>
-                  <p className="text-xs text-slate-500 mt-1 font-bold">الإجمالي</p>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="max-h-56 overflow-y-auto divide-y divide-slate-100">
-                  {sendResults.map((result, index) => (
-                    <div key={`${result.name}-${index}`} className="px-4 py-3 flex items-center justify-between gap-3 bg-white">
-                      <span className="text-sm font-black text-slate-700 truncate">{result.name}</span>
-                      <span className={`px-3 py-1 rounded-full text-[11px] font-black whitespace-nowrap ${
-                        result.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
-                      }`}>
-                        {result.status === 'sent' ? 'تم الإرسال' : 'فشل الإرسال'}
-                      </span>
-                    </div>
-                  ))}
+                <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                  <div className="text-[10px] font-bold text-slate-500 mb-1">الإجمالي</div>
+                  <div className="text-xl font-extrabold text-slate-800 tabular-nums">{sendResults.length}</div>
                 </div>
               </div>
-              <button type="button" onClick={() => setSendResults([])}
-                className="w-full py-3 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-black transition-all shadow-md shadow-[#655ac1]/20">
+
+              <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    {sendChannel === 'whatsapp' ? <WhatsAppIcon size={18} /> : <MessageSquare size={16} className="text-[#007AFF]" />}
+                    <span>قناة الإرسال: {sendChannelLabel}</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-500">
+                    {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={closeSendResults}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 bg-transparent text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+              >
                 إغلاق
               </button>
             </div>
