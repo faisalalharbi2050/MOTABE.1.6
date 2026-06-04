@@ -477,9 +477,41 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
   // حفظ المسوّدة وتنفيذها على البيانات الفعلية
   const saveLocationsModal = () => {
+    let draft = locationDraft;
+    // في وضع «حسب المشرفين» طبّق المواقع على المشرفين المحددين قبل الحفظ مباشرةً
+    if (locationModalView === 'staff') {
+      if (bulkStaffKeys.length === 0) {
+        showToast('اختر مشرفًا واحدًا على الأقل', 'warning');
+        return;
+      }
+      if (bulkStaffLocationIds.length === 0) {
+        showToast('اختر موقعًا واحدًا على الأقل', 'warning');
+        return;
+      }
+      const targetTypeIds = getBulkTargetTypeIds();
+      const selectedKeys = new Set(bulkStaffKeys);
+      let affected = 0;
+      draft = (locationDraft ?? dayAssignments).map(da => ({
+        ...da,
+        staffAssignments: da.staffAssignments.map(sa => {
+          const key = `${sa.staffType}-${sa.staffId}`;
+          if (!selectedKeys.has(key)) return sa;
+          if (!targetTypeIds.includes(sa.contextTypeId)) return sa; // العمود المستهدف فقط
+          affected += 1;
+          return {
+            ...sa,
+            locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
+          };
+        }),
+      }));
+      if (affected === 0) {
+        showToast('لا يوجد للمشرفين المحددين إسناد في العمود المختار', 'warning');
+        return;
+      }
+    }
     setSupervisionData(prev => {
-      if (!locationDraft) return prev;
-      const next = { ...prev, dayAssignments: locationDraft };
+      if (!draft) return prev;
+      const next = { ...prev, dayAssignments: draft };
       return syncActiveSavedSchedule(prev, next);
     });
     setLocationDraft(null);
@@ -542,40 +574,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           : { ...sa, locationIds: Array.from(new Set([...sa.locationIds, ...bulkLocationIds])) };
       }),
     })));
-  };
-
-  // تطبيق المواقع على المشرفين المحددين ضمن المسوّدة
-  const applyLocationsToSelectedStaff = () => {
-    if (bulkStaffKeys.length === 0) {
-      showToast('اختر مشرفًا واحدًا على الأقل', 'warning');
-      return;
-    }
-    if (bulkStaffLocationIds.length === 0) {
-      showToast('اختر موقعًا واحدًا على الأقل', 'warning');
-      return;
-    }
-
-    const targetTypeIds = getBulkTargetTypeIds();
-    const selectedKeys = new Set(bulkStaffKeys);
-    let affected = 0;
-    setLocationDraft(prev => (prev ?? dayAssignments).map(da => ({
-      ...da,
-      staffAssignments: da.staffAssignments.map(sa => {
-        const key = `${sa.staffType}-${sa.staffId}`;
-        if (!selectedKeys.has(key)) return sa;
-        if (!targetTypeIds.includes(sa.contextTypeId)) return sa; // العمود المستهدف فقط
-        affected += 1;
-        return {
-          ...sa,
-          locationIds: Array.from(new Set([...sa.locationIds, ...bulkStaffLocationIds])),
-        };
-      }),
-    })));
-    if (affected === 0) {
-      showToast('لا يوجد للمشرفين المحددين إسناد في العمود المختار', 'warning');
-      return;
-    }
-    showToast('تم تجهيز المواقع — اضغط «حفظ» للتنفيذ', 'success');
   };
 
   // ═══════════ تحديد كل المشرفين الظاهرين في التبويب الحالي ═══════════
@@ -1002,7 +1000,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   {[
                     'اختر مجموعة من المشرفين.',
                     'حدّد لهم المواقع المناسبة.',
-                    'اضغط «تطبيق».',
+                    'اضغط «حفظ».',
                   ].map((step, i) => (
                     <div key={i} className="flex items-start gap-2.5 text-right">
                       <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full border border-slate-300 text-slate-500 text-[10px] font-black flex items-center justify-center">
@@ -1038,7 +1036,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-slate-50 transition-colors"
                     >
                       <span className="text-sm font-bold text-slate-700">{type.name}</span>
-                      <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                      <span className={`mr-auto w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                         selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
                       }`}>
                         {selected && <Check size={14} strokeWidth={3.5} />}
@@ -1096,7 +1094,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     {areAllDaysApplied() ? 'إلغاء الكل' : 'تطبيق الكل'}
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(86px,1fr))] gap-2">
                   {activeDays.map(day => {
                     const applied = dayHasSelectedLocations(day);
                     return (
@@ -1133,7 +1131,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-4">
               <h4 className="text-sm font-black text-slate-800">تعيين مواقع الإشراف حسب المشرفين</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر عمود الإشراف أولاً، ثم المشرفين، ثم المواقع المناسبة ثم تطبيق.</p>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">اختر عمود الإشراف أولاً، ثم المشرفين، ثم المواقع المناسبة ثم حفظ.</p>
             </div>
 
             {/* محدِّد عمود الإشراف المستهدف */}
@@ -1273,16 +1271,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     })}
                   </div>
                 </div>
-
-                <button
-                  onClick={applyLocationsToSelectedStaff}
-                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 hover:bg-[#655ac1] hover:border-[#655ac1] hover:-translate-y-0.5 transition-all"
-                >
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                    <Check size={13} strokeWidth={3.2} className="text-white" />
-                  </span>
-                  تطبيق
-                </button>
               </div>
             </div>
           </div>
