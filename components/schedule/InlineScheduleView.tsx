@@ -175,6 +175,12 @@ interface InlineScheduleViewProps {
      */
     hideGeneralFilterToolbar?: boolean;
     /**
+     * وضع الطباعة للجداول العامة: يلغي حاوية التمرير والارتفاع الثابت ويفرض
+     * كثافة مدمجة، فتتدفّق المصفوفة كاملة وتتوزّع صفوفها على صفحات A4/A3 مع
+     * تكرار الرأس. مُطفأ افتراضيًا حتى لا يتغيّر العرض على الشاشة.
+     */
+    printMode?: boolean;
+    /**
      * عند تفعيله: يُسمح بإسقاط حصة فوق خانة فيها انتظار. تأخذ الحصة مكانها
      * ويُزال انتظار تلك الخانة، فيعود تلقائيًا كـ"كرت انتظار" في المخزن
      * (لأن عدد الكروت = النصاب − الموزّع). مُطفأ افتراضيًا حتى لا يتغيّر سلوك
@@ -207,6 +213,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     forceWaitingInteractive = false,
     hideHeaderActionButton = false,
     hideGeneralFilterToolbar = false,
+    printMode = false,
     allowLessonOverWaiting = false,
 }) => {
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -223,7 +230,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     // ── وضع الكثافة مستقل بين العرض الداخلي ونافذة المعاينة ──
     const [inlineDensity, setInlineDensity] = useState<DensityMode>('expanded');
     const [fullScreenDensity, setFullScreenDensity] = useState<DensityMode>('overview');
-    const density = isFullScreen ? fullScreenDensity : inlineDensity;
+    const density = printMode ? 'overview' : isFullScreen ? fullScreenDensity : inlineDensity;
     const changeDensity = (mode: DensityMode) => {
         if (isFullScreen) {
             setFullScreenDensity(mode);
@@ -1672,11 +1679,11 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     className="flex-1 min-h-0 flex flex-col"
                     style={{
                         borderRadius:'16px',
-                        overflow:'hidden',
-                        boxShadow:'0 4px 16px rgba(0,0,0,0.06)',
+                        overflow: printMode ? 'visible' : 'hidden',
+                        boxShadow: printMode ? 'none' : '0 4px 16px rgba(0,0,0,0.06)',
                         background: GAP_BG,
-                        minHeight: isFullScreen ? undefined : '540px',
-                        maxHeight: isFullScreen ? undefined : '72vh',
+                        minHeight: (printMode || isFullScreen) ? undefined : '540px',
+                        maxHeight: (printMode || isFullScreen) ? undefined : '72vh',
                     }}
                 >
                 <div
@@ -1686,6 +1693,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                         background: GAP_BG,
                         scrollbarGutter: 'stable both-edges',
                         overscrollBehavior: 'contain',
+                        ...(printMode ? { overflow: 'visible' } : {}),
                     }}
                 >
                 <table

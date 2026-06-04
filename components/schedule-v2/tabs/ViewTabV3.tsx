@@ -53,9 +53,10 @@ import {
   MessageComposerDraft,
   CentralMessage,
 } from '../../../types';
-import PrintableSchedule from '../../schedule/PrintableSchedule';
 import InlineScheduleView from '../../schedule/InlineScheduleView';
 import ScheduleSignatureDocument, { MinistryLogo } from '../../schedule/ScheduleSignatureDocument';
+import { SCHEDULE_PRINT_REQUEST_PREFIX } from '../../schedule/SchedulePrintPage';
+import { SCHEDULE_SIGNATURE_PRINT_REQUEST_PREFIX } from '../../schedule/ScheduleSignaturePrintPage';
 import { generateExtensionXML, downloadFile } from '../../../utils/scheduleExport';
 import {
   buildScheduleShareLink,
@@ -262,6 +263,12 @@ const buildPrintCSS = (paperSize: PaperSize, blackAndWhite: boolean) => `
     .print-page { break-after: page; page-break-after: always; }
     .print-page:last-child { break-after: auto; page-break-after: auto; }
     .print-grid-item { break-inside: avoid; page-break-inside: avoid; }
+    /* الجداول العامة الكبيرة: تتدفّق صفوفها على صفحات بدل أن تُقصّ */
+    .print-grid-item--flow { break-inside: auto !important; page-break-inside: auto !important; }
+    #schedule-print-root thead { display: table-header-group !important; }
+    #schedule-print-root thead th, #schedule-print-root tbody td, #schedule-print-root tbody th { position: static !important; }
+    #schedule-print-root tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    ${blackAndWhite ? '#schedule-print-root { filter: grayscale(100%) !important; }' : ''}
     ${blackAndWhite ? '#schedule-print-root * { box-shadow: none !important; }' : ''}
   }
 `;
@@ -657,9 +664,11 @@ const PrintWorkspace: React.FC<{
               </div>
 
               <div className={`grid ${gridClass} gap-4`}>
-                {pageIds.map(targetId => (
-                  <div key={`${job.type}-${targetId || 'all'}`} className="print-grid-item rounded-2xl border border-slate-100 overflow-hidden">
-                    {job.type === 'individual_teacher' || job.type === 'individual_class' ? (
+                {pageIds.map(targetId => {
+                  const isGeneralJob = job.type !== 'individual_teacher' && job.type !== 'individual_class';
+                  return (
+                  <div key={`${job.type}-${targetId || 'all'}`} className={`print-grid-item rounded-2xl border border-slate-100 ${isGeneralJob ? 'print-grid-item--flow' : 'overflow-hidden'}`}>
+                    {!isGeneralJob ? (
                       <div className="bg-white p-3">
                         <InlineScheduleView
                           type={job.type}
@@ -675,21 +684,24 @@ const PrintWorkspace: React.FC<{
                         />
                       </div>
                     ) : (
-                      <PrintableSchedule
-                        type={job.type}
-                        settings={settings}
-                        teachers={teachers}
-                        classes={classes}
-                        subjects={subjects}
-                        specializations={specializations}
-                        targetId={targetId || undefined}
-                        schoolInfo={schoolInfo}
-                        onClose={onBack}
-                        blackAndWhite={blackAndWhite}
-                      />
+                      <div className="bg-white p-3">
+                        <InlineScheduleView
+                          type={job.type}
+                          settings={settings}
+                          teachers={teachers}
+                          classes={classes}
+                          subjects={subjects}
+                          specializationNames={specializationNames}
+                          showWaitingManagement={false}
+                          hideHeaderActionButton
+                          hideGeneralFilterToolbar
+                          printMode
+                        />
+                      </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ));
@@ -1053,7 +1065,6 @@ const ViewTabV3: React.FC<Props> = ({
   const [exportScheduleType, setExportScheduleType] = useState<ScheduleType>('general_teachers');
 
   const [generatedLinks, setGeneratedLinks] = useState<GeneratedLink[]>([]);
-  const [printJobs, setPrintJobs] = useState<PrintJob[] | null>(null);
   const [signaturePrintTeacherIds, setSignaturePrintTeacherIds] = useState<string[] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isSendScheduled, setIsSendScheduled] = useState(false);
@@ -1323,7 +1334,47 @@ const ViewTabV3: React.FC<Props> = ({
       }];
     }
 
-    setPrintJobs(jobs);
+    if (jobs.length === 0) return;
+
+    const isIndividual = printScheduleType === 'individual_teacher' || printScheduleType === 'individual_class';
+    const payload = {
+      jobs,
+      paperSize: isPrintGeneral ? paperSize : 'A4',
+      colorMode: printColorMode,
+      perPage: isIndividual ? individualPrintPerPage : 1,
+    };
+    const token = `print-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      localStorage.setItem(`${SCHEDULE_PRINT_REQUEST_PREFIX}${token}`, JSON.stringify(payload));
+    } catch {
+      showToast('تعذّر تجهيز الطباعة.');
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('schedulePrint', token);
+    // تفتح الطباعة في تبويب مستقل يطبع تلقائيًا؛ إغلاقه لا يؤثر على الموقع
+    const opened = window.open(url.toString(), '_blank');
+    if (!opened) showToast('فعّل النوافذ المنبثقة للسماح بفتح صفحة الطباعة.');
+  };
+
+  // يفتح نماذج التوقيع في تبويب مستقل يطبع تلقائيًا؛ إغلاقه لا يؤثر على الموقع
+  const openSignaturePrint = (teacherIds: string[]) => {
+    if (teacherIds.length === 0) return;
+    const token = `sigprint-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      localStorage.setItem(`${SCHEDULE_SIGNATURE_PRINT_REQUEST_PREFIX}${token}`, JSON.stringify({ teacherIds }));
+    } catch {
+      showToast('تعذّر تجهيز نماذج التوقيع.');
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('scheduleSigPrint', token);
+    const opened = window.open(url.toString(), '_blank');
+    if (!opened) showToast('فعّل النوافذ المنبثقة للسماح بفتح صفحة الطباعة.');
   };
 
   const handlePrintDeliveryForms = () => {
@@ -1332,7 +1383,7 @@ const ViewTabV3: React.FC<Props> = ({
       return;
     }
 
-    setSignaturePrintTeacherIds(selectedDeliveryTeacherIds);
+    openSignaturePrint(selectedDeliveryTeacherIds);
   };
 
   const handleExportExcel = () => {
@@ -1863,24 +1914,6 @@ const ViewTabV3: React.FC<Props> = ({
     );
   }
 
-  if (printJobs) {
-    return (
-      <PrintWorkspace
-        jobs={printJobs}
-        teachers={teachers}
-        classes={classes}
-        subjects={subjects}
-        specializations={specializations}
-        settings={scheduleSettings}
-        schoolInfo={schoolInfo}
-        paperSize={isPrintGeneral ? paperSize : 'A4'}
-        colorMode={printColorMode}
-        perPage={printScheduleType === 'individual_teacher' || printScheduleType === 'individual_class' ? individualPrintPerPage : 1}
-        onBack={() => setPrintJobs(null)}
-      />
-    );
-  }
-
   if (signaturePrintTeacherIds) {
     return (
       <SignaturePrintWorkspace
@@ -2048,7 +2081,7 @@ const ViewTabV3: React.FC<Props> = ({
               type="button"
               onClick={() => {
                 const ids = filteredReceipts.map(r => r.teacherId).filter(Boolean);
-                if (ids.length > 0) setSignaturePrintTeacherIds(ids);
+                if (ids.length > 0) openSignaturePrint(ids);
                 else showToast('لا توجد نماذج للطباعة.');
               }}
               disabled={batchRequests.length === 0}
@@ -2152,7 +2185,7 @@ const ViewTabV3: React.FC<Props> = ({
                       <td className="px-3 py-3 text-center align-middle">
                         <button
                           type="button"
-                          onClick={() => { setSignaturePrintTeacherIds([req.teacherId]); }}
+                          onClick={() => { openSignaturePrint([req.teacherId]); }}
                           title="عرض وطباعة نموذج الاطلاع على الجدول والتوقيع"
                           className="mx-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all whitespace-nowrap"
                         >

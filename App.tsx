@@ -33,6 +33,8 @@ import SupervisionSignaturePage from './components/supervision/SupervisionSignat
 import DutySignaturePage from './components/duty/DutySignaturePage';
 import ScheduleSignaturePage from './components/schedule/ScheduleSignaturePage';
 import ScheduleSharePage from './components/schedule/ScheduleSharePage';
+import SchedulePrintPage from './components/schedule/SchedulePrintPage';
+import ScheduleSignaturePrintPage from './components/schedule/ScheduleSignaturePrintPage';
 import DailyDuty from './components/DailyDuty';
 import DutyV2Container from './components/duty-v2/DutyV2Container';
 import DailyWaiting from './components/DailyWaiting';
@@ -589,6 +591,22 @@ const App: React.FC = () => {
     : null;
   if (scheduleShareToken) {
     return <ScheduleSharePage token={scheduleShareToken} />;
+  }
+
+  // Full-screen standalone schedule print page (opened in a new tab, auto-prints)
+  const schedulePrintToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('schedulePrint')
+    : null;
+  if (schedulePrintToken) {
+    return <SchedulePrintPage token={schedulePrintToken} />;
+  }
+
+  // Full-screen standalone signature-forms print page (new tab, auto-prints)
+  const scheduleSigPrintToken = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('scheduleSigPrint')
+    : null;
+  if (scheduleSigPrintToken) {
+    return <ScheduleSignaturePrintPage token={scheduleSigPrintToken} />;
   }
 
   // Marketing / Auth gate — non-authenticated users land on the marketing site.
