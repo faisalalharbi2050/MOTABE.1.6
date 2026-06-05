@@ -86,12 +86,6 @@ const formatCalendarDate = (date: string, calendarType: CalendarType) =>
 const formatDateLabel = (date: string, calendarType: CalendarType) =>
   `${dayNameForDate(date)} - ${formatCalendarDate(date, calendarType)}`;
 
-const pluralSupervisors = (count: number) => {
-  if (count === 1) return 'مشرف';
-  if (count === 2) return 'مشرفان';
-  return 'مشرفين';
-};
-
 const CircleCheck: React.FC<{ checked: boolean; dotColor?: string }> = ({ checked, dotColor = 'bg-[#655ac1] border-[#655ac1]' }) => (
   <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
     checked ? `${dotColor} text-white` : 'bg-white border-slate-300 text-transparent'
@@ -331,6 +325,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   const [reportTo, setReportTo] = useState(today);
   const [reportStaffIds, setReportStaffIds] = useState<string[]>([]);
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const selectedDateObj = parseIsoDate(selectedDate) || new Date();
@@ -442,6 +437,18 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
     });
     setShowMarkAllConfirm(false);
     showToast('تم تحديد الكل حاضر', 'success');
+  };
+
+  const clearDailySelections = () => {
+    const visibleKeys = new Set(dailyRows.map(row => `${selectedDate}-${row.contextTypeId}-${row.staffId}`));
+    setSupervisionData(prev => ({
+      ...prev,
+      attendanceRecords: prev.attendanceRecords.filter(record =>
+        !visibleKeys.has(`${record.date}-${record.contextTypeId}-${record.staffId}`)
+      ),
+    }));
+    setShowClearAllConfirm(false);
+    showToast('تم إلغاء كل اختيارات المتابعة الحالية', 'success');
   };
 
   const reportStaffOptions = useMemo(() => {
@@ -569,7 +576,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-[#655ac1]">
                   <span>{dailyRows.length}</span>
-                  <span>{pluralSupervisors(dailyRows.length)}</span>
+                  <span>مشرف</span>
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500">
                   لم يُرصد بعد: {dailyStats.unrecorded}
@@ -582,6 +589,14 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 >
                   <Check size={15} />
                   تحديد الكل حاضر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowClearAllConfirm(true)}
+                  disabled={dailyRows.length === 0 || dailyStats.unrecorded === dailyRows.length}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-black hover:bg-slate-50 transition-all disabled:opacity-50"
+                >
+                  إلغاء كل الاختيارات
                 </button>
               </div>
             </div>
@@ -778,6 +793,37 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
               </button>
               <button
                 onClick={markAllPresent}
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-[#655ac1] hover:bg-[#5046a0] shadow-[#655ac1]/20"
+              >
+                تأكيد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearAllConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="p-6 flex items-start gap-3">
+              <Check size={28} className="text-slate-500 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">تأكيد إلغاء الاختيارات</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  سيتم مسح حالات الحضور المختارة للمشرفين الظاهرين في جدول المتابعة الحالي. هل تريد المتابعة؟
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowClearAllConfirm(false)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={clearDailySelections}
                 className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-[#655ac1] hover:bg-[#5046a0] shadow-[#655ac1]/20"
               >
                 تأكيد
