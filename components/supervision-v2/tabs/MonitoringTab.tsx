@@ -598,6 +598,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
         th,td{border:1px solid #cbd5e1;padding:7px;text-align:center}
         th{background:#f1f5f9;color:#655ac1;font-weight:900}
         td:nth-child(2),th:nth-child(2){text-align:right}
+        [data-print-hidden]{display:none!important}
       </style></head><body>${html}<script>window.print();</script></body></html>`);
     win.document.close();
   };
@@ -786,14 +787,6 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 />
                 <StaffMultiSelect options={reportStaffOptions} selectedValues={reportStaffIds} onChange={setReportStaffIds} />
               </div>
-              <button
-                type="button"
-                onClick={printReport}
-                className="mx-auto flex w-fit items-center gap-2 px-4 py-2.5 rounded-xl bg-[#655ac1] text-white text-xs font-black hover:bg-[#5046a0] transition-all"
-              >
-                <Printer size={16} />
-                طباعة التقرير
-              </button>
             </div>
           </div>
 
@@ -813,10 +806,23 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 <div>الفصل الدراسي: {schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId || s.isCurrent)?.name || ''}</div>
               </div>
             </div>
-            <h1 className="text-sm font-black text-slate-900 text-right">تقرير أداء الإشراف اليومي</h1>
-            <p className="text-right text-[11px] font-bold text-[#655ac1] mt-2 mb-4">
-              من {formatDateLabel(reportFrom, reportCalendarType)} إلى {formatDateLabel(reportTo, reportCalendarType)}
-            </p>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="text-right">
+                <h1 className="text-sm font-black text-slate-900">تقرير أداء الإشراف اليومي</h1>
+                <p className="text-[11px] font-bold text-[#655ac1] mt-2">
+                  من {formatDateLabel(reportFrom, reportCalendarType)} إلى {formatDateLabel(reportTo, reportCalendarType)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={printReport}
+                data-print-hidden
+                className="flex w-fit shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl bg-[#655ac1] text-white text-xs font-black hover:bg-[#5046a0] transition-all"
+              >
+                <Printer size={16} />
+                طباعة التقرير
+              </button>
+            </div>
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
               <table className="w-full text-right text-[12px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
