@@ -173,7 +173,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
   };
 
   const stats = [
-    { label: 'إجمالي جداول الإشراف', value: String(supervisionData.supervisionGenerationCount || 0), icon: CalendarDays },
+    { label: 'الجداول المنشأة', value: String(supervisionData.supervisionGenerationCount || 0), icon: CalendarDays },
     { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10`, icon: Archive },
     { label: 'الجدول المعتمد', value: activeSchedule?.name ?? '—', icon: BadgeCheck, isText: true },
   ];
