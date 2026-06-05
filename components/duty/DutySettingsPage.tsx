@@ -47,7 +47,9 @@ const DutySettingsPage: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<TabId>('calendar');
   const [showCalendarModal, setShowCalendarModal] = useState(false);
 
-  const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId || s.isCurrent) || schoolInfo.semesters?.[0];
+  const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
+    || schoolInfo.semesters?.find(s => s.isCurrent)
+    || schoolInfo.semesters?.[0];
   const weeksCount = currentSemester?.weeksCount || 0;
   const hasSelectedCalendar = Boolean(schoolInfo.academicYear && currentSemester?.startDate && currentSemester?.endDate && weeksCount > 0);
 

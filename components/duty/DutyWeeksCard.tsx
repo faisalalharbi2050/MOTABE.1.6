@@ -9,13 +9,16 @@ import { SchoolInfo, DutySettings, SemesterInfo } from '../../types';
 import { getDutyDayStatus } from '../../utils/dutyUtils';
 
 // عرض التاريخ بصيغة عربية صحيحة: اليوم على اليمين ثم الشهر (مطابق للتقويم)
-const DM: React.FC<{ dateObj: any }> = ({ dateObj }) => (
-  <span dir="rtl" className="inline-flex items-center">
-    <span>{dateObj.format('D')}</span>
-    <span className="mx-0.5">/</span>
-    <span>{dateObj.format('M')}</span>
-  </span>
-);
+const DM: React.FC<{ dateObj: any }> = ({ dateObj }) => {
+  if (!dateObj) return <span>—</span>;
+  return (
+    <span dir="rtl" className="inline-flex items-center">
+      <span>{dateObj.format('D')}</span>
+      <span className="mx-0.5">/</span>
+      <span>{dateObj.format('M')}</span>
+    </span>
+  );
+};
 
 const DateRange: React.FC<{ first: any; last: any }> = ({ first, last }) => (
   <span dir="rtl" className="inline-flex items-center gap-1">
@@ -50,15 +53,20 @@ interface Props {
 }
 
 const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, currentSemester }) => {
+  // صيغة العرض الموحّدة = مرتكز الرئيسية schoolInfo.calendarType (التواريخ المخزّنة ميلادية، والتبديل عرضٌ فقط)
   const calendarType: 'hijri' | 'gregorian' =
-    (currentSemester?.calendarType as any) || schoolInfo.calendarType || 'gregorian';
+    schoolInfo.calendarType || (currentSemester?.calendarType as any) || 'gregorian';
 
-  const fmtDate = (s?: string) => {
-    if (!s) return '—';
+  // كائن تاريخ بصيغة التقويم المختار — لعرض رقم اليوم/رقم الشهر
+  const toDateObj = (s?: string): any => {
+    if (!s) return null;
     const d = new Date(s.includes('T') ? s : s + 'T00:00:00');
-    if (isNaN(d.getTime())) return s;
-    const locale = calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA';
-    return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', day: 'numeric' }).format(d);
+    if (isNaN(d.getTime())) return null;
+    return new DateObject({
+      date: d,
+      calendar: calendarType === 'hijri' ? arabic : gregorian,
+      locale: calendarType === 'hijri' ? arabic_ar : gregorian_ar,
+    });
   };
 
   // بناء الأسابيع بكائنات التاريخ والإجازات — بنفس منطق التقويم
@@ -247,27 +255,23 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
         {/* العنوان */}
         <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
           <CalendarDays size={20} className="text-[#655ac1] shrink-0" />
-          <h4 className="font-black text-slate-800 text-sm">عرض الأسابيع الدراسية</h4>
-          {currentSemester?.name && (
-            <span className="text-sm font-black text-[#655ac1]">— {currentSemester.name}</span>
-          )}
-        </div>
-
-        {/* شريط بداية ونهاية الفصل */}
-        <div className="px-5 pt-4">
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-2.5 border border-slate-200 rounded-xl">
-            <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: {fmtDate(currentSemester?.startDate)}
-            </span>
-            <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: {fmtDate(currentSemester?.endDate)}
-            </span>
+          <div>
+            <h4 className="font-black text-slate-800 text-sm">عرض الأسابيع الدراسية</h4>
+            {currentSemester?.name && (
+              <p className="text-xs font-black text-[#655ac1] mt-0.5">{currentSemester.name}</p>
+            )}
           </div>
         </div>
 
-        {/* شريط الإحصاءات */}
-        <div className="px-5 pt-3">
+        {/* شريط المعلومات: تواريخ الفصل + الإحصاءات */}
+        <div className="px-5 pt-4">
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-2.5 border border-slate-200 rounded-xl">
+            <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
+            </span>
+            <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+              <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: <DM dateObj={toDateObj(currentSemester?.endDate)} />
+            </span>
             <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
               <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
             </span>
