@@ -5,7 +5,7 @@ import arabic_ar from 'react-date-object/locales/arabic_ar';
 import gregorian from 'react-date-object/calendars/gregorian';
 import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
-  BarChart3, Check, ChevronDown, Printer, Search, UserCheck,
+  BarChart3, Check, ChevronDown, Printer, Search, UserCheck, X,
 } from 'lucide-react';
 import {
   Admin, SchoolInfo, SupervisionAttendanceRecord, SupervisionAttendanceStatus, SupervisionScheduleData,
@@ -115,7 +115,7 @@ const DateField: React.FC<{
         containerClassName="flex-1"
         inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
         placeholder="حدد التاريخ"
-        format={calendarType === 'hijri' ? 'dddd DD/MM/YYYY' : 'dddd YYYY-MM-DD'}
+        format={calendarType === 'hijri' ? 'dddd YYYY/MM/DD' : 'dddd YYYY-MM-DD'}
         portal
         portalTarget={document.body}
         editable={false}
@@ -576,7 +576,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-[#655ac1]">
                   <span>{dailyRows.length}</span>
-                  <span>مشرف</span>
+                  <span>مشرفين</span>
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500">
                   لم يُرصد بعد: {dailyStats.unrecorded}
@@ -806,7 +806,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
             <div className="p-6 flex items-start gap-3">
-              <Check size={28} className="text-slate-500 mt-0.5 shrink-0" />
+              <X size={28} className="text-rose-600 mt-0.5 shrink-0" />
               <div>
                 <h3 className="text-xl font-black text-slate-800 mb-2">تأكيد إلغاء الاختيارات</h3>
                 <p className="text-sm font-medium text-slate-500 leading-relaxed">
@@ -824,7 +824,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
               </button>
               <button
                 onClick={clearDailySelections}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-[#655ac1] hover:bg-[#5046a0] shadow-[#655ac1]/20"
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-rose-600 hover:bg-rose-700 shadow-rose-500/20"
               >
                 تأكيد
               </button>
