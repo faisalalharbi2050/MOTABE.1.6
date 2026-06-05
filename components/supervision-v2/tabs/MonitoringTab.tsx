@@ -50,6 +50,19 @@ const parseIsoDate = (date?: string) => {
   return isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
+const getDateRange = (start?: string, end?: string) => {
+  const from = parseIsoDate(start);
+  const to = parseIsoDate(end);
+  if (!from || !to || from > to) return [];
+  const dates: string[] = [];
+  const current = new Date(from);
+  while (current <= to) {
+    dates.push(formatIsoDate(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+};
+
 const formatPickerDate = (date: any) => {
   if (!date) return '';
   if (date instanceof DateObject) return formatIsoDate(date.toDate());
@@ -460,29 +473,60 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   }, [supervisionData.dayAssignments]);
 
   const reportRows = useMemo(() => {
-    const from = reportFrom || '0000-00-00';
-    const to = reportTo || '9999-99-99';
+    const dates = getDateRange(reportFrom, reportTo);
     const selected = new Set(reportStaffIds);
-    const records = supervisionData.attendanceRecords.filter(record =>
-      record.date >= from &&
-      record.date <= to &&
-      (selected.size === 0 || selected.has(record.staffId))
+
+    const grouped = new Map<string, {
+      staffId: string;
+      staffName: string;
+      staffType: 'teacher' | 'admin';
+      contextTypeId: string;
+      typeName: string;
+      counts: Record<SupervisionAttendanceStatus, number>;
+    }>();
+
+    dates.forEach(date => {
+      const dayKey = DAY_KEYS[(parseIsoDate(date) || new Date()).getDay()] || 'sunday';
+      const day = supervisionData.dayAssignments.find(item => item.day === dayKey);
+      day?.staffAssignments.forEach(staff => {
+        if (selected.size > 0 && !selected.has(staff.staffId)) return;
+        const contextTypeId = staff.contextTypeId || 'unknown';
+        const key = `${staff.staffId}-${contextTypeId}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            staffId: staff.staffId,
+            staffName: staff.staffName,
+            staffType: staff.staffType,
+            contextTypeId,
+            typeName: supervisionData.supervisionTypes.find(type => type.id === contextTypeId)?.name || staff.contextTypeId || 'غير محدد',
+            counts: STATUS_OPTIONS.reduce((acc, option) => {
+              acc[option.value] = 0;
+              return acc;
+            }, {} as Record<SupervisionAttendanceStatus, number>),
+          });
+        }
+      });
+    });
+
+    supervisionData.attendanceRecords.forEach(record => {
+      if (!dates.includes(record.date)) return;
+      if (selected.size > 0 && !selected.has(record.staffId)) return;
+      const contextTypeId = record.contextTypeId || 'unknown';
+      const key = `${record.staffId}-${contextTypeId}`;
+      const row = grouped.get(key);
+      if (!row) return;
+      row.counts[record.status] += 1;
+    });
+
+    return Array.from(grouped.values()).map(row => {
+      const total = STATUS_OPTIONS.reduce((sum, option) => sum + row.counts[option.value], 0);
+      const commitmentRate = total > 0 ? Math.round((row.counts.present / total) * 100) : 0;
+      return { ...row, total, commitmentRate };
+    }).sort((a, b) =>
+      a.staffName.localeCompare(b.staffName, 'ar') ||
+      a.typeName.localeCompare(b.typeName, 'ar')
     );
-    const grouped = new Map<string, SupervisionAttendanceRecord[]>();
-    records.forEach(record => {
-      if (!grouped.has(record.staffId)) grouped.set(record.staffId, []);
-      grouped.get(record.staffId)!.push(record);
-    });
-    return Array.from(grouped.values()).map(items => {
-      const first = items[0];
-      const counts = STATUS_OPTIONS.reduce((acc, option) => {
-        acc[option.value] = items.filter(item => item.status === option.value).length;
-        return acc;
-      }, {} as Record<SupervisionAttendanceStatus, number>);
-      const commitmentRate = items.length > 0 ? Math.round((counts.present / items.length) * 100) : 0;
-      return { staffId: first.staffId, staffName: first.staffName, staffType: first.staffType, total: items.length, counts, commitmentRate };
-    });
-  }, [reportFrom, reportStaffIds, reportTo, supervisionData.attendanceRecords]);
+  }, [reportFrom, reportStaffIds, reportTo, supervisionData.attendanceRecords, supervisionData.dayAssignments, supervisionData.supervisionTypes]);
 
   const reportTotals = useMemo(() => {
     const counts = STATUS_OPTIONS.reduce((acc, option) => {
@@ -731,6 +775,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">م</th>
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1]">المشرف</th>
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">الصفة</th>
+                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">نوع الإشراف</th>
                     {STATUS_OPTIONS.map(option => <th key={option.value} className={`px-4 py-3 text-xs font-black text-center ${option.textColor}`}>{option.label}</th>)}
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">إجمالي الرصد</th>
                     <th className="px-4 py-3 text-xs font-black text-slate-700 text-center">نسبة الالتزام %</th>
@@ -738,23 +783,24 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {reportRows.map((row, index) => (
-                    <tr key={row.staffId}>
+                    <tr key={`${row.staffId}-${row.contextTypeId}`}>
                       <td className="px-4 py-3 text-center font-black text-slate-400">{index + 1}</td>
                       <td className="px-4 py-3 font-black text-slate-800">{row.staffName}</td>
                       <td className="px-4 py-3 text-center font-bold text-slate-500 whitespace-nowrap">{getStaffRoleLabel(row.staffType, row.staffId)}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-600 whitespace-nowrap">{row.typeName}</td>
                       {STATUS_OPTIONS.map(option => <td key={option.value} className={`px-4 py-3 text-center font-bold ${option.textColor}`}>{row.counts[option.value] || <span className="text-slate-200">—</span>}</td>)}
                       <td className="px-4 py-3 text-center font-black text-slate-700">{row.total}</td>
                       <td className="px-4 py-3 text-center font-black text-slate-700">{row.commitmentRate}%</td>
                     </tr>
                   ))}
                   {reportRows.length === 0 && (
-                    <tr><td colSpan={10} className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات أداء ضمن الفترة المحددة.</td></tr>
+                    <tr><td colSpan={11} className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات أداء ضمن الفترة المحددة.</td></tr>
                   )}
                 </tbody>
                 {reportRows.length > 0 && (
                   <tfoot>
                     <tr className="bg-slate-100 border-t border-slate-200">
-                      <td className="px-4 py-3 font-black text-slate-700" colSpan={3}>الإجمالي</td>
+                      <td className="px-4 py-3 font-black text-slate-700" colSpan={4}>الإجمالي</td>
                       {STATUS_OPTIONS.map(option => (
                         <td key={option.value} className={`px-4 py-3 text-center font-black ${option.textColor}`}>
                           {reportTotals.counts[option.value] || <span className="text-slate-300">—</span>}
