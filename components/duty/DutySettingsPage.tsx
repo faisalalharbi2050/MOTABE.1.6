@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import {
   Users, Settings, Bell,
-  ArrowLeft, CalendarDays
+  ArrowLeft, CalendarDays, Laptop
 } from 'lucide-react';
 import {
   Teacher, Admin, SchoolInfo,
@@ -46,6 +46,7 @@ const DutySettingsPage: React.FC<Props> = ({
   const hasSharedSchools = (schoolInfo.sharedSchools || []).length > 0;
   const [activeTab, setActiveTab] = useState<TabId>('calendar');
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showHybridModal, setShowHybridModal] = useState(false);
 
   const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId)
     || schoolInfo.semesters?.find(s => s.isCurrent)
@@ -85,14 +86,31 @@ const DutySettingsPage: React.FC<Props> = ({
 
         {activeTab === 'calendar' && (
           <div className="relative rounded-[2rem] p-5 sm:p-6 bg-white border border-slate-200 shadow-sm overflow-hidden">
-            <div className="flex items-start gap-3 mb-5">
-              <div className="flex h-11 w-11 items-center justify-center text-[#655ac1] shrink-0">
-                <CalendarDays size={22} strokeWidth={2.1} />
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center text-[#655ac1] shrink-0">
+                  <CalendarDays size={22} strokeWidth={2.1} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-black text-slate-800">الأسابيع الدراسية</h3>
+                  <p className="text-sm font-medium text-slate-500 mt-1 leading-6">الأسابيع الدراسية التي ستوزّع فيها المناوبة اليومية.</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-black text-slate-800">الأسابيع الدراسية</h3>
-                <p className="text-sm font-medium text-slate-500 mt-1 leading-6">الأسابيع الدراسية التي ستوزّع فيها المناوبة اليومية.</p>
-              </div>
+              {hasSelectedCalendar && (
+                <button
+                  type="button"
+                  onClick={() => setShowHybridModal(true)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all shrink-0 ${
+                    settings.dutyHybridEnabled
+                      ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                  }`}
+                >
+                  <Laptop size={14} />
+                  <span>مدارس التعليم المدمج</span>
+                  {settings.dutyHybridEnabled && <span className="text-[10px] font-black opacity-90">· مفعّل</span>}
+                </button>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -115,6 +133,8 @@ const DutySettingsPage: React.FC<Props> = ({
                   setSettings={setSettings}
                   schoolInfo={schoolInfo}
                   currentSemester={currentSemester}
+                  showHybridModal={showHybridModal}
+                  setShowHybridModal={setShowHybridModal}
                 />
               )}
             </div>

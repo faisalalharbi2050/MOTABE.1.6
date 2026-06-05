@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarX2, MousePointerClick, Laptop, Ban, Check, X } from 'lucide-react';
+import { CalendarX2, MousePointerClick, Laptop, Ban, Check, X, AlertTriangle } from 'lucide-react';
 import { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -50,9 +50,11 @@ interface Props {
   setSettings: (s: DutySettings | ((prev: DutySettings) => DutySettings)) => void;
   schoolInfo: SchoolInfo;
   currentSemester?: Partial<SemesterInfo>;
+  showHybridModal: boolean;
+  setShowHybridModal: (b: boolean) => void;
 }
 
-const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, currentSemester }) => {
+const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, currentSemester, showHybridModal, setShowHybridModal }) => {
   // صيغة العرض الموحّدة = مرتكز الرئيسية schoolInfo.calendarType (التواريخ المخزّنة ميلادية، والتبديل عرضٌ فقط)
   const calendarType: 'hijri' | 'gregorian' =
     schoolInfo.calendarType || (currentSemester?.calendarType as any) || 'gregorian';
@@ -185,35 +187,18 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
     return { holidayDays, offDays, dutyDays, totalWeeks: weeks.length, activeWeeks: selectedWeeks.filter(n => allWeekNumbers.includes(n)).length };
   }, [weeks, settings, selectedWeeks]);
 
-  const [showHybridModal, setShowHybridModal] = React.useState(false);
-
   if (weeks.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {/* سطر علوي: اسم الفصل + زر مدارس التعليم المدمج */}
-      <div className="flex items-center justify-between gap-2">
-        {currentSemester?.name ? (
-          <p className="text-sm font-black text-[#655ac1]">{currentSemester.name}</p>
-        ) : <span />}
-        <button
-          type="button"
-          onClick={() => setShowHybridModal(true)}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-            settings.dutyHybridEnabled
-              ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
-              : 'border-slate-200 bg-white text-slate-500 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
-          }`}
-        >
-          <Laptop size={14} />
-          <span>مدارس التعليم المدمج</span>
-          {settings.dutyHybridEnabled && <span className="text-[10px] font-black opacity-90">· مفعّل</span>}
-        </button>
-      </div>
-
-      {/* شريط المعلومات: تواريخ الفصل + الإحصاءات */}
+      {/* شريط المعلومات: الفصل + تواريخه + الإحصاءات */}
       <div>
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-2.5 border border-slate-200 rounded-xl">
+            {currentSemester?.name && (
+              <span className="flex items-center gap-2 text-xs font-black text-[#655ac1]">
+                <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{currentSemester.name}
+              </span>
+            )}
             <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
               <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
             </span>
@@ -221,7 +206,7 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
               <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: <DM dateObj={toDateObj(currentSemester?.endDate)} />
             </span>
             <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
+              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
             </span>
             <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
               <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />أيام المناوبة: {stats.dutyDays} يوم
@@ -341,7 +326,7 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
               <button
                 type="button"
                 onClick={() => setShowHybridModal(false)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
               >
                 <X size={18} />
               </button>
@@ -401,14 +386,34 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
               </div>
             )}
 
-            {/* تذييل */}
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-100">
+            {/* تنبيه: انعكاس الاختيارات على الجدول */}
+            <div className="px-5 pt-4">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <span className="text-[12px] font-bold text-amber-800 leading-relaxed">
+                  ستنعكس هذه الاختيارات مباشرةً على جدول المناوبة: الأيام المحدّدة «عن بُعد» لن يُسنَد فيها مناوبون، وتظهر معطّلة في الجدول.
+                </span>
+              </div>
+            </div>
+
+            {/* تذييل: إغلاق + حفظ */}
+            <div className="flex justify-end gap-2 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setShowHybridModal(false)}
+                className="inline-flex items-center gap-2 bg-white text-slate-600 px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all"
+              >
+                إغلاق
+              </button>
               <button
                 type="button"
                 onClick={() => setShowHybridModal(false)}
                 className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-[#655ac1]/20"
               >
-                تم
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
+                حفظ
               </button>
             </div>
           </div>
