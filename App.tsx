@@ -141,6 +141,18 @@ const loadStoredAppData = () => {
   return primary || backup;
 };
 
+const normalizeSchoolCalendarType = (schoolInfo: SchoolInfo): SchoolInfo => {
+  const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
+  return {
+    ...schoolInfo,
+    calendarType,
+    semesters: (schoolInfo.semesters || []).map(semester => ({
+      ...semester,
+      calendarType,
+    })),
+  };
+};
+
 const openAppPersistenceDb = (): Promise<IDBDatabase | null> => {
   if (typeof window === 'undefined' || !('indexedDB' in window)) {
     return Promise.resolve(null);
@@ -262,7 +274,7 @@ const App: React.FC = () => {
     return loadStoredAppData();
   }, []);
 
-  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(() => initialAppData?.schoolInfo ?? {
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo>(() => normalizeSchoolCalendarType(initialAppData?.schoolInfo ?? {
     entityType: EntityType.SCHOOL,
     schoolName: '',
     region: '',
@@ -272,7 +284,7 @@ const App: React.FC = () => {
     educationalAgent: '',
     principal: '',
     sharedSchools: []
-  });
+  }));
 
   const [teachers, setTeachers] = useState<Teacher[]>(() => initialAppData?.teachers ?? []);
   const [specializations, setSpecializations] = useState<Specialization[]>(() => {
@@ -364,7 +376,7 @@ const App: React.FC = () => {
     let isMounted = true;
 
     const applyStoredData = (storedData: any) => {
-      setSchoolInfo(storedData.schoolInfo ?? createDefaultSchoolInfo());
+      setSchoolInfo(normalizeSchoolCalendarType(storedData.schoolInfo ?? createDefaultSchoolInfo()));
       setTeachers(storedData.teachers ?? []);
       setSpecializations(
         storedData.specializations

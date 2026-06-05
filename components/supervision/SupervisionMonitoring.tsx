@@ -155,7 +155,7 @@ const SupervisionMonitoring: React.FC<Props> = ({
   // Format Selected Date
   const formattedDate = useMemo(() => {
     const d = new Date(selectedDate);
-    const calendarType = schoolInfo.semesters?.[0]?.calendarType || 'hijri';
+    const calendarType = schoolInfo.calendarType || schoolInfo.semesters?.[0]?.calendarType || 'hijri';
     
     if (calendarType === 'hijri') {
       return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {

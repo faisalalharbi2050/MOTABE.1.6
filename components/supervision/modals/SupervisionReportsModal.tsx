@@ -8,7 +8,7 @@ const toHijriShort = (dateStr: string, schoolInfo: SchoolInfo): string => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    const calType = schoolInfo?.semesters?.[0]?.calendarType || 'hijri';
+    const calType = schoolInfo?.calendarType || schoolInfo?.semesters?.[0]?.calendarType || 'hijri';
     if (calType === 'hijri') {
       return new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
     } else {

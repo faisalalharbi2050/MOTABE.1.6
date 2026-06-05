@@ -460,7 +460,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     maxStaffPerDay === 1 ? 'المناوب' : `مناوب ${i + 1}`
   );
 
-  const calendarType = schoolInfo.semesters?.find(s => s.isCurrent)?.calendarType
+  const calendarType = schoolInfo.calendarType
+    || schoolInfo.semesters?.find(s => s.isCurrent)?.calendarType
     || schoolInfo.semesters?.[0]?.calendarType || 'hijri';
 
   const formatDisplayDate = (dateStr: string) => {

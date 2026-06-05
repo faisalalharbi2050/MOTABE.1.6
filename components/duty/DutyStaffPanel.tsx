@@ -268,7 +268,7 @@ ${schoolInfo?.schoolName || 'اسم المدرسة'} - ${todayDayName} ${todayHi
 
             <SettingRow
               title="للمدارس المشتركة اختر جدول موحد أو منفصل"
-              hint={!hasSharedSchools ? 'يتطلب إضافة مدرسة مشتركة في قسم معلومات عامة' : undefined}
+              hint={!hasSharedSchools ? 'يتطلب إضافة مدرسة مشتركة في قسم بيانات المدرسة' : undefined}
               disabled={!hasSharedSchools}
             >
               <div className={`flex gap-1.5 bg-slate-100 rounded-xl p-1 shrink-0 ${!hasSharedSchools ? 'pointer-events-none' : ''}`}>

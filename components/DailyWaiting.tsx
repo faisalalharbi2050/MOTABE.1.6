@@ -1159,7 +1159,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ── Reports print helper (new design) ──
   const handleWaitingReportPrint = () => {
-    const calType = (getCurrentAcademicSemester(schoolInfo)?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
+    const calType = (schoolInfo.calendarType || getCurrentAcademicSemester(schoolInfo)?.calendarType || 'hijri') as 'hijri' | 'gregorian';
     const todayDate = new Date();
     const todayDayName = todayDate.toLocaleDateString('ar-SA', { weekday: 'long' });
     const todayHijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' }).format(todayDate);
@@ -2352,7 +2352,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }, [teachers, weeklyQuota]);
 
   // ── New report modal computed data ──
-  const rptCalType = (getCurrentAcademicSemester(schoolInfo)?.calendarType || schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
+  const rptCalType = (schoolInfo.calendarType || getCurrentAcademicSemester(schoolInfo)?.calendarType || 'hijri') as 'hijri' | 'gregorian';
 
   const allWaitingStaff = useMemo(() => {
     const list: { id: string; name: string; role: 'teacher' | 'admin'; quota: number }[] = [];

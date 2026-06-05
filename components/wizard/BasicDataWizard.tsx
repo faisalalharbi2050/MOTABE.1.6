@@ -36,7 +36,7 @@ const BasicDataWizard: React.FC<BasicDataWizardProps> = ({
   const totalSteps = 1;
 
   const steps = [
-    { id: 1, title: 'معلومات عامة', icon: Settings },
+    { id: 1, title: 'بيانات المدرسة', icon: Settings },
   ];
 
   useEffect(() => {

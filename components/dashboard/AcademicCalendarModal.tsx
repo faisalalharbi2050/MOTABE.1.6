@@ -73,8 +73,10 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
     if (!latestCalendar) return;
     const region = latestCalendar.regions.find(r => r.id === regionId);
     if (!region) return;
+    const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
     const newSemesters = region.semesters.map((sem, order) => ({
       ...sem,
+      calendarType,
       id: `preset-${Date.now()}-${order}`,
       isCurrent: order === 0,
     }));

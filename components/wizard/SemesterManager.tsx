@@ -261,14 +261,14 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     const workStart = semester.workDaysStart ?? 0;
     const workEnd = semester.workDaysEnd ?? 4;
     const holidays = semester.holidays || [];
-    const calendarType = semester.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
+    const effectiveCalendarType = calendarType === 'gregorian' ? 'gregorian' : 'hijri';
 
     while (current <= end) {
       const dateStr = current.getFullYear() + '-' + String(current.getMonth() + 1).padStart(2, '0') + '-' + String(current.getDate()).padStart(2, '0');
       const dateObj = new DateObject({
         date: current,
-        calendar: calendarType === 'hijri' ? arabic : gregorian,
-        locale: calendarType === 'hijri' ? arabic_ar : gregorian_ar
+        calendar: effectiveCalendarType === 'hijri' ? arabic : gregorian,
+        locale: effectiveCalendarType === 'hijri' ? arabic_ar : gregorian_ar
       });
       const dayOfWeek = current.getDay();
       const isWorkingDay = workStart <= workEnd
@@ -291,7 +291,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     }
 
     return result;
-  }, [DAYS_OF_WEEK]);
+  }, [DAYS_OF_WEEK, calendarType]);
 
   const getActiveWeeksCount = React.useCallback((holidaysArr: string[], startStr: string, endStr: string, workStart: number, workEnd: number) => {
         if (!startStr || !endStr) return 0;
@@ -435,7 +435,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     setPreviewingSemester(null);
     setNewSemester({
        name: semester.name,
-       calendarType: semester.calendarType,
+       calendarType,
        startDate: semester.startDate,
        endDate: semester.endDate,
        weeksCount: semester.weeksCount,
@@ -593,11 +593,11 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
                     <p className="text-[11px] font-medium text-slate-400 mb-1">بداية الفصل الدراسي</p>
-                    <p className="text-xs font-bold text-slate-700 leading-5">{formatDateForDisplay(semester.startDate, semester.calendarType)}</p>
+                    <p className="text-xs font-bold text-slate-700 leading-5">{formatDateForDisplay(semester.startDate, calendarType)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
                     <p className="text-[11px] font-medium text-slate-400 mb-1">نهاية الفصل الدراسي</p>
-                    <p className="text-xs font-bold text-slate-700 leading-5">{formatDateForDisplay(semester.endDate, semester.calendarType)}</p>
+                    <p className="text-xs font-bold text-slate-700 leading-5">{formatDateForDisplay(semester.endDate, calendarType)}</p>
                   </div>
                 </div>
 

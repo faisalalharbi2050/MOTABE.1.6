@@ -3,9 +3,9 @@ import { ModulePermission, PermissionLevel } from '../../types';
 export const MODULES = [
   {
     id: 'settings',
-    name: 'الإعدادات',
+    name: 'الإعدادات والبيانات',
     submodules: [
-      { id: 'settings_basic',    name: 'معلومات عامة'      },
+      { id: 'settings_basic',    name: 'بيانات المدرسة'    },
       { id: 'settings_timing',   name: 'التوقيت'           },
       { id: 'settings_subjects', name: 'المواد'             },
       { id: 'settings_classes',  name: 'الفصول'            },

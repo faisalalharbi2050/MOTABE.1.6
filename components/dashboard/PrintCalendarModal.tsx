@@ -32,8 +32,8 @@ function formatDateDisplay(dateStr: string, calendarType: 'hijri' | 'gregorian')
   }
 }
 
-function buildWeeks(semester: SemesterInfo) {
-  const { startDate, endDate, workDaysStart = 0, workDaysEnd = 4, holidays = [], calendarType } = semester;
+function buildWeeks(semester: SemesterInfo, calendarType: 'hijri' | 'gregorian') {
+  const { startDate, endDate, workDaysStart = 0, workDaysEnd = 4, holidays = [] } = semester;
   if (!startDate || !endDate) return [];
   const start = new Date(startDate + 'T00:00:00');
   const end   = new Date(endDate   + 'T00:00:00');
@@ -70,8 +70,9 @@ function buildWeeks(semester: SemesterInfo) {
 }
 
 function buildPrintHTML(semester: SemesterInfo, academicYear: string, schoolInfo: SchoolInfo): string {
-  const weeks     = buildWeeks(semester);
-  const printDate = new Intl.DateTimeFormat('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
+  const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
+  const weeks     = buildWeeks(semester, calendarType);
+  const printDate = new Intl.DateTimeFormat(calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-umalqura' : 'ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date());
 
   const renderable   = weeks.filter(w => w.days.some(d => d.isWorkingDay));
   const totalWeeks   = renderable.length;

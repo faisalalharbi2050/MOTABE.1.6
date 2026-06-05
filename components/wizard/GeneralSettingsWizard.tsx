@@ -65,7 +65,7 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
   const totalSteps = 8;
 
   const steps = [
-    { id: 1, title: 'معلومات عامة', icon: Settings },
+    { id: 1, title: 'بيانات المدرسة', icon: Settings },
     { id: 2, title: 'العام الدراسي', icon: Calendar },
     { id: 3, title: 'التوقيت', icon: Clock },
     { id: 4, title: 'المواد الدراسية', icon: BookOpen },

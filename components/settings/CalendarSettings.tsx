@@ -39,6 +39,17 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
   const [showPrint, setShowPrint] = useState(false);
   const [printDefaultId, setPrintDefaultId] = useState<string | undefined>();
 
+  const applyCalendarType = (calendarType: 'hijri' | 'gregorian') => {
+    setSchoolInfo(prev => ({
+      ...prev,
+      calendarType,
+      semesters: (prev.semesters || []).map(semester => ({
+        ...semester,
+        calendarType,
+      })),
+    }));
+  };
+
   const handleAdopt = (regionId: string) => {
     if (!latestCalendar) return;
     const region = latestCalendar.regions.find(r => r.id === regionId);
@@ -46,6 +57,7 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
 
     const newSemesters = region.semesters.map((sem, order) => ({
       ...sem,
+      calendarType: primaryCal,
       id: `preset-${Date.now()}-${order}`,
       isCurrent: order === 0,
     }));
@@ -88,7 +100,7 @@ const CalendarSettings: React.FC<CalendarSettingsProps> = ({ schoolInfo, setScho
             return (
               <button
                 key={option.value}
-                onClick={() => setSchoolInfo(prev => ({ ...prev, calendarType: option.value }))}
+                onClick={() => applyCalendarType(option.value)}
                 className={`w-full px-4 py-3 rounded-2xl text-sm font-bold border transition-all flex items-center justify-between ${
                   active
                     ? 'bg-white text-[#655ac1] border-slate-300 shadow-sm'

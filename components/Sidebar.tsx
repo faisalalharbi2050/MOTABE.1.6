@@ -213,7 +213,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {/* Tooltip for Collapsed */}
               {isCollapsed && (
                  <div className="absolute left-full ml-4 px-3 py-2 bg-[#483d8b] text-white text-sm font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
-                    الإعدادات
+                    الإعدادات والبيانات
                     {/* Arrow */}
                     <div className="absolute top-1/2 right-full -mt-1 -mr-1 border-4 border-transparent border-r-[#483d8b]"></div>
                  </div>
@@ -222,7 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className={`flex items-center gap-4 ${isCollapsed ? "" : ""}`}>
                  <Settings size={22} className={isSettingsExpanded && !isCollapsed ? "text-[#655ac1]" : "text-white/70 group-hover:text-white"} />
                  {!isCollapsed && (
-                     <span className={`text-base font-bold ${isSettingsExpanded ? "text-[#655ac1]" : ""}`}>الإعدادات</span>
+                     <span className={`text-base font-bold ${isSettingsExpanded ? "text-[#655ac1]" : ""}`}>الإعدادات والبيانات</span>
                  )}
               </div>
               
@@ -240,7 +240,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <SubNavItem
                    active={activeTab === "settings_basic"}
                    onClick={() => handleTabClick("settings_basic")}
-                   label="معلومات عامة"
+                   label="بيانات المدرسة"
                    icon={<School size={18} />}
                    inverted={true}
                 />
