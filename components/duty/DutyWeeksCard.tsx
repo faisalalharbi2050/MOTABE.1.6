@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, CalendarX2, MousePointerClick, Laptop, Ban, Check } from 'lucide-react';
+import { CalendarX2, MousePointerClick, Laptop, Ban, Check, X } from 'lucide-react';
 import { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -185,87 +185,35 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
     return { holidayDays, offDays, dutyDays, totalWeeks: weeks.length, activeWeeks: selectedWeeks.filter(n => allWeekNumbers.includes(n)).length };
   }, [weeks, settings, selectedWeeks]);
 
+  const [showHybridModal, setShowHybridModal] = React.useState(false);
+
   if (weeks.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {/* ====== محرّر التعليم المدمج ====== */}
-      <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between gap-3 px-5 py-3.5">
-          <div className="flex items-center gap-3">
-            <Laptop size={22} className="text-[#655ac1] shrink-0" strokeWidth={1.9} />
-            <div>
-              <h4 className="font-black text-slate-800 text-sm">تعليم مدمج (حضوري + عن بُعد)</h4>
-              <p className="text-[11px] font-medium text-slate-500 mt-0.5">حدّد أيام «عن بُعد» في الأسبوعين، وتُطبّق تبادلياً على الفصل.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={toggleHybrid}
-            role="switch"
-            aria-checked={!!settings.dutyHybridEnabled}
-            className={`relative h-6 w-11 rounded-full transition-colors duration-300 shrink-0 ${settings.dutyHybridEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
-          >
-            <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${settings.dutyHybridEnabled ? 'right-1' : 'left-1'}`} />
-          </button>
-        </div>
-
-        {settings.dutyHybridEnabled && (
-          <div className="border-t border-slate-100 px-4 py-4 space-y-3">
-            {([['A', 'الأسبوع الأول'], ['B', 'الأسبوع الثاني']] as const).map(([which, title]) => {
-              const remote = (which === 'A' ? settings.dutyHybridWeekARemote : settings.dutyHybridWeekBRemote) || [];
-              return (
-                <div key={which} className="rounded-xl border border-slate-200 p-3">
-                  <p className="text-xs font-black text-slate-700 mb-2.5">{title}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {workingDayKeys.map(dk => {
-                      const isRemote = remote.includes(dk);
-                      return (
-                        <button
-                          key={dk}
-                          type="button"
-                          onClick={() => toggleHybridDay(which, dk)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black bg-white border transition-all ${
-                            isRemote ? 'border-[#655ac1]/50' : 'border-slate-300'
-                          }`}
-                        >
-                          {isRemote ? (
-                            <Laptop size={14} className="text-[#655ac1]" />
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white">
-                              <Check size={10} strokeWidth={3.5} />
-                            </span>
-                          )}
-                          <span className={isRemote ? 'text-[#655ac1]' : 'text-emerald-600'}>
-                            {DAY_LABELS[dk]} - {isRemote ? 'عن بُعد' : 'حضور'}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* سطر علوي: اسم الفصل + زر مدارس التعليم المدمج */}
+      <div className="flex items-center justify-between gap-2">
+        {currentSemester?.name ? (
+          <p className="text-sm font-black text-[#655ac1]">{currentSemester.name}</p>
+        ) : <span />}
+        <button
+          type="button"
+          onClick={() => setShowHybridModal(true)}
+          className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+            settings.dutyHybridEnabled
+              ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+              : 'border-slate-200 bg-white text-slate-500 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+          }`}
+        >
+          <Laptop size={14} />
+          <span>مدارس التعليم المدمج</span>
+          {settings.dutyHybridEnabled && <span className="text-[10px] font-black opacity-90">· مفعّل</span>}
+        </button>
       </div>
 
-      {/* ====== بطاقة الأسابيع الدراسية — مطابقة لتصميم التقويم ====== */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        {/* العنوان */}
-        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
-          <CalendarDays size={20} className="text-[#655ac1] shrink-0" />
-          <div>
-            <h4 className="font-black text-slate-800 text-sm">عرض الأسابيع الدراسية</h4>
-            {currentSemester?.name && (
-              <p className="text-xs font-black text-[#655ac1] mt-0.5">{currentSemester.name}</p>
-            )}
-          </div>
-        </div>
-
-        {/* شريط المعلومات: تواريخ الفصل + الإحصاءات */}
-        <div className="px-5 pt-4">
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-2.5 border border-slate-200 rounded-xl">
+      {/* شريط المعلومات: تواريخ الفصل + الإحصاءات */}
+      <div>
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 px-5 py-2.5 border border-slate-200 rounded-xl">
             <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
               <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
             </span>
@@ -287,17 +235,17 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
           </div>
         </div>
 
-        {/* الدلالات */}
-        <div className="px-5 pt-3 pb-1 flex justify-center">
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[13px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-            <span className="flex items-center gap-1.5"><MousePointerClick size={15} className="text-amber-600 shrink-0" /> نقرة على اليوم = تعطيله من المناوبة</span>
-            <span className="w-px h-4 bg-amber-200 hidden sm:block" />
-            <span className="flex items-center gap-1.5"><CalendarX2 size={15} className="text-amber-600 shrink-0" /> نقرة على الزر = تعطيل الأسبوع</span>
-          </div>
+      {/* الدلالات */}
+      <div className="flex justify-center">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[13px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+          <span className="flex items-center gap-1.5"><MousePointerClick size={15} className="text-amber-600 shrink-0" /> نقرة على اليوم = تعطيله من المناوبة</span>
+          <span className="w-px h-4 bg-amber-200 hidden sm:block" />
+          <span className="flex items-center gap-1.5"><CalendarX2 size={15} className="text-amber-600 shrink-0" /> نقرة على الزر = تعطيل الأسبوع</span>
         </div>
+      </div>
 
-        {/* الجدول: كل أسبوع في صف، وأيامه بجانبه في سطر واحد */}
-        <div className="px-3 pb-3 divide-y divide-slate-100">
+      {/* الجدول: كل أسبوع في صف، وأيامه بجانبه في سطر واحد */}
+      <div className="divide-y divide-slate-100">
           {weeks.map((week, idx) => {
             const weekActiveDays = week.days.filter(d => d.isWorkingDay);
             const firstDay = weekActiveDays[0];
@@ -369,7 +317,103 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
             );
           })}
         </div>
-      </div>
+
+      {/* ====== نافذة إعداد مدارس التعليم المدمج ====== */}
+      {showHybridModal && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+          onClick={() => setShowHybridModal(false)}
+        >
+          <div
+            dir="rtl"
+            className="w-full max-w-lg bg-white rounded-[1.75rem] shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* ترويسة النافذة */}
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <Laptop size={22} className="text-[#655ac1] shrink-0" strokeWidth={1.9} />
+                <div>
+                  <h4 className="font-black text-slate-800 text-sm">مدارس التعليم المدمج</h4>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">حدّد أيام «عن بُعد» في الأسبوعين، وتُطبّق تبادلياً على الفصل.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHybridModal(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* مفتاح التفعيل */}
+            <div className="flex items-center justify-between gap-3 px-5 py-4">
+              <p className="text-sm font-bold text-slate-700">تفعيل نظام التعليم المدمج</p>
+              <button
+                type="button"
+                onClick={toggleHybrid}
+                role="switch"
+                aria-checked={!!settings.dutyHybridEnabled}
+                className={`relative h-6 w-11 rounded-full transition-colors duration-300 shrink-0 ${settings.dutyHybridEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+              >
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300 ${settings.dutyHybridEnabled ? 'right-1' : 'left-1'}`} />
+              </button>
+            </div>
+
+            {/* محرّر الأسبوعين */}
+            {settings.dutyHybridEnabled && (
+              <div className="border-t border-slate-100 px-5 py-4 space-y-3 max-h-[55vh] overflow-y-auto custom-scrollbar">
+                {([['A', 'الأسبوع الأول'], ['B', 'الأسبوع الثاني']] as const).map(([which, title]) => {
+                  const remote = (which === 'A' ? settings.dutyHybridWeekARemote : settings.dutyHybridWeekBRemote) || [];
+                  return (
+                    <div key={which} className="rounded-xl border border-slate-200 p-3">
+                      <p className="text-xs font-black text-slate-700 mb-2.5">{title}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {workingDayKeys.map(dk => {
+                          const isRemote = remote.includes(dk);
+                          return (
+                            <button
+                              key={dk}
+                              type="button"
+                              onClick={() => toggleHybridDay(which, dk)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black bg-white border transition-all ${
+                                isRemote ? 'border-[#655ac1]/50' : 'border-slate-300'
+                              }`}
+                            >
+                              {isRemote ? (
+                                <Laptop size={14} className="text-[#655ac1]" />
+                              ) : (
+                                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white">
+                                  <Check size={10} strokeWidth={3.5} />
+                                </span>
+                              )}
+                              <span className={isRemote ? 'text-[#655ac1]' : 'text-emerald-600'}>
+                                {DAY_LABELS[dk]} - {isRemote ? 'عن بُعد' : 'حضور'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* تذييل */}
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowHybridModal(false)}
+                className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-[#655ac1]/20"
+              >
+                تم
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
