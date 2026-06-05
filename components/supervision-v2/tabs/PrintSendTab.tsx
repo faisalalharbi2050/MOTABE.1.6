@@ -192,7 +192,8 @@ const MultiSelectDropdown: React.FC<{
   searchable?: boolean;
   compact?: boolean;
   minWidthClass?: string;
-}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, searchable = false, compact = false, minWidthClass = 'min-w-[260px]' }) => {
+  hideSelectAll?: boolean;
+}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, searchable = false, compact = false, minWidthClass = 'min-w-[260px]', hideSelectAll = false }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { triggerRef, panelRef, position } = useDropdownPosition(open, () => setOpen(false));
@@ -221,20 +222,22 @@ const MultiSelectDropdown: React.FC<{
                 className="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#655ac1]/20 font-medium" />
             </div>
           )}
-          <div className="mb-2 flex justify-end">
-            <button
-              type="button"
-              onClick={selectedValues.length === options.length && options.length > 0 ? onClear : onSelectAll}
-              disabled={options.length === 0}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                options.length === 0
-                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
-              }`}
-            >
-              {selectedValues.length === options.length && options.length > 0 ? 'إلغاء الكل' : 'اختيار الكل'}
-            </button>
-          </div>
+          {!hideSelectAll && (
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={selectedValues.length === options.length && options.length > 0 ? onClear : onSelectAll}
+                disabled={options.length === 0}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                  options.length === 0
+                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                }`}
+              >
+                {selectedValues.length === options.length && options.length > 0 ? 'إلغاء الكل' : 'اختيار الكل'}
+              </button>
+            </div>
+          )}
           <div className={`${compact ? 'max-h-52' : 'max-h-60'} overflow-y-auto custom-scrollbar space-y-1 pr-1`}>
             {filteredOptions.map(option => {
               const isSelected = selectedValues.includes(option.value);
@@ -1695,13 +1698,14 @@ const PrintSendTab: React.FC<Props> = ({
               <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اختر الجداول المراد طباعتها وطريقة توزيعها واللون وإضافة عامود التوقيع، ثم أضف الملاحظات قبل الطباعة.
+              اضبط خيارات الطباعة قبل طباعة الجدول.
             </p>
 
             <div className="flex flex-wrap items-end gap-4 mb-5">
               <MultiSelectDropdown
                 label="الجداول المراد طباعتها"
                 buttonLabel="اختر الجداول"
+                hideSelectAll
                 options={availablePrintTables.map(t => ({ value: t.id, label: t.name }))}
                 selectedValues={selectedPrintTableIds}
                 onToggle={togglePrintTable}

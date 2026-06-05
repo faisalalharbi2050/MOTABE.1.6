@@ -1875,14 +1875,16 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           onClick={() => setFollowUpTablesDraft(prev =>
                             prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]
                           )}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                            active
-                              ? 'bg-[#655ac1]/5 border-[#655ac1] text-[#655ac1]'
-                              : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                          className={`px-3 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-white border-slate-200 hover:border-slate-300 ${
+                            active ? 'text-[#655ac1]' : 'text-slate-500'
                           }`}
                         >
-                          <Table2 size={13} />
-                          {opt.name}
+                          <span>{opt.name}</span>
+                          <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors shrink-0 ${
+                            active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                          }`}>
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
                         </button>
                       );
                     })}
