@@ -763,9 +763,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
       <div className="bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300">
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
             <School size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-             المعلومات العامة
+             بيانات المدرسة
           </h3>
-          <p className="text-slate-500 font-medium mt-2 mr-12">إدارة البيانات الأساسية</p>
+          <p className="text-slate-500 font-medium mt-2 mr-12">إدارة بيانات المدرسة الأساسية</p>
       </div>
       
       {/* 1. Entity Type Selection */}
