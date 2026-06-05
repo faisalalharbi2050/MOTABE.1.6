@@ -689,6 +689,8 @@ export interface SupervisionScheduleData {
   activeScheduleId?: string;
   // إعدادات أعمدة كل جدول إشراف، مفتاحها معرّف الجدول ('__main__' أو معرّف الجدول المنفصل)
   tablePrintConfigs?: Record<string, SupervisionTableConfig>;
+  // عداد تراكمي لمرات إنشاء جدول إشراف (لا يتناقص عند الحذف) — للإحصاءات وصفحة الهبوط
+  supervisionGenerationCount?: number;
 }
 
 export interface SupervisionSettings {

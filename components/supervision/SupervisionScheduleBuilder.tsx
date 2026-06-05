@@ -280,6 +280,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           approvedAt: undefined,
           savedSchedules: [newSavedEntry, ...prevSaved],
           activeScheduleId: newId,
+          supervisionGenerationCount: (prev.supervisionGenerationCount || 0) + 1,
         };
       });
       setManualStarted(false);
@@ -307,6 +308,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         approvedAt: undefined,
         savedSchedules: [newSavedEntry, ...prevSaved],
         activeScheduleId: newId,
+        supervisionGenerationCount: (prev.supervisionGenerationCount || 0) + 1,
       };
     });
     setManualStarted(true);

@@ -58,6 +58,7 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
           approvedAt: undefined,
           savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
           activeScheduleId: newId,
+          supervisionGenerationCount: (prev.supervisionGenerationCount || 0) + 1,
         };
       });
       // إبقاء الشعار ظاهرًا فترة كافية ليراه المستخدم
