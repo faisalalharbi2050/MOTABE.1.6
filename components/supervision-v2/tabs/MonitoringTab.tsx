@@ -93,9 +93,9 @@ const pluralSupervisors = (count: number) => {
 
 const CircleCheck: React.FC<{ checked: boolean }> = ({ checked }) => (
   <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
-    checked ? 'border-[#655ac1] bg-white text-[#655ac1]' : 'border-slate-300 bg-white text-transparent'
+    checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
   }`}>
-    <Check size={12} strokeWidth={3} />
+    <Check size={12} strokeWidth={3.5} />
   </span>
 );
 
@@ -487,7 +487,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
             <div className="flex flex-wrap gap-4 items-end">
               <DateField
-                label={`اليوم والتاريخ: ${formatDateLabel(selectedDate, dailyCalendarType)}`}
+                label="اليوم والتاريخ"
                 value={selectedDate}
                 calendarType={dailyCalendarType}
                 onChange={setSelectedDate}
@@ -510,8 +510,8 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-lg font-black text-slate-800">جدول متابعة الأداء</h3>
-                <p className="text-xs font-bold text-slate-400 mt-1">{selectedDayName} - {formatHijriDate(selectedDate)} - {selectedType?.name || ''}</p>
+                <h3 className="text-base font-black text-slate-900">جدول متابعة الأداء</h3>
+                <p className="text-xs font-bold text-[#655ac1] mt-1">{selectedDayName} - {formatHijriDate(selectedDate)} - {selectedType?.name || ''}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-[#655ac1]">
@@ -591,13 +591,13 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
             <div className="flex flex-wrap gap-4 items-end">
               <DateField
-                label={`من يوم وتاريخ: ${formatDateLabel(reportFrom, reportCalendarType)}`}
+                label="من يوم وتاريخ"
                 value={reportFrom}
                 calendarType={reportCalendarType}
                 onChange={setReportFrom}
               />
               <DateField
-                label={`إلى يوم وتاريخ: ${formatDateLabel(reportTo, reportCalendarType)}`}
+                label="إلى يوم وتاريخ"
                 value={reportTo}
                 calendarType={reportCalendarType}
                 onChange={setReportTo}
@@ -630,19 +630,19 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 <div>الفصل الدراسي: {schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId || s.isCurrent)?.name || ''}</div>
               </div>
             </div>
-            <h1 className="text-xl font-black text-slate-800 text-right">تقرير أداء الإشراف اليومي</h1>
-            <p className="text-right text-sm font-bold text-slate-500 mt-2 mb-5">
+            <h1 className="text-base font-black text-slate-900 text-right">تقرير أداء الإشراف اليومي</h1>
+            <p className="text-right text-xs font-bold text-[#655ac1] mt-2 mb-5">
               من {formatDateLabel(reportFrom, reportCalendarType)} إلى {formatDateLabel(reportTo, reportCalendarType)}
             </p>
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
               <table className="w-full text-right text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-center">م</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1]">المشرف</th>
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-center">الصفة</th>
-                    {STATUS_OPTIONS.map(option => <th key={option.value} className="px-4 py-3 font-black text-[#655ac1] text-center">{option.label}</th>)}
-                    <th className="px-4 py-3 font-black text-[#655ac1] text-center">إجمالي الرصد</th>
+                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">م</th>
+                    <th className="px-4 py-3 text-xs font-black text-[#655ac1]">المشرف</th>
+                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">الصفة</th>
+                    {STATUS_OPTIONS.map(option => <th key={option.value} className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">{option.label}</th>)}
+                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">إجمالي الرصد</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
