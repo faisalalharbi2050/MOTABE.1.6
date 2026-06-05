@@ -10,7 +10,7 @@ import {
   Printer, Send, Loader2,
   Archive, ClipboardList, ClipboardCheck, CalendarDays, CalendarClock, SlidersHorizontal,
   MessageSquare, AlertCircle, CheckCircle2,
-  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy, Wallet, Table2,
+  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy, Wallet,
 } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData, Teacher, Admin } from '../../../types';
 import {
@@ -1695,33 +1695,28 @@ const PrintSendTab: React.FC<Props> = ({
               <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اضبط مقاس الورق والألوان وإضافة عامود التوقيع ثم أضف الملاحظات قبل طباعة جدول الإشراف.
+              اختر الجداول المراد طباعتها وطريقة توزيعها واللون وإضافة عامود التوقيع، ثم أضف الملاحظات قبل الطباعة.
             </p>
 
             <div className="flex flex-wrap items-end gap-4 mb-5">
-              <SingleSelectDropdown
-                label="مقاس الورق"
-                value={paperSize}
-                onChange={value => setPaperSize(value as PaperSize)}
-                placeholder="اختر المقاس"
-                options={[{ value: 'A4', label: 'A4' }, { value: 'A3', label: 'A3' }]}
-              />
-              <SingleSelectDropdown
-                label="اللون"
-                value={printColorMode}
-                onChange={value => setPrintColorMode(value as PrintColorMode)}
-                placeholder="اختر اللون"
-                options={[{ value: 'color', label: 'ملون' }, { value: 'bw', label: 'أبيض وأسود' }]}
-              />
-              <SingleSelectDropdown
-                label="خانة توقيع المشرف"
-                value={printSignatureMode}
-                onChange={value => setPrintSignatureMode(value as PrintSignatureMode)}
-                placeholder="اختر خيار التوقيع"
-                options={[
-                  { value: 'with', label: 'إضافة عامود توقيع لكل مشرف' },
-                  { value: 'without', label: 'بدون إضافة عامود توقيع لكل مشرف' },
-                ]}
+              <MultiSelectDropdown
+                label="الجداول المراد طباعتها"
+                buttonLabel="اختر الجداول"
+                options={availablePrintTables.map(t => ({ value: t.id, label: t.name }))}
+                selectedValues={selectedPrintTableIds}
+                onToggle={togglePrintTable}
+                onClear={() => setPrintTableIds([])}
+                onSelectAll={() => setPrintTableIds(availablePrintTables.map(t => t.id))}
+                selectedSummary={
+                  selectedPrintTableIds.length === 0
+                    ? ''
+                    : selectedPrintTableIds.length === availablePrintTables.length
+                      ? 'كل الجداول'
+                      : availablePrintTables
+                          .filter(t => selectedPrintTableIds.includes(t.id))
+                          .map(t => t.name)
+                          .join('، ')
+                }
               />
               {availablePrintTables.length > 1 && (
                 <SingleSelectDropdown
@@ -1735,33 +1730,24 @@ const PrintSendTab: React.FC<Props> = ({
                   ]}
                 />
               )}
+              <SingleSelectDropdown
+                label="خانة توقيع المشرف"
+                value={printSignatureMode}
+                onChange={value => setPrintSignatureMode(value as PrintSignatureMode)}
+                placeholder="اختر خيار التوقيع"
+                options={[
+                  { value: 'with', label: 'إضافة عامود توقيع لكل مشرف' },
+                  { value: 'without', label: 'بدون إضافة عامود توقيع لكل مشرف' },
+                ]}
+              />
+              <SingleSelectDropdown
+                label="اللون"
+                value={printColorMode}
+                onChange={value => setPrintColorMode(value as PrintColorMode)}
+                placeholder="اختر اللون"
+                options={[{ value: 'color', label: 'ملون' }, { value: 'bw', label: 'أبيض وأسود' }]}
+              />
             </div>
-
-            {availablePrintTables.length > 1 && (
-              <div className="mb-5">
-                <label className="block text-xs font-black text-slate-500 mb-2">الجداول المراد طباعتها</label>
-                <div className="flex flex-wrap gap-2">
-                  {availablePrintTables.map(t => {
-                    const active = selectedPrintTableIds.includes(t.id);
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => togglePrintTable(t.id)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                          active
-                            ? 'bg-[#655ac1]/5 border-[#655ac1] text-[#655ac1]'
-                            : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
-                        }`}
-                      >
-                        <Table2 size={13} />
-                        {t.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             <div className="mb-5">
               <label className="block text-xs font-black text-slate-500 mb-2">الملاحظات</label>
