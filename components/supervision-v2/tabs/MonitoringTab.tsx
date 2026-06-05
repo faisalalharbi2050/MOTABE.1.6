@@ -8,7 +8,7 @@ import {
   BarChart3, Check, ChevronDown, Printer, Search, UserCheck,
 } from 'lucide-react';
 import {
-  SchoolInfo, SupervisionAttendanceRecord, SupervisionAttendanceStatus, SupervisionScheduleData,
+  Admin, SchoolInfo, SupervisionAttendanceRecord, SupervisionAttendanceStatus, SupervisionScheduleData,
 } from '../../../types';
 import { DAY_NAMES } from '../../../utils/supervisionUtils';
 
@@ -16,6 +16,7 @@ interface Props {
   supervisionData: SupervisionScheduleData;
   setSupervisionData: React.Dispatch<React.SetStateAction<SupervisionScheduleData>>;
   schoolInfo: SchoolInfo;
+  admins: Admin[];
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
 }
 
@@ -63,9 +64,9 @@ const dayNameForDate = (date?: string) => {
 
 const formatHijriDate = (date?: string) => {
   const parsed = date ? new Date(`${date}T12:00:00`) : new Date();
-  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-    day: 'numeric',
-    month: 'long',
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', {
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
   }).format(parsed);
 };
@@ -120,7 +121,7 @@ const DateField: React.FC<{
         containerClassName="flex-1"
         inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
         placeholder="حدد التاريخ"
-        format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
+        format={calendarType === 'hijri' ? 'dddd DD/MM/YYYY' : 'dddd YYYY-MM-DD'}
         portal
         portalTarget={document.body}
         editable={false}
@@ -317,7 +318,7 @@ const StaffMultiSelect: React.FC<{
   );
 };
 
-const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, schoolInfo, showToast }) => {
+const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, schoolInfo, admins, showToast }) => {
   const today = useMemo(() => formatIsoDate(new Date()), []);
   const [activeView, setActiveView] = useState<InnerTab>('daily');
   const [selectedDate, setSelectedDate] = useState(today);
@@ -338,6 +339,14 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   const enabledTypes = supervisionData.supervisionTypes.filter(type => type.isEnabled);
   const selectedType = enabledTypes.find(type => type.id === selectedTypeId) || enabledTypes[0];
   const dayAssignment = supervisionData.dayAssignments.find(day => day.day === selectedDayKey);
+  const adminRoleById = useMemo(() => {
+    const map = new Map<string, string>();
+    admins.forEach(admin => map.set(admin.id, admin.role?.trim() || 'إداري'));
+    return map;
+  }, [admins]);
+
+  const getStaffRoleLabel = (staffType: 'teacher' | 'admin', staffId: string) =>
+    staffType === 'teacher' ? 'معلم' : (adminRoleById.get(staffId) || 'إداري');
 
   const dayStaffOptions = useMemo(() => {
     const assignments = dayAssignment?.staffAssignments || [];
@@ -562,7 +571,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                   <span>{dailyRows.length}</span>
                   <span>{pluralSupervisors(dailyRows.length)}</span>
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-500">
+                <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500">
                   لم يُرصد بعد: {dailyStats.unrecorded}
                 </span>
                 <button
@@ -609,7 +618,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                     <tr key={`${row.contextTypeId}-${row.staffId}`} className="hover:bg-[#fbfaff] transition-colors">
                       <td className="px-5 py-4 text-center text-sm font-black text-slate-400">{index + 1}</td>
                       <td className="px-5 py-4 text-sm font-bold text-slate-800 whitespace-nowrap">{row.staffName}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-500">{row.staffType === 'teacher' ? 'معلم' : 'إداري'}</td>
+                      <td className="px-5 py-4 text-sm font-bold text-slate-500 whitespace-nowrap">{getStaffRoleLabel(row.staffType, row.staffId)}</td>
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap justify-center gap-4 min-w-[360px]">
                           {STATUS_OPTIONS.map(option => (
@@ -717,7 +726,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                     <tr key={row.staffId}>
                       <td className="px-4 py-3 text-center font-black text-slate-400">{index + 1}</td>
                       <td className="px-4 py-3 font-black text-slate-800">{row.staffName}</td>
-                      <td className="px-4 py-3 text-center font-bold text-slate-500">{row.staffType === 'teacher' ? 'معلم' : 'إداري'}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-500 whitespace-nowrap">{getStaffRoleLabel(row.staffType, row.staffId)}</td>
                       {STATUS_OPTIONS.map(option => <td key={option.value} className={`px-4 py-3 text-center font-bold ${option.textColor}`}>{row.counts[option.value] || <span className="text-slate-200">—</span>}</td>)}
                       <td className="px-4 py-3 text-center font-black text-slate-700">{row.total}</td>
                       <td className="px-4 py-3 text-center font-black text-slate-700">{row.commitmentRate}%</td>

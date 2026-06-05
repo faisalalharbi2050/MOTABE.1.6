@@ -509,6 +509,7 @@ const SupervisionV2Container: React.FC<Props> = ({
             supervisionData={supervisionData}
             setSupervisionData={setSupervisionData}
             schoolInfo={schoolInfo}
+            admins={filteredAdmins}
             showToast={showToast}
           />
         )}
