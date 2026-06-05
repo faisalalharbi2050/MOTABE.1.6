@@ -336,6 +336,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [reportFrom, setReportFrom] = useState(today);
   const [reportTo, setReportTo] = useState(today);
+  const [reportTypeId, setReportTypeId] = useState<string>('');
   const [reportStaffIds, setReportStaffIds] = useState<string[]>([]);
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
@@ -464,17 +465,33 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
     showToast('تم إلغاء كل اختيارات المتابعة الحالية', 'success');
   };
 
+  const reportTypeOptions = useMemo(() => [
+    { value: '', label: 'كل أنواع الإشراف' },
+    ...enabledTypes.map(type => ({ value: type.id, label: type.name })),
+  ], [enabledTypes]);
+
   const reportStaffOptions = useMemo(() => {
     const map = new Map<string, string>();
     supervisionData.dayAssignments.forEach(day => {
-      day.staffAssignments.forEach(staff => map.set(staff.staffId, staff.staffName));
+      day.staffAssignments.forEach(staff => {
+        if (reportTypeId && staff.contextTypeId !== reportTypeId) return;
+        map.set(staff.staffId, staff.staffName);
+      });
     });
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
-  }, [supervisionData.dayAssignments]);
+  }, [reportTypeId, supervisionData.dayAssignments]);
+
+  useEffect(() => {
+    if (reportStaffIds.length === 0) return;
+    const availableStaffIds = new Set(reportStaffOptions.map(option => option.value));
+    const nextStaffIds = reportStaffIds.filter(id => availableStaffIds.has(id));
+    if (nextStaffIds.length !== reportStaffIds.length) setReportStaffIds(nextStaffIds);
+  }, [reportStaffIds, reportStaffOptions]);
 
   const reportRows = useMemo(() => {
     const dates = getDateRange(reportFrom, reportTo);
     const selected = new Set(reportStaffIds);
+    const typeOrder = new Map(supervisionData.supervisionTypes.map((type, index) => [type.id, index]));
 
     const grouped = new Map<string, {
       staffId: string;
@@ -491,6 +508,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
       day?.staffAssignments.forEach(staff => {
         if (selected.size > 0 && !selected.has(staff.staffId)) return;
         const contextTypeId = staff.contextTypeId || 'unknown';
+        if (reportTypeId && contextTypeId !== reportTypeId) return;
         const key = `${staff.staffId}-${contextTypeId}`;
         if (!grouped.has(key)) {
           grouped.set(key, {
@@ -512,6 +530,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
       if (!dates.includes(record.date)) return;
       if (selected.size > 0 && !selected.has(record.staffId)) return;
       const contextTypeId = record.contextTypeId || 'unknown';
+      if (reportTypeId && contextTypeId !== reportTypeId) return;
       const key = `${record.staffId}-${contextTypeId}`;
       const row = grouped.get(key);
       if (!row) return;
@@ -524,9 +543,10 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
       return { ...row, total, commitmentRate };
     }).sort((a, b) =>
       a.staffName.localeCompare(b.staffName, 'ar') ||
+      ((typeOrder.get(a.contextTypeId) ?? 999) - (typeOrder.get(b.contextTypeId) ?? 999)) ||
       a.typeName.localeCompare(b.typeName, 'ar')
     );
-  }, [reportFrom, reportStaffIds, reportTo, supervisionData.attendanceRecords, supervisionData.dayAssignments, supervisionData.supervisionTypes]);
+  }, [reportFrom, reportStaffIds, reportTo, reportTypeId, supervisionData.attendanceRecords, supervisionData.dayAssignments, supervisionData.supervisionTypes]);
 
   const reportTotals = useMemo(() => {
     const counts = STATUS_OPTIONS.reduce((acc, option) => {
@@ -744,24 +764,32 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
       {activeView === 'reports' && (
         <div className="space-y-5">
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-            <div className="flex flex-wrap gap-4 items-end">
-              <DateField
-                label="من يوم وتاريخ"
-                value={reportFrom}
-                calendarType={reportCalendarType}
-                onChange={setReportFrom}
-              />
-              <DateField
-                label="إلى يوم وتاريخ"
-                value={reportTo}
-                calendarType={reportCalendarType}
-                onChange={setReportTo}
-              />
-              <StaffMultiSelect options={reportStaffOptions} selectedValues={reportStaffIds} onChange={setReportStaffIds} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(190px,1fr)_minmax(220px,1fr)_minmax(250px,1.2fr)] gap-3 items-end">
+                <DateField
+                  label="من يوم وتاريخ"
+                  value={reportFrom}
+                  calendarType={reportCalendarType}
+                  onChange={setReportFrom}
+                />
+                <DateField
+                  label="إلى يوم وتاريخ"
+                  value={reportTo}
+                  calendarType={reportCalendarType}
+                  onChange={setReportTo}
+                />
+                <TypeSelect
+                  label="نوع الإشراف"
+                  value={reportTypeId}
+                  options={reportTypeOptions}
+                  onChange={setReportTypeId}
+                />
+                <StaffMultiSelect options={reportStaffOptions} selectedValues={reportStaffIds} onChange={setReportStaffIds} />
+              </div>
               <button
                 type="button"
                 onClick={printReport}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all"
+                className="inline-flex w-fit items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] text-white text-xs font-black hover:bg-[#5046a0] transition-all"
               >
                 <Printer size={16} />
                 طباعة التقرير
