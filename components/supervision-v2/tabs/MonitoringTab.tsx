@@ -789,7 +789,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
               <button
                 type="button"
                 onClick={printReport}
-                className="inline-flex w-fit items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] text-white text-xs font-black hover:bg-[#5046a0] transition-all"
+                className="mx-auto inline-flex w-fit items-center gap-2 px-4 py-2.5 rounded-xl bg-[#655ac1] text-white text-xs font-black hover:bg-[#5046a0] transition-all"
               >
                 <Printer size={16} />
                 طباعة التقرير
