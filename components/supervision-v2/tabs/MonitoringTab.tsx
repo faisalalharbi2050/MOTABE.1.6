@@ -538,6 +538,27 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
     return { counts, total, commitmentRate };
   }, [reportRows]);
 
+  const reportRowGroups = useMemo(() => {
+    const groups = new Map<string, {
+      staffId: string;
+      staffName: string;
+      staffType: 'teacher' | 'admin';
+      rows: typeof reportRows;
+    }>();
+    reportRows.forEach(row => {
+      if (!groups.has(row.staffId)) {
+        groups.set(row.staffId, {
+          staffId: row.staffId,
+          staffName: row.staffName,
+          staffType: row.staffType,
+          rows: [],
+        });
+      }
+      groups.get(row.staffId)!.rows.push(row);
+    });
+    return Array.from(groups.values());
+  }, [reportRows]);
+
   const printReport = () => {
     const html = printRef.current?.innerHTML || '';
     if (!html) { showToast('لا توجد بيانات للطباعة', 'warning'); return; }
@@ -553,8 +574,8 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
         .official-header .center{text-align:center;font-size:13px;font-weight:900;color:#655ac1}
         h1{font-size:20px;margin:0 0 8px;text-align:right}
         .meta{text-align:right;color:#64748b;font-weight:700;margin-bottom:18px;font-size:12px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        th,td{border:1px solid #cbd5e1;padding:9px;text-align:center}
+        table{width:100%;border-collapse:collapse;font-size:10.5px}
+        th,td{border:1px solid #cbd5e1;padding:7px;text-align:center}
         th{background:#f1f5f9;color:#655ac1;font-weight:900}
         td:nth-child(2),th:nth-child(2){text-align:right}
       </style></head><body>${html}<script>window.print();</script></body></html>`);
@@ -764,50 +785,60 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                 <div>الفصل الدراسي: {schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId || s.isCurrent)?.name || ''}</div>
               </div>
             </div>
-            <h1 className="text-base font-black text-slate-900 text-right">تقرير أداء الإشراف اليومي</h1>
-            <p className="text-right text-xs font-bold text-[#655ac1] mt-2 mb-5">
+            <h1 className="text-sm font-black text-slate-900 text-right">تقرير أداء الإشراف اليومي</h1>
+            <p className="text-right text-[11px] font-bold text-[#655ac1] mt-2 mb-4">
               من {formatDateLabel(reportFrom, reportCalendarType)} إلى {formatDateLabel(reportTo, reportCalendarType)}
             </p>
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full text-right text-sm">
-                <thead className="bg-slate-50">
+              <table className="w-full text-right text-[12px]">
+                <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">م</th>
-                    <th className="px-4 py-3 text-xs font-black text-[#655ac1]">المشرف</th>
-                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">الصفة</th>
-                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">نوع الإشراف</th>
-                    {STATUS_OPTIONS.map(option => <th key={option.value} className={`px-4 py-3 text-xs font-black text-center ${option.textColor}`}>{option.label}</th>)}
-                    <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">إجمالي الرصد</th>
-                    <th className="px-4 py-3 text-xs font-black text-slate-700 text-center">نسبة الالتزام %</th>
+                    <th className="px-3 py-2.5 text-[11px] font-black text-[#655ac1] text-center border-l border-slate-200">م</th>
+                    <th className="px-3 py-2.5 text-[11px] font-black text-[#655ac1] border-l border-slate-200">المشرف</th>
+                    <th className="px-3 py-2.5 text-[11px] font-black text-[#655ac1] text-center border-l border-slate-200">الصفة</th>
+                    <th className="px-3 py-2.5 text-[11px] font-black text-[#655ac1] text-center border-l-2 border-slate-300">نوع الإشراف</th>
+                    {STATUS_OPTIONS.map(option => <th key={option.value} className={`px-3 py-2.5 text-[11px] font-black text-center border-l border-slate-200 ${option.textColor}`}>{option.label}</th>)}
+                    <th className="px-3 py-2.5 text-[11px] font-black text-[#655ac1] text-center border-l-2 border-slate-300">إجمالي الرصد</th>
+                    <th className="px-3 py-2.5 text-[11px] font-black text-slate-700 text-center">نسبة الالتزام %</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reportRows.map((row, index) => (
-                    <tr key={`${row.staffId}-${row.contextTypeId}`}>
-                      <td className="px-4 py-3 text-center font-black text-slate-400">{index + 1}</td>
-                      <td className="px-4 py-3 font-black text-slate-800">{row.staffName}</td>
-                      <td className="px-4 py-3 text-center font-bold text-slate-500 whitespace-nowrap">{getStaffRoleLabel(row.staffType, row.staffId)}</td>
-                      <td className="px-4 py-3 text-center font-bold text-slate-600 whitespace-nowrap">{row.typeName}</td>
-                      {STATUS_OPTIONS.map(option => <td key={option.value} className={`px-4 py-3 text-center font-bold ${option.textColor}`}>{row.counts[option.value] || <span className="text-slate-200">—</span>}</td>)}
-                      <td className="px-4 py-3 text-center font-black text-slate-700">{row.total}</td>
-                      <td className="px-4 py-3 text-center font-black text-slate-700">{row.commitmentRate}%</td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {reportRowGroups.map((group, groupIndex) =>
+                    group.rows.map((row, rowIndex) => (
+                      <tr key={`${row.staffId}-${row.contextTypeId}`} className={`${groupIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/45'} border-b border-slate-100`}>
+                        {rowIndex === 0 && (
+                          <>
+                            <td rowSpan={group.rows.length} className="px-3 py-2.5 text-center align-middle font-black text-slate-400 border-l border-slate-200">{groupIndex + 1}</td>
+                            <td rowSpan={group.rows.length} className="px-3 py-2.5 align-middle font-black text-slate-800 border-l border-slate-200 whitespace-nowrap">{group.staffName}</td>
+                            <td rowSpan={group.rows.length} className="px-3 py-2.5 text-center align-middle font-bold text-slate-500 border-l border-slate-200 whitespace-nowrap">{getStaffRoleLabel(group.staffType, group.staffId)}</td>
+                          </>
+                        )}
+                        <td className="px-3 py-2.5 text-center font-bold text-slate-600 whitespace-nowrap border-l-2 border-slate-300">{row.typeName}</td>
+                        {STATUS_OPTIONS.map(option => (
+                          <td key={option.value} className={`px-3 py-2.5 text-center font-bold tabular-nums border-l border-slate-200 ${option.textColor}`}>
+                            {row.counts[option.value] || <span className="text-slate-300">0</span>}
+                          </td>
+                        ))}
+                        <td className="px-3 py-2.5 text-center font-black tabular-nums text-slate-700 border-l-2 border-slate-300">{row.total}</td>
+                        <td className="px-3 py-2.5 text-center font-black tabular-nums text-slate-700">{row.commitmentRate}%</td>
+                      </tr>
+                    ))
+                  )}
                   {reportRows.length === 0 && (
                     <tr><td colSpan={11} className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات أداء ضمن الفترة المحددة.</td></tr>
                   )}
                 </tbody>
                 {reportRows.length > 0 && (
                   <tfoot>
-                    <tr className="bg-slate-100 border-t border-slate-200">
-                      <td className="px-4 py-3 font-black text-slate-700" colSpan={4}>الإجمالي</td>
+                    <tr className="bg-slate-100 border-t-2 border-slate-300">
+                      <td className="px-3 py-2.5 font-black text-slate-700 border-l-2 border-slate-300" colSpan={4}>الإجمالي</td>
                       {STATUS_OPTIONS.map(option => (
-                        <td key={option.value} className={`px-4 py-3 text-center font-black ${option.textColor}`}>
-                          {reportTotals.counts[option.value] || <span className="text-slate-300">—</span>}
+                        <td key={option.value} className={`px-3 py-2.5 text-center font-black tabular-nums border-l border-slate-200 ${option.textColor}`}>
+                          {reportTotals.counts[option.value] || <span className="text-slate-300">0</span>}
                         </td>
                       ))}
-                      <td className="px-4 py-3 text-center font-black text-slate-800">{reportTotals.total}</td>
-                      <td className="px-4 py-3 text-center font-black text-slate-800">{reportTotals.commitmentRate}%</td>
+                      <td className="px-3 py-2.5 text-center font-black tabular-nums text-slate-800 border-l-2 border-slate-300">{reportTotals.total}</td>
+                      <td className="px-3 py-2.5 text-center font-black tabular-nums text-slate-800">{reportTotals.commitmentRate}%</td>
                     </tr>
                   </tfoot>
                 )}
