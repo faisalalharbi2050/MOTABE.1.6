@@ -819,6 +819,11 @@ export interface DutySettings {
   autoSendReminder?: boolean; // إرسال تذكير تلقائي
   autoSendReminderTouched?: boolean; // تم اختيار آلية إرسال التذكير من المستخدم
   selectedWeeks?: number[]; // أرقام الأسابيع المحددة من التقويم الدراسي (1-based). فارغ = كل الأسابيع
+  // ====== التعليم المدمج (حضوري + عن بُعد) ======
+  dutyHybridEnabled?: boolean; // تفعيل نمط التعليم المدمج
+  dutyHybridWeekARemote?: string[]; // أيام «عن بُعد» في الأسابيع الفردية (1،3،5..)
+  dutyHybridWeekBRemote?: string[]; // أيام «عن بُعد» في الأسابيع الزوجية (2،4،6..)
+  dutyDayOverrides?: Record<string, 'duty' | 'off'>; // استثناءات يدوية لكل تاريخ: off=بدون مناوبة، duty=تفعيل يوم مدمج
 }
 
 export interface DutyAttendanceRecord {

@@ -112,7 +112,34 @@ export interface DutyDateInfo {
   dayKey: string; // sunday, monday...
   weekId: string;
   weekName: string;
+  weekNumber?: number;
   isOfficialLeave?: boolean;
+  isRemoteWork?: boolean; // يوم «عن بُعد» (تعليم مدمج)
+  isDisabled?: boolean;   // يوم «بدون مناوبة» (تعطيل يدوي)
+}
+
+export type DutyDayStatus = 'active' | 'holiday' | 'remote' | 'disabled';
+
+/**
+ * مصدر الحقيقة الوحيد لحالة اليوم في المناوبة — يستخدمه عرض البطاقة ومحرّك التوليد معاً.
+ * الأولوية: الإجازة الرسمية تغلب دائماً، ثم النمط المدمج، ثم الاستثناء اليدوي.
+ */
+export function getDutyDayStatus(
+  settings: Pick<DutySettings, 'dutyHybridEnabled' | 'dutyHybridWeekARemote' | 'dutyHybridWeekBRemote' | 'dutyDayOverrides'>,
+  weekNumber: number,
+  dayKey: string,
+  dateStr: string,
+  isHoliday: boolean,
+): DutyDayStatus {
+  if (isHoliday) return 'holiday';
+  const override = settings.dutyDayOverrides?.[dateStr];
+  const base = settings.dutyHybridEnabled
+    ? ((weekNumber % 2 === 1 ? settings.dutyHybridWeekARemote : settings.dutyHybridWeekBRemote) || []).includes(dayKey)
+    : false;
+  if (base) {
+    return override === 'duty' ? 'active' : 'remote';
+  }
+  return override === 'off' ? 'disabled' : 'active';
 }
 
 const DUTY_WEEK_NAMES = [
@@ -126,7 +153,8 @@ const getDutyWeekName = (weekNumber: number) => `الأسبوع ${DUTY_WEEK_NAME
 export function generateDutyDates(
   schoolInfo: SchoolInfo,
   selectedWeeks?: number[],
-  options?: { includeOfficialLeaves?: boolean }
+  options?: { includeOfficialLeaves?: boolean },
+  dutySettings?: Pick<DutySettings, 'dutyHybridEnabled' | 'dutyHybridWeekARemote' | 'dutyHybridWeekBRemote' | 'dutyDayOverrides'>
 ): DutyDateInfo[] {
   const timing = getTimingConfig(schoolInfo);
   const activeDays = timing.activeDays || DAYS.slice();
@@ -221,12 +249,18 @@ export function generateDutyDates(
 
     const isOfficialLeave = holidays.has(dateStr);
     if (activeDays.includes(dayKey) && (!isOfficialLeave || includeOfficialLeaves) && (!selectedWeekSet || selectedWeekSet.has(weekCounter))) {
+      const status = dutySettings
+        ? getDutyDayStatus(dutySettings, weekCounter, dayKey, dateStr, isOfficialLeave)
+        : (isOfficialLeave ? 'holiday' : 'active');
       dates.push({
         date: dateStr,
         dayKey,
         weekId: `week-${weekCounter}`,
         weekName: getDutyWeekName(weekCounter),
+        weekNumber: weekCounter,
         isOfficialLeave,
+        isRemoteWork: status === 'remote',
+        isDisabled: status === 'disabled',
       });
       hasProcessedDays = true;
     } else if (dayKey === 'sunday' || dayKey === 'monday' || dayKey === 'tuesday' || dayKey === 'wednesday' || dayKey === 'thursday') {
@@ -352,7 +386,7 @@ export function generateSmartDutyAssignment(
   countPerDay?: number
 ): { assignments: DutyDayAssignment[]; weekAssignments: import('../types').DutyWeekAssignment[]; alerts: string[]; newCounts: Record<string, number> } {
   const timing = getTimingConfig(schoolInfo);
-  const dates = generateDutyDates(schoolInfo, settings.selectedWeeks, { includeOfficialLeaves: true });
+  const dates = generateDutyDates(schoolInfo, settings.selectedWeeks, { includeOfficialLeaves: true }, settings);
   const availableStaff = getAvailableStaffForDuty(teachers, admins, exclusions, settings);
   // Default to 1 per day if not provided, for across the semester
   const staffPerDay = countPerDay || settings.suggestedCountPerDay || 1;
@@ -408,9 +442,12 @@ export function generateSmartDutyAssignment(
         staffAssignments: [],
         isOfficialLeave: dateInfo.isOfficialLeave,
         officialLeaveText: dateInfo.isOfficialLeave ? 'إجازة رسمية' : undefined,
+        isRemoteWork: dateInfo.isRemoteWork,
+        isDisabled: dateInfo.isDisabled,
       };
 
-      if (dateInfo.isOfficialLeave) {
+      // الإجازة الرسمية أو «عن بُعد» أو «بدون مناوبة» = يوم بلا إسناد مناوبين
+      if (dateInfo.isOfficialLeave || dateInfo.isRemoteWork || dateInfo.isDisabled) {
         weekAssignmentsMap[weekId].dayAssignments.push(dayAssignment);
         return;
       }

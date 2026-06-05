@@ -1,13 +1,14 @@
 ﻿import React, { useState } from 'react';
 import {
-  Users, Settings, Bell, Check,
-  ArrowLeft, CalendarDays, Edit3, Lightbulb
+  Users, Settings, Bell,
+  ArrowLeft, CalendarDays
 } from 'lucide-react';
 import {
   Teacher, Admin, SchoolInfo,
   DutyStaffExclusion, DutySettings,
 } from '../../types';
 import DutyStaffPanel from './DutyStaffPanel';
+import DutyWeeksCard from './DutyWeeksCard';
 import AcademicCalendarModal from '../dashboard/AcademicCalendarModal';
 
 interface Props {
@@ -49,45 +50,6 @@ const DutySettingsPage: React.FC<Props> = ({
   const currentSemester = schoolInfo.semesters?.find(s => s.id === schoolInfo.currentSemesterId || s.isCurrent) || schoolInfo.semesters?.[0];
   const weeksCount = currentSemester?.weeksCount || 0;
   const hasSelectedCalendar = Boolean(schoolInfo.academicYear && currentSemester?.startDate && currentSemester?.endDate && weeksCount > 0);
-  const allWeeks = Array.from({ length: weeksCount }, (_, i) => i + 1);
-  const weekColumns = Array.from({ length: Math.ceil(allWeeks.length / 4) }, (_, i) => allWeeks.slice(i * 4, i * 4 + 4));
-  const selectedWeeks = settings.selectedWeeks ?? allWeeks;
-  const semesterCalendarType = currentSemester?.calendarType || schoolInfo.calendarType || 'gregorian';
-  const formatSemesterStart = (dateText?: string) => {
-    if (!dateText) return 'لم يتم تحديد تاريخ بداية الفصل الدراسي';
-    const parsed = new Date(dateText);
-    if (Number.isNaN(parsed.getTime())) return `بداية الفصل: ${dateText}`;
-    const locale = semesterCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic' : 'ar-SA';
-    const formatted = new Intl.DateTimeFormat(locale, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(parsed);
-    return `بداية الفصل: ${formatted}`;
-  };
-  const formatSemesterEnd = (dateText?: string) => {
-    if (!dateText) return 'لم يتم تحديد تاريخ نهاية الفصل الدراسي';
-    const parsed = new Date(dateText);
-    if (Number.isNaN(parsed.getTime())) return `نهاية الفصل: ${dateText}`;
-    const locale = semesterCalendarType === 'hijri' ? 'ar-SA-u-ca-islamic' : 'ar-SA';
-    const formatted = new Intl.DateTimeFormat(locale, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }).format(parsed);
-    return `نهاية الفصل: ${formatted}`;
-  };
-  const toggleWeek = (w: number) => {
-    setSettings(prev => {
-      const cur = prev.selectedWeeks ?? allWeeks;
-      const next = cur.includes(w) ? cur.filter(x => x !== w) : [...cur, w].sort((a, b) => a - b);
-      return { ...prev, selectedWeeks: next };
-    });
-  };
-  const selectAllWeeks = () => setSettings(prev => ({ ...prev, selectedWeeks: allWeeks }));
-  const clearAllWeeks  = () => setSettings(prev => ({ ...prev, selectedWeeks: [] }));
 
   return (
     <div className="space-y-6 pb-6" dir="rtl">
@@ -146,84 +108,12 @@ const DutySettingsPage: React.FC<Props> = ({
                   </button>
                 </div>
               ) : (
-                <>
-              {/* Semester summary */}
-              <div className="p-3 rounded-2xl bg-white border border-slate-300 flex items-center justify-between gap-3 flex-wrap">
-                <div className="px-4 py-3 min-w-[260px]">
-                  <div>
-                    <p className="text-base font-black text-slate-800">
-                      {currentSemester?.name || 'الفصل الدراسي'}
-                    </p>
-                    <p className="text-xs font-bold text-slate-500 mt-1">
-                      {formatSemesterStart(currentSemester?.startDate)}
-                    </p>
-                    <p className="text-xs font-bold text-slate-500 mt-1">
-                      {formatSemesterEnd(currentSemester?.endDate)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowCalendarModal(true)}
-                  className="inline-flex items-center gap-2 bg-white text-[#655ac1] px-4 py-2.5 rounded-xl text-xs font-black border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
-                >
-                  <Edit3 size={14} />
-                  <span>إدارة التقويم</span>
-                </button>
-              </div>
-
-              {/* Week selection */}
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <p className="text-base font-bold text-slate-700">
-                      اختر الأسابيع التي ستوزّع فيها المناوبة
-                    </p>
-                    <div className="flex gap-2">
-                      {(() => {
-                        const allSelected = allWeeks.length > 0 && allWeeks.every(w => selectedWeeks.includes(w));
-                        return (
-                          <button
-                            onClick={allSelected ? clearAllWeeks : selectAllWeeks}
-                            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white text-[#655ac1] border border-slate-300 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-colors"
-                          >
-                            {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
-                          </button>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                    {weekColumns.map((column, columnIndex) => (
-                      <div key={columnIndex} className="space-y-2">
-                        {column.map(w => {
-                          const isOn = selectedWeeks.includes(w);
-                          return (
-                            <button
-                              key={w}
-                              onClick={() => toggleWeek(w)}
-                              className="group flex w-full items-center justify-between gap-2 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all border border-slate-300 bg-white text-slate-700 hover:border-[#655ac1] hover:bg-slate-50"
-                            >
-                              <span>الأسبوع {w}</span>
-                              <span className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors ${
-                                isOn
-                                  ? 'bg-[#655ac1] border-[#655ac1] text-white'
-                                  : 'bg-white border-slate-300 text-transparent group-hover:border-[#655ac1]'
-                              }`}>
-                                <Check size={12} strokeWidth={3.5} />
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                    <Lightbulb size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                    <span className="text-[11px] font-medium text-amber-800 leading-relaxed">
-                      يمكنك اختيار كل أسابيع الفصل الدراسي أو أسابيع محددة قبل إنشاء جدول المناوبة اليومية.
-                    </span>
-                  </div>
-                </>
+                <DutyWeeksCard
+                  settings={settings}
+                  setSettings={setSettings}
+                  schoolInfo={schoolInfo}
+                  currentSemester={currentSemester}
+                />
               )}
             </div>
           </div>

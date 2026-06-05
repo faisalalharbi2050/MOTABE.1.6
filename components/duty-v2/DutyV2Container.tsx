@@ -238,6 +238,20 @@ const DutyV2Container: React.FC<Props> = ({
     prevTimetableRef.current = scheduleSettings.timetable;
   }, [scheduleSettings.timetable]);
 
+  // عند تفعيل/تعطيل «استثناء المعلمين عند 5 إداريين»: استثناء/إتاحة كل المعلمين مباشرةً.
+  const prevAutoExcludeRef = React.useRef(dutyData.settings.autoExcludeTeachersWhen5Admins);
+  useEffect(() => {
+    const cur = dutyData.settings.autoExcludeTeachersWhen5Admins;
+    if (prevAutoExcludeRef.current === cur) return;
+    prevAutoExcludeRef.current = cur;
+    setDutyData(prev => {
+      const teacherIds = new Set(teachers.map(t => t.id));
+      const others = prev.exclusions.filter(e => !teacherIds.has(e.staffId));
+      const teacherExclusions = teachers.map(t => ({ staffId: t.id, staffType: 'teacher' as const, isExcluded: cur }));
+      return { ...prev, exclusions: [...others, ...teacherExclusions] };
+    });
+  }, [dutyData.settings.autoExcludeTeachersWhen5Admins]);
+
   const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);

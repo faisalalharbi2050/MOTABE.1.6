@@ -3,7 +3,7 @@ import {
   Plus, X, Trash2,
   Search, Shield, Check, BarChart2,
   ClipboardCheck, ClipboardX,
-  Eye, PenLine, Hourglass, CircleOff, CalendarCheck2
+  Eye, PenLine, Hourglass, CalendarCheck2
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -278,29 +278,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       if (prev.includes(staffId)) return prev.filter(id => id !== staffId);
       return [...prev, staffId];
     });
-  };
-
-  const toggleRemoteWork = (dayId: string) => {
-    updateDayAssignment(dayId, da => ({
-      ...da,
-      isRemoteWork: !da.isRemoteWork,
-      isDisabled: false,
-      isOfficialLeave: false,
-      staffAssignments: !da.isRemoteWork ? [] : da.staffAssignments,
-    }));
-  };
-
-  const toggleDisabledDay = (dayId: string) => {
-    updateDayAssignment(dayId, da => ({
-      ...da,
-      isDisabled: !da.isDisabled,
-      isRemoteWork: false,
-      staffAssignments: !da.isDisabled ? [] : da.staffAssignments,
-    }));
-    setDutyData(prev => ({
-      ...prev,
-      reports: (prev.reports || []).filter(r => r.date !== dayId && r.day !== dayId),
-    }));
   };
 
   /** Toggle official leave for the whole day */
@@ -1143,24 +1120,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                               >
                                 <PenLine size={15} />
                               </button>
-                              <div className="relative group">
-                                <button
-                                  onClick={() => toggleDisabledDay(dayId)}
-                                  disabled={da.isOfficialLeave}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
-                                    da.isDisabled
-                                      ? 'border-[#655ac1]/30 bg-[#e5e1fe]/40 text-[#655ac1]'
-                                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <CircleOff size={15} />
-                                </button>
-                                {!da.isOfficialLeave && (
-                                  <span className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                    تعطيل اليوم
-                                  </span>
-                                )}
-                              </div>
                               <button
                                 onClick={() => clearDayStaff(dayId)}
                                 disabled={da.isOfficialLeave || staffAssignments.length === 0}
