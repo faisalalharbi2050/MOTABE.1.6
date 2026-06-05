@@ -22,12 +22,12 @@ interface Props {
 type InnerTab = 'daily' | 'reports';
 type CalendarType = 'hijri' | 'gregorian';
 
-const STATUS_OPTIONS: Array<{ value: SupervisionAttendanceStatus; label: string }> = [
-  { value: 'present', label: 'حاضر' },
-  { value: 'absent', label: 'غائب' },
-  { value: 'excused', label: 'مستأذن' },
-  { value: 'late', label: 'متأخر' },
-  { value: 'withdrawn', label: 'منسحب' },
+const STATUS_OPTIONS: Array<{ value: SupervisionAttendanceStatus; label: string; textColor: string; dotColor: string }> = [
+  { value: 'present', label: 'حاضر', textColor: 'text-green-600', dotColor: 'bg-green-500 border-green-500' },
+  { value: 'absent', label: 'غائب', textColor: 'text-red-600', dotColor: 'bg-red-500 border-red-500' },
+  { value: 'excused', label: 'مستأذن', textColor: 'text-amber-600', dotColor: 'bg-amber-400 border-amber-400' },
+  { value: 'late', label: 'متأخر', textColor: 'text-orange-600', dotColor: 'bg-orange-500 border-orange-500' },
+  { value: 'withdrawn', label: 'منسحب', textColor: 'text-slate-500', dotColor: 'bg-slate-400 border-slate-400' },
 ];
 
 const DAY_KEYS: Record<number, string> = {
@@ -91,9 +91,9 @@ const pluralSupervisors = (count: number) => {
   return 'مشرفين';
 };
 
-const CircleCheck: React.FC<{ checked: boolean }> = ({ checked }) => (
+const CircleCheck: React.FC<{ checked: boolean; dotColor?: string }> = ({ checked, dotColor = 'bg-[#655ac1] border-[#655ac1]' }) => (
   <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
-    checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+    checked ? `${dotColor} text-white` : 'bg-white border-slate-300 text-transparent'
   }`}>
     <Check size={12} strokeWidth={3.5} />
   </span>
@@ -329,6 +329,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   const [reportFrom, setReportFrom] = useState(today);
   const [reportTo, setReportTo] = useState(today);
   const [reportStaffIds, setReportStaffIds] = useState<string[]>([]);
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const selectedDateObj = parseIsoDate(selectedDate) || new Date();
@@ -365,10 +366,21 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
           ...item,
           typeName: supervisionData.supervisionTypes.find(type => type.id === item.contextTypeId)?.name || selectedType?.name || '',
           record,
-          status: record?.status || 'present',
+          status: record?.status,
         };
       });
   }, [dayAssignment, effectiveStaffId, selectedDate, selectedType, supervisionData]);
+
+  const dailyStats = useMemo(() => {
+    const base = STATUS_OPTIONS.reduce((acc, option) => {
+      acc[option.value] = dailyRows.filter(row => row.status === option.value).length;
+      return acc;
+    }, {} as Record<SupervisionAttendanceStatus, number>);
+    return {
+      ...base,
+      unrecorded: dailyRows.filter(row => !row.record).length,
+    };
+  }, [dailyRows]);
 
   const saveAttendance = (
     staff: typeof dailyRows[number],
@@ -398,7 +410,28 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
   };
 
   const markAllPresent = () => {
-    dailyRows.forEach(row => saveAttendance(row, 'present'));
+    const now = new Date().toISOString();
+    const newRecords: SupervisionAttendanceRecord[] = dailyRows.map(row => ({
+      id: `att-${selectedDate}-${row.contextTypeId}-${row.staffId}`,
+      date: selectedDate,
+      day: selectedDayKey,
+      staffId: row.staffId,
+      staffType: row.staffType,
+      staffName: row.staffName,
+      contextTypeId: row.contextTypeId,
+      contextTypeName: row.typeName,
+      status: 'present',
+      notes: notes[row.staffId] ?? row.record?.notes ?? '',
+      recordedAt: now,
+    }));
+    setSupervisionData(prev => {
+      const markedKeys = new Set(newRecords.map(record => `${record.date}-${record.contextTypeId}-${record.staffId}`));
+      const remaining = prev.attendanceRecords.filter(record =>
+        !markedKeys.has(`${record.date}-${record.contextTypeId}-${record.staffId}`)
+      );
+      return { ...prev, attendanceRecords: [...remaining, ...newRecords] };
+    });
+    setShowMarkAllConfirm(false);
     showToast('تم تحديد الكل حاضر', 'success');
   };
 
@@ -430,9 +463,20 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
         acc[option.value] = items.filter(item => item.status === option.value).length;
         return acc;
       }, {} as Record<SupervisionAttendanceStatus, number>);
-      return { staffId: first.staffId, staffName: first.staffName, staffType: first.staffType, total: items.length, counts };
+      const commitmentRate = items.length > 0 ? Math.round((counts.present / items.length) * 100) : 0;
+      return { staffId: first.staffId, staffName: first.staffName, staffType: first.staffType, total: items.length, counts, commitmentRate };
     });
   }, [reportFrom, reportStaffIds, reportTo, supervisionData.attendanceRecords]);
+
+  const reportTotals = useMemo(() => {
+    const counts = STATUS_OPTIONS.reduce((acc, option) => {
+      acc[option.value] = reportRows.reduce((sum, row) => sum + row.counts[option.value], 0);
+      return acc;
+    }, {} as Record<SupervisionAttendanceStatus, number>);
+    const total = reportRows.reduce((sum, row) => sum + row.total, 0);
+    const commitmentRate = total > 0 ? Math.round((counts.present / total) * 100) : 0;
+    return { counts, total, commitmentRate };
+  }, [reportRows]);
 
   const printReport = () => {
     const html = printRef.current?.innerHTML || '';
@@ -518,15 +562,35 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                   <span>{dailyRows.length}</span>
                   <span>{pluralSupervisors(dailyRows.length)}</span>
                 </span>
+                <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-500">
+                  لم يُرصد بعد: {dailyStats.unrecorded}
+                </span>
                 <button
                   type="button"
-                  onClick={markAllPresent}
+                  onClick={() => setShowMarkAllConfirm(true)}
                   disabled={dailyRows.length === 0}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-black hover:bg-emerald-600 transition-all disabled:opacity-50"
                 >
                   <Check size={15} />
                   تحديد الكل حاضر
                 </button>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-white">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                {[
+                  ...STATUS_OPTIONS.map(option => ({
+                    label: option.label,
+                    value: dailyStats[option.value],
+                    textColor: option.textColor,
+                  })),
+                  { label: 'لم يُرصد', value: dailyStats.unrecorded, textColor: 'text-slate-400' },
+                ].map(stat => (
+                  <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center">
+                    <p className={`text-2xl font-black ${stat.textColor}`}>{stat.value}</p>
+                    <p className="mt-1 text-xs font-black text-slate-500">{stat.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -553,9 +617,11 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                               key={option.value}
                               type="button"
                               onClick={() => saveAttendance(row, option.value)}
-                              className="inline-flex items-center gap-2 text-xs font-black text-slate-600 hover:text-[#655ac1] transition-colors"
+                              className={`inline-flex items-center gap-2 text-xs font-black transition-colors ${
+                                row.status === option.value ? option.textColor : 'text-slate-600 hover:text-[#655ac1]'
+                              }`}
                             >
-                              <CircleCheck checked={row.status === option.value} />
+                              <CircleCheck checked={row.status === option.value} dotColor={option.dotColor} />
                               {option.label}
                             </button>
                           ))}
@@ -566,7 +632,7 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                           value={notes[row.staffId] ?? row.record?.notes ?? ''}
                           onChange={e => {
                             setNotes(prev => ({ ...prev, [row.staffId]: e.target.value }));
-                            saveAttendance(row, row.status, e.target.value);
+                            if (row.status) saveAttendance(row, row.status, e.target.value);
                           }}
                           placeholder="ملاحظة..."
                           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold outline-none focus:border-[#655ac1]"
@@ -641,8 +707,9 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">م</th>
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1]">المشرف</th>
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">الصفة</th>
-                    {STATUS_OPTIONS.map(option => <th key={option.value} className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">{option.label}</th>)}
+                    {STATUS_OPTIONS.map(option => <th key={option.value} className={`px-4 py-3 text-xs font-black text-center ${option.textColor}`}>{option.label}</th>)}
                     <th className="px-4 py-3 text-xs font-black text-[#655ac1] text-center">إجمالي الرصد</th>
+                    <th className="px-4 py-3 text-xs font-black text-slate-700 text-center">نسبة الالتزام %</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -651,15 +718,61 @@ const MonitoringTab: React.FC<Props> = ({ supervisionData, setSupervisionData, s
                       <td className="px-4 py-3 text-center font-black text-slate-400">{index + 1}</td>
                       <td className="px-4 py-3 font-black text-slate-800">{row.staffName}</td>
                       <td className="px-4 py-3 text-center font-bold text-slate-500">{row.staffType === 'teacher' ? 'معلم' : 'إداري'}</td>
-                      {STATUS_OPTIONS.map(option => <td key={option.value} className="px-4 py-3 text-center font-bold text-slate-600">{row.counts[option.value]}</td>)}
+                      {STATUS_OPTIONS.map(option => <td key={option.value} className={`px-4 py-3 text-center font-bold ${option.textColor}`}>{row.counts[option.value] || <span className="text-slate-200">—</span>}</td>)}
                       <td className="px-4 py-3 text-center font-black text-slate-700">{row.total}</td>
+                      <td className="px-4 py-3 text-center font-black text-slate-700">{row.commitmentRate}%</td>
                     </tr>
                   ))}
                   {reportRows.length === 0 && (
-                    <tr><td colSpan={9} className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات أداء ضمن الفترة المحددة.</td></tr>
+                    <tr><td colSpan={10} className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد بيانات أداء ضمن الفترة المحددة.</td></tr>
                   )}
                 </tbody>
+                {reportRows.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-slate-100 border-t border-slate-200">
+                      <td className="px-4 py-3 font-black text-slate-700" colSpan={3}>الإجمالي</td>
+                      {STATUS_OPTIONS.map(option => (
+                        <td key={option.value} className={`px-4 py-3 text-center font-black ${option.textColor}`}>
+                          {reportTotals.counts[option.value] || <span className="text-slate-300">—</span>}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-center font-black text-slate-800">{reportTotals.total}</td>
+                      <td className="px-4 py-3 text-center font-black text-slate-800">{reportTotals.commitmentRate}%</td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMarkAllConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="p-6 flex items-start gap-3">
+              <Check size={28} className="text-[#655ac1] mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">تأكيد تحديد الكل حاضر</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  سيتم تسجيل جميع المشرفين الظاهرين في جدول المتابعة الحالي بحالة حاضر. هل تريد المتابعة؟
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setShowMarkAllConfirm(false)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={markAllPresent}
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-[#655ac1] hover:bg-[#5046a0] shadow-[#655ac1]/20"
+              >
+                تأكيد
+              </button>
             </div>
           </div>
         </div>
