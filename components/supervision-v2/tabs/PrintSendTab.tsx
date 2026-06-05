@@ -10,11 +10,12 @@ import {
   Printer, Send, Loader2,
   Archive, ClipboardList, ClipboardCheck, CalendarDays, CalendarClock, SlidersHorizontal,
   MessageSquare, AlertCircle, CheckCircle2,
-  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy, Wallet,
+  ChevronDown, Check, Search, Eye, Users, ArrowRight, RefreshCw, X, Copy, Wallet, Table2,
 } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData, Teacher, Admin } from '../../../types';
 import {
   getSupervisionPrintData, DAYS, DAY_NAMES, getTimingConfig,
+  getSupervisionTableConfig, MAIN_SUPERVISION_TABLE_ID,
 } from '../../../utils/supervisionUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
@@ -284,6 +285,37 @@ const PrintSendTab: React.FC<Props> = ({
   const [printSignatureMode, setPrintSignatureMode] = useState<PrintSignatureMode>('without');
   const [showNotesField, setShowNotesField] = useState(false);
   const [footerText, setFooterText] = useState(supervisionData.footerText || '');
+  // اختيار الجداول المراد طباعتها (null = الكل) وطريقة التوزيع على الصفحات
+  const [printTableIds, setPrintTableIds] = useState<string[] | null>(null);
+  const [printLayout, setPrintLayout] = useState<'merged' | 'separate'>('merged');
+
+  // قائمة جداول الإشراف القابلة للطباعة (الرئيسي + المنفصلة) لعرضها في خيارات الطباعة
+  const availablePrintTables = useMemo(() => {
+    const types = (supervisionData.supervisionTypes || [])
+      .filter(t => t.isEnabled)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const list: { id: string; name: string }[] = [];
+    if (types.some(t => t.displayMode === 'inline')) {
+      list.push({ id: MAIN_SUPERVISION_TABLE_ID, name: 'الجدول الرئيسي' });
+    }
+    const seen = new Set<string>();
+    types.filter(t => t.displayMode === 'separate').forEach(t => {
+      const id = t.tableGroup || `solo-${t.id}`;
+      if (seen.has(id)) return;
+      seen.add(id);
+      const isAutoId = id.startsWith('solo-') || /^table-\d+$/.test(id);
+      const groupTypes = types.filter(x => x.displayMode === 'separate' && (x.tableGroup || `solo-${x.id}`) === id);
+      list.push({ id, name: isAutoId ? groupTypes.map(x => x.name).join('، ') : id });
+    });
+    return list;
+  }, [supervisionData.supervisionTypes]);
+
+  const selectedPrintTableIds = printTableIds ?? availablePrintTables.map(t => t.id);
+  const togglePrintTable = (id: string) => {
+    const current = printTableIds ?? availablePrintTables.map(t => t.id);
+    const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id];
+    setPrintTableIds(next);
+  };
 
   // Send state
   const [sendMode, setSendMode] = useState<SendMode>(openReminderFromDashboard ? 'reminder' : 'electronic');
@@ -863,7 +895,6 @@ const PrintSendTab: React.FC<Props> = ({
 
     const printSignedVersion = options?.signed === true;
     const includeSignature = printSignatureMode === 'with' || printSignedVersion;
-    const includeFollowUp = supervisionData.settings.enableFollowUpSupervisor !== false;
     const finalFooter = showNotesField ? footerText.trim() : '';
     const activeTypes = (supervisionData.supervisionTypes || [])
       .filter(type => type.isEnabled)
@@ -888,14 +919,14 @@ const PrintSendTab: React.FC<Props> = ({
       .map(id => supervisionData.locations.find(location => location.id === id)?.name || '')
       .filter(Boolean)
       .join('، ');
-    const renderStaffCell = (day: string, typeId: string) => {
+    const renderStaffCell = (day: string, typeId: string, showLocations: boolean) => {
       const rows = getStaffForType(day, typeId);
       if (rows.length === 0) return '<span class="empty-state">فارغ للتعبئة اليدوية</span>';
       return rows.map(row => {
         const locations = formatLocations(row.locationIds);
         return `<div class="staff-line">
           <div class="staff-name">${escapeHtml(row.staffName)}</div>
-          <div class="staff-locations">${escapeHtml(locations || 'بدون موقع محدد')}</div>
+          ${showLocations ? `<div class="staff-locations">${escapeHtml(locations || 'بدون موقع محدد')}</div>` : ''}
         </div>`;
       }).join('');
     };
@@ -908,14 +939,22 @@ const PrintSendTab: React.FC<Props> = ({
       if (rows.length === 0) return '<span class="empty-state">—</span>';
       return rows.map(row => printSignedVersion ? renderSignatureImage(row.signatureData) : '<div class="signature-line"></div>').join('');
     };
-    const renderTable = (types: typeof activeTypes) => {
+    const renderTable = (
+      types: typeof activeTypes,
+      tableId: string,
+      options: { name: string; showTitle: boolean; pageBreak: boolean }
+    ) => {
       if (types.length === 0) return '';
+      const tableCfg = getSupervisionTableConfig(supervisionData, tableId);
+      const tableFollowUp = tableCfg.showFollowUp;
+      const tableLocations = tableCfg.showLocations;
       const typeColWidth = includeSignature
-        ? (includeFollowUp ? 56 : 66) / types.length
-        : (includeFollowUp ? 78 : 88) / types.length;
+        ? (tableFollowUp ? 56 : 66) / types.length
+        : (tableFollowUp ? 78 : 88) / types.length;
       const signatureColWidth = includeSignature ? 22 / types.length : 0;
       return `
-        <section class="schedule-section">
+        <section class="schedule-section"${options.pageBreak ? ' style="page-break-after: always;"' : ''}>
+          ${options.showTitle ? `<h2 class="section-title">${escapeHtml(options.name)}</h2>` : ''}
           <table>
             <thead>
               <tr>
@@ -924,8 +963,8 @@ const PrintSendTab: React.FC<Props> = ({
                   <th style="width: ${typeColWidth}%;">${escapeHtml(type.name)}</th>
                   ${includeSignature ? `<th style="width: ${signatureColWidth}%;">التوقيع</th>` : ''}
                 `).join('')}
-                ${includeFollowUp ? '<th style="width: 10%;">المشرف المتابع</th>' : ''}
-                ${includeFollowUp && includeSignature ? '<th style="width: 10%;">التوقيع</th>' : ''}
+                ${tableFollowUp ? '<th style="width: 10%;">المشرف المتابع</th>' : ''}
+                ${tableFollowUp && includeSignature ? '<th style="width: 10%;">التوقيع</th>' : ''}
               </tr>
             </thead>
             <tbody>
@@ -934,11 +973,11 @@ const PrintSendTab: React.FC<Props> = ({
                 return `<tr>
                   <td class="day-header">${escapeHtml(DAY_NAMES[day] || day)}</td>
                   ${types.map(type => `
-                    <td>${renderStaffCell(day, type.id)}</td>
+                    <td>${renderStaffCell(day, type.id, tableLocations)}</td>
                     ${includeSignature ? `<td>${renderSignatureCell(day, type.id)}</td>` : ''}
                   `).join('')}
-                  ${includeFollowUp ? `<td class="followup">${escapeHtml(dayAssignment?.followUpSupervisorName || '—')}</td>` : ''}
-                  ${includeFollowUp && includeSignature ? `<td class="followup-signature signature-cell">${printSignedVersion ? renderSignatureImage(dayAssignment?.followUpSignatureData) : ''}</td>` : ''}
+                  ${tableFollowUp ? `<td class="followup">${escapeHtml(dayAssignment?.followUpSupervisorName || '—')}</td>` : ''}
+                  ${tableFollowUp && includeSignature ? `<td class="followup-signature signature-cell">${printSignedVersion ? renderSignatureImage(dayAssignment?.followUpSignatureData) : ''}</td>` : ''}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -946,10 +985,30 @@ const PrintSendTab: React.FC<Props> = ({
         </section>
       `;
     };
-    const printableTables = [
-      renderTable(inlineTypes),
-      ...separateGroups.map(group => renderTable(group.types)),
-    ].join('');
+
+    // ترتيب الجداول: الرئيسي ثم المنفصلة، مع تطبيق اختيار المستخدم وطريقة التوزيع
+    const orderedTables: { id: string; name: string; types: typeof activeTypes }[] = [
+      ...(inlineTypes.length > 0 ? [{ id: MAIN_SUPERVISION_TABLE_ID, name: 'الجدول الرئيسي', types: inlineTypes }] : []),
+      ...separateGroups.map(group => {
+        const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
+        return { id: group.id, name: isAutoId ? group.types.map(t => t.name).join('، ') : group.id, types: group.types };
+      }),
+    ];
+    const tablesToPrint = orderedTables.filter(t => selectedPrintTableIds.includes(t.id));
+    const showTitles = tablesToPrint.length > 1;
+    const printableTables = tablesToPrint
+      .map((t, i) => renderTable(t.types, t.id, {
+        name: t.name,
+        showTitle: showTitles,
+        pageBreak: printLayout === 'separate' && i < tablesToPrint.length - 1,
+      }))
+      .join('');
+
+    if (tablesToPrint.length === 0) {
+      printWindow.close();
+      showToast?.('اختر جدولاً واحداً على الأقل للطباعة', 'warning');
+      return;
+    }
 
     printWindow.document.write(`
 <!DOCTYPE html>
@@ -971,6 +1030,8 @@ const PrintSendTab: React.FC<Props> = ({
     .logo-circle { width: 56px; height: 56px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
     .logo-text { font-size: 9px; color: #94a3b8; }
     .main-title { text-align: center; color: ${headerColor}; font-size: 18px; font-weight: 900; margin: 8px 0 14px; }
+    .schedule-section { margin-bottom: 18px; }
+    .section-title { text-align: right; color: ${accentColor}; font-size: 14px; font-weight: 900; margin: 6px 2px 8px; padding-right: 4px; border-right: 4px solid ${accentColor}; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 16px; font-size: 11px; table-layout: fixed; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
     th { background-color: ${isBW ? '#f1f5f9' : '#a59bf0'}; color: ${isBW ? headerColor : '#ffffff'}; border-left: 1px solid rgba(255,255,255,0.45); padding: 9px; font-weight: 900; text-align: center; }
     td { border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 8px; vertical-align: top; }
@@ -1662,7 +1723,45 @@ const PrintSendTab: React.FC<Props> = ({
                   { value: 'without', label: 'بدون إضافة عامود توقيع لكل مشرف' },
                 ]}
               />
+              {availablePrintTables.length > 1 && (
+                <SingleSelectDropdown
+                  label="توزيع الجداول"
+                  value={printLayout}
+                  onChange={value => setPrintLayout(value as 'merged' | 'separate')}
+                  placeholder="اختر الطريقة"
+                  options={[
+                    { value: 'merged', label: 'دمج في صفحة واحدة' },
+                    { value: 'separate', label: 'كل جدول في صفحة' },
+                  ]}
+                />
+              )}
             </div>
+
+            {availablePrintTables.length > 1 && (
+              <div className="mb-5">
+                <label className="block text-xs font-black text-slate-500 mb-2">الجداول المراد طباعتها</label>
+                <div className="flex flex-wrap gap-2">
+                  {availablePrintTables.map(t => {
+                    const active = selectedPrintTableIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => togglePrintTable(t.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          active
+                            ? 'bg-[#655ac1]/5 border-[#655ac1] text-[#655ac1]'
+                            : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                        }`}
+                      >
+                        <Table2 size={13} />
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mb-5">
               <label className="block text-xs font-black text-slate-500 mb-2">الملاحظات</label>

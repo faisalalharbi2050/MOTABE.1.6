@@ -13,6 +13,7 @@ import {
 import {
   DAYS, DAY_NAMES, getTimingConfig, getAvailableStaff,
   generateSmartAssignment, isStaffSuitableForCategory,
+  getSupervisionTableConfig, MAIN_SUPERVISION_TABLE_ID,
 } from '../../utils/supervisionUtils';
 import BuilderEmptyState from './BuilderEmptyState';
 import LoadingLogo from '../ui/LoadingLogo';
@@ -69,6 +70,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpDraft, setFollowUpDraft] = useState<SupervisionDayAssignment[] | null>(null);
   const [followUpEnabledDraft, setFollowUpEnabledDraft] = useState(true);
+  // الجداول التي يظهر فيها عمود المشرف المتابع (الرئيسي + الفرعية)
+  const [followUpTablesDraft, setFollowUpTablesDraft] = useState<string[]>([]);
   // الأيام المحددة كأهداف للتعيين (يدعم تحديد عدة أيام)
   const [followUpTargetDays, setFollowUpTargetDays] = useState<string[]>([]);
   const [pendingStaffRemoval, setPendingStaffRemoval] = useState<{ day: string; contextTypeId: string; staffId: string; staffName: string } | null>(null);
@@ -78,7 +81,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const activeDays = timing.activeDays || DAYS.slice();
   const dayAssignments = supervisionData.dayAssignments;
   const activeLocations = supervisionData.locations.filter(l => l.isActive);
-  const showFollowUpSupervisor = supervisionData.settings.enableFollowUpSupervisor !== false;
+  // إعدادات أعمدة كل جدول (موقع/متابع) — مصدرها بطاقة التصميم وتنعكس على الباني والطباعة
+  const mainTableConfig = getSupervisionTableConfig(supervisionData, MAIN_SUPERVISION_TABLE_ID);
+  const showFollowUpSupervisor = mainTableConfig.showFollowUp;
 
   const syncActiveSavedSchedule = (
     prev: SupervisionScheduleData,
@@ -144,6 +149,17 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     () => [...inlineTypes, ...separateTypes].sort((a, b) => a.sortOrder - b.sortOrder),
     [inlineTypes, separateTypes]
   );
+
+  // الجداول المتاحة لاختيار إظهار عمود المشرف المتابع فيها (الرئيسي + الفرعية)
+  const followUpTableOptions = useMemo<{ id: string; name: string }[]>(() => {
+    const opts: { id: string; name: string }[] = [];
+    if (inlineTypes.length > 0) opts.push({ id: MAIN_SUPERVISION_TABLE_ID, name: 'الجدول الرئيسي' });
+    separateTypeGroups.forEach(group => {
+      const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
+      opts.push({ id: group.id, name: isAutoId ? group.types.map(t => t.name).join('، ') : group.id });
+    });
+    return opts;
+  }, [inlineTypes, separateTypeGroups]);
 
   const availableStaff = useMemo(
     () => getAvailableStaff(teachers, admins, supervisionData.exclusions, supervisionData.settings),
@@ -717,7 +733,12 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
 
   const openFollowUpModal = () => {
     setFollowUpDraft(normalizeFollowUpDraft(supervisionData.dayAssignments));
-    setFollowUpEnabledDraft(supervisionData.settings.enableFollowUpSupervisor !== false);
+    // الجداول التي يظهر فيها العمود حاليًا (الافتراض للرئيسي = إعداد المدرسة، توافقًا رجعيًا)
+    const initialTables = followUpTableOptions
+      .filter(opt => getSupervisionTableConfig(supervisionData, opt.id).showFollowUp)
+      .map(opt => opt.id);
+    setFollowUpTablesDraft(initialTables);
+    setFollowUpEnabledDraft(initialTables.length > 0);
     setFollowUpTargetDays([...activeDays]);
     setFollowUpTab('teacher');
     setFollowUpSearch('');
@@ -731,11 +752,24 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   };
 
   const saveFollowUpModal = () => {
+    // الجداول المختارة لإظهار العمود: لا شيء إن عُطّل، أو كل الجداول إن وُجد جدول واحد فقط
+    const selectedTables = !followUpEnabledDraft
+      ? []
+      : followUpTableOptions.length <= 1
+        ? followUpTableOptions.map(opt => opt.id)
+        : followUpTablesDraft;
+
     setSupervisionData(prev => {
       const base = (followUpDraft ?? prev.dayAssignments).map(syncLegacyFollowUp);
+      const nextConfigs = { ...(prev.tablePrintConfigs || {}) };
+      followUpTableOptions.forEach(opt => {
+        const cur = getSupervisionTableConfig(prev, opt.id);
+        nextConfigs[opt.id] = { ...cur, showFollowUp: selectedTables.includes(opt.id) };
+      });
       const next = {
         ...prev,
-        settings: { ...prev.settings, enableFollowUpSupervisor: followUpEnabledDraft },
+        settings: { ...prev.settings, enableFollowUpSupervisor: selectedTables.length > 0 },
+        tablePrintConfigs: nextConfigs,
         dayAssignments: base,
       };
       return syncActiveSavedSchedule(prev, next);
@@ -795,10 +829,12 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     ? activeDays.reduce((acc, day) => acc + getStaffForCell(day, inlineTypes[0]?.id || '').length, 0)
     : 0;
 
-  const renderCompactStaffRow = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment) => (
+  const renderCompactStaffRow = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment, showLocations = true) => (
     <div
       key={`${sa.staffId}-${sa.contextTypeId}`}
-      className="relative grid grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)_auto] items-center gap-2 bg-white px-2.5 py-2 border-b border-slate-200/80 last:border-b-0"
+      className={`relative grid items-center gap-2 bg-white px-2.5 py-2 border-b border-slate-200/80 last:border-b-0 ${
+        showLocations ? 'grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)_auto]' : 'grid-cols-[1fr_auto]'
+      }`}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -806,6 +842,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         </div>
       </div>
 
+      {showLocations && (
       <div className="relative min-w-0">
         <button
           onClick={() => setShowLocationPicker(prev =>
@@ -848,6 +885,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           </>
         )}
       </div>
+      )}
 
       <div className="flex items-center gap-1">
         <button
@@ -867,6 +905,67 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       </div>
     </div>
   );
+
+  // خلية المشرف المتابع — مشتركة بين الجدول الرئيسي والجداول المنفصلة (التي تفعّل العمود)
+  const renderFollowUpCell = (day: string) => {
+    const da = getDayAssignment(day);
+    return (
+      <td className="p-3 align-top border-l border-slate-200/80">
+        <div className="relative w-full h-full flex flex-col justify-center min-h-[60px]">
+          {(da.followUpSupervisorId || (da.followUpSupervisors && da.followUpSupervisors.length > 0)) ? (
+            <div className="bg-[#e5e1fe]/40 border border-[#655ac1]/20 rounded-xl p-3 group relative text-center">
+              <p className="text-[10px] font-bold text-[#655ac1] mb-1 flex items-center justify-center gap-1">
+                <Shield size={10} /> {(da.followUpSupervisors && da.followUpSupervisors.length > 1) ? 'المشرفون المتابعون' : 'المشرف المتابع'}
+              </p>
+              {((da.followUpSupervisors && da.followUpSupervisors.length > 0)
+                ? da.followUpSupervisors.map(s => s.staffName)
+                : [da.followUpSupervisorName].filter(Boolean) as string[]
+              ).map((nm, i) => (
+                <p key={i} className="text-sm font-black text-slate-800 truncate">{nm}</p>
+              ))}
+              <button
+                onClick={() => {
+                  setShowFollowUpPicker(day);
+                  setSelectedFollowUpId('');
+                  setFollowUpTab('teacher');
+                  setFollowUpSearch('');
+                }}
+                className="absolute top-1/2 -translate-y-1/2 right-2 p-1 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                title="تعديل"
+              >
+                <Edit3 size={12} />
+              </button>
+              <button
+                onClick={() => removeFollowUpSupervisor(day)}
+                className="absolute top-1/2 -translate-y-1/2 left-2 p-1 bg-white rounded-md text-slate-400 hover:text-rose-500 transition-all shadow-sm"
+              >
+                <X size={12} />
+              </button>
+              <button
+                onClick={() => copyFollowUpToAllDays(day)}
+                className="absolute top-1 right-2 p-1 text-[#655ac1]/70 hover:text-[#655ac1] opacity-0 group-hover:opacity-100 transition-all"
+                title="نسخ لجميع الأيام"
+              >
+                <Copy size={12} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setShowFollowUpPicker(day);
+                setSelectedFollowUpId('');
+                setFollowUpTab('teacher');
+                setFollowUpSearch('');
+              }}
+              className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+            >
+              <Plus size={14} /> تعيين مشرف متابع
+            </button>
+          )}
+        </div>
+      </td>
+    );
+  };
 
   // ═══════════ Render ═══════════
   return (
@@ -1369,7 +1468,6 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
               </thead>
               <tbody>
                 {activeDays.map(day => {
-                  const da = getDayAssignment(day);
                   return (
                     <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
                       {/* Day cell */}
@@ -1383,7 +1481,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         return (
                           <td key={type.id} className="p-3 border-l border-slate-200/80 align-top">
                             <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(248,250,252,0.9)]">
-                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa))}
+                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa, mainTableConfig.showLocations))}
 
                               {/* Add button */}
                               <button
@@ -1398,62 +1496,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                       })}
 
                       {/* Follow-up cell */}
-                      {showFollowUpSupervisor && (
-                        <td className="p-3 align-top border-l border-slate-200/80">
-                          <div className="relative w-full h-full flex flex-col justify-center min-h-[60px]">
-                            {(da.followUpSupervisorId || (da.followUpSupervisors && da.followUpSupervisors.length > 0)) ? (
-                              <div className="bg-[#e5e1fe]/40 border border-[#655ac1]/20 rounded-xl p-3 group relative text-center">
-                                <p className="text-[10px] font-bold text-[#655ac1] mb-1 flex items-center justify-center gap-1">
-                                  <Shield size={10} /> {(da.followUpSupervisors && da.followUpSupervisors.length > 1) ? 'المشرفون المتابعون' : 'المشرف المتابع'}
-                                </p>
-                                {((da.followUpSupervisors && da.followUpSupervisors.length > 0)
-                                  ? da.followUpSupervisors.map(s => s.staffName)
-                                  : [da.followUpSupervisorName].filter(Boolean) as string[]
-                                ).map((nm, i) => (
-                                  <p key={i} className="text-sm font-black text-slate-800 truncate">{nm}</p>
-                                ))}
-                                <button
-                                  onClick={() => {
-                                    setShowFollowUpPicker(day);
-                                    setSelectedFollowUpId('');
-                                    setFollowUpTab('teacher');
-                                    setFollowUpSearch('');
-                                  }}
-                                  className="absolute top-1/2 -translate-y-1/2 right-2 p-1 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-                                  title="تعديل"
-                                >
-                                  <Edit3 size={12} />
-                                </button>
-                                <button
-                                  onClick={() => removeFollowUpSupervisor(day)}
-                                  className="absolute top-1/2 -translate-y-1/2 left-2 p-1 bg-white rounded-md text-slate-400 hover:text-rose-500 transition-all shadow-sm"
-                                >
-                                  <X size={12} />
-                                </button>
-                                <button
-                                  onClick={() => copyFollowUpToAllDays(day)}
-                                  className="absolute top-1 right-2 p-1 text-[#655ac1]/70 hover:text-[#655ac1] opacity-0 group-hover:opacity-100 transition-all"
-                                  title="نسخ لجميع الأيام"
-                                >
-                                  <Copy size={12} />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setShowFollowUpPicker(day);
-                                  setSelectedFollowUpId('');
-                                  setFollowUpTab('teacher');
-                                  setFollowUpSearch('');
-                                }}
-                                className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
-                              >
-                                <Plus size={14} /> تعيين مشرف متابع
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
+                      {showFollowUpSupervisor && renderFollowUpCell(day)}
                     </tr>
                   );
                 })}
@@ -1467,6 +1510,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       {separateTypeGroups.map((group, index) => {
         const isAutoId = group.id.startsWith('solo-') || /^table-\d+$/.test(group.id);
         const tableName = isAutoId ? group.types.map(t => t.name).join('، ') : group.id;
+        const groupConfig = getSupervisionTableConfig(supervisionData, group.id);
         return (
         <div key={group.id} id={`sup-table-sep-${index}`} className="scroll-mt-20 space-y-3">
           <div className="flex items-center gap-2 px-1">
@@ -1482,6 +1526,9 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   {group.types.map(type => (
                     <th key={type.id} className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">{type.name}</th>
                   ))}
+                  {groupConfig.showFollowUp && (
+                    <th className="p-4 font-black text-center w-48">المشرف المتابع</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1496,7 +1543,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         return (
                           <td key={type.id} className="p-3 border-l border-slate-200/80 align-top">
                             <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(248,250,252,0.9)]">
-                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa))}
+                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa, groupConfig.showLocations))}
                               <button
                                 onClick={() => openAddPanel(day, type.id, type.name)}
                                 className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
@@ -1507,6 +1554,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                           </td>
                         );
                       })}
+                      {groupConfig.showFollowUp && renderFollowUpCell(day)}
                     </tr>
                   );
                 })}
@@ -1789,16 +1837,16 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </div>
 
             <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
-              {/* مفتاح إظهار العمود */}
+              {/* مفتاح إضافة العمود */}
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5">
                 <div>
-                  <p className="text-sm font-black text-slate-800">إظهار عمود المشرف المتابع</p>
-                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">يتحكم بظهور العمود في جدول الإشراف.</p>
+                  <p className="text-sm font-black text-slate-800">إضافة عمود المشرف المتابع</p>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">يتحكم بإضافة العمود إلى جدول الإشراف.</p>
                 </div>
                 <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shrink-0">
                   {[
-                    { value: true, label: 'مُفعّل' },
-                    { value: false, label: 'مُعطّل' },
+                    { value: true, label: 'نعم' },
+                    { value: false, label: 'لا' },
                   ].map(opt => (
                     <button
                       key={String(opt.value)}
@@ -1812,6 +1860,35 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   ))}
                 </div>
               </div>
+
+              {/* اختيار الجداول التي يظهر فيها العمود — عند وجود أكثر من جدول */}
+              {followUpEnabledDraft && followUpTableOptions.length > 1 && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+                  <p className="text-sm font-black text-slate-800">في أي الجداول يظهر العمود؟</p>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5 mb-3">اختر جدولاً واحدًا أو أكثر.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {followUpTableOptions.map(opt => {
+                      const active = followUpTablesDraft.includes(opt.id);
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => setFollowUpTablesDraft(prev =>
+                            prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]
+                          )}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                            active
+                              ? 'bg-[#655ac1]/5 border-[#655ac1] text-[#655ac1]'
+                              : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                          }`}
+                        >
+                          <Table2 size={13} />
+                          {opt.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* تنبيه إرشادي بلون تنبيهي */}
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-800">

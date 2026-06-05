@@ -337,7 +337,7 @@ const SupervisionV2Container: React.FC<Props> = ({
     icon: React.ComponentType<any>; complete: boolean;
   }> = [
     { id: 'settings', n: 1, label: 'إعدادات الإشراف', hint: 'اضبط إعداد الفترات والمشرفين', icon: Settings, complete: settingsComplete },
-    { id: 'create', n: 2, label: 'إنشاء الجدول', hint: 'وزّع المشرفين على الفترات', icon: Sparkles, complete: scheduleComplete },
+    { id: 'create', n: 2, label: 'تصميم وإنشاء الجدول', hint: 'صمم الجدول ثم وزّع المشرفين', icon: Sparkles, complete: scheduleComplete },
     { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
     { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'أدر الإشراف وتقاريره', icon: BarChart3, complete: false },
   ];

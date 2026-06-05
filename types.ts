@@ -666,6 +666,12 @@ export interface SavedSupervisionSchedule {
   isApproved: boolean;
 }
 
+// إعدادات أعمدة كل جدول إشراف (الرئيسي أو المنفصل) — تُقرأ في الباني والطباعة معاً
+export interface SupervisionTableConfig {
+  showLocations: boolean; // عمود موقع الإشراف
+  showFollowUp: boolean;  // عمود المشرف المتابع
+}
+
 export interface SupervisionScheduleData {
   locations: SupervisionLocation[];
   periods: SupervisionPeriodConfig[];
@@ -681,6 +687,8 @@ export interface SupervisionScheduleData {
   schoolId?: string; // لدعم المدارس المشتركة
   savedSchedules?: SavedSupervisionSchedule[];
   activeScheduleId?: string;
+  // إعدادات أعمدة كل جدول إشراف، مفتاحها معرّف الجدول ('__main__' أو معرّف الجدول المنفصل)
+  tablePrintConfigs?: Record<string, SupervisionTableConfig>;
 }
 
 export interface SupervisionSettings {

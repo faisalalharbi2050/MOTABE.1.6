@@ -7,7 +7,6 @@ import {
 } from '../../types';
 import SupervisionStaffPanel from './SupervisionStaffPanel';
 import SupervisionLocationsPanel from './SupervisionLocationsPanel';
-import SupervisionTypesPanel from './SupervisionTypesPanel';
 
 interface Props {
   onBack: () => void;
@@ -91,11 +90,6 @@ const SupervisionSettingsPage: React.FC<Props> = ({
               hasSharedSchools={(schoolInfo.sharedSchools?.length ?? 0) > 0}
               showToast={showToast}
               activeView="settings"
-            />
-            <SupervisionTypesPanel
-              supervisionTypes={supervisionTypes}
-              setSupervisionTypes={setSupervisionTypes}
-              showToast={showToast}
             />
           </div>
         )}

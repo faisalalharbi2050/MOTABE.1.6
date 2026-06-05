@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Lightbulb, ListTree, Plus, Trash2 } from 'lucide-react';
+import { Check, ListTree, Plus, Trash2 } from 'lucide-react';
 import { SupervisionType } from '../../types';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
@@ -11,8 +11,17 @@ interface Props {
   setSupervisionTypes: (
     t: SupervisionType[] | ((prev: SupervisionType[]) => SupervisionType[])
   ) => void;
+  // إخفاء البطاقة الخارجية وعنوانها عند تضمين اللوحة داخل شريط مطوي
+  embedded?: boolean;
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
 }
+
+// شارة نوع الجدول (رئيسي/فرعي) — إطار رمادي بلا خلفية لونية
+const TableBadge: React.FC<{ label: string }> = ({ label }) => (
+  <span className="inline-flex items-center shrink-0 px-2.5 py-1 rounded-full border border-slate-300 text-[11px] font-bold text-slate-500 bg-transparent">
+    {label}
+  </span>
+);
 
 interface SupervisionTableDraft {
   id: string;
@@ -49,6 +58,7 @@ const RoundCheck: React.FC<{ checked: boolean; disabled?: boolean }> = ({ checke
 const SupervisionTypesPanel: React.FC<Props> = ({
   supervisionTypes,
   setSupervisionTypes,
+  embedded,
   showToast,
 }) => {
   const [draftTables, setDraftTables] = useState<SupervisionTableDraft[]>([]);
@@ -184,45 +194,58 @@ const SupervisionTypesPanel: React.FC<Props> = ({
   };
 
   return (
-    <div className={CARD_CLASS}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-4">
+    <div className={embedded ? '' : CARD_CLASS}>
+      {!embedded && (
+        <div className="flex items-center gap-4 mb-5">
           <ListTree size={28} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
-          <div>
-            <h3 className="text-lg font-black text-slate-800">تصميم جدول الإشراف اليومي</h3>
-            <p className="text-xs font-medium text-slate-500 mt-1">
-              اختر أنواع الإشراف داخل كل جدول. النوع الواحد لا يمكن استخدامه في أكثر من جدول.
-            </p>
-          </div>
+          <h3 className="text-lg font-black text-slate-800">تصميم جدول الإشراف اليومي</h3>
         </div>
-        <button
-          onClick={addTable}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all w-full sm:w-auto"
-        >
-          <Plus size={16} />
-          إضافة جدول إشراف آخر
-        </button>
+      )}
+
+      {/* دليل مختصر على شكل خطوات هادئة */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-5">
+        {[
+          'اختر نوع الإشراف لكل جدول.',
+          'نوع الإشراف المحدد يظهر في جدول واحد فقط.',
+          'يمكنك إضافة جداول فرعية لأنواع أخرى (كالأدوار والاصطفاف).',
+        ].map((text, i) => (
+          <div key={i} className="flex items-start gap-2.5 flex-1 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5">
+            <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">
+              {i + 1}
+            </span>
+            <span className="text-[11px] font-bold text-slate-600 leading-relaxed">{text}</span>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start overflow-visible">
-        {tables.map(table => (
-          <div key={table.id} className="relative z-0 min-w-0 h-fit rounded-2xl border-2 border-slate-200 p-4 bg-white">
+      {/* بطاقات الجداول — مكدّسة عموديًا، الجدول الجديد يُضاف أسفل السابق */}
+      <div className="space-y-4">
+        {tables.map(table => {
+          const selectedTypes = sorted.filter(type => getTypeTableId(type) === table.id);
+          return (
+          <div key={table.id} className="relative z-0 min-w-0 rounded-2xl border-2 border-slate-200 p-4 bg-white">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <div className="flex-1">
+              <div className="flex-1 flex items-center gap-2.5 min-w-0">
                 {table.isMain ? (
-                  <h4 className="text-sm font-black text-slate-800">{table.name}</h4>
+                  <>
+                    <h4 className="text-sm font-black text-slate-800 shrink-0">{table.name}</h4>
+                    <TableBadge label="الجدول الرئيسي" />
+                  </>
                 ) : (
-                  <input
-                    defaultValue={table.name}
-                    onBlur={event => renameTable(table, event.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
-                  />
+                  <>
+                    <input
+                      defaultValue={table.name}
+                      onBlur={event => renameTable(table, event.target.value)}
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-200 text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
+                    />
+                    <TableBadge label="جدول فرعي" />
+                  </>
                 )}
               </div>
               {!table.isMain && (
                 <button
                   onClick={() => setTableToDelete(table)}
-                  className="p-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-colors"
+                  className="p-2 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-colors shrink-0"
                   title="حذف الجدول"
                 >
                   <Trash2 size={16} />
@@ -230,75 +253,116 @@ const SupervisionTypesPanel: React.FC<Props> = ({
               )}
             </div>
 
-            <div className="divide-y divide-slate-100">
-              {sorted.map(type => {
-                const checked = getTypeTableId(type) === table.id;
-                const usedElsewhere = isTypeUsedInAnotherTable(type, table.id);
-                return (
-                  <label
-                    key={type.id}
-                    className={`flex items-center gap-3 px-2 py-3 transition-all ${
-                      checked
-                        ? 'bg-white text-slate-800'
-                        : usedElsewhere
-                          ? 'bg-slate-50/60 text-slate-400 cursor-not-allowed'
-                          : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
-                    }`}
-                    title={usedElsewhere ? 'تم اختيار هذا النوع في جدول آخر' : undefined}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={usedElsewhere}
-                      onChange={event => setTypeInTable(type, table, event.target.checked)}
-                      className="sr-only"
-                    />
-                    {type.isBuiltIn ? (
-                      <span className="text-sm font-black flex-1">{getTypeLabel(type)}</span>
-                    ) : (
-                      <input
-                        value={type.name}
-                        onChange={event => renameType(type.id, event.target.value)}
-                        onClick={event => event.stopPropagation()}
-                        className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
-                      />
-                    )}
-                    {!type.isBuiltIn && (
-                      <button
-                        type="button"
-                        onClick={event => {
-                          event.preventDefault();
-                          deleteCustom(type.id);
-                        }}
-                        className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                        title="حذف"
+            {/* الاختيارات + المعاينة جنبًا إلى جنب */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              <div>
+                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-1">
+                  {sorted.map(type => {
+                    const checked = getTypeTableId(type) === table.id;
+                    const usedElsewhere = isTypeUsedInAnotherTable(type, table.id);
+                    return (
+                      <label
+                        key={type.id}
+                        className={`flex items-center gap-3 px-2 py-3 transition-all ${
+                          checked
+                            ? 'bg-white text-slate-800'
+                            : usedElsewhere
+                              ? 'bg-slate-50/60 text-slate-400 cursor-not-allowed'
+                              : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
+                        }`}
+                        title={usedElsewhere ? 'تم اختيار هذا النوع في جدول آخر' : undefined}
                       >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                    <RoundCheck checked={checked} disabled={usedElsewhere} />
-                  </label>
-                );
-              })}
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={usedElsewhere}
+                          onChange={event => setTypeInTable(type, table, event.target.checked)}
+                          className="sr-only"
+                        />
+                        {type.isBuiltIn ? (
+                          <span className="text-sm font-black flex-1">{getTypeLabel(type)}</span>
+                        ) : (
+                          <input
+                            value={type.name}
+                            onChange={event => renameType(type.id, event.target.value)}
+                            onClick={event => event.stopPropagation()}
+                            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
+                          />
+                        )}
+                        {!type.isBuiltIn && (
+                          <button
+                            type="button"
+                            onClick={event => {
+                              event.preventDefault();
+                              deleteCustom(type.id);
+                            }}
+                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                            title="حذف"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                        <RoundCheck checked={checked} disabled={usedElsewhere} />
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => addCustomTypeToTable(table)}
+                  className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-700 hover:border-[#655ac1] transition-all"
+                >
+                  <Plus size={16} />
+                  إضافة نوع إشراف
+                </button>
+              </div>
+
+              {/* معاينة تخطيطية لشكل الجدول */}
+              <div className="lg:sticky lg:top-2">
+                <p className="text-[11px] font-bold text-slate-400 mb-2">معاينة شكل الجدول:</p>
+                {selectedTypes.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center text-[11px] font-bold text-slate-400">
+                    اختر نوع إشراف لمعاينة شكل الجدول
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <table className="w-full text-[10px] border-collapse">
+                      <thead>
+                        <tr className="bg-[#655ac1]/5 text-[#655ac1]">
+                          <th className="border border-slate-200 p-1.5 font-black">اليوم</th>
+                          {selectedTypes.map(t => (
+                            <th key={t.id} className="border border-slate-200 p-1.5 font-black">{getTypeLabel(t)}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {['الأحد', 'الإثنين'].map(d => (
+                          <tr key={d}>
+                            <td className="border border-slate-200 p-1.5 text-center font-bold text-slate-500 bg-slate-50/60">{d}</td>
+                            {selectedTypes.map(t => (
+                              <td key={t.id} className="border border-slate-200 p-1.5 text-center text-slate-300">—</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
-
-            <button
-              onClick={() => addCustomTypeToTable(table)}
-              className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-700 hover:border-[#655ac1] transition-all"
-            >
-              <Plus size={16} />
-              إضافة
-            </button>
           </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="mt-4 flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
-        <Lightbulb size={16} className="text-amber-500 shrink-0 mt-0.5" />
-        <span className="text-[11px] font-medium text-amber-800 leading-relaxed">
-          الإنشاء التلقائي لجدول الإشراف يتم توزيع إشراف الفسحة وإشراف الصلاة فقط ، وأما باقي أنواع الإشراف مثل إشراف الأدوار فتظهر خاناتها فارغة للتعبئة اليدوية.
-        </span>
-      </div>
+      {/* إضافة جدول فرعي — أسفل البطاقات */}
+      <button
+        onClick={addTable}
+        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold border-2 border-dashed border-slate-300 text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#655ac1]/5 transition-all"
+      >
+        <Plus size={16} />
+        إضافة جدول فرعي
+      </button>
 
       <ConfirmDialog
         isOpen={!!tableToDelete}

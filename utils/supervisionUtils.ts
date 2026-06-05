@@ -20,6 +20,7 @@ import {
   SupervisionAttendanceRecord,
   SupervisionType,
   SupervisionContextCategory,
+  SupervisionTableConfig,
   Phase,
 } from '../types';
 
@@ -680,6 +681,34 @@ export function generateReminderMessage(
   // New Default Template:
   // تذكير: المعلم الفاضل/ ( اسم المعلم يظهر هنا ) ، نذكركم بموعد الإشراف اليومي لهذا اليوم ( اسم اليوم يظهر هنا ) ، شاكرين تعاونكم
   return `تذكير: ${roleName}/ ${staffName} ، نذكركم بموعد الإشراف اليومي لهذا اليوم ( ${DAY_NAMES[day] || day} ) ، شاكرين تعاونكم`;
+}
+
+// ===== Supervision Table (design) Helpers =====
+// معرّف الجدول الرئيسي الموحّد عبر التصميم/الباني/الطباعة
+export const MAIN_SUPERVISION_TABLE_ID = '__main__';
+
+/** معرّف الجدول الذي ينتمي إليه نوع الإشراف (الرئيسي أو المنفصل) */
+export function getSupervisionTableId(type: SupervisionType): string {
+  if (type.displayMode === 'inline') return MAIN_SUPERVISION_TABLE_ID;
+  return type.tableGroup || `solo-${type.id}`;
+}
+
+/**
+ * إعدادات أعمدة جدول إشراف معيّن، مع قيم افتراضية ذكية متوافقة رجعياً:
+ * - موقع الإشراف: ظاهر افتراضياً.
+ * - المشرف المتابع: ظاهر للجدول الرئيسي فقط (حسب إعداد المدرسة)، ومخفي للجداول المنفصلة.
+ */
+export function getSupervisionTableConfig(
+  data: SupervisionScheduleData,
+  tableId: string
+): SupervisionTableConfig {
+  const stored = data.tablePrintConfigs?.[tableId];
+  const isMain = tableId === MAIN_SUPERVISION_TABLE_ID;
+  const mainFollowUpDefault = data.settings?.enableFollowUpSupervisor !== false;
+  return {
+    showLocations: stored?.showLocations ?? true,
+    showFollowUp: stored?.showFollowUp ?? (isMain ? mainFollowUpDefault : false),
+  };
 }
 
 // ===== Print/Export Helpers =====
