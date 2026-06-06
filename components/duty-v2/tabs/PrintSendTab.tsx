@@ -1087,6 +1087,73 @@ ${buildReportLink(target)}` : ''}`;
 </html>`);
   };
 
+  const handlePrintReportReceiptLog = (rows: typeof filteredReportRows) => {
+    if (rows.length === 0) { showToast?.('لا توجد بيانات للطباعة', 'warning'); return; }
+    openPrintableHtml(`
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>سجل استلام تقرير المناوبة اليومية</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 18px; font-weight: 700; font-size: 12px; line-height: 1.8; }
+    h1 { text-align: center; font-size: 20px; font-weight: 900; color: #111827; margin: 0 0 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; }
+    th { background: #a59bf0; color: #fff; font-weight: 900; }
+    .submitted { color: #047857; font-weight: 900; }
+    .pending { color: #b45309; font-weight: 900; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background: #a59bf0 !important; color: #fff !important; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div>المملكة العربية السعودية</div>
+      <div>وزارة التعليم</div>
+      <div>${escapeHtml(schoolInfo.region || 'إدارة التعليم')}</div>
+      <div>مدرسة ${escapeHtml(schoolInfo.schoolName || '')}</div>
+    </div>
+    <div style="text-align:left">
+      <div>العام الدراسي: ${escapeHtml((schoolInfo as any).academicYear || '')}</div>
+      <div>الفصل الدراسي: ${escapeHtml(semesterName)}</div>
+      <div>تاريخ الطباعة: ${formatHijriDateTimeNumeric(new Date().toISOString())}</div>
+    </div>
+  </div>
+  <h1>سجل استلام تقرير المناوبة اليومية</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>م</th>
+        <th>المناوب</th>
+        <th>الصفة</th>
+        <th>عدد المناوبات</th>
+        <th>التقارير المسلّمة</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(row.staffName)}</td>
+          <td>${escapeHtml(row.staffType)}</td>
+          <td>${row.assignmentCount}</td>
+          <td>${row.reportSubmittedCount} / ${row.reportDueCount}</td>
+          <td class="${row.status === 'submitted' ? 'submitted' : 'pending'}">${row.status === 'submitted' ? 'سلّم التقرير' : 'لم يسلّم التقرير'}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  <script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>
+</body>
+</html>`);
+  };
+
   // Builds one canonical "تقرير المناوبة اليومية" page populated from a real or virtual report.
   const buildSingleReportHtml = (report: DutyReportRecord) => {
     const padRows = (rows: string[], minRows: number, columns: number, startIndex = 0) => {
@@ -1605,37 +1672,40 @@ ${buildReportLink(target)}` : ''}`;
 
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            {assignmentBatchOptions.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <SingleSelectDropdown
                 label=""
                 value={selectedAssignmentBatchId}
                 placeholder="اختر الجدول المرسل"
                 onChange={setSelectedAssignmentBatchId}
                 options={assignmentBatchOptions}
+                disabled={assignmentBatchOptions.length === 0}
                 minWidthClass="min-w-[260px] max-w-[400px]"
               />
-            )}
-            <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); refreshDutyDataFromStorage(); }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
-              <RefreshCw size={15} />
-              تحديث
-            </button>
-            <button type="button" onClick={() => handlePrintReceiptReport(filteredAssignmentRows)} disabled={assignmentReceiptSource.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={15} />
-              طباعة سجل الاستلام الإلكتروني
-            </button>
-            <button type="button" onClick={() => handlePrintAssignmentForms(filteredAssignmentRows)} disabled={assignmentReceiptSource.length === 0}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={15} />
-              طباعة نماذج التكليف الإلكترونية
-            </button>
-            <button type="button" onClick={() => handlePrintSchedule({ electronicSignatures: true })} disabled={!hasData}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-              <Printer size={15} />
-              طباعة جدول المناوبة بعد التوقيع
-            </button>
+              <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); refreshDutyDataFromStorage(); }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+                <RefreshCw size={15} />
+                تحديث
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => handlePrintReceiptReport(filteredAssignmentRows)} disabled={assignmentReceiptSource.length === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+                <Printer size={15} />
+                طباعة سجل الاستلام الإلكتروني
+              </button>
+              <button type="button" onClick={() => handlePrintAssignmentForms(filteredAssignmentRows)} disabled={assignmentReceiptSource.length === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+                <Printer size={15} />
+                طباعة نماذج التكليف الإلكترونية
+              </button>
+              <button type="button" onClick={() => handlePrintSchedule({ electronicSignatures: true })} disabled={!hasData}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+                <Printer size={15} />
+                طباعة جدول المناوبة بعد التوقيع
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1876,20 +1946,24 @@ ${buildReportLink(target)}` : ''}`;
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
-            {reportBatchOptions.length > 0 && (
-              <SingleSelectDropdown
-                label=""
-                value={selectedReportBatchId}
-                placeholder="اختر الجدول المرسل"
-                onChange={setSelectedReportBatchId}
-                options={reportBatchOptions}
-                minWidthClass="min-w-[260px] max-w-[400px]"
-              />
-            )}
+            <SingleSelectDropdown
+              label=""
+              value={selectedReportBatchId}
+              placeholder="اختر الجدول المرسل"
+              onChange={setSelectedReportBatchId}
+              options={reportBatchOptions}
+              disabled={reportBatchOptions.length === 0}
+              minWidthClass="min-w-[260px] max-w-[400px]"
+            />
             <button type="button" onClick={() => { setReportSearch(''); setReportFilter('all'); refreshDutyDataFromStorage(); }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
               <RefreshCw size={15} />
               تحديث
+            </button>
+            <button type="button" onClick={() => handlePrintReportReceiptLog(filteredReportRows)} disabled={reportRows.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة سجل التسليم الإلكتروني
             </button>
             <button type="button" onClick={handlePrintAllReports}
               disabled={dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted).length === 0}

@@ -51,7 +51,8 @@ const getDefaultDutyData = (): DutyScheduleData => ({
   weekAssignments: [],
   reports: [],
   isApproved: false,
-  savedSchedules: []
+  savedSchedules: [],
+  dutyGenerationCount: 0,
 });
 
 interface DailyDutyProps {

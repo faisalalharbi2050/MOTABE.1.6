@@ -42,10 +42,10 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
         setDutyData(prev => {
           const prevSaved = prev.savedSchedules || [];
           const newId = `duty-schedule-${Date.now()}`;
-          const autoScheduleNumber = prevSaved.length + 1;
+          const nextGenerationCount = Math.max(prev.dutyGenerationCount || 0, prevSaved.length) + 1;
           const newSavedEntry = {
             id: newId,
-            name: buildAutoSavedScheduleName(autoScheduleNumber),
+            name: buildAutoSavedScheduleName(nextGenerationCount),
             createdAt: new Date().toISOString(),
             dayAssignments: assignments,
             isApproved: false,
@@ -60,6 +60,7 @@ const DutyCreateScheduleModal: React.FC<Props> = ({
             approvedAt: undefined,
             savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
             activeScheduleId: newId,
+            dutyGenerationCount: nextGenerationCount,
           };
         });
         setTimeout(() => {

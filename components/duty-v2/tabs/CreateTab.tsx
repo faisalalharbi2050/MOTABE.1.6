@@ -76,9 +76,10 @@ const CreateTab: React.FC<Props> = ({
       }
       const prevSaved = prev.savedSchedules || [];
       const newId = `duty-schedule-${Date.now()}`;
+      const nextGenerationCount = Math.max(prev.dutyGenerationCount || 0, prevSaved.length) + 1;
       const newSavedEntry = {
         id: newId,
-        name: buildAutoSavedScheduleName(prevSaved.length + 1),
+        name: buildAutoSavedScheduleName(nextGenerationCount),
         createdAt: new Date().toISOString(),
         dayAssignments: flatAssignments,
         isApproved: false,
@@ -91,6 +92,7 @@ const CreateTab: React.FC<Props> = ({
         approvedAt: undefined,
         savedSchedules: [newSavedEntry, ...prevSaved],
         activeScheduleId: newId,
+        dutyGenerationCount: nextGenerationCount,
       };
     });
     setManualStarted(true);
@@ -124,9 +126,10 @@ const CreateTab: React.FC<Props> = ({
         const prevSaved = prev.savedSchedules || [];
         if (prevSaved.length >= 10) return prev;
         const newId = `duty-schedule-${Date.now()}`;
+        const nextGenerationCount = Math.max(prev.dutyGenerationCount || 0, prevSaved.length) + 1;
         const newSavedEntry = {
           id: newId,
-          name: buildAutoSavedScheduleName(prevSaved.length + 1),
+          name: buildAutoSavedScheduleName(nextGenerationCount),
           createdAt: new Date().toISOString(),
           dayAssignments: assignments,
           isApproved: false,
@@ -140,6 +143,7 @@ const CreateTab: React.FC<Props> = ({
           approvedAt: undefined,
           savedSchedules: [newSavedEntry, ...prevSaved],
           activeScheduleId: newId,
+          dutyGenerationCount: nextGenerationCount,
         };
       });
       setManualStarted(false);

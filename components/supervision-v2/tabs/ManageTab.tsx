@@ -53,6 +53,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
   const currentScheduleIsSaved = !!activeScheduleId && savedSchedules.some(s => s.id === activeScheduleId);
   const isFull = savedSchedules.length >= 10;
   const isNearFull = savedSchedules.length === 9;
+  const createdSchedulesCount = Math.max(supervisionData.supervisionGenerationCount || 0, savedSchedules.length);
 
   const dayNames: Record<number, string> = {
     0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء',
@@ -154,10 +155,12 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
       const id = confirmAction.schedule.id;
       setSupervisionData(prev => {
         const isActive = prev.activeScheduleId === id;
+        const generationCount = Math.max(prev.supervisionGenerationCount || 0, (prev.savedSchedules || []).length);
         return {
           ...prev,
           savedSchedules: (prev.savedSchedules || []).filter(item => item.id !== id),
           activeScheduleId: isActive ? undefined : prev.activeScheduleId,
+          supervisionGenerationCount: generationCount,
           ...(isActive ? { dayAssignments: [], isApproved: false, approvedAt: undefined } : {}),
         };
       });
@@ -177,7 +180,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
   };
 
   const stats = [
-    { label: 'الجداول المنشأة', value: String(supervisionData.supervisionGenerationCount || 0), icon: CalendarDays },
+    { label: 'الجداول المنشأة', value: String(createdSchedulesCount), icon: CalendarDays },
     { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10`, icon: Archive },
     { label: 'الجدول المعتمد', value: activeSchedule?.name ?? '—', icon: BadgeCheck, isText: true },
   ];

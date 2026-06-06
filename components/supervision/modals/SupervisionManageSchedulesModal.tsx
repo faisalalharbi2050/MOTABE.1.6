@@ -94,6 +94,7 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
   const approvedSchedule = savedSchedules.find(schedule => schedule.isApproved);
   const isFull = savedSchedules.length >= 10;
   const isNearFull = savedSchedules.length === 9;
+  const createdSchedulesCount = Math.max(supervisionData.supervisionGenerationCount || 0, savedSchedules.length);
 
   const openMenu = (event: React.MouseEvent<HTMLButtonElement>, scheduleId: string) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -170,6 +171,7 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
     if (confirmAction.mode === 'delete') {
       setSupervisionData(prev => {
         const isDeletingActiveSchedule = prev.activeScheduleId === confirmAction.schedule.id;
+        const generationCount = Math.max(prev.supervisionGenerationCount || 0, (prev.savedSchedules || []).length);
 
         return {
           ...prev,
@@ -177,6 +179,7 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
             schedule => schedule.id !== confirmAction.schedule.id
           ),
           activeScheduleId: isDeletingActiveSchedule ? undefined : prev.activeScheduleId,
+          supervisionGenerationCount: generationCount,
           ...(isDeletingActiveSchedule ? { dayAssignments: [] } : {}),
           ...(confirmAction.schedule.isApproved || isDeletingActiveSchedule
             ? { isApproved: false, approvedAt: undefined }
@@ -191,7 +194,7 @@ const SupervisionManageSchedulesModal: React.FC<Props> = ({
   };
 
   const stats = [
-    { label: 'إجمالي جداول الإشراف', value: String(savedSchedules.length) },
+    { label: 'إجمالي جداول الإشراف', value: String(createdSchedulesCount) },
     { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10` },
     { label: 'الجدول المعتمد', value: approvedSchedule?.name ?? '—', isText: true },
   ];

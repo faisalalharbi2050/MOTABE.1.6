@@ -80,6 +80,7 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast, schoolIn
   const isFull = savedSchedules.length >= 10;
   const isNearFull = savedSchedules.length === 9;
   const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
+  const createdSchedulesCount = Math.max(dutyData.dutyGenerationCount || 0, savedSchedules.length);
 
   useEffect(() => {
     if (!hasCurrentSchedule || currentScheduleIsSaved) return;
@@ -161,10 +162,12 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast, schoolIn
       const id = confirmAction.schedule.id;
       setDutyData(prev => {
         const isActive = prev.activeScheduleId === id;
+        const generationCount = Math.max(prev.dutyGenerationCount || 0, (prev.savedSchedules || []).length);
         return {
           ...prev,
           savedSchedules: (prev.savedSchedules || []).filter(item => item.id !== id),
           activeScheduleId: isActive ? undefined : prev.activeScheduleId,
+          dutyGenerationCount: generationCount,
           ...(isActive ? { dayAssignments: [], weekAssignments: [], isApproved: false, approvedAt: undefined } : {}),
         };
       });
@@ -184,7 +187,7 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast, schoolIn
   };
 
   const stats = [
-    { label: 'الجداول المنشأة', value: String(savedSchedules.length), icon: CalendarDays },
+    { label: 'الجداول المنشأة', value: String(createdSchedulesCount), icon: CalendarDays },
     { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10`, icon: Archive },
     { label: 'الجدول المعتمد', value: activeSchedule?.name ?? '—', icon: BadgeCheck, isText: true },
   ];
