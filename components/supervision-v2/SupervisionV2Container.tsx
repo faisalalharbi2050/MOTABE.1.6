@@ -26,6 +26,7 @@ import SupervisionMessagingModal from '../supervision/modals/SupervisionMessagin
 import CreateTab from './tabs/CreateTab';
 import MonitoringTab from './tabs/MonitoringTab';
 import PrintSendTab from './tabs/PrintSendTab';
+import PreviewTab from './tabs/PreviewTab';
 import ManageTab from './tabs/ManageTab';
 
 interface Props {
@@ -39,7 +40,7 @@ interface Props {
 }
 
 type StageId = 'settings' | 'create' | 'output' | 'monitoring';
-type OutputMode = 'print' | 'send' | 'manage';
+type OutputMode = 'preview' | 'print' | 'send' | 'manage';
 
 const STAGE_STORAGE_KEY = 'motabe:supervision_v2:stage';
 const TAB_STORAGE_KEY = 'motabe:supervision_v2:lastTab';
@@ -338,11 +339,12 @@ const SupervisionV2Container: React.FC<Props> = ({
   }> = [
     { id: 'settings', n: 1, label: 'إعدادات الإشراف', hint: 'اضبط إعداد الفترات والمشرفين', icon: Settings, complete: settingsComplete },
     { id: 'create', n: 2, label: 'تصميم وإنشاء الجدول', hint: 'صمم الجدول ثم وزّع المشرفين', icon: Sparkles, complete: scheduleComplete },
-    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
+    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
     { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'أدر الإشراف وتقاريره', icon: BarChart3, complete: false },
   ];
 
   const outputModes: Array<{ id: OutputMode; label: string; icon: React.ComponentType<any> }> = [
+    { id: 'preview', label: 'معاينة', icon: Eye },
     { id: 'print', label: 'طباعة', icon: Printer },
     { id: 'send', label: 'إرسال الإشراف', icon: Send },
     { id: 'manage', label: 'الجداول المحفوظة', icon: Archive },
@@ -538,7 +540,12 @@ const SupervisionV2Container: React.FC<Props> = ({
               </div>
             </div>
 
-            {outputMode === 'manage' ? (
+            {outputMode === 'preview' ? (
+              <PreviewTab
+                supervisionData={supervisionData}
+                schoolInfo={schoolInfo}
+              />
+            ) : outputMode === 'manage' ? (
               <ManageTab
                 supervisionData={supervisionData}
                 setSupervisionData={setSupervisionData}

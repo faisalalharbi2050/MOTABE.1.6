@@ -3,7 +3,7 @@ import {
   Settings, BarChart3, ShieldCheck,
   CheckCircle, AlertTriangle, AlertCircle,
   RefreshCw, X, Info, Sparkles, FileOutput, Send,
-  Check, Printer, Archive, ChevronLeft,
+  Check, Printer, Archive, ChevronLeft, Eye,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -28,6 +28,7 @@ import DutyCreateScheduleModal from '../duty/modals/DutyCreateScheduleModal';
 import CreateTab from './tabs/CreateTab';
 import MonitoringTab from './tabs/MonitoringTab';
 import PrintSendTab from './tabs/PrintSendTab';
+import PreviewTab from './tabs/PreviewTab';
 import ManageTab from './tabs/ManageTab';
 
 const getDefaultDutyData = (): DutyScheduleData => ({
@@ -61,7 +62,7 @@ interface Props {
 }
 
 type StageId = 'settings' | 'create' | 'output' | 'monitoring';
-type OutputMode = 'print' | 'send' | 'manage';
+type OutputMode = 'preview' | 'print' | 'send' | 'manage';
 
 const STAGE_STORAGE_KEY = 'motabe:duty_v2:stage';
 const TAB_STORAGE_KEY = 'motabe:duty_v2:lastTab';
@@ -313,11 +314,12 @@ const DutyV2Container: React.FC<Props> = ({
   }> = [
     { id: 'settings', n: 1, label: 'إعدادات المناوبة', hint: 'اضبط إعدادات المناوبة والمناوبون', icon: Settings, complete: settingsComplete },
     { id: 'create', n: 2, label: 'إنشاء الجدول', hint: 'وزّع المناوبين على الأيام', icon: Sparkles, complete: scheduleComplete },
-    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
+    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'عاين - اطبع - أرسل - أدر الجداول', icon: FileOutput, complete: false },
     { id: 'monitoring', n: 4, label: 'المتابعة والتقارير', hint: 'أدر المناوبة وتقاريرها', icon: BarChart3, complete: false },
   ];
 
   const outputModes: Array<{ id: OutputMode; label: string; icon: React.ComponentType<any> }> = [
+    { id: 'preview', label: 'معاينة', icon: Eye },
     { id: 'print', label: 'طباعة', icon: Printer },
     { id: 'send', label: 'إرسال المناوبة', icon: Send },
     { id: 'manage', label: 'الجداول المحفوظة', icon: Archive },
@@ -506,7 +508,12 @@ const DutyV2Container: React.FC<Props> = ({
               </div>
             </div>
 
-            {outputMode === 'manage' ? (
+            {outputMode === 'preview' ? (
+              <PreviewTab
+                dutyData={dutyData}
+                schoolInfo={schoolInfo}
+              />
+            ) : outputMode === 'manage' ? (
               <ManageTab
                 dutyData={dutyData}
                 setDutyData={setDutyData}
