@@ -272,7 +272,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         const prevSaved = prev.savedSchedules || [];
         if (prevSaved.length >= 10) return prev;
         const newId = `supervision-schedule-${Date.now()}`;
-        const newSavedEntry = buildSavedSchedule(newId, prevSaved.length + 1, result);
+        const nextGenerationCount = Math.max(prev.supervisionGenerationCount || 0, prevSaved.length) + 1;
+        const newSavedEntry = buildSavedSchedule(newId, nextGenerationCount, result);
         return {
           ...prev,
           dayAssignments: result,
@@ -280,7 +281,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           approvedAt: undefined,
           savedSchedules: [newSavedEntry, ...prevSaved],
           activeScheduleId: newId,
-          supervisionGenerationCount: (prev.supervisionGenerationCount || 0) + 1,
+          supervisionGenerationCount: nextGenerationCount,
         };
       });
       setManualStarted(false);
@@ -300,7 +301,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       const prevSaved = prev.savedSchedules || [];
       if (prevSaved.length >= 10) return prev;
       const newId = `supervision-schedule-${Date.now()}`;
-      const newSavedEntry = buildSavedSchedule(newId, prevSaved.length + 1, []);
+      const nextGenerationCount = Math.max(prev.supervisionGenerationCount || 0, prevSaved.length) + 1;
+      const newSavedEntry = buildSavedSchedule(newId, nextGenerationCount, []);
       return {
         ...prev,
         dayAssignments: [],
@@ -308,7 +310,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         approvedAt: undefined,
         savedSchedules: [newSavedEntry, ...prevSaved],
         activeScheduleId: newId,
-        supervisionGenerationCount: (prev.supervisionGenerationCount || 0) + 1,
+        supervisionGenerationCount: nextGenerationCount,
       };
     });
     setManualStarted(true);

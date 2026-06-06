@@ -42,10 +42,10 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
       setSupervisionData(prev => {
         const prevSaved = prev.savedSchedules || [];
         const newId = `supervision-schedule-${Date.now()}`;
-        const autoScheduleNumber = prevSaved.length + 1;
+        const nextGenerationCount = Math.max(prev.supervisionGenerationCount || 0, prevSaved.length) + 1;
         const newSavedEntry = {
           id: newId,
-          name: buildAutoSavedScheduleName(autoScheduleNumber),
+          name: buildAutoSavedScheduleName(nextGenerationCount),
           createdAt: new Date().toISOString(),
           dayAssignments: assignments,
           isApproved: false,
@@ -58,7 +58,7 @@ const SupervisionCreateScheduleModal: React.FC<Props> = ({
           approvedAt: undefined,
           savedSchedules: [newSavedEntry, ...prevSaved].slice(0, 10),
           activeScheduleId: newId,
-          supervisionGenerationCount: (prev.supervisionGenerationCount || 0) + 1,
+          supervisionGenerationCount: nextGenerationCount,
         };
       });
       // إبقاء الشعار ظاهرًا فترة كافية ليراه المستخدم
