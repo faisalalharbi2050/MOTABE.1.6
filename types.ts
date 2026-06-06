@@ -852,6 +852,8 @@ export interface DutyScheduleData {
   footerText?: string;
   activeScheduleId?: string;
   savedSchedules?: SavedDutySchedule[];
+  // عداد تراكمي لمرات إنشاء جدول مناوبة (لا يتناقص عند الحذف) — للإحصاءات وسجل الجداول
+  dutyGenerationCount?: number;
 }
 
 export interface DutyMessage {

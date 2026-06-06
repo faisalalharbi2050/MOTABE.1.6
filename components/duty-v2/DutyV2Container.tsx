@@ -50,6 +50,7 @@ const getDefaultDutyData = (): DutyScheduleData => ({
   reports: [],
   isApproved: false,
   savedSchedules: [],
+  dutyGenerationCount: 0,
 });
 
 interface Props {
@@ -480,6 +481,8 @@ const DutyV2Container: React.FC<Props> = ({
             dutyData={dutyData}
             setDutyData={setDutyData}
             schoolInfo={schoolInfo}
+            teachers={filteredTeachers}
+            admins={filteredAdmins}
             showToast={showToast}
           />
         )}
@@ -524,7 +527,9 @@ const DutyV2Container: React.FC<Props> = ({
               <PrintSendTab
                 key={outputMode}
                 dutyData={dutyData}
+                setDutyData={setDutyData}
                 schoolInfo={schoolInfo}
+                admins={filteredAdmins}
                 onOpenLegacyPrint={() => setIsPrintOpen(true)}
                 onOpenLegacySend={() => setIsMessagingOpen(true)}
                 showToast={showToast}

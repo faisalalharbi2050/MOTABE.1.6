@@ -501,6 +501,8 @@ export function getDefaultDutyData(schoolInfo: SchoolInfo): DutyScheduleData {
       reminderSendChannel: 'whatsapp',
     },
     isApproved: false,
+    savedSchedules: [],
+    dutyGenerationCount: 0,
   };
 }
 
@@ -611,6 +613,7 @@ export function getDutyPrintData(
       date: string;
       dayName: string;
       statusText?: string;
+      statusKind?: 'disabled' | 'holiday' | 'remote';
       supervisors: { name: string; type: string; lastPeriod?: number; signature: string }[];
     }[];
   }[];
@@ -631,6 +634,7 @@ export function getDutyPrintData(
           date: da.date || '',
           dayName: DAY_NAMES[da.day],
           statusText: da.isDisabled ? 'غير مفعل' : da.isOfficialLeave ? (da.officialLeaveText || 'إجازة رسمية') : da.isRemoteWork ? 'العمل عن بعد – مدرستي' : undefined,
+          statusKind: da.isDisabled ? 'disabled' : da.isOfficialLeave ? 'holiday' : da.isRemoteWork ? 'remote' : undefined,
           supervisors: (da.staffAssignments || []).map(sa => ({
              name: sa.staffName,
              type: sa.staffType === 'teacher' ? 'معلم' : 'إداري',
@@ -657,6 +661,7 @@ export function getDutyPrintData(
           date: '',
           dayName: DAY_NAMES[day],
           statusText: da?.isDisabled ? 'غير مفعل' : da?.isOfficialLeave ? (da.officialLeaveText || 'إجازة رسمية') : da?.isRemoteWork ? 'العمل عن بعد – مدرستي' : undefined,
+          statusKind: da?.isDisabled ? 'disabled' : da?.isOfficialLeave ? 'holiday' : da?.isRemoteWork ? 'remote' : undefined,
           supervisors: (da?.staffAssignments || []).map(sa => ({
              name: sa.staffName,
              type: sa.staffType === 'teacher' ? 'معلم' : 'إداري',

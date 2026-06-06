@@ -5,10 +5,10 @@ import arabic_ar from 'react-date-object/locales/arabic_ar';
 import gregorian from 'react-date-object/calendars/gregorian';
 import gregorian_ar from 'react-date-object/locales/gregorian_ar';
 import {
-  BarChart3, Check, ChevronDown, Printer, Search, UserCheck, X,
+  BarChart3, Check, ChevronDown, Printer, Search, UserCheck,
 } from 'lucide-react';
 import {
-  DutyAttendanceRecord, DutyScheduleData, SchoolInfo, SupervisionAttendanceStatus,
+  Admin, DutyAttendanceRecord, DutyScheduleData, SchoolInfo, SupervisionAttendanceStatus, Teacher,
 } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 
@@ -16,6 +16,8 @@ interface Props {
   dutyData: DutyScheduleData;
   setDutyData: React.Dispatch<React.SetStateAction<DutyScheduleData>>;
   schoolInfo: SchoolInfo;
+  teachers: Teacher[];
+  admins: Admin[];
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
 }
 
@@ -84,9 +86,9 @@ const dayNameForDate = (date?: string) => {
 
 const formatHijriDate = (date?: string) => {
   const parsed = date ? new Date(`${date}T12:00:00`) : new Date();
-  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-    day: 'numeric',
-    month: 'long',
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', {
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
   }).format(parsed);
 };
@@ -141,7 +143,7 @@ const DateField: React.FC<{
         containerClassName="flex-1"
         inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
         placeholder="حدد التاريخ"
-        format={calendarType === 'hijri' ? 'dddd DD MMMM YYYY' : 'dddd YYYY-MM-DD'}
+        format={calendarType === 'hijri' ? 'dddd YYYY/MM/DD' : 'dddd YYYY-MM-DD'}
         portal
         portalTarget={document.body}
         editable={false}
@@ -297,7 +299,7 @@ const StaffSingleSelect: React.FC<{
   );
 };
 
-const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, showToast }) => {
+const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, teachers, admins, showToast }) => {
   const today = useMemo(() => formatIsoDate(new Date()), []);
   const [activeView, setActiveView] = useState<InnerTab>('daily');
   const [selectedDate, setSelectedDate] = useState(today);
@@ -308,8 +310,6 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
   const [reportFrom, setReportFrom] = useState(today);
   const [reportTo, setReportTo] = useState(today);
   const [reportStaffIds, setReportStaffIds] = useState<string[]>([]);
-  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
-  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const attendanceRecords = dutyData.attendanceRecords || [];
@@ -319,8 +319,16 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
   const selectedDayName = DAY_NAMES[selectedDayKey] || dayNameForDate(selectedDate);
   const dayAssignment = dutyData.dayAssignments.find(day => day.day === selectedDayKey);
 
-  const getStaffRoleLabel = (staffType: 'teacher' | 'admin') =>
-    staffType === 'teacher' ? 'معلم' : 'إداري';
+  const adminRoleById = useMemo(() => {
+    const map = new Map<string, string>();
+    admins.forEach(a => { if (a.role) map.set(a.id, a.role); });
+    return map;
+  }, [admins]);
+
+  const getStaffRoleLabel = (staffType: 'teacher' | 'admin', staffId?: string) => {
+    if (staffType === 'teacher') return 'معلم';
+    return (staffId && adminRoleById.get(staffId)) || 'إداري';
+  };
 
   const dayStaffOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -385,42 +393,6 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
     });
   };
 
-  const markAllPresent = () => {
-    const now = new Date().toISOString();
-    const newRecords: DutyAttendanceRecord[] = dailyRows.map(row => ({
-      id: `duty-att-${selectedDate}-${row.staffId}`,
-      date: selectedDate,
-      day: selectedDayKey,
-      staffId: row.staffId,
-      staffType: row.staffType,
-      staffName: row.staffName,
-      status: 'present',
-      notes: notes[row.staffId] ?? row.record?.notes ?? '',
-      recordedAt: now,
-    }));
-    setDutyData(prev => {
-      const markedKeys = new Set(newRecords.map(record => `${record.date}-${record.staffId}`));
-      const remaining = (prev.attendanceRecords || []).filter(record =>
-        !markedKeys.has(`${record.date}-${record.staffId}`)
-      );
-      return { ...prev, attendanceRecords: [...remaining, ...newRecords] };
-    });
-    setShowMarkAllConfirm(false);
-    showToast('تم تحديد الكل حاضر', 'success');
-  };
-
-  const clearDailySelections = () => {
-    const visibleKeys = new Set(dailyRows.map(row => `${selectedDate}-${row.staffId}`));
-    setDutyData(prev => ({
-      ...prev,
-      attendanceRecords: (prev.attendanceRecords || []).filter(record =>
-        !visibleKeys.has(`${record.date}-${record.staffId}`)
-      ),
-    }));
-    setShowClearAllConfirm(false);
-    showToast('تم إلغاء كل اختيارات المتابعة الحالية', 'success');
-  };
-
   const reportStaffOptions = useMemo(() => {
     const map = new Map<string, string>();
     dutyData.dayAssignments.forEach(day => {
@@ -459,22 +431,41 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
       return byStaff.get(staffId)!;
     };
 
-    // 1) Count duty assignments by iterating dates from->to and matching day-of-week assignments
-    const fromDate = parseIsoDate(from);
-    const toDate = parseIsoDate(to);
-    if (fromDate && toDate && fromDate <= toDate) {
-      const cursor = new Date(fromDate);
-      while (cursor <= toDate) {
-        const dayKey = DAY_KEYS[cursor.getDay()];
-        const dayAssign = dutyData.dayAssignments.find(d => d.day === dayKey);
-        if (dayAssign && !dayAssign.isDisabled && !dayAssign.isOfficialLeave) {
-          dayAssign.staffAssignments.forEach(staff => {
+    // 1) Count actual duty assignments. The dated week schedule (weekAssignments) reflects
+    //    the real rotation, so each staff is counted only on the days they actually serve.
+    //    Fall back to the weekly template only when no dated schedule exists.
+    const weeks = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
+      ? dutyData.weekAssignments
+      : null;
+    if (weeks) {
+      weeks.forEach(week => {
+        week.dayAssignments.forEach(da => {
+          if (!da.date || da.date < from || da.date > to) return;
+          if (da.isDisabled || da.isOfficialLeave) return;
+          da.staffAssignments.forEach(staff => {
             if (selected.size > 0 && !selected.has(staff.staffId)) return;
             const acc = ensure(staff.staffId, staff.staffName, staff.staffType);
             acc.total += 1;
           });
+        });
+      });
+    } else {
+      const fromDate = parseIsoDate(from);
+      const toDate = parseIsoDate(to);
+      if (fromDate && toDate && fromDate <= toDate) {
+        const cursor = new Date(fromDate);
+        while (cursor <= toDate) {
+          const dayKey = DAY_KEYS[cursor.getDay()];
+          const dayAssign = dutyData.dayAssignments.find(d => d.day === dayKey);
+          if (dayAssign && !dayAssign.isDisabled && !dayAssign.isOfficialLeave) {
+            dayAssign.staffAssignments.forEach(staff => {
+              if (selected.size > 0 && !selected.has(staff.staffId)) return;
+              const acc = ensure(staff.staffId, staff.staffName, staff.staffType);
+              acc.total += 1;
+            });
+          }
+          cursor.setDate(cursor.getDate() + 1);
         }
-        cursor.setDate(cursor.getDate() + 1);
       }
     }
 
@@ -509,7 +500,7 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
         return { ...row, recordedTotal, commitmentRate };
       })
       .sort((a, b) => a.staffName.localeCompare(b.staffName, 'ar'));
-  }, [reportFrom, reportTo, reportStaffIds, dutyData.dayAssignments, dutyData.reports, attendanceRecords]);
+  }, [reportFrom, reportTo, reportStaffIds, dutyData.dayAssignments, dutyData.weekAssignments, dutyData.reports, attendanceRecords]);
 
   const reportTotals = useMemo(() => {
     const counts = STATUS_OPTIONS.reduce((acc, option) => {
@@ -602,23 +593,6 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
                 <span className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-500">
                   لم يرصد بعد: {dailyStats.unrecorded}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowMarkAllConfirm(true)}
-                  disabled={dailyRows.length === 0}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-black hover:bg-emerald-600 transition-all disabled:opacity-50"
-                >
-                  <Check size={15} />
-                  تحديد الكل حاضر
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowClearAllConfirm(true)}
-                  disabled={dailyRows.length === 0 || dailyStats.unrecorded === dailyRows.length}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-600 text-xs font-black hover:bg-slate-50 transition-all disabled:opacity-50"
-                >
-                  إلغاء كل الاختيارات
-                </button>
               </div>
             </div>
             <div className="px-6 py-4 border-b border-slate-100 bg-white">
@@ -654,7 +628,7 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
                     <tr key={row.staffId} className="hover:bg-[#fbfaff] transition-colors">
                       <td className="px-5 py-4 text-center text-sm font-black text-slate-400">{index + 1}</td>
                       <td className="px-5 py-4 text-sm font-bold text-slate-800 whitespace-nowrap">{row.staffName}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-slate-500 whitespace-nowrap">{getStaffRoleLabel(row.staffType)}</td>
+                      <td className="px-5 py-4 text-sm font-bold text-slate-500 whitespace-nowrap">{getStaffRoleLabel(row.staffType, row.staffId)}</td>
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap justify-center gap-4 min-w-[360px]">
                           {STATUS_OPTIONS.map(option => (
@@ -770,7 +744,7 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
                     <tr key={row.staffId} className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/45'} border-b border-slate-100`}>
                       <td className="px-3 py-2.5 text-center font-black text-slate-400 border-l border-slate-200">{index + 1}</td>
                       <td className="px-3 py-2.5 font-black text-slate-800 border-l border-slate-200 whitespace-nowrap">{row.staffName}</td>
-                      <td className="px-3 py-2.5 text-center font-bold text-slate-500 border-l-2 border-slate-300 whitespace-nowrap">{getStaffRoleLabel(row.staffType)}</td>
+                      <td className="px-3 py-2.5 text-center font-bold text-slate-500 border-l-2 border-slate-300 whitespace-nowrap">{getStaffRoleLabel(row.staffType, row.staffId)}</td>
                       {STATUS_OPTIONS.map(option => (
                         <td key={option.value} className={`px-3 py-2.5 text-center font-bold tabular-nums border-l border-slate-200 ${STATUS_STYLES[option.value].textColor}`}>
                           {row.counts[option.value] || <span className="text-slate-300">0</span>}
@@ -801,68 +775,6 @@ const MonitoringTab: React.FC<Props> = ({ dutyData, setDutyData, schoolInfo, sho
                   </tfoot>
                 )}
               </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showMarkAllConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
-            <div className="p-6 flex items-start gap-3">
-              <Check size={28} className="text-[#655ac1] mt-0.5 shrink-0" />
-              <div>
-                <h3 className="text-xl font-black text-slate-800 mb-2">تأكيد تحديد الكل حاضر</h3>
-                <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                  سيتم تسجيل جميع المناوبين الظاهرين في جدول المتابعة الحالي بحالة حاضر. هل تريد المتابعة؟
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 pt-0 flex gap-3">
-              <button
-                onClick={() => setShowMarkAllConfirm(false)}
-                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={markAllPresent}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-[#655ac1] hover:bg-[#5046a0] shadow-[#655ac1]/20"
-              >
-                تأكيد
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClearAllConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
-            <div className="p-6 flex items-start gap-3">
-              <X size={28} className="text-rose-600 mt-0.5 shrink-0" />
-              <div>
-                <h3 className="text-xl font-black text-slate-800 mb-2">تأكيد إلغاء الاختيارات</h3>
-                <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                  سيتم مسح حالات الحضور المختارة للمناوبين الظاهرين في جدول المتابعة الحالي. هل تريد المتابعة؟
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 pt-0 flex gap-3">
-              <button
-                onClick={() => setShowClearAllConfirm(false)}
-                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={clearDailySelections}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md bg-rose-600 hover:bg-rose-700 shadow-rose-500/20"
-              >
-                تأكيد
-              </button>
             </div>
           </div>
         </div>

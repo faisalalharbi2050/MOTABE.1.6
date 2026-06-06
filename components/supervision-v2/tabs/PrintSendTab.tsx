@@ -718,9 +718,22 @@ const PrintSendTab: React.FC<Props> = ({
 
   const selectedBatchSignedCount = selectedBatchRows.filter(row => row.status === 'signed').length;
   const selectedBatchPendingCount = selectedBatchRows.filter(row => row.status === 'pending').length;
+  const formatBatchSentLabel = (iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    const calendarType = (schoolInfo.calendarType || 'hijri');
+    const locale = calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
+    const parts = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(d);
+    const pick = (type: string) => parts.find(p => p.type === type)?.value || '';
+    const datePart = `${pick('day')} / ${pick('month')} / ${pick('year')}`;
+    const timePart = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: true }).format(d);
+    const era = calendarType === 'hijri' ? 'هـ' : 'م';
+    return `${datePart}${era} - ${timePart}`;
+  };
   const receiptBatchOptions: DropdownOption[] = displayReceiptBatches.map((batch, index) => ({
     value: batch.id,
-    label: `جدول الإشراف المرسل ${displayReceiptBatches.length - index} · أُرسل ${formatHijriDateTime(batch.sentAt)}`,
+    label: `جدول الإشراف المرسل ${displayReceiptBatches.length - index} · أُرسل ${formatBatchSentLabel(batch.sentAt)}`,
   }));
 
   // ─── Helpers ───────────────────────────────────────────────────────────
@@ -1439,7 +1452,7 @@ const PrintSendTab: React.FC<Props> = ({
 
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="grid grid-cols-[220px_auto_auto_auto_auto] items-center justify-start gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <SingleSelectDropdown
               label=""
               value={selectedReceiptBatchId}
@@ -1447,7 +1460,7 @@ const PrintSendTab: React.FC<Props> = ({
               placeholder="اختر الجدول المرسل"
               onChange={setSelectedReceiptBatchId}
               disabled={receiptBatchOptions.length === 0}
-              minWidthClass="min-w-0"
+              minWidthClass="min-w-[260px] max-w-[400px]"
             />
             <button type="button" onClick={refreshSupervisionDataFromStorage}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all">

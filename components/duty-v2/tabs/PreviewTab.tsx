@@ -198,9 +198,21 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
                       </td>
                       {day.statusText ? (
                         <td className="px-3 py-3 align-middle text-center">
-                          <div className="flex items-center justify-center min-h-[3rem] rounded-xl border-2 border-dashed border-rose-200 bg-rose-50">
-                            <span className="font-black text-rose-600 text-sm">{day.statusText}</span>
-                          </div>
+                          {day.statusKind === 'holiday' ? (
+                            <div
+                              className="flex items-center justify-center min-h-[3rem] rounded-xl bg-amber-50/40"
+                              style={{
+                                backgroundImage:
+                                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23fbbf24' stroke-width='2' stroke-dasharray='8 5'/%3E%3C/svg%3E\")",
+                              }}
+                            >
+                              <span className="font-black text-amber-700 text-sm">{day.statusText}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center min-h-[3rem] rounded-xl border-2 border-dashed border-rose-200 bg-rose-50">
+                              <span className="font-black text-rose-600 text-sm">{day.statusText}</span>
+                            </div>
+                          )}
                         </td>
                       ) : day.supervisors.length === 0 ? (
                         <td className="px-3 py-3 align-middle text-center">

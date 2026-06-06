@@ -10,7 +10,7 @@ import {
   ClipboardCheck, ClipboardList, Copy, Eye, FileText, MessageSquare, Printer, RefreshCw,
   Search, Send, SlidersHorizontal, Users, Wallet, X,
 } from 'lucide-react';
-import { DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
+import { Admin, DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 import DutyReportPreview from '../../duty/DutyReportPreview';
@@ -26,6 +26,7 @@ interface Props {
   setDutyData?: React.Dispatch<React.SetStateAction<DutyScheduleData>>;
   storageKey?: string;
   schoolInfo: SchoolInfo;
+  admins?: Admin[];
   onOpenLegacyPrint: () => void;
   onOpenLegacySend: () => void;
   onOpenArchive?: () => void;
@@ -77,6 +78,17 @@ type DutySendDisplayRow = DutySendFlatRow & {
   dayLabel: string;
   dateLabel: string;
 };
+
+// لقطة «دفعة إرسال»: تُسجَّل عند الإرسال لتظهر في سجل الاستلام كجدول مرسل مستقل
+type DutyReceiptBatch = {
+  id: string;
+  sentAt: string;
+  channel: SendChannel;
+  sendMode: SendMode;
+  rows: DutySendDisplayRow[];
+};
+
+type SendResult = { name: string; status: 'sent' | 'failed'; reason?: string };
 
 const actionButtonClass = (active: boolean) =>
   `inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-black transition-all ${
@@ -343,6 +355,30 @@ const formatHijriDate = (date?: string) => {
   }).format(parsed);
 };
 
+const formatHijriDateNumeric = (date?: string) => {
+  if (!date) return '-';
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-nu-latn', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+};
+
+const formatHijriDateTimeNumeric = (date?: string) => {
+  if (!date) return '—';
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return '—';
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed);
+};
+
 const formatHijriDateTime = (date?: string) => {
   if (!date) return '—';
   const parsed = new Date(date);
@@ -405,11 +441,19 @@ const PrintSendTab: React.FC<Props> = ({
   setDutyData,
   storageKey,
   schoolInfo,
+  admins = [],
   onOpenLegacySend,
   onOpenArchive,
   showToast,
   mode = 'print',
 }) => {
+  const adminRoleById = useMemo(() => {
+    const map = new Map<string, string>();
+    admins.forEach(a => { if (a.role) map.set(a.id, a.role); });
+    return map;
+  }, [admins]);
+  const resolveStaffTitle = (staffType: 'teacher' | 'admin', staffId: string) =>
+    staffType === 'teacher' ? 'معلم' : (adminRoleById.get(staffId) || 'إداري');
   const refreshDutyDataFromStorage = () => {
     if (!setDutyData) return;
     try {
@@ -464,6 +508,24 @@ const PrintSendTab: React.FC<Props> = ({
   const [previewReportRecord, setPreviewReportRecord] = useState<DutyReportRecord | null>(null);
   const smsStats = useMemo(() => calculateSmsSegments(messageText), [messageText]);
 
+  // ─── دفعات الإرسال (سجلات الاستلام) ونتائج الإرسال ───────────────────
+  const assignmentBatchesKey = `${storageKey || 'duty_data_v1'}:assignment-batches`;
+  const reportBatchesKey = `${storageKey || 'duty_data_v1'}:report-batches`;
+  const [assignmentBatches, setAssignmentBatches] = useState<DutyReceiptBatch[]>(() => {
+    try { const raw = localStorage.getItem(`${storageKey || 'duty_data_v1'}:assignment-batches`); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
+  const [reportBatches, setReportBatches] = useState<DutyReceiptBatch[]>(() => {
+    try { const raw = localStorage.getItem(`${storageKey || 'duty_data_v1'}:report-batches`); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
+  const [selectedAssignmentBatchId, setSelectedAssignmentBatchId] = useState('');
+  const [selectedReportBatchId, setSelectedReportBatchId] = useState('');
+  const [sendResults, setSendResults] = useState<SendResult[]>([]);
+  const [showSendResultsModal, setShowSendResultsModal] = useState(false);
+  const [isSendingNow, setIsSendingNow] = useState(false);
+
+  useEffect(() => { try { localStorage.setItem(assignmentBatchesKey, JSON.stringify(assignmentBatches)); } catch {} }, [assignmentBatches, assignmentBatchesKey]);
+  useEffect(() => { try { localStorage.setItem(reportBatchesKey, JSON.stringify(reportBatches)); } catch {} }, [reportBatches, reportBatchesKey]);
+
   const weeksToRender = useMemo<DutyWeekAssignment[]>(() => {
     if (dutyData.weekAssignments && dutyData.weekAssignments.length > 0) return dutyData.weekAssignments;
     return [{
@@ -506,7 +568,7 @@ const PrintSendTab: React.FC<Props> = ({
             staffId: staff.staffId,
             staffName: staff.staffName,
             staffTypeKey: staff.staffType,
-            staffType: staff.staffType === 'teacher' ? 'معلم' : 'إداري',
+            staffType: resolveStaffTitle(staff.staffType, staff.staffId),
             phone: '',
             signatureToken: staff.signatureToken || `${staff.staffId}-${day.date || day.day}`,
             status: staff.signatureData ? 'signed' : staff.signatureStatus === 'pending' ? 'pending' : 'none',
@@ -516,7 +578,7 @@ const PrintSendTab: React.FC<Props> = ({
         })
       )
     );
-  }, [dutyData.weekAssignments, weeksToRender]);
+  }, [dutyData.weekAssignments, weeksToRender, adminRoleById]);
 
   const enrichSendRow = (row: DutySendFlatRow): DutySendDisplayRow => ({
     ...row,
@@ -557,16 +619,19 @@ const PrintSendTab: React.FC<Props> = ({
     });
   };
 
-  const assignmentGroupedRows = useMemo(() => groupRowsByStaff(sendRows), [reportByStaffAndDate, sendRows]);
-  const signedCount = assignmentGroupedRows.filter(row => row.status === 'signed').length;
-  const pendingCount = assignmentGroupedRows.length - signedCount;
   const hasData = sendRows.length > 0;
-  const sendWeekOptions = useMemo(() => weeksToRender.map((week, index) => ({
-    value: week.weekId,
-    label: week.weekName || `الأسبوع ${index + 1}`,
-    searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${week.startDate || ''} ${week.endDate || ''} ${formatDisplayDate(week.startDate)} ${formatDisplayDate(week.endDate)} ${formatHijriDate(week.startDate)} ${formatHijriDate(week.endDate)}`,
-    disabled: week.dayAssignments.every(day => day.staffAssignments.length === 0),
-  })), [weeksToRender]);
+  const sendWeekOptions = useMemo(() => weeksToRender.map((week, index) => {
+    const badge = getWeekPrintBadge(week);
+    const noStaff = week.dayAssignments.every(day => day.staffAssignments.length === 0);
+    return {
+      value: week.weekId,
+      label: `الأسبوع ${getWeekNumberLabel(week.weekName, index)}`,
+      weekNumber: getWeekNumberLabel(week.weekName, index),
+      badge,
+      searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${week.startDate || ''} ${week.endDate || ''} ${formatDisplayDate(week.startDate)} ${formatDisplayDate(week.endDate)} ${formatHijriDate(week.startDate)} ${formatHijriDate(week.endDate)}`,
+      disabled: !!badge || noStaff,
+    };
+  }), [weeksToRender]);
   const dayOptions = useMemo(() => {
     const activeWeekIds = new Set(selectedSendWeekIds);
     const scopedWeeks = activeWeekIds.size > 0
@@ -576,8 +641,8 @@ const PrintSendTab: React.FC<Props> = ({
       .filter(day => !day.isDisabled && !day.isOfficialLeave)
       .map(day => ({
         value: `${week.weekId}-${day.date || day.day}`,
-        label: `${week.weekName || `الأسبوع ${index + 1}`} - ${DAY_NAMES[day.day] || day.day}${day.date ? ` - ${formatHijriDate(day.date)}` : ''}`,
-        searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${day.day} ${DAY_NAMES[day.day] || ''} ${day.date || ''} ${formatDisplayDate(day.date)} ${formatHijriDate(day.date)}`,
+        label: `${week.weekName || `الأسبوع ${index + 1}`} - ${DAY_NAMES[day.day] || day.day}${day.date ? ` - ${formatHijriDateNumeric(day.date)}` : ''}`,
+        searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${day.day} ${DAY_NAMES[day.day] || ''} ${day.date || ''} ${formatDisplayDate(day.date)} ${formatHijriDateNumeric(day.date)}`,
         disabled: day.staffAssignments.length === 0,
       })));
   }, [selectedSendWeekIds, weeksToRender]);
@@ -628,21 +693,95 @@ const PrintSendTab: React.FC<Props> = ({
       setPreviewRowKey(null);
     }
   }, [selectedStaffKeys.length, staffSelectionTouched]);
+  // محاكاة الإرسال: تُسجَّل لقطة دفعة إرسال وتظهر نافذة النتائج، وتنعكس على سجل الاستلام
+  const handleDutySendDirectly = () => {
+    if (selectedRows.length === 0) { showToast?.('يرجى اختيار مستلم واحد على الأقل', 'warning'); return; }
+    setIsSendingNow(true);
+    const sentAt = new Date().toISOString();
+    const batch: DutyReceiptBatch = {
+      id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      sentAt,
+      channel: sendChannel,
+      sendMode,
+      rows: selectedRows.map(row => ({
+        ...row,
+        sentAt,
+        status: sendMode === 'reminder' ? row.status : 'pending',
+      })),
+    };
+    if (sendMode === 'reminder') {
+      setReportBatches(current => [batch, ...current]);
+      setSelectedReportBatchId(batch.id);
+    } else {
+      setAssignmentBatches(current => [batch, ...current]);
+      setSelectedAssignmentBatchId(batch.id);
+    }
+    setSendResults(selectedRows.map(row => ({ name: row.staffName, status: 'sent' as const })));
+    setShowSendResultsModal(true);
+    setIsSendingNow(false);
+  };
+  const closeSendResults = () => setShowSendResultsModal(false);
+
+  // تحديد الدفعة الافتراضية (الأحدث) لكل سجل عند توفر الدفعات
+  useEffect(() => {
+    if (assignmentBatches.length === 0) { setSelectedAssignmentBatchId(''); return; }
+    if (!assignmentBatches.some(b => b.id === selectedAssignmentBatchId)) setSelectedAssignmentBatchId(assignmentBatches[0].id);
+  }, [assignmentBatches, selectedAssignmentBatchId]);
+  useEffect(() => {
+    if (reportBatches.length === 0) { setSelectedReportBatchId(''); return; }
+    if (!reportBatches.some(b => b.id === selectedReportBatchId)) setSelectedReportBatchId(reportBatches[0].id);
+  }, [reportBatches, selectedReportBatchId]);
+
+  const formatBatchSentLabel = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    const calendarType = (schoolInfo.calendarType || 'hijri');
+    const locale = calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
+    const parts = new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(d);
+    const pick = (type: string) => parts.find(p => p.type === type)?.value || '';
+    const datePart = `${pick('day')} / ${pick('month')} / ${pick('year')}`;
+    const timePart = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: true }).format(d);
+    const era = calendarType === 'hijri' ? 'هـ' : 'م';
+    return `${datePart}${era} - ${timePart}`;
+  };
+  const assignmentBatchOptions = useMemo(() => assignmentBatches.map((batch, index) => ({
+    value: batch.id,
+    label: `جدول المناوبة المرسل ${assignmentBatches.length - index} · أُرسل ${formatBatchSentLabel(batch.sentAt)}`,
+  })), [assignmentBatches, schoolInfo.calendarType]);
+  const reportBatchOptions = useMemo(() => reportBatches.map((batch, index) => ({
+    value: batch.id,
+    label: `جدول المناوبة المرسل ${reportBatches.length - index} · أُرسل ${formatBatchSentLabel(batch.sentAt)}`,
+  })), [reportBatches, schoolInfo.calendarType]);
+
+  // مصدر صفوف سجل التكليف: الدفعة المختارة إن وُجدت، وإلا الجدول الحالي
+  const assignmentReceiptSource = useMemo<DutySendDisplayRow[]>(() => {
+    if (assignmentBatches.length > 0) {
+      const batch = assignmentBatches.find(b => b.id === selectedAssignmentBatchId) || assignmentBatches[0];
+      return batch ? batch.rows : [];
+    }
+    return groupRowsByStaff(sendRows);
+  }, [assignmentBatches, selectedAssignmentBatchId, sendRows, reportByStaffAndDate]);
+  const receiptSignedCount = assignmentReceiptSource.filter(row => row.status === 'signed').length;
+  const receiptPendingCount = assignmentReceiptSource.length - receiptSignedCount;
+
   const filteredAssignmentRows = useMemo(() => {
     const q = receiptSearch.trim();
-    return groupRowsByStaff(sendRows).filter(row =>
+    return assignmentReceiptSource.filter(row =>
       (receiptFilter === 'all' || (receiptFilter === 'signed' ? row.status === 'signed' : row.status !== 'signed')) &&
       (!q || row.staffName.includes(q))
     );
-  }, [receiptFilter, receiptSearch, reportByStaffAndDate, sendRows]);
+  }, [receiptFilter, receiptSearch, assignmentReceiptSource]);
   const reportRows = useMemo(() => {
-    return groupRowsByStaff(sendRows).map(row => ({
+    const source = reportBatches.length > 0
+      ? (reportBatches.find(b => b.id === selectedReportBatchId) || reportBatches[0])?.rows || []
+      : groupRowsByStaff(sendRows);
+    return source.map(row => ({
       ...row,
       status: row.reportSubmittedCount === row.reportDueCount ? 'submitted' as const : 'pending' as const,
       submittedAt: `${row.reportSubmittedCount} / ${row.reportDueCount}`,
       deliveryType: row.reportSubmittedCount === 0 ? '-' : row.reportSubmittedCount === row.reportDueCount ? 'مكتمل' : 'جزئي',
     }));
-  }, [reportByStaffAndDate, sendRows]);
+  }, [reportByStaffAndDate, sendRows, reportBatches, selectedReportBatchId]);
   const submittedReportCount = reportRows.filter(row => row.status === 'submitted').length;
   const pendingReportCount = reportRows.length - submittedReportCount;
   const filteredReportRows = useMemo(() => {
@@ -1215,7 +1354,7 @@ ${buildReportLink(target)}` : ''}`;
     .staff-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 3px 5px; margin-bottom: 2px; background: #fff; }
     .staff-card:last-child { margin-bottom: 0; }
     .staff-name { font-size: 8.5px; font-weight: 900; color: #1e293b; }
-    .official-leave { min-height: 22px; display: flex; align-items: center; justify-content: center; border: 2px dashed #fecdd3; border-radius: 8px; background: #fff1f2; color: #e11d48; font-weight: 900; }
+    .official-leave { min-height: 22px; display: flex; align-items: center; justify-content: center; border: 2px dashed #fbbf24; border-radius: 8px; background: #fffbeb; color: #b45309; font-weight: 900; }
     .signature-line { height: 18px; border-bottom: 1px dotted #64748b; margin-bottom: 3px; }
     .signature-line:last-child { margin-bottom: 0; }
     .signature-img-wrap { height: 18px; display: flex; align-items: center; justify-content: center; border-bottom: 1px dotted #64748b; margin-bottom: 3px; }
@@ -1438,7 +1577,7 @@ ${buildReportLink(target)}` : ''}`;
             <div>
               <h2 className="font-black text-slate-800 text-lg">سجل استلام التكليف بالمناوبة</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                {signedCount} وقّع من أصل {assignmentGroupedRows.length} مناوب
+                {receiptSignedCount} وقّع من أصل {assignmentReceiptSource.length} مناوب
               </p>
             </div>
           </div>
@@ -1447,9 +1586,9 @@ ${buildReportLink(target)}` : ''}`;
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'إجمالي المناوبين', value: String(assignmentGroupedRows.length), icon: Users },
-            { label: 'وقّع', value: String(signedCount), icon: CheckCircle2 },
-            { label: 'لم يُوقّع', value: String(pendingCount), icon: AlertCircle },
+            { label: 'إجمالي المناوبين', value: String(assignmentReceiptSource.length), icon: Users },
+            { label: 'وقّع', value: String(receiptSignedCount), icon: CheckCircle2 },
+            { label: 'لم يُوقّع', value: String(receiptPendingCount), icon: AlertCircle },
           ].map((s, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3"
               style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -1467,17 +1606,27 @@ ${buildReportLink(target)}` : ''}`;
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
+            {assignmentBatchOptions.length > 0 && (
+              <SingleSelectDropdown
+                label=""
+                value={selectedAssignmentBatchId}
+                placeholder="اختر الجدول المرسل"
+                onChange={setSelectedAssignmentBatchId}
+                options={assignmentBatchOptions}
+                minWidthClass="min-w-[260px] max-w-[400px]"
+              />
+            )}
             <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); refreshDutyDataFromStorage(); }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
               <RefreshCw size={15} />
               تحديث
             </button>
-            <button type="button" onClick={() => handlePrintReceiptReport(filteredAssignmentRows)} disabled={assignmentGroupedRows.length === 0}
+            <button type="button" onClick={() => handlePrintReceiptReport(filteredAssignmentRows)} disabled={assignmentReceiptSource.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
               طباعة سجل الاستلام الإلكتروني
             </button>
-            <button type="button" onClick={() => handlePrintAssignmentForms(filteredAssignmentRows)} disabled={assignmentGroupedRows.length === 0}
+            <button type="button" onClick={() => handlePrintAssignmentForms(filteredAssignmentRows)} disabled={assignmentReceiptSource.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
               طباعة نماذج التكليف الإلكترونية
@@ -1485,7 +1634,7 @@ ${buildReportLink(target)}` : ''}`;
             <button type="button" onClick={() => handlePrintSchedule({ electronicSignatures: true })} disabled={!hasData}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة جدول المناوبة الإلكتروني
+              طباعة جدول المناوبة بعد التوقيع
             </button>
           </div>
         </div>
@@ -1526,7 +1675,7 @@ ${buildReportLink(target)}` : ''}`;
             </div>
           </div>
 
-          {assignmentGroupedRows.length === 0 ? (
+          {assignmentReceiptSource.length === 0 ? (
             <div className="py-16 text-center">
               <ClipboardList className="mx-auto mb-4 text-slate-300" size={40} />
               <p className="text-sm font-bold text-slate-400">لا توجد طلبات استلام مرسلة بعد.</p>
@@ -1557,7 +1706,7 @@ ${buildReportLink(target)}` : ''}`;
                         </span>
                       </td>
                       <td className="px-2 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
-                      <td className="px-2 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
+                      <td className="px-2 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffType}>{row.staffType}</td>
                       <td className="px-2 py-3 text-center">
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
                           {row.assignmentCount}
@@ -1569,12 +1718,12 @@ ${buildReportLink(target)}` : ''}`;
                             <div key={`${row.key}-${item.key}`} className="leading-tight">
                               <span className="font-black text-slate-700">{DAY_NAMES[item.day] || item.day}</span>
                               <span className="mx-1 text-slate-300">-</span>
-                              <span className="font-bold text-slate-500">{formatHijriDate(item.date)}</span>
+                              <span className="font-bold text-slate-500">{formatHijriDateNumeric(item.date)}</span>
                             </div>
                           ))}
                         </div>
                       </td>
-                      <td className="px-2 py-3 text-slate-500 text-[10px] leading-snug break-words" title={formatHijriDateTime(row.sentAt)}>{formatHijriDateTime(row.sentAt)}</td>
+                      <td className="px-2 py-3 text-slate-600 text-[12px] leading-snug break-words" title={formatHijriDateTimeNumeric(row.sentAt)}>{formatHijriDateTimeNumeric(row.sentAt)}</td>
                       <td className="px-2 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black border ${
                           row.status === 'signed'
@@ -1584,7 +1733,7 @@ ${buildReportLink(target)}` : ''}`;
                           {row.status === 'signed' ? 'وقّع' : 'لم يوقّع'}
                         </span>
                       </td>
-                      <td className="px-2 py-3 text-slate-500 text-[10px] leading-snug break-words" title={formatHijriDateTime(row.signedAt)}>{formatHijriDateTime(row.signedAt)}</td>
+                      <td className="px-2 py-3 text-slate-600 text-[12px] leading-snug break-words" title={formatHijriDateTimeNumeric(row.signedAt)}>{formatHijriDateTimeNumeric(row.signedAt)}</td>
                       <td className="px-2 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <button type="button" onClick={() => setPreviewAssignmentRow(row)} title="عرض وطباعة النموذج"
@@ -1727,6 +1876,16 @@ ${buildReportLink(target)}` : ''}`;
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
+            {reportBatchOptions.length > 0 && (
+              <SingleSelectDropdown
+                label=""
+                value={selectedReportBatchId}
+                placeholder="اختر الجدول المرسل"
+                onChange={setSelectedReportBatchId}
+                options={reportBatchOptions}
+                minWidthClass="min-w-[260px] max-w-[400px]"
+              />
+            )}
             <button type="button" onClick={() => { setReportSearch(''); setReportFilter('all'); refreshDutyDataFromStorage(); }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
               <RefreshCw size={15} />
@@ -1807,7 +1966,7 @@ ${buildReportLink(target)}` : ''}`;
                           </span>
                         </td>
                         <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffName}>{row.staffName}</td>
-                        <td className="px-3 py-3 text-slate-500 text-[11px] truncate">{row.staffType}</td>
+                        <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.staffType}>{row.staffType}</td>
                         <td className="px-3 py-3 text-center">
                           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
                             {row.assignmentCount}
@@ -1957,10 +2116,12 @@ ${buildReportLink(target)}` : ''}`;
               </div>
               <div className="overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
                 <DutyReportPreview report={previewReportRecord} schoolInfo={schoolInfo} />
-                <button type="button" onClick={() => handlePrintSingleReport(previewReportRecord)}
-                  className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
-                  <Printer size={16} /> طباعة التقرير
-                </button>
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => handlePrintSingleReport(previewReportRecord)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#5046a0] transition-all">
+                    <Printer size={15} /> طباعة التقرير
+                  </button>
+                </div>
               </div>
             </div>
           </div>,
@@ -2161,9 +2322,9 @@ ${buildReportLink(target)}` : ''}`;
                   onChange={value => { setSendMode(value as SendMode); setPreviewRowKey(null); }}
                   placeholder="اختر نوع الإشعار"
                   options={[
-                    { value: 'electronic', label: 'رسالة تكليف بالمناوبة مع توقيع الكتروني' },
-                    { value: 'text', label: 'رسالة تكليف بالمناوبة نصية' },
-                    { value: 'reminder', label: 'رسالة تذكير يومية بالمناوبة' },
+                    { value: 'electronic', label: 'تكليف بالمناوبة مع توقيع الكتروني' },
+                    { value: 'text', label: 'تكليف نصي بالمناوبة' },
+                    { value: 'reminder', label: 'تذكير يومي بالمناوبة' },
                   ]}
                 />
                 <MultiSelectDropdown
@@ -2174,7 +2335,9 @@ ${buildReportLink(target)}` : ''}`;
                   selectedSummary={selectedWeeksSummary}
                   onToggle={value => setSelectedSendWeekIds(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value])}
                   onClear={() => setSelectedSendWeekIds([])}
-                  onSelectAll={() => setSelectedSendWeekIds(weeksToRender.map(week => week.weekId))}
+                  onSelectAll={() => setSelectedSendWeekIds(sendWeekOptions.filter(option => !option.disabled).map(option => option.value))}
+                  renderOption={renderWeekOption}
+                  singleBulkToggle
                   searchable
                   searchPlaceholder="ابحث بالأسبوع..."
                 />
@@ -2187,6 +2350,7 @@ ${buildReportLink(target)}` : ''}`;
                   onToggle={value => setSelectedSendDayKeys(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value])}
                   onClear={() => setSelectedSendDayKeys([])}
                   onSelectAll={() => setSelectedSendDayKeys(dayOptions.filter(option => !option.disabled).map(option => option.value))}
+                  singleBulkToggle
                   searchable
                   searchPlaceholder="ابحث باليوم أو التاريخ..."
                 />
@@ -2199,6 +2363,7 @@ ${buildReportLink(target)}` : ''}`;
                   onToggle={value => { setStaffSelectionTouched(true); setSelectedStaffKeys(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value]); }}
                   onClear={() => { setStaffSelectionTouched(true); setSelectedStaffKeys([]); }}
                   onSelectAll={() => { setStaffSelectionTouched(true); setSelectedStaffKeys(displaySendRows.map(row => row.key)); }}
+                  singleBulkToggle
                   searchable
                   searchPlaceholder="ابحث عن مناوب بالاسم..."
                 />
@@ -2372,8 +2537,8 @@ ${buildReportLink(target)}` : ''}`;
                 </div>
                 <button
                   type="button"
-                  onClick={onOpenLegacySend}
-                  disabled={selectedRows.length === 0}
+                  onClick={handleDutySendDirectly}
+                  disabled={selectedRows.length === 0 || isSendingNow}
                   className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={16} />
@@ -2593,6 +2758,78 @@ ${buildReportLink(target)}` : ''}`;
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
               <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
                 className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showSendResultsModal && sendResults.length > 0 && createPortal(
+        <div
+          className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in"
+          dir="rtl"
+          onClick={closeSendResults}
+        >
+          <div
+            className="w-full max-w-xl bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <Send size={22} className="text-[#655ac1] shrink-0" />
+                <div className="min-w-0">
+                  <h4 className="font-black text-slate-800 text-base">نتائج الإرسال</h4>
+                  <p className="text-xs font-bold text-slate-400 mt-0.5">تم تسجيل هذه العملية في سجل الاستلام.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                title="إغلاق"
+                aria-label="إغلاق"
+                onClick={closeSendResults}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-transparent text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1] transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                  <div className="text-[10px] font-bold text-[#655ac1] mb-1">تم الإرسال</div>
+                  <div className="text-xl font-extrabold text-[#655ac1] tabular-nums">{sendResults.filter(r => r.status === 'sent').length}</div>
+                </div>
+                <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                  <div className="text-[10px] font-bold text-rose-600 mb-1">فشل الإرسال</div>
+                  <div className="text-xl font-extrabold text-rose-600 tabular-nums">{sendResults.filter(r => r.status === 'failed').length}</div>
+                </div>
+                <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                  <div className="text-[10px] font-bold text-slate-500 mb-1">الإجمالي</div>
+                  <div className="text-xl font-extrabold text-slate-800 tabular-nums">{sendResults.length}</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    {sendChannel === 'whatsapp' ? <WhatsAppIcon size={18} /> : <MessageSquare size={16} className="text-[#007AFF]" />}
+                    <span>قناة الإرسال: {sendChannel === 'whatsapp' ? 'الواتساب' : 'الرسائل النصية'}</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-500">
+                    {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={closeSendResults}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 bg-transparent text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all"
+              >
                 إغلاق
               </button>
             </div>
