@@ -280,7 +280,7 @@ const PrintSendTab: React.FC<Props> = ({
   const openReminderFromDashboard = (() => {
     try { return sessionStorage.getItem('motabe:supervision_v2:open_send_reminder') === '1'; } catch { return false; }
   })();
-  const [taskMode, setTaskMode] = useState<TaskMode>(mode === 'send' || openReminderFromDashboard ? 'send' : 'print');
+  const taskMode: TaskMode = mode === 'send' || openReminderFromDashboard ? 'send' : 'print';
 
   // Print state
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
@@ -1668,10 +1668,6 @@ const PrintSendTab: React.FC<Props> = ({
       {mode === 'send' && (
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => setTaskMode('send')} className={actionButtonClass(taskMode === 'send')}>
-              <Send size={17} />
-              إرسال
-            </button>
             <button type="button" onClick={() => setSigReceiptOpen(true)} className={actionButtonClass(false)}>
               <ClipboardList size={17} />
               سجل استلام التكليف بالإشراف

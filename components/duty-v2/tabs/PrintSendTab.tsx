@@ -424,7 +424,7 @@ const PrintSendTab: React.FC<Props> = ({
   const openReminderFromDashboard = (() => {
     try { return sessionStorage.getItem('motabe:duty_v2:open_send_reminder') === '1'; } catch { return false; }
   })();
-  const [taskMode, setTaskMode] = useState<TaskMode>(mode === 'send' || openReminderFromDashboard ? 'send' : 'print');
+  const taskMode: TaskMode = mode === 'send' || openReminderFromDashboard ? 'send' : 'print';
   const [schedulePrintScope, setSchedulePrintScope] = useState<SchedulePrintScope>('all');
   const [selectedWeekIds, setSelectedWeekIds] = useState<string[]>([]);
   const [printColorMode, setPrintColorMode] = useState<PrintColorMode>('color');
@@ -1975,10 +1975,6 @@ ${buildReportLink(target)}` : ''}`;
       {mode === 'send' && (
         <div className="bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm">
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => setTaskMode('send')} className={actionButtonClass(taskMode === 'send')}>
-              <Send size={17} />
-              إرسال
-            </button>
             <button type="button" onClick={() => setReceiptOpen(true)} className={actionButtonClass(false)}>
               <ClipboardList size={17} />
               سجل استلام التكليف بالمناوبة
@@ -2147,7 +2143,7 @@ ${buildReportLink(target)}` : ''}`;
       {mode === 'send' && taskMode === 'send' && (
         <div className="space-y-4">
           <div className="px-1">
-            <h3 className="font-black text-slate-800 text-lg">إرسال</h3>
+            <h3 className="font-black text-slate-800 text-lg">إرسال المناوبة</h3>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
