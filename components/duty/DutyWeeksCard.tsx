@@ -195,8 +195,8 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
   return (
     <div className="space-y-4">
       {/* شريط معلومات الفصل والحصيلة الرقمية */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.18fr)] gap-3 items-stretch">
-        <div className="flex flex-wrap items-center justify-start gap-x-5 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl bg-white">
+      <div className="border border-slate-200 rounded-xl bg-white px-5 py-3 space-y-2">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5">
           {currentSemester?.name && (
             <span className="flex items-center gap-2 text-xs font-black text-[#655ac1]">
               <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{currentSemester.name}
@@ -210,7 +210,9 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl bg-white">
+        <div className="h-px bg-slate-100" />
+
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5">
           <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
           </span>
@@ -244,8 +246,8 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
       {weeksOpen && (
         <>
       {/* الدلالات */}
-      <div className="flex justify-center">
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[13px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+      <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-start gap-x-5 gap-y-1.5 text-[13px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-right">
           <span className="flex items-center gap-1.5"><MousePointerClick size={15} className="text-amber-600 shrink-0" /> نقرة على اليوم = تعطيله من المناوبة</span>
           <span className="w-px h-4 bg-amber-200 hidden sm:block" />
           <span className="flex items-center gap-1.5"><CalendarX2 size={15} className="text-amber-600 shrink-0" /> نقرة على الزر = تعطيل الأسبوع</span>
