@@ -2531,7 +2531,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     [teachers, teacherSearch, currentSession, absentQueue]
   );
 
-  if (isPrintSend && showWaitingReceipt) {
+  if ((isPrintSend || isSend) && showWaitingReceipt) {
     return (
       <div className="space-y-5" dir="rtl">
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
