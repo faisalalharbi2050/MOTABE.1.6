@@ -1594,7 +1594,7 @@ const PrintSendTab: React.FC<Props> = ({
               <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <Eye size={22} className="text-[#655ac1] shrink-0" />
-                  <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+                  <h3 className="font-black text-slate-800">معاينة التكليف</h3>
                 </div>
                 <button type="button" onClick={() => setPreviewReceiptRow(null)}
                   className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
@@ -1903,7 +1903,7 @@ const PrintSendTab: React.FC<Props> = ({
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={openPreviewMessage} disabled={selectedRecipients.length === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Eye size={15} /> {sendMode === 'electronic' ? 'معاينة التكليف الإلكتروني' : 'معاينة الرسالة'}
+                    <Eye size={15} /> {sendMode === 'electronic' ? 'معاينة التكليف' : 'معاينة الرسالة'}
                   </button>
                   <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRecipients.length === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
@@ -2011,7 +2011,7 @@ const PrintSendTab: React.FC<Props> = ({
             <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <Eye size={22} className="text-[#655ac1] shrink-0" />
-                <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+                <h3 className="font-black text-slate-800">معاينة التكليف</h3>
               </div>
               <button type="button" onClick={() => setPreviewRow(null)}
                 className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">

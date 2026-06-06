@@ -2604,12 +2604,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <button type="button" onClick={() => printWaitingReceiptGroups()} disabled={receiptGroups.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة سجل الاستلام الإلكتروني
+              طباعة سجل الاستلام
             </button>
             <button type="button" onClick={printWaitingScheduleForReceiptDates} disabled={receiptGroups.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة جدول الانتظار الإلكتروني
+              طباعة جدول الانتظار
             </button>
           </div>
         </div>
@@ -2748,7 +2748,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <Eye size={22} className="text-[#655ac1] shrink-0" />
-                  <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+                  <h3 className="font-black text-slate-800">معاينة التكليف</h3>
                 </div>
                 <button type="button" onClick={() => setShowElectronicPreview(false)}
                   className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
@@ -4991,7 +4991,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Eye size={15} />
-                          معاينة التكليف الإلكتروني
+                          معاينة التكليف
                         </button>
                       )}
                       <button
@@ -7133,7 +7133,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     disabled={sendRows.length === 0}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#655ac1] text-white text-sm font-bold hover:bg-[#5046a0] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Eye size={15} /> معاينة التكليف الإلكتروني
+                    <Eye size={15} /> معاينة التكليف
                   </button>
                 </div>
 
@@ -7408,7 +7408,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <Eye size={22} className="text-[#655ac1] shrink-0" />
-                <h3 className="font-black text-slate-800">معاينة التكليف الإلكتروني</h3>
+                <h3 className="font-black text-slate-800">معاينة التكليف</h3>
               </div>
               <button
                 type="button"
