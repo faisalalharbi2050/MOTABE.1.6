@@ -29,14 +29,6 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
     duty: (schedule || []).filter(item => item.type === 'duty' && !item.isOfficialLeave).length,
   };
 
-  const displayItems = filteredItems.length > 0
-    ? filteredItems
-    : activeTab === 'supervision'
-      ? [{ id: 'm1', type: 'supervision', name: 'عبدالرحمن الفهد', time: '06:45 صباحًا', location: 'الساحة الخارجية' } satisfies DailyScheduleItem]
-      : activeTab === 'duty'
-        ? [{ id: 'd1', type: 'duty', name: 'الإشراف على المقصف', time: 'الفسحة 1' } satisfies DailyScheduleItem]
-        : [];
-
   return (
     <div className="bg-white p-5 sm:p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col min-h-[360px] lg:h-full text-right hover:shadow-md transition-shadow" dir="rtl">
       <div className="flex flex-col items-start gap-4 mb-6">
@@ -78,8 +70,8 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
       </div>
 
       <div className="flex-1 overflow-visible lg:overflow-y-auto custom-scrollbar lg:pr-2 space-y-2.5">
-        {displayItems.length > 0 ? (
-          displayItems.map((item, index) => (
+        {filteredItems.length > 0 ? (
+          filteredItems.map((item, index) => (
             <div key={item.id || index} className="flex items-center gap-3 p-2.5 bg-white rounded-2xl border border-slate-100 hover:border-[#8779fb]/30 transition-colors group">
               <div
                 className={`
@@ -98,13 +90,10 @@ export const DayScheduleCard: React.FC<DailyScheduleProps> = ({ schedule, title,
                   <span className="text-[#655ac1] ml-1 font-mono text-xs">{index + 1}.</span>
                   {item.name}
                 </p>
-                <div className="flex flex-col gap-0.5">
-                  {!['absence', 'supervision', 'duty'].includes(item.type || '') && (
-                    <>
-                      {item.location && <span className="text-[10px] text-slate-500">{item.location}</span>}
-                      {item.time && <span className="text-[10px] text-slate-400 font-bold">{item.time}</span>}
-                    </>
-                  )}
+                <div className="flex flex-col gap-0.5 mt-0.5">
+                  {item.role && <span className="text-[10px] text-slate-500 font-bold">{item.role}</span>}
+                  {item.location && <span className="text-[10px] text-slate-500">{item.location}</span>}
+                  {item.time && <span className="text-[10px] text-slate-400 font-bold">{item.time}</span>}
                 </div>
               </div>
             </div>

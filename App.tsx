@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react'; // For the lock UI
-import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType, MessageComposerDraft } from './types';
+import { Phase, Teacher, Specialization, Subject, ClassInfo, Assignment, SchoolInfo, Message, CalendarEvent, DailyScheduleItem, SubscriptionInfo, Student, Admin, ScheduleSettingsData, EntityType, MessageComposerDraft, SupervisionScheduleData, DutyScheduleData, DutyDayAssignment } from './types';
 import { INITIAL_SPECIALIZATIONS, INITIAL_SUBJECTS } from './constants';
 import { migrateTeacherStructure } from './utils/migrateTeachers';
 import { MessageArchiveProvider } from './components/messaging/MessageArchiveContext';
@@ -67,6 +67,135 @@ const APP_STORAGE_BACKUP_KEY = 'school_assignment_v4_backup';
 const APP_INDEXED_DB_NAME = 'motabe_persistence';
 const APP_INDEXED_DB_STORE = 'app_state';
 const APP_INDEXED_DB_RECORD_ID = 'latest';
+
+const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+
+const getLocalISODate = (date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalStorageJson = <T,>(keys: string[]): T | null => {
+  if (typeof window === 'undefined') return null;
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed as T;
+    } catch {}
+  }
+  return null;
+};
+
+const parseLocalStorageJsonList = <T,>(prefix: string, preferredKeys: string[] = []): T[] => {
+  if (typeof window === 'undefined') return [];
+  const keys = new Set<string>(preferredKeys);
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) keys.add(key);
+    }
+  } catch {}
+
+  const values: T[] = [];
+  keys.forEach(key => {
+    const parsed = parseLocalStorageJson<T>([key]);
+    if (parsed) values.push(parsed);
+  });
+  return values;
+};
+
+const uniqueDailyItems = (items: DailyScheduleItem[]): DailyScheduleItem[] => {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    const key = `${item.type}:${item.id || item.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const getActiveSupervisionAssignments = (data: SupervisionScheduleData | null) => {
+  const activeSaved = data?.savedSchedules?.find(schedule => schedule.id === data.activeScheduleId || schedule.isApproved);
+  return activeSaved?.dayAssignments?.length ? activeSaved.dayAssignments : (data?.dayAssignments || []);
+};
+
+const getDutyAssignmentsForDate = (data: DutyScheduleData | null, date: string, dayKey: string): DutyDayAssignment | undefined => {
+  const weekDay = (data?.weekAssignments || [])
+    .flatMap(week => week.dayAssignments || [])
+    .find(day => day.date === date);
+  if (weekDay) return weekDay;
+
+  const datedDay = (data?.dayAssignments || []).find(day => day.date === date);
+  if (datedDay) return datedDay;
+
+  return (data?.dayAssignments || []).find(day => day.day === dayKey);
+};
+
+const buildTodaySchedule = (): DailyScheduleItem[] => {
+  const today = getLocalISODate();
+  const dayKey = DAY_KEYS[new Date().getDay()];
+  const items: DailyScheduleItem[] = [];
+
+  const waitingSessionGroups = parseLocalStorageJsonList<Array<{
+    date: string;
+    absentTeachers?: Array<{ id?: string; teacherId?: string; teacherName?: string }>;
+  }>>('daily_waiting_sessions_v1', ['daily_waiting_sessions_v1_main', 'daily_waiting_sessions_v1']);
+
+  waitingSessionGroups
+    .flatMap(sessionGroup => sessionGroup.find(session => session.date === today)?.absentTeachers || [])
+    .forEach(absent => {
+      if (!absent.teacherName) return;
+      items.push({
+        id: `absence-${absent.id || absent.teacherId || absent.teacherName}`,
+        type: 'absence',
+        name: absent.teacherName,
+      });
+    });
+
+  const supervisionDataList = parseLocalStorageJsonList<SupervisionScheduleData>('supervision_data_v1', ['supervision_data_v1_main', 'supervision_data_v1']);
+  supervisionDataList.forEach((supervisionData, dataIndex) => {
+    getActiveSupervisionAssignments(supervisionData)
+      .find(day => day.day === dayKey)
+      ?.staffAssignments
+      ?.forEach((staff, index) => {
+        if (!staff.staffName) return;
+        const typeName = supervisionData?.supervisionTypes?.find(type => type.id === staff.contextTypeId)?.name;
+        const locations = (staff.locationIds || [])
+          .map(locationId => supervisionData?.locations?.find(location => location.id === locationId)?.name)
+          .filter(Boolean)
+          .join('، ');
+
+        items.push({
+          id: `supervision-${dataIndex}-${staff.contextTypeId || 'main'}-${staff.staffId || index}`,
+          type: 'supervision',
+          name: staff.staffName,
+          role: typeName || 'الإشراف اليومي',
+          location: locations || undefined,
+        });
+      });
+  });
+
+  const dutyDataList = parseLocalStorageJsonList<DutyScheduleData>('duty_data_v1', ['duty_data_v1_main', 'duty_data_v1']);
+  dutyDataList.forEach((dutyData, dataIndex) => {
+    getDutyAssignmentsForDate(dutyData, today, dayKey)
+      ?.staffAssignments
+      ?.forEach((staff, index) => {
+        if (!staff.staffName) return;
+        items.push({
+          id: `duty-${dataIndex}-${staff.staffId || index}`,
+          type: 'duty',
+          name: staff.staffName,
+          role: staff.staffType === 'admin' ? 'إداري' : 'معلم',
+        });
+      });
+  });
+
+  return uniqueDailyItems(items);
+};
 
 const createDefaultSchoolInfo = (): SchoolInfo => ({
   entityType: EntityType.SCHOOL,
@@ -331,26 +460,7 @@ const App: React.FC = () => {
     { id: '3', sender: 'الموجه الطلابي', recipient: 'أولياء الأمور', content: 'اجتماع أولياء الأمور', timestamp: new Date(Date.now() - 7200000).toISOString(), type: 'sms', status: 'sent' },
   ]);
   const [events] = useState<CalendarEvent[]>([]);
-  const [todaySchedule] = useState<DailyScheduleItem[]>([
-    // غياب (5)
-    { id: 't-a1', type: 'absence', name: 'محمد حسن العمري' },
-    { id: 't-a2', type: 'absence', name: 'سعد بن فهد القحطاني' },
-    { id: 't-a3', type: 'absence', name: 'عبدالعزيز الشهري' },
-    { id: 't-a4', type: 'absence', name: 'خالد محمد الدوسري' },
-    { id: 't-a5', type: 'absence', name: 'فيصل عبدالله الزهراني' },
-    // إشراف (8)
-    { id: 't-s1', type: 'supervision', name: 'سعد القحطاني' },
-    { id: 't-s2', type: 'supervision', name: 'عمر الغامدي' },
-    { id: 't-s3', type: 'supervision', name: 'تركي العتيبي' },
-    { id: 't-s4', type: 'supervision', name: 'وليد السبيعي' },
-    { id: 't-s5', type: 'supervision', name: 'ناصر الرشيدي' },
-    { id: 't-s6', type: 'supervision', name: 'حسن البقمي' },
-    { id: 't-s7', type: 'supervision', name: 'أحمد الحربي' },
-    { id: 't-s8', type: 'supervision', name: 'يوسف المطيري' },
-    // مناوبة (2)
-    { id: 't-d1', type: 'duty', name: 'عبدالله الشهري' },
-    { id: 't-d2', type: 'duty', name: 'سلطان العمري' },
-  ]);
+  const todaySchedule = React.useMemo(() => buildTodaySchedule(), [activeTab]);
   const [subscription, setSubscription] = useState<SubscriptionInfo>(() => {
     if (initialAppData?.subscription) return initialAppData.subscription;
     const today = new Date();
