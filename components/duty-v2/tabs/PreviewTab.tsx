@@ -72,7 +72,10 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
     return (
       <span className={`inline-flex items-center justify-center gap-2 font-black ${compact ? 'text-sm' : 'text-base'} ${active ? 'text-white' : 'text-slate-800'}`}>
         <span>{weekLabel.label}</span>
-        <span className={`${compact ? 'h-7 min-w-7 text-xs' : 'h-8 min-w-8 text-sm'} inline-flex items-center justify-center rounded-full border bg-transparent px-2 text-[#655ac1] ${active ? 'border-white' : 'border-slate-300'}`}>
+        <span
+          className={`${compact ? 'h-7 min-w-7 text-xs' : 'h-8 min-w-8 text-sm'} inline-flex items-center justify-center rounded-full border px-2 !text-[#655ac1] ${active ? 'border-white bg-white' : 'border-slate-300 bg-transparent'}`}
+          style={{ color: '#655ac1' }}
+        >
           {weekLabel.number}
         </span>
       </span>
