@@ -1,65 +1,92 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, AlertTriangle, BookOpenCheck, Check, MoreHorizontal, Pencil, Table, Trash2, X } from 'lucide-react';
-import { DutyScheduleData, SavedDutySchedule } from '../../../types';
+import {
+  Trash2, CheckCircle2, MoreHorizontal, Pencil, Check, AlertTriangle,
+  Table, BookOpenCheck, AlertCircle, X, CalendarDays, Archive, BadgeCheck,
+} from 'lucide-react';
+import { DutyScheduleData, SavedDutySchedule, SchoolInfo } from '../../../types';
 
 interface Props {
   dutyData: DutyScheduleData;
   setDutyData: React.Dispatch<React.SetStateAction<DutyScheduleData>>;
   showToast: (msg: string, type: 'success' | 'warning' | 'error') => void;
+  schoolInfo: SchoolInfo;
 }
 
-const formatDateTime = (iso: string) => {
+type ConfirmAction =
+  | { mode: 'delete'; schedule: SavedDutySchedule }
+  | { mode: 'adopt'; schedule: SavedDutySchedule }
+  | { mode: 'unadopt'; schedule: SavedDutySchedule }
+  | null;
+
+type MenuState = {
+  scheduleId: string;
+  top: number;
+  left: number;
+} | null;
+
+const dayNames: Record<number, string> = {
+  0: 'الأحد',
+  1: 'الإثنين',
+  2: 'الثلاثاء',
+  3: 'الأربعاء',
+  4: 'الخميس',
+  5: 'الجمعة',
+  6: 'السبت',
+};
+
+const formatDateTime = (iso: string, calendarType: 'hijri' | 'gregorian') => {
   const d = new Date(iso);
+  const dateOpts: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+
   return {
-    date: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(d),
+    day: dayNames[d.getDay()],
+    date: new Intl.DateTimeFormat(
+      calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn',
+      dateOpts,
+    ).format(d),
     time: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
-      hour: '2-digit', minute: '2-digit', hour12: true,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
     }).format(d),
   };
 };
 
-const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
+const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast, schoolInfo }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [menuState, setMenuState] = useState<{ scheduleId: string; top: number; left: number } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<SavedDutySchedule | null>(null);
-  const [confirmAdopt, setConfirmAdopt] = useState<{ schedule: SavedDutySchedule; mode: 'adopt' | 'unadopt' } | null>(null);
+  const [menuState, setMenuState] = useState<MenuState>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const warnedFullAutoSaveRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const savedSchedules = dutyData.savedSchedules || [];
-  const activeScheduleId = dutyData.activeScheduleId;
-  const approvedSchedule = savedSchedules.find(schedule => schedule.isApproved || schedule.id === activeScheduleId);
-  const hasCurrentSchedule = dutyData.dayAssignments.some(day => day.staffAssignments.length > 0);
-  const currentScheduleIsSaved = !!activeScheduleId && savedSchedules.some(schedule => schedule.id === activeScheduleId);
-  const isFull = savedSchedules.length >= 10;
-  const isNearFull = savedSchedules.length === 9;
 
   useEffect(() => {
     if (!menuState) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuState(null);
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuState(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuState]);
 
-  const openMenu = (event: React.MouseEvent<HTMLButtonElement>, scheduleId: string) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const menuWidth = 176;
-    const left = Math.max(16, rect.left - menuWidth + rect.width);
-    setMenuState(prev => prev?.scheduleId === scheduleId ? null : { scheduleId, top: rect.bottom + 8, left });
-  };
+  const savedSchedules = dutyData.savedSchedules || [];
+  const activeScheduleId = dutyData.activeScheduleId;
+  const activeSchedule = savedSchedules.find(schedule => schedule.isApproved || schedule.id === activeScheduleId);
+  const hasCurrentSchedule = dutyData.dayAssignments.some(day => day.staffAssignments.length > 0);
+  const currentScheduleIsSaved = !!activeScheduleId && savedSchedules.some(schedule => schedule.id === activeScheduleId);
+  const isFull = savedSchedules.length >= 10;
+  const isNearFull = savedSchedules.length === 9;
+  const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
 
   useEffect(() => {
     if (!hasCurrentSchedule || currentScheduleIsSaved) return;
     if (isFull) {
       if (!warnedFullAutoSaveRef.current) {
         warnedFullAutoSaveRef.current = true;
-        showToast('وصلت للحد الأقصى 10 جداول. احذف جدولاً قبل إنشاء جدول جديد.', 'warning');
+        showToast('وصلت للحد الأقصى 10 جداول. احذف جدولًا قبل إنشاء جدول جديد.', 'warning');
       }
       return;
     }
@@ -84,13 +111,13 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
     });
   }, [currentScheduleIsSaved, hasCurrentSchedule, isFull, setDutyData, showToast]);
 
-  const saveName = (schedule: SavedDutySchedule) => {
-    const trimmed = editingName.trim();
+  const handleRenameSave = (id: string, name: string) => {
+    const trimmed = name.trim();
     if (!trimmed) return;
     setDutyData(prev => ({
       ...prev,
-      savedSchedules: (prev.savedSchedules || []).map(item =>
-        item.id === schedule.id ? { ...item, name: trimmed } : item
+      savedSchedules: (prev.savedSchedules || []).map(schedule =>
+        schedule.id === id ? { ...schedule, name: trimmed } : schedule
       ),
     }));
     setEditingId(null);
@@ -98,59 +125,115 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
     showToast('تم تعديل اسم الجدول', 'success');
   };
 
-  const adoptSchedule = (schedule: SavedDutySchedule) => {
-    setDutyData(prev => ({
-      ...prev,
-      savedSchedules: (prev.savedSchedules || []).map(item => ({ ...item, isApproved: item.id === schedule.id })),
-      dayAssignments: [...schedule.dayAssignments],
-      isApproved: true,
-      approvedAt: new Date().toISOString(),
-      activeScheduleId: schedule.id,
-    }));
-    showToast('تم اعتماد جدول المناوبة', 'success');
-    setConfirmAdopt(null);
-  };
+  const handleConfirmAction = () => {
+    if (!confirmAction) return;
 
-  const unadoptSchedule = (schedule: SavedDutySchedule) => {
-    setDutyData(prev => ({
-      ...prev,
-      savedSchedules: (prev.savedSchedules || []).map(item => item.id === schedule.id ? { ...item, isApproved: false } : item),
-      isApproved: false,
-      approvedAt: undefined,
-    }));
-    showToast('تم إلغاء اعتماد جدول المناوبة', 'success');
-    setConfirmAdopt(null);
-  };
-
-  const deleteSchedule = (schedule: SavedDutySchedule) => {
-    setDutyData(prev => {
-      const isActive = prev.activeScheduleId === schedule.id;
-      return {
+    if (confirmAction.mode === 'adopt') {
+      const schedule = confirmAction.schedule;
+      setDutyData(prev => ({
         ...prev,
-        savedSchedules: (prev.savedSchedules || []).filter(item => item.id !== schedule.id),
-        activeScheduleId: isActive ? undefined : prev.activeScheduleId,
-        ...(isActive ? { dayAssignments: [], weekAssignments: [], isApproved: false, approvedAt: undefined } : {}),
-      };
-    });
-    showToast('تم حذف الجدول من القائمة', 'success');
-    setConfirmDelete(null);
+        savedSchedules: (prev.savedSchedules || []).map(item => ({
+          ...item,
+          isApproved: item.id === schedule.id,
+        })),
+        dayAssignments: [...schedule.dayAssignments],
+        isApproved: true,
+        approvedAt: new Date().toISOString(),
+        activeScheduleId: schedule.id,
+      }));
+      showToast('تم اعتماد جدول المناوبة', 'success');
+    }
+
+    if (confirmAction.mode === 'unadopt') {
+      const schedule = confirmAction.schedule;
+      setDutyData(prev => ({
+        ...prev,
+        savedSchedules: (prev.savedSchedules || []).map(item =>
+          item.id === schedule.id ? { ...item, isApproved: false } : item
+        ),
+        isApproved: false,
+        approvedAt: undefined,
+      }));
+      showToast('تم إلغاء اعتماد جدول المناوبة', 'success');
+    }
+
+    if (confirmAction.mode === 'delete') {
+      const id = confirmAction.schedule.id;
+      setDutyData(prev => {
+        const isActive = prev.activeScheduleId === id;
+        return {
+          ...prev,
+          savedSchedules: (prev.savedSchedules || []).filter(item => item.id !== id),
+          activeScheduleId: isActive ? undefined : prev.activeScheduleId,
+          ...(isActive ? { dayAssignments: [], weekAssignments: [], isApproved: false, approvedAt: undefined } : {}),
+        };
+      });
+      showToast('تم حذف الجدول من القائمة', 'success');
+    }
+
+    setConfirmAction(null);
+  };
+
+  const openMenu = (event: React.MouseEvent<HTMLButtonElement>, scheduleId: string) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 176;
+    const left = Math.max(16, rect.left - menuWidth + rect.width);
+    setMenuState(prev => prev?.scheduleId === scheduleId
+      ? null
+      : { scheduleId, top: rect.bottom + 8, left });
   };
 
   const stats = [
-    { label: 'إجمالي جداول المناوبة', value: String(savedSchedules.length) },
-    { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10` },
-    { label: 'الجدول المعتمد', value: approvedSchedule?.name ?? '-' },
+    { label: 'الجداول المنشأة', value: String(savedSchedules.length), icon: CalendarDays },
+    { label: 'الجداول المحفوظة', value: `${savedSchedules.length} / 10`, icon: Archive },
+    { label: 'الجدول المعتمد', value: activeSchedule?.name ?? '—', icon: BadgeCheck, isText: true },
   ];
+
+  const confirmTheme = confirmAction?.mode === 'delete'
+    ? {
+        title: 'تأكيد الحذف',
+        button: 'bg-rose-500 hover:bg-rose-600',
+        body: 'هذا الإجراء سيحذف جدول المناوبة الذي تم إنشاؤه نهائيًا، لا يمكن التراجع عن هذا الإجراء.',
+        icon: Trash2,
+        iconClass: 'text-rose-500',
+      }
+    : confirmAction?.mode === 'unadopt'
+      ? {
+          title: 'إلغاء الاعتماد',
+          button: 'bg-[#655ac1] hover:bg-[#5448b5]',
+          body: 'سيبقى الجدول محفوظًا، لكنه لن يكون هو جدول المناوبة المعتمد حاليًا.',
+          icon: AlertTriangle,
+          iconClass: 'text-[#655ac1]',
+        }
+      : {
+          title: 'اعتماد الجدول',
+          button: 'bg-[#655ac1] hover:bg-[#5448b5]',
+          body: 'سيصبح هذا الجدول هو جدول المناوبة المعتمد الحالي، وسيتم إلغاء اعتماد أي جدول آخر.',
+          icon: AlertTriangle,
+          iconClass: 'text-[#655ac1]',
+        };
 
   return (
     <div className="space-y-5" dir="rtl">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white border border-slate-200 rounded-2xl px-5 py-5 text-center shadow-sm">
-            <p className="text-sm font-black text-slate-500">{stat.label}</p>
-            <p className="mt-3 font-black text-[#655ac1] text-xl leading-none truncate" title={stat.value}>
-              {stat.value}
-            </p>
+          <div
+            key={index}
+            className="bg-white border border-slate-200 rounded-2xl px-4 py-5 shadow-md flex items-start gap-3"
+            style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}
+          >
+            <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
+              <stat.icon size={22} />
+            </div>
+            <div className="min-w-0 flex-1 text-center">
+              <p className="text-xs font-bold text-slate-400 leading-none">{stat.label}</p>
+              <p
+                className={`mt-1 font-black text-slate-800 truncate ${stat.isText ? 'text-sm' : 'text-xl leading-none'}`}
+                title={stat.value}
+              >
+                {stat.value}
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -158,27 +241,41 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
       {isNearFull && !isFull && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
           <AlertTriangle size={16} className="text-amber-500 shrink-0" />
-          <span className="text-sm font-semibold text-amber-700">تبقّى مكان واحد فقط قبل الوصول للحد الأقصى.</span>
+          <span className="text-sm font-semibold text-amber-700">
+            تبقّى مكان واحد فقط — احذف جدولًا قبل الإنشاء التالي
+          </span>
         </div>
       )}
 
-      <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+      {isFull && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200">
+          <AlertTriangle size={16} className="text-rose-500 shrink-0" />
+          <span className="text-sm font-semibold text-rose-700">
+            وصلت للحد الأقصى (10 جداول) — يجب حذف جدول قبل إنشاء جديد
+          </span>
+        </div>
+      )}
+
+      <div
+        className="bg-white rounded-[24px] border border-slate-200 overflow-hidden"
+        style={{ boxShadow: '0 4px 14px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}
+      >
         <div className="px-6 py-4 border-b border-slate-100 bg-white">
           <p className="text-sm font-black text-slate-800 flex items-center gap-2">
             <BookOpenCheck size={18} className="text-[#655ac1]" />
-            جداول المناوبة المحفوظة
-            <span className="text-xs font-medium text-slate-400 mr-1">({savedSchedules.length} / 10)</span>
+            الجداول المحفوظة
+            <span className="text-xs font-medium text-slate-400 mr-1">
+              ({savedSchedules.length} / 10)
+            </span>
           </p>
         </div>
 
         {savedSchedules.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-500">
-            <Table size={64} strokeWidth={1.6} className="text-[#655ac1]" />
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400 opacity-60">
+            <Table size={64} strokeWidth={1.4} className="text-slate-400" />
             <div className="text-center">
               <p className="font-bold text-slate-600 text-lg mb-1">لا توجد جداول محفوظة بعد</p>
-              <p className="text-sm font-medium text-slate-500">
-                سيظهر الجدول هنا مباشرة بعد إنشائه من تبويب إنشاء جدول المناوبة.
-              </p>
+              <p className="text-xs">سيُحفظ الجدول تلقائيًا عند إنشائه من تبويب إنشاء جدول المناوبة</p>
             </div>
           </div>
         ) : (
@@ -188,77 +285,116 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center w-14">م</th>
                   <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">اسم الجدول</th>
+                  <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">اليوم</th>
                   <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">التاريخ</th>
                   <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">الوقت</th>
                   <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">الحالة</th>
                   <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">الإجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-100">
                 {savedSchedules.map((schedule, index) => {
                   const isActive = activeScheduleId === schedule.id || schedule.isApproved;
                   const isEditing = editingId === schedule.id;
-                  const { date, time } = formatDateTime(schedule.createdAt);
+                  const { day, date, time } = formatDateTime(schedule.createdAt, calendarType);
                   return (
-                    <tr key={schedule.id} className="hover:bg-slate-50 transition-all" style={isActive ? { borderRight: '3px solid #655ac1' } : {}}>
+                    <tr
+                      key={schedule.id}
+                      className="hover:bg-accent/5 transition-all group"
+                      style={isActive ? { borderRight: '3px solid #655ac1' } : {}}
+                    >
                       <td className="px-6 py-3.5 text-center">
-                        <span className="inline-flex w-7 h-7 rounded-lg items-center justify-center text-[11px] font-black border border-slate-300 bg-white text-[#655ac1]">
+                        <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">
                           {savedSchedules.length - index}
                         </span>
                       </td>
+
                       <td className="px-6 py-3.5">
                         {isEditing ? (
                           <input
+                            type="text"
                             value={editingName}
                             onChange={event => setEditingName(event.target.value)}
-                            onKeyDown={event => {
-                              if (event.key === 'Enter') saveName(schedule);
-                              if (event.key === 'Escape') setEditingId(null);
-                            }}
                             autoFocus
+                            onKeyDown={event => {
+                              if (event.key === 'Enter') handleRenameSave(schedule.id, editingName);
+                              if (event.key === 'Escape') {
+                                setEditingId(null);
+                                setEditingName('');
+                              }
+                            }}
                             className="w-full px-3 py-2 bg-white border-2 border-[#655ac1] rounded-lg text-sm font-bold outline-none text-slate-800"
+                            placeholder="اسم الجدول..."
                           />
                         ) : (
-                          <span className="font-bold text-[13px] text-slate-800 truncate max-w-[240px] inline-block" title={schedule.name}>
-                            {schedule.name}
-                          </span>
+                          <div className="flex items-center">
+                            <span className="font-bold text-[13px] text-slate-800 truncate max-w-[220px]" title={schedule.name}>
+                              {schedule.name}
+                            </span>
+                          </div>
                         )}
                       </td>
-                      <td className="px-6 py-3.5 text-center text-[12px] font-bold text-slate-700">{date}</td>
-                      <td className="px-6 py-3.5 text-center text-[12px] font-bold text-slate-700">{time}</td>
+
+                      <td className="px-6 py-3.5 text-center">
+                        <span className="text-[12px] font-bold text-slate-700">{day}</span>
+                      </td>
+
+                      <td className="px-6 py-3.5 text-center">
+                        <div className="flex flex-col items-center leading-tight">
+                          <span className="text-[12px] font-bold text-slate-700">{date}</span>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-3.5 text-center">
+                        <span className="text-[12px] font-bold text-slate-700">{time}</span>
+                      </td>
+
                       <td className="px-6 py-3.5 text-center">
                         {isActive ? (
                           <span className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#655ac1]">
-                            <Check size={14} /> معتمد
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white">
+                              <Check size={12} strokeWidth={3.5} />
+                            </span>
+                            معتمد
                           </span>
                         ) : (
-                          <span className="text-[12px] font-semibold text-slate-400">غير معتمد</span>
+                          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-400">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-400">
+                              <X size={12} strokeWidth={3} />
+                            </span>
+                            غير معتمد
+                          </span>
                         )}
                       </td>
-                      <td className="px-6 py-3.5">
+
+                      <td className="px-6 py-3.5 text-center">
                         {isEditing ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => saveName(schedule)} className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white rounded-lg bg-[#655ac1]">
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleRenameSave(schedule.id, editingName)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all"
+                              title="حفظ"
+                            >
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500">
                                 <Check size={13} strokeWidth={3.2} className="text-white" />
                               </span>
-                              حفظ
                             </button>
                             <button
                               onClick={() => { setEditingId(null); setEditingName(''); }}
-                              className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:text-slate-700 transition-all"
+                              title="إلغاء"
                             >
-                              إلغاء
+                              <X size={14} />
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center">
                             <button
                               onClick={event => openMenu(event, schedule.id)}
-                              className="p-2 text-slate-600 bg-white hover:text-[#655ac1] hover:bg-[#f5f3ff] rounded-lg transition-all border border-slate-200"
+                              className="p-2 text-slate-600 bg-white hover:text-primary hover:bg-primary/5 rounded-lg transition-all border border-slate-200"
                               title="إجراءات"
                             >
-                              <MoreHorizontal size={15} />
+                              <MoreHorizontal size={14} />
                             </button>
                           </div>
                         )}
@@ -275,7 +411,7 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
       <div className="flex items-center gap-2 text-slate-400 px-1">
         <AlertCircle size={15} className="shrink-0" />
         <span className="text-xs font-bold">
-          يُحفظ الجدول تلقائياً عند كل إنشاء · الحد الأقصى 10 جداول
+          يُحفظ الجدول تلقائيًا عند كل إنشاء · الحد الأقصى 10 جداول
         </span>
       </div>
 
@@ -288,8 +424,8 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
         >
           <button
             onClick={() => {
-              const target = savedSchedules.find(schedule => schedule.id === menuState.scheduleId);
               setEditingId(menuState.scheduleId);
+              const target = savedSchedules.find(schedule => schedule.id === menuState.scheduleId);
               setEditingName(target?.name || '');
               setMenuState(null);
             }}
@@ -298,23 +434,45 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
             <Pencil size={14} />
             تعديل
           </button>
+
           {(() => {
             const schedule = savedSchedules.find(item => item.id === menuState.scheduleId);
             if (!schedule) return null;
             const isActive = activeScheduleId === schedule.id || schedule.isApproved;
+
             return (
               <>
+                {!isActive && (
+                  <button
+                    onClick={() => {
+                      setConfirmAction({ mode: 'adopt', schedule });
+                      setMenuState(null);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <CheckCircle2 size={14} />
+                    اعتماد
+                  </button>
+                )}
+
+                {isActive && (
+                  <button
+                    onClick={() => {
+                      setConfirmAction({ mode: 'unadopt', schedule });
+                      setMenuState(null);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                  >
+                    <X size={14} />
+                    إلغاء الاعتماد
+                  </button>
+                )}
+
                 <button
-                  onClick={() => { setConfirmAdopt({ schedule, mode: isActive ? 'unadopt' : 'adopt' }); setMenuState(null); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold rounded-xl transition-colors ${
-                    isActive ? 'text-amber-700 hover:bg-amber-50' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Check size={14} />
-                  {isActive ? 'إلغاء الاعتماد' : 'اعتماد'}
-                </button>
-                <button
-                  onClick={() => { setConfirmDelete(schedule); setMenuState(null); }}
+                  onClick={() => {
+                    setConfirmAction({ mode: 'delete', schedule });
+                    setMenuState(null);
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
                 >
                   <Trash2 size={14} />
@@ -327,39 +485,29 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
         document.body
       )}
 
-      {confirmAdopt && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
-            <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
-              هل تريد {confirmAdopt.mode === 'adopt' ? 'اعتماد' : 'إلغاء اعتماد'} جدول <span className="font-black text-slate-800">"{confirmAdopt.schedule.name}"</span>؟
+      {confirmAction && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="p-6 flex items-start gap-3">
+              <confirmTheme.icon size={28} className={`${confirmTheme.iconClass} mt-0.5 shrink-0`} />
+              <div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">{confirmTheme.title}</h3>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">{confirmTheme.body}</p>
+              </div>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
-              <button onClick={() => setConfirmAdopt(null)} className="px-5 py-2.5 rounded-xl text-sm font-black text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
+
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors"
+              >
                 إلغاء
               </button>
               <button
-                onClick={() => confirmAdopt.mode === 'adopt' ? adoptSchedule(confirmAdopt.schedule) : unadoptSchedule(confirmAdopt.schedule)}
-                className="px-5 py-2.5 rounded-xl text-sm font-black text-white bg-[#655ac1] hover:bg-[#5046a0] transition-colors"
+                onClick={handleConfirmAction}
+                className={`flex-1 px-4 py-3 rounded-xl font-bold text-sm text-white transition-colors shadow-md ${confirmTheme.button} ${confirmAction.mode === 'delete' ? 'shadow-rose-500/20' : 'shadow-[#655ac1]/20'}`}
               >
                 تأكيد
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmDelete && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
-            <div className="p-6 text-sm font-semibold leading-7 text-slate-600">
-              هل تريد حذف جدول <span className="font-black text-slate-800">"{confirmDelete.name}"</span>؟ لا يمكن التراجع عن هذا الإجراء.
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="px-5 py-2.5 rounded-xl text-sm font-black text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
-                إلغاء
-              </button>
-              <button onClick={() => deleteSchedule(confirmDelete)} className="px-5 py-2.5 rounded-xl text-sm font-black text-white bg-rose-500 hover:bg-rose-600 transition-colors">
-                تأكيد الحذف
               </button>
             </div>
           </div>

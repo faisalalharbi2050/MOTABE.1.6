@@ -518,6 +518,7 @@ const DutyV2Container: React.FC<Props> = ({
                 dutyData={dutyData}
                 setDutyData={setDutyData}
                 showToast={showToast}
+                schoolInfo={schoolInfo}
               />
             ) : (
               <PrintSendTab

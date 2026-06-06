@@ -236,6 +236,7 @@ const ScheduleV2Preview: React.FC<Props> = (props) => {
               <ManageTab
                 scheduleSettings={props.scheduleSettings}
                 setScheduleSettings={props.setScheduleSettings}
+                schoolInfo={props.schoolInfo}
               />
             ) : (
               <ViewTabV3

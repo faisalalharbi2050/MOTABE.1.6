@@ -550,6 +550,7 @@ const SupervisionV2Container: React.FC<Props> = ({
                 supervisionData={supervisionData}
                 setSupervisionData={setSupervisionData}
                 showToast={showToast}
+                schoolInfo={schoolInfo}
               />
             ) : (
               <PrintSendTab

@@ -4,11 +4,12 @@ import {
     Trash2, CheckCircle2, MoreHorizontal, Pencil, Check, AlertTriangle,
     Table, BookOpenCheck, AlertCircle, X, CalendarDays, Archive, BadgeCheck
 } from 'lucide-react';
-import { ScheduleSettingsData, SavedSchedule } from '../../../types';
+import { ScheduleSettingsData, SavedSchedule, SchoolInfo } from '../../../types';
 
 interface Props {
     scheduleSettings: ScheduleSettingsData;
     setScheduleSettings: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
+    schoolInfo: SchoolInfo;
 }
 
 type ConfirmAction =
@@ -23,7 +24,7 @@ type MenuState = {
     left: number;
 } | null;
 
-const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) => {
+const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings, schoolInfo }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState('');
     const [menuState, setMenuState] = useState<MenuState>(null);
@@ -58,10 +59,13 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
     const formatDateTime = (iso: string) => {
         const d = new Date(iso);
         const dateOpts: Intl.DateTimeFormatOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+        const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
         return {
             day: dayNames[d.getDay()],
-            dateHijri: new Intl.DateTimeFormat('ar-SA-u-ca-islamic-nu-latn', dateOpts).format(d),
-            dateGregorian: new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', dateOpts).format(d),
+            date: new Intl.DateTimeFormat(
+                calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn',
+                dateOpts,
+            ).format(d),
             time: new Intl.DateTimeFormat('ar-SA-u-nu-latn', {
                 hour: '2-digit', minute: '2-digit', hour12: true,
             }).format(d),
@@ -233,7 +237,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
                                 {savedSchedules.map((schedule, index) => {
                                     const isActive = schedule.id === activeScheduleId;
                                     const isEditing = editingId === schedule.id;
-                                    const { day, dateHijri, dateGregorian, time } = formatDateTime(schedule.createdAt);
+                                    const { day, date, time } = formatDateTime(schedule.createdAt);
                                     return (
                                         <tr
                                             key={schedule.id}
@@ -278,8 +282,7 @@ const ManageTab: React.FC<Props> = ({ scheduleSettings, setScheduleSettings }) =
 
                                             <td className="px-6 py-3.5 text-center">
                                                 <div className="flex flex-col items-center leading-tight">
-                                                    <span className="text-[12px] font-bold text-slate-700">{dateHijri}</span>
-                                                    <span className="text-[12px] font-normal text-slate-400 mt-0.5">{dateGregorian}</span>
+                                                    <span className="text-[12px] font-bold text-slate-700">{date}</span>
                                                 </div>
                                             </td>
 
