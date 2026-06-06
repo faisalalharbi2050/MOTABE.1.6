@@ -115,19 +115,9 @@ const ScheduleSignatureDocument: React.FC<Props> = ({
       </div>
 
       {mode === 'manual' ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold text-slate-400 mb-6">اسم المعلم</p>
-            <div className="border-b-2 border-slate-300 h-8" />
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold text-slate-400 mb-6">التاريخ</p>
-            <div className="border-b-2 border-slate-300 h-8" />
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold text-slate-400 mb-6">التوقيع</p>
-            <div className="border-b-2 border-slate-300 h-8" />
-          </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-bold text-slate-400 mb-6">التوقيع</p>
+          <div className="border-b-2 border-slate-300 h-8" />
         </div>
       ) : (
         <div className="space-y-4">

@@ -1452,40 +1452,36 @@ const PrintSendTab: React.FC<Props> = ({
 
         {/* Actions bar */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <SingleSelectDropdown
-                label=""
-                value={selectedReceiptBatchId}
-                options={receiptBatchOptions}
-                placeholder="اختر الجدول المرسل"
-                onChange={setSelectedReceiptBatchId}
-                disabled={receiptBatchOptions.length === 0}
-                minWidthClass="min-w-[260px] max-w-[400px]"
-              />
-              <button type="button" onClick={refreshSupervisionDataFromStorage}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
-                <RefreshCw size={15} />
-                تحديث
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={handlePrintReceiptReport} disabled={filteredReceipts.length === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-                <Printer size={15} />
-                طباعة سجل الاستلام الإلكتروني
-              </button>
-              <button type="button" onClick={() => handlePrintAssignmentForms(filteredReceipts)} disabled={filteredReceipts.length === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-                <Printer size={15} />
-                طباعة نماذج التكليف الإلكترونية
-              </button>
-              <button type="button" onClick={() => handleDirectPrint({ signed: true })} disabled={!hasData}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
-                <Printer size={15} />
-                طباعة جدول الإشراف بعد التوقيع
-              </button>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <SingleSelectDropdown
+              label=""
+              value={selectedReceiptBatchId}
+              options={receiptBatchOptions}
+              placeholder="اختر الجدول المرسل"
+              onChange={setSelectedReceiptBatchId}
+              disabled={receiptBatchOptions.length === 0}
+              minWidthClass="min-w-[260px] max-w-[400px]"
+            />
+            <button type="button" onClick={refreshSupervisionDataFromStorage}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
+              <RefreshCw size={15} />
+              تحديث
+            </button>
+            <button type="button" onClick={handlePrintReceiptReport} disabled={filteredReceipts.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة سجل الاستلام
+            </button>
+            <button type="button" onClick={() => handlePrintAssignmentForms(filteredReceipts)} disabled={filteredReceipts.length === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة نماذج التكليف
+            </button>
+            <button type="button" onClick={() => handleDirectPrint({ signed: true })} disabled={!hasData}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black whitespace-nowrap hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
+              <Printer size={15} />
+              طباعة الجدول بعد التوقيع
+            </button>
           </div>
         </div>
 
