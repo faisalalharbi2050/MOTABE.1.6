@@ -226,11 +226,6 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
     return isNaN(d.getTime()) ? undefined : d;
   };
 
-  const formatSemesterNameForCard = (name: string) => {
-    const normalized = name.trim();
-    return normalized.replace(/^الفصل\s+الدراسي\s+/u, '') || normalized;
-  };
-
   const ORDINALS = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر'];
   const getNextSemesterName = (count: number): string => {
     const ordinal = ORDINALS[count] ?? `(${count + 1})`;
@@ -543,22 +538,24 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
             >
               <div className="flex h-full flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex flex-wrap items-center gap-2">
-                    <p className="text-base font-black text-slate-800 truncate">{formatSemesterNameForCard(semester.name)}</p>
-                    {semester.id === currentSemesterId && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-black text-emerald-600">
-                        <span className="relative flex h-2 w-2">
-                          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <div className="min-w-0 flex flex-col items-start">
+                    <p className="text-base font-black text-slate-800">{semester.name}</p>
+                    <div className="mt-2 min-h-[26px] flex items-center">
+                      {semester.id === currentSemesterId && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 bg-white text-[11px] font-black text-[#655ac1]">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-[#655ac1] opacity-75 animate-ping" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#655ac1]" />
+                          </span>
+                          الفصل الحالي
                         </span>
-                        الفصل الحالي
-                      </span>
-                    )}
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <div className="flex flex-nowrap items-center justify-end gap-1.5 shrink-0">
                     <button
                       onClick={() => handlePreviewSemester(semester)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50 shrink-0"
                     >
                       <Eye size={13} />
                       عرض
@@ -566,7 +563,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                     {onPrintSemester && (
                       <button
                         onClick={() => onPrintSemester(semester)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50 shrink-0"
                       >
                         <Printer size={13} />
                         طباعة
@@ -575,14 +572,14 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                     <button
                       onClick={() => handleEditSemester(semester)}
                       disabled={new Date() > new Date(semester.endDate + 'T00:00:00')}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold transition-all hover:border-slate-300 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200 shrink-0"
                     >
                       <Pen size={13} />
                       تعديل
                     </button>
                     <button
                       onClick={() => setDeletingId(semester.id)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-rose-500 text-xs font-bold transition-all hover:border-rose-200 hover:bg-rose-50"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-rose-500 text-xs font-bold transition-all hover:border-rose-200 hover:bg-rose-50 shrink-0"
                     >
                       <Trash2 size={13} />
                       حذف
@@ -590,21 +587,18 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                    <p className="text-[11px] font-medium text-slate-400 mb-1">بداية الفصل الدراسي</p>
-                    <p className="text-xs font-bold text-slate-700 leading-5">{formatDateForDisplay(semester.startDate, calendarType)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                    <p className="text-[11px] font-medium text-slate-400 mb-1">نهاية الفصل الدراسي</p>
-                    <p className="text-xs font-bold text-slate-700 leading-5">{formatDateForDisplay(semester.endDate, calendarType)}</p>
-                  </div>
+                <div className="pt-3 border-t border-slate-100 flex flex-col gap-1.5 items-start">
+                  <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shrink-0" />بداية الفصل: <span className="font-black text-emerald-600">{formatDateForDisplay(semester.startDate, calendarType)}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-400 inline-block shrink-0" />نهاية الفصل: <span className="font-black text-rose-600">{formatDateForDisplay(semester.endDate, calendarType)}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block shrink-0" />مدة الفصل الدراسي: <span className="font-black text-[#655ac1]">{semester.weeksCount} أسبوع</span>
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 px-1">
-                  <span className="text-xs font-semibold text-slate-500">مدة الفصل الدراسي</span>
-                  <span className="text-sm font-black text-[#655ac1]">{semester.weeksCount} أسبوع</span>
-                </div>
               </div>
             </div>
           ))

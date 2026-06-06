@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarX2, MousePointerClick, Laptop, Ban, Check, X, AlertTriangle } from 'lucide-react';
+import { CalendarX2, MousePointerClick, Laptop, Ban, Check, X, AlertTriangle, CalendarDays, ChevronDown } from 'lucide-react';
 import { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -187,44 +187,61 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
     return { holidayDays, offDays, dutyDays, totalWeeks: weeks.length, activeWeeks: selectedWeeks.filter(n => allWeekNumbers.includes(n)).length };
   }, [weeks, settings, selectedWeeks]);
 
+  // قائمة الأسابيع مفتوحة افتراضياً عند فتح الصفحة (بلا حفظ دائم)
+  const [weeksOpen, setWeeksOpen] = React.useState(true);
+
   if (weeks.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {/* شريطان منفصلان جنباً إلى جنب: تعريف الفصل / الحصيلة الرقمية */}
-      <div className="flex flex-wrap items-stretch gap-3">
-        {/* القسم الأول: تعريف الفصل */}
-        <div className="flex-1 min-w-[240px] flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl">
-          {currentSemester?.name && (
-            <span className="flex items-center gap-2 text-xs font-black text-[#655ac1]">
-              <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{currentSemester.name}
-            </span>
-          )}
-          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
+      {/* تعريف الفصل — أسفل العنوان والوصف، بنفس التصميم بلا إطار */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 -mt-1">
+        {currentSemester?.name && (
+          <span className="flex items-center gap-2 text-xs font-black text-[#655ac1]">
+            <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{currentSemester.name}
           </span>
-          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: <DM dateObj={toDateObj(currentSemester?.endDate)} />
-          </span>
-        </div>
-
-        {/* القسم الثاني: الحصيلة الرقمية */}
-        <div className="flex-1 min-w-[240px] flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl">
-          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
-          </span>
-          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />أيام المناوبة: {stats.dutyDays} يوم
-          </span>
-          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-indigo-300 inline-block" />عن بُعد / بدون مناوبة: {stats.offDays}
-          </span>
-          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />إجازة رسمية: {stats.holidayDays}
-          </span>
-        </div>
+        )}
+        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
+        </span>
+        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: <DM dateObj={toDateObj(currentSemester?.endDate)} />
+        </span>
       </div>
 
+      {/* شريط الحصيلة الرقمية — ممتد */}
+      <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl">
+        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
+        </span>
+        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />أيام المناوبة: {stats.dutyDays} يوم
+        </span>
+        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-indigo-300 inline-block" />عن بُعد / بدون مناوبة: {stats.offDays}
+        </span>
+        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />إجازة رسمية: {stats.holidayDays}
+        </span>
+      </div>
+
+      {/* رأس قابل للطيّ لقائمة الأسابيع */}
+      <button
+        type="button"
+        onClick={() => setWeeksOpen(o => !o)}
+        className="flex items-center justify-between w-full gap-2 pt-1"
+      >
+        <span className="flex items-center gap-2 text-sm font-black text-slate-800">
+          <CalendarDays size={18} className="text-[#655ac1]" /> قائمة الأسابيع الدراسية
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500">
+          {weeksOpen ? 'طيّ' : 'فتح'}
+          <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${weeksOpen ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+
+      {weeksOpen && (
+        <>
       {/* الدلالات */}
       <div className="flex justify-center">
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[13px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
@@ -307,6 +324,8 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
             );
           })}
         </div>
+        </>
+      )}
 
       {/* ====== نافذة إعداد مدارس التعليم المدمج ====== */}
       {showHybridModal && (
