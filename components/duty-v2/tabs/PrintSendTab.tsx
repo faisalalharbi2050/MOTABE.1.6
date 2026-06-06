@@ -723,14 +723,20 @@ const PrintSendTab: React.FC<Props> = ({
   const closeSendResults = () => setShowSendResultsModal(false);
 
   // تحديد الدفعة الافتراضية (الأحدث) لكل سجل عند توفر الدفعات
+  // كل الجداول المرسلة (تكليف + تذكير) في قائمة واحدة موحّدة يقرأ منها سجلّا الاستلام معًا
+  const allBatches = useMemo(
+    () => [...assignmentBatches, ...reportBatches].sort((a, b) => (b.sentAt || '').localeCompare(a.sentAt || '')),
+    [assignmentBatches, reportBatches]
+  );
+
   useEffect(() => {
-    if (assignmentBatches.length === 0) { setSelectedAssignmentBatchId(''); return; }
-    if (!assignmentBatches.some(b => b.id === selectedAssignmentBatchId)) setSelectedAssignmentBatchId(assignmentBatches[0].id);
-  }, [assignmentBatches, selectedAssignmentBatchId]);
+    if (allBatches.length === 0) { setSelectedAssignmentBatchId(''); return; }
+    if (!allBatches.some(b => b.id === selectedAssignmentBatchId)) setSelectedAssignmentBatchId(allBatches[0].id);
+  }, [allBatches, selectedAssignmentBatchId]);
   useEffect(() => {
-    if (reportBatches.length === 0) { setSelectedReportBatchId(''); return; }
-    if (!reportBatches.some(b => b.id === selectedReportBatchId)) setSelectedReportBatchId(reportBatches[0].id);
-  }, [reportBatches, selectedReportBatchId]);
+    if (allBatches.length === 0) { setSelectedReportBatchId(''); return; }
+    if (!allBatches.some(b => b.id === selectedReportBatchId)) setSelectedReportBatchId(allBatches[0].id);
+  }, [allBatches, selectedReportBatchId]);
 
   const formatBatchSentLabel = (iso: string) => {
     const d = new Date(iso);
@@ -744,23 +750,19 @@ const PrintSendTab: React.FC<Props> = ({
     const era = calendarType === 'hijri' ? 'هـ' : 'م';
     return `${datePart}${era} - ${timePart}`;
   };
-  const assignmentBatchOptions = useMemo(() => assignmentBatches.map((batch, index) => ({
+  const batchOptions = useMemo(() => allBatches.map((batch, index) => ({
     value: batch.id,
-    label: `جدول المناوبة المرسل ${assignmentBatches.length - index} · أُرسل ${formatBatchSentLabel(batch.sentAt)}`,
-  })), [assignmentBatches, schoolInfo.calendarType]);
-  const reportBatchOptions = useMemo(() => reportBatches.map((batch, index) => ({
-    value: batch.id,
-    label: `جدول المناوبة المرسل ${reportBatches.length - index} · أُرسل ${formatBatchSentLabel(batch.sentAt)}`,
-  })), [reportBatches, schoolInfo.calendarType]);
+    label: `جدول المناوبة المرسل ${allBatches.length - index} · أُرسل ${formatBatchSentLabel(batch.sentAt)}`,
+  })), [allBatches, schoolInfo.calendarType]);
 
   // مصدر صفوف سجل التكليف: الدفعة المختارة إن وُجدت، وإلا الجدول الحالي
   const assignmentReceiptSource = useMemo<DutySendDisplayRow[]>(() => {
-    if (assignmentBatches.length > 0) {
-      const batch = assignmentBatches.find(b => b.id === selectedAssignmentBatchId) || assignmentBatches[0];
+    if (allBatches.length > 0) {
+      const batch = allBatches.find(b => b.id === selectedAssignmentBatchId) || allBatches[0];
       return batch ? batch.rows : [];
     }
     return groupRowsByStaff(sendRows);
-  }, [assignmentBatches, selectedAssignmentBatchId, sendRows, reportByStaffAndDate]);
+  }, [allBatches, selectedAssignmentBatchId, sendRows, reportByStaffAndDate]);
   const receiptSignedCount = assignmentReceiptSource.filter(row => row.status === 'signed').length;
   const receiptPendingCount = assignmentReceiptSource.length - receiptSignedCount;
 
@@ -772,8 +774,8 @@ const PrintSendTab: React.FC<Props> = ({
     );
   }, [receiptFilter, receiptSearch, assignmentReceiptSource]);
   const reportRows = useMemo(() => {
-    const source = reportBatches.length > 0
-      ? (reportBatches.find(b => b.id === selectedReportBatchId) || reportBatches[0])?.rows || []
+    const source = allBatches.length > 0
+      ? (allBatches.find(b => b.id === selectedReportBatchId) || allBatches[0])?.rows || []
       : groupRowsByStaff(sendRows);
     return source.map(row => ({
       ...row,
@@ -781,7 +783,7 @@ const PrintSendTab: React.FC<Props> = ({
       submittedAt: `${row.reportSubmittedCount} / ${row.reportDueCount}`,
       deliveryType: row.reportSubmittedCount === 0 ? '-' : row.reportSubmittedCount === row.reportDueCount ? 'مكتمل' : 'جزئي',
     }));
-  }, [reportByStaffAndDate, sendRows, reportBatches, selectedReportBatchId]);
+  }, [reportByStaffAndDate, sendRows, allBatches, selectedReportBatchId]);
   const submittedReportCount = reportRows.filter(row => row.status === 'submitted').length;
   const pendingReportCount = reportRows.length - submittedReportCount;
   const filteredReportRows = useMemo(() => {
@@ -928,6 +930,40 @@ ${buildReportLink(target)}` : ''}`;
       });
     return result.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   };
+
+  // كل نماذج تقارير الجدول المرسل المعروض: المُسلَّم معبّأ ببياناته، وغير المُسلَّم نموذجٌ فارغ
+  const reportsInView = useMemo(() => {
+    const seen = new Set<string>();
+    const out: DutyReportRecord[] = [];
+    filteredReportRows.forEach(row => {
+      const sigByDate = getStaffSignatureByDate(row.staffId);
+      row.assignments.forEach(item => {
+        const key = item.date || item.day;
+        const dedupe = `${item.staffId}-${key}`;
+        if (seen.has(dedupe)) return;
+        seen.add(dedupe);
+        const real = reportByStaffAndDate.get(dedupe);
+        if (real && real.isSubmitted && !real.manuallySubmitted) {
+          out.push(real);
+        } else {
+          out.push({
+            id: `virtual-${item.staffId}-${key}`,
+            date: item.date || '',
+            day: item.day,
+            staffId: item.staffId,
+            staffName: row.staffName,
+            signature: sigByDate.get(key),
+            lateStudents: [],
+            violatingStudents: [],
+            isSubmitted: false,
+            status: 'present' as any,
+          });
+        }
+      });
+    });
+    return out.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredReportRows, reportByStaffAndDate, dutyData.weekAssignments]);
 
   const buildAssignmentFormsHtml = (rows: DutySendDisplayRow[], autoPrint = true) => `
 <!DOCTYPE html>
@@ -1315,9 +1351,8 @@ ${buildReportLink(target)}` : ''}`;
   };
 
   const handlePrintAllReports = () => {
-    const all = dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted);
-    if (all.length === 0) { showToast?.('لا توجد تقارير مسلّمة للطباعة', 'warning'); return; }
-    openPrintableHtml(wrapReportHtml(all.map(r => buildSingleReportHtml(r)).join('')));
+    if (reportsInView.length === 0) { showToast?.('لا توجد نماذج تقارير في هذا الجدول المرسل', 'warning'); return; }
+    openPrintableHtml(wrapReportHtml(reportsInView.map(r => buildSingleReportHtml(r)).join('')));
   };
 
   const buildOfficialHeader = (title: string) => `
@@ -1679,8 +1714,8 @@ ${buildReportLink(target)}` : ''}`;
                 value={selectedAssignmentBatchId}
                 placeholder="اختر الجدول المرسل"
                 onChange={setSelectedAssignmentBatchId}
-                options={assignmentBatchOptions}
-                disabled={assignmentBatchOptions.length === 0}
+                options={batchOptions}
+                disabled={batchOptions.length === 0}
                 minWidthClass="min-w-[260px] max-w-[400px]"
               />
               <button type="button" onClick={() => { setReceiptSearch(''); setReceiptFilter('all'); refreshDutyDataFromStorage(); }}
@@ -1951,8 +1986,8 @@ ${buildReportLink(target)}` : ''}`;
               value={selectedReportBatchId}
               placeholder="اختر الجدول المرسل"
               onChange={setSelectedReportBatchId}
-              options={reportBatchOptions}
-              disabled={reportBatchOptions.length === 0}
+              options={batchOptions}
+              disabled={batchOptions.length === 0}
               minWidthClass="min-w-[260px] max-w-[400px]"
             />
             <button type="button" onClick={() => { setReportSearch(''); setReportFilter('all'); refreshDutyDataFromStorage(); }}
@@ -1966,10 +2001,10 @@ ${buildReportLink(target)}` : ''}`;
               طباعة سجل التسليم الإلكتروني
             </button>
             <button type="button" onClick={handlePrintAllReports}
-              disabled={dutyData.reports.filter(r => r.isSubmitted && !r.manuallySubmitted).length === 0}
+              disabled={reportsInView.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة كل التقارير المسلّمة
+              طباعة كل تقارير المناوبة{reportsInView.length > 0 ? ` (${reportsInView.length})` : ''}
             </button>
           </div>
         </div>
