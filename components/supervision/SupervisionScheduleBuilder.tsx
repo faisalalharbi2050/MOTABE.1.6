@@ -984,7 +984,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             <button
               onClick={openLocationsModal}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="تعيين مواقع الإشراف"
             >
               <MapPin size={16} />
@@ -992,7 +992,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </button>
             <button
               onClick={openFollowUpModal}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="إدارة المشرف المتابع"
             >
               <Shield size={16} />
@@ -1000,7 +1000,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setShowReportModal(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="عرض تقرير توزيع المشرفين"
             >
               <BarChart3 size={16} />
@@ -1008,7 +1008,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="إعادة الإنشاء"
             >
               <RotateCcw size={16} />
@@ -1016,7 +1016,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setShowDeleteAllConfirm(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
               title="حذف كل الإسنادات"
             >
               <Trash2 size={16} className="text-rose-600" />

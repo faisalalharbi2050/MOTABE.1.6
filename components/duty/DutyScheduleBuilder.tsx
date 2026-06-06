@@ -1,9 +1,9 @@
 ﻿import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, X, Trash2,
-  Search, Shield, Check, BarChart2,
+  Search, Shield, ShieldCheck, Check, BarChart2,
   ClipboardCheck, ClipboardX,
-  Eye, PenLine, Hourglass, CalendarCheck2
+  Eye, PenLine, Hourglass
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -35,10 +35,12 @@ const DutyScheduleBuilder: React.FC<Props> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState<string | null>(null);
   const [addPanelMode, setAddPanelMode] = useState<'add' | 'edit'>('add');
-  const [editStaffId, setEditStaffId] = useState<string | null>(null);
+  const [, setEditStaffId] = useState<string | null>(null);
   const [addSearch, setAddSearch] = useState('');
   const [addStaffTab, setAddStaffTab] = useState<'teacher' | 'admin'>('teacher');
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [deleteSelection, setDeleteSelection] = useState<Record<string, string[]>>({});
+  const [deleteSelectionMode, setDeleteSelectionMode] = useState<Record<string, boolean>>({});
   const [addPanelPosition, setAddPanelPosition] = useState<{ top: number; right: number } | null>(null);
   const [showDistributionReport, setShowDistributionReport] = useState(false);
   const [showStaffDistributionReport, setShowStaffDistributionReport] = useState(false);
@@ -134,7 +136,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     const genericDay = daInfo.day;
 
     updateDayAssignment(dayId, da => {
-      const newAssignments = selectedStaffIds.map(staffId => {
+      const existingById = new Map(da.staffAssignments.map(sa => [sa.staffId, sa]));
+      const buildAssignment = (staffId: string): DutyStaffAssignment | null => {
+        // المناوب المسند مسبقاً يُبقى كما هو (مع توقيعه وبياناته)
+        const existing = existingById.get(staffId);
+        if (existing) return existing;
         const staff = availableStaff.find(s => s.id === staffId);
         if (!staff) return null;
         let lastP = 0;
@@ -147,12 +153,19 @@ const DutyScheduleBuilder: React.FC<Props> = ({
           lastP = timing.periodCounts?.[genericDay] || 7;
         }
         return { staffId: staff.id, staffName: staff.name, staffType: staff.type, lastPeriod: lastP, isManual: true };
-      }).filter(Boolean) as DutyStaffAssignment[];
+      };
 
-      const currentAssignments = addPanelMode === 'edit' && editStaffId
-        ? da.staffAssignments.filter(sa => sa.staffId !== editStaffId)
-        : da.staffAssignments;
-      return { ...da, isDisabled: false, staffAssignments: [...currentAssignments, ...newAssignments] };
+      if (addPanelMode === 'edit') {
+        // وضع تعديل اليوم: يصبح المناوبون = المحدّدون بالضبط (إضافة/إزالة/استبدال في خطوة واحدة)
+        const newAssignments = selectedStaffIds.map(buildAssignment).filter(Boolean) as DutyStaffAssignment[];
+        return { ...da, isDisabled: false, staffAssignments: newAssignments };
+      }
+      // وضع الإضافة: نُلحق المحدّدين الجدد بالموجودين
+      const additions = selectedStaffIds
+        .filter(id => !existingById.has(id))
+        .map(buildAssignment)
+        .filter(Boolean) as DutyStaffAssignment[];
+      return { ...da, isDisabled: false, staffAssignments: [...da.staffAssignments, ...additions] };
     });
 
     setSelectedStaffIds([]);
@@ -161,7 +174,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     setEditStaffId(null);
     setAddSearch('');
     setAddStaffTab('teacher');
-    showToast(addPanelMode === 'edit' ? 'تم تعديل المناوب بنجاح' : 'تم إضافة المناوبين بنجاح', 'success');
+    showToast(addPanelMode === 'edit' ? 'تم تعديل مناوبي اليوم بنجاح' : 'تم إضافة المناوبين بنجاح', 'success');
   };
 
   const closeAddPanel = () => {
@@ -174,7 +187,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     setAddPanelPosition(null);
   };
 
-  const openAddPanel = (dayId: string, event?: React.MouseEvent<HTMLButtonElement>, staffIdToEdit?: string) => {
+  const openAddPanel = (dayId: string, event?: React.MouseEvent<HTMLButtonElement>, opts?: { editDay?: boolean }) => {
     if (event) {
       const rect = event.currentTarget.getBoundingClientRect();
       setAddPanelPosition({
@@ -182,12 +195,14 @@ const DutyScheduleBuilder: React.FC<Props> = ({
         right: Math.max(window.innerWidth - rect.right, 16),
       });
     }
-    const existing = staffIdToEdit ? getDayAssignment(dayId).staffAssignments.find(sa => sa.staffId === staffIdToEdit) : null;
+    const editDay = !!opts?.editDay;
+    // في وضع التعديل: نعرض النافذة والمناوبون الحاليون محدّدون مسبقًا لإلغاء/استبدال من تشاء.
+    const current = editDay ? getDayAssignment(dayId).staffAssignments : [];
     setShowAddPanel(dayId);
-    setAddPanelMode(staffIdToEdit ? 'edit' : 'add');
-    setEditStaffId(staffIdToEdit || null);
-    setSelectedStaffIds([]);
-    setAddStaffTab(existing?.staffType === 'admin' ? 'admin' : 'teacher');
+    setAddPanelMode(editDay ? 'edit' : 'add');
+    setEditStaffId(null);
+    setSelectedStaffIds(editDay ? current.map(sa => sa.staffId) : []);
+    setAddStaffTab(editDay && current[0]?.staffType === 'admin' ? 'admin' : 'teacher');
     setAddSearch('');
   };
 
@@ -247,10 +262,15 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
   const saveManualStaffAssignments = (dayId: string) => {
     if (selectedStaffIds.length === 0) {
+      // في وضع التعديل: إلغاء تحديد الجميع = تفريغ مناوبة اليوم
+      if (addPanelMode === 'edit') {
+        applyManualStaffAssignments(dayId);
+        return;
+      }
       closeAddPanel();
       return;
     }
-    
+
     const alreadyAssigned = addPanelMode === 'edit' ? [] : selectedStaffIds.filter(id => assignedStaffIds.has(id));
     if (alreadyAssigned.length > 0) {
       setConfirmState({
@@ -274,7 +294,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     if (!showAddPanel) return;
 
     setSelectedStaffIds(prev => {
-      if (addPanelMode === 'edit') return prev.includes(staffId) ? [] : [staffId];
       if (prev.includes(staffId)) return prev.filter(id => id !== staffId);
       return [...prev, staffId];
     });
@@ -289,26 +308,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       isDisabled: false,
       staffAssignments: !da.isOfficialLeave ? [] : da.staffAssignments,
     }));
-  };
-
-  const convertOfficialLeaveToWorkDay = (dayId: string) => {
-    setConfirmState({
-      title: 'تحويل إلى يوم عمل',
-      message: 'سيتم تحويل هذا اليوم من إجازة رسمية إلى يوم عمل وإتاحته لإضافة مناوبين دون إعادة إنشاء الجدول. هل تريد المتابعة؟',
-      confirmLabel: 'نعم، حوّل إلى يوم عمل',
-      tone: 'warning',
-      onConfirm: () => {
-        updateDayAssignment(dayId, da => ({
-          ...da,
-          isOfficialLeave: false,
-          officialLeaveText: undefined,
-          isRemoteWork: false,
-          isDisabled: false,
-          staffAssignments: da.staffAssignments || [],
-        }));
-        setConfirmState(null);
-      }
-    });
   };
 
   const removeStaffFromDay = (dayId: string, staffId: string) => {
@@ -357,6 +356,50 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       tone: 'danger',
       onConfirm: () => {
         updateDayAssignment(dayId, da => ({ ...da, staffAssignments: [] }));
+        setDeleteSelection(prev => ({ ...prev, [dayId]: [] }));
+        setDeleteSelectionMode(prev => ({ ...prev, [dayId]: false }));
+        setConfirmState(null);
+      }
+    });
+  };
+
+  // تبديل تحديد مناوب للحذف (الشيك-بوكس الدائري)
+  const toggleDeleteSelect = (dayId: string, staffId: string) => {
+    setDeleteSelection(prev => {
+      const current = prev[dayId] || [];
+      const next = current.includes(staffId) ? current.filter(id => id !== staffId) : [...current, staffId];
+      if (next.length === 0) {
+        setDeleteSelectionMode(mode => ({ ...mode, [dayId]: false }));
+      }
+      return {
+        ...prev,
+        [dayId]: next,
+      };
+    });
+  };
+
+  const handleDeleteForDay = (dayId: string) => {
+    const selected = deleteSelection[dayId] || [];
+    if (selected.length === 0) {
+      if (deleteSelectionMode[dayId]) {
+        setDeleteSelectionMode(prev => ({ ...prev, [dayId]: false }));
+        return;
+      }
+      setDeleteSelectionMode(prev => ({ ...prev, [dayId]: true }));
+      return;
+    }
+    setConfirmState({
+      title: 'حذف المناوبين المحددين',
+      message: `سيتم حذف ${selected.length} مناوب محدّد من مناوبة هذا اليوم. هل تريد المتابعة؟`,
+      confirmLabel: 'نعم، احذف',
+      tone: 'danger',
+      onConfirm: () => {
+        updateDayAssignment(dayId, da => ({
+          ...da,
+          staffAssignments: da.staffAssignments.filter(sa => !selected.includes(sa.staffId)),
+        }));
+        setDeleteSelection(prev => ({ ...prev, [dayId]: [] }));
+        setDeleteSelectionMode(prev => ({ ...prev, [dayId]: false }));
         setConfirmState(null);
       }
     });
@@ -452,17 +495,29 @@ const DutyScheduleBuilder: React.FC<Props> = ({
     } catch { return dateStr; }
   };
 
+  const getWeekLabel = (weekName: string | undefined, index: number) => {
+    const raw = (weekName || '').trim();
+    const match = raw.match(/\d+/);
+    return {
+      label: 'الأسبوع',
+      number: match ? match[0] : String(index + 1),
+    };
+  };
+
   const weeksForReport = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
     ? dutyData.weekAssignments
     : [{ weekId: 'legacy-week', weekName: 'الأسبوع الحالي', startDate: '', endDate: '', dayAssignments }];
 
   const distributionReportRows = weeksForReport.map(week => {
     const reportDays = week.dayAssignments.filter(da => !da.isOfficialLeave && !da.isDisabled);
+    const allInactive = week.dayAssignments.length === 0
+      || week.dayAssignments.every(da => da.isOfficialLeave || da.isDisabled);
     return {
       weekId: week.weekId,
       weekName: week.weekName || 'الأسبوع الحالي',
       assignedCount: reportDays.reduce((acc, da) => acc + da.staffAssignments.length, 0),
       daysWithoutDuty: reportDays.filter(da => da.staffAssignments.length === 0).length,
+      allInactive,
     };
   });
 
@@ -503,13 +558,24 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       .map(staff => ({
         id: staff.id,
         name: staff.name,
-        type: staff.type === 'teacher' ? 'معلم' : 'إداري',
+        type: staff.type === 'teacher' ? 'معلم' : ((staff as any).role || 'إداري'),
         count: countMap.get(staff.id) || 0,
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
   }, [availableStaff, dayAssignments]);
 
   const highestStaffAssignmentCount = Math.max(0, ...staffAssignmentCounts.map(staff => staff.count));
+  const renderWeekBadge = (weekName: string | undefined, index: number, centered = true) => {
+    const weekLabel = getWeekLabel(weekName, index);
+    return (
+      <span className={`inline-flex items-center gap-2 font-black text-slate-800 ${centered ? 'justify-center' : ''}`}>
+        <span>{weekLabel.label}</span>
+        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-300 bg-slate-50 px-2 text-[#655ac1] text-xs">
+          {weekLabel.number}
+        </span>
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -603,9 +669,9 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                   <tbody className="divide-y">
                     {distributionReportRows.map(row => (
                       <tr key={row.weekId} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 font-bold text-slate-700 text-center">{row.weekName}</td>
-                        <td className={`px-3 py-2 font-black text-center ${row.assignedCount === 0 ? 'text-rose-500' : 'text-emerald-600'}`}>{row.assignedCount}</td>
-                        <td className={`px-3 py-2 font-black text-center ${row.daysWithoutDuty > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.daysWithoutDuty}</td>
+                        <td className="px-3 py-2 font-bold text-slate-700 text-center">{renderWeekBadge(row.weekName, distributionReportRows.findIndex(item => item.weekId === row.weekId))}</td>
+                        <td className={`px-3 py-2 text-base font-black text-center ${row.allInactive || row.assignedCount === 0 ? 'text-rose-500' : 'text-emerald-600'}`}>{row.assignedCount}</td>
+                        <td className={`px-3 py-2 text-base font-black text-center ${row.allInactive || row.daysWithoutDuty > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.daysWithoutDuty}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -625,13 +691,13 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                     <tbody className="divide-y">
                       {distributionGapsByWeek.map(week => (
                         <tr key={week.weekId} className="hover:bg-slate-50">
-                          <td className="px-3 py-3 font-bold text-slate-700 text-center">{week.weekName}</td>
+                          <td className="px-3 py-3 font-bold text-slate-700 text-center">{renderWeekBadge(week.weekName, distributionReportRows.findIndex(item => item.weekId === week.weekId))}</td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-2">
                               {week.days.map(day => (
                                 <span
                                   key={`${week.weekId}-${day.day}-${day.date}`}
-                                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-600"
+                                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-rose-600"
                                 >
                                   <span>{DAY_NAMES[day.day]}</span>
                                   <span>{formatDisplayDate(day.date)}</span>
@@ -647,8 +713,14 @@ const DutyScheduleBuilder: React.FC<Props> = ({
               )}
 
               {distributionGaps.length === 0 && totalDutyAssignments > 0 && (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800">
-                  ✓ التوزيع مكتمل — جميع أيام المناوبة تحتوي على مناوب .
+                <div className="rounded-2xl p-4 border border-slate-300 bg-white flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shrink-0">
+                    <Check size={14} strokeWidth={3.5} />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-black text-emerald-700">التوزيع مكتمل</p>
+                    <p className="text-sm font-medium text-emerald-700/90">جميع أيام المناوبة تحتوي على مناوب.</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -686,13 +758,13 @@ const DutyScheduleBuilder: React.FC<Props> = ({
             <div className="p-5 overflow-y-auto space-y-4">
               <div className="rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-black text-slate-800 text-center">تقرير توزيع المناوبين</div>
-                <table className="w-full text-xs text-right">
+                <table className="w-full table-fixed text-xs text-right">
                   <thead className="bg-white border-b border-slate-100 text-[#655ac1]">
                     <tr>
-                      <th className="px-3 py-2 font-black text-center w-16">م</th>
-                      <th className="px-3 py-2 font-black">المناوب</th>
-                      <th className="px-3 py-2 font-black text-center w-32">الصفة</th>
-                      <th className="px-3 py-2 font-black text-center w-44">عدد المناوبة المسندة</th>
+                      <th className="px-3 py-2 font-black text-center w-[12%]">م</th>
+                      <th className="px-3 py-2 font-black text-center w-[38%]">المناوب</th>
+                      <th className="px-3 py-2 font-black text-center w-[24%]">الصفة</th>
+                      <th className="px-3 py-2 font-black text-center w-[26%]">عدد المناوبة المسندة</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -700,8 +772,12 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       const isHighest = highestStaffAssignmentCount > 0 && staff.count === highestStaffAssignmentCount;
                       return (
                         <tr key={staff.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                          <td className="px-3 py-3 font-bold text-slate-800">
+                          <td className="px-3 py-3 text-center">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 text-xs font-black text-slate-400">
+                              {index + 1}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 font-bold text-slate-800 text-center">
                             {staff.name}
                           </td>
                           <td className="px-3 py-3 text-center">
@@ -710,9 +786,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                             </span>
                           </td>
                           <td className="px-3 py-3 text-center">
-                            <span className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-black text-[#655ac1] ${
-                              isHighest ? 'border-2 border-amber-400' : ''
-                            }`}>
+                            <span className={`text-base font-black ${isHighest ? 'text-amber-600' : 'text-[#655ac1]'}`}>
                               {staff.count}
                             </span>
                           </td>
@@ -736,24 +810,35 @@ const DutyScheduleBuilder: React.FC<Props> = ({
       )}
 
       {/* Main Table Layout */}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {(() => {
           const weeksToRender = dutyData.weekAssignments && dutyData.weekAssignments.length > 0
             ? dutyData.weekAssignments
             : [{ weekId: 'legacy-week', weekName: '', startDate: '', endDate: '', dayAssignments: activeDays.map(day => getDayAssignment(day)) }];
 
           return weeksToRender.map((week, weekIndex) => (
-            <div key={week.weekId} className="bg-white rounded-[1.5rem] shadow-sm border border-slate-200 overflow-hidden">
+            <div key={week.weekId} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between">
-                <h4 className="font-black text-[#655ac1] text-lg">الأسبوع {weekIndex + 1}</h4>
+                {(() => {
+                  const weekLabel = getWeekLabel(week.weekName, weekIndex);
+                  return (
+                    <h4 className="font-black text-slate-800 text-lg inline-flex items-center gap-2">
+                      <ShieldCheck size={21} className="text-[#655ac1]" />
+                      <span>{weekLabel.label}</span>
+                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-slate-300 bg-slate-50 px-2 text-[#655ac1] text-sm">
+                        {weekLabel.number}
+                      </span>
+                    </h4>
+                  );
+                })()}
               </div>
               <div>
                 <table className="w-full text-sm text-right border-collapse table-fixed">
                   <thead>
-                    <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
-                      <th className="p-3 font-black w-[16%] border-l border-white/40 text-center">اليوم</th>
+                    <tr className="bg-[#a59bf0] text-white border-b border-slate-400">
+                      <th className="p-3 font-black w-[18%] border-l border-white/40 text-center">اليوم</th>
                       <th className="p-3 font-black w-[18%] border-l border-white/40 text-center">التاريخ</th>
-                      <th className="p-3 font-black w-[48%] border-l border-white/40 text-center">المناوب</th>
+                      <th className="p-3 font-black w-[44%] border-l border-white/40 text-center">المناوب</th>
                       {/* Signature column */}
                       <th className="hidden p-3 font-black text-white text-center w-[10%] border-l border-white/40">
                         <div className="flex items-center justify-center gap-1.5">
@@ -772,7 +857,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                         <span className="block">النموذج اليومي</span>
                       </th>
                       {/* Actions column */}
-                      <th className="p-3 font-black w-[18%] text-center print:hidden">إجراءات</th>
+                      <th className="p-3 font-black w-[20%] text-center print:hidden">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -783,30 +868,25 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       const canAddMore = !da.isRemoteWork && !da.isOfficialLeave && !da.isDisabled;
 
                       return (
-                        <tr key={dayId} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors align-top">
-                          {/* Day Column */}
-                          <td className="p-4 border-l border-slate-200/60 align-middle">
-                            <div className="flex flex-col justify-center items-center text-center gap-1">
-                              <h4 className="font-black text-slate-900 text-base">{DAY_NAMES[da.day]}</h4>
-                            </div>
+                        <tr key={dayId} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors align-top">
+                          {/* Day Column (with merged date) */}
+                          <td className="p-4 border-l border-slate-200/60 align-middle bg-slate-50/50 text-center">
+                            <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[da.day]}</h4>
                           </td>
 
-                          {/* Date Column */}
-                          <td className="p-4 border-l border-slate-200/60 align-middle text-center">
-                            {da.date ? (
-                              <span className="font-bold text-slate-700 text-sm">
+                          <td className="p-4 border-l border-slate-200/60 align-middle bg-slate-50/50 text-center">
+                            {da.date && (
+                              <span className="block font-black text-slate-700 text-sm leading-relaxed">
                                 {formatDisplayDate(da.date)}
                               </span>
-                            ) : (
-                              <span className="text-xs text-slate-400">-</span>
                             )}
                           </td>
 
                           {/* Staff Column */}
                           <td className="p-3 border-l border-slate-200/60 align-top">
                             {da.isOfficialLeave ? (
-                              <div className="flex items-center justify-center p-3 bg-amber-50/50 border border-amber-100 rounded-xl">
-                                <span className="font-black text-amber-600 text-sm">{da.officialLeaveText || 'إجازة رسمية'}</span>
+                              <div className="flex items-center justify-center min-h-[3rem] rounded-xl border-2 border-dashed border-rose-200 bg-rose-50">
+                                <span className="font-black text-rose-600 text-sm">{da.officialLeaveText || 'إجازة رسمية'}</span>
                               </div>
                             ) : da.isDisabled ? (
                               <div className="flex items-center justify-center p-3 bg-white border border-slate-200 rounded-xl">
@@ -819,20 +899,29 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                             ) : (
                               <div className="flex flex-col gap-2">
                                 {/* Assigned staff */}
-                                {staffAssignments.map((sa, idx) => (
-                                  <div key={sa.staffId} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm hover:border-[#655ac1]/20 transition-all">
-                                    {staffAssignments.length > 1 && (
-                                      <span className="w-5 h-5 rounded-full bg-[#e5e1fe] text-[#655ac1] text-[10px] font-black flex items-center justify-center shrink-0">{idx + 1}</span>
-                                    )}
-                                    <span className="font-bold text-slate-800 text-sm flex-1 text-right">{sa.staffName}</span>
-                                    <button
-                                      onClick={() => removeStaffFromDay(dayId, sa.staffId)}
-                                      className="w-7 h-7 rounded-lg flex items-center justify-center border border-slate-200 bg-white text-rose-600 hover:bg-rose-50 transition-colors"
-                                    >
-                                      <Trash2 size={13} />
-                                    </button>
-                                  </div>
-                                ))}
+                                {staffAssignments.map(sa => {
+                                  const isMarkedForDelete = (deleteSelection[dayId] || []).includes(sa.staffId);
+                                  const isDeleteMode = !!deleteSelectionMode[dayId];
+                                  return (
+                                    <div key={sa.staffId} className="flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-[#655ac1]/20 transition-all">
+                                      <span className="font-bold text-slate-800 text-sm flex-1 text-right">{sa.staffName}</span>
+                                      {isDeleteMode && (
+                                        <button
+                                          type="button"
+                                          onClick={() => toggleDeleteSelect(dayId, sa.staffId)}
+                                          title="حدّد للحذف"
+                                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                            isMarkedForDelete
+                                              ? 'bg-rose-500 border-rose-500 text-white'
+                                              : 'bg-white border-slate-300 text-transparent hover:border-rose-400'
+                                          }`}
+                                        >
+                                          <Check size={12} strokeWidth={3.5} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
 
                                 {/* Add button */}
                                 {(canAddMore || showAdd) && (
@@ -858,7 +947,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                             <div className="flex items-center gap-3">
                                               <Shield size={22} className="text-[#655ac1]" />
                                               <div>
-                                                <h3 className="text-base font-black text-slate-800">{addPanelMode === 'edit' ? 'تعديل المناوب' : 'إضافة مناوبين'}</h3>
+                                                <h3 className="text-base font-black text-slate-800">{addPanelMode === 'edit' ? 'تعديل المناوبين' : 'إضافة مناوبين'}</h3>
                                                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">{DAY_NAMES[da.day]}</p>
                                               </div>
                                             </div>
@@ -891,10 +980,13 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                           </div>
                                           <div className="flex-1 overflow-y-auto p-4 bg-white">
                                             {(() => {
+                                              const currentDayStaffIds = new Set(staffAssignments.map(sa => sa.staffId));
                                               const filtered = unassignedStaff
                                                 .filter(s => addPanelMode === 'edit' || !staffAssignments.some(sa => sa.staffId === s.id))
                                                 .filter(s => s.type === addStaffTab)
-                                                .filter(s => !addSearch.trim() || s.name.includes(addSearch));
+                                                .filter(s => !addSearch.trim() || s.name.includes(addSearch))
+                                                // في وضع التعديل: المناوبون الحاليون لهذا اليوم يظهرون أولاً
+                                                .sort((a, b) => (currentDayStaffIds.has(b.id) ? 1 : 0) - (currentDayStaffIds.has(a.id) ? 1 : 0));
                                               if (filtered.length === 0) {
                                                 return (
                                                   <div className="text-center py-6 text-slate-400 text-xs font-bold">
@@ -1100,30 +1192,19 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           {/* ── Actions Column (hidden in print) ── */}
                           <td className="p-3 align-middle print:hidden">
                             <div className="flex flex-row gap-2 items-center justify-center">
-                              {da.isOfficialLeave && (
-                                <div className="relative group">
-                                  <button
-                                    onClick={() => convertOfficialLeaveToWorkDay(dayId)}
-                                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-emerald-600 shadow-sm transition-all active:scale-95 hover:bg-emerald-50"
-                                  >
-                                    <CalendarCheck2 size={16} />
-                                  </button>
-                                  <span className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50">
-                                    تحويل إلى يوم عمل
-                                  </span>
-                                </div>
-                              )}
                               <button
-                                onClick={(e) => openAddPanel(dayId, e)}
+                                onClick={(e) => openAddPanel(dayId, e, { editDay: true })}
                                 disabled={da.isOfficialLeave || da.isDisabled}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] shadow-sm transition-all active:scale-95 hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="تعديل المناوبين"
                               >
                                 <PenLine size={15} />
                               </button>
                               <button
-                                onClick={() => clearDayStaff(dayId)}
+                                onClick={() => handleDeleteForDay(dayId)}
                                 disabled={da.isOfficialLeave || staffAssignments.length === 0}
-                                className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-rose-600 shadow-sm transition-all active:scale-95 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1.5 rounded-lg border border-slate-200 bg-transparent text-rose-600 hover:text-rose-700 hover:bg-transparent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={(deleteSelection[dayId] || []).length > 0 ? 'حذف المناوبين المحددين' : deleteSelectionMode[dayId] ? 'إلغاء تحديد الحذف' : 'تحديد المناوبين للحذف'}
                               >
                                 <Trash2 size={15} />
                               </button>

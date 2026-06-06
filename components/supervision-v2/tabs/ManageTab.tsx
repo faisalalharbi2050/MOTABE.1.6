@@ -368,7 +368,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
                             </button>
                             <button
                               onClick={() => { setEditingId(null); setEditingName(''); }}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:text-slate-700 transition-all"
                               title="إلغاء"
                             >
                               <X size={14} />
@@ -378,7 +378,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
                           <div className="flex items-center justify-center">
                             <button
                               onClick={(event) => openMenu(event, schedule.id)}
-                              className="p-2 text-slate-400 bg-white hover:text-primary hover:bg-primary/5 rounded-lg transition-all border border-slate-200"
+                              className="p-2 text-slate-600 bg-white hover:text-primary hover:bg-primary/5 rounded-lg transition-all border border-slate-200"
                               title="إجراءات"
                             >
                               <MoreHorizontal size={14} />

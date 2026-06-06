@@ -255,7 +255,7 @@ const ManageTab: React.FC<Props> = ({ dutyData, setDutyData, showToast }) => {
                           <div className="flex items-center justify-center">
                             <button
                               onClick={event => openMenu(event, schedule.id)}
-                              className="p-2 text-slate-400 bg-white hover:text-[#655ac1] hover:bg-[#f5f3ff] rounded-lg transition-all border border-slate-200"
+                              className="p-2 text-slate-600 bg-white hover:text-[#655ac1] hover:bg-[#f5f3ff] rounded-lg transition-all border border-slate-200"
                               title="إجراءات"
                             >
                               <MoreHorizontal size={15} />

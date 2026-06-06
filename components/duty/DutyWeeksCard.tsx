@@ -194,35 +194,36 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
 
   return (
     <div className="space-y-4">
-      {/* تعريف الفصل — أسفل العنوان والوصف، بنفس التصميم بلا إطار */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 -mt-1">
-        {currentSemester?.name && (
-          <span className="flex items-center gap-2 text-xs font-black text-[#655ac1]">
-            <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{currentSemester.name}
+      {/* شريط معلومات الفصل والحصيلة الرقمية */}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.18fr)] gap-3 items-stretch">
+        <div className="flex flex-wrap items-center justify-start gap-x-5 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl bg-white">
+          {currentSemester?.name && (
+            <span className="flex items-center gap-2 text-xs font-black text-[#655ac1]">
+              <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block" />{currentSemester.name}
+            </span>
+          )}
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
           </span>
-        )}
-        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />بداية الفصل: <DM dateObj={toDateObj(currentSemester?.startDate)} />
-        </span>
-        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: <DM dateObj={toDateObj(currentSemester?.endDate)} />
-        </span>
-      </div>
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />نهاية الفصل: <DM dateObj={toDateObj(currentSemester?.endDate)} />
+          </span>
+        </div>
 
-      {/* شريط الحصيلة الرقمية — ممتد */}
-      <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl">
-        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
-        </span>
-        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />أيام المناوبة: {stats.dutyDays} يوم
-        </span>
-        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-indigo-300 inline-block" />عن بُعد / بدون مناوبة: {stats.offDays}
-        </span>
-        <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />إجازة رسمية: {stats.holidayDays}
-        </span>
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1.5 px-5 py-2.5 border border-slate-200 rounded-xl bg-white">
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />{stats.activeWeeks} من {stats.totalWeeks} أسبوع
+          </span>
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />أيام المناوبة: {stats.dutyDays} يوم
+          </span>
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-indigo-300 inline-block" />عن بُعد / بدون مناوبة: {stats.offDays}
+          </span>
+          <span className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />إجازة رسمية: {stats.holidayDays}
+          </span>
+        </div>
       </div>
 
       {/* رأس قابل للطيّ لقائمة الأسابيع */}

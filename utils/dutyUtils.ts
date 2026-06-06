@@ -18,6 +18,7 @@ import {
   DutyReportRecord,
   Phase,
 } from '../types';
+import { buildAcademicWeeks, getCurrentAcademicSemester } from './academicCalendar';
 
 // ===== Constants =====
 export const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as const;
@@ -142,13 +143,7 @@ export function getDutyDayStatus(
   return override === 'off' ? 'disabled' : 'active';
 }
 
-const DUTY_WEEK_NAMES = [
-  'الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر',
-  'الحادي عشر', 'الثاني عشر', 'الثالث عشر', 'الرابع عشر', 'الخامس عشر', 'السادس عشر', 'السابع عشر', 'الثامن عشر',
-  'التاسع عشر', 'العشرون',
-];
-
-const getDutyWeekName = (weekNumber: number) => `الأسبوع ${DUTY_WEEK_NAMES[weekNumber - 1] || weekNumber}`;
+const getDutyWeekName = (weekNumber: number) => `الأسبوع ${weekNumber}`;
 
 export function generateDutyDates(
   schoolInfo: SchoolInfo,
@@ -158,136 +153,71 @@ export function generateDutyDates(
 ): DutyDateInfo[] {
   const timing = getTimingConfig(schoolInfo);
   const activeDays = timing.activeDays || DAYS.slice();
-  const currentSemester = schoolInfo.semesters?.find(s => s.isCurrent) || schoolInfo.semesters?.[0];
+  const currentSemester = getCurrentAcademicSemester(schoolInfo);
   const selectedWeekSet = selectedWeeks ? new Set(selectedWeeks) : null;
 
   const includeOfficialLeaves = options?.includeOfficialLeaves === true;
-
-  if (!currentSemester || !currentSemester.startDate || !currentSemester.endDate) {
-    // Fallback: single generic week if no semester dates
-    return activeDays.map(day => ({
-      date: '',
-      dayKey: day,
-      weekId: 'week-1',
-      weekName: getDutyWeekName(1)
-    }));
-  }
-
-  const parseGregorianDate = (str: string): Date | null => {
-    if (!str) return null;
-    const d = new Date(str);
-    if (!isNaN(d.getTime())) {
-      // Sanity-check: if year < 1800, it's likely a Hijri date parsed as Gregorian
-      if (d.getFullYear() < 1800) {
-        // Estimate Gregorian: Hijri year 1446 = approx 2024-2025
-        // Rough conversion: Gregorian = Hijri + 579 years (approx)
-        const parts = str.split('-');
-        if (parts.length === 3) {
-          const hijriYear = parseInt(parts[0]);
-          const month = parseInt(parts[1]);
-          const day = parseInt(parts[2]);
-          const gregYear = hijriYear + 579;
-          const approx = new Date(gregYear, month - 1, day);
-          if (!isNaN(approx.getTime())) return approx;
-        }
-        return null;
-      }
-      return d;
-    }
-    return null;
-  };
-
-  let startDate = parseGregorianDate(currentSemester.startDate || '');
-  let endDate = parseGregorianDate(currentSemester.endDate || '');
-
-  // If we still can't get valid dates, generate from weeksCount using today as anchor
-  if (!startDate || !endDate) {
-    const totalWeeks = currentSemester.weeksCount || 18;
-    // Start from first Sunday of this month as best estimate
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dayOfWeek = today.getDay();
-    const daysToSunday = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
-    startDate = new Date(today);
-    startDate.setDate(today.getDate() - (7 * Math.floor(totalWeeks / 2))); // center around today
-    // Find the next Sunday from startDate
-    while (startDate.getDay() !== 0) startDate.setDate(startDate.getDate() + 1);
-    endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + totalWeeks * 7);
-  }
-
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(0, 0, 0, 0);
-
-
-  const holidays = new Set(currentSemester.holidays || []);
-  const dates: DutyDateInfo[] = [];
-  let currentDate = new Date(startDate);
-
-  let weekCounter = 1;
-  let hasProcessedDays = false;
-  let safetyCounter = 0; // Prevent infinite loops
-  const MAX_DAYS = 365;
-
-  const totalWeeksExpected = currentSemester.weeksCount || 18;
-
 
   const getDayKey = (d: Date): string => {
     const daysArr = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     return daysArr[d.getDay()];
   };
 
-  while (currentDate <= endDate && safetyCounter < MAX_DAYS) {
-    const dayKey = getDayKey(currentDate);
-    // Use local string to ensure date doesn't shift backward
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+  // مصدر الحقيقة لتواريخ الأسابيع: نفس مُولّد أسابيع التقويم الدراسي المستخدم في لوحة المعلومات،
+  // حتى تتطابق أرقام الأسابيع وتواريخها الفعلية تماماً مع التقويم بدل عدّ الآحاد يدوياً.
+  const academicWeeks = buildAcademicWeeks(currentSemester);
 
-    // Saudi week starts on Sunday. Increment week counter if it's Sunday and we've already processed previous days.
-    if (dayKey === 'sunday' && hasProcessedDays) {
-      weekCounter++;
-    }
+  if (academicWeeks.length > 0) {
+    const holidays = new Set(currentSemester!.holidays || []);
+    const dates: DutyDateInfo[] = [];
 
-    const isOfficialLeave = holidays.has(dateStr);
-    if (activeDays.includes(dayKey) && (!isOfficialLeave || includeOfficialLeaves) && (!selectedWeekSet || selectedWeekSet.has(weekCounter))) {
-      const status = dutySettings
-        ? getDutyDayStatus(dutySettings, weekCounter, dayKey, dateStr, isOfficialLeave)
-        : (isOfficialLeave ? 'holiday' : 'active');
-      dates.push({
-        date: dateStr,
-        dayKey,
-        weekId: `week-${weekCounter}`,
-        weekName: getDutyWeekName(weekCounter),
-        weekNumber: weekCounter,
-        isOfficialLeave,
-        isRemoteWork: status === 'remote',
-        isDisabled: status === 'disabled',
+    academicWeeks.forEach(week => {
+      const weekNumber = week.number;
+      if (selectedWeekSet && !selectedWeekSet.has(weekNumber)) return;
+
+      week.days.forEach(dateStr => {
+        const dayKey = getDayKey(new Date(`${dateStr}T00:00:00`));
+        if (!activeDays.includes(dayKey)) return;
+
+        const isOfficialLeave = holidays.has(dateStr);
+        if (isOfficialLeave && !includeOfficialLeaves) return;
+
+        const status = dutySettings
+          ? getDutyDayStatus(dutySettings, weekNumber, dayKey, dateStr, isOfficialLeave)
+          : (isOfficialLeave ? 'holiday' : 'active');
+
+        dates.push({
+          date: dateStr,
+          dayKey,
+          weekId: `week-${weekNumber}`,
+          weekName: getDutyWeekName(weekNumber),
+          weekNumber,
+          isOfficialLeave,
+          isRemoteWork: status === 'remote',
+          isDisabled: status === 'disabled',
+        });
       });
-      hasProcessedDays = true;
-    } else if (dayKey === 'sunday' || dayKey === 'monday' || dayKey === 'tuesday' || dayKey === 'wednesday' || dayKey === 'thursday') {
-      // Even if it's a holiday, we mark that we've processed days so week logic doesn't break
-      hasProcessedDays = true; 
-    }
+    });
 
-    currentDate.setDate(currentDate.getDate() + 1);
-    safetyCounter++;
+    if (dates.length > 0) return dates;
   }
 
-  // Safety fallback if loop generated zero valid days but we have a weeksCount
-  if (dates.length === 0 && totalWeeksExpected > 0) {
-     for (let w = 1; w <= totalWeeksExpected; w++) {
-       if (selectedWeekSet && !selectedWeekSet.has(w)) continue;
-       activeDays.forEach(day => {
-         dates.push({
-           date: '',
-           dayKey: day,
-           weekId: `week-${w}`,
-           weekName: getDutyWeekName(w)
-         });
-       });
-     }
+  // Fallback: لا توجد تواريخ فصل صالحة — نُولّد أسابيع عامة بلا تواريخ بالاعتماد على عدد الأسابيع.
+  const totalWeeksExpected = currentSemester?.weeksCount || 18;
+  const fallbackDates: DutyDateInfo[] = [];
+  for (let w = 1; w <= totalWeeksExpected; w++) {
+    if (selectedWeekSet && !selectedWeekSet.has(w)) continue;
+    activeDays.forEach(day => {
+      fallbackDates.push({
+        date: '',
+        dayKey: day,
+        weekId: `week-${w}`,
+        weekName: getDutyWeekName(w),
+        weekNumber: w,
+      });
+    });
   }
-
-  return dates;
+  return fallbackDates;
 }
 
 interface DutyStaffScore {

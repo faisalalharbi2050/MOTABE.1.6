@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Eye, CalendarDays, CalendarRange, ClipboardList } from 'lucide-react';
+import { CalendarDays, CalendarRange, ClipboardList, ShieldCheck } from 'lucide-react';
 import { SchoolInfo, DutyScheduleData } from '../../../types';
 import { getDutyPrintData } from '../../../utils/dutyUtils';
 
@@ -41,7 +41,43 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
   const isDayVisible = (name: string) =>
     selectedDayNames.length === 0 || selectedDayNames.includes(name);
 
-  const hasAnyData = weeks.some(w => w.days.some(d => d.supervisors.length > 0));
+  const hasAnyData = weeks.some(w => w.days.some(d => d.supervisors.length > 0 || d.statusText));
+
+  const getWeekLabel = (weekName: string | undefined, index: number) => {
+    const raw = (weekName || '').trim();
+    const match = raw.match(/\d+/);
+    return {
+      label: 'الأسبوع',
+      number: match ? match[0] : String(index + 1),
+    };
+  };
+
+  const calendarType = schoolInfo.calendarType
+    || schoolInfo.semesters?.find(s => s.isCurrent)?.calendarType
+    || schoolInfo.semesters?.[0]?.calendarType || 'hijri';
+
+  const formatPreviewDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return calendarType === 'hijri'
+        ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d)
+        : new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(d);
+    } catch { return dateStr; }
+  };
+
+  const WeekBadge: React.FC<{ weekName?: string; index: number; compact?: boolean; active?: boolean }> = ({ weekName, index, compact = false, active = false }) => {
+    const weekLabel = getWeekLabel(weekName, index);
+    return (
+      <span className={`inline-flex items-center justify-center gap-2 font-black ${compact ? 'text-sm' : 'text-base'} ${active ? 'text-white' : 'text-slate-800'}`}>
+        <span>{weekLabel.label}</span>
+        <span className={`${compact ? 'h-7 min-w-7 text-xs' : 'h-8 min-w-8 text-sm'} inline-flex items-center justify-center rounded-full border bg-transparent px-2 text-[#655ac1] ${active ? 'border-white' : 'border-slate-300'}`}>
+          {weekLabel.number}
+        </span>
+      </span>
+    );
+  };
 
   // ─── حالة عدم وجود جدول ───
   if (!hasAnyData) {
@@ -73,7 +109,7 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
               <CalendarRange size={15} className="text-[#655ac1]" />
               <span className="text-xs font-black text-slate-500">الأسبوع</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="mb-2">
               <button
                 type="button"
                 onClick={() => setSelectedWeeks([])}
@@ -81,6 +117,8 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
               >
                 كل الأسابيع
               </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
               {weeks.map((w, i) => (
                 <button
                   key={i}
@@ -88,7 +126,7 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
                   onClick={() => toggleWeek(i)}
                   className={`${chipBase} ${selectedWeeks.includes(i) ? chipActive : chipIdle}`}
                 >
-                  {w.weekName || `الأسبوع ${i + 1}`}
+                  <WeekBadge weekName={w.weekName} index={i} compact active={selectedWeeks.includes(i)} />
                 </button>
               ))}
             </div>
@@ -123,7 +161,7 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
         </div>
       </div>
 
-      {/* ═══ الجداول ═══ */}
+      {/* ═══ الجداول (كل أسبوع في صف واحد عرضي) ═══ */}
       {visibleWeeks.map((week, wi) => {
         const days = week.days.filter(d => isDayVisible(d.dayName));
         if (days.length === 0) return null;
@@ -131,10 +169,8 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
           <div key={wi} className="bg-white rounded-[2rem] p-5 sm:p-6 border border-slate-200 shadow-sm">
             {/* رأس المعاينة */}
             <div className="flex items-center gap-2 mb-4">
-              <Eye size={22} className="text-[#655ac1] shrink-0" />
-              <h3 className="text-base font-black text-slate-800 leading-tight truncate">
-                {week.weekName ? week.weekName : 'جدول المناوبة اليومية'}
-              </h3>
+              <ShieldCheck size={22} className="text-[#655ac1] shrink-0" />
+              <WeekBadge weekName={week.weekName} index={wi} />
             </div>
 
             <div className="overflow-x-auto custom-scrollbar rounded-2xl border border-slate-200">
@@ -142,8 +178,8 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
                 <thead>
                   <tr className="bg-[#a59bf0] text-white border-b border-slate-400">
                     <th className="px-3 py-4 font-black text-center w-[120px] border-l border-white/40">اليوم</th>
-                    <th className="px-3 py-4 font-black text-center border-l border-white/40">المناوب</th>
-                    <th className="px-3 py-4 font-black text-center w-[110px]">آخر حصة</th>
+                    <th className="px-3 py-4 font-black text-center w-[150px] border-l border-white/40">التاريخ</th>
+                    <th className="px-3 py-4 font-black text-center">المناوب</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -151,40 +187,32 @@ const PreviewTab: React.FC<Props> = ({ dutyData, schoolInfo }) => {
                     <tr key={di} className="border-b-2 border-slate-300 last:border-b-0 hover:bg-slate-50/40 transition-colors">
                       <td className="px-3 py-3 align-middle text-center border-l border-slate-200 bg-slate-50/50">
                         <div className="font-black text-[#655ac1] text-base">{day.dayName}</div>
+                      </td>
+                      <td className="px-3 py-3 align-middle text-center border-l border-slate-200 bg-slate-50/50">
                         {day.date && (
-                          <div className="text-[11px] font-medium text-slate-400 mt-0.5">{day.date}</div>
+                          <div className="text-sm font-black text-slate-700 leading-relaxed">{formatPreviewDate(day.date)}</div>
                         )}
                       </td>
                       {day.statusText ? (
-                        <td colSpan={2} className="px-3 py-3 align-middle text-center text-xs font-bold text-slate-400">
-                          {day.statusText}
+                        <td className="px-3 py-3 align-middle text-center">
+                          <div className="flex items-center justify-center min-h-[3rem] rounded-xl border-2 border-dashed border-rose-200 bg-rose-50">
+                            <span className="font-black text-rose-600 text-sm">{day.statusText}</span>
+                          </div>
                         </td>
                       ) : day.supervisors.length === 0 ? (
-                        <td colSpan={2} className="px-3 py-3 align-middle text-center">
+                        <td className="px-3 py-3 align-middle text-center">
                           <span className="text-[11px] font-medium text-slate-300">—</span>
                         </td>
                       ) : (
-                        <>
-                          <td className="px-3 py-3 align-middle text-center border-l border-slate-200">
-                            <div className="divide-y divide-slate-100">
-                              {day.supervisors.map((s, si) => (
-                                <div key={si} className="py-2 first:pt-0 last:pb-0 leading-snug">
-                                  <span className="text-xs font-bold text-slate-800">{s.name}</span>
-                                  <span className="text-[11px] font-medium text-slate-400 mr-1">({s.type})</span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 align-middle text-center">
-                            <div className="divide-y divide-slate-100">
-                              {day.supervisors.map((s, si) => (
-                                <div key={si} className="py-2 first:pt-0 last:pb-0 text-xs font-bold text-slate-800 leading-snug">
-                                  {s.lastPeriod ? `الحصة ${s.lastPeriod}` : <span className="text-slate-300">—</span>}
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </>
+                        <td className="px-3 py-3 align-middle text-center">
+                          <div className="divide-y divide-slate-100">
+                            {day.supervisors.map((s, si) => (
+                              <div key={si} className="py-2 first:pt-0 last:pb-0 leading-snug">
+                                <span className="text-[13px] font-bold text-slate-800">{s.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
                       )}
                     </tr>
                   ))}

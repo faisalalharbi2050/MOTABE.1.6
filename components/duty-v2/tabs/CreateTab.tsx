@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, BarChart3, Lightbulb, PenLine, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Users, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BarChart3, PenLine, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Users, UserCog, Wand2 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
   DutyScheduleData, DutyDayAssignment,
@@ -168,60 +168,95 @@ const CreateTab: React.FC<Props> = ({
 
   const hasSchedule = dutyData.dayAssignments.length > 0 || (dutyData.weekAssignments?.length ?? 0) > 0;
 
+  const autoDisabled = availableStaff.length === 0;
+
   const emptyState = (
     <div dir="rtl" className="space-y-5">
+      {/* Choice cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-        <div className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex flex-col">
+        {/* ════ Auto card ════ */}
+        <div
+          className={`relative rounded-3xl p-6 border-2 bg-white transition-all flex flex-col ${
+            autoDisabled ? 'border-slate-200 opacity-70' : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+          }`}
+        >
           <div className="absolute top-4 left-4">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8779fb] bg-white border border-slate-300 rounded-full px-3 py-1.5">
-              <Users size={12} className="text-[#8779fb]" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] bg-white rounded-full px-3 py-1.5">
+              <Users size={12} className="text-[#655ac1]" />
               {availableStaff.length} مناوب متاح
             </span>
           </div>
           <div className="flex items-center gap-3 mb-4 pl-28">
-            <Wand2 size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+            <Wand2 size={22} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
             <h3 className="text-lg font-black text-slate-800">إنشاء جدول آلي</h3>
           </div>
-          <div className="text-xs font-medium text-slate-600 leading-relaxed mb-4 space-y-2">
-            <p className="font-bold text-slate-700">يقوم النظام بتوزيع المناوبين آلياً:</p>
-            <ul className="space-y-1.5 pr-4 list-disc marker:text-[#8779fb]">
-              <li><span className="font-bold text-slate-700">المعلمون:</span> يتم اختيار من لديه حصة أخيرة أو قبل الأخيرة.</li>
-              <li><span className="font-bold text-slate-700">الإداريون:</span> يتم توزيعهم عشوائياً مع مراعاة التوازن.</li>
-            </ul>
-            <p className="font-bold text-slate-700">يمكنك التعديل بسهولة على التوزيع بعد الإنشاء.</p>
+
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 mb-4 space-y-3">
+            <p className="text-xs font-bold text-slate-700">يوزّع النظام المناوبين تلقائياً وفق التالي:</p>
+
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 shrink-0 w-6 h-6 text-[#655ac1] flex items-center justify-center">
+                <Users size={14} strokeWidth={2} />
+              </span>
+              <div className="text-[11px] leading-relaxed text-slate-600">
+                <span className="font-bold text-slate-700">المعلمون:</span> يُختار من لديه الحصة الأخيرة أو ما قبلها، قدر الإمكان.
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 shrink-0 w-6 h-6 text-[#655ac1] flex items-center justify-center">
+                <UserCog size={14} strokeWidth={2} />
+              </span>
+              <div className="text-[11px] leading-relaxed text-slate-600">
+                <span className="font-bold text-slate-700">الإداريون:</span> يوزَّعون بالتناوب مع مراعاة التوازن.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/70 text-[11px] font-bold text-[#655ac1]">
+              <PenLine size={12} strokeWidth={2.2} className="shrink-0" />
+              يمكنك تعديل التوزيع بسهولة بعد إنشائه.
+            </div>
           </div>
+
           <button
             onClick={buildAutoSchedule}
-            disabled={availableStaff.length === 0}
+            disabled={autoDisabled}
             className={`mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border text-sm font-bold transition-all ${
-              availableStaff.length === 0
+              autoDisabled
                 ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-[#655ac1] border-[#655ac1] text-white hover:shadow-lg hover:-translate-y-0.5 shadow-md shadow-[#655ac1]/20'
+                : 'bg-[#655ac1] border-[#655ac1] text-white hover:bg-[#655ac1] hover:border-[#655ac1] hover:shadow-lg hover:-translate-y-0.5 shadow-md shadow-[#655ac1]/20'
             }`}
           >
             <Sparkles size={16} />
             إنشاء جدول آلي
             <ArrowLeft size={16} />
           </button>
+
+          {autoDisabled && (
+            <p className="mt-3 text-[11px] font-bold text-rose-600 leading-relaxed">⚠️ لا يوجد مناوبون متاحون — راجع قائمة المناوبين في الإعدادات</p>
+          )}
         </div>
 
+        {/* ════ Manual card ════ */}
         <div className="relative rounded-3xl p-6 border-2 bg-white border-slate-200 hover:border-slate-300 hover:shadow-md transition-all flex flex-col">
           <div className="absolute top-4 left-4">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8779fb] bg-white border border-slate-300 rounded-full px-3 py-1.5">
-              <Users size={12} className="text-[#8779fb]" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#655ac1] bg-white rounded-full px-3 py-1.5">
+              <Users size={12} className="text-[#655ac1]" />
               {availableStaff.length} مناوب متاح
             </span>
           </div>
           <div className="flex items-center gap-3 mb-4 pl-28">
-            <PenLine size={22} strokeWidth={1.8} className="text-[#8779fb] shrink-0" />
+            <PenLine size={20} strokeWidth={1.8} className="text-[#655ac1] shrink-0" />
             <h3 className="text-lg font-black text-slate-800">إنشاء جدول يدوي</h3>
           </div>
+
           <p className="text-xs font-medium text-slate-600 leading-relaxed mb-4">
-            أنشئ جدول المناوبة مفرغاً ووزع المناوبين يدوياً من قائمة المعلمين والإداريين وفق ما يناسبك.
+            أنشئ جدول المناوبة اليومية مفرغًا ووزع المناوبين يدويًا وفق ما يناسبك.
           </p>
+
           <button
             onClick={buildEmptySchedule}
-            className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white hover:shadow-lg hover:-translate-y-0.5 shadow-md shadow-[#655ac1]/20 transition-all"
+            className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white hover:bg-[#655ac1] hover:border-[#655ac1] hover:shadow-lg hover:-translate-y-0.5 shadow-md shadow-[#655ac1]/20 transition-all"
           >
             <PenLine size={16} />
             إنشاء جدول يدوي
@@ -230,10 +265,11 @@ const CreateTab: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Tip — same style as Basic Settings tip */}
       <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
-        <Lightbulb size={15} className="text-amber-600 shrink-0 mt-0.5" />
         <span className="text-[11px] font-medium text-amber-800 leading-relaxed">
-          يمكنك تغيير طريقة إنشاء الجدول في أي وقت من خلال زر <span className="font-bold text-amber-900">إعادة الإنشاء</span> في شريط أدوات الجدول.
+          💡 يمكنك تغيير طريقة إنشاء الجدول في أي وقت من خلال زر{' '}
+          <span className="font-bold text-amber-900">«إعادة الإنشاء»</span> في شريط أدوات الجدول.
         </span>
       </div>
     </div>
@@ -251,21 +287,12 @@ const CreateTab: React.FC<Props> = ({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmMode(null)}>
           <div className="bg-white rounded-[2rem] shadow-2xl p-6 w-full max-w-md" dir="rtl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 {confirmMode === 'clear' ? <Trash2 size={24} className="text-rose-500" /> : <AlertTriangle size={24} className="text-rose-500" />}
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-black text-slate-800">
-                  {confirmMode === 'clear' ? 'حذف كل الإسنادات' : 'إعادة إنشاء جدول المناوبة'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setConfirmMode(null)}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
-                title="إغلاق"
-              >
-                <X size={18} />
-              </button>
+              <h3 className="text-lg font-black text-slate-800">
+                {confirmMode === 'clear' ? 'حذف كل الإسنادات' : 'إعادة إنشاء جدول المناوبة'}
+              </h3>
             </div>
             <p className="text-sm text-slate-600 font-medium leading-relaxed mb-5">
               {confirmMode === 'clear'
@@ -294,15 +321,15 @@ const CreateTab: React.FC<Props> = ({
 
       {hasSchedule && (
         <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-200">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div className="flex items-center gap-3">
+          <div dir="rtl" className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-3 shrink-0">
               <SlidersHorizontal size={22} className="text-[#655ac1]" />
-              <h3 className="text-base font-black text-slate-800">إجراءات جدول المناوبة اليومية</h3>
+              <h3 className="text-base font-black text-slate-800 whitespace-nowrap">إدارة جدول المناوبة</h3>
             </div>
-            <div dir="rtl" className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('motabe:duty_distribution_report'))}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
                 title="عرض تقرير توزيع المناوبة"
               >
                 <BarChart3 size={16} />
@@ -310,7 +337,7 @@ const CreateTab: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('motabe:duty_staff_distribution_report'))}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
                 title="عرض تقرير توزيع المناوبين"
               >
                 <BarChart3 size={16} />
@@ -318,7 +345,7 @@ const CreateTab: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => setConfirmMode('regenerate')}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-slate-200 text-slate-700 hover:border-[#655ac1] hover:bg-white transition-all"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
                 title="إعادة الإنشاء"
               >
                 <RotateCcw size={16} />
@@ -326,10 +353,10 @@ const CreateTab: React.FC<Props> = ({
               </button>
               <button
                 onClick={() => setConfirmMode('clear')}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border-2 border-rose-200 text-rose-600 hover:border-rose-400 hover:bg-rose-50 transition-all"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-all"
                 title="حذف كل الإسنادات"
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} className="text-rose-600" />
                 حذف الكل
               </button>
             </div>

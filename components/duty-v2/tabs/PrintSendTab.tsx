@@ -34,7 +34,6 @@ interface Props {
 }
 
 type TaskMode = 'print' | 'send';
-type PaperSize = 'A4' | 'A3';
 type PrintColorMode = 'color' | 'bw';
 type PrintSignatureMode = 'with' | 'without';
 type SchedulePrintScope = 'all' | 'selectedWeeks';
@@ -48,6 +47,8 @@ type DropdownOption = {
   label: string;
   searchText?: string;
   disabled?: boolean;
+  badge?: 'معطّل' | 'إجازة';
+  weekNumber?: string;
 };
 
 type DutySendFlatRow = {
@@ -206,10 +207,14 @@ const MultiSelectDropdown: React.FC<{
   minWidthClass?: string;
   searchable?: boolean;
   searchPlaceholder?: string;
-}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, disabled = false, minWidthClass = 'min-w-[260px]', searchable = false, searchPlaceholder = 'ابحث...' }) => {
+  renderOption?: (option: DropdownOption, selected: boolean) => React.ReactNode;
+  singleBulkToggle?: boolean;
+}> = ({ label, buttonLabel, options, selectedValues, onToggle, onClear, onSelectAll, selectedSummary, disabled = false, minWidthClass = 'min-w-[260px]', searchable = false, searchPlaceholder = 'ابحث...', renderOption, singleBulkToggle = false }) => {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const { triggerRef, panelRef, position } = useDropdownPosition(open, () => setOpen(false));
+  const selectableOptions = options.filter(option => !option.disabled);
+  const allSelectableSelected = selectableOptions.length > 0 && selectableOptions.every(option => selectedValues.includes(option.value));
   const visibleOptions = useMemo(() => {
     const q = normalizeSearchText(searchValue);
     if (!q) return options;
@@ -238,9 +243,26 @@ const MultiSelectDropdown: React.FC<{
           className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
           style={{ top: position.top, left: position.left, width: position.width }}
         >
-          <div className="flex items-center justify-between px-2 py-2 mb-2 border border-slate-100 bg-slate-50 rounded-xl">
-            {onSelectAll ? <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button> : <span />}
-            <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
+          <div className="mb-2 flex justify-end">
+            {singleBulkToggle && onSelectAll ? (
+              <button
+                type="button"
+                onClick={allSelectableSelected ? onClear : onSelectAll}
+                disabled={selectableOptions.length === 0}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                  selectableOptions.length === 0
+                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                }`}
+              >
+                {allSelectableSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+              </button>
+            ) : (
+              <div className="flex items-center justify-between px-2 py-2 border border-slate-100 bg-slate-50 rounded-xl">
+                {onSelectAll ? <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button> : <span />}
+                <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
+              </div>
+            )}
           </div>
           {searchable && (
             <div className="relative mb-2">
@@ -270,12 +292,14 @@ const MultiSelectDropdown: React.FC<{
                   selected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                 }`}
               >
-                  <span>{option.label}</span>
-                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                    selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
-                  }`}>
-                    <Check size={12} strokeWidth={3.5} />
-                  </span>
+                  <span>{renderOption ? renderOption(option, selected) : option.label}</span>
+                  {!option.disabled && (
+                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                      selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                    }`}>
+                      <Check size={12} strokeWidth={3.5} />
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -332,6 +356,38 @@ const formatHijriDateTime = (date?: string) => {
   }).format(parsed);
 };
 
+const getWeekNumberLabel = (weekName: string | undefined, index: number) =>
+  (weekName || '').match(/\d+/)?.[0] || String(index + 1);
+
+const getWeekPrintBadge = (week: DutyWeekAssignment): DropdownOption['badge'] => {
+  const days = week.dayAssignments || [];
+  if (days.length === 0) return 'معطّل';
+  if (days.every(day => day.isDisabled)) return 'معطّل';
+  if (days.every(day => day.isOfficialLeave)) return 'إجازة';
+  return undefined;
+};
+
+const renderWeekOption = (option: DropdownOption, selected: boolean) => (
+  <span className={`flex items-center gap-2 ${option.disabled ? 'text-slate-400' : selected ? 'text-[#655ac1]' : 'text-slate-800'}`}>
+    <span className="font-black">الأسبوع</span>
+    <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-[11px] font-black ${
+      option.disabled ? 'border-slate-200 bg-slate-50 text-slate-400' :
+      selected ? 'border-[#655ac1]/30 bg-[#f0edff] text-[#655ac1]' : 'border-slate-200 bg-slate-50 text-[#655ac1]'
+    }`}>
+      {option.weekNumber || option.label}
+    </span>
+    {option.badge && (
+      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${
+        option.badge === 'إجازة'
+          ? 'border-rose-100 bg-rose-50 text-rose-600'
+          : 'border-slate-200 bg-slate-100 text-slate-500'
+      }`}>
+        {option.badge}
+      </span>
+    )}
+  </span>
+);
+
 const formatPickerDate = (date: DateObject | null) => {
   if (!date) return '';
   return date.convert(gregorian).format('YYYY-MM-DD');
@@ -371,7 +427,6 @@ const PrintSendTab: React.FC<Props> = ({
   const [taskMode, setTaskMode] = useState<TaskMode>(mode === 'send' || openReminderFromDashboard ? 'send' : 'print');
   const [schedulePrintScope, setSchedulePrintScope] = useState<SchedulePrintScope>('all');
   const [selectedWeekIds, setSelectedWeekIds] = useState<string[]>([]);
-  const [paperSize, setPaperSize] = useState<PaperSize>('A4');
   const [printColorMode, setPrintColorMode] = useState<PrintColorMode>('color');
   const [printSignatureMode, setPrintSignatureMode] = useState<PrintSignatureMode>('without');
   const [showNotesField, setShowNotesField] = useState(false);
@@ -1081,14 +1136,13 @@ ${buildReportLink(target)}` : ''}`;
   `;
 
   const renderScheduleStaffCell = (day: DutyDayAssignment) => {
-    if (day.isOfficialLeave) return `<span class="empty-state">${escapeHtml(day.officialLeaveText || 'إجازة رسمية')}</span>`;
+    if (day.isOfficialLeave) return `<span class="official-leave">${escapeHtml(day.officialLeaveText || 'إجازة رسمية')}</span>`;
     if (day.isRemoteWork) return '<span class="empty-state">عمل عن بعد</span>';
     if (day.isDisabled) return '<span class="empty-state">يوم غير مفعل</span>';
     if (day.staffAssignments.length === 0) return '<span class="empty-state">لا يوجد مناوب</span>';
     return day.staffAssignments.map(staff => `
       <div class="staff-card">
         <div class="staff-name">${escapeHtml(staff.staffName)}</div>
-        <div class="staff-type">${staff.staffType === 'teacher' ? 'معلم' : 'إداري'}</div>
       </div>
     `).join('');
   };
@@ -1116,7 +1170,17 @@ ${buildReportLink(target)}` : ''}`;
     const includeSignature = useElectronic ? true : printSignatureMode === 'with';
     const isBW = printColorMode === 'bw';
     const finalFooter = showNotesField ? footerText.trim() : '';
-    const printableWeeks = selectedWeeks;
+    const printableWeeks = selectedWeeks.filter(week => {
+      const days = week.dayAssignments || [];
+      if (days.length === 0) return false;
+      const allDisabled = days.every(day => day.isDisabled);
+      const allOfficialLeave = days.every(day => day.isOfficialLeave);
+      return !allDisabled && !allOfficialLeave;
+    });
+    if (printableWeeks.length === 0) {
+      showToast?.('لا توجد أسابيع قابلة للطباعة بعد استبعاد الأسابيع المعطلة أو الإجازات الرسمية.', 'warning');
+      return;
+    }
 
     openPrintableHtml(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -1125,53 +1189,54 @@ ${buildReportLink(target)}` : ''}`;
   <title>جدول المناوبة اليومية</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
-    @page { size: ${paperSize} landscape; margin: 10mm; }
+    @page { size: A4 portrait; margin: 7mm; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: 'Tajawal', Arial, sans-serif; color: #1e293b; background: #fff; ${isBW ? 'filter: grayscale(100%);' : ''} }
     .page { padding: 0; }
-    .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: start; gap: 12px; border-bottom: 2px solid #1e293b; padding-bottom: 12px; margin-bottom: 14px; }
-    .header-side { font-size: 12px; font-weight: 800; line-height: 1.8; color: #1e293b; }
+    .official-header { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: start; gap: 8px; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 8px; }
+    .header-side { font-size: 9px; font-weight: 800; line-height: 1.35; color: #1e293b; }
     .header-left { text-align: left; }
     .header-center { text-align: center; }
-    .school-logo { width: 58px; height: 58px; object-fit: contain; margin-bottom: 6px; }
-    .logo-placeholder { width: 58px; height: 58px; margin: 0 auto 6px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; font-weight: 900; }
-    h1 { margin: 0; font-size: 19px; font-weight: 900; color: #111827; }
+    .school-logo { width: 42px; height: 42px; object-fit: contain; margin-bottom: 3px; }
+    .logo-placeholder { width: 42px; height: 42px; margin: 0 auto 3px; border: 2px solid #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 8px; font-weight: 900; }
+    h1 { margin: 0; font-size: 15px; font-weight: 900; color: #111827; }
     .weeks-grid { display: block; }
-    .week-card { border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
-    .week-title { background: #fff; border-bottom: 1px solid #f1f5f9; padding: 12px 16px; color: #655ac1; font-size: 15px; font-weight: 900; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
-    th { background: ${isBW ? '#e2e8f0' : '#a59bf0'}; color: ${isBW ? '#1e293b' : '#fff'}; font-weight: 900; padding: 10px 8px; border-left: 1px solid ${isBW ? '#cbd5e1' : 'rgba(255,255,255,0.45)'}; text-align: center; }
-    td { border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 10px; vertical-align: middle; }
+    .week-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 7px; page-break-inside: avoid; break-inside: avoid; }
+    .week-title { background: #fff; border-bottom: 1px solid #f1f5f9; padding: 5px 8px; color: #1e293b; font-size: 10px; font-weight: 900; display:flex; align-items:center; gap:5px; }
+    .week-number { min-width:22px; height:22px; padding:0 6px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; border:1px solid #cbd5e1; background:#f8fafc; color:#655ac1; font-size:10px; font-weight:900; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8.5px; }
+    th { background: ${isBW ? '#e2e8f0' : '#a59bf0'}; color: ${isBW ? '#1e293b' : '#fff'}; font-weight: 900; padding: 4px 3px; border-left: 1px solid ${isBW ? '#cbd5e1' : 'rgba(255,255,255,0.45)'}; text-align: center; }
+    td { border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 4px; vertical-align: middle; }
     th:last-child, td:last-child { border-left: 0; }
     tbody tr:last-child td { border-bottom: 0; }
     tbody tr:hover td, tbody tr:nth-child(even) td { background: ${isBW ? '#fff' : '#f8fafc'}; }
-    .day-cell { text-align: center; font-weight: 900; color: #111827; font-size: 13px; }
-    .date-cell { text-align: center; font-weight: 800; color: #475569; }
-    .staff-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; background: #fff; }
+    .day-cell { text-align: center; font-weight: 900; color: #655ac1; font-size: 9px; }
+    .day-cell .date-sub { display: block; margin-top: 1px; font-size: 7px; font-weight: 800; color: #94a3b8; }
+    .staff-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 3px 5px; margin-bottom: 2px; background: #fff; }
     .staff-card:last-child { margin-bottom: 0; }
-    .staff-name { font-size: 12px; font-weight: 900; color: #1e293b; }
-    .staff-type { margin-top: 2px; font-size: 10px; font-weight: 800; color: #64748b; }
-    .signature-line { height: 36px; border-bottom: 1px dotted #64748b; margin-bottom: 8px; }
+    .staff-name { font-size: 8.5px; font-weight: 900; color: #1e293b; }
+    .official-leave { min-height: 22px; display: flex; align-items: center; justify-content: center; border: 2px dashed #fecdd3; border-radius: 8px; background: #fff1f2; color: #e11d48; font-weight: 900; }
+    .signature-line { height: 18px; border-bottom: 1px dotted #64748b; margin-bottom: 3px; }
     .signature-line:last-child { margin-bottom: 0; }
-    .signature-img-wrap { height: 36px; display: flex; align-items: center; justify-content: center; border-bottom: 1px dotted #64748b; margin-bottom: 8px; }
+    .signature-img-wrap { height: 18px; display: flex; align-items: center; justify-content: center; border-bottom: 1px dotted #64748b; margin-bottom: 3px; }
     .signature-img-wrap:last-child { margin-bottom: 0; }
-    .signature-img { max-height: 32px; max-width: 100%; object-fit: contain; }
+    .signature-img { max-height: 16px; max-width: 100%; object-fit: contain; }
     .empty-state { display: block; text-align: center; color: #94a3b8; font-weight: 800; }
-    .footer-note { margin-top: 12px; border: 1px dashed #94a3b8; border-radius: 14px; padding: 12px 14px; font-size: 12px; font-weight: 800; color: #475569; white-space: pre-wrap; }
-    .principal { margin-top: 24px; width: 280px; margin-right: auto; font-size: 13px; font-weight: 900; color: #1e293b; }
-    .principal-sign { margin-top: 26px; border-top: 1px dotted #64748b; padding-top: 6px; color: #475569; }
+    .footer-note { margin-top: 6px; border: 1px dashed #94a3b8; border-radius: 10px; padding: 7px 9px; font-size: 9px; font-weight: 800; color: #475569; white-space: pre-wrap; }
+    .principal { margin-top: 10px; width: 220px; margin-right: auto; font-size: 10px; font-weight: 900; color: #1e293b; }
+    .principal-sign { margin-top: 14px; border-top: 1px dotted #64748b; padding-top: 4px; color: #475569; }
     .compact .official-header { padding-bottom: 8px; margin-bottom: 8px; }
     .compact .header-side { font-size: 9px; line-height: 1.45; }
     .compact .school-logo, .compact .logo-placeholder { width: 44px; height: 44px; margin-bottom: 3px; }
     .compact h1 { font-size: 15px; }
-    .compact .weeks-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+    .compact .weeks-grid { display: block; }
     .compact .week-card { border-radius: 14px; margin-bottom: 0; }
     .compact .week-title { padding: 6px 8px; font-size: 11px; }
     .compact table { font-size: 8px; }
     .compact th { padding: 5px 4px; }
     .compact td { padding: 5px; }
     .compact .day-cell { font-size: 9px; }
-    .compact .date-cell { font-size: 8px; }
+    .compact .day-cell .date-sub { font-size: 7px; }
     .compact .staff-card { padding: 4px 5px; border-radius: 8px; margin-bottom: 3px; }
     .compact .staff-name { font-size: 8.5px; }
     .compact .staff-type { font-size: 7px; }
@@ -1185,30 +1250,33 @@ ${buildReportLink(target)}` : ''}`;
   </style>
 </head>
 <body>
-  <main class="page ${schedulePrintScope === 'all' ? 'compact' : ''}">
+  <main class="page">
     ${buildOfficialHeader('جدول المناوبة اليومية')}
     <div class="weeks-grid">
     ${printableWeeks.map((week, index) => `
       <section class="week-card">
-        <div class="week-title">${escapeHtml(week.weekName || `الأسبوع ${index + 1}`)}</div>
+        <div class="week-title">الأسبوع <span class="week-number">${escapeHtml((week.weekName || '').match(/\d+/)?.[0] || String(index + 1))}</span></div>
         <table>
           <thead>
             <tr>
-              <th style="width:16%">اليوم</th>
-              <th style="width:18%">التاريخ</th>
-              <th style="width:${includeSignature ? '48%' : '66%'}">المناوب</th>
-              ${includeSignature ? '<th style="width:18%">التوقيع</th>' : ''}
+              <th style="width:20%">اليوم</th>
+              <th style="width:20%">التاريخ</th>
+              <th style="width:${includeSignature ? '40%' : '60%'}">المناوب</th>
+              ${includeSignature ? '<th style="width:20%">التوقيع</th>' : ''}
             </tr>
           </thead>
           <tbody>
-            ${week.dayAssignments.map(day => `
+            ${week.dayAssignments.map(day => {
+              const dateText = formatDisplayDate(day.date);
+              return `
               <tr>
                 <td class="day-cell">${escapeHtml(DAY_NAMES[day.day] || day.day)}</td>
-                <td class="date-cell">${escapeHtml(formatDisplayDate(day.date))}</td>
+                <td class="day-cell">${dateText ? `<span>${escapeHtml(dateText)}</span>` : '<span class="empty-state">-</span>'}</td>
                 <td>${renderScheduleStaffCell(day)}</td>
                 ${includeSignature ? `<td>${renderScheduleSignatureCell(day, useElectronic)}</td>` : ''}
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       </section>
@@ -1280,11 +1348,7 @@ ${buildReportLink(target)}` : ''}`;
     .signature-name { font-size: 12px; font-weight: 900; margin-bottom: 20px; }
     .signature-name span { color: #64748b; }
     .signature-line { border-top: 1px solid #94a3b8; padding-top: 6px; min-height: 30px; font-size: 11px; font-weight: 900; color: #475569; }
-    .print-actions { display: flex; justify-content: flex-end; gap: 8px; max-width: 184mm; margin: 10px auto 8px; }
-    .print-actions button { border: 0; border-radius: 12px; background: #655ac1; color: #fff; font: 900 12px Tajawal, Arial; padding: 9px 18px; cursor: pointer; box-shadow: 0 10px 24px rgba(101,90,193,0.18); }
-    .print-actions .close-button { background: #fff; color: #475569; border: 1px solid #cbd5e1; box-shadow: none; }
     @media print {
-      .print-actions { display: none; }
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .page { padding: 0; }
       th { background: ${printColorMode === 'bw' ? '#e2e8f0' : '#a59bf0'} !important; color: ${printColorMode === 'bw' ? '#1e293b' : '#fff'} !important; }
@@ -1292,10 +1356,6 @@ ${buildReportLink(target)}` : ''}`;
   </style>
 </head>
 <body>
-  <div class="print-actions">
-    <button onclick="window.print()">طباعة تقرير المناوبة</button>
-    <button class="close-button" onclick="window.close()">إغلاق</button>
-  </div>
   <main class="page">
     ${buildOfficialHeader('')}
     <div class="report-title">تقرير المناوبة اليومية</div>
@@ -1359,6 +1419,7 @@ ${buildReportLink(target)}` : ''}`;
       </div>
     </div>
   </main>
+  <script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script>
 </body>
 </html>`, 'تم فتح تقرير المناوبة للتعبئة والطباعة');
   };
@@ -1944,10 +2005,10 @@ ${buildReportLink(target)}` : ''}`;
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm h-full flex flex-col">
             <div className="flex items-center justify-start gap-3 mb-2">
               <SlidersHorizontal size={20} className="text-[#655ac1]" />
-              <h4 className="font-black text-slate-800">جدول المناوبة</h4>
+              <h4 className="font-black text-slate-800">تخصيص الطباعة</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اضبط مقاس الورق والألوان وإضافة عامود التوقيع ثم أضف الملاحظات قبل طباعة جدول المناوبة.
+              اضبط خيارات الطباعة قبل طباعة الجدول.
             </p>
 
             <div className="flex flex-wrap items-end gap-4 mb-5">
@@ -1957,29 +2018,31 @@ ${buildReportLink(target)}` : ''}`;
                 onChange={value => setSchedulePrintScope(value as SchedulePrintScope)}
                 placeholder="اختر نطاق الطباعة"
                 options={[
-                  { value: 'all', label: 'طباعة جدول المناوبة بالكامل' },
-                  { value: 'selectedWeeks', label: 'طباعة أسبوع أو عدة أسابيع' },
+                  { value: 'all', label: 'جدول المناوبة' },
+                  { value: 'selectedWeeks', label: 'أسبوع محدد' },
                 ]}
               />
               {schedulePrintScope === 'selectedWeeks' && (
                 <MultiSelectDropdown
                   label="الأسابيع"
                   buttonLabel="اختر الأسابيع"
-                  options={weeksToRender.map((week, index) => ({ value: week.weekId, label: week.weekName || `الأسبوع ${index + 1}` }))}
+                  options={weeksToRender.map((week, index) => ({
+                    value: week.weekId,
+                    label: `الأسبوع ${getWeekNumberLabel(week.weekName, index)}`,
+                    weekNumber: getWeekNumberLabel(week.weekName, index),
+                    badge: getWeekPrintBadge(week),
+                    disabled: !!getWeekPrintBadge(week),
+                    searchText: `${week.weekName || ''} الأسبوع ${index + 1} ${week.startDate || ''} ${week.endDate || ''}`,
+                  }))}
                   selectedValues={selectedWeekIds}
                   selectedSummary={selectedWeekIds.length ? `تم اختيار ${selectedWeekIds.length} أسبوع` : undefined}
                   onToggle={value => setSelectedWeekIds(current => current.includes(value) ? current.filter(id => id !== value) : [...current, value])}
                   onClear={() => setSelectedWeekIds([])}
-                  onSelectAll={() => setSelectedWeekIds(weeksToRender.map(week => week.weekId))}
+                  onSelectAll={() => setSelectedWeekIds(weeksToRender.filter(week => !getWeekPrintBadge(week)).map(week => week.weekId))}
+                  renderOption={renderWeekOption}
+                  singleBulkToggle
                 />
               )}
-              <SingleSelectDropdown
-                label="نوع الورق"
-                value={paperSize}
-                onChange={value => setPaperSize(value as PaperSize)}
-                placeholder="اختر المقاس"
-                options={[{ value: 'A4', label: 'A4' }, { value: 'A3', label: 'A3' }]}
-              />
               <SingleSelectDropdown
                 label="اللون"
                 value={printColorMode}
@@ -2006,7 +2069,7 @@ ${buildReportLink(target)}` : ''}`;
                 <button
                   type="button"
                   onClick={() => setShowNotesField(open => !open)}
-                  className="text-[#8779fb] hover:text-[#655ac1] underline underline-offset-4"
+                  className="text-[13px] font-black text-[#655ac1] hover:text-[#5046a0] underline underline-offset-4 transition-colors"
                 >
                   {showNotesField ? 'إلغاء' : 'انقر هنا'}
                 </button>
@@ -2017,7 +2080,7 @@ ${buildReportLink(target)}` : ''}`;
                   onChange={e => setFooterText(e.target.value)}
                   placeholder={printNotePlaceholder}
                   rows={3}
-                  className="w-full border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors"
+                  className="w-full border-2 border-slate-200 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed transition-colors"
                   dir="rtl"
                 />
               )}
