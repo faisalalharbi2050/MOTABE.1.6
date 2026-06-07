@@ -4231,7 +4231,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                       if (opt.id === 'full') setTeacherAbsenceInline(t, 'full');
                                       else setTeacherAbsenceInline(t, 'partial', daySchedule.length > 0 ? [daySchedule[0].periodNumber] : []);
                                     }}
-                                    className={`px-6 py-1 rounded-md text-xs font-bold transition-all ${
+                                    className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
                                       active ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-400 hover:text-slate-600'
                                     }`}
                                   >

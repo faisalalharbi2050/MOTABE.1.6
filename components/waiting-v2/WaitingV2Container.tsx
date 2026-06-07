@@ -153,7 +153,7 @@ const WaitingV2Container: React.FC<Props> = (props) => {
     id: StageId; n: number; label: string; hint: string;
     icon: React.ComponentType<any>; complete: boolean;
   }> = [
-    { id: 'register', n: 1, label: 'تسجيل الغياب', hint: 'أدخل المعلمين الغائبين وحصصهم', icon: UserX, complete: absentCount > 0 },
+    { id: 'register', n: 1, label: 'تسجيل الغياب', hint: 'اختر الغائبين ونوع غيابهم', icon: UserX, complete: absentCount > 0 },
     { id: 'distribute', n: 2, label: 'توزيع الانتظار', hint: 'وزّع آليًا أو يدويًا على المنتظرين', icon: Shuffle, complete: assignedCount > 0 },
     { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع النموذج أو أرسله إلكترونيًا', icon: FileOutput, complete: false },
     { id: 'monitoring', n: 4, label: 'الرصيد والتقارير', hint: 'تابع رصيد الانتظار واستخرج التقارير', icon: BarChart3, complete: false },
