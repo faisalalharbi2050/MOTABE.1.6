@@ -2601,7 +2601,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'إجمالي المنتظرين', value: String(waitingRecipientCount), icon: User },
+            { label: 'إجمالي المنتظرين', value: String(waitingRecipientCount), icon: Users },
             { label: 'وقّع', value: String(signedReceiptCount), icon: CheckCircle2 },
             { label: 'لم يوقّع', value: String(Math.max(0, pendingReceiptCount)), icon: AlertCircle },
           ].map((s, i) => (
@@ -4584,7 +4584,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-5">
               <div className="flex flex-wrap gap-3">
                 <button type="button" onClick={() => setShowWaitingReceipt(true)} className={actionButtonClass(false)}>
-                  <ClipboardCheck size={17} />
+                  <ClipboardList size={17} />
                   سجل استلام التكليف بالانتظار
                 </button>
                 <button type="button" onClick={onOpenMessagesArchive} disabled={!onOpenMessagesArchive}
