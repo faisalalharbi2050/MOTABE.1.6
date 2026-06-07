@@ -30,9 +30,11 @@ export interface DailyWaitingPrintModalProps {
   absentTeachers: PrintAbsentTeacher[];
   assignments: PrintWaitingAssignment[];
   targetTeacherId?: string | null;
+  targetTeacherIds?: string[];
   initialTab?: 'print' | 'blank';
   colorMode?: 'color' | 'bw';
   autoPrint?: boolean;
+  showSignatureImages?: boolean;
 }
 
 const PRINT_CSS = `
@@ -264,9 +266,11 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
   absentTeachers,
   assignments,
   targetTeacherId,
+  targetTeacherIds,
   initialTab = 'print',
   colorMode = 'color',
-  autoPrint = false
+  autoPrint = false,
+  showSignatureImages = false
 }) => {
   const [activeTab, setActiveTab] = useState<'print' | 'blank'>(initialTab);
   const [separatePages, setSeparatePages] = useState<boolean>(false);
@@ -306,9 +310,13 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
     `نظراً لغياب زميلنا المعلم ( ${teacherName || ''} ) يوم ( ${dayName} ) ، الموافق ( ${selectedDateText} ) - ${absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}.`
   );
 
-  // Pre-filter teachers if targetTeacherId is specified
-  const filteredTeachers = targetTeacherId 
-    ? absentTeachers.filter(t => t.id === targetTeacherId) 
+  // Pre-filter teachers if a target (single id or multiple ids) is specified
+  const targetIdSet = (targetTeacherIds && targetTeacherIds.length)
+    ? new Set(targetTeacherIds)
+    : (targetTeacherId ? new Set([targetTeacherId]) : null);
+  const isTargeted = !!targetIdSet;
+  const filteredTeachers = targetIdSet
+    ? absentTeachers.filter(t => targetIdSet.has(t.id))
     : absentTeachers;
   const printableTeachers = filteredTeachers.filter(t =>
     t.periods.some(p => assignments.some(a => a.absentTeacherId === t.id && a.periodNumber === p.periodNumber))
@@ -372,9 +380,13 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
         <td className="text-right font-semibold text-slate-800 w-48">{assignment?.substituteTeacherName || ''}</td>
         <td className="text-center w-24">
           {assignment?.signatureData ? (
-            <span className="text-[10px] text-green-700 font-bold px-2 py-0.5 bg-green-50 rounded-full border border-green-200">
-              موقّع إلكترونياً
-            </span>
+            showSignatureImages ? (
+              <img src={assignment.signatureData} alt="توقيع" className="inline-block max-h-9 max-w-[110px] object-contain" />
+            ) : (
+              <span className="text-[10px] text-green-700 font-bold px-2 py-0.5 bg-green-50 rounded-full border border-green-200">
+                موقّع إلكترونياً
+              </span>
+            )
           ) : null}
         </td>
         <td></td>
@@ -542,7 +554,7 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
         </div>
 
         {/* Modal Tabs */}
-        {!targetTeacherId ? (
+        {!isTargeted ? (
           <div className="bg-white border-b border-slate-100 px-6 py-3 flex gap-3 shrink-0 no-print">
             {([
               { id: 'print', label: `طباعة جداول الانتظار (${absentTeachers.length})`, Icon: LayoutGrid },
@@ -571,7 +583,7 @@ const DailyWaitingPrintModal: React.FC<DailyWaitingPrintModalProps> = ({
         {/* Modal Options / Filters */}
         <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4 no-print">
           <div>
-            {activeTab === 'print' && !targetTeacherId && (
+            {activeTab === 'print' && !isTargeted && (
                <label className="flex items-center gap-2 cursor-pointer group">
                  <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${separatePages ? 'bg-[#655ac1] text-white' : 'bg-white border-2 border-slate-300 group-hover:border-[#655ac1]'}`}>
                    {separatePages && <CheckSquare size={13} className="text-white bg-transparent" />}

@@ -230,6 +230,25 @@ const formatGregorian = (dateStr: string): string => {
   } catch { return dateStr; }
 };
 
+// Numeric date (month as a number, Latin digits) respecting the school calendar.
+const formatDateNumeric = (dateStr: string, calendarType: 'hijri' | 'gregorian'): string => {
+  try {
+    const parsed = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) return dateStr;
+    const locale = calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
+    return new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
+  } catch { return dateStr; }
+};
+
+// Numeric date from a full ISO timestamp (month as a number, Latin digits).
+const formatISODateNumeric = (value: string | undefined, calendarType: 'hijri' | 'gregorian'): string => {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '—';
+  const locale = calendarType === 'hijri' ? 'ar-SA-u-ca-islamic-nu-latn' : 'ar-SA-u-ca-gregory-nu-latn';
+  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
+};
+
 const escapeHtml = (value: unknown): string => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -390,6 +409,77 @@ const WaitingSingleSelect: React.FC<{
   );
 };
 
+const WaitingMultiSelect: React.FC<{
+  label: string;
+  values: string[];
+  options: WaitingDropdownOption[];
+  placeholder: string;
+  onToggle: (value: string) => void;
+  disabled?: boolean;
+}> = ({ label, values, options, placeholder, onToggle, disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const summary = values.length === 0 ? placeholder : `${values.length} معلم محدد`;
+
+  return (
+    <div ref={containerRef} className="flex-1 min-w-[220px] relative">
+      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span className="truncate text-[13px] leading-tight">{summary}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-[60] top-full right-0 left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1">
+            {options.length === 0 ? (
+              <p className="text-xs font-bold text-slate-400 text-center py-6">لا يوجد معلمون غائبون</p>
+            ) : options.map(option => {
+              const checked = values.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onToggle(option.value)}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                    checked ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                  }`}
+                >
+                  <span>{option.label}</span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                    checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                  }`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 type WaitingRecipientRow = { key: string; asgn: { substituteTeacherName: string; periodNumber: number; className: string; absentTeacherName: string; substitutePhone?: string } };
 
 const WaitingRecipientsMultiSelect: React.FC<{
@@ -403,6 +493,7 @@ const WaitingRecipientsMultiSelect: React.FC<{
 }> = ({ rows, selectedIds, open, setOpen, onToggle, onSelectAll, onClear }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const filteredSelectedCount = rows.filter(r => selectedIds.has(r.key)).length;
+  const allSelected = rows.length > 0 && filteredSelectedCount === rows.length;
 
   useEffect(() => {
     if (!open) return;
@@ -437,9 +528,19 @@ const WaitingRecipientsMultiSelect: React.FC<{
       </button>
       {open && (
         <div className="absolute z-[60] top-full right-0 left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5">
-          <div className="flex items-center justify-between px-2 py-2 mb-2 border border-slate-100 bg-slate-50 rounded-xl">
-            <button type="button" onClick={onSelectAll} className="text-xs font-black text-[#655ac1] hover:underline">اختيار الكل</button>
-            <button type="button" onClick={onClear} className="text-xs font-black text-slate-400 hover:text-rose-500 hover:underline">إلغاء الكل</button>
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={allSelected ? onClear : onSelectAll}
+              disabled={rows.length === 0}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                rows.length === 0
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+              }`}
+            >
+              {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+            </button>
           </div>
           <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {rows.length === 0 ? (
@@ -455,7 +556,7 @@ const WaitingRecipientsMultiSelect: React.FC<{
                 >
                   <span className="min-w-0 text-right">
                     <span className="block text-[13px] font-black truncate">{row.asgn.substituteTeacherName}</span>
-                    <span className="block text-[10px] font-bold text-slate-400 truncate">الحصة {row.asgn.periodNumber} - {row.asgn.className}</span>
+                    <span className="block text-[12px] font-bold text-slate-500 truncate">الحصة {row.asgn.periodNumber} · {row.asgn.className}</span>
                   </span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 shrink-0 transition-all ${checked ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
                     <Check size={12} strokeWidth={3.5} />
@@ -529,11 +630,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printTargetTeacherId, setPrintTargetTeacherId] = useState<string | null>(null);
+  const [printTargetTeacherIds, setPrintTargetTeacherIds] = useState<string[]>([]);
+  const [printShowSignatures, setPrintShowSignatures] = useState(false);
+  const [waitingSendResults, setWaitingSendResults] = useState<{ name: string; status: 'sent' | 'failed' }[]>([]);
+  const [showWaitingSendResults, setShowWaitingSendResults] = useState(false);
+  const [waitingSendChannel, setWaitingSendChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [printInitialTab, setPrintInitialTab] = useState<'print' | 'blank'>('print');
   const [waitingPrintColorMode, setWaitingPrintColorMode] = useState<'color' | 'bw'>('color');
   const [blankPrintColorMode, setBlankPrintColorMode] = useState<'color' | 'bw'>('color');
   const [waitingPrintScope, setWaitingPrintScope] = useState<'all' | 'teacher'>('all');
-  const [selectedPrintTeacherId, setSelectedPrintTeacherId] = useState('');
+  const [selectedPrintTeacherIds, setSelectedPrintTeacherIds] = useState<string[]>([]);
   const [waitingTaskMode, setWaitingTaskMode] = useState<'print' | 'send'>(embeddedSection === 'send' ? 'send' : 'print');
   const [showWaitingReceipt, setShowWaitingReceipt] = useState(false);
   const [receiptSearch, setReceiptSearch] = useState('');
@@ -1172,7 +1278,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     }
 
     sendNow();
-    showToast(`تم فتح ${targets.length} رسالة ${channel === 'whatsapp' ? 'واتساب' : 'نصية'}`, 'success');
+    setWaitingSendChannel(channel);
+    setWaitingSendResults(selectedSendRows.map(r => ({
+      name: r.asgn.substituteTeacherName,
+      status: r.asgn.substitutePhone ? 'sent' : 'failed',
+    })));
+    setShowWaitingSendResults(true);
   };
 
   // ── Reports print helper ──
@@ -1442,7 +1553,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [embAbsentsOnly, setEmbAbsentsOnly] = useState(false);
   const embCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
   const receiptCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
-  const [receiptSelectedDates, setReceiptSelectedDates] = useState<string[]>([selectedDate]);
+  // Receipt date range: two separate fields (from / to). The selected list is
+  // the inclusive set of days between them, driving both the receipt log and
+  // the post-signature schedule print.
+  const [receiptStartDate, setReceiptStartDate] = useState<string>(selectedDate);
+  const [receiptEndDate, setReceiptEndDate] = useState<string>(selectedDate);
+  const receiptSelectedDates = useMemo(() => {
+    const start = receiptStartDate || selectedDate;
+    const end = receiptEndDate || start;
+    const lo = start <= end ? start : end;
+    const hi = start <= end ? end : start;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const fmt = (dt: Date) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+    const out: string[] = [];
+    const cursor = new Date(`${lo}T12:00:00`);
+    const last = new Date(`${hi}T12:00:00`);
+    let guard = 0;
+    while (cursor <= last && guard < 400) { out.push(fmt(cursor)); cursor.setDate(cursor.getDate() + 1); guard++; }
+    return out.length ? out : [selectedDate];
+  }, [receiptStartDate, receiptEndDate, selectedDate]);
 
   // Close per-period row actions dropdown on outside click / scroll
   useEffect(() => {
@@ -2201,6 +2330,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       })
       .sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.absentTeacherName.localeCompare(b.absentTeacherName, 'ar'));
   }, [receiptRows, receiptAbsentTeachersByDate, selectedDate]);
+  // Flat row list for the receipt log table (serial · waiter · ... · actions).
+  const receiptFlatRows = useMemo(
+    () => receiptRows.slice().sort((a, b) =>
+      (((a as any).receiptDate || '') as string).localeCompare(((b as any).receiptDate || '') as string)
+      || (a.absentTeacherName || '').localeCompare(b.absentTeacherName || '', 'ar')
+      || a.periodNumber - b.periodNumber
+    ),
+    [receiptRows]
+  );
   const signedReceiptCount = receiptAssignments.filter(a => !!a.signatureData).length;
   const receiptTotalAssigned = receiptAssignments.length;
   const pendingReceiptCount = receiptTotalAssigned - signedReceiptCount;
@@ -2210,10 +2348,33 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-md shadow-[#655ac1]/20'
         : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-slate-50'
     }`;
-  const openWaitingPrint = (targetTeacherId: string | null = null, initialTab: 'print' | 'blank' = 'print') => {
-    setPrintTargetTeacherId(targetTeacherId);
+  const openWaitingPrint = (target: string | string[] | null = null, initialTab: 'print' | 'blank' = 'print', showSignatures = false) => {
+    if (Array.isArray(target)) {
+      setPrintTargetTeacherIds(target);
+      setPrintTargetTeacherId(null);
+    } else {
+      setPrintTargetTeacherId(target);
+      setPrintTargetTeacherIds([]);
+    }
+    setPrintShowSignatures(showSignatures);
     setPrintInitialTab(initialTab);
     setShowPrintModal(true);
+  };
+
+  // Absent teachers / assignments across the selected receipt date range —
+  // used to print the post-signature schedule via the same daily-waiting form.
+  const receiptRangeAbsentTeachers = useMemo(
+    () => sessions.filter(s => receiptDateSet.has(s.date)).flatMap(s => s.absentTeachers),
+    [sessions, receiptDateSet]
+  );
+
+  // Role label for a waiter: "معلم" for teachers, the real title for admins
+  // (وكيل / موجه طلابي / ...). Falls back to "معلم".
+  const roleLabelFor = (personId: string): string => {
+    if (teachers.some(t => t.id === personId)) return 'معلم';
+    const admin = admins.find(a => a.id === personId);
+    if (admin) return admin.role || 'إداري';
+    return 'معلم';
   };
 
   const refreshWaitingReceiptFromStorage = () => {
@@ -2281,44 +2442,44 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       </div>
       <div class="header-side header-left">
         <div>اليوم: ${escapeHtml(dayName)}</div>
-        <div>التاريخ: ${escapeHtml(receiptCalendarType === 'hijri' ? formatHijri(selectedDate) : formatGregorian(selectedDate))}</div>
+        <div>التاريخ: ${escapeHtml(formatDateNumeric(selectedDate, receiptCalendarType))}</div>
         <div>العام الدراسي: ${escapeHtml(schoolInfo.academicYear || '')}</div>
       </div>
     </div>
     <div class="report-title">${escapeHtml(title)}</div>
   `;
 
-  const buildWaitingReceiptTableHtml = (group: { absentTeacherName: string; absenceType: 'full' | 'partial'; date?: string; dayName?: string; rows: WaitingAssignment[] }) => `
+  // Flat receipt-log table matching the on-screen design (serial · waiter ·
+  // role · in-place-of · class · sent date · signature · signed date · time).
+  const buildWaitingReceiptFlatHtml = () => `
     <section class="page">
       ${buildWaitingReceiptOfficialHeader('سجل استلام التكليف بالانتظار')}
-      <div class="absence-card">
-        <div><span class="field-label">اسم المعلم الغائب</span><span class="field-value">${escapeHtml(group.absentTeacherName)}</span></div>
-        <div><span class="field-label">اليوم</span><span class="field-value">${escapeHtml(group.dayName || dayName)}</span></div>
-        <div><span class="field-label">التاريخ</span><span class="field-value">${escapeHtml(receiptCalendarType === 'hijri' ? formatHijri(group.date || selectedDate) : formatGregorian(group.date || selectedDate))}</span></div>
-        <div><span class="field-label">نوع الغياب</span><span class="field-value">${group.absenceType === 'full' ? 'يوم' : 'جزئي'}</span></div>
-      </div>
       <table>
         <thead>
           <tr>
-            <th style="width:8%">الحصة</th>
-            <th style="width:16%">الصف والفصل</th>
-            <th style="width:22%">المنتظر</th>
-            <th style="width:17%">تاريخ الإرسال</th>
-            <th style="width:12%">وقت الإرسال</th>
-            <th style="width:12%">التوقيع</th>
-            <th style="width:13%">إجراءات</th>
+            <th style="width:4%">م</th>
+            <th style="width:15%">المنتظر</th>
+            <th style="width:9%">الصفة</th>
+            <th style="width:14%">بدلاً من</th>
+            <th style="width:11%">الصف والفصل</th>
+            <th style="width:12%">تاريخ الإرسال</th>
+            <th style="width:8%">التوقيع</th>
+            <th style="width:11%">تاريخ التوقيع</th>
+            <th style="width:8%">وقت التوقيع</th>
           </tr>
         </thead>
         <tbody>
-          ${group.rows.map(row => `
+          ${receiptFlatRows.map((row, idx) => `
             <tr>
-              <td>${row.periodNumber}</td>
-              <td>${escapeHtml(row.className)}</td>
+              <td>${idx + 1}</td>
               <td>${escapeHtml(row.substituteTeacherName)}</td>
-              <td>${formatReceiptDateTime(row.sentAt)}</td>
-              <td>${formatReceiptTime(row.sentAt)}</td>
-              <td class="${row.signatureData ? 'signed' : 'pending'}">${row.signatureData ? 'وقع' : 'لم يوقع'}</td>
-              <td>عرض</td>
+              <td>${escapeHtml(roleLabelFor(row.substituteTeacherId))}</td>
+              <td>${escapeHtml(row.absentTeacherName)}</td>
+              <td>${escapeHtml(row.className)}</td>
+              <td>${formatISODateNumeric(row.sentAt, receiptCalendarType)}</td>
+              <td class="${row.signatureData ? 'signed' : 'pending'}">${row.signatureData ? 'وقّع' : 'لم يوقّع'}</td>
+              <td>${row.signatureData ? formatISODateNumeric(row.signatureSignedAt, receiptCalendarType) : '—'}</td>
+              <td>${row.signatureData ? formatReceiptTime(row.signatureSignedAt) : '—'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -2327,57 +2488,57 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     </section>
   `;
 
-  const printWaitingReceiptGroups = (groups = receiptGroups) => {
-    if (!groups.length) {
-      showToast('لا توجد سجلات انتظار للطباعة', 'warning');
-      return;
-    }
-    openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><style>${waitingReceiptPrintStyles}</style></head><body>${groups.map(buildWaitingReceiptTableHtml).join('')}<script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
-  };
-
-  const printWaitingScheduleForReceiptDates = () => {
-    const groups = receiptGroups;
-    if (!groups.length) {
-      showToast('لا توجد جداول انتظار للطباعة', 'warning');
-      return;
-    }
-    const html = groups.map(group => `
+  // Print a single waiter's assignment form (works whether signed or not),
+  // matching the duty receipt's "عرض وطباعة" → "طباعة النموذج" behaviour.
+  const printWaitingAssignmentForm = (row: WaitingAssignment & { receiptDate?: string; receiptDayName?: string }) => {
+    const receiptDate = (row as any).receiptDate || selectedDate;
+    const day = (row as any).receiptDayName || getArabicDayFromDate(receiptDate);
+    const dateStr = formatDateNumeric(receiptDate, receiptCalendarType);
+    const html = `
       <section class="page">
-        ${buildWaitingReceiptOfficialHeader('نموذج الانتظار اليومي')}
+        ${buildWaitingReceiptOfficialHeader('تكليف بالانتظار')}
         <div class="absence-card">
-          <div><span class="field-label">اسم المعلم الغائب</span><span class="field-value">${escapeHtml(group.absentTeacherName)}</span></div>
-          <div><span class="field-label">اليوم</span><span class="field-value">${escapeHtml(group.dayName || dayName)}</span></div>
-          <div><span class="field-label">التاريخ</span><span class="field-value">${escapeHtml(receiptCalendarType === 'hijri' ? formatHijri(group.date || selectedDate) : formatGregorian(group.date || selectedDate))}</span></div>
-          <div><span class="field-label">نوع الغياب</span><span class="field-value">${group.absenceType === 'full' ? 'يوم' : 'جزئي'}</span></div>
+          <div><span class="field-label">المنتظر</span><span class="field-value">${escapeHtml(row.substituteTeacherName)}</span></div>
+          <div><span class="field-label">الصفة</span><span class="field-value">${escapeHtml(roleLabelFor(row.substituteTeacherId))}</span></div>
+          <div><span class="field-label">بدلاً من</span><span class="field-value">${escapeHtml(row.absentTeacherName)}</span></div>
         </div>
         <table>
           <thead>
             <tr>
+              <th style="width:16%">اليوم</th>
+              <th style="width:16%">التاريخ</th>
               <th style="width:10%">الحصة</th>
-              <th style="width:18%">الصف والفصل</th>
-              <th style="width:18%">المادة</th>
-              <th style="width:28%">المعلم المنتظر</th>
-              <th style="width:16%">التوقيع</th>
-              <th style="width:10%">ملاحظات</th>
+              <th style="width:20%">الصف والفصل</th>
+              <th style="width:22%">المادة</th>
             </tr>
           </thead>
           <tbody>
-            ${group.rows.map(row => `
-              <tr>
-                <td>${row.periodNumber}</td>
-                <td>${escapeHtml(row.className)}</td>
-                <td>${escapeHtml(row.subjectName)}</td>
-                <td>${escapeHtml(row.substituteTeacherName)}</td>
-                <td>${row.signatureData ? `<img src="${row.signatureData}" style="max-height:34px;max-width:110px;object-fit:contain;" />` : ''}</td>
-                <td></td>
-              </tr>
-            `).join('')}
+            <tr>
+              <td>${escapeHtml(day)}</td>
+              <td>${escapeHtml(dateStr)}</td>
+              <td>${row.periodNumber}</td>
+              <td>${escapeHtml(row.className)}</td>
+              <td>${escapeHtml(row.subjectName || '')}</td>
+            </tr>
           </tbody>
         </table>
+        <p style="margin:18px 4px 10px;font-weight:700;">تم الاطلاع على حصة الانتظار المسندة والتوقيع بالعلم.</p>
+        <div style="margin:6px 4px 0;font-weight:700;">التوقيع:</div>
+        <div style="height:90px;border:1px dashed #cbd5e1;border-radius:10px;margin-top:6px;display:flex;align-items:center;justify-content:center;">
+          ${row.signatureData ? `<img src="${row.signatureData}" style="max-height:80px;max-width:240px;object-fit:contain;" />` : ''}
+        </div>
         <div class="footer"><div class="signature-box"><div>مدير المدرسة: ${escapeHtml(schoolInfo.principal || '')}</div><div class="signature-line">التوقيع</div></div></div>
       </section>
-    `).join('');
+    `;
     openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><style>${waitingReceiptPrintStyles}</style></head><body>${html}<script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
+  };
+
+  const printWaitingReceiptGroups = () => {
+    if (!receiptFlatRows.length) {
+      showToast('لا توجد سجلات انتظار للطباعة', 'warning');
+      return;
+    }
+    openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><style>${waitingReceiptPrintStyles}</style></head><body>${buildWaitingReceiptFlatHtml()}<script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
   };
 
   // ── Phase 2: Fairness / distribution quality score ──
@@ -2618,31 +2779,58 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         </div>
 
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="w-72">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="w-56">
+              <label className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
+                <Calendar size={14} className="text-[#655ac1]" />
+                من تاريخ
+              </label>
               <DatePicker
-                multiple
-                value={(receiptSelectedDates.length ? receiptSelectedDates : [selectedDate]).map(date => new DateObject({ date, calendar: gregorian, format: 'YYYY-MM-DD' }).convert(receiptCalendarType === 'hijri' ? arabic : gregorian, receiptCalendarType === 'hijri' ? arabic_ar : gregorian_ar))}
+                value={new DateObject({ date: receiptStartDate, calendar: gregorian, format: 'YYYY-MM-DD' }).convert(receiptCalendarType === 'hijri' ? arabic : gregorian, receiptCalendarType === 'hijri' ? arabic_ar : gregorian_ar)}
                 onChange={(d: any) => {
-                  const dates = Array.isArray(d) ? d : d ? [d] : [];
-                  const nextDates = dates
-                    .filter(item => item instanceof DateObject)
-                    .map(item => item.convert(gregorian, gregorian_en).format('YYYY-MM-DD'));
-                  if (nextDates.length > 0) {
-                    setReceiptSelectedDates(nextDates);
-                    setSelectedDate(nextDates[0]);
+                  if (d instanceof DateObject) {
+                    const g = d.convert(gregorian, gregorian_en).format('YYYY-MM-DD');
+                    setReceiptStartDate(g);
+                    setSelectedDate(g);
+                    if (receiptEndDate < g) setReceiptEndDate(g);
                   }
                 }}
                 calendar={receiptCalendarType === 'hijri' ? arabic : gregorian}
                 locale={receiptCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
                 containerClassName="w-full"
                 inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
-                placeholder="حدد التاريخ"
+                placeholder="من تاريخ"
                 portal
                 portalTarget={document.body}
                 editable={false}
                 zIndex={99999}
-                format={receiptCalendarType === 'hijri' ? 'DD MMMM YYYY' : 'YYYY-MM-DD'}
+                format="dddd - YYYY/MM/DD"
+              />
+            </div>
+            <div className="w-56">
+              <label className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
+                <Calendar size={14} className="text-[#655ac1]" />
+                إلى تاريخ
+              </label>
+              <DatePicker
+                value={new DateObject({ date: receiptEndDate, calendar: gregorian, format: 'YYYY-MM-DD' }).convert(receiptCalendarType === 'hijri' ? arabic : gregorian, receiptCalendarType === 'hijri' ? arabic_ar : gregorian_ar)}
+                onChange={(d: any) => {
+                  if (d instanceof DateObject) {
+                    const g = d.convert(gregorian, gregorian_en).format('YYYY-MM-DD');
+                    setReceiptEndDate(g);
+                    if (g < receiptStartDate) setReceiptStartDate(g);
+                  }
+                }}
+                calendar={receiptCalendarType === 'hijri' ? arabic : gregorian}
+                locale={receiptCalendarType === 'hijri' ? arabic_ar : gregorian_ar}
+                containerClassName="w-full"
+                inputClass="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-[#655ac1] transition-colors cursor-pointer bg-white"
+                placeholder="إلى تاريخ"
+                portal
+                portalTarget={document.body}
+                editable={false}
+                zIndex={99999}
+                format="dddd - YYYY/MM/DD"
               />
             </div>
             <div className="flex-1" />
@@ -2656,10 +2844,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <Printer size={15} />
               طباعة سجل الاستلام
             </button>
-            <button type="button" onClick={printWaitingScheduleForReceiptDates} disabled={receiptGroups.length === 0}
+            <button type="button" onClick={() => openWaitingPrint(null, 'print', true)} disabled={receiptFlatRows.length === 0}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all disabled:opacity-50">
               <Printer size={15} />
-              طباعة جدول الانتظار
+              طباعة الانتظار بعد التوقيع
             </button>
           </div>
         </div>
@@ -2667,7 +2855,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-              <ClipboardCheck size={18} className="text-[#655ac1]" />
+              <ClipboardList size={18} className="text-[#655ac1]" />
               سجل الاستلام
             </p>
             <div className="flex-1" />
@@ -2701,88 +2889,57 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               ))}
             </div>
           </div>
-          <div className="p-5 space-y-5">
-            {receiptGroups.length === 0 ? (
+          <div className="overflow-x-auto">
+            {receiptFlatRows.length === 0 ? (
               <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">لا توجد تكليفات مطابقة.</div>
-            ) : receiptGroups.map(group => (
-              <div key={group.key} className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                <div className="px-5 py-4 bg-slate-50/80 border-b border-slate-100">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-7">
-                    {[
-                      ['المعلم الغائب', group.absentTeacherName],
-                      ['اليوم', group.dayName || dayName],
-                      ['التاريخ', receiptCalendarType === 'hijri' ? formatHijri(group.date || selectedDate) : formatGregorian(group.date || selectedDate)],
-                      ['نوع الغياب', group.absenceType === 'full' ? 'يوم' : 'جزئي'],
-                    ].map(([label, value], index) => (
-                      <React.Fragment key={label}>
-                        {index > 0 && <span className="mx-1 text-slate-300 font-black">-</span>}
-                        <span className="whitespace-nowrap">
-                          <span className="font-black text-slate-600">{label}</span>
-                          <span className="mx-1 font-black text-slate-600">:</span>
-                          <span className="font-black text-slate-600">{value}</span>
-                        </span>
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[960px] table-fixed text-sm text-right">
-                    <thead>
-                      <tr className="bg-white border-b border-slate-100">
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[8%]">الحصة</th>
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[16%]">الصف والفصل</th>
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[22%]">المنتظر</th>
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs w-[17%]">تاريخ الإرسال</th>
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[12%]">وقت الإرسال</th>
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[12%]">التوقيع</th>
-                        <th className="px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[13%]">إجراءات</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {group.rows.map(row => (
-                        <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="px-3 py-3 text-center">
-                            <span className="font-black text-[#655ac1]">{row.periodNumber}</span>
-                          </td>
-                          <td className="relative px-3 py-3 align-middle" title={row.className}>
-                            <div className="relative h-8 w-full">
-                              <span
-                                className="absolute left-1/2 top-1/2 inline-flex min-w-14 max-w-full -translate-x-1/2 -translate-y-1/2 items-center justify-center text-center font-bold text-slate-600"
-                                dir="ltr"
-                                style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
-                              >
-                                {row.className}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 font-black text-slate-800 text-[12px] truncate" title={row.substituteTeacherName}>{row.substituteTeacherName}</td>
-                          <td className="px-3 py-3 font-bold text-slate-500 text-[11px]">{formatReceiptDateTime(row.sentAt)}</td>
-                          <td className="px-3 py-3 text-center font-bold text-slate-600 text-[11px]">{formatReceiptTime(row.sentAt)}</td>
-                          <td className="px-3 py-3 text-center">
-                            {row.signatureData ? (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-black">
-                                وقّع
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-xs font-black">
-                                لم يوقّع
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            <button type="button" onClick={() => { setPreviewAssignment(row); setHasSignature(false); setShowElectronicPreview(true); }}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
-                              <Eye size={12} />
-                              عرض
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
+            ) : (
+              <table className="w-full min-w-[1100px] table-fixed text-sm text-right" dir="rtl">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[4%]">م</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] w-[15%]">المنتظر</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[9%]">الصفة</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[14%]">بدلاً من</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[11%]">الصف والفصل</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[11%]">تاريخ الإرسال</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[8%]">التوقيع</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[10%]">تاريخ التوقيع</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[8%]">وقت التوقيع</th>
+                    <th className="px-2 py-3 font-black text-[#655ac1] text-[12px] text-center w-[10%]">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {receiptFlatRows.map((row, idx) => (
+                    <tr key={row.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-2 py-3 text-center">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">{idx + 1}</span>
+                      </td>
+                      <td className="px-2 py-3 font-black text-slate-800 text-[12px] truncate" title={row.substituteTeacherName}>{row.substituteTeacherName}</td>
+                      <td className="px-2 py-3 text-center font-bold text-[#655ac1] text-[12px]">{roleLabelFor(row.substituteTeacherId)}</td>
+                      <td className="px-2 py-3 text-center font-bold text-slate-600 text-[12px] truncate" title={row.absentTeacherName}>{row.absentTeacherName}</td>
+                      <td className="px-2 py-3 text-center font-bold text-slate-600 text-[12px]" dir="ltr" style={{ unicodeBidi: 'isolate' }}>{row.className}</td>
+                      <td className="px-2 py-3 text-center font-bold text-slate-500 text-[11px]">{formatISODateNumeric(row.sentAt, receiptCalendarType)}</td>
+                      <td className="px-2 py-3 text-center">
+                        {row.signatureData ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-black">وقّع</span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 text-xs font-black">لم يوقّع</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-3 text-center font-bold text-slate-500 text-[11px]">{row.signatureData ? formatISODateNumeric(row.signatureSignedAt, receiptCalendarType) : '—'}</td>
+                      <td className="px-2 py-3 text-center font-bold text-slate-600 text-[11px]">{row.signatureData ? formatReceiptTime(row.signatureSignedAt) : '—'}</td>
+                      <td className="px-2 py-3 text-center">
+                        <button type="button" onClick={() => { setPreviewAssignment(row); setHasSignature(false); setShowElectronicPreview(true); }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all whitespace-nowrap">
+                          <Eye size={13} />
+                          عرض وطباعة
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
         {showElectronicPreview && previewAssignment && ReactDOM.createPortal(
@@ -2814,7 +2971,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     </div>
                     <div>
                       <span className="block text-slate-500 font-bold mb-1">الصفة</span>
-                      <span className="font-black text-[#655ac1]">معلم منتظر</span>
+                      <span className="font-black text-[#655ac1]">{roleLabelFor(previewAssignment.substituteTeacherId)}</span>
                     </div>
                     <div>
                       <span className="block text-slate-500 font-bold mb-1">رقم الجوال</span>
@@ -2827,6 +2984,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <thead>
                       <tr className="bg-white border-b border-slate-100">
                         <th className="px-3 py-2 text-right text-[#655ac1] font-black">اليوم</th>
+                        <th className="px-3 py-2 text-right text-[#655ac1] font-black">التاريخ</th>
                         <th className="px-3 py-2 text-right text-[#655ac1] font-black">الحصة</th>
                         <th className="px-3 py-2 text-right text-[#655ac1] font-black">الفصل</th>
                         <th className="px-3 py-2 text-right text-[#655ac1] font-black">المعلم الغائب</th>
@@ -2835,6 +2993,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <tbody>
                       <tr className="border-t border-slate-100">
                         <td className="px-3 py-2 font-black text-slate-700">{(previewAssignment as any).receiptDayName || getArabicDayFromDate((previewAssignment as any).receiptDate || selectedDate)}</td>
+                        <td className="px-3 py-2 font-bold text-slate-600">{formatDateNumeric((previewAssignment as any).receiptDate || selectedDate, (schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian')}</td>
                         <td className="px-3 py-2 font-bold text-slate-600">الحصة {previewAssignment.periodNumber}</td>
                         <td className="px-3 py-2 font-bold text-slate-600">{previewAssignment.className}</td>
                         <td className="px-3 py-2 font-bold text-slate-600">{previewAssignment.absentTeacherName}</td>
@@ -2847,6 +3006,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   {previewAssignment.signatureData ? (
                     <img src={previewAssignment.signatureData} alt="توقيع المعلم" className="max-h-24 max-w-[260px] object-contain" />
                   ) : 'خانة التوقيع'}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => printWaitingAssignmentForm(previewAssignment as WaitingAssignment & { receiptDate?: string; receiptDayName?: string })}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold text-sm transition-all shadow-md shadow-[#655ac1]/20"
+                  >
+                    <Printer size={16} /> طباعة النموذج
+                  </button>
                 </div>
               </div>
             </div>
@@ -2861,11 +3029,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             gregorianDateStr={formatGregorian(selectedDate)}
             hijriDateStr={formatHijri(selectedDate)}
             schoolInfo={{ ...schoolInfo, calendarType: receiptCalendarType }}
-            absentTeachers={currentSession?.absentTeachers || []}
-            assignments={(currentSession?.assignments || []).filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber))}
+            absentTeachers={printShowSignatures ? receiptRangeAbsentTeachers : (currentSession?.absentTeachers || [])}
+            assignments={printShowSignatures ? receiptAssignments : (currentSession?.assignments || []).filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber))}
             targetTeacherId={printTargetTeacherId}
+            targetTeacherIds={printTargetTeacherIds}
             initialTab={printInitialTab}
             colorMode={printInitialTab === 'blank' ? blankPrintColorMode : waitingPrintColorMode}
+            showSignatureImages={printShowSignatures}
             autoPrint
           />
         )}
@@ -4608,7 +4778,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <h4 className="font-black text-slate-800">طباعة الانتظار اليومي</h4>
             </div>
             <p className="text-xs text-slate-500 font-medium text-right mb-5">
-              اختر المطلوب طباعته ( انتظار اليوم بالكامل - انتظار معلم ) ثم اختر اللون ثم طباعة.
+              اختر المطلوب طباعته ( انتظار اليوم - انتظار محدد ) ثم اختر اللون ثم طباعة.
             </p>
             <div className="flex flex-wrap items-end gap-4 mb-5">
               <WaitingSingleSelect
@@ -4617,16 +4787,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 onChange={value => setWaitingPrintScope(value as 'all' | 'teacher')}
                 placeholder="اختر المطلوب طباعته"
                 options={[
-                  { value: 'all', label: 'انتظار اليوم بالكامل' },
-                  { value: 'teacher', label: 'انتظار معلم' },
+                  { value: 'all', label: 'انتظار اليوم' },
+                  { value: 'teacher', label: 'انتظار محدد' },
                 ]}
               />
               {waitingPrintScope === 'teacher' && (
-                <WaitingSingleSelect
-                  label="المعلم الغائب"
-                  value={selectedPrintTeacherId}
-                  onChange={setSelectedPrintTeacherId}
-                  placeholder="اختر المعلم الغائب"
+                <WaitingMultiSelect
+                  label="المعلمون الغائبون"
+                  values={selectedPrintTeacherIds}
+                  onToggle={id => setSelectedPrintTeacherIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                  placeholder="اختر المعلمين"
                   options={(currentSession?.absentTeachers || []).map(absent => ({ value: absent.id, label: absent.teacherName }))}
                 />
               )}
@@ -4641,11 +4811,17 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 ]}
               />
             </div>
+            {waitingPrintScope === 'teacher' && selectedPrintTeacherIds.length > 0 && selectedPrintTeacherIds.length >= (currentSession?.absentTeachers?.length || 0) && (
+              <p className="text-[11px] font-bold text-amber-600 flex items-center gap-1 -mt-3 mb-4">
+                <AlertCircle size={12} className="shrink-0" />
+                لا يمكن اختيار كل المعلمين — استخدم «انتظار اليوم» لطباعة الانتظار كاملًا.
+              </p>
+            )}
             <div className="mt-auto flex justify-center">
               <button
                 type="button"
-                onClick={() => openWaitingPrint(waitingPrintScope === 'teacher' ? selectedPrintTeacherId : null, 'print')}
-                disabled={totalAssigned === 0 || (waitingPrintScope === 'teacher' && !selectedPrintTeacherId)}
+                onClick={() => openWaitingPrint(waitingPrintScope === 'teacher' ? selectedPrintTeacherIds : null, 'print')}
+                disabled={totalAssigned === 0 || (waitingPrintScope === 'teacher' && (selectedPrintTeacherIds.length === 0 || selectedPrintTeacherIds.length >= (currentSession?.absentTeachers?.length || 0)))}
                 className="inline-flex min-w-[160px] items-center justify-center gap-2 px-10 py-2.5 rounded-xl border border-[#655ac1] bg-[#655ac1] text-white text-sm font-black hover:bg-[#5046a0] transition-all shadow-md shadow-[#655ac1]/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Printer size={16} />
@@ -4727,8 +4903,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       onChange={value => { setSendModalMode(value as 'notification' | 'electronic'); setSendCustomMessages({}); }}
                       placeholder="اختر نوع الإشعار"
                       options={[
-                        { value: 'electronic', label: 'رسالة تكليف بالانتظار مع توقيع إلكتروني' },
-                        { value: 'notification', label: 'رسالة تكليف بالانتظار نصية' },
+                        { value: 'electronic', label: 'تكليف بالانتظار مع توقيع الكتروني' },
+                        { value: 'notification', label: 'تكليف نصي بالانتظار' },
                       ]}
                     />
                     <WaitingSingleSelect
@@ -4964,7 +5140,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                               <tr><td colSpan={sendModalMode === 'electronic' ? 8 : 6} className="px-6 py-10 text-center text-sm font-bold text-slate-400">لم يتم اختيار مستلمين بعد.</td></tr>
                             ) : filteredSelected.map(row => {
                               const link = sendModalMode === 'electronic' ? buildSignLink(row.asgn) : '';
-                              const dateStr = schoolInfo.calendarType === 'hijri' ? formatHijri(selectedDate) : formatGregorian(selectedDate);
+                              const dateStr = formatDateNumeric(selectedDate, (schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian');
                               return (
                               <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
                                 <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700">{dayName}</td>
@@ -5019,6 +5195,58 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
                       <button type="button" onClick={() => setShowSendRecipientsModal(false)}
                         className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
+                        إغلاق
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
+
+              {showWaitingSendResults && waitingSendResults.length > 0 && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4 animate-in fade-in" dir="rtl" onClick={() => setShowWaitingSendResults(false)}>
+                  <div className="w-full max-w-xl bg-white rounded-[2rem] border border-slate-200 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Send size={22} className="text-[#655ac1] shrink-0" />
+                        <div className="min-w-0">
+                          <h4 className="font-black text-slate-800 text-base">نتائج الإرسال</h4>
+                          <p className="text-xs font-bold text-slate-400 mt-0.5">تم تسجيل هذه العملية في سجل الاستلام.</p>
+                        </div>
+                      </div>
+                      <button type="button" title="إغلاق" aria-label="إغلاق" onClick={() => setShowWaitingSendResults(false)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-transparent text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1] transition-all">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                          <div className="text-[10px] font-bold text-[#655ac1] mb-1">تم الإرسال</div>
+                          <div className="text-xl font-extrabold text-[#655ac1] tabular-nums">{waitingSendResults.filter(r => r.status === 'sent').length}</div>
+                        </div>
+                        <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                          <div className="text-[10px] font-bold text-rose-600 mb-1">فشل الإرسال</div>
+                          <div className="text-xl font-extrabold text-rose-600 tabular-nums">{waitingSendResults.filter(r => r.status === 'failed').length}</div>
+                        </div>
+                        <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                          <div className="text-[10px] font-bold text-slate-500 mb-1">الإجمالي</div>
+                          <div className="text-xl font-extrabold text-slate-800 tabular-nums">{waitingSendResults.length}</div>
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-white border border-slate-200 px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                            {waitingSendChannel === 'whatsapp' ? <WhatsAppIcon size={18} /> : <MessageSquare size={16} className="text-[#007AFF]" />}
+                            <span>قناة الإرسال: {waitingSendChannel === 'whatsapp' ? 'الواتساب' : 'الرسائل النصية'}</span>
+                          </div>
+                          <div className="text-xs font-black text-slate-500">{new Intl.DateTimeFormat('ar-SA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date())}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="px-5 py-4 border-t border-slate-100 flex justify-end">
+                      <button type="button" onClick={() => setShowWaitingSendResults(false)}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 bg-transparent text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all">
                         إغلاق
                       </button>
                     </div>
@@ -7068,7 +7296,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   </div>
                   <div>
                     <span className="block text-slate-500 font-bold mb-1">الصفة</span>
-                    <span className="font-black text-[#655ac1]">معلم منتظر</span>
+                    <span className="font-black text-[#655ac1]">{roleLabelFor(previewAssignment.substituteTeacherId)}</span>
                   </div>
                   <div>
                     <span className="block text-slate-500 font-bold mb-1">رقم الجوال</span>
@@ -7082,6 +7310,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <thead>
                     <tr className="bg-white border-b border-slate-100">
                       <th className="px-3 py-2 text-right text-[#655ac1] font-black">اليوم</th>
+                      <th className="px-3 py-2 text-right text-[#655ac1] font-black">التاريخ</th>
                       <th className="px-3 py-2 text-right text-[#655ac1] font-black">الحصة</th>
                       <th className="px-3 py-2 text-right text-[#655ac1] font-black">الفصل</th>
                       <th className="px-3 py-2 text-right text-[#655ac1] font-black">المعلم الغائب</th>
@@ -7090,6 +7319,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   <tbody>
                     <tr className="border-t border-slate-100">
                       <td className="px-3 py-2 font-black text-slate-700">{dayName}</td>
+                      <td className="px-3 py-2 font-bold text-slate-600">{formatDateNumeric(selectedDate, (schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian')}</td>
                       <td className="px-3 py-2 font-bold text-slate-600">الحصة {previewAssignment.periodNumber}</td>
                       <td className="px-3 py-2 font-bold text-slate-600">{previewAssignment.className}</td>
                       <td className="px-3 py-2 font-bold text-slate-600">{previewAssignment.absentTeacherName}</td>
@@ -7729,6 +7959,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           absentTeachers={currentSession?.absentTeachers || []}
           assignments={(currentSession?.assignments || []).filter(a => !isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber))}
           targetTeacherId={printTargetTeacherId}
+          targetTeacherIds={printTargetTeacherIds}
           initialTab={printInitialTab}
           colorMode={printInitialTab === 'blank' ? blankPrintColorMode : waitingPrintColorMode}
           autoPrint

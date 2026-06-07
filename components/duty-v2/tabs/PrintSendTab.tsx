@@ -1919,9 +1919,9 @@ ${buildReportLink(target)}` : ''}`;
                 <div className="rounded-2xl border-2 border-dashed border-[#655ac1]/30 bg-slate-50 h-32 flex items-center justify-center text-xs font-bold text-slate-300">
                   {previewAssignmentRow.status === 'signed' ? 'وقّع' : 'التوقيع'}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex justify-end">
                   <button type="button" onClick={() => handlePrintAssignmentForms([previewAssignmentRow])}
-                    className="w-full py-3 bg-[#655ac1] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold text-sm transition-all shadow-md shadow-[#655ac1]/20">
                     <Printer size={16} /> طباعة النموذج
                   </button>
                 </div>
