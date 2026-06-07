@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { UserX, Shuffle, Scale, FileOutput, FileText, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  UserX, Shuffle, FileOutput, BarChart3, Check, ChevronLeft,
+  Printer, Send, Scale, FileText,
+} from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo, ScheduleSettingsData, Specialization,
 } from '../../types';
@@ -22,24 +25,53 @@ interface Props {
   onOpenMessagesArchive?: () => void;
 }
 
-type TabId = 'register' | 'distribute' | 'balance' | 'printsend' | 'send' | 'reports';
+type StageId = 'register' | 'distribute' | 'output' | 'monitoring';
+type OutputMode = 'printsend' | 'send';
+type MonitorMode = 'balance' | 'reports';
 
-const TAB_STORAGE_KEY = 'motabe:waiting_v2:lastTab';
-const VALID_TABS: TabId[] = ['register', 'distribute', 'printsend', 'send', 'balance', 'reports'];
-
+const STAGE_STORAGE_KEY = 'motabe:waiting_v2:stage';
+const LEGACY_TAB_KEY = 'motabe:waiting_v2:lastTab';
+const OUTPUT_MODE_KEY = 'motabe:waiting_v2:outputMode';
+const MONITOR_MODE_KEY = 'motabe:waiting_v2:monitorMode';
 const SCHOOL_TAB_STORAGE_KEY = 'motabe:waiting_v2:activeSchoolTab';
 const SELECTED_DATE_STORAGE_KEY = 'motabe:waiting_v2:selectedDate';
 
+const STAGES: StageId[] = ['register', 'distribute', 'output', 'monitoring'];
+
 const WaitingV2Container: React.FC<Props> = (props) => {
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
+  const { schoolInfo, scheduleSettings } = props;
+
+  const [stage, setStage] = useState<StageId>(() => {
     try {
-      const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null;
-      if (saved && VALID_TABS.includes(saved)) return saved;
+      const saved = localStorage.getItem(STAGE_STORAGE_KEY) as StageId | null;
+      if (saved && STAGES.includes(saved)) return saved;
+      // Migrate legacy flat-tab value onto the new stages.
+      const legacy = localStorage.getItem(LEGACY_TAB_KEY);
+      if (legacy === 'register' || legacy === 'distribute') return legacy as StageId;
+      if (legacy === 'printsend' || legacy === 'send') return 'output';
+      if (legacy === 'balance' || legacy === 'reports') return 'monitoring';
     } catch {}
     return 'register';
   });
 
-  const { schoolInfo, scheduleSettings } = props;
+  const [outputMode, setOutputMode] = useState<OutputMode>(() => {
+    try {
+      const saved = localStorage.getItem(OUTPUT_MODE_KEY) as OutputMode | null;
+      if (saved === 'printsend' || saved === 'send') return saved;
+      if (localStorage.getItem(LEGACY_TAB_KEY) === 'send') return 'send';
+    } catch {}
+    return 'printsend';
+  });
+
+  const [monitorMode, setMonitorMode] = useState<MonitorMode>(() => {
+    try {
+      const saved = localStorage.getItem(MONITOR_MODE_KEY) as MonitorMode | null;
+      if (saved === 'balance' || saved === 'reports') return saved;
+      if (localStorage.getItem(LEGACY_TAB_KEY) === 'reports') return 'reports';
+    } catch {}
+    return 'balance';
+  });
+
   const sharedSchools = schoolInfo?.sharedSchools || [];
   const hasSharedSchools = sharedSchools.length > 0;
   const isSeparateMode = (scheduleSettings?.generationMode || 'unified') === 'separate';
@@ -60,21 +92,46 @@ const WaitingV2Container: React.FC<Props> = (props) => {
     }
   });
 
-  useEffect(() => {
-    try { localStorage.setItem(TAB_STORAGE_KEY, activeTab); } catch {}
-  }, [activeTab]);
-
-  useEffect(() => {
-    try { localStorage.setItem(SCHOOL_TAB_STORAGE_KEY, activeSchoolTab); } catch {}
-  }, [activeSchoolTab]);
-
-  useEffect(() => {
-    try { localStorage.setItem(SELECTED_DATE_STORAGE_KEY, selectedDate); } catch {}
-  }, [selectedDate]);
+  useEffect(() => { try { localStorage.setItem(STAGE_STORAGE_KEY, stage); } catch {} }, [stage]);
+  useEffect(() => { try { localStorage.setItem(OUTPUT_MODE_KEY, outputMode); } catch {} }, [outputMode]);
+  useEffect(() => { try { localStorage.setItem(MONITOR_MODE_KEY, monitorMode); } catch {} }, [monitorMode]);
+  useEffect(() => { try { localStorage.setItem(SCHOOL_TAB_STORAGE_KEY, activeSchoolTab); } catch {} }, [activeSchoolTab]);
+  useEffect(() => { try { localStorage.setItem(SELECTED_DATE_STORAGE_KEY, selectedDate); } catch {} }, [selectedDate]);
 
   useEffect(() => {
     if (!showSchoolTabs && activeSchoolTab !== 'main') setActiveSchoolTab('main');
   }, [showSchoolTabs, activeSchoolTab]);
+
+  // ══════ Stage completion (read from the monolith's localStorage, decoupled) ══════
+  const [completionTick, setCompletionTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setCompletionTick(t => t + 1);
+    window.addEventListener('focus', bump);
+    document.addEventListener('visibilitychange', bump);
+    window.addEventListener('motabe:waiting_changed', bump);
+    return () => {
+      window.removeEventListener('focus', bump);
+      document.removeEventListener('visibilitychange', bump);
+      window.removeEventListener('motabe:waiting_changed', bump);
+    };
+  }, []);
+
+  const { absentCount, assignedCount } = useMemo(() => {
+    try {
+      const suffix = activeSchoolTab && activeSchoolTab !== 'main' ? `_${activeSchoolTab}` : '';
+      const raw = localStorage.getItem(`daily_waiting_sessions_v1${suffix}`);
+      const sessions = raw ? JSON.parse(raw) : [];
+      const session = Array.isArray(sessions) ? sessions.find((s: any) => s.date === selectedDate) : null;
+      return {
+        absentCount: session?.absentTeachers?.length || 0,
+        assignedCount: session?.assignments?.length || 0,
+      };
+    } catch {
+      return { absentCount: 0, assignedCount: 0 };
+    }
+    // completionTick forces a re-read after edits/focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSchoolTab, selectedDate, stage, completionTick]);
 
   const filteredTeachers = showSchoolTabs
     ? props.teachers.filter(t => t.schoolId === activeSchoolTab || (!t.schoolId && activeSchoolTab === 'main'))
@@ -92,17 +149,25 @@ const WaitingV2Container: React.FC<Props> = (props) => {
     onSelectedDateChange: setSelectedDate,
   };
 
-  const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<any> }> = [
-    { id: 'register', label: 'تسجيل غياب معلم', icon: UserX },
-    { id: 'distribute', label: 'توزيع الانتظار', icon: Shuffle },
-    { id: 'printsend', label: 'طباعة الانتظار', icon: FileOutput },
-    { id: 'send', label: 'إرسال الانتظار', icon: Send },
+  const stages: Array<{
+    id: StageId; n: number; label: string; hint: string;
+    icon: React.ComponentType<any>; complete: boolean;
+  }> = [
+    { id: 'register', n: 1, label: 'تسجيل الغياب', hint: 'أدخل المعلمين الغائبين وحصصهم', icon: UserX, complete: absentCount > 0 },
+    { id: 'distribute', n: 2, label: 'توزيع الانتظار', hint: 'وزّع آليًا أو يدويًا على المنتظرين', icon: Shuffle, complete: assignedCount > 0 },
+    { id: 'output', n: 3, label: 'الإخراج والمشاركة', hint: 'اطبع النموذج أو أرسله إلكترونيًا', icon: FileOutput, complete: false },
+    { id: 'monitoring', n: 4, label: 'الرصيد والتقارير', hint: 'تابع رصيد الانتظار واستخرج التقارير', icon: BarChart3, complete: false },
+  ];
+
+  const outputModes: Array<{ id: OutputMode; label: string; icon: React.ComponentType<any> }> = [
+    { id: 'printsend', label: 'طباعة النموذج', icon: Printer },
+    { id: 'send', label: 'الإرسال الإلكتروني', icon: Send },
+  ];
+
+  const monitorModes: Array<{ id: MonitorMode; label: string; icon: React.ComponentType<any> }> = [
     { id: 'balance', label: 'رصيد الانتظار', icon: Scale },
     { id: 'reports', label: 'تقارير الانتظار', icon: FileText },
   ];
-
-  // When user closes a auto-opened modal (balance/reports), the tab returns to register
-  const handleSectionExit = () => setActiveTab('register');
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20" dir="rtl">
@@ -114,7 +179,7 @@ const WaitingV2Container: React.FC<Props> = (props) => {
             الانتظار اليومي
           </h3>
           <p className="text-slate-500 font-medium mt-2 mr-12 max-w-2xl text-sm leading-relaxed">
-            إسناد حصص الانتظار اليومية للمنتظرين بطريقة ذكية ومتوازنة، أو استخدام التوزيع اليدوي
+            أمّن حصص المعلمين الغائبين بإسنادها للمنتظرين بخطوات سهلة، ثم اطبع النموذج أو أرسله إلكترونيًا للتوقيع.
           </p>
         </div>
       </div>
@@ -128,32 +193,132 @@ const WaitingV2Container: React.FC<Props> = (props) => {
         />
       )}
 
-      {/* ══════ Tabs Bar ══════ */}
-      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex gap-2 overflow-x-auto custom-scrollbar">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all flex-1 justify-center text-sm ${
-              activeTab === tab.id
-                ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
-                : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <tab.icon size={17} />
-            {tab.label}
-          </button>
-        ))}
+      {/* ══════ Stepper ══════ */}
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-200">
+        <div className="flex items-stretch gap-1 overflow-x-auto custom-scrollbar">
+          {stages.map((s, i) => {
+            const isActive = stage === s.id;
+            return (
+              <React.Fragment key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => setStage(s.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all min-w-[180px] flex-1 text-right ${
+                    isActive
+                      ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20'
+                      : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="relative shrink-0">
+                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center border-2 transition-all ${
+                      isActive ? 'bg-white border-white' : 'bg-transparent border-slate-200'
+                    }`}>
+                      <s.icon size={17} className="text-[#655ac1]" />
+                    </span>
+                    {s.complete && (
+                      <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                        <Check size={9} strokeWidth={4} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`block font-black text-sm leading-tight ${
+                      isActive ? 'text-white' : 'text-slate-800'
+                    }`}>
+                      {s.label}
+                    </span>
+                    <span className={`block text-[11px] font-bold mt-0.5 truncate ${
+                      isActive ? 'text-white/80' : 'text-slate-400'
+                    }`}>
+                      {s.hint}
+                    </span>
+                  </span>
+                </button>
+                {i < stages.length - 1 && (
+                  <div className="flex items-center px-2 shrink-0">
+                    <ChevronLeft size={20} className="text-slate-300" strokeWidth={2.5} />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ══════ Tab Content ══════ */}
+      {/* ══════ Stage Content ══════ */}
       <div className="min-h-[400px]">
-        {activeTab === 'register' && <RegisterTab {...childProps} onGoToDistribute={() => setActiveTab('distribute')} />}
-        {activeTab === 'distribute' && <DistributeTab {...childProps} onGoToPrintSend={() => setActiveTab('printsend')} />}
-        {activeTab === 'balance' && <BalanceTab {...childProps} onSectionExit={handleSectionExit} />}
-        {activeTab === 'printsend' && <PrintSendTab {...childProps} />}
-        {activeTab === 'send' && <SendTab {...childProps} />}
-        {activeTab === 'reports' && <ReportsTab {...childProps} onSectionExit={handleSectionExit} />}
+        {stage === 'register' && (
+          <RegisterTab {...childProps} onGoToDistribute={() => setStage('distribute')} />
+        )}
+
+        {stage === 'distribute' && (
+          <DistributeTab
+            {...childProps}
+            onGoToPrintSend={() => { setStage('output'); setOutputMode('printsend'); }}
+          />
+        )}
+
+        {stage === 'output' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-[2rem] px-4 py-3 border border-slate-100 shadow-sm">
+              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+                {outputModes.map(m => {
+                  const active = outputMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setOutputMode(m.id)}
+                      className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 border ${
+                        active
+                          ? 'bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 border-[#655ac1]'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-slate-200 bg-white'
+                      }`}
+                    >
+                      <m.icon size={16} />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {outputMode === 'printsend'
+              ? <PrintSendTab key="printsend" {...childProps} />
+              : <SendTab key="send" {...childProps} />}
+          </div>
+        )}
+
+        {stage === 'monitoring' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-[2rem] px-4 py-3 border border-slate-100 shadow-sm">
+              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+                {monitorModes.map(m => {
+                  const active = monitorMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setMonitorMode(m.id)}
+                      className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 border ${
+                        active
+                          ? 'bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 border-[#655ac1]'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-slate-200 bg-white'
+                      }`}
+                    >
+                      <m.icon size={16} />
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {monitorMode === 'balance'
+              ? <BalanceTab key="balance" {...childProps} />
+              : <ReportsTab key="reports" {...childProps} />}
+          </div>
+        )}
       </div>
     </div>
   );

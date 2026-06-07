@@ -19,7 +19,7 @@ interface Props {
 }
 
 const RegisterTab: React.FC<Props> = ({ onGoToDistribute, ...rest }) => {
-  return <DailyWaiting {...rest} embeddedSection="register" />;
+  return <DailyWaiting {...rest} embeddedSection="register" onGoToDistribute={onGoToDistribute} />;
 };
 
 export default RegisterTab;

@@ -11,7 +11,7 @@ import {
   AlertCircle, CheckCircle2, Info, Zap, ArrowLeftRight, Users, ClipboardList,
   Calendar, BookOpen, Layers, RefreshCw, Plus, Trash2,
   BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle, Scale, PieChart,
-  ArrowRight, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
+  ArrowRight, ArrowLeft, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
   PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog, Shuffle, CircleOff,
   Archive, ClipboardCheck, CalendarClock, Wallet
 } from 'lucide-react';
@@ -482,6 +482,7 @@ interface DailyWaitingProps {
   embeddedSection?: 'register' | 'distribute' | 'balance' | 'printsend' | 'send' | 'reports';
   onSectionExit?: () => void;
   onGoToPrintSend?: () => void;
+  onGoToDistribute?: () => void;
   onOpenMessagesArchive?: () => void;
   activeSchoolTab?: string;
   selectedDate?: string;
@@ -490,7 +491,7 @@ interface DailyWaitingProps {
 
 // ===== Main Component =====
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
-  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onOpenMessagesArchive, activeSchoolTab = 'main', selectedDate: controlledSelectedDate, onSelectedDateChange
+  teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onGoToDistribute, onOpenMessagesArchive, activeSchoolTab = 'main', selectedDate: controlledSelectedDate, onSelectedDateChange
 }) => {
   const storageSuffix = activeSchoolTab && activeSchoolTab !== 'main' ? `_${activeSchoolTab}` : '';
   const SESSIONS_KEY = `daily_waiting_sessions_v1${storageSuffix}`;
@@ -688,6 +689,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   // ===== Persistence =====
   useEffect(() => {
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+    // Notify the container shell so the stepper completion marks stay in sync.
+    try { window.dispatchEvent(new CustomEvent('motabe:waiting_changed')); } catch {}
   }, [sessions, SESSIONS_KEY]);
 
   useEffect(() => {
@@ -1402,7 +1405,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const embCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
   const receiptCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
   const [receiptSelectedDates, setReceiptSelectedDates] = useState<string[]>([selectedDate]);
-  const [showAbsentListModal, setShowAbsentListModal] = useState(false);
 
   // ===== Auto-open modals for legacy report embedded section =====
   const [autoOpenedKey, setAutoOpenedKey] = useState<'balance' | 'reports' | null>(null);
@@ -4080,15 +4082,17 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
         const distDone = totalAssigned > 0;
         const showMethodCard = totalAbsent > 0;
+        const absentRecords = currentSession?.absentTeachers || [];
 
         return (
           <div className="space-y-4 mb-6">
             {/* Date Picker Bar + Teachers Table — register section only */}
             {isRegister && (<>
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
-              <div className="w-64">
-                <label className="block text-xs font-black text-slate-500 mb-1.5">
-                  {`اليوم والتاريخ: ${getArabicDayFromDate(selectedDate)} - ${embCalendarType === 'hijri' ? formatHijri(selectedDate) : formatGregorian(selectedDate)}`}
+              <div className="w-72">
+                <label className="block text-xs font-black text-slate-500 mb-1.5 flex items-center gap-1.5">
+                  <Calendar size={14} className="text-[#655ac1]" />
+                  تاريخ الغياب
                 </label>
                 <DatePicker
                   value={new DateObject({ date: selectedDate, calendar: gregorian, format: 'YYYY-MM-DD' }).convert(
@@ -4110,165 +4114,193 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   portalTarget={document.body}
                   editable={false}
                   zIndex={99999}
-                  format={embCalendarType === 'hijri' ? 'DD MMMM YYYY' : 'YYYY-MM-DD'}
+                  format="dddd - YYYY/MM/DD"
                 />
               </div>
             </div>
 
-            {/* Teachers Table */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <UserX size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">تسجيل الغياب</h4>
+            {/* Master-Detail: قائمة المعلمين (يمين) + بطاقة الغائبين (يسار) */}
+            <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 items-start">
+
+              {/* ══ RIGHT: Teachers picker list ══ */}
+              <div className="lg:col-span-3 bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <Users size={20} className="text-[#655ac1]" />
+                    <h4 className="font-black text-slate-800">المعلمون</h4>
+                    <span className="inline-flex items-center justify-center px-2.5 h-6 rounded-full border border-slate-200 bg-white text-[#655ac1] text-xs font-black">
+                      {teachers.length}
+                    </span>
+                  </div>
+                  <div className="relative flex-1 min-w-[160px]">
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={embTableSearch}
+                      onChange={e => setEmbTableSearch(e.target.value)}
+                      placeholder="ابحث"
+                      className="w-full h-10 pr-10 pl-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-200 focus:border-slate-300 outline-none transition-all"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAbsentListModal(true)}
-                    className="h-10 flex items-center gap-2 px-4 rounded-xl border border-slate-200 bg-white hover:border-[#655ac1] text-sm font-bold text-slate-700 transition-all"
-                    title="عرض قائمة الغائبين اليوم"
-                  >
-                    <UserX size={16} className="text-[#8779fb]" />
-                    <span>الغائبون اليوم</span>
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border-[1.5px] border-slate-300 text-[#8779fb] text-xs font-black leading-none">{totalAbsent}</span>
-                  </button>
-                  <input
-                    type="text"
-                    value={embTableSearch}
-                    onChange={e => setEmbTableSearch(e.target.value)}
-                    placeholder="ابحث عن معلم..."
-                    className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:border-[#655ac1] focus:outline-none w-72"
-                  />
+
+                <div className="max-h-[560px] overflow-y-auto custom-scrollbar divide-y divide-slate-50">
+                  {tableTeachers.length === 0 && (
+                    <div className="text-center text-slate-400 font-medium py-16 text-sm">لا توجد نتائج</div>
+                  )}
+                  {tableTeachers.map(t => {
+                    const isAbsent = absentTeacherIds.has(t.id);
+                    const specialty = specializations.find(s => s.id === t.specializationId)?.name
+                      || subjectNameOf(t.assignedSubjectId);
+                    const teachingCount = getTeacherDaySchedule(t.id, dayKey).length;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTeacherAbsenceInline(t, isAbsent ? 'none' : 'full')}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-slate-50 transition-colors"
+                      >
+                        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 shrink-0 transition-all ${
+                          isAbsent ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'
+                        }`}>
+                          <Check size={11} strokeWidth={3} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className={`block font-black text-sm truncate ${isAbsent ? 'text-[#655ac1]' : 'text-slate-800'}`} title={t.name}>{t.name}</span>
+                          <span className="block text-[12px] font-bold text-slate-400 truncate" title={specialty}>{specialty}</span>
+                        </span>
+                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full border border-slate-200 text-[11px] font-black shrink-0 ${teachingCount === 0 ? 'text-amber-500' : 'text-slate-500'}`}>
+                          {teachingCount === 0 ? 'لا حصص اليوم' : `${teachingCount} حصص`}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div>
-                <table className="w-full text-right table-fixed" dir="rtl">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-100">
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[5%]">م</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[23%]">اسم المعلم</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[17%]">التخصص</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] text-center w-[22%]">نوع الغياب</th>
-                      <th className="px-3 py-3 font-black text-[#655ac1] text-[13px] w-[26%]">الحصص</th>
-                      <th className="px-4 py-3 font-black text-[#655ac1] text-[13px] text-right pr-4 whitespace-nowrap w-[11%]">إجمالي الحصص</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {tableTeachers.length === 0 && (
-                      <tr><td colSpan={6} className="text-center text-slate-400 font-medium py-12">
-                        لا توجد نتائج
-                      </td></tr>
-                    )}
-                    {tableTeachers.map((t, idx) => {
-                      const rec = currentSession?.absentTeachers.find(a => a.teacherId === t.id);
-                      const type: 'none' | 'full' | 'partial' = rec?.absenceType || 'none';
-                      const selPeriods = new Set((rec?.periods || []).map(p => p.periodNumber));
-                      const teachingPeriods = getTeacherDaySchedule(t.id, dayKey).map(p => p.periodNumber);
-                      const displayPeriods = type === 'none'
-                        ? []
-                        : type === 'full'
-                          ? teachingPeriods
-                          : teachingPeriods.filter(num => selPeriods.has(num));
-                      const totalAbsentPeriods = displayPeriods.length;
-                      const specialty = specializations.find(s => s.id === t.specializationId)?.name
-                        || subjectNameOf(t.assignedSubjectId);
+              {/* ══ LEFT: Absentees detail ══ */}
+              <div className="lg:col-span-4 bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+                  <UserX size={20} className="text-[#655ac1]" />
+                  <h4 className="font-black text-slate-800">الغائبون اليوم</h4>
+                  <span className={`inline-flex items-center justify-center px-2.5 h-6 rounded-full border border-slate-200 bg-white text-xs font-black ${
+                    totalAbsent > 0 ? 'text-[#655ac1]' : 'text-slate-400'
+                  }`}>
+                    {totalAbsent}
+                  </span>
+                </div>
+
+                {absentRecords.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-20 px-6">
+                    <UserX size={40} className="text-slate-200 mb-3" strokeWidth={1.6} />
+                    <p className="text-sm font-black text-slate-500">لا يوجد غائبون بعد</p>
+                    <p className="text-xs font-medium text-slate-400 mt-1">اختر معلمًا من القائمة لتسجيله غائبًا</p>
+                  </div>
+                ) : (
+                  <div className="max-h-[560px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                    {absentRecords.map(rec => {
+                      const t = teachers.find(x => x.id === rec.teacherId);
+                      const type = rec.absenceType;
+                      const selPeriods = new Set(rec.periods.map(p => p.periodNumber));
+                      const daySchedule = getTeacherDaySchedule(rec.teacherId, dayKey);
+                      const specialty = (t && specializations.find(s => s.id === t.specializationId)?.name)
+                        || (t ? subjectNameOf(t.assignedSubjectId) : '—');
+                      const totalAbsentPeriods = type === 'full' ? daySchedule.length : selPeriods.size;
                       return (
-                        <tr key={t.id} className="bg-white hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
-                              {idx + 1}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 font-black text-slate-800 text-sm truncate" title={t.name}>{t.name}</td>
-                          <td className="px-3 py-3 text-slate-600 text-[13px] font-bold truncate" title={specialty}>{specialty}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center justify-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => setTeacherAbsenceInline(t, type === 'full' ? 'none' : 'full')}
-                                className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-[#655ac1] transition-colors"
-                              >
-                                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
-                                  type === 'full' ? 'border-[#655ac1] bg-white text-[#655ac1]' : 'border-slate-300 bg-white text-transparent'
-                                }`}>
-                                  <Check size={12} strokeWidth={3} />
-                                </span>
-                                يوم كامل
-                              </button>
-                              <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (type === 'partial') setTeacherAbsenceInline(t, 'none');
-                                  else setTeacherAbsenceInline(t, 'partial', teachingPeriods.length > 0 ? [teachingPeriods[0]] : []);
-                                }}
-                                className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-[#655ac1] transition-colors"
-                              >
-                                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
-                                  type === 'partial' ? 'border-[#655ac1] bg-white text-[#655ac1]' : 'border-slate-300 bg-white text-transparent'
-                                }`}>
-                                  <Check size={12} strokeWidth={3} />
-                                </span>
-                                جزئي
-                              </button>
+                        <div key={rec.id} className="px-4 py-4 space-y-3">
+                          {/* Absentee header row: name + small toggle + remove */}
+                          <div className="flex items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-black text-slate-800 text-sm truncate" title={rec.teacherName}>{rec.teacherName}</p>
+                              <p className="text-[12px] font-medium text-slate-400 truncate" title={specialty}>
+                                {specialty}{totalAbsentPeriods > 0 ? ` · ${totalAbsentPeriods} حصص` : ''}
+                              </p>
                             </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            {type === 'partial' ? (
-                              <div className="flex flex-wrap gap-1">
-                                {teachingPeriods.map(num => {
-                                  const sel = selPeriods.has(num);
+                            <div className="inline-flex gap-0.5 bg-slate-50 p-0.5 rounded-lg shrink-0">
+                              {([
+                                { id: 'full', label: 'يوم كامل' },
+                                { id: 'partial', label: 'جزئي' },
+                              ] as const).map(opt => {
+                                const active = type === opt.id;
+                                return (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!t) return;
+                                      if (opt.id === 'full') setTeacherAbsenceInline(t, 'full');
+                                      else setTeacherAbsenceInline(t, 'partial', daySchedule.length > 0 ? [daySchedule[0].periodNumber] : []);
+                                    }}
+                                    className={`px-6 py-1 rounded-md text-xs font-bold transition-all ${
+                                      active ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => t && setTeacherAbsenceInline(t, 'none')}
+                              className="w-7 h-7 inline-flex items-center justify-center rounded-full border border-slate-300 text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition-all shrink-0"
+                              title="إزالة من الغائبين"
+                            >
+                              <X size={13} strokeWidth={2.5} />
+                            </button>
+                          </div>
+
+                            {daySchedule.length === 0 ? (
+                              <p className="text-xs font-bold text-amber-500 text-center py-2">لا توجد حصص لهذا المعلم في هذا اليوم</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {daySchedule.map(p => {
+                                  const sel = type === 'full' || selPeriods.has(p.periodNumber);
+                                  const clickable = type === 'partial';
                                   return (
                                     <button
-                                      key={num}
-                                      onClick={() => toggleEmbPartialPeriod(t, num)}
-                                      className={`w-7 h-7 rounded-md text-xs font-black border transition-all ${
+                                      key={p.periodNumber}
+                                      type="button"
+                                      disabled={!clickable}
+                                      onClick={() => t && clickable && toggleEmbPartialPeriod(t, p.periodNumber)}
+                                      title={`${p.subjectName || ''} ${p.className ? '· ' + p.className : ''}`.trim()}
+                                      className={`flex flex-col items-center justify-center w-[64px] py-1 rounded-lg border text-center transition-all ${
                                         sel
-                                          ? 'bg-[#8779fb] text-white border-[#8779fb] shadow-sm'
-                                          : 'bg-white text-[#8779fb] border-slate-300 hover:border-[#8779fb]'
-                                      }`}
-                                      title={`الحصة ${num}`}
+                                          ? 'bg-[#f1eefc] border-[#cbc1f2] text-[#655ac1]'
+                                          : 'bg-white border-slate-200 text-slate-400 hover:border-[#cbc1f2]'
+                                      } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
                                     >
-                                      {num}
+                                      <span className="text-[11px] font-black leading-none">الحصة {p.periodNumber}</span>
+                                      <span className={`text-[11px] font-bold leading-tight mt-0.5 truncate max-w-[56px] ${sel ? 'text-[#655ac1]/70' : 'text-slate-400'}`}>
+                                        {p.className || p.subjectName || ''}
+                                      </span>
                                     </button>
                                   );
                                 })}
-                                {teachingPeriods.length === 0 && <span className="text-xs text-slate-300">—</span>}
                               </div>
-                            ) : type === 'full' ? (
-                              <div className="flex flex-wrap gap-1">
-                                {displayPeriods.map(num => (
-                                  <span
-                                    key={num}
-                                    className="inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-black bg-white text-[#8779fb] border border-slate-300"
-                                  >
-                                    {num}
-                                  </span>
-                                ))}
-                                {displayPeriods.length === 0 && <span className="text-xs text-slate-300">—</span>}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-slate-300">—</span>
                             )}
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            <div className="flex justify-center">
-                              {totalAbsentPeriods > 0 ? (
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 text-[#8779fb] text-xs font-black leading-none">
-                                  {totalAbsentPeriods}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-slate-300">—</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                            {type === 'partial' && daySchedule.length > 0 && selPeriods.size === 0 && (
+                              <p className="text-[11px] font-bold text-slate-400">حدّد الحصص التي سيتغيّب عنها المعلم</p>
+                            )}
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                )}
+
+                {/* CTA: الانتقال لتوزيع الانتظار */}
+                {totalAbsent > 0 && onGoToDistribute && (
+                  <div className="p-4 border-t border-slate-100 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => onGoToDistribute()}
+                      className="inline-flex items-center justify-center gap-2 px-10 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#655ac1] text-white text-sm font-bold shadow-md shadow-[#655ac1]/20 transition-transform active:scale-95"
+                    >
+                      <span>التالي: توزيع الانتظار</span>
+                      <ArrowLeft size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             </>)}
@@ -5771,94 +5803,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         document.body
       )}
 
-      {/* ══════════════════════════════════════════════
-          MODAL: قائمة الغائبين اليوم
-      ══════════════════════════════════════════════ */}
-      {showAbsentListModal && ReactDOM.createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAbsentListModal(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" dir="rtl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <UserX size={22} className="text-[#8779fb]" />
-                <h3 className="font-black text-slate-800">الغائبون اليوم</h3>
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 text-[#8779fb] text-sm font-black leading-none">{currentSession?.absentTeachers.length || 0}</span>
-              </div>
-              <button onClick={() => setShowAbsentListModal(false)} className="w-9 h-9 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all shrink-0">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto p-5">
-              <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                <table className="w-full text-sm text-right table-fixed">
-                  <thead className="bg-slate-50 border-b border-slate-100">
-                    <tr className="text-xs font-black text-[#655ac1]">
-                      <th className="text-center px-3 py-3 w-[6%]">م</th>
-                      <th className="px-3 py-3 w-[24%]">اسم المعلم</th>
-                      <th className="px-3 py-3 w-[18%]">التخصص</th>
-                      <th className="text-center px-3 py-3 w-[16%]">نوع الغياب</th>
-                      <th className="px-3 py-3 w-[24%]">الحصص</th>
-                      <th className="text-center px-3 py-3 w-[12%]">إجمالي الحصص</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {(!currentSession || currentSession.absentTeachers.length === 0) ? (
-                      <tr>
-                        <td colSpan={6} className="text-center text-slate-400 font-medium py-12">
-                          لا يوجد غائبون مسجلون لهذا اليوم
-                        </td>
-                      </tr>
-                    ) : currentSession.absentTeachers.map((rec, idx) => {
-                      const t = teachers.find(x => x.id === rec.teacherId);
-                      const specialty = (t && specializations.find(s => s.id === t.specializationId)?.name)
-                        || (t ? (subjects.find(s => s.id === t.assignedSubjectId)?.name || '—') : '—');
-                      const periodNums = rec.periods.map(p => p.periodNumber).sort((a, b) => a - b);
-                      return (
-                        <tr key={rec.id} className="bg-white hover:bg-slate-50/50 transition-colors">
-                          <td className="px-3 py-3 text-center text-slate-400 font-medium">{idx + 1}</td>
-                          <td className="px-3 py-3 font-black text-slate-800 truncate" title={rec.teacherName}>{rec.teacherName}</td>
-                          <td className="px-3 py-3 text-slate-600 font-bold truncate" title={specialty}>{specialty}</td>
-                          <td className="px-3 py-3 text-center">
-                            <span className="text-xs font-black text-slate-900">
-                              {rec.absenceType === 'full' ? 'يوم كامل' : 'جزئي'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap gap-1">
-                              {periodNums.map(num => (
-                                <span
-                                  key={num}
-                                  className="inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-black bg-white text-[#8779fb] border border-slate-300"
-                                >
-                                  {num}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 text-[#8779fb] text-xs font-black">
-                              {rec.periods.length}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowAbsentListModal(false)}
-                className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* ══════════════════════════════════════════════
           MODAL: تسجيل الغياب
