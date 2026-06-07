@@ -931,11 +931,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
                                 {/* Add button */}
                                 {(canAddMore || showAdd) && (
-                                  <div className="relative">
+                                  <div className="relative flex justify-center">
                                     {canAddMore && (
                                       <button
                                         onClick={(e) => openAddPanel(dayId, e)}
-                                        className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                                        className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
                                       >
                                         <Plus size={13} /> إضافة مناوب
                                       </button>

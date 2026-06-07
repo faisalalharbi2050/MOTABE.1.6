@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Check, ListTree, Plus, Trash2 } from 'lucide-react';
+import { Check, Edit3, ListTree, Plus, Trash2, X } from 'lucide-react';
 import { SupervisionType } from '../../types';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
@@ -63,6 +63,8 @@ const SupervisionTypesPanel: React.FC<Props> = ({
 }) => {
   const [draftTables, setDraftTables] = useState<SupervisionTableDraft[]>([]);
   const [tableToDelete, setTableToDelete] = useState<SupervisionTableDraft | null>(null);
+  const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
+  const [editingTypeName, setEditingTypeName] = useState('');
 
   useEffect(() => {
     setSupervisionTypes(prev =>
@@ -188,6 +190,28 @@ const SupervisionTypesPanel: React.FC<Props> = ({
     );
   };
 
+  const startEditType = (type: SupervisionType) => {
+    setEditingTypeId(type.id);
+    setEditingTypeName(getTypeLabel(type));
+  };
+
+  const cancelEditType = () => {
+    setEditingTypeId(null);
+    setEditingTypeName('');
+  };
+
+  const saveEditType = () => {
+    if (!editingTypeId) return;
+    const cleanName = editingTypeName.trim();
+    if (!cleanName) {
+      showToast('أدخل اسم نوع الإشراف', 'warning');
+      return;
+    }
+    renameType(editingTypeId, cleanName);
+    cancelEditType();
+    showToast('تم تعديل نوع الإشراف', 'success');
+  };
+
   const deleteCustom = (id: string) => {
     setSupervisionTypes(prev => prev.filter(type => type.id !== id));
     showToast('تم حذف نوع الإشراف', 'success');
@@ -256,14 +280,21 @@ const SupervisionTypesPanel: React.FC<Props> = ({
             {/* الاختيارات + المعاينة جنبًا إلى جنب */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
               <div>
-                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-1">
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <div className="grid grid-cols-[3rem_minmax(0,1fr)_6.5rem] items-center bg-slate-50 px-3 py-2 text-[11px] font-black text-[#655ac1]">
+                    <span className="text-center">تحديد</span>
+                    <span>نوع الإشراف</span>
+                    <span className="text-center">إجراءات</span>
+                  </div>
+                  <div className="divide-y divide-slate-100">
                   {sorted.map(type => {
                     const checked = getTypeTableId(type) === table.id;
                     const usedElsewhere = isTypeUsedInAnotherTable(type, table.id);
+                    const isEditing = editingTypeId === type.id;
                     return (
-                      <label
+                      <div
                         key={type.id}
-                        className={`flex items-center gap-3 px-2 py-3 transition-all ${
+                        className={`grid grid-cols-[3rem_minmax(0,1fr)_6.5rem] items-center gap-3 px-3 py-3 transition-all ${
                           checked
                             ? 'bg-white text-slate-800'
                             : usedElsewhere
@@ -272,40 +303,75 @@ const SupervisionTypesPanel: React.FC<Props> = ({
                         }`}
                         title={usedElsewhere ? 'تم اختيار هذا النوع في جدول آخر' : undefined}
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
+                        <button
+                          type="button"
                           disabled={usedElsewhere}
-                          onChange={event => setTypeInTable(type, table, event.target.checked)}
-                          className="sr-only"
-                        />
-                        {type.isBuiltIn ? (
-                          <span className="text-sm font-black flex-1">{getTypeLabel(type)}</span>
-                        ) : (
+                          onClick={() => setTypeInTable(type, table, !checked)}
+                          className="flex justify-center disabled:cursor-not-allowed"
+                          title={usedElsewhere ? 'تم اختيار هذا النوع في جدول آخر' : 'تحديد'}
+                        >
+                          <RoundCheck checked={checked} disabled={usedElsewhere} />
+                        </button>
+
+                        {isEditing ? (
                           <input
-                            value={type.name}
-                            onChange={event => renameType(type.id, event.target.value)}
-                            onClick={event => event.stopPropagation()}
-                            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
+                            value={editingTypeName}
+                            onChange={event => setEditingTypeName(event.target.value)}
+                            onKeyDown={event => {
+                              if (event.key === 'Enter') saveEditType();
+                              if (event.key === 'Escape') cancelEditType();
+                            }}
+                            className="min-w-0 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#655ac1]/30 focus:border-[#655ac1]"
+                            autoFocus
                           />
+                        ) : (
+                          <span className="min-w-0 truncate text-sm font-black">{getTypeLabel(type)}</span>
                         )}
-                        {!type.isBuiltIn && (
+
+                        <div className="flex items-center justify-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={saveEditType}
+                                className="p-2 rounded-lg text-[#655ac1] hover:bg-[#655ac1]/10 transition-colors"
+                                title="حفظ"
+                              >
+                                <Check size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditType}
+                                className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+                                title="إلغاء"
+                              >
+                                <X size={15} />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startEditType(type)}
+                              className="p-2 rounded-lg text-slate-500 hover:text-[#655ac1] hover:bg-[#655ac1]/10 transition-colors"
+                              title="تعديل"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={event => {
-                              event.preventDefault();
-                              deleteCustom(type.id);
-                            }}
-                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                            title="حذف"
+                            disabled={type.isBuiltIn}
+                            onClick={() => deleteCustom(type.id)}
+                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                            title={type.isBuiltIn ? 'لا يمكن حذف نوع إشراف أساسي' : 'حذف'}
                           >
                             <Trash2 size={15} />
                           </button>
-                        )}
-                        <RoundCheck checked={checked} disabled={usedElsewhere} />
-                      </label>
+                        </div>
+                      </div>
                     );
                   })}
+                  </div>
                 </div>
 
                 <button

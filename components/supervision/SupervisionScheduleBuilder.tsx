@@ -836,8 +836,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
   const renderCompactStaffRow = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment, showLocations = true) => (
     <div
       key={`${sa.staffId}-${sa.contextTypeId}`}
-      className={`relative grid items-center gap-2 bg-white px-2.5 py-2 border-b border-slate-200/80 last:border-b-0 ${
-        showLocations ? 'grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)_auto]' : 'grid-cols-[1fr_auto]'
+      className={`relative grid min-h-[45px] items-center gap-2 px-2.5 py-2 border-b border-slate-200/80 last:border-b-0 ${
+        showLocations ? 'grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)]' : 'grid-cols-[1fr]'
       }`}
     >
       <div className="min-w-0">
@@ -891,22 +891,28 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
       </div>
       )}
 
-      <div className="flex items-center gap-1">
+    </div>
+  );
+
+  const renderCompactStaffActions = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment) => (
+    <div
+      key={`${sa.staffId}-${sa.contextTypeId}-actions`}
+      className="flex min-h-[45px] items-center justify-center gap-1 px-2.5 py-1.5 border-b border-slate-200/80 last:border-b-0"
+    >
         <button
           onClick={() => openAddPanel(day, type.id, type.name, sa.staffId)}
           className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
           title="تعديل"
         >
-          <Edit3 size={12} />
+          <Edit3 size={15} />
         </button>
         <button
           onClick={() => requestRemoveStaffFromCell(day, type.id, sa)}
-          className="p-1.5 rounded-lg border border-rose-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-200 text-rose-600 hover:text-rose-700 hover:bg-slate-50 transition-colors"
           title="حذف"
         >
-          <Trash2 size={12} />
+          <Trash2 size={15} />
         </button>
-      </div>
     </div>
   );
 
@@ -1461,9 +1467,14 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
                   <th className="p-4 font-black text-center w-28 border-l border-white/40">اليوم</th>
                   {inlineTypes.map(type => (
-                    <th key={type.id} className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">
-                      {type.name}
-                    </th>
+                    <React.Fragment key={type.id}>
+                      <th className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">
+                        {type.name}
+                      </th>
+                      <th className="p-4 font-black text-center border-l border-white/40 w-24 min-w-[96px]">
+                        إجراءات
+                      </th>
+                    </React.Fragment>
                   ))}
                   {showFollowUpSupervisor && (
                     <th className="p-4 font-black text-center w-48">المشرف المتابع</th>
@@ -1475,27 +1486,36 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   return (
                     <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
                       {/* Day cell */}
-                      <td className="p-3 border-l border-slate-200/80 align-top bg-slate-50/50 text-center">
-                        <h4 className="font-black text-[#655ac1] text-base mt-2">{DAY_NAMES[day]}</h4>
+                      <td className="p-3 border-l border-slate-200/80 align-middle bg-slate-50/50 text-center">
+                        <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[day]}</h4>
                       </td>
 
                       {/* Inline types cells */}
                       {inlineTypes.map(type => {
                         const cellStaff = getStaffForCell(day, type.id);
                         return (
-                          <td key={type.id} className="p-3 border-l border-slate-200/80 align-top">
-                            <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(248,250,252,0.9)]">
+                          <React.Fragment key={type.id}>
+                          <td className="p-3 border-l border-slate-200/80 align-top">
+                            <div className="flex flex-col">
                               {cellStaff.map(sa => renderCompactStaffRow(day, type, sa, mainTableConfig.showLocations))}
 
                               {/* Add button */}
-                              <button
-                                onClick={() => openAddPanel(day, type.id, type.name)}
-                                className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
-                              >
-                                <Plus size={12} /> إضافة مشرف
-                              </button>
+                              <div className="flex justify-center py-2">
+                                <button
+                                  onClick={() => openAddPanel(day, type.id, type.name)}
+                                  className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
+                                >
+                                  <Plus size={12} /> إضافة مشرف
+                                </button>
+                              </div>
                             </div>
                           </td>
+                          <td className="p-3 border-l border-slate-200/80 align-top">
+                            <div className="flex flex-col">
+                              {cellStaff.map(sa => renderCompactStaffActions(day, type, sa))}
+                            </div>
+                          </td>
+                          </React.Fragment>
                         );
                       })}
 
@@ -1528,7 +1548,10 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
                   <th className="p-4 font-black text-center w-28 border-l border-white/40">اليوم</th>
                   {group.types.map(type => (
-                    <th key={type.id} className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">{type.name}</th>
+                    <React.Fragment key={type.id}>
+                      <th className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">{type.name}</th>
+                      <th className="p-4 font-black text-center border-l border-white/40 w-24 min-w-[96px]">إجراءات</th>
+                    </React.Fragment>
                   ))}
                   {groupConfig.showFollowUp && (
                     <th className="p-4 font-black text-center w-48">المشرف المتابع</th>
@@ -1539,23 +1562,32 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 {activeDays.map(day => {
                   return (
                     <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
-                      <td className="p-3 border-l border-slate-200/80 align-top bg-slate-50/50 text-center">
-                        <h4 className="font-black text-[#655ac1] text-base mt-2">{DAY_NAMES[day]}</h4>
+                      <td className="p-3 border-l border-slate-200/80 align-middle bg-slate-50/50 text-center">
+                        <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[day]}</h4>
                       </td>
                       {group.types.map(type => {
                         const cellStaff = getStaffForCell(day, type.id);
                         return (
-                          <td key={type.id} className="p-3 border-l border-slate-200/80 align-top">
-                            <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-[inset_0_0_0_1px_rgba(248,250,252,0.9)]">
+                          <React.Fragment key={type.id}>
+                          <td className="p-3 border-l border-slate-200/80 align-top">
+                            <div className="flex flex-col">
                               {cellStaff.map(sa => renderCompactStaffRow(day, type, sa, groupConfig.showLocations))}
-                              <button
-                                onClick={() => openAddPanel(day, type.id, type.name)}
-                                className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
-                              >
-                                <Plus size={12} /> إضافة مشرف
-                              </button>
+                              <div className="flex justify-center py-2">
+                                <button
+                                  onClick={() => openAddPanel(day, type.id, type.name)}
+                                  className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
+                                >
+                                  <Plus size={12} /> إضافة مشرف
+                                </button>
+                              </div>
                             </div>
                           </td>
+                          <td className="p-3 border-l border-slate-200/80 align-top">
+                            <div className="flex flex-col">
+                              {cellStaff.map(sa => renderCompactStaffActions(day, type, sa))}
+                            </div>
+                          </td>
+                          </React.Fragment>
                         );
                       })}
                       {groupConfig.showFollowUp && renderFollowUpCell(day)}
