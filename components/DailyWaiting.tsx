@@ -13,7 +13,7 @@ import {
   BarChart3, AlertTriangle, MessageSquare, Printer, CheckCircle, Scale, PieChart,
   ArrowRight, ArrowLeft, Edit3, Shield, Copy, FileText, Send, ChevronDown, ChevronUp, Check,
   PenLine, Eye, Hourglass, Link2, ExternalLink, BookX, UserCog, Shuffle, CircleOff,
-  Archive, ClipboardCheck, CalendarClock, Wallet
+  Archive, ClipboardCheck, CalendarClock, Wallet, MoreHorizontal
 } from 'lucide-react';
 import {
   Teacher, Admin, ClassInfo, Subject, SchoolInfo,
@@ -567,12 +567,28 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [showManualOverwriteConfirm, setShowManualOverwriteConfirm] = useState(false);
   const [removeAssignmentConfirm, setRemoveAssignmentConfirm] = useState<WaitingAssignment | null>(null);
   const [clearTeacherAssignmentsConfirm, setClearTeacherAssignmentsConfirm] = useState<AbsentTeacher | null>(null);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [disabledWaitingSlots, setDisabledWaitingSlots] = useState<Set<string>>(new Set());
   const [selectedAssignPerson, setSelectedAssignPerson] = useState<Teacher | Admin | null>(null);
   const [manualNameSlots, setManualNameSlots] = useState<Set<string>>(new Set());
   const [manualNameValues, setManualNameValues] = useState<Record<string, string>>({});
   const [showRankModal, setShowRankModal] = useState<'top' | 'bottom' | null>(null);
   const [assignModalTab, setAssignModalTab] = useState<'teachers' | 'admins'>('teachers');
+  // Per-period row actions dropdown (matches TeachersAndStaff "قسم المعلمون" design)
+  const [rowActionMenu, setRowActionMenu] = useState<{ period: AbsentPeriodEntry; absentTeacher: AbsentTeacher; top: number; right: number } | null>(null);
+  const openRowActionMenu = (e: React.MouseEvent, period: AbsentPeriodEntry, absentTeacher: AbsentTeacher) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const MENU_W = 200;
+    // Anchor menu's right edge to the button, but clamp so it never clips off-screen.
+    let right = window.innerWidth - rect.right;
+    right = Math.max(8, Math.min(right, window.innerWidth - MENU_W - 8));
+    setRowActionMenu(prev => (
+      prev && prev.absentTeacher.id === absentTeacher.id && prev.period.periodNumber === period.periodNumber
+        ? null
+        : { period, absentTeacher, top: rect.bottom + 4, right }
+    ));
+  };
   const [showShortageAlert, setShowShortageAlert] = useState(false);
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [isAutoDistributing, setIsAutoDistributing] = useState(false);
@@ -1406,6 +1422,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const receiptCalendarType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
   const [receiptSelectedDates, setReceiptSelectedDates] = useState<string[]>([selectedDate]);
 
+  // Close per-period row actions dropdown on outside click / scroll
+  useEffect(() => {
+    if (!rowActionMenu) return;
+    const close = () => setRowActionMenu(null);
+    document.addEventListener('click', close);
+    document.addEventListener('scroll', close, true);
+    return () => {
+      document.removeEventListener('click', close);
+      document.removeEventListener('scroll', close, true);
+    };
+  }, [rowActionMenu]);
+
   // ===== Auto-open modals for legacy report embedded section =====
   const [autoOpenedKey, setAutoOpenedKey] = useState<'balance' | 'reports' | null>(null);
   useEffect(() => {
@@ -1977,6 +2005,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     }));
     setClearTeacherAssignmentsConfirm(null);
     showToast('تم حذف جميع المنتظرين لهذا المعلم', 'info');
+  };
+
+  const confirmClearAllAssignments = () => {
+    const removed = currentSession?.assignments || [];
+    if (removed.length === 0) { setShowClearAllConfirm(false); return; }
+    releaseAssignmentQuota(removed);
+    updateSession(selectedDate, s => ({ ...s, assignments: [] }));
+    setShowClearAllConfirm(false);
+    showToast('تم مسح جميع المنتظرين المسندين', 'info');
   };
 
   const toggleWaitingSlotDisabled = (absentTeacherId: string, periodNumber: number) => {
@@ -4081,7 +4118,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           return subjects.find(s => s.id === sid)?.name || '—';
         };
 
-        const distDone = totalAssigned > 0;
         const showMethodCard = totalAbsent > 0;
         const absentRecords = currentSession?.absentTeachers || [];
 
@@ -4303,65 +4339,52 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
             </>)}
 
-            {/* Distribution Method Card — distribute section only */}
+            {/* Distribution action bar — distribute section only */}
             {isDistribute && showMethodCard && (
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3" dir="rtl">
-                <div className="flex flex-wrap items-center gap-5">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Shuffle size={18} className="text-[#655ac1]" />
-                    <p className="text-sm font-black text-slate-800">اختر طريقة التوزيع</p>
+              <div className="bg-white border border-slate-100 rounded-[2rem] shadow-sm px-5 py-4" dir="rtl">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  {/* Right: title + description + actions */}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Shuffle size={20} className="text-[#655ac1]" />
+                      <p className="text-sm font-black text-slate-800">توزيع الانتظار</p>
+                    </div>
+                    <p className="mt-1.5 text-[12px] font-bold text-slate-400">
+                      وزّع تلقائيًا بضغطة واحدة، ويمكنك تعديل المنتظر يدويًا
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => requestAutoDistribution()}
+                        className="inline-flex items-center justify-center gap-2 min-w-40 px-7 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-black shadow-md shadow-[#655ac1]/20 active:scale-95 transition-all"
+                      >
+                        <Zap size={17} />
+                        <span>توزيع آلي</span>
+                      </button>
+                      {totalAssigned > 0 && (
+                        <button
+                          onClick={() => setShowClearAllConfirm(true)}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-black active:scale-95 transition-all hover:bg-slate-50"
+                        >
+                          <Trash2 size={16} className="text-rose-600" />
+                          <span>مسح الكل</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => requestAutoDistribution()}
-                      className={`inline-flex items-center justify-center gap-2 min-w-36 px-7 py-2.5 rounded-xl border text-sm font-black active:scale-95 ${
-                        distributionMode === 'auto'
-                          ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
-                          : 'bg-white border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <Zap size={17} />
-                      <span>توزيع آلي</span>
-                    </button>
-
-                    <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
-
-                    <button
-                      onClick={startManualDistribution}
-                      className={`inline-flex items-center justify-center gap-2 min-w-36 px-7 py-2.5 rounded-xl border text-sm font-black active:scale-95 ${
-                        distributionMode === 'manual'
-                          ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
-                          : 'bg-white border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <PenLine size={17} />
-                      <span>توزيع يدوي</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Manual mode indicator + cancel — distribute section only */}
-            {false && isDistribute && manualDistMode && !distDone && (
-              <div className="bg-white border border-[#8779fb]/30 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm" dir="rtl">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#e5e1fe] flex items-center justify-center">
-                    <PenLine size={18} className="text-[#655ac1]" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-slate-800">التوزيع اليدوي مفعّل</p>
-                    <p className="text-xs text-slate-500 font-medium">اختر الحصة من بطاقات الغائبين لإسناد المنتظر.</p>
+                  {/* Left: summary chips */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
+                      الإجمالي <span className="font-black text-slate-700">{totalPeriods}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
+                      مُسند <span className="font-black text-emerald-600">{totalAssigned}</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
+                      متبقٍّ <span className={`font-black ${totalPending > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{totalPending}</span>
+                    </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => setManualDistMode(false)}
-                  className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white flex items-center justify-center transition-all"
-                  title="إيقاف التوزيع اليدوي"
-                >
-                  <X size={16} />
-                </button>
               </div>
             )}
 
@@ -5446,26 +5469,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         const isFullyCovered = coveredCount === totalCount && totalCount > 0;
 
         return (
-          <div key={absentTeacher.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+          <div key={absentTeacher.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
             {/* Card Header */}
             <div className="flex items-center justify-between px-6 py-3 relative">
-              {/* الشريط اللوني بجانب سلة الحذف */}
-              <div className={`absolute left-0 inset-y-0 w-1 transition-colors duration-300 ${
+              {/* الشريط اللوني (يمين البطاقة) */}
+              <div className={`absolute right-0 inset-y-0 w-1 transition-colors duration-300 ${
                 isFullyCovered ? 'bg-emerald-400' : 'bg-rose-500'
               }`} />
               <div className="flex items-center gap-4">
-                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0">
-                  <User size={28} className="text-[#8779fb]" />
-                  <span className={`absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-white border flex items-center justify-center ${
-                    isFullyCovered ? 'border-emerald-200 text-emerald-600' : 'border-rose-200 text-rose-600'
-                  }`}>
-                    {isFullyCovered ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
-                  </span>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0">
+                  <UserX size={28} className="text-[#655ac1]" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-black text-slate-800 text-base">{absentTeacher.teacherName}</h3>
-                    <span className="text-xs font-black px-3 py-1 rounded-full border bg-white text-amber-600 border-slate-300">
+                    <span className="text-xs font-black px-3 py-1 rounded-full bg-slate-100 text-[#655ac1]">
                       {absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
                     </span>
                     {hasSwaps && !isFullyCovered && (
@@ -5474,18 +5492,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       </span>
                     )}
                   </div>
+                  {/* سطر الإحصاء: إطار رمادي بلا خلفية، تحت الاسم */}
+                  <span className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-500">
+                    الإجمالي {totalCount} ·
+                    <span className="text-emerald-600 font-black">{coveredCount} مُسند</span>
+                    {coveredCount < totalCount && (
+                      <>· <span className="text-rose-500 font-black">{totalCount - coveredCount} غير مسندة</span></>
+                    )}
+                  </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <p className="text-xs text-slate-400 font-medium hidden sm:block ml-5">
-                  إجمالي: {totalCount} حصة ·{' '}
-                  <span className="text-emerald-600 font-black">{coveredCount} مُسند</span>
-                  {coveredCount < totalCount && (
-                    <span className="text-rose-500 font-black"> · {totalCount - coveredCount} غير مسندة</span>
-                  )}
-                </p>
-                <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
                 <button
                   onClick={e => { e.stopPropagation(); setClearTeacherAssignmentsConfirm(absentTeacher); }}
                   disabled={teacherAssignments.length === 0}
@@ -5529,7 +5547,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         <th className="px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px] w-[22%]">الصف والفصل</th>
                         <th className="px-5 py-3.5 text-right font-black text-[#655ac1] text-[13px] w-[24%]">المادة</th>
                         <th className="px-5 py-3.5 text-right font-black text-[#655ac1] text-[13px]">المعلم المنتظر</th>
-                        <th className="px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px] w-[150px]">إجراء</th>
+                        <th className="px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px] w-[90px]">إجراءات</th>
                         <th className="hidden print:table-cell px-5 py-3.5 text-center font-black text-[#655ac1] text-[13px]">التوقيع</th>
                       </tr>
                     </thead>
@@ -5544,14 +5562,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
                         return (
                           <tr key={period.periodNumber} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="px-5 py-3.5 text-center">
-                              <span className="inline-flex items-center justify-center w-8 h-8 bg-white text-[#8779fb] font-black text-sm rounded-md border border-slate-300">
+                            <td className="px-5 py-2 text-center">
+                              <span className="inline-flex items-center justify-center w-7 h-7 bg-white text-slate-600 font-black text-[13px] rounded-full border border-slate-300">
                                 {period.periodNumber}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 font-bold text-slate-700 text-center">{period.className || '—'}</td>
-                            <td className="px-5 py-3.5 text-slate-500 font-medium">{period.subjectName || '—'}</td>
-                            <td className="px-5 py-3.5">
+                            <td className="px-5 py-2 font-bold text-slate-700 text-center">{period.className || '—'}</td>
+                            <td className="px-5 py-2 text-slate-500 font-medium">{period.subjectName || '—'}</td>
+                            <td className="px-5 py-2">
                               {manualNameMode ? (
                                 <input
                                   autoFocus
@@ -5583,10 +5601,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  {manualDistMode && !slotDisabled ? (
+                                  {(manualDistMode || isDistribute) && !slotDisabled ? (
                                     <button
                                       onClick={() => openAssignModal(period, absentTeacher)}
-                                      className="w-full py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                                      className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
                                     >
                                       <Plus size={12} /> إضافة منتظر
                                     </button>
@@ -5607,46 +5625,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                 </div>
                               )}
                             </td>
-                            <td className="px-5 py-3.5 print:hidden">
-                              <div className="flex flex-row gap-2 items-center justify-center">
+                            <td className="px-5 py-2 print:hidden">
+                              <div className="flex items-center justify-center">
                                 <button
-                                  onClick={() => openAssignModal(period, absentTeacher)}
-                                  disabled={slotDisabled}
-                                  title="تعديل المنتظر"
-                                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] shadow-sm transition-all active:scale-95 hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  onClick={e => openRowActionMenu(e, period, absentTeacher)}
+                                  title="إجراءات"
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1]/40 transition-all"
                                 >
-                                  <PenLine size={15} />
-                                </button>
-                                <button
-                                  onClick={() => toggleManualNameSlot(absentTeacher.id, period.periodNumber)}
-                                  disabled={slotDisabled}
-                                  title={!manualNameMode ? 'إدخال اسم المنتظر يدويًا' : manualNameValues[slotKey] ? 'حفظ الاسم' : 'إلغاء الإدخال اليدوي'}
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
-                                    manualNameMode
-                                      ? (manualNameValues[slotKey] ? 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50' : 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50')
-                                      : 'border-slate-200 bg-white text-[#655ac1] hover:bg-[#e5e1fe]/40 hover:border-[#655ac1]/30'
-                                  }`}
-                                >
-                                  {manualNameMode ? (manualNameValues[slotKey] ? <Check size={15} /> : <X size={15} />) : <Plus size={15} />}
-                                </button>
-                                <button
-                                  onClick={() => toggleWaitingSlotDisabled(absentTeacher.id, period.periodNumber)}
-                                  title="تعطيل إضافة منتظر"
-                                  className={`w-9 h-9 flex items-center justify-center rounded-xl border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
-                                    slotDisabled
-                                      ? 'border-[#655ac1]/30 bg-[#e5e1fe]/40 text-[#655ac1]'
-                                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <CircleOff size={15} />
-                                </button>
-                                <button
-                                  onClick={() => assignment && setRemoveAssignmentConfirm(assignment)}
-                                  disabled={!assignment}
-                                  title="حذف المنتظر"
-                                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-300 bg-white text-rose-600 shadow-sm transition-all active:scale-95 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                  <Trash2 size={15} />
+                                  <MoreHorizontal size={16} />
                                 </button>
                               </div>
                             </td>
@@ -5726,17 +5712,26 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       {showAutoConfirm && ReactDOM.createPortal(
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[220] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" dir="rtl">
-            <div className="flex items-center gap-3 px-7 pt-7 pb-4">
-              <Zap size={24} className="text-[#655ac1] shrink-0" />
-              <div>
-                <h3 className="font-black text-slate-800 text-base">تأكيد توزيع الانتظار آليًا</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم تطبيق التوزيع على الحصص المتاحة</p>
+            <div className="flex items-start justify-between gap-3 px-7 pt-7 pb-5">
+              <div className="flex items-center gap-3">
+                <Zap size={24} className="text-[#655ac1] shrink-0" />
+                <div>
+                  <h3 className="font-black text-slate-800 text-base">تأكيد توزيع الانتظار آليًا</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم تطبيق التوزيع على الحصص المتاحة</p>
+                </div>
               </div>
+              <button
+                onClick={() => { setShowAutoConfirm(false); setPendingAutoFn(null); }}
+                className="w-8 h-8 inline-flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition-all shrink-0"
+                aria-label="إغلاق"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+            <p className="px-7 pb-7 text-sm text-slate-600 font-medium leading-7">
               سيتم توزيع حصص الانتظار آليًا وفق المتاحين ورصيد الانتظار، هل تريد بدء التوزيع الآن؟
             </p>
-            <div className="flex gap-2 px-6 pb-6">
+            <div className="flex gap-2 px-7 pb-7">
               <button
                 onClick={() => { setShowAutoConfirm(false); setPendingAutoFn(null); }}
                 className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
@@ -6337,7 +6332,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
                 <h3 className="font-black text-slate-800">إضافة منتظر</h3>
-                <p className="text-xs text-[#655ac1] font-bold">
+                <p className="mt-1.5 text-xs text-[#655ac1] font-bold">
                   الحصة {showAssignModal.period.periodNumber} · {showAssignModal.period.className} · {showAssignModal.period.subjectName}
                 </p>
               </div>
@@ -6349,42 +6344,40 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 p-2 border-b border-slate-100 bg-slate-50">
-              <button
-                onClick={() => setAssignModalTab('teachers')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                  assignModalTab === 'teachers'
-                    ? 'bg-white text-[#8779fb] shadow-sm border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {assignModalTab === 'teachers' ? <Check size={16} className="text-[#8779fb]" /> : <Users size={16} />}
-                المعلمون
-              </button>
-              <button
-                onClick={() => setAssignModalTab('admins')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                  assignModalTab === 'admins'
-                    ? 'bg-white text-[#8779fb] shadow-sm border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {assignModalTab === 'admins' ? <Check size={16} className="text-[#8779fb]" /> : <UserCog size={16} />}
-                الإداريون
-              </button>
+            {/* Tabs — نمط تبويبات الإشراف */}
+            <div className="px-4 pt-3">
+              <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl">
+                <button
+                  onClick={() => setAssignModalTab('teachers')}
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
+                    assignModalTab === 'teachers' ? 'bg-white text-slate-900 shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'
+                  }`}
+                >
+                  <Users size={16} className={assignModalTab === 'teachers' ? 'text-[#655ac1]' : ''} />
+                  المعلمون
+                </button>
+                <button
+                  onClick={() => setAssignModalTab('admins')}
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all border ${
+                    assignModalTab === 'admins' ? 'bg-white text-slate-900 shadow-sm border-slate-200' : 'text-slate-400 hover:text-slate-600 border-transparent'
+                  }`}
+                >
+                  <UserCog size={16} className={assignModalTab === 'admins' ? 'text-[#655ac1]' : ''} />
+                  الإداريون
+                </button>
+              </div>
             </div>
 
             {/* Search */}
-            <div className="px-4 py-3 border-b border-slate-50">
+            <div className="px-4 py-3">
               <div className="relative">
-                <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={assignmentSearch}
                   onChange={e => setAssignmentSearch(e.target.value)}
-                  placeholder="بحث سريع..."
-                  className="w-full pr-9 pl-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#655ac1]/20 focus:border-[#655ac1]"
+                  placeholder="ابحث"
+                  className="w-full pr-10 pl-3 py-2.5 text-sm font-medium border border-slate-200 rounded-xl bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 transition-all"
                 />
               </div>
             </div>
@@ -6452,7 +6445,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             <th className="px-4 py-3 font-black text-center w-16">م</th>
                             <th className="px-4 py-3 font-black">الاسم</th>
                             <th className="px-4 py-3 font-black w-28">الصفة</th>
-                            <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
+                            <th className="px-4 py-3 font-black text-center w-20">تحديد</th>
                             <th className="px-4 py-3 font-black text-center w-32">نصاب الانتظار</th>
                           </tr>
                         </thead>
@@ -6460,35 +6453,38 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                           {waiters.map(({ person, assigned, total, remaining, isBusy, isQuotaFull }, index) => {
                             const disabled = isBusy || isQuotaFull;
                             const isSel = selectedAssignPerson?.id === person.id;
+                            const quotaFull = assigned >= total;
                             return (
                               <tr key={person.id} className={`hover:bg-slate-50 transition-colors ${disabled ? 'opacity-50 bg-slate-50' : ''}`}>
-                                <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                                <td className="px-4 py-3 font-bold text-slate-800">
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-[13px] font-bold text-slate-700">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span>{person.name}</span>
                                     {isBusy && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">مشغول بحصة</span>}
                                     {isQuotaFull && !isBusy && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">اكتمل النصاب</span>}
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 font-bold text-slate-500">معلم</td>
-                                <td className="px-4 py-3">
+                                <td className="px-4 py-2.5 text-[13px] font-bold text-slate-500">معلم</td>
+                                <td className="px-4 py-2.5">
                                   <button
                                     type="button"
                                     onClick={() => !disabled && setSelectedAssignPerson(isSel ? null : person)}
                                     disabled={disabled}
-                                    className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
-                                      isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                    className={`mx-auto w-6 h-6 rounded-full border flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
+                                      isSel ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
                                     }`}
-                                    title="اختيار"
+                                    title="تحديد"
                                   >
-                                    {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                    {isSel && <Check size={13} strokeWidth={3.2} className="text-white" />}
                                   </button>
                                 </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`inline-flex items-center justify-center min-w-14 px-3 py-1 rounded-full text-xs font-black ${
-                                    remaining <= 0 ? 'bg-slate-100 text-slate-400' : remaining <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                                  }`}>
-                                    {Math.max(0, remaining)}/{total}
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="inline-flex items-center justify-center gap-0.5 min-w-14 px-3 py-1 rounded-full border border-slate-200 text-xs font-black text-slate-800">
+                                    <span className={quotaFull ? 'text-rose-500' : 'text-emerald-600'}>{Math.min(assigned, total)}</span>
+                                    <span className="text-slate-400">/</span>
+                                    {total}
                                   </span>
                                 </td>
                               </tr>
@@ -6535,36 +6531,36 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             <th className="px-4 py-3 font-black text-center w-16">م</th>
                             <th className="px-4 py-3 font-black">الاسم</th>
                             <th className="px-4 py-3 font-black w-28">الصفة</th>
-                            <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
-                            <th className="px-4 py-3 font-black text-center w-32">نصاب الانتظار</th>
+                            <th className="px-4 py-3 font-black text-center w-20">تحديد</th>
+                            <th className="px-4 py-3 font-black text-center w-32">الانتظار المسند</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {adminList.map(({ person, total, remaining }, index) => {
+                          {adminList.map(({ person, assigned }, index) => {
                             const admin = person as Admin;
                             const isSel = selectedAssignPerson?.id === person.id;
                             return (
                               <tr key={person.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                                <td className="px-4 py-3 font-bold text-slate-800">{person.name}</td>
-                                <td className="px-4 py-3 font-bold text-slate-500">{admin.role || 'إداري'}</td>
-                                <td className="px-4 py-3">
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-[13px] font-bold text-slate-700">{person.name}</td>
+                                <td className="px-4 py-2.5 text-[13px] font-bold text-slate-500">{admin.role || 'إداري'}</td>
+                                <td className="px-4 py-2.5">
                                   <button
                                     type="button"
                                     onClick={() => setSelectedAssignPerson(isSel ? null : person)}
-                                    className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
-                                      isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
+                                    className={`mx-auto w-6 h-6 rounded-full border flex items-center justify-center transition-colors ${
+                                      isSel ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
                                     }`}
-                                    title="اختيار"
+                                    title="تحديد"
                                   >
-                                    {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
+                                    {isSel && <Check size={13} strokeWidth={3.2} className="text-white" />}
                                   </button>
                                 </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`inline-flex items-center justify-center min-w-14 px-3 py-1 rounded-full text-xs font-black ${
-                                    remaining <= 0 ? 'bg-slate-100 text-slate-400' : 'bg-amber-100 text-amber-700'
-                                  }`}>
-                                    {Math.max(0, remaining)}/{total}
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="inline-flex items-center justify-center min-w-12 px-3 py-1 rounded-full border border-slate-200 text-xs font-black text-slate-800">
+                                    {assigned}
                                   </span>
                                 </td>
                               </tr>
@@ -6586,10 +6582,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               </button>
               <button
                 onClick={saveSelectedAssignPerson}
-                className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 disabled={!selectedAssignPerson}
               >
-                حفظ{selectedAssignPerson ? ' (1)' : ''}
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
+                  <Check size={13} strokeWidth={3.2} className="text-white" />
+                </span>
+                حفظ
               </button>
             </div>
           </div>
@@ -6743,6 +6742,93 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             </div>
           </div>
         </div>,
+        document.body
+      )}
+
+      {/* Clear-all assignments confirmation */}
+      {showClearAllConfirm && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <Trash2 size={24} className="text-rose-500 shrink-0" />
+              <div>
+                <h3 className="font-black text-slate-800 text-base">مسح جميع المنتظرين</h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم حذف كل الإسنادات لجميع الغائبين</p>
+              </div>
+            </div>
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              هل تريد مسح جميع المنتظرين المسندين لهذا اليوم؟ يمكنك إعادة التوزيع بعدها.
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
+              <button
+                onClick={() => setShowClearAllConfirm(false)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmClearAllAssignments}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={15} /> مسح الكل
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Per-period row actions dropdown (matches قسم المعلمون design) */}
+      {rowActionMenu && ReactDOM.createPortal(
+        (() => {
+          const { period, absentTeacher } = rowActionMenu;
+          const slotKey = getWaitingSlotKey(absentTeacher.id, period.periodNumber);
+          const slotDisabled = isWaitingSlotDisabled(absentTeacher.id, period.periodNumber);
+          const manualNameMode = manualNameSlots.has(slotKey);
+          const assignment = (currentSession?.assignments || []).find(
+            a => a.absentTeacherId === absentTeacher.id && a.periodNumber === period.periodNumber
+          );
+          return (
+            <div
+              className="fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5"
+              style={{ top: rowActionMenu.top, right: rowActionMenu.right, minWidth: 190 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => { openAssignModal(period, absentTeacher); setRowActionMenu(null); }}
+                disabled={slotDisabled}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <PenLine size={15} className="text-[#655ac1]" /> {assignment ? 'تعديل المنتظر' : 'إضافة منتظر'}
+              </button>
+
+              <button
+                onClick={() => { toggleManualNameSlot(absentTeacher.id, period.periodNumber); setRowActionMenu(null); }}
+                disabled={slotDisabled}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus size={15} className="text-[#655ac1]" /> {manualNameMode ? 'إلغاء الإدخال اليدوي' : 'إدخال اسم يدويًا'}
+              </button>
+
+              <button
+                onClick={() => { toggleWaitingSlotDisabled(absentTeacher.id, period.periodNumber); setRowActionMenu(null); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
+              >
+                <CircleOff size={15} className="text-[#655ac1]" /> {slotDisabled ? 'تفعيل الحصة' : 'تعطيل الحصة'}
+              </button>
+
+              <div className="border-t border-slate-100 my-1" />
+
+              <button
+                onClick={() => { if (assignment) setRemoveAssignmentConfirm(assignment); setRowActionMenu(null); }}
+                disabled={!assignment}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-500 hover:bg-rose-50 font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={15} /> حذف المنتظر
+              </button>
+            </div>
+          );
+        })(),
         document.body
       )}
 
