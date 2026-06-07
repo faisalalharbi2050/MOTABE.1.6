@@ -4070,7 +4070,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         const tableTeachers = teachers
           .filter(t => {
             if (lowerSearch && !(t.name || '').toLowerCase().includes(lowerSearch)) return false;
-            if (embAbsentsOnly && !absentTeacherIds.has(t.id)) return false;
+            // المعلم المسجَّل غائبًا ينتقل لبطاقة الغائبين ولا يظهر في القائمة.
+            if (absentTeacherIds.has(t.id)) return false;
             return true;
           })
           .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
@@ -4129,7 +4130,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <Users size={20} className="text-[#655ac1]" />
                     <h4 className="font-black text-slate-800">المعلمون</h4>
                     <span className="inline-flex items-center justify-center px-2.5 h-6 rounded-full border border-slate-200 bg-white text-[#655ac1] text-xs font-black">
-                      {teachers.length}
+                      {teachers.length - totalAbsent}
                     </span>
                   </div>
                   <div className="relative flex-1 min-w-[160px]">
@@ -4149,7 +4150,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <div className="text-center text-slate-400 font-medium py-16 text-sm">لا توجد نتائج</div>
                   )}
                   {tableTeachers.map(t => {
-                    const isAbsent = absentTeacherIds.has(t.id);
                     const specialty = specializations.find(s => s.id === t.specializationId)?.name
                       || subjectNameOf(t.assignedSubjectId);
                     const teachingCount = getTeacherDaySchedule(t.id, dayKey).length;
@@ -4157,16 +4157,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setTeacherAbsenceInline(t, isAbsent ? 'none' : 'full')}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-slate-50 transition-colors"
+                        onClick={() => setTeacherAbsenceInline(t, 'full')}
+                        className="group w-full flex items-center gap-3 px-4 py-3 text-right bg-white hover:bg-slate-50 transition-colors"
                       >
-                        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 shrink-0 transition-all ${
-                          isAbsent ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'
-                        }`}>
-                          <Check size={11} strokeWidth={3} />
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-300 text-slate-300 group-hover:border-[#655ac1] group-hover:text-[#655ac1] bg-white shrink-0 transition-all">
+                          <Plus size={12} strokeWidth={3} />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className={`block font-black text-sm truncate ${isAbsent ? 'text-[#655ac1]' : 'text-slate-800'}`} title={t.name}>{t.name}</span>
+                          <span className="block font-black text-sm truncate text-slate-800" title={t.name}>{t.name}</span>
                           <span className="block text-[12px] font-bold text-slate-400 truncate" title={specialty}>{specialty}</span>
                         </span>
                         <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full border border-slate-200 text-[11px] font-black shrink-0 ${teachingCount === 0 ? 'text-amber-500' : 'text-slate-500'}`}>
