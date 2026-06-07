@@ -515,13 +515,16 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [sessions, setSessions] = useState<DailyWaitingSession[]>(() => {
     try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
   });
-  const [weeklyQuota, setWeeklyQuota] = useState<WeeklyQuotaRecord>(() => {
+  // Waiting quota is bucketed per week-key: { [weekKey]: { [teacherId]: count } }.
+  // Each week is isolated automatically, so no "new week" reset prompt is needed.
+  const [quotaByWeek, setQuotaByWeek] = useState<Record<string, Record<string, number>>>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null');
-      const weekKey = getISOWeekKey(getTodayStr());
-      if (saved && saved.weekKey === weekKey) return saved;
-      return { weekKey, counts: {}, lastResetDate: getTodayStr() };
-    } catch { return { weekKey: getISOWeekKey(getTodayStr()), counts: {}, lastResetDate: getTodayStr() }; }
+      if (saved && saved.byWeek && typeof saved.byWeek === 'object') return saved.byWeek;
+      // Migrate legacy single-week record { weekKey, counts }.
+      if (saved && saved.weekKey && saved.counts) return { [saved.weekKey]: saved.counts };
+    } catch {}
+    return {};
   });
 
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -680,7 +683,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [showBalanceResetConfirm, setShowBalanceResetConfirm] = useState(false);
 
   // ── New-week reset prompt (custom modal replacing window.confirm) ──
-  const [newWeekResetPrompt, setNewWeekResetPrompt] = useState<{ start: string; end: string; weekKey: string } | null>(null);
 
   // ── Past-week editing banner: dismissed per-date in this session ──
   const [pastBannerDismissed, setPastBannerDismissed] = useState<Record<string, boolean>>(() => {
@@ -710,8 +712,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   }, [sessions, SESSIONS_KEY]);
 
   useEffect(() => {
-    localStorage.setItem(QUOTA_KEY, JSON.stringify(weeklyQuota));
-  }, [weeklyQuota, QUOTA_KEY]);
+    localStorage.setItem(QUOTA_KEY, JSON.stringify({ byWeek: quotaByWeek }));
+  }, [quotaByWeek, QUOTA_KEY]);
 
   // Re-hydrate state when active school changes
   useEffect(() => {
@@ -721,10 +723,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     } catch { setSessions([]); }
     try {
       const rawQuota = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null');
-      const weekKey = getISOWeekKey(getTodayStr());
-      if (rawQuota && rawQuota.weekKey === weekKey) setWeeklyQuota(rawQuota);
-      else setWeeklyQuota({ weekKey, counts: {}, lastResetDate: getTodayStr() });
-    } catch {}
+      if (rawQuota && rawQuota.byWeek && typeof rawQuota.byWeek === 'object') setQuotaByWeek(rawQuota.byWeek);
+      else if (rawQuota && rawQuota.weekKey && rawQuota.counts) setQuotaByWeek({ [rawQuota.weekKey]: rawQuota.counts });
+      else setQuotaByWeek({});
+    } catch { setQuotaByWeek({}); }
     setDisabledWaitingSlots(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSchoolTab]);
@@ -759,6 +761,26 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     if (waitingWeekRange.start > todayWeekStart) return 'future';
     return 'same';
   }, [waitingWeekRange.start, schoolInfo]);
+
+  // The quota record the rest of the component reads/writes — always the
+  // bucket for the currently selected date's week. Writes are routed back into
+  // that same bucket, so past/current/future weeks never touch one another.
+  const weeklyQuota = useMemo<WeeklyQuotaRecord>(() => ({
+    weekKey: waitingWeekRange.weekKey,
+    counts: quotaByWeek[waitingWeekRange.weekKey] || {},
+    lastResetDate: '',
+  }), [quotaByWeek, waitingWeekRange.weekKey]);
+
+  const setWeeklyQuota = (
+    updater: WeeklyQuotaRecord | ((prev: WeeklyQuotaRecord) => WeeklyQuotaRecord)
+  ) => {
+    setQuotaByWeek(prevMap => {
+      const wk = waitingWeekRange.weekKey;
+      const prevRecord: WeeklyQuotaRecord = { weekKey: wk, counts: prevMap[wk] || {}, lastResetDate: '' };
+      const next = typeof updater === 'function' ? updater(prevRecord) : updater;
+      return { ...prevMap, [wk]: next.counts || {} };
+    });
+  };
 
   const currentSession = useMemo(
     () => sessions.find(s => s.date === selectedDate) || null,
@@ -1456,16 +1478,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     }
   }, [showReportsModal, autoOpenedKey, onSectionExit]);
 
-  const ensureWaitingWeekDecision = () => {
-    // Editing a past week must never touch the current week's quota.
-    // The dismissible banner already informs the user; no prompt needed.
-    if (weekRelation === 'past') return true;
-    if (weeklyQuota.weekKey === waitingWeekRange.weekKey) return true;
-    // New week detected (current or future) — show custom modal once.
-    setNewWeekResetPrompt(prev => prev ?? waitingWeekRange);
-    return true;
-  };
-
   // Build / replace an absent record from inline controls
   const setTeacherAbsenceInline = (teacher: Teacher, type: 'none' | 'full' | 'partial', selectedPeriods: number[] = []) => {
     if (type === 'none') {
@@ -1491,7 +1503,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       }
       return;
     }
-    ensureWaitingWeekDecision();
 
     const allDaySchedule = getTeacherDaySchedule(teacher.id, dayKey);
     let periods: AbsentPeriodEntry[];
@@ -1553,7 +1564,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const selectedActualNumbers = newNumbers.filter(p => teachingNumbers.includes(p));
 
     if (newNumbers.length === 0) {
-      setTeacherAbsenceInline(teacher, 'none');
+      // Deselecting the last period must NOT remove the teacher — keep them as a
+      // partial absence with no periods yet. Removal is only via the X button.
+      setTeacherAbsenceInline(teacher, 'partial', []);
     } else if (teachingNumbers.length > 0 && selectedActualNumbers.length === teachingNumbers.length) {
       setTeacherAbsenceInline(teacher, 'full');
     } else {
@@ -1563,7 +1576,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ===== Handlers =====
   const handleAddToQueue = () => {
-    ensureWaitingWeekDecision();
     if (!absenceForm.teacherId) { showToast('يرجى اختيار المعلم الغائب', 'error'); return; }
     if (absenceForm.absenceType === 'partial' && absenceForm.selectedPeriods.size === 0) {
       showToast('يرجى تحديد الحصص المتغيبة في الغياب الجزئي', 'error'); return;
@@ -1587,7 +1599,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   const handleSubmitAbsenceQueue = () => {
-    ensureWaitingWeekDecision();
     let toProcess = [...absentQueue];
     if (absenceForm.teacherId) {
       if (absenceForm.absenceType === 'partial' && absenceForm.selectedPeriods.size === 0) {
@@ -3998,75 +4009,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       )}
 
       {/* ── New-week reset prompt (custom modal) ── */}
-      {newWeekResetPrompt && ReactDOM.createPortal(
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
-          dir="rtl"
-          onClick={() => {
-            setWeeklyQuota(prev => ({ ...prev, weekKey: newWeekResetPrompt.weekKey }));
-            setNewWeekResetPrompt(null);
-          }}
-        >
-          <div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-[#655ac1] flex items-center justify-center">
-                  <Info size={26} />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-800">بداية أسبوع انتظار جديد</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {getArabicDayFromDate(newWeekResetPrompt.start)} – {getArabicDayFromDate(newWeekResetPrompt.end)}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setWeeklyQuota(prev => ({ ...prev, weekKey: newWeekResetPrompt.weekKey }));
-                  setNewWeekResetPrompt(null);
-                }}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-sm leading-7 font-medium text-slate-600">
-                هل تريد إعادة ضبط رصيد الانتظار لبداية الأسبوع الجديد، أم المتابعة بنفس الرصيد المتراكم؟
-              </p>
-            </div>
-            <div className="px-6 pb-6 flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setWeeklyQuota(prev => ({ ...prev, weekKey: newWeekResetPrompt.weekKey }));
-                  setNewWeekResetPrompt(null);
-                  showToast('سيتم المتابعة بنفس رصيد الانتظار لهذا الأسبوع', 'info');
-                }}
-                className="flex-1 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl border border-slate-300 transition-colors"
-              >
-                متابعة بنفس الرصيد
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setWeeklyQuota({ weekKey: newWeekResetPrompt.weekKey, counts: {}, lastResetDate: getTodayStr() });
-                  setNewWeekResetPrompt(null);
-                  showToast('تمت إعادة ضبط رصيد الانتظار للأسبوع الجديد', 'success');
-                }}
-                className="flex-1 px-4 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 hover:scale-105 active:scale-95"
-              >
-                تصفير الرصيد
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {/* ── Past-week editing banner (non-intrusive, dismissible) ── */}
       {weekRelation === 'past' && !pastBannerDismissed[selectedDate] && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 flex items-start gap-3 text-amber-900">
@@ -4263,7 +4205,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                     onClick={() => {
                                       if (!t) return;
                                       if (opt.id === 'full') setTeacherAbsenceInline(t, 'full');
-                                      else setTeacherAbsenceInline(t, 'partial', daySchedule.length > 0 ? [daySchedule[0].periodNumber] : []);
+                                      else setTeacherAbsenceInline(t, 'partial', []);
                                     }}
                                     className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
                                       active ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-400 hover:text-slate-600'
@@ -4284,13 +4226,20 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             </button>
                           </div>
 
+                            {type === 'partial' && daySchedule.length > 0 && selPeriods.size === 0 && (
+                              <p className="text-[11px] font-bold text-amber-600 flex items-center gap-1">
+                                <AlertCircle size={12} className="shrink-0" />
+                                انقر على الحصة المراد تأمينها لتحديدها
+                              </p>
+                            )}
+
                             {daySchedule.length === 0 ? (
                               <p className="text-xs font-bold text-amber-500 text-center py-2">لا توجد حصص لهذا المعلم في هذا اليوم</p>
                             ) : (
                               <div className="flex flex-wrap gap-2">
                                 {daySchedule.map(p => {
-                                  const sel = type === 'full' || selPeriods.has(p.periodNumber);
                                   const clickable = type === 'partial';
+                                  const checked = type === 'partial' && selPeriods.has(p.periodNumber);
                                   return (
                                     <button
                                       key={p.periodNumber}
@@ -4298,23 +4247,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                                       disabled={!clickable}
                                       onClick={() => t && clickable && toggleEmbPartialPeriod(t, p.periodNumber)}
                                       title={`${p.subjectName || ''} ${p.className ? '· ' + p.className : ''}`.trim()}
-                                      className={`flex flex-col items-center justify-center w-[64px] py-1 rounded-lg border text-center transition-all ${
-                                        sel
-                                          ? 'bg-[#f1eefc] border-[#cbc1f2] text-[#655ac1]'
-                                          : 'bg-white border-slate-200 text-slate-400 hover:border-[#cbc1f2]'
-                                      } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+                                      className={`relative flex flex-col items-center justify-center w-[64px] py-1 rounded-lg border text-center transition-all ${
+                                        checked
+                                          ? 'bg-emerald-50 border-emerald-400 text-emerald-700'
+                                          : 'bg-white border-slate-300 text-slate-600'
+                                      } ${clickable ? 'cursor-pointer hover:border-emerald-300' : 'cursor-default'}`}
                                     >
+                                      {checked && (
+                                        <span className="absolute -top-1.5 -left-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                                          <Check size={10} strokeWidth={4} />
+                                        </span>
+                                      )}
                                       <span className="text-[11px] font-black leading-none">الحصة {p.periodNumber}</span>
-                                      <span className={`text-[11px] font-bold leading-tight mt-0.5 truncate max-w-[56px] ${sel ? 'text-[#655ac1]/70' : 'text-slate-400'}`}>
+                                      <span className={`text-[11px] font-bold leading-tight mt-0.5 truncate max-w-[56px] ${checked ? 'text-emerald-600' : 'text-slate-500'}`}>
                                         {p.className || p.subjectName || ''}
                                       </span>
                                     </button>
                                   );
                                 })}
                               </div>
-                            )}
-                            {type === 'partial' && daySchedule.length > 0 && selPeriods.size === 0 && (
-                              <p className="text-[11px] font-bold text-slate-400">حدّد الحصص التي سيتغيّب عنها المعلم</p>
                             )}
                         </div>
                       );
@@ -4342,48 +4293,48 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             {/* Distribution action bar — distribute section only */}
             {isDistribute && showMethodCard && (
               <div className="bg-white border border-slate-100 rounded-[2rem] shadow-sm px-5 py-5" dir="rtl">
-                {/* Title + summary chips (same row) */}
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Shuffle size={20} className="text-[#655ac1]" />
-                    <p className="text-sm font-black text-slate-800">توزيع الانتظار</p>
+                {/* Title + chips + description (right) and actions (left, vertically centered) */}
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Shuffle size={20} className="text-[#655ac1]" />
+                        <p className="text-sm font-black text-slate-800">توزيع الانتظار</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
+                          الإجمالي <span className="font-black text-slate-700">{totalPeriods}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
+                          مُسند <span className="font-black text-emerald-600">{totalAssigned}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
+                          متبقٍّ <span className={`font-black ${totalPending > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{totalPending}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-[12px] font-bold text-slate-400">
+                      وزّع حصص الانتظار آليًا بنقرة ويمكنك التعديل لاحقًا، أو أسندها يدويًا مباشرةً للمنتظرين
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
-                      الإجمالي <span className="font-black text-slate-700">{totalPeriods}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
-                      مُسند <span className="font-black text-emerald-600">{totalAssigned}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
-                      متبقٍّ <span className={`font-black ${totalPending > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{totalPending}</span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <p className="mt-4 text-[12px] font-bold text-slate-400">
-                  وزّع حصص الانتظار آليًا بنقرة ويمكنك التعديل لاحقًا، أو أسندها يدويًا مباشرةً للمنتظرين
-                </p>
-
-                {/* Actions */}
-                <div className="mt-4 flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => requestAutoDistribution()}
-                    className="inline-flex items-center justify-center gap-2 min-w-40 px-7 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black shadow-sm transition-all active:scale-95 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1]"
-                  >
-                    <Zap size={17} />
-                    <span>توزيع آلي</span>
-                  </button>
-                  {totalAssigned > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap ml-4">
                     <button
-                      onClick={() => setShowClearAllConfirm(true)}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-black active:scale-95 transition-all hover:bg-slate-50"
+                      onClick={() => requestAutoDistribution()}
+                      className="inline-flex items-center justify-center gap-2 min-w-40 px-7 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black shadow-sm transition-all active:scale-95 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1]"
                     >
-                      <Trash2 size={16} className="text-rose-600" />
-                      <span>مسح الكل</span>
+                      <Zap size={17} />
+                      <span>توزيع آلي</span>
                     </button>
-                  )}
+                    {totalAssigned > 0 && (
+                      <button
+                        onClick={() => setShowClearAllConfirm(true)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-black active:scale-95 transition-all hover:bg-slate-50"
+                      >
+                        <Trash2 size={16} className="text-rose-600" />
+                        <span>مسح الكل</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -4422,7 +4373,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
-              ensureWaitingWeekDecision();
               setAbsenceForm({ teacherId: '', absenceType: 'full', selectedPeriods: new Set() });
               setTeacherSearch('');
               setAbsentQueue([]);
