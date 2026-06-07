@@ -4341,38 +4341,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
             {/* Distribution action bar — distribute section only */}
             {isDistribute && showMethodCard && (
-              <div className="bg-white border border-slate-100 rounded-[2rem] shadow-sm px-5 py-4" dir="rtl">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  {/* Right: title + description + actions */}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Shuffle size={20} className="text-[#655ac1]" />
-                      <p className="text-sm font-black text-slate-800">توزيع الانتظار</p>
-                    </div>
-                    <p className="mt-1.5 text-[12px] font-bold text-slate-400">
-                      وزّع تلقائيًا بضغطة واحدة، ويمكنك تعديل المنتظر يدويًا
-                    </p>
-                    <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => requestAutoDistribution()}
-                        className="inline-flex items-center justify-center gap-2 min-w-40 px-7 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-black shadow-md shadow-[#655ac1]/20 active:scale-95 transition-all"
-                      >
-                        <Zap size={17} />
-                        <span>توزيع آلي</span>
-                      </button>
-                      {totalAssigned > 0 && (
-                        <button
-                          onClick={() => setShowClearAllConfirm(true)}
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-black active:scale-95 transition-all hover:bg-slate-50"
-                        >
-                          <Trash2 size={16} className="text-rose-600" />
-                          <span>مسح الكل</span>
-                        </button>
-                      )}
-                    </div>
+              <div className="bg-white border border-slate-100 rounded-[2rem] shadow-sm px-5 py-5" dir="rtl">
+                {/* Title + summary chips (same row) */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Shuffle size={20} className="text-[#655ac1]" />
+                    <p className="text-sm font-black text-slate-800">توزيع الانتظار</p>
                   </div>
-
-                  {/* Left: summary chips */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-200 text-xs font-bold text-slate-500">
                       الإجمالي <span className="font-black text-slate-700">{totalPeriods}</span>
@@ -4384,6 +4359,31 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       متبقٍّ <span className={`font-black ${totalPending > 0 ? 'text-rose-500' : 'text-slate-400'}`}>{totalPending}</span>
                     </span>
                   </div>
+                </div>
+
+                {/* Description */}
+                <p className="mt-4 text-[12px] font-bold text-slate-400">
+                  وزّع حصص الانتظار آليًا بنقرة ويمكنك التعديل لاحقًا، أو أسندها يدويًا مباشرةً للمنتظرين
+                </p>
+
+                {/* Actions */}
+                <div className="mt-4 flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => requestAutoDistribution()}
+                    className="inline-flex items-center justify-center gap-2 min-w-40 px-7 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black shadow-sm transition-all active:scale-95 hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1]"
+                  >
+                    <Zap size={17} />
+                    <span>توزيع آلي</span>
+                  </button>
+                  {totalAssigned > 0 && (
+                    <button
+                      onClick={() => setShowClearAllConfirm(true)}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-black active:scale-95 transition-all hover:bg-slate-50"
+                    >
+                      <Trash2 size={16} className="text-rose-600" />
+                      <span>مسح الكل</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -5483,7 +5483,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-black text-slate-800 text-base">{absentTeacher.teacherName}</h3>
-                    <span className="text-xs font-black px-3 py-1 rounded-full bg-slate-100 text-[#655ac1]">
+                    <span className="text-xs font-black px-3 py-1 rounded-full bg-slate-50 text-[#655ac1]">
                       {absentTeacher.absenceType === 'full' ? 'غياب يوم' : 'غياب جزئي'}
                     </span>
                     {hasSwaps && !isFullyCovered && (
@@ -6532,7 +6532,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                             <th className="px-4 py-3 font-black">الاسم</th>
                             <th className="px-4 py-3 font-black w-28">الصفة</th>
                             <th className="px-4 py-3 font-black text-center w-20">تحديد</th>
-                            <th className="px-4 py-3 font-black text-center w-32">الانتظار المسند</th>
+                            <th className="px-4 py-3 font-black text-center w-36 whitespace-nowrap">الانتظار المسند</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
