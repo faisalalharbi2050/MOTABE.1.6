@@ -160,8 +160,8 @@ const WaitingV2Container: React.FC<Props> = (props) => {
   ];
 
   const outputModes: Array<{ id: OutputMode; label: string; icon: React.ComponentType<any> }> = [
-    { id: 'printsend', label: 'طباعة النموذج', icon: Printer },
-    { id: 'send', label: 'الإرسال الإلكتروني', icon: Send },
+    { id: 'printsend', label: 'طباعة', icon: Printer },
+    { id: 'send', label: 'إرسال الانتظار', icon: Send },
   ];
 
   const monitorModes: Array<{ id: MonitorMode; label: string; icon: React.ComponentType<any> }> = [
