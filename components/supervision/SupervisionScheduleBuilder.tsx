@@ -844,8 +844,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         }`}
       >
       <div className="min-w-0">
-        <div className={`flex items-center gap-1.5 min-w-0 ${showLocations ? '' : 'justify-center'}`}>
-          <span className={`text-xs font-bold leading-snug text-slate-800 whitespace-normal break-words ${showLocations ? '' : 'text-center'}`}>{sa.staffName}</span>
+        <div className={`flex items-center gap-1.5 min-w-0 bg-white border border-slate-200 rounded-xl px-3 py-1.5 hover:border-[#655ac1]/20 transition-all ${showLocations ? '' : 'justify-center'}`}>
+          <span className={`flex-1 text-xs font-bold leading-snug text-slate-800 whitespace-normal break-words ${showLocations ? 'text-right' : 'text-center'}`}>{sa.staffName}</span>
         </div>
       </div>
 
