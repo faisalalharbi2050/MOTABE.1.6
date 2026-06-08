@@ -3407,14 +3407,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[150px] w-[22%] align-middle border-b border-slate-100">المنتظر</th>
                 <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-28 align-middle border-b border-slate-100">الصفة</th>
                 <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-middle border-b border-slate-100">نصاب الانتظار</th>
-                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-20 align-middle border-b border-slate-100 border-l-2 border-l-slate-200">المُسند</th>
-                <th colSpan={block.dayHeaders.length} className="sticky top-0 z-20 bg-slate-50 px-3 pt-4 pb-1 text-center text-xs font-black text-[#655ac1] border-b border-slate-100">أيام وحصص الإسناد</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-20 align-middle border-b border-slate-100">المُسند</th>
+                <th colSpan={block.dayHeaders.length} className="sticky top-0 z-20 bg-slate-50 px-3 pt-3 pb-1.5 text-center text-xs font-black text-[#655ac1] align-bottom border-b border-slate-100 border-r-2 border-r-slate-300">أيام وحصص الإسناد</th>
               </tr>
               <tr>
                 {block.dayHeaders.map((d, i) => (
                   <th
                     key={d.date}
-                    className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-1 text-[11px] font-black text-center border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-[#655ac1]'}`}
+                    className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-0 text-[11px] font-black text-center align-top border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-[#655ac1]'}`}
                   >
                     {d.day}
                     {d.isHoliday && <span className="block text-[9px] font-black text-rose-500 mt-0.5">إجازة</span>}
@@ -3435,11 +3435,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <span className="inline-flex items-center justify-center text-xs font-black text-slate-600">{row.roleLabel}</span>
                   </td>
                   <td className="px-3 py-3 text-center text-sm font-black text-[#655ac1] border-b border-slate-50">{row.quota || '—'}</td>
-                  <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50 border-l-2 border-l-slate-200">{row.totalAssigned}</td>
+                  <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50">{row.totalAssigned}</td>
                   {block.dayHeaders.map((d, i) => {
                     const cells = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a.period - b.period);
                     return (
-                      <td key={d.date} className={`px-1 py-3 text-center align-middle border-b border-slate-50 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''}`}>
+                      <td key={d.date} className={`px-1 py-3 text-center align-middle border-b border-slate-50 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''}`}>
                         {d.isHoliday ? (
                           <span className="inline-block text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 leading-tight">إجازة</span>
                         ) : cells.length === 0 ? (
@@ -4052,14 +4052,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[160px] w-[20%] align-middle border-b border-slate-100">المنتظر</th>
                     <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-middle border-b border-slate-100">نصاب الانتظار</th>
                     <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100">المُسند</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100 border-l-2 border-l-slate-200">المتبقي</th>
-                    <th colSpan={5} className="sticky top-0 z-20 bg-slate-50 px-3 pt-4 pb-1 text-center text-xs font-black text-[#655ac1] border-b border-slate-100">أيام وحصص الإسناد</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100">المتبقي</th>
+                    <th colSpan={5} className="sticky top-0 z-20 bg-slate-50 px-3 pt-3 pb-1.5 text-center text-xs font-black text-[#655ac1] align-bottom border-b border-slate-100 border-r-2 border-r-slate-300">أيام وحصص الإسناد</th>
                   </tr>
                   <tr>
                     {weekDates.map((d, i) => (
                       <th
                         key={d}
-                        className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-1 text-[11px] font-black text-[#655ac1] text-center border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
+                        className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-0 text-[11px] font-black text-[#655ac1] text-center align-top border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
                       >
                         {getArabicDayFromDate(d)}
                       </th>
@@ -4077,13 +4077,13 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       </td>
                       <td className="px-3 py-3 text-center text-sm font-black text-[#655ac1] border-b border-slate-50">{row.quota}</td>
                       <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50">{row.assigned}</td>
-                      <td className={`px-3 py-3 text-center text-sm font-black border-b border-slate-50 border-l-2 border-l-slate-200 ${row.balance <= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.balance}</td>
+                      <td className={`px-3 py-3 text-center text-sm font-black border-b border-slate-50 ${row.balance <= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.balance}</td>
                       {weekDates.map((d, i) => {
                         const cells = (row.assignmentDays.find(ad => ad.date === d)?.cells) || [];
                         return (
                           <td
                             key={d}
-                            className={`px-1 py-3 text-center align-middle border-b border-slate-50 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
+                            className={`px-1 py-3 text-center align-middle border-b border-slate-50 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
                           >
                             {cells.length === 0 ? (
                               <span className="text-slate-300 text-xs">·</span>
