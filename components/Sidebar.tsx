@@ -446,7 +446,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <NavItem
             active={activeTab === "permissions"}
             onClick={() => handleTabClick("permissions")}
-            icon={<ShieldCheck size={22} />}
+            icon={<Lock size={22} />}
             label="الصلاحيات والتفويض"
             collapsed={isCollapsed}
           />

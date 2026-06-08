@@ -17,7 +17,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react';
-import { Delegate } from '../../types';
+import { Admin, Delegate } from '../../types';
 import Toast, { useToast } from './Toast';
 import EditPermissionsModal from './EditPermissionsModal';
 import { logAction } from './auditLog';
@@ -31,9 +31,10 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 
 interface ManageDelegatesProps {
   onDelegatesChange?: () => void;
+  admins?: Admin[];
 }
 
-export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesProps) {
+export default function ManageDelegates({ onDelegatesChange, admins = [] }: ManageDelegatesProps) {
   const [delegates, setDelegates] = useState<Delegate[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -286,7 +287,12 @@ export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesPr
                 {filtered.map((delegate, index) => {
                   const isFullAccess = getDerivedRole(delegate) === 'delegate_full';
                   const status = getStatusView(delegate);
-                  const title = delegate.linkedStaffTitle || (delegate.linkedStaffType === 'teacher' ? 'معلم' : 'إداري');
+                  const liveAdmin = delegate.linkedStaffType === 'admin'
+                    ? admins.find((admin) => admin.id === delegate.linkedStaffId)
+                    : undefined;
+                  const title = delegate.linkedStaffType === 'teacher'
+                    ? 'معلم'
+                    : (liveAdmin?.role || delegate.linkedStaffTitle || 'إداري');
                   return (
                     <tr key={delegate.id} className="transition-colors hover:bg-[#e5e1fe]/10">
                       <td className="px-3 py-3.5 text-center">

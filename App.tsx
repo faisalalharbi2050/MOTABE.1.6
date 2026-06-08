@@ -672,6 +672,7 @@ const App: React.FC = () => {
           teachers={teachers}
           admins={admins}
           onNavigate={(tab) => setActiveTab(tab)}
+          onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }}
         />
       );
       case 'subscription': return <SubscriptionContainer subscription={subscription} setSubscription={setSubscription} initialTab={subscriptionInitialTab} />;
