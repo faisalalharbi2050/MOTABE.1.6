@@ -3300,6 +3300,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <tr>
               <td><span class="seq-num">${index + 1}</span></td>
               <td style="text-align:right;font-weight:900">${escapeHtml(row.name)}</td>
+              <td><span class="role-cell">${escapeHtml(row.roleLabel)}</span></td>
               <td><span class="plain purple">${row.quota || '—'}</span></td>
               <td><span class="plain amber">${row.totalAssigned}</span></td>
               ${dayCells}
@@ -3314,13 +3315,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <tr>
                 <th rowspan="2" style="width:34px">م</th>
                 <th rowspan="2" style="text-align:right">المنتظر</th>
-                <th rowspan="2" style="width:60px">النصاب</th>
-                <th rowspan="2" style="width:64px">المسند</th>
+                <th rowspan="2" style="width:70px">الصفة</th>
+                <th rowspan="2" style="width:66px">نصاب الانتظار</th>
+                <th rowspan="2" style="width:64px">المُسند</th>
                 <th colspan="${block.dayHeaders.length}">أيام وحصص الإسناد</th>
               </tr>
               <tr>${headerCells}</tr>
             </thead>
-            <tbody>${bodyRows || `<tr><td colspan="${4 + block.dayHeaders.length}">لا توجد بيانات</td></tr>`}</tbody>
+            <tbody>${bodyRows || `<tr><td colspan="${5 + block.dayHeaders.length}">لا توجد بيانات</td></tr>`}</tbody>
           </table>
         </div>`;
       };
@@ -3347,6 +3349,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         .plain { font-size:13px; font-weight:900; }
         .purple { color:#655ac1; }
         .amber { color:#d97706; }
+        .role-cell { font-size:12px; font-weight:900; color:#475569; }
         .day-head { width:54px; font-size:11px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
         .day-cell { text-align:center; padding:6px 4px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
         .day-num { display:block; color:#655ac1; font-size:11px; font-weight:900; white-space:nowrap; line-height:1.5; }
