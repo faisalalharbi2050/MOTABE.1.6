@@ -3309,20 +3309,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </table>
         </div>`;
       };
-      const summaryHtml = isMultiWeek ? `<div class="week-block">
-        <div class="week-range summary">ملخص إجمالي حصص الانتظار عبر ${effectiveWeeks.length} أسابيع</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:34px">م</th>
-              <th style="text-align:right">المنتظر</th>
-              <th style="width:70px">النصاب</th>
-              <th style="width:96px">إجمالي المسند</th>
-            </tr>
-          </thead>
-          <tbody>${summaryRows.map((r, i) => `<tr><td><span class="seq-num">${i + 1}</span></td><td style="text-align:right;font-weight:900">${escapeHtml(r.name)}</td><td><span class="plain purple">${r.quota || '—'}</span></td><td><span class="plain amber">${r.total}</span></td></tr>`).join('') || `<tr><td colspan="4">لا توجد بيانات</td></tr>`}</tbody>
-        </table>
-      </div>` : '';
       openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>تقرير الانتظار الأسبوعي</title><style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
         @page { size: A4 portrait; margin: 12mm; }
@@ -3376,7 +3362,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         </div>
         <div class="title">تقرير الانتظار${isMultiWeek ? '' : ' الأسبوعي'}</div>
         ${weekBlocks.map(weekTableHtml).join('')}
-        ${summaryHtml}
         <div class="footer">
           <div class="signature">
             <div class="role-label">وكيل الشؤون التعليمية</div>
@@ -3403,18 +3388,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <table className="w-full table-fixed text-right border-separate border-spacing-0">
             <thead>
               <tr>
-                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-14 align-middle border-b border-slate-100">م</th>
-                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[150px] w-[22%] align-middle border-b border-slate-100">المنتظر</th>
-                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-28 align-middle border-b border-slate-100">الصفة</th>
-                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-middle border-b border-slate-100">نصاب الانتظار</th>
-                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-20 align-middle border-b border-slate-100">المُسند</th>
-                <th colSpan={block.dayHeaders.length} className="sticky top-0 z-20 bg-slate-50 px-3 pt-3 pb-1.5 text-center text-xs font-black text-[#655ac1] align-bottom border-b border-slate-100 border-r-2 border-r-slate-300">أيام وحصص الإسناد</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] w-14 align-bottom border-b border-slate-100">م</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-xs font-black text-[#655ac1] min-w-[150px] w-[22%] align-bottom border-b border-slate-100">المنتظر</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] w-28 align-bottom border-b border-slate-100">الصفة</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-bottom border-b border-slate-100">نصاب الانتظار</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] w-20 align-bottom border-b border-slate-100">المُسند</th>
+                <th colSpan={block.dayHeaders.length} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-1.5 text-center text-xs font-black text-[#655ac1] align-bottom border-b border-slate-100 border-r-2 border-r-slate-300">أيام وحصص الإسناد</th>
               </tr>
               <tr>
                 {block.dayHeaders.map((d, i) => (
                   <th
                     key={d.date}
-                    className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-0 text-[11px] font-black text-center align-top border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-[#655ac1]'}`}
+                    className={`sticky top-[34px] z-20 bg-slate-50 px-1 pb-2.5 pt-1.5 text-[11px] font-black text-center align-bottom border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-[#655ac1]'}`}
                   >
                     {d.day}
                     {d.isHoliday && <span className="block text-[9px] font-black text-rose-500 mt-0.5">إجازة</span>}
@@ -3624,43 +3609,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 {renderReportTable(block)}
               </div>
             ))}
-
-            <div className="bg-white rounded-[24px] border border-[#d8d2f5] overflow-hidden shadow-sm">
-              <div className="px-6 py-4 border-b border-slate-100 bg-[#f0edff] flex items-center gap-2">
-                <BarChart3 size={16} className="text-[#655ac1] shrink-0" />
-                <p className="text-sm font-black text-[#655ac1]">ملخص إجمالي حصص الانتظار عبر {effectiveWeeks.length} أسابيع</p>
-                <div className="flex-1" />
-                <span className="text-xs font-black text-slate-500">الإجمالي: <span className="text-[#655ac1]">{totalAssignedInScope}</span></span>
-              </div>
-              <div>
-                <table className="w-full table-fixed text-right border-separate border-spacing-0">
-                  <thead>
-                    <tr>
-                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-14 border-b border-slate-100">م</th>
-                      <th className="bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[150px] border-b border-slate-100">المنتظر</th>
-                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-28 border-b border-slate-100">الصفة</th>
-                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-24 border-b border-slate-100">النصاب</th>
-                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-36 border-b border-slate-100">إجمالي المسند</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summaryRows.map((row, index) => (
-                      <tr key={row.id} className="hover:bg-[#e5e1fe]/10 transition-colors group">
-                        <td className="px-3 py-3 text-center border-b border-slate-50">
-                          <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
-                        </td>
-                        <td className="px-3 py-3 font-bold text-slate-700 border-b border-slate-50">
-                          <span className="text-sm group-hover:text-[#655ac1] transition-colors">{row.name}</span>
-                        </td>
-                        <td className="px-3 py-3 text-center text-xs font-black text-slate-600 border-b border-slate-50">{row.roleLabel}</td>
-                        <td className="px-3 py-3 text-center text-sm font-black text-[#655ac1] border-b border-slate-50">{row.quota || '—'}</td>
-                        <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50">{row.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </>
         ) : (
           <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
@@ -4048,18 +3996,18 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <table className="w-full table-fixed text-right border-separate border-spacing-0">
                 <thead>
                   <tr>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-14 align-middle border-b border-slate-100">م</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[160px] w-[20%] align-middle border-b border-slate-100">المنتظر</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-middle border-b border-slate-100">نصاب الانتظار</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100">المُسند</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100">المتبقي</th>
-                    <th colSpan={5} className="sticky top-0 z-20 bg-slate-50 px-3 pt-3 pb-1.5 text-center text-xs font-black text-[#655ac1] align-bottom border-b border-slate-100 border-r-2 border-r-slate-300">أيام وحصص الإسناد</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] w-14 align-bottom border-b border-slate-100">م</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-xs font-black text-[#655ac1] min-w-[160px] w-[20%] align-bottom border-b border-slate-100">المنتظر</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-bottom border-b border-slate-100">نصاب الانتظار</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-bottom border-b border-slate-100">المُسند</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-2.5 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-bottom border-b border-slate-100">المتبقي</th>
+                    <th colSpan={5} className="sticky top-0 z-20 bg-slate-50 px-3 h-[34px] pb-1.5 text-center text-xs font-black text-[#655ac1] align-bottom border-b border-slate-100 border-r-2 border-r-slate-300">أيام وحصص الإسناد</th>
                   </tr>
                   <tr>
                     {weekDates.map((d, i) => (
                       <th
                         key={d}
-                        className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-0 text-[11px] font-black text-[#655ac1] text-center align-top border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
+                        className={`sticky top-[34px] z-20 bg-slate-50 px-1 pb-2.5 pt-1.5 text-[11px] font-black text-[#655ac1] text-center align-bottom border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-300' : 'border-r border-slate-200'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
                       >
                         {getArabicDayFromDate(d)}
                       </th>
