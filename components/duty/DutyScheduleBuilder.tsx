@@ -818,14 +818,14 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
           return weeksToRender.map((week, weekIndex) => (
             <div key={week.weekId} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+              <div className="bg-white border-b border-slate-100 px-5 py-3 flex items-center justify-between">
                 {(() => {
                   const weekLabel = getWeekLabel(week.weekName, weekIndex);
                   return (
-                    <h4 className="font-black text-slate-800 text-lg inline-flex items-center gap-2">
-                      <ShieldCheck size={21} className="text-[#655ac1]" />
+                    <h4 className="font-black text-slate-800 text-base inline-flex items-center gap-2">
+                      <ShieldCheck size={18} className="text-[#655ac1]" />
                       <span>{weekLabel.label}</span>
-                      <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-slate-300 bg-slate-50 px-2 text-[#655ac1] text-sm">
+                      <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-300 bg-slate-50 px-2 text-[#655ac1] text-xs">
                         {weekLabel.number}
                       </span>
                     </h4>
@@ -836,9 +836,9 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                 <table className="w-full text-sm text-right border-collapse table-fixed">
                   <thead>
                     <tr className="bg-[#a59bf0] text-white border-b border-slate-400">
-                      <th className="p-3 font-black w-[18%] border-l border-white/40 text-center">اليوم</th>
-                      <th className="p-3 font-black w-[18%] border-l border-white/40 text-center">التاريخ</th>
-                      <th className="p-3 font-black w-[44%] border-l border-white/40 text-center">المناوب</th>
+                      <th className="px-3 py-2.5 font-black w-[18%] border-l border-white/40 text-center">اليوم</th>
+                      <th className="px-3 py-2.5 font-black w-[18%] border-l border-white/40 text-center">التاريخ</th>
+                      <th className="px-3 py-2.5 font-black w-[44%] border-l border-white/40 text-center">المناوب</th>
                       {/* Signature column */}
                       <th className="hidden p-3 font-black text-white text-center w-[10%] border-l border-white/40">
                         <div className="flex items-center justify-center gap-1.5">
@@ -857,7 +857,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                         <span className="block">النموذج اليومي</span>
                       </th>
                       {/* Actions column */}
-                      <th className="p-3 font-black w-[20%] text-center print:hidden">إجراءات</th>
+                      <th className="px-3 py-2.5 font-black w-[20%] text-center print:hidden">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -870,11 +870,11 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                       return (
                         <tr key={dayId} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors align-top">
                           {/* Day Column (with merged date) */}
-                          <td className="p-4 border-l border-slate-200/60 align-middle bg-slate-50/50 text-center">
-                            <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[da.day]}</h4>
+                          <td className="px-3 py-2.5 border-l border-slate-200/60 align-middle bg-slate-50/50 text-center">
+                            <h4 className="font-black text-[#655ac1] text-sm">{DAY_NAMES[da.day]}</h4>
                           </td>
 
-                          <td className="p-4 border-l border-slate-200/60 align-middle bg-slate-50/50 text-center">
+                          <td className="px-3 py-2.5 border-l border-slate-200/60 align-middle bg-slate-50/50 text-center">
                             {da.date && (
                               <span className="block font-black text-slate-700 text-sm leading-relaxed">
                                 {formatDisplayDate(da.date)}
@@ -883,7 +883,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                           </td>
 
                           {/* Staff Column */}
-                          <td className="p-3 border-l border-slate-200/60 align-top">
+                          <td className="px-3 py-2 border-l border-slate-200/60 align-top">
                             {da.isOfficialLeave ? (
                               <div
                                 className="flex items-center justify-center min-h-[3rem] rounded-xl bg-amber-50/40"
@@ -903,46 +903,57 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                 <span className="font-black text-emerald-600 text-sm">العمل عن بعد – مدرستي</span>
                               </div>
                             ) : (
-                              <div className="flex flex-col gap-2">
+                              <div className="flex flex-col gap-1.5">
                                 {/* Assigned staff */}
-                                {staffAssignments.map(sa => {
+                                {staffAssignments.map((sa, idx) => {
                                   const isMarkedForDelete = (deleteSelection[dayId] || []).includes(sa.staffId);
                                   const isDeleteMode = !!deleteSelectionMode[dayId];
+                                  const isLast = idx === staffAssignments.length - 1;
                                   return (
-                                    <div key={sa.staffId} className="flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-[#655ac1]/20 transition-all">
-                                      <span className="font-bold text-slate-800 text-sm flex-1 text-right">{sa.staffName}</span>
-                                      {isDeleteMode && (
+                                    <div key={sa.staffId} className="flex items-center gap-1.5">
+                                      <div className="flex-1 flex items-center gap-2.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5 hover:border-[#655ac1]/20 transition-all">
+                                        <span className="font-bold text-slate-800 text-sm flex-1 text-center">{sa.staffName}</span>
+                                        {isDeleteMode && (
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleDeleteSelect(dayId, sa.staffId)}
+                                            title="حدّد للحذف"
+                                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                              isMarkedForDelete
+                                                ? 'bg-rose-500 border-rose-500 text-white'
+                                                : 'bg-white border-slate-300 text-transparent hover:border-rose-400'
+                                            }`}
+                                          >
+                                            <Check size={12} strokeWidth={3.5} />
+                                          </button>
+                                        )}
+                                      </div>
+                                      {/* زر «+» المدمج بجانب آخر مناوب — يفتح سطراً تالياً */}
+                                      {isLast && canAddMore && !isDeleteMode && (
                                         <button
-                                          type="button"
-                                          onClick={() => toggleDeleteSelect(dayId, sa.staffId)}
-                                          title="حدّد للحذف"
-                                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                            isMarkedForDelete
-                                              ? 'bg-rose-500 border-rose-500 text-white'
-                                              : 'bg-white border-slate-300 text-transparent hover:border-rose-400'
-                                          }`}
+                                          onClick={(e) => openAddPanel(dayId, e)}
+                                          title="إضافة مناوب"
+                                          className="shrink-0 w-9 h-9 inline-flex items-center justify-center border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 transition-all"
                                         >
-                                          <Check size={12} strokeWidth={3.5} />
+                                          <Plus size={16} />
                                         </button>
                                       )}
                                     </div>
                                   );
                                 })}
 
-                                {/* Add button */}
-                                {(canAddMore || showAdd) && (
-                                  <div className="relative flex justify-center">
-                                    {canAddMore && (
-                                      <button
-                                        onClick={(e) => openAddPanel(dayId, e)}
-                                        className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
-                                      >
-                                        <Plus size={13} /> إضافة مناوب
-                                      </button>
-                                    )}
+                                {/* الزر الكبير الواضح — يظهر فقط عندما يكون اليوم فارغاً */}
+                                {staffAssignments.length === 0 && canAddMore && (
+                                  <button
+                                    onClick={(e) => openAddPanel(dayId, e)}
+                                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
+                                  >
+                                    <Plus size={13} /> إضافة مناوب
+                                  </button>
+                                )}
 
-                                    {/* Staff picker modal */}
-                                    {showAdd && (
+                                {/* نافذة اختيار المناوبين (fixed position — تُعرض مرة واحدة) */}
+                                {showAdd && (
                                       <>
                                         <div className="fixed inset-0 z-[9998] bg-black/40" onClick={closeAddPanel} />
                                         <div
@@ -1055,8 +1066,6 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                         </div>
                                       </>
                                     )}
-                                  </div>
-                                )}
 
                                 {staffAssignments.length === 0 && !canAddMore && (
                                   <span className="text-xs text-slate-300 text-center py-2">-</span>
@@ -1196,7 +1205,7 @@ const DutyScheduleBuilder: React.FC<Props> = ({
 
 
                           {/* ── Actions Column (hidden in print) ── */}
-                          <td className="p-3 align-middle print:hidden">
+                          <td className="px-3 py-2 align-middle print:hidden">
                             <div className="flex flex-row gap-2 items-center justify-center">
                               <button
                                 onClick={(e) => openAddPanel(dayId, e, { editDay: true })}
