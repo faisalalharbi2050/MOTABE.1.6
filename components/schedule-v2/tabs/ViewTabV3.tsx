@@ -1064,6 +1064,19 @@ const ViewTabV3: React.FC<Props> = ({
 
   const [exportScheduleType, setExportScheduleType] = useState<ScheduleType>('general_teachers');
 
+  // المدارس المشتركة: نطاق تصدير ملف XML (ملف موحّد للمدرستين أو ملف منفصل لكل مدرسة)
+  const hasSharedSchools = !!(schoolInfo.sharedSchools && schoolInfo.sharedSchools.length > 0);
+  const [exportXmlScope, setExportXmlScope] = useState<'combined' | 'separate'>(
+    (scheduleSettings.generationMode || 'unified') === 'separate' ? 'separate' : 'combined'
+  );
+  const exportXmlScopeOptions = useMemo(
+    () => [
+      { value: 'combined', label: 'ملف واحد للمدرستين' },
+      { value: 'separate', label: 'ملف منفصل لكل مدرسة' },
+    ],
+    []
+  );
+
   const [generatedLinks, setGeneratedLinks] = useState<GeneratedLink[]>([]);
   const [signaturePrintTeacherIds, setSignaturePrintTeacherIds] = useState<string[] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -1421,7 +1434,32 @@ const ViewTabV3: React.FC<Props> = ({
 
   const handleExportXML = () => {
     try {
-      const xml = generateExtensionXML(scheduleSettings.timetable || {}, teachers, subjects, classes, schoolInfo);
+      const timetable = scheduleSettings.timetable || {};
+
+      // مدرسة مشتركة + اختيار «ملف منفصل لكل مدرسة»: نقسّم الجدول حسب فصول كل مدرسة
+      if (hasSharedSchools && exportXmlScope === 'separate') {
+        const schoolDefs = [
+          { id: 'main', name: schoolInfo.schoolName || 'المدرسة الأولى' },
+          ...(schoolInfo.sharedSchools || []).map(s => ({ id: s.id, name: s.name })),
+        ];
+        let exported = 0;
+        schoolDefs.forEach(def => {
+          const schoolClassIds = new Set(
+            classes.filter(c => c.schoolId === def.id || (!c.schoolId && def.id === 'main')).map(c => c.id)
+          );
+          const schoolTimetable = Object.fromEntries(
+            Object.entries(timetable).filter(([, slot]) => slot.classId && schoolClassIds.has(slot.classId))
+          ) as typeof timetable;
+          if (Object.keys(schoolTimetable).length === 0) return;
+          const xml = generateExtensionXML(schoolTimetable, teachers, subjects, classes, { ...schoolInfo, schoolName: def.name });
+          downloadFile(xml, `schedule_${def.name || 'school'}.xml`, 'text/xml');
+          exported++;
+        });
+        showToast(exported > 0 ? 'تم تصدير XML لكل مدرسة بنجاح.' : 'لا توجد بيانات للتصدير.');
+        return;
+      }
+
+      const xml = generateExtensionXML(timetable, teachers, subjects, classes, schoolInfo);
       downloadFile(xml, `schedule_${schoolInfo.schoolName || 'school'}.xml`, 'text/xml');
       showToast('تم تصدير XML بنجاح.');
     } catch {
@@ -2930,7 +2968,19 @@ const ViewTabV3: React.FC<Props> = ({
               <p className="text-xs text-slate-500 font-medium text-right mb-5">
                 صدّر الجدول بصيغة XML للاستفادة منه في إضافات قوقل كروم.
               </p>
-              <div className="flex-1" />
+              {hasSharedSchools ? (
+                <div className="[&_label]:hidden mb-5">
+                  <SingleSelectDropdown
+                    label="نطاق التصدير"
+                    value={exportXmlScope}
+                    onChange={value => setExportXmlScope(value as 'combined' | 'separate')}
+                    placeholder="نطاق التصدير"
+                    options={exportXmlScopeOptions}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1" />
+              )}
               <button
                 onClick={handleExportXML}
                 className="mt-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:border-[#655ac1] hover:text-white hover:bg-[#655ac1] transition-all"
