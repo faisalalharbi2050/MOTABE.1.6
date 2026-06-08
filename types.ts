@@ -37,6 +37,7 @@ export interface Delegate {
   addedAt: string;
   linkedStaffId: string; // ID of the teacher/admin they were linked to
   linkedStaffType: 'teacher' | 'admin';
+  linkedStaffTitle?: string; // Job title/role shown in the delegates table (e.g. معلم / وكيل)
 }
 
 export type LogActionType =

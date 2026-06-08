@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -6,6 +7,7 @@ import {
   Copy,
   Edit2,
   MessageSquare,
+  MoreHorizontal,
   Power,
   RefreshCw,
   RotateCcw,
@@ -40,7 +42,29 @@ export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesPr
   const [resetConfirmId, setResetConfirmId] = useState<string | null>(null);
   const [toggleConfirm, setToggleConfirm] = useState<{ id: string; current: boolean } | null>(null);
   const [regenerateConfirmId, setRegenerateConfirmId] = useState<string | null>(null);
+  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const { toast, showToast } = useToast();
+
+  const openActionMenu = (event: React.MouseEvent, id: string) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuWidth = 240;
+    let left = rect.right - menuWidth;
+    if (left < 8) left = 8;
+    setActionMenu((prev) => (prev?.id === id ? null : { id, top: rect.bottom + 8, left }));
+  };
+
+  useEffect(() => {
+    if (!actionMenu) return;
+    const close = () => setActionMenu(null);
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [actionMenu]);
 
   useEffect(() => {
     const saved = localStorage.getItem('motabe_delegates');
@@ -218,284 +242,151 @@ export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesPr
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <div className="flex flex-col md:flex-row gap-3 items-center">
-          <div className="relative w-full md:flex-1">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-1.5 rounded-full bg-[#655ac1]" />
+            <h4 className="text-lg font-black text-slate-800">المفوضون</h4>
+            <span className="mr-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-black text-[#655ac1]">{filtered.length}</span>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="البحث بالاسم أو الجوال أو اسم المستخدم..."
+              placeholder="ابحث بالاسم أو الجوال أو المستخدم"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-4 py-2.5 text-sm outline-none focus:border-[#655ac1] focus:ring-1 focus:ring-[#655ac1] transition-all"
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pr-10 pl-3 text-sm font-medium text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
             />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-              الإجمالي: {delegates.length}
-            </span>
-          </div>
         </div>
-      </div>
 
-      {filtered.length === 0 ? (
-        <div className="py-16 text-center">
-          <Users size={48} className="text-[#655ac1] mx-auto mb-4" />
-          {delegates.length === 0 ? (
-            <>
-              <p className="font-bold text-lg text-slate-600">لا يوجد مفوضون مسجلون بعد</p>
-              <p className="text-sm text-slate-400 mt-1">
-                ابدأ من تبويب <span className="text-[#655ac1] font-bold">إضافة مفوض</span>
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-bold text-lg text-slate-600">لا توجد نتائج مطابقة</p>
-              <p className="text-sm text-slate-400 mt-1">جرّب تغيير مصطلح البحث</p>
-            </>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="md:hidden space-y-3">
-            {filtered.map((delegate, index) => {
-              const isFullAccess = getDerivedRole(delegate) === 'delegate_full';
-              const status = getStatusView(delegate);
-
-              return (
-                <div key={delegate.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-2 text-xs font-black text-[#655ac1]">
-                          {index + 1}
-                        </span>
-                        <p className="font-bold text-slate-800">{delegate.name}</p>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {delegate.isPendingSetup
-                          ? 'بانتظار إكمال التفعيل'
-                          : delegate.isActive
-                          ? 'جاهز للاستخدام'
-                          : 'الحساب موقوف حاليًا'}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                        isFullAccess ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {isFullAccess ? 'كاملة' : 'مخصصة'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200">
-                      <p className="text-[11px] font-bold text-slate-400">صفة المفوض</p>
-                      <p className="mt-1 font-bold text-slate-700">
-                        {delegate.linkedStaffType === 'teacher' ? 'معلم' : 'إداري'}
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200">
-                      <p className="text-[11px] font-bold text-slate-400">الحالة</p>
-                      <p className={`mt-1 text-xs font-bold ${status.className}`}>{status.label}</p>
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200 col-span-2">
-                      <p className="text-[11px] font-bold text-slate-400">الجوال</p>
-                      <div className="mt-1 flex items-center gap-1.5 text-slate-700">
-                        <Smartphone size={13} className="text-slate-400 shrink-0" />
-                        <span dir="ltr" className="font-medium">{delegate.phone}</span>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 border border-slate-200 col-span-2">
-                      <p className="text-[11px] font-bold text-slate-400">اسم المستخدم</p>
-                      <p dir="ltr" className="mt-1 font-medium text-slate-700">
-                        {delegate.username ? `@${delegate.username}` : 'لم يُنشأ بعد'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-1.5 border-t border-slate-100 pt-3">
-                    {!delegate.isPendingSetup && (
-                      <button
-                        onClick={() => setEditDelegate(delegate)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#d4cbf9] hover:bg-[#f6f3ff] transition-all"
-                        title="تعديل الصلاحيات"
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                    )}
-
-                    {delegate.isPendingSetup ? (
-                      <button
-                        onClick={() => setRegenerateConfirmId(delegate.id)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] hover:border-[#d9d0ff] hover:bg-[#f6f3ff] transition-all"
-                        title="إعادة إصدار رمز التفعيل"
-                      >
-                        <RefreshCw size={15} />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setResetConfirmId(delegate.id)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
-                        title="إعادة تهيئة الحساب"
-                      >
-                        <RotateCcw size={15} />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => setToggleConfirm({ id: delegate.id, current: delegate.isActive })}
-                      className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all border ${
-                        delegate.isActive
-                          ? 'border-slate-200 bg-white text-rose-600 hover:border-rose-200 hover:bg-rose-50'
-                          : 'border-slate-200 bg-white text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50'
-                      }`}
-                      title={delegate.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}
-                    >
-                      <Power size={15} />
-                    </button>
-
-                    <button
-                      onClick={() => setDeleteConfirmId(delegate.id)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all"
-                      title="حذف المفوض"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <Users size={44} className="mx-auto mb-3 text-slate-300" />
+            <p className="font-black text-slate-600">{delegates.length === 0 ? 'لا يوجد مفوضون مسجلون بعد' : 'لا توجد نتائج مطابقة'}</p>
+            <p className="mt-1 text-sm text-slate-400">{delegates.length === 0 ? 'ابدأ بإسناد الصلاحيات من المرحلة الأولى' : 'جرّب تغيير مصطلح البحث'}</p>
           </div>
-
-          <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div>
-              <table className="w-full table-fixed text-right">
-              <thead className="bg-white border-b text-sm text-[#655ac1]">
-                <tr>
-                  <th className="px-4 py-4 font-medium w-14 text-center whitespace-nowrap">م</th>
-                  <th className="px-4 py-4 font-medium w-[20%] whitespace-nowrap">المفوض</th>
-                  <th className="px-4 py-4 font-medium w-24 text-center whitespace-nowrap">صفة المفوض</th>
-                  <th className="px-4 py-4 font-medium w-36 text-center whitespace-nowrap">الجوال</th>
-                  <th className="px-4 py-4 font-medium w-36 text-center whitespace-nowrap">اسم المستخدم</th>
-                  <th className="px-4 py-4 font-medium text-center whitespace-nowrap">الصلاحية</th>
-                  <th className="px-4 py-4 font-medium text-center whitespace-nowrap">الحالة</th>
-                  <th className="px-4 py-4 font-medium w-[180px] text-center whitespace-nowrap">إجراءات</th>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] table-fixed border-separate border-spacing-0 overflow-hidden rounded-2xl border border-slate-100 text-right">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80">
+                  <th className="w-14 px-3 py-4 text-center text-xs font-black text-[#655ac1]">م</th>
+                  <th className="w-[24%] px-3 py-4 text-xs font-black text-[#655ac1]">المفوض</th>
+                  <th className="w-[15%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">الصفة</th>
+                  <th className="w-[15%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">الجوال</th>
+                  <th className="w-[15%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">اسم المستخدم</th>
+                  <th className="w-28 px-3 py-4 text-center text-xs font-black text-[#655ac1]">الصلاحية</th>
+                  <th className="w-32 px-3 py-4 text-center text-xs font-black text-[#655ac1]">الحالة</th>
+                  <th className="w-20 px-3 py-4 text-center text-xs font-black text-[#655ac1]">إجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y relative text-gray-700">
+              <tbody className="divide-y divide-slate-50">
                 {filtered.map((delegate, index) => {
                   const isFullAccess = getDerivedRole(delegate) === 'delegate_full';
                   const status = getStatusView(delegate);
-
+                  const title = delegate.linkedStaffTitle || (delegate.linkedStaffType === 'teacher' ? 'معلم' : 'إداري');
                   return (
-                    <tr key={delegate.id} className="hover:bg-gray-50 transition-colors group">
-                      <td className="px-4 py-4 text-gray-400 text-sm text-center whitespace-nowrap">{index + 1}</td>
-                      <td className="px-4 py-4">
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-800 truncate">{delegate.name}</p>
-                          <p className="text-xs text-slate-400 mt-0.5 truncate">
-                            {delegate.isPendingSetup
-                              ? 'بانتظار إكمال التفعيل'
-                              : delegate.isActive
-                              ? 'جاهز للاستخدام'
-                              : 'الحساب موقوف حاليًا'}
-                          </p>
-                        </div>
+                    <tr key={delegate.id} className="transition-colors hover:bg-[#e5e1fe]/10">
+                      <td className="px-3 py-3.5 text-center">
+                        <span className="mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-xs font-bold text-slate-400">{index + 1}</span>
                       </td>
-                      <td className="px-4 py-4 text-sm font-medium text-center whitespace-nowrap">
-                        {delegate.linkedStaffType === 'teacher' ? 'معلم' : 'إداري'}
+                      <td className="px-3 py-3.5">
+                        <p className="truncate font-bold text-slate-700">{delegate.name}</p>
+                        <p className="mt-0.5 truncate text-xs text-slate-400">
+                          {delegate.isPendingSetup
+                            ? 'بانتظار إكمال التفعيل'
+                            : delegate.isActive
+                            ? 'جاهز للاستخدام'
+                            : 'الحساب موقوف حاليًا'}
+                        </p>
                       </td>
-                      <td className="px-4 py-4 text-sm text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5 text-slate-600 whitespace-nowrap">
-                          <Smartphone size={13} className="text-slate-400 shrink-0" />
+                      <td className="px-3 py-3.5 text-center text-sm font-medium text-slate-600">
+                        {title}
+                      </td>
+                      <td className="px-3 py-3.5 text-center text-sm">
+                        <span className="inline-flex items-center justify-center gap-1.5 text-slate-600">
+                          <Smartphone size={13} className="shrink-0 text-[#655ac1]" />
                           <span dir="ltr">{delegate.phone}</span>
-                        </div>
+                        </span>
                       </td>
-                      <td className="px-4 py-4 text-sm text-center whitespace-nowrap">
-                        <span className="font-medium text-slate-700 whitespace-nowrap" dir="ltr">
+                      <td className="px-3 py-3.5 text-center text-sm">
+                        <span className="font-medium text-slate-600" dir="ltr">
                           {delegate.username ? `@${delegate.username}` : 'لم يُنشأ بعد'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
-                            isFullAccess ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {isFullAccess ? 'كاملة' : 'مخصصة'}
-                        </span>
+                      <td className="px-3 py-3.5 text-center">
+                        <span className="text-sm font-black text-[#655ac1]">{isFullAccess ? 'كاملة' : 'مخصصة'}</span>
                       </td>
-                      <td className="px-4 py-4 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 text-xs font-bold whitespace-nowrap ${status.className}`}>
-                          {delegate.isPendingSetup ? <Clock size={11} /> : <CheckCircle2 size={11} />}
+                      <td className="px-3 py-3.5 text-center">
+                        <span className={`inline-flex items-center gap-1 text-xs font-bold ${status.className}`}>
+                          {delegate.isPendingSetup ? <Clock size={11} /> : delegate.isActive ? <CheckCircle2 size={11} /> : <Power size={11} />}
                           {status.label}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
-                          {!delegate.isPendingSetup && (
-                            <button
-                              onClick={() => setEditDelegate(delegate)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#d4cbf9] hover:bg-[#f6f3ff] transition-all"
-                              title="تعديل الصلاحيات"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                          )}
-
-                          {delegate.isPendingSetup ? (
-                            <button
-                              onClick={() => setRegenerateConfirmId(delegate.id)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#655ac1] hover:border-[#d9d0ff] hover:bg-[#f6f3ff] transition-all"
-                              title="إعادة إصدار رمز التفعيل"
-                            >
-                              <RefreshCw size={14} />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setResetConfirmId(delegate.id)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
-                              title="إعادة تهيئة الحساب"
-                            >
-                              <RotateCcw size={14} />
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => setToggleConfirm({ id: delegate.id, current: delegate.isActive })}
-                            className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all border ${
-                              delegate.isActive
-                                ? 'border-slate-200 bg-white text-rose-600 hover:border-rose-200 hover:bg-rose-50'
-                                : 'border-slate-200 bg-white text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50'
-                            }`}
-                            title={delegate.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}
-                          >
-                            <Power size={14} />
-                          </button>
-
-                          <button
-                            onClick={() => setDeleteConfirmId(delegate.id)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all"
-                            title="حذف المفوض"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                      <td className="px-3 py-3.5 text-center">
+                        <button
+                          onClick={(event) => { event.stopPropagation(); openActionMenu(event, delegate.id); }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+                          title="إجراءات"
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-              </table>
-            </div>
+            </table>
           </div>
-        </>
+        )}
+      </div>
+
+      {/* Action menu (portal) */}
+      {actionMenu && ReactDOM.createPortal(
+        (() => {
+          const delegate = delegates.find((item) => item.id === actionMenu.id);
+          if (!delegate) return null;
+          const itemBase = 'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-sm font-bold transition-colors';
+          const iconWrap = 'flex h-7 w-7 shrink-0 items-center justify-center';
+          return (
+            <div
+              className="fixed z-[9999] w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"
+              style={{ top: actionMenu.top, left: actionMenu.left, minWidth: 220 }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {!delegate.isPendingSetup && (
+                <button onClick={() => { setEditDelegate(delegate); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
+                  <span className={`${iconWrap} text-slate-500`}><Edit2 size={15} /></span>
+                  <span className="flex-1 transition-colors group-hover:text-[#655ac1]">تعديل الصلاحيات</span>                </button>
+              )}
+
+              {delegate.isPendingSetup ? (
+                <button onClick={() => { setRegenerateConfirmId(delegate.id); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
+                  <span className={`${iconWrap} text-[#655ac1]`}><RefreshCw size={15} /></span>
+                  <span className="flex-1 transition-colors group-hover:text-[#655ac1]">إعادة إصدار الرمز</span>                </button>
+              ) : (
+                <button onClick={() => { setResetConfirmId(delegate.id); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
+                  <span className={`${iconWrap} text-amber-500`}><RotateCcw size={15} /></span>
+                  <span className="flex-1 transition-colors group-hover:text-[#655ac1]">إعادة تهيئة الحساب</span>                </button>
+              )}
+
+              <button onClick={() => { setToggleConfirm({ id: delegate.id, current: delegate.isActive }); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
+                <span className={`${iconWrap} ${delegate.isActive ? 'text-rose-500' : 'text-emerald-500'}`}><Power size={15} /></span>
+                <span className="flex-1 transition-colors group-hover:text-[#655ac1]">{delegate.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}</span>
+              </button>
+
+              <div className="my-1 border-t border-slate-100" />
+
+              <button onClick={() => { setDeleteConfirmId(delegate.id); setActionMenu(null); }} className={`${itemBase} text-rose-600 hover:bg-rose-50`}>
+                <span className={`${iconWrap} text-rose-500`}><Trash2 size={15} /></span>
+                <span className="flex-1">حذف المفوض</span>
+              </button>
+            </div>
+          );
+        })(),
+        document.body
       )}
 
       {editDelegate && (
@@ -551,54 +442,40 @@ export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesPr
       )}
 
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-rose-100">
-              <AlertTriangle size={28} />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-start gap-3 p-6">
+              <Trash2 size={28} className="mt-0.5 shrink-0 text-rose-500" />
+              <div>
+                <h3 className="mb-2 text-xl font-black text-slate-800">تأكيد حذف المفوض</h3>
+                <p className="text-sm font-medium leading-relaxed text-slate-500">سيتم حذف هذا المفوض نهائياً، ولا يمكن التراجع عن هذا الإجراء.</p>
+              </div>
             </div>
-            <h3 className="text-xl font-black text-center text-slate-800 mb-2">تأكيد الحذف</h3>
-            <p className="text-center text-slate-500 font-medium mb-6">هل أنت متأكد من حذف هذا المفوض نهائيًا؟</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-              >
-                تراجع
-              </button>
-              <button
-                onClick={proceedDelete}
-                className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold transition-colors"
-              >
-                نعم، احذف
-              </button>
+            <div className="flex gap-3 p-6 pt-0">
+              <button onClick={() => setDeleteConfirmId(null)} className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50">إلغاء</button>
+              <button onClick={proceedDelete} className="flex-1 rounded-xl bg-rose-500 px-4 py-3 text-sm font-bold text-white shadow-md shadow-rose-500/20 transition-colors hover:bg-rose-600">حذف</button>
             </div>
           </div>
         </div>
       )}
 
       {regenerateConfirmId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 bg-[#f6f3ff] text-[#655ac1] rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-[#e5e1fe]">
-              <RefreshCw size={28} />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-start gap-3 p-6">
+              <RefreshCw size={28} className="mt-0.5 shrink-0 text-[#655ac1]" />
+              <div>
+                <h3 className="mb-2 text-xl font-black text-slate-800">إعادة إصدار رمز التفعيل</h3>
+                <p className="text-sm font-medium leading-relaxed text-slate-500">سيتم إنشاء رمز تفعيل جديد للمفوض ومشاركته معه. هل تريد المتابعة؟</p>
+              </div>
             </div>
-            <h3 className="text-xl font-black text-center text-slate-800 mb-2">إعادة إصدار رمز التفعيل</h3>
-            <p className="text-center text-slate-500 font-medium mb-6">سيتم إنشاء رمز تفعيل جديد للمفوض. هل تريد المتابعة؟</p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 p-6 pt-0">
+              <button onClick={() => setRegenerateConfirmId(null)} className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50">إلغاء</button>
               <button
-                onClick={() => setRegenerateConfirmId(null)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+                onClick={() => { handleRegenerateOtp(regenerateConfirmId); setRegenerateConfirmId(null); }}
+                className="flex-1 rounded-xl bg-[#655ac1] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#655ac1]/20 transition-colors hover:bg-[#5448b5]"
               >
-                تراجع
-              </button>
-              <button
-                onClick={() => {
-                  handleRegenerateOtp(regenerateConfirmId);
-                  setRegenerateConfirmId(null);
-                }}
-                className="flex-1 py-3 bg-[#655ac1] hover:bg-[#655ac1] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-200 text-white rounded-xl font-bold transition-all"
-              >
-                نعم، أعد الإصدار
+                إعادة الإصدار
               </button>
             </div>
           </div>
@@ -606,40 +483,28 @@ export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesPr
       )}
 
       {toggleConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 border-2 ${
-              toggleConfirm.current
-                ? 'bg-rose-50 text-rose-500 border-rose-100'
-                : 'bg-emerald-50 text-emerald-500 border-emerald-100'
-            }`}>
-              <Power size={28} />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-start gap-3 p-6">
+              <Power size={28} className={`mt-0.5 shrink-0 ${toggleConfirm.current ? 'text-rose-500' : 'text-emerald-500'}`} />
+              <div>
+                <h3 className="mb-2 text-xl font-black text-slate-800">{toggleConfirm.current ? 'إيقاف حساب المفوض' : 'تفعيل حساب المفوض'}</h3>
+                <p className="text-sm font-medium leading-relaxed text-slate-500">
+                  {toggleConfirm.current
+                    ? 'سيتم إيقاف الحساب ومنع المفوض من الدخول حتى إعادة التفعيل. هل تريد المتابعة؟'
+                    : 'سيتم تفعيل الحساب والسماح للمفوض بالدخول مجددًا. هل تريد المتابعة؟'}
+                </p>
+              </div>
             </div>
-            <h3 className="text-xl font-black text-center text-slate-800 mb-2">
-              {toggleConfirm.current ? 'إيقاف حساب المفوض' : 'تفعيل حساب المفوض'}
-            </h3>
-            <p className="text-center text-slate-500 font-medium mb-6">
-              {toggleConfirm.current
-                ? 'سيتم إيقاف الحساب ومنع المفوض من الدخول حتى إعادة التفعيل. هل تريد المتابعة؟'
-                : 'سيتم تفعيل الحساب والسماح للمفوض بالدخول مجددًا. هل تريد المتابعة؟'}
-            </p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 p-6 pt-0">
+              <button onClick={() => setToggleConfirm(null)} className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50">إلغاء</button>
               <button
-                onClick={() => setToggleConfirm(null)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-              >
-                تراجع
-              </button>
-              <button
-                onClick={() => {
-                  handleToggleActive(toggleConfirm.id, toggleConfirm.current);
-                  setToggleConfirm(null);
-                }}
-                className={`flex-1 py-3 text-white rounded-xl font-bold transition-colors ${
-                  toggleConfirm.current ? 'bg-rose-500 hover:bg-rose-600' : 'bg-emerald-500 hover:bg-emerald-600'
+                onClick={() => { handleToggleActive(toggleConfirm.id, toggleConfirm.current); setToggleConfirm(null); }}
+                className={`flex-1 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-md transition-colors ${
+                  toggleConfirm.current ? 'bg-rose-500 shadow-rose-500/20 hover:bg-rose-600' : 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600'
                 }`}
               >
-                {toggleConfirm.current ? 'نعم، أوقف الحساب' : 'نعم، فعّل الحساب'}
+                {toggleConfirm.current ? 'إيقاف الحساب' : 'تفعيل الحساب'}
               </button>
             </div>
           </div>
@@ -647,28 +512,18 @@ export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesPr
       )}
 
       {resetConfirmId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-amber-100">
-              <RotateCcw size={28} />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-start gap-3 p-6">
+              <AlertTriangle size={28} className="mt-0.5 shrink-0 text-amber-500" />
+              <div>
+                <h3 className="mb-2 text-xl font-black text-slate-800">إعادة تهيئة الحساب</h3>
+                <p className="text-sm font-medium leading-relaxed text-slate-500">سيتم حذف بيانات الدخول الحالية وإصدار رمز تفعيل جديد. هل تريد المتابعة؟</p>
+              </div>
             </div>
-            <h3 className="text-xl font-black text-center text-slate-800 mb-2">إعادة تهيئة الحساب</h3>
-            <p className="text-center text-slate-500 font-medium mb-6">
-              سيتم حذف بيانات الدخول الحالية وإصدار رمز تفعيل جديد. هل تريد المتابعة؟
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setResetConfirmId(null)}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-              >
-                تراجع
-              </button>
-              <button
-                onClick={() => handleResetAccount(resetConfirmId)}
-                className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-colors"
-              >
-                نعم، أعد التهيئة
-              </button>
+            <div className="flex gap-3 p-6 pt-0">
+              <button onClick={() => setResetConfirmId(null)} className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50">إلغاء</button>
+              <button onClick={() => handleResetAccount(resetConfirmId)} className="flex-1 rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white shadow-md shadow-amber-500/20 transition-colors hover:bg-amber-600">إعادة التهيئة</button>
             </div>
           </div>
         </div>

@@ -3606,9 +3606,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     className={itemBase}
                 >
                     <span className={iconWrap}><Edit2 size={14} /></span>
-                    <span className={labelCls}>تعديل</span>
-                    <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
-                </button>
+                    <span className={labelCls}>تعديل</span>                </button>
 
                 <button
                     onClick={() => {
@@ -3617,18 +3615,14 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     className={itemBase}
                 >
                     <span className={iconWrap}><Copy size={14} /></span>
-                    <span className={labelCls}>تطبيق النصاب</span>
-                    <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
-                </button>
+                    <span className={labelCls}>تطبيق النصاب</span>                </button>
 
                 <button
                     onClick={() => { openTeacherConstraints(actionDropdown.teacherId); setActionDropdown(null); }}
                     className={itemBase}
                 >
                     <span className={iconWrap}><Sliders size={14} /></span>
-                    <span className={labelCls}>قيود المعلم</span>
-                    <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
-                </button>
+                    <span className={labelCls}>قيود المعلم</span>                </button>
 
                 {/* ربط بمدرسة أخرى - يظهر فقط إذا وجدت مدارس مشتركة والمعلم غير مشترك */}
                 {hasShared && !targetTeacher?.isShared && (
@@ -3637,9 +3631,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         className={itemBase}
                     >
                         <span className={iconWrap}>{LinkIconInline}</span>
-                        <span className={labelCls}>ربط بمدرسة أخرى</span>
-                        <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
-                    </button>
+                        <span className={labelCls}>ربط بمدرسة أخرى</span>                    </button>
                 )}
 
                 {/* إلغاء الربط - يظهر فقط إذا المعلم مشترك */}
@@ -3649,9 +3641,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         className={itemBase}
                     >
                         <span className={iconWrap}>{UnlinkIconInline}</span>
-                        <span className={labelCls}>إلغاء الربط</span>
-                        <span className={circleCls}><Check size={10} strokeWidth={3.5} className={tickCls} /></span>
-                    </button>
+                        <span className={labelCls}>إلغاء الربط</span>                    </button>
                 )}
             </div>
           );

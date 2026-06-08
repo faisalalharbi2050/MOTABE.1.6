@@ -527,15 +527,15 @@ export default function ActionLogs() {
 
         <div className="hidden md:block">
           <table className="w-full table-fixed text-right">
-            <thead className="border-b border-slate-100 bg-slate-50 text-sm text-[#655ac1]">
+            <thead className="border-b border-slate-100">
               <tr>
-                <th className="w-14 whitespace-nowrap px-4 py-4 text-center font-medium">م</th>
-                <th className="whitespace-nowrap px-4 py-4 font-medium">نوع العملية</th>
-                <th className="w-[30%] px-4 py-4 font-medium">وصف العملية</th>
-                <th className="whitespace-nowrap px-4 py-4 font-medium">المفوض</th>
-                <th className="whitespace-nowrap px-4 py-4 font-medium">اليوم</th>
-                <th className="whitespace-nowrap px-4 py-4 font-medium">التاريخ</th>
-                <th className="whitespace-nowrap px-4 py-4 font-medium">الوقت</th>
+                <th className="w-14 whitespace-nowrap px-4 py-4 text-center text-xs font-black text-[#655ac1]">م</th>
+                <th className="whitespace-nowrap px-4 py-4 text-xs font-black text-[#655ac1]">نوع العملية</th>
+                <th className="w-[30%] px-4 py-4 text-xs font-black text-[#655ac1]">وصف العملية</th>
+                <th className="whitespace-nowrap px-4 py-4 text-xs font-black text-[#655ac1]">المفوض</th>
+                <th className="whitespace-nowrap px-4 py-4 text-xs font-black text-[#655ac1]">اليوم</th>
+                <th className="whitespace-nowrap px-4 py-4 text-xs font-black text-[#655ac1]">التاريخ</th>
+                <th className="whitespace-nowrap px-4 py-4 text-xs font-black text-[#655ac1]">الوقت</th>
               </tr>
             </thead>
 
@@ -615,25 +615,27 @@ export default function ActionLogs() {
       </div>
 
       {deleteMode && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="animate-in zoom-in-95 w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl duration-200">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-rose-100 bg-rose-50 text-rose-500">
-              <AlertTriangle size={28} />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-start gap-3 p-6">
+              <Trash2 size={28} className="mt-0.5 shrink-0 text-rose-500" />
+              <div>
+                <h3 className="mb-2 text-xl font-black text-slate-800">حذف السجلات</h3>
+                <p className="text-sm font-medium leading-relaxed text-slate-500">{deleteMessage}</p>
+              </div>
             </div>
-            <h3 className="mb-2 text-center text-xl font-black text-slate-800">حذف السجلات</h3>
-            <p className="mb-6 text-center font-medium text-slate-500">{deleteMessage}</p>
-            <div className="flex gap-3">
+            <div className="flex gap-3 p-6 pt-0">
               <button
                 onClick={() => setDeleteMode(null)}
-                className="flex-1 rounded-xl bg-slate-100 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200"
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
               >
-                تراجع
+                إلغاء
               </button>
               <button
                 onClick={handleDeleteLogs}
-                className="flex-1 rounded-xl bg-rose-500 py-3 font-bold text-white transition-colors hover:bg-rose-600"
+                className="flex-1 rounded-xl bg-rose-500 px-4 py-3 text-sm font-bold text-white shadow-md shadow-rose-500/20 transition-colors hover:bg-rose-600"
               >
-                نعم، احذف
+                حذف
               </button>
             </div>
           </div>

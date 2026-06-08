@@ -1,20 +1,34 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  CheckCircle,
+  ChevronLeft,
   ClipboardList,
   Clock,
+  KeyRound,
+  ListChecks,
   Lock,
+  MessageSquare,
+  RefreshCw,
+  Search,
   ShieldCheck,
+  Smartphone,
+  UserCog,
   UserPlus,
   Users,
 } from 'lucide-react';
-import { Admin, Delegate, Teacher } from '../../types';
-import AddDelegate from './AddDelegate';
+import { Admin, Delegate, ModulePermission, Teacher } from '../../types';
 import ManageDelegates from './ManageDelegates';
 import ActionLogs from './ActionLogs';
-import DelegateLoginPortal from './DelegateLoginPortal';
-import Toast, { useToast } from './Toast';
-import { getLogs } from './auditLog';
+import {
+  MODULES,
+  createFullPermissions,
+  getPermissionSummary,
+  isFullPermissions,
+} from './permissionsConfig';
+import { logAction } from './auditLog';
 
 interface RolePermissionsProps {
   teachers: Teacher[];
@@ -22,7 +36,17 @@ interface RolePermissionsProps {
   onNavigate?: (tab: 'settings_teachers' | 'settings_admins') => void;
 }
 
+type StageId = 'build' | 'activate' | 'manage' | 'logs';
+type StaffType = 'teacher' | 'admin';
+
 const DELEGATES_STORAGE_KEY = 'motabe_delegates';
+const STAGE_STORAGE_KEY = 'motabe:permissions:stage';
+
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+  </svg>
+);
 
 const readDelegates = (): Delegate[] => {
   try {
@@ -32,49 +56,73 @@ const readDelegates = (): Delegate[] => {
   }
 };
 
+const normalizePhone = (phone?: string) => {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('00')) return digits.slice(2);
+  if (digits.startsWith('0')) return `966${digits.slice(1)}`;
+  if (digits.startsWith('966')) return digits;
+  if (digits.startsWith('5') && digits.length === 9) return `966${digits}`;
+  return digits;
+};
+
 const StatCard = ({
   label,
   value,
-  hint,
   icon: Icon,
   tone = 'primary',
 }: {
   label: string;
   value: React.ReactNode;
-  hint: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  tone?: 'primary' | 'green' | 'amber' | 'slate';
+  tone?: 'primary' | 'green' | 'amber' | 'rose' | 'slate';
 }) => {
   const tones = {
-    primary: 'bg-[#655ac1]/8 text-[#655ac1] border-[#655ac1]/15',
-    green: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    amber: 'bg-amber-50 text-amber-700 border-amber-100',
-    slate: 'bg-slate-50 text-slate-600 border-slate-200',
+    primary: 'text-[#655ac1]',
+    green: 'text-emerald-600',
+    amber: 'text-amber-600',
+    rose: 'text-rose-600',
+    slate: 'text-slate-500',
   };
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold text-slate-400">{label}</p>
-          <p className="mt-2 text-2xl font-black text-slate-800">{value}</p>
-          <p className="mt-1 text-xs font-medium text-slate-400">{hint}</p>
-        </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${tones[tone]}`}>
-          <Icon size={18} />
-        </div>
+      <div className="flex items-center gap-2">
+        <Icon size={18} className={tones[tone]} />
+        <p className="text-xs font-bold text-slate-500">{label}</p>
       </div>
+      <p className="mt-2 text-3xl font-black text-slate-800">{value}</p>
     </div>
   );
 };
 
 const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'add' | 'manage' | 'logs'>('overview');
-  const [showLoginPortal, setShowLoginPortal] = useState(false);
-  const [delegates, setDelegates] = useState<Delegate[]>([]);
-  const { toast, showToast } = useToast();
+  const [stage, setStage] = useState<StageId>(() => {
+    try {
+      const saved = localStorage.getItem(STAGE_STORAGE_KEY);
+      if (saved === 'build' || saved === 'activate' || saved === 'manage' || saved === 'logs') {
+        return saved as StageId;
+      }
+    } catch {}
+    return 'build';
+  });
 
-  const refreshDelegates = () => setDelegates(readDelegates());
+  // ─── Delegation flow state ───
+  const [selectedStaffType, setSelectedStaffType] = useState<StaffType>('teacher');
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [staffSearch, setStaffSearch] = useState('');
+  const [permissions, setPermissions] = useState<ModulePermission[]>([]);
+
+  const [delegates, setDelegates] = useState<Delegate[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'warning' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const refreshDelegates = useCallback(() => setDelegates(readDelegates()), []);
 
   useEffect(() => {
     refreshDelegates();
@@ -85,182 +133,617 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, onN
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('motabe:delegates-updated', handleStorage);
     };
-  }, []);
+  }, [refreshDelegates]);
+
+  useEffect(() => {
+    try { localStorage.setItem(STAGE_STORAGE_KEY, stage); } catch {}
+  }, [stage]);
 
   const summary = useMemo(() => {
     const pending = delegates.filter((delegate) => delegate.isPendingSetup).length;
     const active = delegates.filter((delegate) => delegate.isActive && !delegate.isPendingSetup).length;
     const inactive = delegates.filter((delegate) => !delegate.isActive).length;
-    const lastLog = getLogs()[0];
-
-    return { pending, active, inactive, lastLog };
+    return { pending, active, inactive };
   }, [delegates]);
 
-  const tabs = [
-    { id: 'overview', label: 'لوحة الصلاحيات', icon: ShieldCheck },
-    { id: 'add', label: 'إضافة مفوض', icon: UserPlus },
-    { id: 'manage', label: 'إدارة المفوضين', icon: Users },
-    { id: 'logs', label: 'سجل الإجراءات', icon: ClipboardList },
-  ] as const;
+  const staff = selectedStaffType === 'teacher' ? teachers : admins;
+  const selectedStaff = staff.find((item) => item.id === selectedStaffId);
+  const filteredStaff = useMemo(() => {
+    const query = staffSearch.trim().toLowerCase();
+    return staff.filter((item) => !query || item.name.toLowerCase().includes(query) || item.phone?.includes(query));
+  }, [staff, staffSearch]);
+
+  const enabledMainModules = permissions.filter((permission) => !permission.moduleId.includes('_')).length;
+  const isFullAccess = isFullPermissions(permissions);
+  const permissionSummary = getPermissionSummary(permissions);
+
+  // ─── Stage completion ───
+  const pendingDelegates = useMemo(
+    () => delegates.filter((delegate) => delegate.isPendingSetup),
+    [delegates]
+  );
+
+  const selectComplete = !!selectedStaff && !!selectedStaff.phone;
+  const permissionsComplete = enabledMainModules > 0;
+  const buildComplete = selectComplete && permissionsComplete;
+
+  const selectStaffType = (type: StaffType) => {
+    setSelectedStaffType(type);
+    setSelectedStaffId('');
+    setStaffSearch('');
+  };
+
+  const handleToggleModule = (moduleId: string) => {
+    const exists = permissions.some((permission) => permission.moduleId === moduleId);
+    if (exists) {
+      setPermissions((prev) =>
+        prev.filter((permission) => permission.moduleId !== moduleId && !permission.moduleId.startsWith(`${moduleId}_`))
+      );
+      return;
+    }
+    // Turning a section on: include the section itself, and auto-select all its submodules.
+    const parent = MODULES.find((module) => module.id === moduleId);
+    setPermissions((prev) => {
+      const ids = new Set(prev.map((permission) => permission.moduleId));
+      const additions: ModulePermission[] = [{ moduleId, level: 'full', allowedActions: [] }];
+      parent?.submodules?.forEach((submodule) => {
+        const submoduleId = `${parent.id}_${submodule.id}`;
+        if (!ids.has(submoduleId)) additions.push({ moduleId: submoduleId, level: 'full', allowedActions: [] });
+      });
+      return [...prev, ...additions.filter((addition) => !ids.has(addition.moduleId))];
+    });
+  };
+
+  const resetBuild = () => {
+    setSelectedStaffType('teacher');
+    setSelectedStaffId('');
+    setStaffSearch('');
+    setPermissions([]);
+  };
+
+  const assignAndProceed = () => {
+    if (!selectedStaff) return;
+
+    const existingDelegates = readDelegates();
+    const duplicate = existingDelegates.find((delegate) => delegate.linkedStaffId === selectedStaff.id);
+    if (duplicate) {
+      showToast(`${selectedStaff.name} لديه حساب مفوّض مسجّل بالفعل — أدِره من تبويب المفوضين`, 'warning');
+      return;
+    }
+
+    const nextPermissions = isFullAccess ? createFullPermissions() : permissions;
+    const newDelegate: Delegate = {
+      id: crypto.randomUUID(),
+      name: selectedStaff.name,
+      phone: selectedStaff.phone,
+      isPendingSetup: true,
+      role: isFullAccess ? 'delegate_full' : 'delegate_custom',
+      customPermissions: nextPermissions,
+      isActive: true,
+      addedAt: new Date().toISOString(),
+      linkedStaffId: selectedStaff.id,
+      linkedStaffType: selectedStaffType,
+      linkedStaffTitle: selectedStaffType === 'admin'
+        ? ((selectedStaff as Admin).role || 'إداري')
+        : 'معلم',
+    };
+
+    localStorage.setItem(DELEGATES_STORAGE_KEY, JSON.stringify([...existingDelegates, newDelegate]));
+    window.dispatchEvent(new Event('motabe:delegates-updated'));
+
+    logAction({
+      actionType: 'create',
+      action: 'إسناد صلاحيات لمفوّض',
+      targetDelegateName: selectedStaff.name,
+      details: isFullAccess ? 'صلاحية كاملة' : `صلاحية مخصصة - ${enabledMainModules} قسم`,
+    });
+
+    refreshDelegates();
+    resetBuild();
+    setStage('activate');
+    showToast(`تم إسناد الصلاحيات لـ ${newDelegate.name} — أصدر رمز التفعيل`, 'success');
+  };
+
+  const handleIssueOtp = (delegate: Delegate) => {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const all = readDelegates().map((item) =>
+      item.id === delegate.id ? { ...item, otp, isPendingSetup: true } : item
+    );
+    localStorage.setItem(DELEGATES_STORAGE_KEY, JSON.stringify(all));
+    window.dispatchEvent(new Event('motabe:delegates-updated'));
+
+    logAction({
+      actionType: 'regenerate_otp',
+      action: delegate.otp ? 'إعادة إصدار رمز التفعيل' : 'إصدار رمز التفعيل',
+      targetDelegateName: delegate.name,
+    });
+
+    refreshDelegates();
+    showToast(`تم إصدار رمز التفعيل لـ ${delegate.name}`, 'success');
+  };
+
+  const handleShareViaWhatsApp = (delegate: Delegate) => {
+    if (!delegate.otp || !delegate.phone) {
+      showToast('لا يوجد رقم جوال صالح لإرسال رمز التفعيل', 'warning');
+      return;
+    }
+    const phone = normalizePhone(delegate.phone);
+    if (!phone) {
+      showToast('رقم الجوال غير صالح لفتح واتساب', 'warning');
+      return;
+    }
+    const message = encodeURIComponent(
+      `مرحبًا ${delegate.name}\nرمز الدخول المؤقت لتفعيل حساب المفوض هو:\n${delegate.otp}`
+    );
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const stages: Array<{
+    id: StageId; n: number; label: string; hint: string;
+    icon: React.ComponentType<any>; complete: boolean;
+  }> = [
+    { id: 'build', n: 1, label: 'المفوّض وصلاحياته', hint: 'اختر الموظف وحدّد وصوله', icon: UserPlus, complete: buildComplete },
+    { id: 'activate', n: 2, label: 'التفعيل والمشاركة', hint: 'إصدار رمز ومشاركته', icon: KeyRound, complete: false },
+    { id: 'manage', n: 3, label: 'إدارة المفوضين', hint: 'تعديل وإيقاف وحذف', icon: Users, complete: false },
+    { id: 'logs', n: 4, label: 'سجل الإجراءات', hint: 'تتبّع كل عملية', icon: ClipboardList, complete: false },
+  ];
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 pb-20 dir-rtl animate-fade-in">
+    <div className="mx-auto max-w-[1400px] space-y-6 pb-20 dir-rtl animate-in fade-in duration-500" dir="rtl">
+      {/* ══════ Header Card ══════ */}
       <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/60 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/70">
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 className="flex items-center gap-3 text-xl font-black text-slate-800">
               <Lock size={36} strokeWidth={1.8} className="text-[#655ac1]" />
-              الصلاحيات
+              الصلاحيات والتفويض
             </h3>
             <p className="mr-12 mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
-              إدارة وصول المعلمين والإداريين إلى أقسام المنصة، مع تفويض دقيق وتتبع واضح لكل إجراء.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[#655ac1]/15 bg-[#655ac1]/6 px-4 py-3 text-sm">
-            <p className="font-black text-[#655ac1]">مدير النظام فقط</p>
-            <p className="mt-1 text-xs font-medium text-slate-500">
-              التفويض محصور على المعلمين والإداريين المسجلين.
+              امنح صلاحياتك للمعلمين أو الإداريين بخطوات سهلة، مع تتبّع واضح لكل إجراء.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="إجمالي المفوضين" value={delegates.length} hint="جميع الحسابات المفوضة" icon={Users} />
-        <StatCard label="النشطون" value={summary.active} hint="جاهزون للدخول" icon={ShieldCheck} tone="green" />
-        <StatCard label="بانتظار التفعيل" value={summary.pending} hint="رمز تفعيل لم يكتمل" icon={Clock} tone="amber" />
-        <StatCard label="الموقوفون" value={summary.inactive} hint="تم تعطيل دخولهم" icon={Lock} tone="slate" />
-        <StatCard
-          label="آخر إجراء"
-          value={summary.lastLog ? 'مسجل' : 'لا يوجد'}
-          hint={summary.lastLog?.targetDelegateName || 'سيظهر بعد أول عملية'}
-          icon={Activity}
-          tone="primary"
-        />
+      {/* ══════ Stepper ══════ */}
+      <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-stretch gap-1 overflow-x-auto custom-scrollbar">
+          {stages.map((s, i) => {
+            const isActive = stage === s.id;
+            return (
+              <React.Fragment key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => setStage(s.id)}
+                  className={`flex min-w-[180px] flex-1 items-center gap-3 rounded-2xl px-4 py-3 text-right transition-all ${
+                    isActive ? 'bg-[#655ac1] shadow-md shadow-[#655ac1]/20' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="relative shrink-0">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl border-2 transition-all ${
+                      isActive ? 'border-white bg-white' : 'border-slate-200 bg-transparent'
+                    }`}>
+                      <s.icon size={17} className="text-[#655ac1]" />
+                    </span>
+                    {s.complete && (
+                      <span className="absolute -top-1.5 -left-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                        <Check size={9} strokeWidth={4} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`block text-sm font-black leading-tight ${isActive ? 'text-white' : 'text-slate-800'}`}>
+                      {s.label}
+                    </span>
+                    <span className={`mt-0.5 block truncate text-[11px] font-bold ${isActive ? 'text-white/80' : 'text-slate-400'}`}>
+                      {s.hint}
+                    </span>
+                  </span>
+                </button>
+                {i < stages.length - 1 && (
+                  <div className="flex shrink-0 items-center px-2">
+                    <ChevronLeft size={20} className="text-slate-300" strokeWidth={2.5} />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm custom-scrollbar">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-sm font-bold transition-all ${
-              activeTab === tab.id
-                ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-            }`}
-          >
-            <tab.icon size={17} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* ══════ Stage Content ══════ */}
+      <div className="min-h-[400px]">
+        {/* ─── Stage 1: Delegate + permissions (combined, side-by-side) ─── */}
+        {stage === 'build' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-black text-slate-800">
+                <UserPlus size={20} className="text-[#655ac1]" />
+                اختيار المفوّض وصلاحياته
+              </h3>
+              <p className="mt-1 text-sm font-medium text-slate-400">
+                اختر الموظف المسجّل ، وحدّد صلاحياته.
+              </p>
+            </div>
 
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
+            {selectedStaff && !selectedStaff.phone && (
+              <div className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
+                <AlertCircle size={16} className="shrink-0" />
+                هذا الموظف لا يملك رقم جوال — سجّل رقم جواله أولاً لإصدار الرمز.
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr]">
+                {/* ─── RIGHT: staff picker ─── */}
+                <div className="space-y-4 overflow-y-auto bg-slate-50/40 p-5 custom-scrollbar lg:h-[640px] lg:border-l lg:border-slate-100">
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { id: 'teacher', label: 'معلم', icon: Users },
+                      { id: 'admin', label: 'إداري', icon: UserCog },
+                    ] as const).map((option) => {
+                      const active = selectedStaffType === option.id;
+                      return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => selectStaffType(option.id)}
+                        className={`flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-black transition-all ${
+                          active
+                            ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
+                            : 'border-slate-200 bg-white/70 text-slate-500 hover:border-[#655ac1]/30'
+                        }`}
+                      >
+                        <option.icon size={16} />
+                        {option.label}
+                      </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="relative">
+                    <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={staffSearch}
+                      onChange={(event) => setStaffSearch(event.target.value)}
+                      placeholder="ابحث بالاسم أو رقم الجوال"
+                      className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 pl-4 pr-10 text-sm font-bold text-slate-700 outline-none transition-all focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                    />
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                      <span className="text-base font-black text-slate-800">{selectedStaffType === 'teacher' ? 'المعلمون' : 'الإداريون'}</span>
+                      {staff.length === 0 && onNavigate ? (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(selectedStaffType === 'teacher' ? 'settings_teachers' : 'settings_admins')}
+                          className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#655ac1] transition-all hover:bg-[#655ac1] hover:text-white"
+                        >
+                          إضافة {selectedStaffType === 'teacher' ? 'معلم' : 'إداري'}
+                        </button>
+                      ) : (
+                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#655ac1]">{filteredStaff.length}</span>
+                      )}
+                    </div>
+                    <div className="max-h-[500px] space-y-1 overflow-y-auto p-2 custom-scrollbar">
+                      {filteredStaff.length === 0 ? (
+                        <div className="px-3 py-10 text-center">
+                          <AlertCircle size={26} className="mx-auto mb-2 text-slate-300" />
+                          <p className="text-xs font-bold text-slate-500">
+                            {staff.length === 0 ? 'لا توجد بيانات لهذه الفئة' : 'لا توجد نتائج مطابقة'}
+                          </p>
+                        </div>
+                      ) : (
+                        filteredStaff.map((item) => {
+                          const isSelected = selectedStaffId === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setSelectedStaffId(item.id)}
+                              className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-right transition-all ${
+                                isSelected ? 'border-slate-300 bg-white shadow-sm' : 'border-transparent hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="min-w-0">
+                                <span className={`block truncate text-sm font-black ${isSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{item.name}</span>
+                                <span className="mt-1 flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                                  <Smartphone size={14} className="text-[#655ac1]" />
+                                  <span dir="ltr">{item.phone || 'بدون رقم جوال'}</span>
+                                </span>
+                              </span>
+                              <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                                isSelected ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 text-transparent'
+                              }`}>
+                                <Check size={12} strokeWidth={3.5} />
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── LEFT: permissions ─── */}
+                <div className="flex min-w-0 flex-col lg:h-[640px]">
+                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                    <div className="min-w-0">
+                      <h4 className="flex items-center gap-2 text-base font-black text-slate-800">
+                        <ListChecks size={18} className="text-[#655ac1]" />
+                        صلاحيات الأقسام
+                      </h4>
+                      <p className="mt-0.5 truncate text-xs font-bold text-slate-400">
+                        {selectedStaff ? `${permissionSummary} — ${selectedStaff.name}` : 'حدّد الأقسام التي يصل إليها المفوّض'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPermissions(isFullAccess ? [] : createFullPermissions())}
+                        disabled={!selectedStaff}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-black transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                          isFullAccess
+                            ? 'border-[#655ac1] bg-[#655ac1] text-white'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white'
+                        }`}
+                      >
+                        {isFullAccess ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {!selectedStaff ? (
+                    <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
+                        <Lock size={26} />
+                      </div>
+                      <p className="mt-4 font-black text-slate-700">اختر الموظف أولاً</p>
+                      <p className="mt-1 text-xs font-bold text-slate-400">ستظهر الأقسام القابلة للتفويض هنا فور اختيار الموظف.</p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 space-y-2 overflow-y-auto p-4 custom-scrollbar">
+                      {MODULES.map((module) => {
+                        const isOn = permissions.some((permission) => permission.moduleId === module.id);
+                        const hasSubs = !!module.submodules?.length;
+                        return (
+                          <div
+                            key={module.id}
+                            className={`rounded-xl border bg-white transition-all ${
+                              isOn ? 'border-slate-300 shadow-sm ring-1 ring-[#655ac1]/15' : 'border-slate-200'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleToggleModule(module.id)}
+                              className="flex w-full items-center justify-between gap-2 px-3.5 py-3 text-right"
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-black text-slate-700">{module.name}</span>
+                                {hasSubs && (
+                                  <span className="block text-[11px] font-bold text-slate-400">{module.submodules!.length} أقسام فرعية</span>
+                                )}
+                              </span>
+                              <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                                isOn ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 text-transparent'
+                              }`}>
+                                <Check size={12} strokeWidth={3.5} />
+                              </span>
+                            </button>
+
+                            {isOn && hasSubs && (
+                              <div className="space-y-1.5 border-t border-slate-100 px-3 py-2.5">
+                                {module.submodules!.map((submodule) => {
+                                  const submoduleId = `${module.id}_${submodule.id}`;
+                                  const isSubOn = permissions.some((permission) => permission.moduleId === submoduleId);
+                                  return (
+                                    <button
+                                      key={submoduleId}
+                                      type="button"
+                                      onClick={() => handleToggleModule(submoduleId)}
+                                      className={`flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-right transition-all ${
+                                        isSubOn ? 'border-slate-300 shadow-sm ring-1 ring-[#655ac1]/15' : 'border-slate-200'
+                                      }`}
+                                    >
+                                      <span className="text-[13px] font-bold text-slate-600">{submodule.name}</span>
+                                      <span className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                                        isSubOn ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 text-transparent'
+                                      }`}>
+                                        <Check size={10} strokeWidth={3.5} />
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Card footer: primary action */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/40 px-5 py-4">
+                <p className="text-xs font-bold text-slate-400">
+                  {!selectedStaff
+                    ? 'اختر موظفًا لبدء التفويض.'
+                    : !selectedStaff.phone
+                      ? 'سجّل رقم جوال الموظف أولاً لإصدار الرمز.'
+                      : !permissionsComplete
+                        ? 'فعّل قسمًا واحدًا على الأقل لإكمال هذه المرحلة.'
+                        : 'جاهز للانتقال إلى إصدار رمز التفعيل.'}
+                </p>
+                <button
+                  onClick={assignAndProceed}
+                  disabled={!buildComplete}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#655ac1] px-8 py-3 font-bold text-white shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  إسناد ومتابعة للتفعيل
+                  <ChevronLeft size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Stage 2: Activate & share (per-delegate cards) ─── */}
+        {stage === 'activate' && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="flex items-center gap-2 text-lg font-black text-slate-800">
-                  <ShieldCheck size={20} className="text-[#655ac1]" />
-                  مسار التفويض
+                  <KeyRound size={20} className="text-[#655ac1]" />
+                  التفعيل والمشاركة
                 </h3>
                 <p className="mt-1 text-sm font-medium text-slate-400">
-                  التجربة مصممة لتقليل الخطأ قبل إصدار رمز التفعيل.
+                  لكل مفوّض أُسندت له صلاحيات، أصدر رمز التفعيل وشاركه معه.
                 </p>
               </div>
               <button
-                onClick={() => setActiveTab('add')}
-                className="rounded-xl bg-[#655ac1] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5"
+                onClick={() => setStage('build')}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#655ac1] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5"
               >
-                إضافة مفوض
+                <UserPlus size={16} />
+                إسناد مفوّض جديد
               </button>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-              {[
-                ['1', 'اختيار الفئة', 'معلم أو إداري فقط'],
-                ['2', 'تحديد الصلاحيات', 'كاملة أو مخصصة لكل قسم'],
-                ['3', 'إصدار التفعيل', 'رمز مؤقت ثم إنشاء الحساب'],
-              ].map(([step, title, body]) => (
-                <div key={step} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-[#655ac1] shadow-sm">
-                    {step}
-                  </span>
-                  <p className="mt-3 font-black text-slate-800">{title}</p>
-                  <p className="mt-1 text-xs font-medium text-slate-400">{body}</p>
+            {pendingDelegates.length === 0 ? (
+              <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white p-12 text-center shadow-sm">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
+                  <KeyRound size={26} />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-black text-slate-800">جاهزية البيانات</h3>
-            <p className="mt-1 text-sm font-medium text-slate-400">
-              لا يمكن التفويض إلا لمن هو مسجل ضمن المعلمين أو الإداريين.
-            </p>
-
-            <div className="mt-5 space-y-3">
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <span className="font-bold text-slate-700">المعلمون</span>
-                <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-[#655ac1]">{teachers.length}</span>
+                <p className="mt-4 font-black text-slate-700">لا يوجد مفوّضون بانتظار التفعيل</p>
+                <p className="mt-1 text-sm font-medium text-slate-400">أسند الصلاحيات لموظف من المرحلة الأولى ليظهر هنا.</p>
+                <button
+                  onClick={() => setStage('build')}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#655ac1] px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5"
+                >
+                  <UserPlus size={16} />
+                  بدء الإسناد
+                </button>
               </div>
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <span className="font-bold text-slate-700">الإداريون</span>
-                <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-[#655ac1]">{admins.length}</span>
-              </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {pendingDelegates.map((delegate) => {
+                  const isFull = isFullPermissions(delegate.customPermissions) || delegate.role === 'delegate_full';
+                  return (
+                    <div key={delegate.id} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center text-[#655ac1]">
+                            <ShieldCheck size={26} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-black text-slate-800">{delegate.name}</p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                              <Smartphone size={12} className="text-[#655ac1]" />
+                              <span dir="ltr">{delegate.phone || 'بدون رقم جوال'}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#655ac1]">
+                          {isFull ? 'صلاحية كاملة' : 'صلاحية مخصصة'}
+                        </span>
+                      </div>
 
-            {(teachers.length === 0 || admins.length === 0) && onNavigate && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {teachers.length === 0 && (
-                  <button
-                    onClick={() => onNavigate('settings_teachers')}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-                  >
-                    إضافة معلمين
-                  </button>
-                )}
-                {admins.length === 0 && (
-                  <button
-                    onClick={() => onNavigate('settings_admins')}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
-                  >
-                    إضافة إداريين
-                  </button>
-                )}
+                      {delegate.otp ? (
+                        <>
+                          <div className="mt-5 flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                            <div className="text-center">
+                              <p className="text-[11px] font-black text-slate-500">رمز الدخول المؤقت</p>
+                              <p className="mt-1 text-3xl font-black tracking-[0.3em] text-[#655ac1]">{delegate.otp}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => handleShareViaWhatsApp(delegate)}
+                              className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-[#25D366]/20 transition-all hover:-translate-y-0.5"
+                            >
+                              <WhatsAppIcon size={16} />
+                              واتساب
+                            </button>
+                            <button
+                              onClick={() => showToast('تم فتح الرسائل النصية (محاكاة)', 'success')}
+                              className="inline-flex items-center gap-2 rounded-xl bg-[#007AFF] px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-[#007AFF]/20 transition-all hover:-translate-y-0.5"
+                            >
+                              <MessageSquare size={16} />
+                              رسالة نصية
+                            </button>
+                            <button
+                              onClick={() => handleIssueOtp(delegate)}
+                              className="mr-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-500 transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+                            >
+                              <RefreshCw size={15} />
+                              إعادة إصدار الرمز
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {!delegate.phone && (
+                            <div className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">
+                              <AlertCircle size={14} />
+                              يجب تسجيل رقم جوال قبل إصدار الرمز
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleIssueOtp(delegate)}
+                            disabled={!delegate.phone}
+                            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#655ac1] px-6 py-3 font-bold text-white shadow-md shadow-indigo-200 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <KeyRound size={18} />
+                            إصدار رمز التفعيل
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
+        )}
+
+        {/* ─── Stage 3: Manage delegates ─── */}
+        {stage === 'manage' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard label="إجمالي المفوضين" value={delegates.length} icon={Users} />
+              <StatCard label="مفوّض نشط" value={summary.active} icon={ShieldCheck} tone="green" />
+              <StatCard label="بانتظار التفعيل" value={summary.pending} icon={Clock} tone="amber" />
+              <StatCard label="مفوّض موقوف" value={summary.inactive} icon={Lock} tone="rose" />
+            </div>
+            <ManageDelegates onDelegatesChange={refreshDelegates} />
+          </div>
+        )}
+
+        {/* ─── Stage 4: Action logs ─── */}
+        {stage === 'logs' && (
+          <div className="space-y-5">
+            <ActionLogs />
+          </div>
+        )}
+      </div>
+
+      {/* ══════ Unified Toast ══════ */}
+      {toast && (
+        <div className="fixed top-20 left-1/2 z-[9999] -translate-x-1/2 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className={`flex items-center gap-3 rounded-2xl border px-6 py-3.5 text-sm font-bold shadow-xl
+            ${toast.type === 'success' ? 'border-green-200 bg-green-50 text-green-800' : ''}
+            ${toast.type === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : ''}
+            ${toast.type === 'error' ? 'border-red-200 bg-red-50 text-red-800' : ''}
+          `}>
+            {toast.type === 'success' && <CheckCircle size={18} />}
+            {toast.type === 'warning' && <AlertTriangle size={18} />}
+            {toast.type === 'error' && <AlertCircle size={18} />}
+            {toast.message}
+          </div>
         </div>
       )}
-
-      {activeTab === 'add' && (
-        <AddDelegate
-          teachers={teachers}
-          admins={admins}
-          onNavigate={onNavigate}
-          onDelegateCreated={refreshDelegates}
-          onSimulateLogin={() => setShowLoginPortal(true)}
-        />
-      )}
-
-      {activeTab === 'manage' && <ManageDelegates onDelegatesChange={refreshDelegates} />}
-      {activeTab === 'logs' && <ActionLogs />}
-
-      {showLoginPortal && (
-        <DelegateLoginPortal
-          onSuccess={(delegate) => {
-            showToast(`تم إعداد حساب المفوض ${delegate.name} بنجاح!`, 'success');
-            setShowLoginPortal(false);
-            refreshDelegates();
-          }}
-          onCancel={() => setShowLoginPortal(false)}
-        />
-      )}
-
-      <Toast toast={toast} />
     </div>
   );
 };

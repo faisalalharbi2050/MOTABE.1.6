@@ -437,17 +437,17 @@ const Sidebar: React.FC<SidebarProps> = ({
             collapsed={isCollapsed}
           />
           <NavItem
-            active={activeTab === "permissions"}
-            onClick={() => handleTabClick("permissions")}
-            icon={<Lock size={22} />}
-            label="الصلاحيات"
-            collapsed={isCollapsed}
-          />
-          <NavItem
             active={activeTab === "messages"}
             onClick={() => handleTabClick("messages")}
             icon={<MessageSquare size={22} />}
             label="الرسائل"
+            collapsed={isCollapsed}
+          />
+          <NavItem
+            active={activeTab === "permissions"}
+            onClick={() => handleTabClick("permissions")}
+            icon={<ShieldCheck size={22} />}
+            label="الصلاحيات والتفويض"
             collapsed={isCollapsed}
           />
 
