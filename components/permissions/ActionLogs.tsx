@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Clock,
   Search,
+  RotateCcw,
   Trash2,
 } from 'lucide-react';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
@@ -65,6 +66,7 @@ export default function ActionLogs() {
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [search, setSearch] = useState('');
   const [delegateFilter, setDelegateFilter] = useState('all');
+  const [actionTypeFilter, setActionTypeFilter] = useState<'all' | LogActionType>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showDelegateDropdown, setShowDelegateDropdown] = useState(false);
@@ -113,6 +115,10 @@ export default function ActionLogs() {
       return false;
     }
 
+    if (actionTypeFilter !== 'all' && log.actionType !== actionTypeFilter) {
+      return false;
+    }
+
     if (dateFrom && toYMD(log.timestamp) < dateFrom) {
       return false;
     }
@@ -130,6 +136,7 @@ export default function ActionLogs() {
   const resetFilters = () => {
     setSearch('');
     setDelegateFilter('all');
+    setActionTypeFilter('all');
     setDateFrom('');
     setDateTo('');
   };
@@ -274,6 +281,30 @@ export default function ActionLogs() {
               />
             </div>
 
+            <div className="flex min-w-[230px] flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+              <button
+                type="button"
+                onClick={() => setActionTypeFilter('all')}
+                className={`rounded-lg px-3 py-2 text-xs font-bold transition-all ${
+                  actionTypeFilter === 'all' ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                كل العمليات
+              </button>
+              {(['create', 'edit_permissions', 'activate', 'deactivate', 'delete'] as LogActionType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setActionTypeFilter(type)}
+                  className={`rounded-lg px-3 py-2 text-xs font-bold transition-all ${
+                    actionTypeFilter === type ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {ACTION_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+
             {uniqueTargets.length > 0 && (
               <div className="relative min-w-[230px]" ref={delegateDropdownRef}>
                 <button
@@ -335,6 +366,17 @@ export default function ActionLogs() {
                   </div>
                 )}
               </div>
+            )}
+
+            {(search || delegateFilter !== 'all' || actionTypeFilter !== 'all' || dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 transition-all hover:border-[#655ac1] hover:text-[#655ac1]"
+              >
+                <RotateCcw size={13} />
+                إعادة ضبط الفلاتر
+              </button>
             )}
           </div>
 

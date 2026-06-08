@@ -68,3 +68,14 @@ export function isFullPermissions(permissions?: ModulePermission[]): boolean {
     return !!existing && existing.level === 'full';
   });
 }
+
+export function getPermissionSummary(permissions?: ModulePermission[]): string {
+  if (!permissions || permissions.length === 0) return 'لا توجد أقسام مفعلة';
+  if (isFullPermissions(permissions)) return 'صلاحية كاملة';
+
+  const mainCount = permissions.filter((permission) => !permission.moduleId.includes('_')).length;
+  const customCount = permissions.filter((permission) => permission.level === 'custom').length;
+
+  if (customCount > 0) return `${mainCount} قسم مع تخصيص إجراءات`;
+  return `${mainCount} قسم مفعّل`;
+}

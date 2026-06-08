@@ -667,7 +667,13 @@ const App: React.FC = () => {
         if (tab === 'subscription_message_packages') { setSubscriptionInitialTab('message_packages' as any); setActiveTab('subscription'); }
         else { setActiveTab(tab as any); }
       }} />;
-      case 'permissions': return <RolePermissions />;
+      case 'permissions': return (
+        <RolePermissions
+          teachers={teachers}
+          admins={admins}
+          onNavigate={(tab) => setActiveTab(tab)}
+        />
+      );
       case 'subscription': return <SubscriptionContainer subscription={subscription} setSubscription={setSubscription} initialTab={subscriptionInitialTab} />;
       case 'support': return <Support />;
       default: return (

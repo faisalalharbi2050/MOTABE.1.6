@@ -833,16 +833,19 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
     ? activeDays.reduce((acc, day) => acc + getStaffForCell(day, inlineTypes[0]?.id || '').length, 0)
     : 0;
 
-  const renderCompactStaffRow = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment, showLocations = true) => (
+  const renderCompactStaffRow = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment, showLocations = true, isLast = false) => (
     <div
       key={`${sa.staffId}-${sa.contextTypeId}`}
-      className={`relative grid min-h-[45px] items-center gap-2 px-2.5 py-2 border-b border-slate-200/80 last:border-b-0 ${
-        showLocations ? 'grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)]' : 'grid-cols-[1fr]'
-      }`}
+      className="relative flex items-center gap-1.5 min-h-[38px] px-2.5 py-1.5 border-b border-slate-200/80 last:border-b-0"
     >
+      <div
+        className={`flex-1 grid items-center gap-2 ${
+          showLocations ? 'grid-cols-[minmax(9rem,1.15fr)_minmax(8rem,1fr)]' : 'grid-cols-[1fr]'
+        }`}
+      >
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-xs font-bold leading-snug text-slate-800 whitespace-normal break-words">{sa.staffName}</span>
+        <div className={`flex items-center gap-1.5 min-w-0 ${showLocations ? '' : 'justify-center'}`}>
+          <span className={`text-xs font-bold leading-snug text-slate-800 whitespace-normal break-words ${showLocations ? '' : 'text-center'}`}>{sa.staffName}</span>
         </div>
       </div>
 
@@ -890,14 +893,25 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
         )}
       </div>
       )}
+      </div>
 
+      {/* زر «+» المدمج بجانب آخر مشرف — يفتح سطراً تالياً */}
+      {isLast && (
+        <button
+          onClick={() => openAddPanel(day, type.id, type.name)}
+          title="إضافة مشرف"
+          className="shrink-0 w-8 h-8 inline-flex items-center justify-center border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-lg text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 transition-all"
+        >
+          <Plus size={14} />
+        </button>
+      )}
     </div>
   );
 
   const renderCompactStaffActions = (day: string, type: SupervisionType, sa: SupervisionStaffAssignment) => (
     <div
       key={`${sa.staffId}-${sa.contextTypeId}-actions`}
-      className="flex min-h-[45px] items-center justify-center gap-1 px-2.5 py-1.5 border-b border-slate-200/80 last:border-b-0"
+      className="flex min-h-[38px] items-center justify-center gap-1 px-2.5 py-1.5 border-b border-slate-200/80 last:border-b-0"
     >
         <button
           onClick={() => openAddPanel(day, type.id, type.name, sa.staffId)}
@@ -1465,19 +1479,19 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             <table className="w-full text-sm text-right border-collapse">
               <thead>
                 <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
-                  <th className="p-4 font-black text-center w-28 border-l border-white/40">اليوم</th>
+                  <th className="px-3 py-2.5 font-black text-center w-28 border-l border-white/40">اليوم</th>
                   {inlineTypes.map(type => (
                     <React.Fragment key={type.id}>
-                      <th className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">
+                      <th className="px-3 py-2.5 font-black text-center border-l border-white/40 min-w-[320px]">
                         {type.name}
                       </th>
-                      <th className="p-4 font-black text-center border-l border-white/40 w-24 min-w-[96px]">
+                      <th className="px-3 py-2.5 font-black text-center border-l border-white/40 w-24 min-w-[96px]">
                         إجراءات
                       </th>
                     </React.Fragment>
                   ))}
                   {showFollowUpSupervisor && (
-                    <th className="p-4 font-black text-center w-48">المشرف المتابع</th>
+                    <th className="px-3 py-2.5 font-black text-center w-48">المشرف المتابع</th>
                   )}
                 </tr>
               </thead>
@@ -1486,8 +1500,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   return (
                     <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
                       {/* Day cell */}
-                      <td className="p-3 border-l border-slate-200/80 align-middle bg-slate-50/50 text-center">
-                        <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[day]}</h4>
+                      <td className="px-3 py-2.5 border-l border-slate-200/80 align-middle bg-slate-50/50 text-center">
+                        <h4 className="font-black text-[#655ac1] text-sm">{DAY_NAMES[day]}</h4>
                       </td>
 
                       {/* Inline types cells */}
@@ -1495,22 +1509,24 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                         const cellStaff = getStaffForCell(day, type.id);
                         return (
                           <React.Fragment key={type.id}>
-                          <td className="p-3 border-l border-slate-200/80 align-top">
+                          <td className="px-3 py-2 border-l border-slate-200/80 align-top">
                             <div className="flex flex-col">
-                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa, mainTableConfig.showLocations))}
+                              {cellStaff.map((sa, i) => renderCompactStaffRow(day, type, sa, mainTableConfig.showLocations, i === cellStaff.length - 1))}
 
-                              {/* Add button */}
-                              <div className="flex justify-center py-2">
-                                <button
-                                  onClick={() => openAddPanel(day, type.id, type.name)}
-                                  className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
-                                >
-                                  <Plus size={12} /> إضافة مشرف
-                                </button>
-                              </div>
+                              {/* الزر الكبير — يظهر فقط عند خلوّ الخلية */}
+                              {cellStaff.length === 0 && (
+                                <div className="flex justify-center py-2">
+                                  <button
+                                    onClick={() => openAddPanel(day, type.id, type.name)}
+                                    className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
+                                  >
+                                    <Plus size={12} /> إضافة مشرف
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </td>
-                          <td className="p-3 border-l border-slate-200/80 align-top">
+                          <td className="px-3 py-2 border-l border-slate-200/80 align-top">
                             <div className="flex flex-col">
                               {cellStaff.map(sa => renderCompactStaffActions(day, type, sa))}
                             </div>
@@ -1546,15 +1562,15 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             <table className="w-full text-sm text-right border-collapse">
               <thead>
                 <tr className="border-b border-slate-400 bg-[#a59bf0] text-white">
-                  <th className="p-4 font-black text-center w-28 border-l border-white/40">اليوم</th>
+                  <th className="px-3 py-2.5 font-black text-center w-28 border-l border-white/40">اليوم</th>
                   {group.types.map(type => (
                     <React.Fragment key={type.id}>
-                      <th className="p-4 font-black text-center border-l border-white/40 min-w-[320px]">{type.name}</th>
-                      <th className="p-4 font-black text-center border-l border-white/40 w-24 min-w-[96px]">إجراءات</th>
+                      <th className="px-3 py-2.5 font-black text-center border-l border-white/40 min-w-[320px]">{type.name}</th>
+                      <th className="px-3 py-2.5 font-black text-center border-l border-white/40 w-24 min-w-[96px]">إجراءات</th>
                     </React.Fragment>
                   ))}
                   {groupConfig.showFollowUp && (
-                    <th className="p-4 font-black text-center w-48">المشرف المتابع</th>
+                    <th className="px-3 py-2.5 font-black text-center w-48">المشرف المتابع</th>
                   )}
                 </tr>
               </thead>
@@ -1562,27 +1578,29 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 {activeDays.map(day => {
                   return (
                     <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/40 transition-colors">
-                      <td className="p-3 border-l border-slate-200/80 align-middle bg-slate-50/50 text-center">
-                        <h4 className="font-black text-[#655ac1] text-base">{DAY_NAMES[day]}</h4>
+                      <td className="px-3 py-2.5 border-l border-slate-200/80 align-middle bg-slate-50/50 text-center">
+                        <h4 className="font-black text-[#655ac1] text-sm">{DAY_NAMES[day]}</h4>
                       </td>
                       {group.types.map(type => {
                         const cellStaff = getStaffForCell(day, type.id);
                         return (
                           <React.Fragment key={type.id}>
-                          <td className="p-3 border-l border-slate-200/80 align-top">
+                          <td className="px-3 py-2 border-l border-slate-200/80 align-top">
                             <div className="flex flex-col">
-                              {cellStaff.map(sa => renderCompactStaffRow(day, type, sa, groupConfig.showLocations))}
-                              <div className="flex justify-center py-2">
-                                <button
-                                  onClick={() => openAddPanel(day, type.id, type.name)}
-                                  className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
-                                >
-                                  <Plus size={12} /> إضافة مشرف
-                                </button>
-                              </div>
+                              {cellStaff.map((sa, i) => renderCompactStaffRow(day, type, sa, groupConfig.showLocations, i === cellStaff.length - 1))}
+                              {cellStaff.length === 0 && (
+                                <div className="flex justify-center py-2">
+                                  <button
+                                    onClick={() => openAddPanel(day, type.id, type.name)}
+                                    className="inline-flex items-center justify-center gap-1 px-4 py-2 border-2 border-dashed border-slate-200 hover:border-[#655ac1]/50 rounded-xl text-slate-400 hover:text-[#655ac1] hover:bg-[#e5e1fe]/20 font-bold text-xs transition-all"
+                                  >
+                                    <Plus size={12} /> إضافة مشرف
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </td>
-                          <td className="p-3 border-l border-slate-200/80 align-top">
+                          <td className="px-3 py-2 border-l border-slate-200/80 align-top">
                             <div className="flex flex-col">
                               {cellStaff.map(sa => renderCompactStaffActions(day, type, sa))}
                             </div>

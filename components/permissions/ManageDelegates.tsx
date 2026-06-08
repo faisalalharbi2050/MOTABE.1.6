@@ -27,7 +27,11 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-export default function ManageDelegates() {
+interface ManageDelegatesProps {
+  onDelegatesChange?: () => void;
+}
+
+export default function ManageDelegates({ onDelegatesChange }: ManageDelegatesProps) {
   const [delegates, setDelegates] = useState<Delegate[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -46,6 +50,8 @@ export default function ManageDelegates() {
   const save = (updated: Delegate[]) => {
     setDelegates(updated);
     localStorage.setItem('motabe_delegates', JSON.stringify(updated));
+    window.dispatchEvent(new Event('motabe:delegates-updated'));
+    onDelegatesChange?.();
   };
 
   const getDerivedRole = (delegate: Delegate) =>
