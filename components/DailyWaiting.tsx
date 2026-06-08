@@ -3793,8 +3793,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <th rowspan="2" style="width:34px">م</th>
               <th rowspan="2" style="text-align:right">المنتظر</th>
               <th rowspan="2" style="width:66px">نصاب الانتظار</th>
-              <th rowspan="2" style="width:72px">الانتظار المسند</th>
-              <th rowspan="2" style="width:78px">المتبقي من الانتظار</th>
+              <th rowspan="2" style="width:72px">المُسند</th>
+              <th rowspan="2" style="width:78px">المتبقي</th>
               <th colspan="5">أيام وحصص الإسناد</th>
             </tr>
             <tr>${dayHeadersHtml}</tr>
@@ -3908,7 +3908,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[13px] font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all"
             >
               <RefreshCw size={15} />
-              إعادة ضبط
+              إعادة ضبط الإسناد
             </button>
           </div>
         </div>
@@ -4046,8 +4046,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <div className="flex items-center gap-3 px-7 pt-7 pb-4">
                 <Trash2 size={24} className="text-rose-500 shrink-0" />
                 <div>
-                  <h3 className="font-black text-slate-800 text-base">إعادة ضبط رصيد الأسبوع</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">هذا الإجراء لا يمكن التراجع عنه</p>
+                  <h3 className="font-black text-slate-800 text-base">إعادة ضبط الإسناد</h3>
                 </div>
               </div>
               <p className="px-7 pb-5 text-sm text-slate-600 font-medium leading-7">
