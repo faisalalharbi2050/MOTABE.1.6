@@ -595,7 +595,7 @@ interface RptOption { value: string; label: React.ReactNode; search?: string; }
 const ReportMultiSelect: React.FC<{
   label: string;
   buttonLabel: string;
-  summary?: string;
+  summary?: React.ReactNode;
   options: RptOption[];
   selected: Set<string>;
   onToggle: (value: string) => void;
@@ -626,7 +626,7 @@ const ReportMultiSelect: React.FC<{
         onClick={() => !disabled && setOpen(v => !v)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        <span className="truncate text-[13px] leading-tight text-right">{summary || buttonLabel}</span>
+        <span className="min-w-0 flex items-center gap-1.5 text-[13px] leading-tight text-right overflow-hidden whitespace-nowrap">{summary || buttonLabel}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
@@ -3225,13 +3225,28 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const totalAssignedInScope = summaryRows.reduce((sum, r) => sum + r.total, 0);
     const hasAnyRows = weekBlocks.some(b => b.rows.length > 0);
 
-    const selectedWeeksLabel = effectiveWeeks.length === 0
-      ? 'اختر الأسبوع الدراسي'
+    // شارة رقم الأسبوع الدائرية (نفس تصميم القائمة) — تُستعمل في حقل الاختيار وتحت العنوان.
+    const weekNumberBadge = (n: number) => (
+      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-[#655ac1] shrink-0">{n}</span>
+    );
+    const selectedWeeksLabel: React.ReactNode = effectiveWeeks.length === 0
+      ? undefined
       : effectiveWeeks.length === 1
-        ? `الأسبوع ${effectiveWeeks[0].number} — ${getArabicDayFromDate(effectiveWeeks[0].start)} ${fmtNumericDate(effectiveWeeks[0].start)} ← ${getArabicDayFromDate(effectiveWeeks[0].end)} ${fmtNumericDate(effectiveWeeks[0].end)}`
+        ? (
+          <span className="flex items-center gap-1.5 overflow-hidden">
+            <span className="font-black text-slate-800 shrink-0">الأسبوع</span>
+            {weekNumberBadge(effectiveWeeks[0].number)}
+            <span className="font-bold text-slate-500 truncate">— {getArabicDayFromDate(effectiveWeeks[0].start)} {fmtNumericDate(effectiveWeeks[0].start)} ← {getArabicDayFromDate(effectiveWeeks[0].end)} {fmtNumericDate(effectiveWeeks[0].end)}</span>
+          </span>
+        )
         : rptSelectedWeekNumbers.size === academicWeeks.length
           ? `كل الأسابيع (${academicWeeks.length})`
-          : `${rptSelectedWeekNumbers.size} أسابيع مختارة`;
+          : (
+            <span className="flex items-center gap-1.5 overflow-hidden">
+              <span className="font-black text-slate-800 shrink-0">الأسابيع</span>
+              {effectiveWeeks.map(w => <React.Fragment key={w.number}>{weekNumberBadge(w.number)}</React.Fragment>)}
+            </span>
+          );
 
     // خيارات قائمة الأسابيع (بنمط اختيار الأسبوع في إرسال المناوبة: «الأسبوع» + شارة الرقم + التاريخ رقمًا أسفله).
     const weekDropdownOptions: RptOption[] = academicWeeks.map(w => ({
@@ -3523,7 +3538,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <ReportMultiSelect
               label="الأسبوع الدراسي"
               buttonLabel="اختر الأسبوع الدراسي"
-              summary={effectiveWeeks.length ? selectedWeeksLabel : undefined}
+              summary={selectedWeeksLabel}
               options={weekDropdownOptions}
               selected={new Set(Array.from(rptSelectedWeekNumbers).map(String))}
               onToggle={v => {
@@ -3564,87 +3579,50 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm px-6 py-12 text-center text-sm font-bold text-slate-400">
             لا توجد إسنادات انتظار في {isMultiWeek ? 'الأسابيع المختارة' : 'هذا الأسبوع'}.
           </div>
-        ) : isMultiWeek ? (
+        ) : (
           <>
-            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm px-6 py-4 flex flex-wrap items-center gap-3">
-              <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <Users size={18} className="text-[#655ac1]" />
-                تقرير المنتظرين عبر {effectiveWeeks.length} أسابيع
-              </p>
-              <div className="flex-1" />
-              <div className="relative w-full sm:w-72">
-                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={embTableSearch}
-                  onChange={e => setEmbTableSearch(e.target.value)}
-                  placeholder="ابحث..."
-                  className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
-                  dir="rtl"
-                />
-                {embTableSearch && (
-                  <button type="button" onClick={() => setEmbTableSearch('')} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
-
             {weekBlocks.map(block => (
               <div key={block.week.number} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-                <div className="px-6 py-4 border-b border-slate-100 bg-[#f8fafc] flex flex-wrap items-center gap-2">
-                  <CalendarClock size={16} className="text-[#655ac1] shrink-0" />
-                  <p className="text-sm font-black text-slate-800">
-                    الأسبوع {block.week.number}
-                    <span className="font-bold text-slate-500 mr-2">
-                      — من {getArabicDayFromDate(block.week.start)} {fmtNumericDate(block.week.start)} إلى {getArabicDayFromDate(block.week.end)} {fmtNumericDate(block.week.end)}
+                <div className="px-6 py-4 border-b border-slate-100 bg-white">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-2 shrink-0">
+                      <Users size={18} className="text-[#655ac1]" />
+                      تقرير المنتظرين في الأسبوع
+                    </p>
+                    <div className="flex-1" />
+                    <div className="relative w-full sm:w-64">
+                      <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={embTableSearch}
+                        onChange={e => setEmbTableSearch(e.target.value)}
+                        placeholder="ابحث..."
+                        className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
+                        dir="rtl"
+                      />
+                      {embTableSearch && (
+                        <button type="button" onClick={() => setEmbTableSearch('')} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-black text-[#655ac1] bg-white border border-slate-300 rounded-full pr-3 pl-3 py-1">
+                      <CalendarClock size={13} />
+                      <span>الأسبوع</span>
+                      {weekNumberBadge(block.week.number)}
+                      <span>— {getArabicDayFromDate(block.week.start)} {fmtNumericDate(block.week.start)} ← {getArabicDayFromDate(block.week.end)} {fmtNumericDate(block.week.end)}</span>
                     </span>
-                  </p>
-                  {block.week.hasHoliday && (
-                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">يحتوي إجازة</span>
-                  )}
-                  <div className="flex-1" />
-                  <span className="text-xs font-black text-slate-500">المسند: <span className="text-[#655ac1]">{block.totalAssigned}</span></span>
+                    {block.week.hasHoliday && (
+                      <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">يحتوي إجازة</span>
+                    )}
+                  </div>
                 </div>
                 {renderReportTable(block)}
               </div>
             ))}
           </>
-        ) : (
-          <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-100 bg-white">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm font-black text-slate-800 flex items-center gap-2 shrink-0">
-                  <Users size={18} className="text-[#655ac1]" />
-                  تقرير المنتظرين في الأسبوع
-                </p>
-                <div className="flex-1" />
-                <div className="relative w-full sm:w-64">
-                  <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={embTableSearch}
-                    onChange={e => setEmbTableSearch(e.target.value)}
-                    placeholder="ابحث..."
-                    className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
-                    dir="rtl"
-                  />
-                  {embTableSearch && (
-                    <button type="button" onClick={() => setEmbTableSearch('')} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              {weekBlocks[0] && (
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-black text-[#655ac1] bg-white border border-slate-300 rounded-full px-3 py-1">
-                  <CalendarClock size={13} />
-                  الأسبوع {weekBlocks[0].week.number} — {getArabicDayFromDate(weekBlocks[0].week.start)} {fmtNumericDate(weekBlocks[0].week.start)} ← {getArabicDayFromDate(weekBlocks[0].week.end)} {fmtNumericDate(weekBlocks[0].week.end)}
-                </span>
-              )}
-            </div>
-            {weekBlocks[0] && renderReportTable(weekBlocks[0])}
-          </div>
         )}
         </>
         )}
@@ -3903,15 +3881,15 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 text-xs font-black text-slate-500 ml-3">
-              <CalendarClock size={15} className="text-[#655ac1]" />
+              <CalendarClock size={18} className="text-[#655ac1]" />
               {waitingWeekRange.number != null && (
                 <span className="flex items-center gap-1.5 text-slate-700">
-                  <span className="font-black">الأسبوع</span>
+                  <span className="font-black text-sm">الأسبوع</span>
                   <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-[#655ac1]">{waitingWeekRange.number}</span>
                 </span>
               )}
               <span>
-                من {getArabicDayFromDate(waitingWeekRange.start)} الموافق {fmtNumericDate(waitingWeekRange.start)} إلى {getArabicDayFromDate(waitingWeekRange.end)} الموافق {fmtNumericDate(waitingWeekRange.end)}
+                من {getArabicDayFromDate(waitingWeekRange.start)} الموافق {fmtNumericDate(waitingWeekRange.start)} ← {getArabicDayFromDate(waitingWeekRange.end)} الموافق {fmtNumericDate(waitingWeekRange.end)}
               </span>
             </div>
             <div className="flex-1" />
