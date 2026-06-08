@@ -590,6 +590,97 @@ interface DailyWaitingProps {
   onSelectedDateChange?: (date: string) => void;
 }
 
+// ===== قائمة منسدلة متعددة الاختيار (بنمط اختيار الأسبوع في إرسال المناوبة) =====
+interface RptOption { value: string; label: React.ReactNode; search?: string; }
+const ReportMultiSelect: React.FC<{
+  label: string;
+  buttonLabel: string;
+  summary?: string;
+  options: RptOption[];
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+  onSelectAll: () => void;
+  onClear: () => void;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  disabled?: boolean;
+}> = ({ label, buttonLabel, summary, options, selected, onToggle, onSelectAll, onClear, searchable = false, searchPlaceholder = 'ابحث...', disabled = false }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  useEffect(() => { if (!open) setQ(''); }, [open]);
+  const term = q.trim();
+  const visible = term ? options.filter(o => `${o.search || ''}`.includes(term)) : options;
+  const allSelected = options.length > 0 && options.every(o => selected.has(o.value));
+  return (
+    <div className="relative flex-1 min-w-[240px]" ref={ref}>
+      <label className="block text-xs font-black text-slate-500 mb-2">{label}</label>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(v => !v)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <span className="truncate text-[13px] leading-tight text-right">{summary || buttonLabel}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-[130] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 animate-in slide-in-from-top-2">
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={allSelected ? onClear : onSelectAll}
+              disabled={options.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all disabled:opacity-50"
+            >
+              {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+            </button>
+          </div>
+          {searchable && (
+            <div className="relative mb-2">
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full pr-8 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                dir="rtl"
+                autoFocus
+              />
+            </div>
+          )}
+          <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+            {visible.length === 0 ? (
+              <div className="px-3 py-6 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة.</div>
+            ) : visible.map(o => {
+              const isSel = selected.has(o.value);
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => onToggle(o.value)}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${isSel ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
+                >
+                  <span className="min-w-0 flex-1">{o.label}</span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${isSel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ===== Main Component =====
 const DailyWaiting: React.FC<DailyWaitingProps> = ({
   teachers, admins, classes, subjects, schoolInfo, scheduleSettings, specializations = [], embeddedSection, onSectionExit, onGoToPrintSend, onGoToDistribute, onOpenMessagesArchive, activeSchoolTab = 'main', selectedDate: controlledSelectedDate, onSelectedDateChange
@@ -848,12 +939,31 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const dayName = useMemo(() => getArabicDayFromDate(selectedDate), [selectedDate]);
   // مفتاح اليوم بالإنجليزية لمطابقة مفاتيح الجدول الزمني (sunday, monday, ...)
   const dayKey = useMemo(() => new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), [selectedDate]);
+  // نصاب الانتظار الفعلي للمدرسة النشطة (مطابق لمنطق getSchoolQuota في صفحة المعلمون):
+  // القيمة المعتمدة محفوظة لكل مدرسة في schools[].waiting، مع waitingQuota كقيمة احتياطية.
+  const getTeacherWaitingQuota = (t: Teacher): number => {
+    if (t.isShared || (t.schools && t.schools.length)) {
+      const entry = t.schools?.find(s => s.schoolId === activeSchoolTab);
+      if (entry) return entry.waiting || 0;
+    }
+    return t.waitingQuota || 0;
+  };
+  // تاريخ رقمي نظيف بصيغة «22 / 12 / 1447هـ» (الشهر رقمًا، بدون تكرار «هـ» أو علامات اتجاه).
+  const fmtNumericDate = (dateStr: string): string => {
+    const calType = (schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as 'hijri' | 'gregorian';
+    const numeric = formatDateNumeric(dateStr, calType)
+      .replace(/[‎‏]/g, '')
+      .replace(/\s*هـ\s*$/, '')
+      .replace(/\s*\/\s*/g, ' / ')
+      .trim();
+    return `${numeric}${calType === 'hijri' ? 'هـ' : ''}`;
+  };
   const waitingWeekRange = useMemo(() => {
     const semester = getCurrentAcademicSemester(schoolInfo);
     const weeks = buildAcademicWeeks(semester);
     const match = weeks.find(w => selectedDate >= w.start && selectedDate <= w.end);
-    if (match) return { start: match.start, end: match.end, weekKey: `acad-W${match.number}` };
-    return getWaitingWeekRange(selectedDate);
+    if (match) return { start: match.start, end: match.end, weekKey: `acad-W${match.number}`, number: match.number as number | null };
+    return { ...getWaitingWeekRange(selectedDate), number: null as number | null };
   }, [selectedDate, schoolInfo]);
 
   // Week relation: is selectedDate's week before / equal / after today's week?
@@ -3060,102 +3170,159 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
       ? academicWeeks.filter(w => rptSelectedWeekNumbers.has(w.number))
       : [];
 
-    const weekDaysList: string[] = effectiveWeeks.flatMap(w => w.days);
-    const weekDaysSet = new Set(weekDaysList);
-    const weekSessions = sessions.filter(s => weekDaysSet.has(s.date));
+    type ReportCell = { period: number; className: string };
+    type ReportRow = { id: string; name: string; role: 'teacher' | 'admin'; roleLabel: string; quota: number; totalAssigned: number; dayPeriods: Record<string, ReportCell[]> };
 
-    const perStaff: Record<string, { id: string; name: string; role: 'teacher' | 'admin'; quota: number; totalAssigned: number; dayPeriods: Record<string, number[]> }> = {};
-    weekSessions.forEach(s => {
-      s.assignments.forEach(a => {
-        if (isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)) return;
-        const sid = a.substituteTeacherId;
-        const teacher = teachers.find(t => t.id === sid);
-        const admin = admins.find(adm => adm.id === sid);
-        if (!perStaff[sid]) {
-          perStaff[sid] = {
-            id: sid,
-            name: a.substituteTeacherName,
-            role: admin ? 'admin' : 'teacher',
-            quota: teacher?.waitingQuota || admin?.waitingQuota || 0,
-            totalAssigned: 0,
-            dayPeriods: {},
-          };
-        }
-        perStaff[sid].totalAssigned++;
-        if (!perStaff[sid].dayPeriods[s.date]) perStaff[sid].dayPeriods[s.date] = [];
-        perStaff[sid].dayPeriods[s.date].push(a.periodNumber);
+    const rptSearchTerm = embTableSearch.trim();
+    // عند اختيار منتظرين محددين نُرشّح عليهم؛ وإلا نعرض الجميع.
+    const filterByMode = (rows: ReportRow[]) =>
+      rptSelectedIds.size > 0 ? rows.filter(r => rptSelectedIds.has(r.id)) : rows;
+    const applySearch = (rows: ReportRow[]) => rptSearchTerm ? rows.filter(r => r.name.includes(rptSearchTerm)) : rows;
+
+    const computeWeek = (week: AcademicWeek) => {
+      const daySet = new Set(week.days);
+      const perStaff: Record<string, ReportRow> = {};
+      sessions.filter(s => daySet.has(s.date)).forEach(s => {
+        s.assignments.forEach(a => {
+          if (isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)) return;
+          const sid = a.substituteTeacherId;
+          const teacher = teachers.find(t => t.id === sid);
+          const admin = admins.find(adm => adm.id === sid);
+          if (!perStaff[sid]) {
+            perStaff[sid] = {
+              id: sid,
+              name: a.substituteTeacherName,
+              role: admin ? 'admin' : 'teacher',
+              roleLabel: admin ? (admin.role || 'إداري') : 'معلم',
+              quota: teacher ? getTeacherWaitingQuota(teacher) : (admin?.waitingQuota || 0),
+              totalAssigned: 0,
+              dayPeriods: {},
+            };
+          }
+          perStaff[sid].totalAssigned++;
+          if (!perStaff[sid].dayPeriods[s.date]) perStaff[sid].dayPeriods[s.date] = [];
+          perStaff[sid].dayPeriods[s.date].push({ period: a.periodNumber, className: a.className || '' });
+        });
       });
-    });
-
-    const filterByMode = (rows: typeof perStaff[string][]) => {
-      if (rptStaffMode === 'specific' && rptSelectedIds.size > 0) {
-        return rows.filter(r => rptSelectedIds.has(r.id));
-      }
-      return rows;
+      const rows = applySearch(filterByMode(
+        Object.values(perStaff).sort((a, b) => b.totalAssigned - a.totalAssigned || a.name.localeCompare(b.name, 'ar'))
+      ));
+      const dayHeaders = week.days.map(d => ({ date: d, day: getArabicDayFromDate(d), isHoliday: week.holidays.includes(d) }));
+      const totalAssigned = rows.reduce((sum, r) => sum + r.totalAssigned, 0);
+      return { week, rows, dayHeaders, totalAssigned };
     };
-    const allRows = Object.values(perStaff)
-      .sort((a, b) => b.totalAssigned - a.totalAssigned || a.name.localeCompare(b.name, 'ar'));
-    const scopedRows = filterByMode(allRows);
-    const totalAssignedInScope = scopedRows.reduce((sum, r) => sum + r.totalAssigned, 0);
-    const filteredStaffOptions = allWaitingStaff.filter(staff => staff.name.includes(rptSearch));
 
-    const dayHeaders = weekDaysList.map(d => ({
-      date: d,
-      day: getArabicDayFromDate(d),
-      isHoliday: effectiveWeeks.some(w => w.holidays.includes(d)),
+    const weekBlocks = effectiveWeeks.map(computeWeek);
+    const isMultiWeek = effectiveWeeks.length > 1;
+
+    // ملخص إجمالي عبر الأسابيع المختارة (للوضع متعدد الأسابيع).
+    const summaryMap: Record<string, { id: string; name: string; role: 'teacher' | 'admin'; roleLabel: string; quota: number; total: number }> = {};
+    weekBlocks.forEach(b => b.rows.forEach(r => {
+      if (!summaryMap[r.id]) summaryMap[r.id] = { id: r.id, name: r.name, role: r.role, roleLabel: r.roleLabel, quota: r.quota, total: 0 };
+      summaryMap[r.id].total += r.totalAssigned;
     }));
-
-    const weekRangeLabel = effectiveWeeks.length === 1
-      ? `الأسبوع ${effectiveWeeks[0].number} — من ${getArabicDayFromDate(effectiveWeeks[0].start)} ${formatDateLabel(effectiveWeeks[0].start)} إلى ${getArabicDayFromDate(effectiveWeeks[0].end)} ${formatDateLabel(effectiveWeeks[0].end)}`
-      : effectiveWeeks.length > 1
-        ? `${effectiveWeeks.length} أسابيع — من ${getArabicDayFromDate(effectiveWeeks[0].start)} ${formatDateLabel(effectiveWeeks[0].start)} إلى ${getArabicDayFromDate(effectiveWeeks[effectiveWeeks.length - 1].end)} ${formatDateLabel(effectiveWeeks[effectiveWeeks.length - 1].end)}`
-        : '';
+    const summaryRows = Object.values(summaryMap).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ar'));
+    const totalAssignedInScope = summaryRows.reduce((sum, r) => sum + r.total, 0);
+    const hasAnyRows = weekBlocks.some(b => b.rows.length > 0);
 
     const selectedWeeksLabel = effectiveWeeks.length === 0
       ? 'اختر الأسبوع الدراسي'
       : effectiveWeeks.length === 1
-        ? `الأسبوع ${effectiveWeeks[0].number} — ${getArabicDayFromDate(effectiveWeeks[0].start)} ${formatDateLabel(effectiveWeeks[0].start)} → ${getArabicDayFromDate(effectiveWeeks[0].end)} ${formatDateLabel(effectiveWeeks[0].end)}`
+        ? `الأسبوع ${effectiveWeeks[0].number} — ${getArabicDayFromDate(effectiveWeeks[0].start)} ${fmtNumericDate(effectiveWeeks[0].start)} ← ${getArabicDayFromDate(effectiveWeeks[0].end)} ${fmtNumericDate(effectiveWeeks[0].end)}`
         : rptSelectedWeekNumbers.size === academicWeeks.length
           ? `كل الأسابيع (${academicWeeks.length})`
           : `${rptSelectedWeekNumbers.size} أسابيع مختارة`;
 
-    const weekSearchTerm = rptWeekSearch.trim();
-    const filteredWeeks = academicWeeks.filter(w => {
-      if (!weekSearchTerm) return true;
-      const haystack = [
-        `الأسبوع ${w.number}`,
-        getArabicDayFromDate(w.start),
-        getArabicDayFromDate(w.end),
-        formatHijri(w.start),
-        formatHijri(w.end),
-        formatGregorian(w.start),
-        formatGregorian(w.end),
-        w.start,
-        w.end,
-      ].join(' ');
-      return haystack.includes(weekSearchTerm);
+    // خيارات قائمة الأسابيع (بنمط اختيار الأسبوع في إرسال المناوبة: «الأسبوع» + شارة الرقم + التاريخ رقمًا أسفله).
+    const weekDropdownOptions: RptOption[] = academicWeeks.map(w => ({
+      value: String(w.number),
+      search: `الأسبوع ${w.number} ${getArabicDayFromDate(w.start)} ${getArabicDayFromDate(w.end)} ${fmtNumericDate(w.start)} ${fmtNumericDate(w.end)} ${w.start} ${w.end}`,
+      label: (
+        <span className="flex flex-col items-start min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="font-black text-slate-800">الأسبوع</span>
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-[#655ac1]">{w.number}</span>
+            {autoWeek?.number === w.number && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">الحالي</span>}
+            {w.hasHoliday && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">إجازة</span>}
+          </span>
+          <span className="text-[12px] font-bold text-slate-500 mt-1 truncate max-w-full">
+            {getArabicDayFromDate(w.start)} {fmtNumericDate(w.start)} ← {getArabicDayFromDate(w.end)} {fmtNumericDate(w.end)}
+          </span>
+        </span>
+      ),
+    }));
+
+    // خيارات قائمة المنتظرين (الاسم بالأعلى وصفته بالأسفل باللون البنفسجي؛ الإداري بمسماه الفعلي).
+    const staffDropdownOptions: RptOption[] = allWaitingStaff.map(s => {
+      const roleLabel = s.role === 'teacher' ? 'معلم' : (admins.find(a => a.id === s.id)?.role || 'إداري');
+      return {
+        value: s.id,
+        search: `${s.name} ${roleLabel}`,
+        label: (
+          <span className="flex flex-col items-start min-w-0">
+            <span className="font-black truncate text-slate-800">{s.name}</span>
+            <span className="text-[11px] font-black text-[#655ac1] mt-0.5">{roleLabel}</span>
+          </span>
+        ),
+      };
     });
+    const staffSummary = rptSelectedIds.size === 0
+      ? 'كل المنتظرين'
+      : `${rptSelectedIds.size} منتظر محدد`;
 
     const printWaitingReport = () => {
       if (effectiveWeeks.length === 0) return;
       const todayStr = getTodayStr();
-      const headerCells = dayHeaders.map(d => `<th class="day-head">${escapeHtml(d.day)}${d.isHoliday ? ' <span class="hol-dot">●</span>' : ''}</th>`).join('');
-      const bodyRows = scopedRows.map((row, index) => {
-        const dayCells = dayHeaders.map(d => {
-          if (d.isHoliday) return `<td class="day-cell"><span class="day-holiday">هذا اليوم إجازة</span></td>`;
-          const periods = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a - b);
-          return `<td class="day-cell">${periods.length ? `<span class="day-num">${periods.join('، ')}</span>` : '<span class="day-empty">·</span>'}</td>`;
+      const weekTableHtml = (block: typeof weekBlocks[number]) => {
+        const headerCells = block.dayHeaders.map(d => `<th class="day-head">${escapeHtml(d.day)}${d.isHoliday ? ' <span class="hol-dot">●</span>' : ''}</th>`).join('');
+        const bodyRows = block.rows.map((row, index) => {
+          const dayCells = block.dayHeaders.map(d => {
+            if (d.isHoliday) return `<td class="day-cell"><span class="day-holiday">إجازة</span></td>`;
+            const cells = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a.period - b.period);
+            return `<td class="day-cell">${cells.length ? cells.map(c => `<span class="day-num">ح${c.period}${c.className ? ` – ${escapeHtml(c.className)}` : ''}</span>`).join('') : '<span class="day-empty">·</span>'}</td>`;
+          }).join('');
+          return `
+            <tr>
+              <td><span class="seq-num">${index + 1}</span></td>
+              <td style="text-align:right;font-weight:900">${escapeHtml(row.name)}</td>
+              <td><span class="plain purple">${row.quota || '—'}</span></td>
+              <td><span class="plain amber">${row.totalAssigned}</span></td>
+              ${dayCells}
+            </tr>
+          `;
         }).join('');
-        return `
-          <tr>
-            <td><span class="seq-pill">${index + 1}</span></td>
-            <td style="text-align:right;font-weight:900">${escapeHtml(row.name)}</td>
-            <td><span class="num-pill purple">${row.quota || '—'}</span></td>
-            <td><span class="num-pill amber">${row.totalAssigned}</span></td>
-            ${dayCells}
-          </tr>
-        `;
-      }).join('');
+        const weekHead = `الأسبوع ${block.week.number} — من ${getArabicDayFromDate(block.week.start)} ${formatDateLabel(block.week.start)} إلى ${getArabicDayFromDate(block.week.end)} ${formatDateLabel(block.week.end)}`;
+        return `<div class="week-block">
+          <div class="week-range">${escapeHtml(weekHead)}${block.week.hasHoliday ? ' — <span style="color:#dc2626">يحتوي إجازة</span>' : ''}</div>
+          <table>
+            <thead>
+              <tr>
+                <th rowspan="2" style="width:34px">م</th>
+                <th rowspan="2" style="text-align:right">المنتظر</th>
+                <th rowspan="2" style="width:60px">النصاب</th>
+                <th rowspan="2" style="width:64px">المسند</th>
+                <th colspan="${block.dayHeaders.length}">أيام وحصص الإسناد</th>
+              </tr>
+              <tr>${headerCells}</tr>
+            </thead>
+            <tbody>${bodyRows || `<tr><td colspan="${4 + block.dayHeaders.length}">لا توجد بيانات</td></tr>`}</tbody>
+          </table>
+        </div>`;
+      };
+      const summaryHtml = isMultiWeek ? `<div class="week-block">
+        <div class="week-range summary">ملخص إجمالي حصص الانتظار عبر ${effectiveWeeks.length} أسابيع</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:34px">م</th>
+              <th style="text-align:right">المنتظر</th>
+              <th style="width:70px">النصاب</th>
+              <th style="width:96px">إجمالي المسند</th>
+            </tr>
+          </thead>
+          <tbody>${summaryRows.map((r, i) => `<tr><td><span class="seq-num">${i + 1}</span></td><td style="text-align:right;font-weight:900">${escapeHtml(r.name)}</td><td><span class="plain purple">${r.quota || '—'}</span></td><td><span class="plain amber">${r.total}</span></td></tr>`).join('') || `<tr><td colspan="4">لا توجد بيانات</td></tr>`}</tbody>
+        </table>
+      </div>` : '';
       openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>تقرير الانتظار الأسبوعي</title><style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
         @page { size: A4 portrait; margin: 12mm; }
@@ -3167,23 +3334,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         .header-left { text-align:left; }
         .logo-placeholder { width:52px; height:52px; border:2px solid #cbd5e1; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px; font-weight:900; }
         h1 { margin:0; font-size:18px; font-weight:900; }
-        .title { text-align:center; font-size:18px; font-weight:900; margin:12px 0 6px; }
-        .week-range { text-align:center; font-size:12px; font-weight:900; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; margin-bottom:14px; }
-        .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
-        .stat { border:1px solid #cbd5e1; border-radius:10px; padding:9px; text-align:center; }
-        .stat b { display:block; font-size:18px; color:#655ac1; }
-        .stat span { font-size:10px; color:#64748b; font-weight:900; }
+        .title { text-align:center; font-size:18px; font-weight:900; margin:12px 0 10px; }
+        .week-block { margin-bottom:18px; page-break-inside:avoid; }
+        .week-range { text-align:center; font-size:12px; font-weight:900; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; margin-bottom:8px; }
+        .week-range.summary { background:#f0edff; border-color:#d8d2f5; color:#655ac1; }
         table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; }
         th,td { border:1px solid #cbd5e1; padding:8px; text-align:center; vertical-align:middle; }
         th { background:#a59bf0; color:#fff; font-weight:900; }
         tbody tr:nth-child(even) td { background:#f8fafc; }
-        .seq-pill { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:999px; background:#f8fafc; color:#94a3b8; font-size:11px; font-weight:800; }
-        .num-pill { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:999px; border:1.5px solid #cbd5e1; background:transparent; font-size:12px; font-weight:900; }
+        .seq-num { color:#94a3b8; font-size:12px; font-weight:800; }
+        .plain { font-size:13px; font-weight:900; }
         .purple { color:#655ac1; }
         .amber { color:#d97706; }
-        .day-head { width:42px; font-size:11px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
+        .day-head { width:54px; font-size:11px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
         .day-cell { text-align:center; padding:6px 4px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
-        .day-num { color:#655ac1; font-size:12px; font-weight:900; }
+        .day-num { display:block; color:#655ac1; font-size:11px; font-weight:900; white-space:nowrap; line-height:1.5; }
         .day-empty { color:#cbd5e1; font-size:13px; font-weight:800; }
         .day-holiday { display:inline-block; font-size:10px; font-weight:900; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:3px 6px; }
         .hol-dot { color:#dc2626; font-size:10px; }
@@ -3209,25 +3374,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div>تاريخ الطباعة: ${escapeHtml(formatDateLabel(todayStr))}</div>
           </div>
         </div>
-        <div class="title">تقرير الانتظار الأسبوعي</div>
-        <div class="week-range">${escapeHtml(weekRangeLabel)}${effectiveWeeks.some(w => w.hasHoliday) ? ' — <span style="color:#dc2626">يحتوي إجازة</span>' : ''}</div>
-        <div class="stats">
-          <div class="stat"><b>${scopedRows.length}</b><span>عدد المنتظرين في التقرير</span></div>
-          <div class="stat"><b>${totalAssignedInScope}</b><span>إجمالي حصص الانتظار المسندة</span></div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th rowspan="2" style="width:38px">م</th>
-              <th rowspan="2" style="text-align:right">المنتظر</th>
-              <th rowspan="2" style="width:70px">النصاب</th>
-              <th rowspan="2" style="width:80px">المسند</th>
-              <th colspan="${dayHeaders.length}">أيام وحصص الإسناد</th>
-            </tr>
-            <tr>${headerCells}</tr>
-          </thead>
-          <tbody>${bodyRows || `<tr><td colspan="${4 + dayHeaders.length}">لا توجد بيانات</td></tr>`}</tbody>
-        </table>
+        <div class="title">تقرير الانتظار${isMultiWeek ? '' : ' الأسبوعي'}</div>
+        ${weekBlocks.map(weekTableHtml).join('')}
+        ${summaryHtml}
         <div class="footer">
           <div class="signature">
             <div class="role-label">وكيل الشؤون التعليمية</div>
@@ -3242,6 +3391,77 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         </div>
       </section><script>document.fonts.ready.then(() => window.print()); setTimeout(() => window.print(), 1200);</script></body></html>`);
       showToast('تم فتح تقرير الانتظار للطباعة', 'success');
+    };
+
+    // جدول أسبوع واحد بنمط جدول بيانات المعلمين (مع عمود الصفة).
+    const renderReportTable = (block: typeof weekBlocks[number]) => {
+      if (block.rows.length === 0) {
+        return <div className="px-6 py-10 text-center text-sm font-bold text-slate-400">لا توجد إسنادات انتظار في هذا الأسبوع.</div>;
+      }
+      return (
+        <div className="max-h-[60vh] overflow-auto">
+          <table className="w-full table-fixed text-right border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-14 align-middle border-b border-slate-100">م</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[150px] w-[22%] align-middle border-b border-slate-100">المنتظر</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-28 align-middle border-b border-slate-100">الصفة</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-middle border-b border-slate-100">نصاب الانتظار</th>
+                <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-20 align-middle border-b border-slate-100 border-l-2 border-l-slate-200">المُسند</th>
+                <th colSpan={block.dayHeaders.length} className="sticky top-0 z-20 bg-slate-50 px-3 pt-4 pb-1 text-center text-xs font-black text-[#655ac1] border-b border-slate-100">أيام وحصص الإسناد</th>
+              </tr>
+              <tr>
+                {block.dayHeaders.map((d, i) => (
+                  <th
+                    key={d.date}
+                    className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-1 text-[11px] font-black text-center border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-[#655ac1]'}`}
+                  >
+                    {d.day}
+                    {d.isHoliday && <span className="block text-[9px] font-black text-rose-500 mt-0.5">إجازة</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, index) => (
+                <tr key={row.id} className="hover:bg-[#e5e1fe]/10 transition-colors group">
+                  <td className="px-3 py-3 text-center border-b border-slate-50">
+                    <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
+                  </td>
+                  <td className="px-3 py-3 font-bold text-slate-700 truncate border-b border-slate-50">
+                    <span className="text-sm group-hover:text-[#655ac1] transition-colors">{row.name}</span>
+                  </td>
+                  <td className="px-3 py-3 text-center border-b border-slate-50">
+                    <span className="inline-flex items-center justify-center text-xs font-black text-slate-600">{row.roleLabel}</span>
+                  </td>
+                  <td className="px-3 py-3 text-center text-sm font-black text-[#655ac1] border-b border-slate-50">{row.quota || '—'}</td>
+                  <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50 border-l-2 border-l-slate-200">{row.totalAssigned}</td>
+                  {block.dayHeaders.map((d, i) => {
+                    const cells = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a.period - b.period);
+                    return (
+                      <td key={d.date} className={`px-1 py-3 text-center align-middle border-b border-slate-50 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === block.dayHeaders.length - 1 ? 'border-l border-slate-100' : ''}`}>
+                        {d.isHoliday ? (
+                          <span className="inline-block text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 leading-tight">إجازة</span>
+                        ) : cells.length === 0 ? (
+                          <span className="text-slate-300 text-xs">·</span>
+                        ) : (
+                          <div className="flex flex-col items-center gap-0.5">
+                            {cells.map((c, ci) => (
+                              <span key={ci} className="text-[#655ac1] text-[11px] font-black whitespace-nowrap">
+                                ح{c.period}{c.className ? ` – ${c.className}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     };
 
     return (
@@ -3290,7 +3510,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 <button
                   type="button"
                   onClick={printWaitingReport}
-                  disabled={scopedRows.length === 0}
+                  disabled={!hasAnyRows}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] text-white text-[13px] font-black shadow-sm hover:bg-[#5046a0] transition-all disabled:opacity-50"
                 >
                   <Printer size={15} />
@@ -3313,368 +3533,172 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </div>
         ) : (
         <>
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 space-y-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <label className="block text-xs font-black text-slate-500">الأسبوع الدراسي</label>
-            </div>
-            <div className="relative" ref={rptWeekDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setRptWeekDropdownOpen(v => !v)}
-                className="w-full px-5 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
-              >
-                <span className="truncate text-[13px] leading-tight text-right">{selectedWeeksLabel}</span>
-                <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${rptWeekDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {rptWeekDropdownOpen && (
-                <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 z-[120] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 animate-in slide-in-from-top-2">
-                  <div className="relative mb-3">
-                    <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={rptWeekSearch}
-                      onChange={e => setRptWeekSearch(e.target.value)}
-                      placeholder="ابحث برقم الأسبوع أو التاريخ..."
-                      className="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
-                    />
-                  </div>
-                  <div className="flex gap-2 mb-3 border-b border-slate-100 pb-3">
-                    {(() => {
-                      const allWeekNums = academicWeeks.map(w => w.number);
-                      const allSelected = allWeekNums.length > 0 && allWeekNums.every(n => rptSelectedWeekNumbers.has(n));
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => setRptSelectedWeekNumbers(allSelected ? new Set() : new Set(allWeekNums))}
-                          className="text-xs font-bold text-slate-600 bg-white border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-colors"
-                        >
-                          {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
-                        </button>
-                      );
-                    })()}
-                  </div>
-                  <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
-                    {filteredWeeks.length === 0 ? (
-                      <p className="text-center text-sm font-bold text-slate-400 py-6">لا توجد نتائج</p>
-                    ) : filteredWeeks.map(w => {
-                      const isSelected = rptSelectedWeekNumbers.has(w.number);
-                      const isAuto = autoWeek?.number === w.number;
-                      return (
-                        <button
-                          key={w.number}
-                          type="button"
-                          onClick={() => {
-                            setRptSelectedWeekNumbers(prev => {
-                              const next = new Set(prev);
-                              if (next.has(w.number)) next.delete(w.number);
-                              else next.add(w.number);
-                              return next;
-                            });
-                          }}
-                          className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between gap-3 ${isSelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'}`}
-                        >
-                          <span className="flex flex-col items-start min-w-0 flex-1">
-                            <span className="font-black flex items-center gap-2">
-                              الأسبوع {w.number}
-                              {isAuto && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">الحالي</span>}
-                              {w.hasHoliday && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">إجازة</span>}
-                            </span>
-                            <span className="text-[11px] font-bold text-slate-400 mt-0.5 truncate max-w-full">
-                              {getArabicDayFromDate(w.start)} {formatDateLabel(w.start)} → {getArabicDayFromDate(w.end)} {formatDateLabel(w.end)}
-                            </span>
-                          </span>
-                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0 ${isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-                            <Check size={12} strokeWidth={3.5} />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-            {effectiveWeeks.some(w => w.hasHoliday) && (
-              <p className="mt-2 text-[11px] font-black text-rose-600 flex items-center gap-1.5">
-                <AlertTriangle size={12} />
-                يحتوي أسبوع مختار إجازة — قد ينخفض إسناد الانتظار في ذلك اليوم.
-              </p>
-            )}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
+          <div className="flex flex-col md:flex-row gap-4">
+            <ReportMultiSelect
+              label="الأسبوع الدراسي"
+              buttonLabel="اختر الأسبوع الدراسي"
+              summary={effectiveWeeks.length ? selectedWeeksLabel : undefined}
+              options={weekDropdownOptions}
+              selected={new Set(Array.from(rptSelectedWeekNumbers).map(String))}
+              onToggle={v => {
+                const num = Number(v);
+                setRptSelectedWeekNumbers(prev => { const next = new Set(prev); if (next.has(num)) next.delete(num); else next.add(num); return next; });
+              }}
+              onSelectAll={() => setRptSelectedWeekNumbers(new Set(academicWeeks.map(w => w.number)))}
+              onClear={() => setRptSelectedWeekNumbers(new Set())}
+              searchable
+              searchPlaceholder="ابحث برقم الأسبوع أو التاريخ..."
+            />
+            <ReportMultiSelect
+              label="اختر المنتظر"
+              buttonLabel="كل المنتظرين"
+              summary={staffSummary}
+              options={staffDropdownOptions}
+              selected={rptSelectedIds}
+              onToggle={v => setRptSelectedIds(prev => { const next = new Set(prev); if (next.has(v)) next.delete(v); else next.add(v); return next; })}
+              onSelectAll={() => setRptSelectedIds(new Set(allWaitingStaff.map(s => s.id)))}
+              onClear={() => setRptSelectedIds(new Set())}
+              searchable
+              searchPlaceholder="ابحث عن منتظر بالاسم..."
+            />
           </div>
-
-          <div>
-            <label className="block text-xs font-black text-slate-500 mb-1.5">نطاق التقرير</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => { setRptStaffMode('all'); setRptSelectedIds(new Set()); setRptDropdownOpen(false); }}
-                className={`px-5 py-2.5 rounded-xl text-[13px] font-black border-2 transition-all ${rptStaffMode === 'all' ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/30 hover:text-[#655ac1]'}`}
-              >
-                كل المنتظرين
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (rptStaffMode !== 'specific') setRptStaffMode('specific');
-                  setRptStaffModalOpen(true);
-                }}
-                className={`px-5 py-2.5 rounded-xl text-[13px] font-black border-2 transition-all flex items-center gap-2 ${rptStaffMode === 'specific' ? 'bg-[#655ac1] text-white border-[#655ac1]' : 'bg-white text-slate-600 border-slate-200 hover:border-[#655ac1]/30 hover:text-[#655ac1]'}`}
-              >
-                منتظر محدد
-                {rptStaffMode === 'specific' && rptSelectedIds.size > 0 && (
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black">
-                    {rptSelectedIds.size}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl px-5 py-5 flex items-center gap-4 shadow-sm">
-          <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
-            <ClipboardCheck size={26} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black text-slate-400 leading-none">إجمالي حصص الانتظار المسندة في الأسبوع</p>
-            <p className="mt-2 font-black text-2xl leading-none text-[#655ac1]">{totalAssignedInScope}</p>
-          </div>
-          {weekRangeLabel && (
-            <div className="hidden md:flex items-center gap-2 text-left">
-              <CalendarClock size={17} className="text-[#655ac1] shrink-0" />
-              <p className="text-[13px] font-black text-slate-700 leading-6">{weekRangeLabel}</p>
-            </div>
+          {effectiveWeeks.some(w => w.hasHoliday) && (
+            <p className="mt-3 text-[11px] font-black text-rose-600 flex items-center gap-1.5">
+              <AlertTriangle size={12} />
+              يحتوي أسبوع مختار إجازة — قد ينخفض إسناد الانتظار في ذلك اليوم.
+            </p>
           )}
         </div>
 
-        <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
-            <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-              <Users size={18} className="text-[#655ac1]" />
-              تقرير المنتظرين في الأسبوع
-            </p>
-            <div className="flex-1" />
-            <div className="relative w-full sm:w-72">
-              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                value={embTableSearch}
-                onChange={e => setEmbTableSearch(e.target.value)}
-                placeholder="ابحث"
-                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
-                dir="rtl"
-              />
-            </div>
+        {effectiveWeeks.length === 0 ? (
+          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm px-6 py-12 text-center text-sm font-bold text-slate-400">
+            اختر أسبوعًا دراسيًا واحدًا أو أكثر لعرض التقرير.
           </div>
-          {scopedRows.length === 0 ? (
-            <div className="px-6 py-12 text-center text-sm font-bold text-slate-400">
-              لا توجد إسنادات انتظار في {effectiveWeeks.length > 1 ? 'الأسابيع المختارة' : 'هذا الأسبوع'}.
+        ) : !hasAnyRows ? (
+          <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm px-6 py-12 text-center text-sm font-bold text-slate-400">
+            لا توجد إسنادات انتظار في {isMultiWeek ? 'الأسابيع المختارة' : 'هذا الأسبوع'}.
+          </div>
+        ) : isMultiWeek ? (
+          <>
+            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm px-6 py-4 flex flex-wrap items-center gap-3">
+              <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                <Users size={18} className="text-[#655ac1]" />
+                تقرير المنتظرين عبر {effectiveWeeks.length} أسابيع
+              </p>
+              <div className="flex-1" />
+              <div className="relative w-full sm:w-72">
+                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={embTableSearch}
+                  onChange={e => setEmbTableSearch(e.target.value)}
+                  placeholder="ابحث..."
+                  className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
+                  dir="rtl"
+                />
+                {embTableSearch && (
+                  <button type="button" onClick={() => setEmbTableSearch('')} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-              <table className="w-full min-w-[1080px] table-fixed text-sm text-right">
-                <thead>
-                  <tr className="bg-white">
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[5%] align-middle shadow-[0_1px_0_#e2e8f0]">م</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs w-[22%] align-middle shadow-[0_1px_0_#e2e8f0]">المنتظر</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[10%] align-middle shadow-[0_1px_0_#e2e8f0]">نصاب الانتظار</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[10%] align-middle shadow-[0_1px_0_#e2e8f0]">الانتظار المسند</th>
-                    <th colSpan={dayHeaders.length} className="sticky top-0 z-20 bg-white px-3 pt-3 pb-1 font-black text-[#655ac1] text-xs text-center border-b border-slate-100">أيام وحصص الإسناد</th>
-                  </tr>
-                  <tr className="bg-white">
-                    {dayHeaders.map((d, i) => (
-                      <th
-                        key={d.date}
-                        className={`sticky top-[42px] z-20 bg-white px-1 pb-3 pt-1 font-black text-[11px] text-center border-r border-slate-100 shadow-[0_1px_0_#e2e8f0] ${i === dayHeaders.length - 1 ? 'border-l border-slate-100' : ''} ${d.isHoliday ? 'text-rose-500' : 'text-slate-500'}`}
-                        style={{ width: `${Math.max(6, Math.floor(53 / Math.max(dayHeaders.length, 1)))}%` }}
-                      >
-                        {d.day}
-                        {d.isHoliday && <span className="block text-[9px] font-black text-rose-500 mt-0.5">إجازة</span>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scopedRows
-                    .filter(r => !embTableSearch.trim() || r.name.includes(embTableSearch.trim()))
-                    .map((row, index) => (
-                      <tr key={row.id} className="border-b border-slate-100 bg-white hover:bg-[#f5f3ff] transition-colors">
-                        <td className="px-3 py-3 text-center">
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">{index + 1}</span>
+
+            {weekBlocks.map(block => (
+              <div key={block.week.number} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-6 py-4 border-b border-slate-100 bg-[#f8fafc] flex flex-wrap items-center gap-2">
+                  <CalendarClock size={16} className="text-[#655ac1] shrink-0" />
+                  <p className="text-sm font-black text-slate-800">
+                    الأسبوع {block.week.number}
+                    <span className="font-bold text-slate-500 mr-2">
+                      — من {getArabicDayFromDate(block.week.start)} {fmtNumericDate(block.week.start)} إلى {getArabicDayFromDate(block.week.end)} {fmtNumericDate(block.week.end)}
+                    </span>
+                  </p>
+                  {block.week.hasHoliday && (
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">يحتوي إجازة</span>
+                  )}
+                  <div className="flex-1" />
+                  <span className="text-xs font-black text-slate-500">المسند: <span className="text-[#655ac1]">{block.totalAssigned}</span></span>
+                </div>
+                {renderReportTable(block)}
+              </div>
+            ))}
+
+            <div className="bg-white rounded-[24px] border border-[#d8d2f5] overflow-hidden shadow-sm">
+              <div className="px-6 py-4 border-b border-slate-100 bg-[#f0edff] flex items-center gap-2">
+                <BarChart3 size={16} className="text-[#655ac1] shrink-0" />
+                <p className="text-sm font-black text-[#655ac1]">ملخص إجمالي حصص الانتظار عبر {effectiveWeeks.length} أسابيع</p>
+                <div className="flex-1" />
+                <span className="text-xs font-black text-slate-500">الإجمالي: <span className="text-[#655ac1]">{totalAssignedInScope}</span></span>
+              </div>
+              <div>
+                <table className="w-full table-fixed text-right border-separate border-spacing-0">
+                  <thead>
+                    <tr>
+                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-14 border-b border-slate-100">م</th>
+                      <th className="bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[150px] border-b border-slate-100">المنتظر</th>
+                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-28 border-b border-slate-100">الصفة</th>
+                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-24 border-b border-slate-100">النصاب</th>
+                      <th className="bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-36 border-b border-slate-100">إجمالي المسند</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryRows.map((row, index) => (
+                      <tr key={row.id} className="hover:bg-[#e5e1fe]/10 transition-colors group">
+                        <td className="px-3 py-3 text-center border-b border-slate-50">
+                          <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
                         </td>
-                        <td className="px-3 py-3 font-black text-slate-800 truncate">{row.name}</td>
-                        <td className="px-3 py-3 text-center">
-                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
-                            {row.quota || '—'}
-                          </span>
+                        <td className="px-3 py-3 font-bold text-slate-700 border-b border-slate-50">
+                          <span className="text-sm group-hover:text-[#655ac1] transition-colors">{row.name}</span>
                         </td>
-                        <td className="px-3 py-3 text-center">
-                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-amber-600 text-[12px] font-black">
-                            {row.totalAssigned}
-                          </span>
-                        </td>
-                        {dayHeaders.map((d, i) => {
-                          const periods = (row.dayPeriods[d.date] || []).slice().sort((a, b) => a - b);
-                          return (
-                            <td key={d.date} className={`px-1 py-3 text-center border-r border-slate-100 ${i === dayHeaders.length - 1 ? 'border-l border-slate-100' : ''}`}>
-                              {d.isHoliday ? (
-                                <span className="inline-block text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-1 leading-tight">هذا اليوم إجازة</span>
-                              ) : periods.length === 0 ? (
-                                <span className="text-slate-300 text-xs">·</span>
-                              ) : (
-                                <span className="text-[#655ac1] text-[12px] font-black">{periods.join('، ')}</span>
-                              )}
-                            </td>
-                          );
-                        })}
+                        <td className="px-3 py-3 text-center text-xs font-black text-slate-600 border-b border-slate-50">{row.roleLabel}</td>
+                        <td className="px-3 py-3 text-center text-sm font-black text-[#655ac1] border-b border-slate-50">{row.quota || '—'}</td>
+                        <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50">{row.total}</td>
                       </tr>
                     ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        </>
-        )}
-
-        {rptStaffModalOpen && (
-          <>
-            <div className="fixed inset-0 z-[9998] bg-black/40" onClick={() => setRptStaffModalOpen(false)} />
-            <div className="fixed top-[7vh] right-1/2 translate-x-1/2 w-[min(94vw,46rem)] max-h-[82vh] bg-white rounded-3xl shadow-2xl border border-slate-200 z-[9999] overflow-hidden flex flex-col" dir="rtl">
-              <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <Users size={22} className="text-[#655ac1]" />
-                  <div>
-                    <h3 className="text-base font-black text-slate-800">اختيار المنتظرين</h3>
-                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">حدّد المنتظرين الذين تريد ظهورهم في التقرير</p>
-                  </div>
-                </div>
-                <button onClick={() => setRptStaffModalOpen(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="p-4 border-b border-slate-100 shrink-0 space-y-3">
-                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1 rounded-xl">
-                  {[
-                    { id: 'teacher' as const, label: 'المعلمون', count: allWaitingStaff.filter(s => s.role === 'teacher').length },
-                    { id: 'admin' as const, label: 'الإداريون', count: allWaitingStaff.filter(s => s.role === 'admin').length },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setRptStaffTab(tab.id)}
-                      className={`px-3 py-2 rounded-lg text-sm font-black transition-all ${
-                        rptStaffTab === tab.id ? 'bg-white text-[#655ac1] shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      {tab.label} ({tab.count})
-                    </button>
-                  ))}
-                </div>
-                <div className="relative">
-                  <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text" autoFocus
-                    value={rptSearch}
-                    onChange={e => setRptSearch(e.target.value)}
-                    placeholder={rptStaffTab === 'teacher' ? 'بحث عن اسم المعلم...' : 'بحث عن اسم الإداري...'}
-                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-[#655ac1]/30"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRptSelectedIds(prev => {
-                      const next = new Set(prev);
-                      allWaitingStaff.filter(s => s.role === rptStaffTab).forEach(s => next.add(s.id));
-                      return next;
-                    })}
-                    className="text-xs font-bold text-[#655ac1] bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
-                  >
-                    تحديد كل {rptStaffTab === 'teacher' ? 'المعلمين' : 'الإداريين'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRptSelectedIds(new Set())}
-                    className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors"
-                  >
-                    إلغاء التحديد
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-white">
-                {(() => {
-                  const filtered = allWaitingStaff
-                    .filter(s => s.role === rptStaffTab)
-                    .filter(s => !rptSearch.trim() || s.name.includes(rptSearch));
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="text-center py-6 text-slate-400 text-xs font-bold">
-                        <Users size={24} className="mx-auto mb-2 opacity-30" />
-                        {rptSearch.trim() ? 'لا توجد نتائج' : 'لا يوجد منتظرون'}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="overflow-hidden rounded-2xl border border-slate-200">
-                      <table className="w-full text-right text-sm">
-                        <thead className="bg-slate-50 text-[#655ac1]">
-                          <tr>
-                            <th className="px-4 py-3 font-black text-center w-16">م</th>
-                            <th className="px-4 py-3 font-black">الاسم</th>
-                            <th className="px-4 py-3 font-black w-28">الصفة</th>
-                            <th className="px-4 py-3 font-black text-center w-28">اختيار / إلغاء</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {filtered.map((staff, index) => {
-                            const isSel = rptSelectedIds.has(staff.id);
-                            return (
-                              <tr key={staff.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-4 py-3 text-center text-slate-400 font-bold">{index + 1}</td>
-                                <td className="px-4 py-3 font-bold text-slate-800">{staff.name}</td>
-                                <td className="px-4 py-3 font-bold text-slate-500">{staff.role === 'teacher' ? 'معلم' : 'إداري'}</td>
-                                <td className="px-4 py-3">
-                                  <button
-                                    type="button"
-                                    onClick={() => setRptSelectedIds(prev => {
-                                      const next = new Set(prev);
-                                      if (next.has(staff.id)) next.delete(staff.id);
-                                      else next.add(staff.id);
-                                      return next;
-                                    })}
-                                    className={`mx-auto w-7 h-7 rounded-full border flex items-center justify-center transition-colors ${
-                                      isSel ? 'border-[#655ac1] text-[#655ac1]' : 'border-slate-300 text-transparent hover:border-[#655ac1]/60'
-                                    }`}
-                                    title="اختيار"
-                                  >
-                                    {isSel && <Check size={18} strokeWidth={3} className="text-[#655ac1]" />}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()}
-              </div>
-              <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-end gap-2 shrink-0">
-                <button
-                  onClick={() => setRptStaffModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all"
-                >
-                  إغلاق
-                </button>
-                <button
-                  onClick={() => setRptStaffModalOpen(false)}
-                  className="bg-[#655ac1] hover:bg-[#8779fb] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
-                >
-                  تم{rptSelectedIds.size > 0 ? ` (${rptSelectedIds.size})` : ''}
-                </button>
+                  </tbody>
+                </table>
               </div>
             </div>
           </>
+        ) : (
+          <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-slate-100 bg-white">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm font-black text-slate-800 flex items-center gap-2 shrink-0">
+                  <Users size={18} className="text-[#655ac1]" />
+                  تقرير المنتظرين في الأسبوع
+                </p>
+                <div className="flex-1" />
+                <div className="relative w-full sm:w-64">
+                  <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={embTableSearch}
+                    onChange={e => setEmbTableSearch(e.target.value)}
+                    placeholder="ابحث..."
+                    className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
+                    dir="rtl"
+                  />
+                  {embTableSearch && (
+                    <button type="button" onClick={() => setEmbTableSearch('')} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              {weekBlocks[0] && (
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-black text-[#655ac1] bg-white border border-slate-300 rounded-full px-3 py-1">
+                  <CalendarClock size={13} />
+                  الأسبوع {weekBlocks[0].week.number} — {getArabicDayFromDate(weekBlocks[0].week.start)} {fmtNumericDate(weekBlocks[0].week.start)} ← {getArabicDayFromDate(weekBlocks[0].week.end)} {fmtNumericDate(weekBlocks[0].week.end)}
+                </span>
+              )}
+            </div>
+            {weekBlocks[0] && renderReportTable(weekBlocks[0])}
+          </div>
+        )}
+        </>
         )}
       </div>
     );
@@ -3690,47 +3714,57 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         weekDates.push(toLocalISODate(d));
       }
     }
-    const perTeacherDayPeriods: Record<string, Record<string, number[]>> = {};
+    type BalanceCell = { period: number; className: string };
+    const perTeacherDayPeriods: Record<string, Record<string, BalanceCell[]>> = {};
+    const assignedNameById: Record<string, string> = {};
     sessions.forEach(s => {
       if (!weekDates.includes(s.date)) return;
       s.assignments.forEach(a => {
         if (isWaitingSlotDisabled(a.absentTeacherId, a.periodNumber)) return;
+        assignedNameById[a.substituteTeacherId] = a.substituteTeacherName;
         if (!perTeacherDayPeriods[a.substituteTeacherId]) perTeacherDayPeriods[a.substituteTeacherId] = {};
         if (!perTeacherDayPeriods[a.substituteTeacherId][s.date]) perTeacherDayPeriods[a.substituteTeacherId][s.date] = [];
-        perTeacherDayPeriods[a.substituteTeacherId][s.date].push(a.periodNumber);
+        perTeacherDayPeriods[a.substituteTeacherId][s.date].push({ period: a.periodNumber, className: a.className || '' });
       });
     });
-    const buildAssignmentDays = (teacherId: string): { date: string; day: string; count: number; periods: number[] }[] => {
+    const buildAssignmentDays = (teacherId: string): { date: string; day: string; count: number; cells: BalanceCell[] }[] => {
       const map = perTeacherDayPeriods[teacherId] || {};
       return weekDates
         .filter(d => (map[d] || []).length > 0)
         .map(d => {
-          const periods = [...map[d]].sort((a, b) => a - b);
-          return { date: d, day: getArabicDayFromDate(d), count: periods.length, periods };
+          const cells = [...map[d]].sort((a, b) => a.period - b.period);
+          return { date: d, day: getArabicDayFromDate(d), count: cells.length, cells };
         });
     };
 
-    const balanceRows = teachers
-      .filter(t => (t.waitingQuota || 0) > 0)
-      .map(t => {
-        const quota = t.waitingQuota || 0;
-        const assigned = weeklyQuota.counts[t.id] || 0;
+    // الصفوف: المعلمون أصحاب نصاب الانتظار + أي شخص (إداري) أُسند له فعليًا هذا الأسبوع.
+    const balanceIds = new Set<string>();
+    teachers.forEach(t => { if (getTeacherWaitingQuota(t) > 0) balanceIds.add(t.id); });
+    Object.keys(weeklyQuota.counts).forEach(id => { if ((weeklyQuota.counts[id] || 0) > 0) balanceIds.add(id); });
+    Object.keys(perTeacherDayPeriods).forEach(id => balanceIds.add(id));
+    const balanceRows = Array.from(balanceIds)
+      .map(id => {
+        const teacher = teachers.find(t => t.id === id);
+        const admin = admins.find(a => a.id === id);
+        const person = teacher || admin;
+        const name = person?.name || assignedNameById[id] || '';
+        const quota = teacher ? getTeacherWaitingQuota(teacher) : (admin?.waitingQuota || 0);
+        const assigned = weeklyQuota.counts[id] || 0;
         const balance = quota - assigned;
-        const pct = quota > 0 ? assigned / quota : 0;
-        const assignmentDays = buildAssignmentDays(t.id);
-        return { teacher: t, quota, assigned, balance, pct, assignmentDays };
+        const pct = quota > 0 ? assigned / quota : (assigned > 0 ? 1 : 0);
+        const assignmentDays = buildAssignmentDays(id);
+        return { teacher: { id, name } as { id: string; name: string }, quota, assigned, balance, pct, assignmentDays };
       })
       .sort((a, b) => b.assigned - a.assigned || a.balance - b.balance || a.teacher.name.localeCompare(b.teacher.name, 'ar'));
-    const totalQuota = balanceRows.reduce((sum, row) => sum + row.quota, 0);
     const totalAssigned = balanceRows.reduce((sum, row) => sum + row.assigned, 0);
-    const totalBalance = totalQuota - totalAssigned;
+    // الأكثر إسنادًا: عدد الإسناد المطلق (نتجنّبه). الأقل إسنادًا: من لا يزال لديه رصيد (نسند له).
     const mostAssigned = balanceRows
-      .filter(row => row.quota > 0 && row.assigned > row.quota / 2)
-      .sort((a, b) => b.assigned - a.assigned || b.pct - a.pct || a.teacher.name.localeCompare(b.teacher.name, 'ar'))
+      .filter(row => row.assigned > 0)
+      .sort((a, b) => b.assigned - a.assigned || a.teacher.name.localeCompare(b.teacher.name, 'ar'))
       .slice(0, 5);
     const leastAssigned = balanceRows
-      .filter(row => row.quota > 0 && row.assigned < row.quota / 2)
-      .sort((a, b) => a.assigned - b.assigned || a.pct - b.pct || a.teacher.name.localeCompare(b.teacher.name, 'ar'))
+      .filter(row => row.quota > 0 && row.balance > 0)
+      .sort((a, b) => a.assigned - b.assigned || b.balance - a.balance || a.teacher.name.localeCompare(b.teacher.name, 'ar'))
       .slice(0, 5);
     const balanceSearch = embTableSearch.trim();
     const filteredBalanceRows = balanceRows.filter(row => !balanceSearch || row.teacher.name.includes(balanceSearch));
@@ -3738,21 +3772,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     const printWaitingBalance = () => {
       const today = getTodayStr();
       const dayCellsHtml = (row: typeof balanceRows[number]) => weekDates.map(d => {
-        const periods = (row.assignmentDays.find(ad => ad.date === d)?.periods) || [];
-        return `<td class="day-cell">${periods.length ? `<span class="day-num">${periods.join('، ')}</span>` : '<span class="day-empty">·</span>'}</td>`;
+        const cells = (row.assignmentDays.find(ad => ad.date === d)?.cells) || [];
+        return `<td class="day-cell">${cells.length ? cells.map(c => `<span class="day-num">ح${c.period}${c.className ? ` – ${escapeHtml(c.className)}` : ''}</span>`).join('') : '<span class="day-empty">·</span>'}</td>`;
       }).join('');
       const rows = balanceRows.map((row, index) => `
         <tr>
-          <td><span class="seq-pill">${index + 1}</span></td>
+          <td><span class="seq-num">${index + 1}</span></td>
           <td style="text-align:right;font-weight:900">${escapeHtml(row.teacher.name)}</td>
-          <td><span class="num-pill purple">${row.quota}</span></td>
-          <td><span class="num-pill amber">${row.assigned}</span></td>
+          <td><span class="plain purple">${row.quota}</span></td>
+          <td><span class="plain amber">${row.assigned}</span></td>
+          <td><span class="plain ${row.balance <= 0 ? 'red' : 'green'}">${row.balance}</span></td>
           ${dayCellsHtml(row)}
-          <td><span class="num-pill green">${row.balance}</span></td>
         </tr>
       `).join('');
       const dayHeadersHtml = weekDates.map(d => `<th class="day-head">${escapeHtml(getArabicDayFromDate(d))}</th>`).join('');
-      const weekRangeText = `من ${getArabicDayFromDate(waitingWeekRange.start)} الموافق ${formatHijri(waitingWeekRange.start)} هـ إلى ${getArabicDayFromDate(waitingWeekRange.end)} الموافق ${formatHijri(waitingWeekRange.end)} هـ`;
+      const weekRangeText = `${waitingWeekRange.number ? `الأسبوع ${waitingWeekRange.number} ` : ''}من ${getArabicDayFromDate(waitingWeekRange.start)} الموافق ${fmtNumericDate(waitingWeekRange.start)} إلى ${getArabicDayFromDate(waitingWeekRange.end)} الموافق ${fmtNumericDate(waitingWeekRange.end)}`;
       openWaitingPrintableHtml(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>رصيد الانتظار</title><style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
         @page { size: A4 portrait; margin: 12mm; }
@@ -3767,7 +3801,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         h1 { margin:0; font-size:18px; font-weight:900; }
         .title { text-align:center; font-size:18px; font-weight:900; margin:12px 0 6px; }
         .meta { text-align:center; color:#64748b; font-size:11px; font-weight:800; margin-bottom:14px; }
-        .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+        .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
         .stat { border:1px solid #cbd5e1; border-radius:10px; padding:9px; text-align:center; }
         .stat b { display:block; font-size:18px; color:#655ac1; }
         .stat span { font-size:10px; color:#64748b; font-weight:900; }
@@ -3775,8 +3809,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         th,td { border:1px solid #cbd5e1; padding:8px; text-align:center; vertical-align:middle; }
         th { background:#a59bf0; color:#fff; font-weight:900; }
         tbody tr:nth-child(even) td { background:#f8fafc; }
-        .seq-pill { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:999px; background:#f8fafc; color:#94a3b8; font-size:11px; font-weight:800; }
-        .num-pill { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:999px; border:1.5px solid #cbd5e1; background:transparent; font-size:12px; font-weight:900; }
+        .seq-num { color:#94a3b8; font-size:12px; font-weight:800; }
+        .plain { font-size:13px; font-weight:900; }
         .purple { color:#655ac1; }
         .amber { color:#d97706; }
         .green { color:#059669; }
@@ -3792,10 +3826,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         .slash { color:#cbd5e1; margin:0 4px; }
         .empty-rank { text-align:center; color:#94a3b8; font-size:11px; font-weight:800; padding:12px; }
         .week-range { text-align:center; font-size:12px; font-weight:900; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px; margin-bottom:14px; }
-        .day-head { width:42px; font-size:11px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
+        .day-head { width:54px; font-size:11px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
         .day-head:first-of-type { border-right:1px solid #cbd5e1 !important; }
         .day-cell { text-align:center; padding:6px 4px; border-left:1px solid #e2e8f0 !important; border-right:1px solid #e2e8f0 !important; }
-        .day-num { color:#655ac1; font-size:12px; font-weight:900; }
+        .day-num { display:block; color:#655ac1; font-size:11px; font-weight:900; white-space:nowrap; line-height:1.5; }
         .day-empty { color:#cbd5e1; font-size:13px; font-weight:800; }
         .footer { margin-top:28px; display:flex; justify-content:space-between; gap:24px; font-size:12px; font-weight:900; padding:0 24px; }
         .signature { width:40%; }
@@ -3817,7 +3851,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <h1>${escapeHtml(schoolInfo.schoolName || '')}</h1>
           </div>
           <div class="header-side header-left">
-            <div>الأسبوع: ${escapeHtml(weeklyQuota.weekKey)}</div>
             <div>تاريخ الطباعة: ${escapeHtml(formatHijri(today))}</div>
             <div>الموافق: ${escapeHtml(formatGregorian(today))}</div>
           </div>
@@ -3826,23 +3859,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div class="week-range">${escapeHtml(weekRangeText)}</div>
         <div class="stats">
           <div class="stat"><b>${balanceRows.length}</b><span>إجمالي المنتظرين</span></div>
-          <div class="stat"><b>${totalQuota}</b><span>إجمالي النصاب</span></div>
-          <div class="stat"><b>${totalAssigned}</b><span>إجمالي المسند</span></div>
-          <div class="stat"><b>${totalBalance}</b><span>إجمالي الانتظار المتبقي</span></div>
+          <div class="stat"><b>${totalAssigned}</b><span>إجمالي الانتظار المسند</span></div>
         </div>
         <table>
           <thead>
             <tr>
-              <th rowspan="2" style="width:38px">م</th>
+              <th rowspan="2" style="width:34px">م</th>
               <th rowspan="2" style="text-align:right">المنتظر</th>
-              <th rowspan="2" style="width:80px">نصاب الانتظار</th>
-              <th rowspan="2" style="width:90px">الانتظار المسند</th>
+              <th rowspan="2" style="width:66px">نصاب الانتظار</th>
+              <th rowspan="2" style="width:72px">الانتظار المسند</th>
+              <th rowspan="2" style="width:78px">المتبقي من الانتظار</th>
               <th colspan="5">أيام وحصص الإسناد</th>
-              <th rowspan="2" style="width:100px">المتبقي من الانتظار</th>
             </tr>
             <tr>${dayHeadersHtml}</tr>
           </thead>
-          <tbody>${rows || `<tr><td colspan="${5 + weekDates.length + 1}">لا توجد بيانات رصيد انتظار</td></tr>`}</tbody>
+          <tbody>${rows || `<tr><td colspan="${5 + weekDates.length}">لا توجد بيانات رصيد انتظار</td></tr>`}</tbody>
         </table>
         <div class="footer">
           <div class="signature right">
@@ -3904,12 +3935,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: 'إجمالي المنتظرين', value: balanceRows.length, icon: Users, color: 'text-[#655ac1]' },
-            { label: 'إجمالي نصاب الانتظار', value: totalQuota, icon: ClipboardList, color: 'text-amber-700' },
             { label: 'إجمالي الانتظار المسند', value: totalAssigned, icon: CheckCircle2, color: 'text-emerald-700' },
-            { label: 'إجمالي الانتظار المتبقي', value: totalBalance, icon: BarChart3, color: totalBalance < 0 ? 'text-rose-700' : 'text-blue-700' },
           ].map((stat, index) => (
             <div key={index} className="bg-white border border-slate-200 rounded-2xl px-4 py-5 flex items-start gap-3 shadow-sm">
               <div className="flex items-center justify-center shrink-0 text-[#655ac1]">
@@ -3927,8 +3956,14 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 text-xs font-black text-slate-500 ml-3">
               <CalendarClock size={15} className="text-[#655ac1]" />
+              {waitingWeekRange.number != null && (
+                <span className="flex items-center gap-1.5 text-slate-700">
+                  <span className="font-black">الأسبوع</span>
+                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-black text-[#655ac1]">{waitingWeekRange.number}</span>
+                </span>
+              )}
               <span>
-                من {getArabicDayFromDate(waitingWeekRange.start)} الموافق {formatHijri(waitingWeekRange.start)} إلى {getArabicDayFromDate(waitingWeekRange.end)} الموافق {formatHijri(waitingWeekRange.end)}
+                من {getArabicDayFromDate(waitingWeekRange.start)} الموافق {fmtNumericDate(waitingWeekRange.start)} إلى {getArabicDayFromDate(waitingWeekRange.end)} الموافق {fmtNumericDate(waitingWeekRange.end)}
               </span>
             </div>
             <div className="flex-1" />
@@ -3961,17 +3996,17 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/80">
                 <p className={`text-sm font-black ${section.tone === 'rose' ? 'text-rose-700' : 'text-emerald-700'}`}>{section.title}</p>
               </div>
-              <div className="p-4 space-y-2">
+              <div className="p-2">
                 {section.rows.length === 0 ? (
                   <p className="text-center text-xs font-bold text-slate-400 py-5">لا توجد بيانات</p>
                 ) : section.rows.map((row, index) => (
-                  <div key={row.teacher.id} className="flex items-center gap-3 rounded-2xl bg-white border border-slate-200 px-3 py-2.5">
-                    <span className="w-7 h-7 rounded-xl bg-white border border-slate-200 text-slate-400 text-xs font-black flex items-center justify-center shrink-0">{index + 1}</span>
+                  <div key={row.teacher.id} className="flex items-center gap-3 px-3 py-2.5">
+                    <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full shrink-0">{index + 1}</span>
                     <span className="text-sm font-black text-slate-800 truncate flex-1">{row.teacher.name}</span>
-                    <span className="inline-flex items-center justify-center min-w-[4.25rem] px-3 py-1.5 rounded-full border border-slate-300 bg-transparent text-sm font-black shrink-0">
-                      <span className={section.tone === 'rose' ? 'text-rose-600' : 'text-emerald-600'}>{row.assigned}</span>
-                      <span className="mx-1 text-slate-300">/</span>
-                      <span className="text-[#655ac1]">{row.quota}</span>
+                    <span className="inline-flex items-center justify-center gap-0.5 min-w-14 px-3 py-1 rounded-full border border-slate-200 text-xs font-black text-slate-800 shrink-0">
+                      <span className={section.tone === 'rose' ? 'text-rose-600' : 'text-emerald-600'}>{Math.min(row.assigned, row.quota)}</span>
+                      <span className="text-slate-400">/</span>
+                      {row.quota}
                     </span>
                   </div>
                 ))}
@@ -3983,7 +4018,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         <div className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-wrap items-center gap-3">
             <p className="text-sm font-black text-slate-800 flex items-center gap-2">
-              <ClipboardCheck size={18} className="text-[#655ac1]" />
+              <Scale size={18} className="text-[#655ac1]" />
               رصيد الانتظار
             </p>
             <div className="flex-1" />
@@ -3993,8 +4028,8 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 type="text"
                 value={embTableSearch}
                 onChange={e => setEmbTableSearch(e.target.value)}
-                placeholder="ابحث عن منتظر..."
-                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:bg-white transition-all"
+                placeholder="ابحث..."
+                className="w-full pr-8 pl-7 py-2 rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] transition-all"
                 dir="rtl"
               />
               {embTableSearch && (
@@ -4009,22 +4044,22 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               لا توجد بيانات رصيد انتظار مطابقة.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-              <table className="w-full min-w-[1080px] table-fixed text-sm text-right">
+            <div className="max-h-[65vh] overflow-auto">
+              <table className="w-full table-fixed text-right border-separate border-spacing-0">
                 <thead>
-                  <tr className="bg-white">
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[5%] align-middle shadow-[0_1px_0_#e2e8f0]">م</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs w-[20%] align-middle shadow-[0_1px_0_#e2e8f0]">المنتظر</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[10%] align-middle shadow-[0_1px_0_#e2e8f0]">نصاب الانتظار</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[10%] align-middle shadow-[0_1px_0_#e2e8f0]">الانتظار المسند</th>
-                    <th colSpan={5} className="sticky top-0 z-20 bg-white px-3 pt-3 pb-1 font-black text-[#655ac1] text-xs text-center w-[40%] border-b border-slate-100">أيام وحصص الإسناد</th>
-                    <th rowSpan={2} className="sticky top-0 z-20 bg-white px-3 py-3 font-black text-[#655ac1] text-xs text-center w-[15%] align-middle shadow-[0_1px_0_#e2e8f0]">المتبقي من الانتظار</th>
+                  <tr>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] w-14 align-middle border-b border-slate-100">م</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-xs font-black text-[#655ac1] min-w-[160px] w-[20%] align-middle border-b border-slate-100">المنتظر</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-28 align-middle border-b border-slate-100">نصاب الانتظار</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100">المُسند</th>
+                    <th rowSpan={2} className="sticky top-0 z-20 bg-slate-50 px-3 py-4 text-center text-xs font-black text-[#655ac1] whitespace-nowrap w-24 align-middle border-b border-slate-100 border-l-2 border-l-slate-200">المتبقي</th>
+                    <th colSpan={5} className="sticky top-0 z-20 bg-slate-50 px-3 pt-4 pb-1 text-center text-xs font-black text-[#655ac1] border-b border-slate-100">أيام وحصص الإسناد</th>
                   </tr>
-                  <tr className="bg-white">
+                  <tr>
                     {weekDates.map((d, i) => (
                       <th
                         key={d}
-                        className={`sticky top-[42px] z-20 bg-white px-1 pb-3 pt-1 font-black text-slate-500 text-[11px] text-center w-[8%] border-r border-slate-100 shadow-[0_1px_0_#e2e8f0] ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
+                        className={`sticky top-[57px] z-20 bg-slate-50 px-1 pb-3 pt-1 text-[11px] font-black text-[#655ac1] text-center border-b border-slate-100 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
                       >
                         {getArabicDayFromDate(d)}
                       </th>
@@ -4032,49 +4067,40 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBalanceRows.map((row, index) => {
-                    const rowBg = row.pct >= 1 ? 'bg-rose-50/70' : row.pct >= 0.5 ? 'bg-amber-50/60' : 'bg-white';
-                    return (
-                    <tr key={row.teacher.id} className={`border-b border-slate-100 ${rowBg} hover:bg-[#f5f3ff] transition-colors`}>
-                      <td className="px-3 py-3 text-center">
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-50 text-slate-400 text-xs font-bold">
-                          {index + 1}
-                        </span>
+                  {filteredBalanceRows.map((row, index) => (
+                    <tr key={row.teacher.id} className="hover:bg-[#e5e1fe]/10 transition-colors group">
+                      <td className="px-3 py-3 text-center border-b border-slate-50">
+                        <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 inline-flex items-center justify-center rounded-full">{index + 1}</span>
                       </td>
-                      <td className="px-3 py-3 font-black text-slate-800 truncate">{row.teacher.name}</td>
-                      <td className="px-3 py-3 text-center">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-[#655ac1] text-[12px] font-black">
-                          {row.quota}
-                        </span>
+                      <td className="px-3 py-3 font-bold text-slate-700 truncate border-b border-slate-50">
+                        <span className="text-sm group-hover:text-[#655ac1] transition-colors">{row.teacher.name}</span>
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-amber-600 text-[12px] font-black">
-                          {row.assigned}
-                        </span>
-                      </td>
+                      <td className="px-3 py-3 text-center text-sm font-black text-[#655ac1] border-b border-slate-50">{row.quota}</td>
+                      <td className="px-3 py-3 text-center text-sm font-black text-amber-600 border-b border-slate-50">{row.assigned}</td>
+                      <td className={`px-3 py-3 text-center text-sm font-black border-b border-slate-50 border-l-2 border-l-slate-200 ${row.balance <= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{row.balance}</td>
                       {weekDates.map((d, i) => {
-                        const periods = (row.assignmentDays.find(ad => ad.date === d)?.periods) || [];
+                        const cells = (row.assignmentDays.find(ad => ad.date === d)?.cells) || [];
                         return (
                           <td
                             key={d}
-                            className={`px-1 py-3 text-center border-r border-slate-100 ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
+                            className={`px-1 py-3 text-center align-middle border-b border-slate-50 ${i === 0 ? 'border-r-2 border-r-slate-200' : 'border-r border-slate-100'} ${i === weekDates.length - 1 ? 'border-l border-slate-100' : ''}`}
                           >
-                            {periods.length === 0 ? (
+                            {cells.length === 0 ? (
                               <span className="text-slate-300 text-xs">·</span>
                             ) : (
-                              <span className="text-[#655ac1] text-[12px] font-black">{periods.join('، ')}</span>
+                              <div className="flex flex-col items-center gap-0.5">
+                                {cells.map((c, ci) => (
+                                  <span key={ci} className="text-[#655ac1] text-[11px] font-black whitespace-nowrap">
+                                    ح{c.period}{c.className ? ` – ${c.className}` : ''}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </td>
                         );
                       })}
-                      <td className="px-3 py-3 text-center">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-[1.5px] border-slate-300 bg-transparent text-emerald-600 text-[12px] font-black">
-                          {row.balance}
-                        </span>
-                      </td>
                     </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -4083,7 +4109,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
         {showBalanceResetConfirm && ReactDOM.createPortal(
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
             dir="rtl"
             onClick={() => setShowBalanceResetConfirm(false)}
           >
@@ -4091,30 +4117,22 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
               onClick={e => e.stopPropagation()}
             >
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="text-amber-600 flex items-center justify-center">
-                    <AlertTriangle size={26} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-800">تأكيد إعادة ضبط الرصيد</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">يرجى مراجعة الإجراء قبل المتابعة</p>
-                  </div>
+              <div className="flex items-center gap-3 px-7 pt-7 pb-4">
+                <Trash2 size={24} className="text-rose-500 shrink-0" />
+                <div>
+                  <h3 className="font-black text-slate-800 text-base">إعادة ضبط رصيد الأسبوع</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">هذا الإجراء لا يمكن التراجع عنه</p>
                 </div>
-                <button onClick={() => setShowBalanceResetConfirm(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
-                  <X size={18} />
-                </button>
               </div>
-              <div className="px-6 py-5">
-                <p className="text-sm leading-7 font-medium text-slate-600">
-                  سيتم حذف النصاب المسند للمنتظرين من الرصيد الحالي وإعادة ضبط الرصيد المتبقي، مع حفظ سجل الإسناد لاستخدامه لاحقًا في تقارير الانتظار.
-                </p>
-              </div>
-              <div className="px-6 pb-6 flex gap-3">
+              <p className="px-7 pb-5 text-sm text-slate-600 font-medium leading-7">
+                سيُحذف كل ما هو <span className="font-black text-slate-800">مُسند</span> للمنتظرين في رصيد هذا الأسبوع ويعود الرصيد فارغًا للبدء من جديد.
+                <span className="block mt-2 text-[13px] text-slate-500">يبقى سجل الإسناد محفوظًا في <span className="font-black text-[#655ac1]">تقارير الانتظار</span> للرجوع إليه لاحقًا.</span>
+              </p>
+              <div className="flex gap-2 px-6 pb-6">
                 <button
                   type="button"
                   onClick={() => setShowBalanceResetConfirm(false)}
-                  className="flex-1 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl border border-slate-300 transition-colors"
+                  className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
                 >
                   إلغاء
                 </button>
@@ -4125,9 +4143,9 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     setShowBalanceResetConfirm(false);
                     showToast('تمت إعادة ضبط رصيد الانتظار مع حفظ سجل الإسناد للتقارير', 'success');
                   }}
-                  className="flex-1 px-4 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white text-sm font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 hover:scale-105 active:scale-95"
+                  className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
                 >
-                  تأكيد
+                  <RefreshCw size={15} /> نعم، إعادة الضبط
                 </button>
               </div>
             </div>
