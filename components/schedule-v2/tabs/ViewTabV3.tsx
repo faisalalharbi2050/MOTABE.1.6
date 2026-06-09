@@ -227,11 +227,11 @@ const AUDIENCE_LABELS: Record<SendAudience, string> = {
 };
 
 const ALLOWED_SEND_AUDIENCES: Record<ScheduleType, SendAudience[]> = {
-  individual_teacher: ['teachers', 'admins', 'teachers_admins'],
-  individual_class: ['teachers', 'admins', 'guardians'],
-  general_teachers: ['teachers', 'admins', 'teachers_admins'],
-  general_classes: ['teachers', 'admins', 'guardians'],
-  general_waiting: ['teachers', 'admins', 'teachers_admins'],
+  individual_teacher: ['teachers_admins'],
+  individual_class: ['teachers_admins', 'guardians'],
+  general_teachers: ['teachers_admins'],
+  general_classes: ['teachers_admins', 'guardians'],
+  general_waiting: ['teachers_admins'],
 };
 
 const DAY_LABELS: Record<string, string> = {
@@ -410,6 +410,7 @@ const MultiSelectDropdown: React.FC<{
   searchable?: boolean;
   minWidthClass?: string;
   dropdownPlacement?: 'auto' | 'top' | 'bottom';
+  hideSelectAll?: boolean;
 }> = ({
   label,
   buttonLabel,
@@ -422,6 +423,7 @@ const MultiSelectDropdown: React.FC<{
   searchable = false,
   minWidthClass = 'min-w-[260px]',
   dropdownPlacement = 'bottom',
+  hideSelectAll = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -470,17 +472,24 @@ const MultiSelectDropdown: React.FC<{
               />
             </div>
           )}
-          {(() => {
+          {!hideSelectAll && (() => {
             const allSelected = options.length > 0 && options.every(o => selectedValues.includes(o.value));
             const isClearMode = !onSelectAll || allSelected;
             return (
-              <button
-                type="button"
-                onClick={() => { if (isClearMode) { onClear(); } else { onSelectAll?.(); } }}
-                className="w-full px-4 py-2.5 mb-2 rounded-xl border border-slate-300 bg-white text-slate-500 text-xs font-black transition-all hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white"
-              >
-                {isClearMode ? 'إلغاء الكل' : 'اختيار الكل'}
-              </button>
+              <div className="mb-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => { if (isClearMode) { onClear(); } else { onSelectAll?.(); } }}
+                  disabled={options.length === 0}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                    options.length === 0
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                  }`}
+                >
+                  {isClearMode ? 'إلغاء الكل' : 'اختيار الكل'}
+                </button>
+              </div>
             );
           })()}
           <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
@@ -1156,7 +1165,7 @@ const ViewTabV3: React.FC<Props> = ({
     : ALLOWED_SEND_AUDIENCES[safeSendScheduleType][0];
 
   const allowedAudienceOptions = useMemo(
-    () => (['teachers', 'admins', 'teachers_admins', 'guardians'] as SendAudience[]).map(audience => ({
+    () => (['teachers_admins', 'guardians'] as SendAudience[]).map(audience => ({
       value: audience,
       label: AUDIENCE_LABELS[audience],
       disabled: !ALLOWED_SEND_AUDIENCES[safeSendScheduleType].includes(audience),

@@ -14,6 +14,7 @@ import { Admin, DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekA
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 import DutyReportPreview from '../../duty/DutyReportPreview';
+import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 
 const WhatsAppIcon: React.FC<{ size?: number }> = ({ size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -2759,127 +2760,17 @@ ${buildReportLink(target)}` : ''}`;
         document.body
       )}
 
-      {recipientsPreviewOpen && createPortal(
-        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-[78rem] h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <Users size={22} className="text-[#655ac1] shrink-0" />
-                <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
-              </div>
-              <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
-                className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1040px] table-fixed text-right whitespace-nowrap" dir="rtl">
-                  <thead>
-                    <tr className="bg-slate-50/50 border-b border-slate-100">
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[12%]">اليوم</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[16%]">التاريخ</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[22%]">المستلم</th>
-                      <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[22%]">نوع الإشعار</th>
-                      {sendMode === 'electronic' && (
-                        <>
-                          <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-right w-[16%]">الرابط</th>
-                          <th className="px-3 py-4 font-black text-[#655ac1] text-[12px] text-center w-[12%]">إجراءات</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {selectedRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={sendMode === 'electronic' ? 6 : 4} className="px-6 py-10 text-center text-sm font-bold text-slate-400">
-                          لم يتم اختيار مستلمين بعد.
-                        </td>
-                      </tr>
-                    ) : selectedRows.map(row => {
-                      const link = sendMode === 'electronic' ? buildSignatureLink(row) : '';
-                      const shouldStackAssignments = sendMode !== 'reminder' && row.assignments.length > 1;
-                      return (
-                        <tr key={row.key} className="hover:bg-[#f8f7ff] transition-all">
-                          <td className="px-3 py-3.5 text-center text-[12px] font-bold text-slate-700">
-                            {shouldStackAssignments ? (
-                              <div className="flex flex-col gap-1.5 whitespace-normal">
-                                {row.assignments.map(item => (
-                                  <span key={`${row.key}-day-${item.key}`} className="block px-2 py-1 text-[#655ac1] leading-tight">
-                                    {DAY_NAMES[item.day] || item.day}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="block truncate">{row.dayLabel}</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3.5 text-center">
-                            {shouldStackAssignments ? (
-                              <div className="flex flex-col gap-1.5 whitespace-normal">
-                                {row.assignments.map(item => (
-                                  <span key={`${row.key}-date-${item.key}`} className="block px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 leading-tight">
-                                    {formatHijriDate(item.date)}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span title={row.dateLabel} className="block max-w-full px-2 py-1 bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 truncate">
-                                {row.dateLabel}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3.5 min-w-0">
-                            <p className="font-black text-[12px] text-slate-800 truncate" title={row.staffName}>{row.staffName}</p>
-                            <p className="text-[10px] font-bold text-slate-400 truncate">المناوبة اليومية</p>
-                          </td>
-                          <td className="px-3 py-3.5 text-[12px] font-bold text-slate-700 truncate" title={notificationTypeLabel}>{notificationTypeLabel}</td>
-                          {sendMode === 'electronic' && (
-                            <>
-                              <td className="px-3 py-3.5 min-w-0">
-                                {link ? (
-                                  <div dir="ltr" title={link} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-500 truncate">
-                                    {link}
-                                  </div>
-                                ) : <span className="text-xs font-bold text-slate-400">بدون رابط</span>}
-                              </td>
-                              <td className="px-3 py-3.5">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  {link && (
-                                    <button type="button" onClick={() => { setPreviewRowKey(row.key); }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
-                                      <Eye size={12} />
-                                      عرض
-                                    </button>
-                                  )}
-                                  {link && (
-                                    <button type="button" onClick={() => copyToClipboard(link)}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all">
-                                      <Copy size={12} />
-                                      نسخ
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
-              <button type="button" onClick={() => setRecipientsPreviewOpen(false)}
-                className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors">
-                إغلاق
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <RecipientsPreviewModal
+        open={recipientsPreviewOpen}
+        onClose={() => setRecipientsPreviewOpen(false)}
+        recipients={selectedRows.map(row => ({
+          id: row.key,
+          name: row.staffName,
+          subtitle: row.staffType,
+          role: row.staffTypeKey,
+          phone: row.phone || undefined,
+        }))}
+      />
 
       {showSendResultsModal && sendResults.length > 0 && createPortal(
         <div
