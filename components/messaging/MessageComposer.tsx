@@ -183,6 +183,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSelectedModal, setShowSelectedModal] = useState(false);
+  const [selectedSearch, setSelectedSearch] = useState('');
+  const [modalFilter, setModalFilter] = useState<'all' | 'teacher' | 'admin' | 'guardian' | 'nophone'>('all');
   const [draftMeta, setDraftMeta] = useState<{ source?: MessageSource; senderRole?: string; title?: string; linksByRecipientId?: Record<string, string>; previewUrlByRecipientId?: Record<string, string> } | null>(null);
 
   // Reset selection when switching recipient group (enforces staff/parents exclusivity)
@@ -318,6 +320,32 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     () => groupItems.filter(item => selectedIds.has(item.id)),
     [groupItems, selectedIds]
   );
+
+  // Aggregate summary for the preview modal (scales to thousands)
+  const selectedSummary = useMemo(() => {
+    let teacher = 0, admin = 0, guardian = 0, noPhone = 0;
+    for (const r of selectedRecipients) {
+      if (r.role === 'teacher') teacher++;
+      else if (r.role === 'admin') admin++;
+      else if (r.role === 'guardian') guardian++;
+      if (!r.phone) noPhone++;
+    }
+    return { teacher, admin, guardian, noPhone };
+  }, [selectedRecipients]);
+
+  // Searchable + capped list so the modal stays fast with large selections
+  const MODAL_RENDER_CAP = 100;
+  const filteredSelected = useMemo(() => {
+    const q = selectedSearch.trim().toLowerCase();
+    return selectedRecipients.filter(r => {
+      if (modalFilter === 'teacher' && r.role !== 'teacher') return false;
+      if (modalFilter === 'admin' && r.role !== 'admin') return false;
+      if (modalFilter === 'guardian' && r.role !== 'guardian') return false;
+      if (modalFilter === 'nophone' && r.phone) return false;
+      if (q && !(r.name.toLowerCase().includes(q) || r.phone.includes(q))) return false;
+      return true;
+    });
+  }, [selectedRecipients, selectedSearch, modalFilter]);
 
   // Unified select-all toggle — operates on the currently visible (filtered) list
   const allDisplayedSelected = displayItems.length > 0 && displayItems.every(item => selectedIds.has(item.id));
@@ -791,24 +819,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       {/* ══ Left Column: Settings + Composer ══ */}
       <div className="space-y-6">
 
-        {/* ── Selected Recipients Preview (opens modal) ── */}
-        {selectedRecipients.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowSelectedModal(true)}
-            className="w-full flex items-center justify-between gap-2 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-[#655ac1] transition-colors"
-          >
-            <span className="flex items-center gap-2 text-sm font-black text-[#1e293b]">
-              <Users className="text-[#655ac1]" size={18} />
-              معاينة المستلمين المحددين
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 font-bold text-slate-600">{selectedRecipients.length}</span>
-              <Eye size={16} className="text-[#655ac1]" />
-            </span>
-          </button>
-        )}
-
         {/* ── Channel Settings Card ── */}
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
           <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2 mb-4">
@@ -901,6 +911,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               </label>
             )}
           </div>
+        </div>
+
+        {/* ── Recipients Preview Card (permanent) ── */}
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
+          <div className="flex items-center gap-3 mb-4">
+            <Eye size={20} className="text-[#655ac1]" />
+            <h3 className="text-lg font-black text-[#1e293b]">معاينة</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setSelectedSearch(''); setModalFilter('all'); setShowSelectedModal(true); }}
+            disabled={selectedRecipients.length === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Users size={15} /> معاينة المستلمين
+          </button>
         </div>
 
         {/* ── Message Composer Card ── */}
@@ -1101,60 +1127,100 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       {showSelectedModal && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[220] flex items-center justify-center p-4" onClick={() => setShowSelectedModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[82vh] border border-slate-200" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="font-black text-slate-800 flex items-center gap-2">
-                <Users className="text-[#655ac1]" size={20} />
-                المستلمون المحددون ({selectedRecipients.length})
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white shrink-0">
+              <h3 className="font-black text-slate-800 flex items-center gap-3 min-w-0">
+                <Users className="text-[#655ac1] shrink-0" size={22} />
+                معاينة المستلمين
               </h3>
-              <button onClick={() => setShowSelectedModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <X size={20} className="text-slate-500" />
+              <button onClick={() => setShowSelectedModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors">
+                <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {/* Summary strip — clickable filters (scales to thousands) */}
+            {selectedRecipients.length > 0 && (() => {
+              const chipBase = 'px-4 py-2.5 rounded-xl border text-sm font-bold transition-all';
+              const chipFor = (id: typeof modalFilter) =>
+                modalFilter === id
+                  ? `${chipBase} border-[#655ac1] text-[#655ac1] bg-[#f3f0ff]`
+                  : `${chipBase} border-slate-200 text-slate-600 bg-white hover:border-[#655ac1] hover:text-[#655ac1]`;
+              return (
+                <div className="px-6 pt-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => setModalFilter('all')} className={chipFor('all')}>الإجمالي {selectedRecipients.length}</button>
+                    {selectedSummary.teacher > 0 && <button type="button" onClick={() => setModalFilter('teacher')} className={chipFor('teacher')}>معلمون {selectedSummary.teacher}</button>}
+                    {selectedSummary.admin > 0 && <button type="button" onClick={() => setModalFilter('admin')} className={chipFor('admin')}>إداريون {selectedSummary.admin}</button>}
+                    {selectedSummary.guardian > 0 && <button type="button" onClick={() => setModalFilter('guardian')} className={chipFor('guardian')}>أولياء أمور {selectedSummary.guardian}</button>}
+                    {selectedSummary.noPhone > 0 && <button type="button" onClick={() => setModalFilter('nophone')} className={chipFor('nophone')}>بلا جوال {selectedSummary.noPhone}</button>}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Search inside modal */}
+            {selectedRecipients.length > 0 && (
+              <div className="px-6 pt-3">
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="بحث بالاسم أو الجوال..."
+                    value={selectedSearch}
+                    onChange={e => setSelectedSearch(e.target.value)}
+                    className="w-full border-2 border-slate-200 rounded-xl pr-10 pl-4 py-2.5 outline-none focus:border-[#655ac1] text-sm font-bold text-slate-600 transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
               {selectedRecipients.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <Users size={40} className="mb-3 opacity-50" />
                   <p className="font-bold text-sm">لم تحدد أي مستلم بعد</p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {selectedRecipients.map(rec => (
-                    <div key={rec.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                      <div className="min-w-0">
-                        <div className="font-bold text-slate-800 text-sm">{rec.name}</div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-[11px] font-bold text-slate-400">{rec.subtitle}</span>
-                          {rec.classLabel && <span className="text-[11px] font-bold text-slate-400">— {rec.classLabel}</span>}
-                          {rec.phone ? (
-                            <span className="flex items-center gap-1">
-                              <Smartphone size={13} className="text-[#655ac1]" />
-                              <span className="text-[13px] text-slate-500" dir="ltr">{rec.phone}</span>
-                            </span>
-                          ) : (
-                            <span className="text-xs text-rose-500 font-bold">لا يوجد رقم</span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleSelection(rec.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition-colors shrink-0"
-                      >
-                        <X size={13} strokeWidth={3} /> إزالة
-                      </button>
-                    </div>
-                  ))}
+              ) : filteredSelected.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <Search size={36} className="mb-3 opacity-50" />
+                  <p className="font-bold text-sm">لا نتائج مطابقة للبحث</p>
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    {filteredSelected.slice(0, MODAL_RENDER_CAP).map(rec => (
+                      <div key={rec.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-800 text-sm">{rec.name}</div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-400">{rec.subtitle}</span>
+                            {rec.classLabel && <span className="text-[11px] font-bold text-slate-400">— {rec.classLabel}</span>}
+                            {rec.phone ? (
+                              <span className="flex items-center gap-1">
+                                <Smartphone size={13} className="text-[#655ac1]" />
+                                <span className="text-[13px] font-bold text-[#655ac1]" dir="ltr">{rec.phone}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-rose-500 font-bold">لا يوجد رقم</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleSelection(rec.id)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition-colors shrink-0"
+                        >
+                          <X size={13} strokeWidth={3} /> إزالة
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {filteredSelected.length > MODAL_RENDER_CAP && (
+                    <p className="mt-3 text-center text-[11px] font-bold text-slate-400">
+                      يُعرض {MODAL_RENDER_CAP} من {filteredSelected.length} — استخدم البحث للوصول لبقية المستلمين.
+                    </p>
+                  )}
+                </>
               )}
             </div>
-            {selectedRecipients.some(r => !r.phone) && (
-              <div className="px-4 py-3 border-t border-slate-100 bg-rose-50/60">
-                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5">
-                  <AlertCircle size={13} />
-                  المستلمون بلا رقم جوال لن تصلهم الرسالة.
-                </p>
-              </div>
-            )}
             <div className="flex justify-end border-t border-slate-100 bg-white p-4">
               <button type="button" onClick={() => setShowSelectedModal(false)} className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">
                 إغلاق
