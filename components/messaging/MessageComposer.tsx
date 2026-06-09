@@ -324,6 +324,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   // Unified select-all toggle — operates on the currently visible (filtered) list
   const allDisplayedSelected = displayItems.length > 0 && displayItems.every(item => selectedIds.has(item.id));
   const toggleSelectAll = () => { if (allDisplayedSelected) deselectAll(); else selectAll(); };
+  const recipientCountLabel = useMemo(() => {
+    if (recipientMode === 'staff') {
+      if (staffRole === 'teacher') return 'المعلمون';
+      if (staffRole === 'admin') return 'الإداريون';
+      return 'الكل';
+    }
+    if (selectedClassId !== 'all') {
+      const selectedClass = activeClasses.find(item => item.id === selectedClassId);
+      return selectedClass ? (selectedClass.name || `${selectedClass.grade}/${selectedClass.section}`) : 'أولياء الأمور';
+    }
+    return 'أولياء الأمور';
+  }, [activeClasses, recipientMode, selectedClassId, staffRole]);
 
   // ── Balance ──────────────────────────────────────────────────────────────
   const freeBalance = channel === 'whatsapp' ? subscription.freeWaRemaining : subscription.freeSmsRemaining;
@@ -769,7 +781,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-4 shrink-0">
           {groupItems.length > 0 ? (
             <span className="text-sm px-3 py-1 rounded-xl border border-slate-200 bg-transparent font-bold text-slate-600">
-              {displayItems.length}
+              {recipientCountLabel}: {displayItems.length}
             </span>
           ) : (
             <span />
