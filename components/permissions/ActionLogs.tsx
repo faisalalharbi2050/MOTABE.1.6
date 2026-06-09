@@ -635,7 +635,7 @@ export default function ActionLogs({ schoolInfo }: Props) {
 function EmptyState({ hasLogs }: { hasLogs: boolean }) {
   return (
     <div className="text-center">
-      <AlertCircle size={32} className="mx-auto mb-3 text-[#655ac1] opacity-40" />
+      <AlertCircle size={32} className={`mx-auto mb-3 ${hasLogs ? 'text-[#655ac1] opacity-40' : 'text-slate-300'}`} />
       {hasLogs ? (
         <>
           <p className="font-bold text-slate-600">لا توجد نتائج مطابقة</p>
