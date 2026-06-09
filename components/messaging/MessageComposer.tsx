@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import {
   Send, Users, AlertCircle, Paperclip, Check, X,
   MessageSquare, Plus, Search, ChevronDown, ChevronLeft,
-  Clock, Eye, CalendarClock, Smartphone
+  Clock, Eye, CalendarClock, Smartphone, GraduationCap
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
@@ -714,7 +714,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 recipientMode === 'parents' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <Users size={16} /> أولياء الأمور
+              <GraduationCap size={16} /> أولياء الأمور
             </button>
           </div>
 
