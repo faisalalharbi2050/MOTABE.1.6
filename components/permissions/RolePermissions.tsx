@@ -76,7 +76,7 @@ const StatCard = ({
       <Icon size={22} className={`mt-0.5 shrink-0 ${tones[tone]}`} />
       <div className="min-w-0">
         <p className="text-xs font-bold text-slate-500">{label}</p>
-        <p className="mt-1 text-3xl font-black text-slate-800">{value}</p>
+        <p className="mt-1 text-2xl font-black text-slate-800">{value}</p>
       </div>
     </div>
   );
