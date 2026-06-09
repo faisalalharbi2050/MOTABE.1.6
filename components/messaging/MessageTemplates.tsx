@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Plus, Edit3, Trash2, LayoutTemplate, CheckCircle2, AlertTriangle, X, ChevronDown, Check } from 'lucide-react';
+import { Plus, Edit3, Trash2, LayoutTemplate, CheckCircle2, X, ChevronDown, Check } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
+import MessageToast from './MessageToast';
 
 const PREDEFINED_CATEGORIES = ['غياب طالب', 'تأخر طالب', 'مخالفة سلوكية', 'تعميم', 'أخرى'];
 type TemplateForm = { title: string; content: string; category: string };
@@ -163,20 +164,8 @@ const MessageTemplates: React.FC = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
 
-      {/* ── Toast Notification ── */}
-      {toast && (
-        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-lg border text-sm font-bold transition-all animate-fade-in ${
-          toast.type === 'error'
-            ? 'bg-red-50 border-red-200 text-red-700'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-        }`}>
-          {toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
-          {toast.message}
-          <button onClick={() => setToast(null)} className="mr-2 opacity-60 hover:opacity-100 transition-opacity">
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {/* ── Toast Notification (unified) ── */}
+      <MessageToast toast={toast} onClose={() => setToast(null)} />
 
       {/* ── Confirm Delete Modal ── */}
       {confirmDelete && typeof document !== 'undefined' && ReactDOM.createPortal(
@@ -212,7 +201,7 @@ const MessageTemplates: React.FC = () => {
 
       {/* Templates List */}
       <div className="lg:col-span-2 space-y-4">
-        <h3 className="text-lg font-bold text-[#1e293b] flex items-center gap-2 mb-2">
+        <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2 mb-2">
            <LayoutTemplate className="text-[#655ac1]" size={20} />
            القوالب المتوفرة
         </h3>
@@ -293,8 +282,8 @@ const MessageTemplates: React.FC = () => {
       </div>
 
       {/* Form Editor */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit sticky top-6">
-        <h3 className="text-lg font-bold text-[#1e293b] mb-6 flex items-center gap-2 pb-4 border-b border-slate-100">
+      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 h-fit sticky top-6">
+        <h3 className="text-lg font-black text-[#1e293b] mb-6 flex items-center gap-2 pb-4 border-b border-slate-100">
            <Plus className="text-[#655ac1]" size={20} />
            إضافة قالب جديد
         </h3>
@@ -308,7 +297,7 @@ const MessageTemplates: React.FC = () => {
                  value={formData.title}
                  onChange={e => setFormData({ ...formData, title: e.target.value })}
                  placeholder="مثال: تبليغ غياب..."
-                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1]"
+                 className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1]"
               />
            </div>
 
@@ -334,7 +323,7 @@ const MessageTemplates: React.FC = () => {
                  value={customCategory}
                  onChange={e => setCustomCategory(e.target.value)}
                  placeholder="اكتب عنوان التصنيف..."
-                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1]"
+                 className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1]"
                />
              </div>
            )}
@@ -345,7 +334,7 @@ const MessageTemplates: React.FC = () => {
                  value={formData.content}
                  onChange={e => setFormData({ ...formData, content: e.target.value })}
                  placeholder="اكتب المحتوى هنا... يمكنك استخدام {اسم_الطالب}, {اليوم}, {التاريخ}"
-                 className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1] resize-none"
+                 className="w-full h-32 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#655ac1] resize-none"
                  dir="rtl"
               />
            </div>

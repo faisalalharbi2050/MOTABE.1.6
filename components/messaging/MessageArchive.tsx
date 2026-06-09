@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Search, Printer, AlertTriangle, CheckCircle2, Calendar, Users, Eye, X, Download, Settings, Archive, Info, Check, ChevronDown, MessageSquare } from 'lucide-react';
+import { Search, Printer, AlertTriangle, CheckCircle2, Calendar, Users, Eye, X, Download, Settings, Archive, Check, ChevronDown, MessageSquare } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
+import MessageToast from './MessageToast';
 import { CentralMessage, MessageRole, MessageSource } from '../../types';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
@@ -491,21 +492,9 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName, calendarTyp
   return (
     <div className="space-y-5">
 
-      {/* ── Toast Notification ── */}
-      {toast && (
-        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-lg border text-sm font-bold transition-all animate-fade-in ${
-          toast.type === 'error' ? 'bg-red-50 border-red-200 text-red-700'
-          : toast.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-700'
-          : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-        }`}>
-          {toast.type === 'error' ? <AlertTriangle size={18} /> : toast.type === 'info' ? <Info size={18} /> : <CheckCircle2 size={18} />}
-          {toast.message}
-          <button onClick={() => setToast(null)} className="mr-2 opacity-60 hover:opacity-100 transition-opacity">
-            <X size={16} />
-          </button>
-        </div>
-      )}
-      
+      {/* ── Toast Notification (unified) ── */}
+      <MessageToast toast={toast} onClose={() => setToast(null)} />
+
       {/* 1. Advanced Search Card */}
       <div className="space-y-5">
         
@@ -616,7 +605,7 @@ const MessageArchive: React.FC<MessageArchiveProps> = ({ schoolName, calendarTyp
                    placeholder="البحث النصي: (الاسم، محتوى الرسالة، رقم الجوال)..."
                    value={searchQuery}
                    onChange={e => setSearchQuery(e.target.value)}
-                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pr-12 pl-4 text-sm font-medium outline-none shadow-sm focus:border-[#655ac1]"
+                   className="w-full bg-white border-2 border-slate-200 rounded-xl py-3 pr-12 pl-4 text-sm font-medium outline-none shadow-sm focus:border-[#655ac1]"
                  />
               </div>
               {/* Buttons */}

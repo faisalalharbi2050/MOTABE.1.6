@@ -122,10 +122,10 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Unified Channels Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col self-start">
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col self-start">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
             <Send size={20} className="text-[#655ac1] shrink-0" />
-            <h3 className="text-sm font-bold text-slate-800">قنوات الرسائل</h3>
+            <h3 className="text-sm font-black text-[#1e293b]">قنوات الرسائل</h3>
           </div>
 
           <div className="flex flex-col gap-5">
@@ -197,14 +197,14 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
         </div>
 
         {/* Consumption Chart */}
-        <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="lg:col-span-2 bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
 
           {/* Card header */}
           <div className="mb-5 pb-4 border-b border-slate-100 space-y-3">
 
             {/* Row 1: Title + Legend */}
             <div className="flex flex-wrap justify-between items-center gap-3">
-              <h3 className="text-sm font-bold text-[#1e293b] flex items-center gap-2">
+              <h3 className="text-sm font-black text-[#1e293b] flex items-center gap-2">
                 <Activity className="text-[#8779fb]" size={20} />
                 الاستهلاك
               </h3>

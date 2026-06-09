@@ -40,10 +40,10 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
   }, []);
 
   const tabs = [
-    { id: 'compose',   label: 'إرسال رسالة',    icon: MessageSquare },
-    { id: 'templates', label: 'قوالب الرسائل',  icon: LayoutTemplate },
-    { id: 'archive',   label: 'أرشيف الرسائل',  icon: Archive        },
-    { id: 'dashboard', label: 'إحصائية الرسائل', icon: BarChart3      },
+    { id: 'compose',   label: 'إرسال رسالة',    hint: 'اختر المستلم ثم أرسل', icon: MessageSquare  },
+    { id: 'templates', label: 'قوالب الرسائل',  hint: 'قوالب جاهزة ومرنة',    icon: LayoutTemplate },
+    { id: 'archive',   label: 'أرشيف الرسائل',  hint: 'مرجع الرسائل المرسلة',  icon: Archive        },
+    { id: 'dashboard', label: 'إحصائية الرسائل', hint: 'الرصيد والاستهلاك',     icon: BarChart3      },
   ] as const;
 
   return (
@@ -62,22 +62,53 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
         </div>
       </div>
 
-      {/* Main Tabs */}
-      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex gap-2 overflow-x-auto custom-scrollbar">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all flex-1 justify-center ${
-              activeTab === tab.id
-                ? 'bg-[#655ac1] text-white shadow-md shadow-indigo-200'
-                : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <tab.icon size={18} />
-            {tab.label}
-          </button>
-        ))}
+      {/* Main Navigation — Stepper style (unified with sibling section pages) */}
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-200">
+        <div className="flex items-stretch gap-3 overflow-x-auto custom-scrollbar">
+          {tabs.map((tab, i) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <React.Fragment key={tab.id}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className="group min-w-[176px] flex-1 rounded-2xl px-1.5 text-right transition-all hover:bg-slate-50"
+                >
+                  <span className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all ${
+                    isActive
+                      ? 'bg-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
+                      : 'text-slate-700'
+                  }`}>
+                    <span className="shrink-0">
+                      <span className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${
+                        isActive ? 'bg-white border-white' : 'bg-transparent border-slate-200 group-hover:border-[#655ac1]/30'
+                      }`}>
+                        <tab.icon size={17} className="text-[#655ac1]" />
+                      </span>
+                    </span>
+                    <span className="min-w-0">
+                      <span className={`block font-black text-sm leading-tight ${
+                        isActive ? 'text-white' : 'text-slate-800'
+                      }`}>
+                        {tab.label}
+                      </span>
+                      <span className={`block text-[11px] font-bold mt-0.5 truncate ${
+                        isActive ? 'text-white/80' : 'text-slate-400'
+                      }`}>
+                        {tab.hint}
+                      </span>
+                    </span>
+                  </span>
+                </button>
+                {i < tabs.length - 1 && (
+                  <div className="flex items-center shrink-0" aria-hidden="true">
+                    <span className="h-9 w-px rounded-full bg-gradient-to-b from-transparent via-slate-200 to-transparent" />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tab Content */}
