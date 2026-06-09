@@ -284,10 +284,10 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, sch
     id: StageId; n: number; label: string; hint: string;
     icon: React.ComponentType<any>; complete: boolean;
   }> = [
-    { id: 'build', n: 1, label: 'المفوّض وصلاحياته', hint: 'اختر الموظف وحدّد وصوله', icon: UserPlus, complete: buildComplete },
+    { id: 'build', n: 1, label: 'المفوّض وصلاحياته', hint: 'اختر الموظف ، وحدّد صلاحياته.', icon: UserPlus, complete: buildComplete },
     { id: 'activate', n: 2, label: 'التفعيل والمشاركة', hint: 'إصدار رمز ومشاركته', icon: KeyRound, complete: false },
-    { id: 'manage', n: 3, label: 'إدارة المفوضين', hint: 'تعديل وإيقاف وحذف', icon: Users, complete: false },
-    { id: 'logs', n: 4, label: 'سجل الإجراءات', hint: 'تتبّع كل عملية', icon: ClipboardList, complete: false },
+    { id: 'manage', n: 3, label: 'إدارة المفوضين', hint: 'تعديل - تعطيل - حذف المفوّض', icon: Users, complete: false },
+    { id: 'logs', n: 4, label: 'سجل الإجراءات', hint: 'تابع العمليات المنفذّة', icon: ClipboardList, complete: false },
   ];
 
   return (
@@ -364,7 +364,7 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, sch
                 اختيار المفوّض وصلاحياته
               </h3>
               <p className="mt-1 text-sm font-medium text-slate-400">
-                اختر الموظف المسجّل ، وحدّد صلاحياته.
+                اختر الموظف ، وحدّد صلاحياته.
               </p>
             </div>
 
@@ -629,7 +629,7 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, sch
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {pendingDelegates.map((delegate) => {
                   const isFull = isFullPermissions(delegate.customPermissions) || delegate.role === 'delegate_full';
                   return (
@@ -660,7 +660,7 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, sch
                               <p className="mt-1 text-3xl font-black tracking-[0.3em] text-[#655ac1]">{delegate.otp}</p>
                             </div>
                           </div>
-                          <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                             <button
                               onClick={() => handleSendActivation(delegate)}
                               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-[#655ac1] hover:text-[#655ac1]"

@@ -294,13 +294,6 @@ export default function ManageDelegates({ onDelegatesChange, admins = [] }: Mana
                       </td>
                       <td className="px-3 py-3.5">
                         <p className="truncate font-bold text-slate-700">{delegate.name}</p>
-                        <p className="mt-0.5 truncate text-xs text-slate-400">
-                          {delegate.isPendingSetup
-                            ? 'بانتظار إكمال التفعيل'
-                            : delegate.isActive
-                            ? 'جاهز للاستخدام'
-                            : 'الحساب موقوف حاليًا'}
-                        </p>
                       </td>
                       <td className="px-3 py-3.5 text-center text-sm font-medium text-slate-600">
                         {title}
@@ -364,7 +357,7 @@ export default function ManageDelegates({ onDelegatesChange, admins = [] }: Mana
 
               {delegate.isPendingSetup ? (
                 <button onClick={() => { setRegenerateConfirmId(delegate.id); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
-                  <span className={`${iconWrap} text-[#655ac1]`}><RefreshCw size={15} /></span>
+                  <span className={`${iconWrap} text-slate-500`}><RefreshCw size={15} /></span>
                   <span className="flex-1 transition-colors group-hover:text-[#655ac1]">إعادة إصدار الرمز</span>                </button>
               ) : (
                 <button onClick={() => { setResetConfirmId(delegate.id); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
@@ -373,8 +366,8 @@ export default function ManageDelegates({ onDelegatesChange, admins = [] }: Mana
               )}
 
               <button onClick={() => { setToggleConfirm({ id: delegate.id, current: delegate.isActive }); setActionMenu(null); }} className={`${itemBase} text-slate-700 hover:bg-slate-50`}>
-                <span className={`${iconWrap} ${delegate.isActive ? 'text-rose-500' : 'text-emerald-500'}`}><Power size={15} /></span>
-                <span className="flex-1 transition-colors group-hover:text-[#655ac1]">{delegate.isActive ? 'إيقاف الحساب' : 'تفعيل الحساب'}</span>
+                <span className={`${iconWrap} text-slate-500`}><Power size={15} /></span>
+                <span className="flex-1 transition-colors group-hover:text-[#655ac1]">{delegate.isActive ? 'تعطيل الحساب' : 'تفعيل الحساب'}</span>
               </button>
 
               <div className="my-1 border-t border-slate-100" />
