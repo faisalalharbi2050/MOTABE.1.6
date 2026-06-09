@@ -4918,22 +4918,32 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       <button
                         type="button"
                         onClick={() => setSendPreferredChannel('whatsapp')}
-                        className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${sendPreferredChannel === 'whatsapp' ? 'border-[#25D366] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
+                        className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${sendPreferredChannel === 'whatsapp' ? 'border-slate-200 bg-slate-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
                       >
                         <span className={sendPreferredChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-300'}>
-                          <WhatsAppIcon size={28} />
+                          <WhatsAppIcon size={24} />
                         </span>
-                        <span className={`font-black mt-2 text-sm ${sendPreferredChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-400'}`}>واتساب</span>
+                        <span className={`font-black text-sm ${sendPreferredChannel === 'whatsapp' ? 'text-[#1d9e4b]' : 'text-slate-400'}`}>واتساب</span>
+                        {sendPreferredChannel === 'whatsapp' && (
+                          <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white shadow-sm">
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        )}
                       </button>
                       <button
                         type="button"
                         onClick={() => setSendPreferredChannel('sms')}
-                        className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${sendPreferredChannel === 'sms' ? 'border-[#007AFF] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
+                        className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${sendPreferredChannel === 'sms' ? 'border-slate-200 bg-slate-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
                       >
                         <span className={sendPreferredChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'}>
-                          <MessageSquare size={28} />
+                          <MessageSquare size={24} />
                         </span>
-                        <span className={`font-black mt-2 text-sm ${sendPreferredChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-400'}`}>النصية SMS</span>
+                        <span className={`font-black text-sm ${sendPreferredChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-400'}`}>النصية SMS</span>
+                        {sendPreferredChannel === 'sms' && (
+                          <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#007AFF] text-white shadow-sm">
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -6928,13 +6938,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setSendPreferredChannel('whatsapp')} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-black transition-all ${sendPreferredChannel === 'whatsapp' ? 'border-[#25D366] bg-[#25D366]/10 text-[#128C7E]' : 'border-slate-100 text-slate-500 hover:border-[#25D366]/30'}`}>
-                      <WhatsAppIcon size={24} />
+                    <button type="button" onClick={() => setSendPreferredChannel('whatsapp')} className={`relative flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-black bg-white transition-all ${sendPreferredChannel === 'whatsapp' ? 'border-slate-200 bg-slate-50 text-[#1d9e4b]' : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'}`}>
+                      <span className={sendPreferredChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-300'}>
+                        <WhatsAppIcon size={24} />
+                      </span>
                       واتساب
+                      {sendPreferredChannel === 'whatsapp' && (
+                        <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white shadow-sm">
+                          <Check size={12} strokeWidth={3.5} />
+                        </span>
+                      )}
                     </button>
-                    <button type="button" onClick={() => setSendPreferredChannel('sms')} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 text-sm font-black transition-all ${sendPreferredChannel === 'sms' ? 'border-[#007AFF] bg-[#007AFF]/10 text-[#007AFF]' : 'border-slate-100 text-slate-500 hover:border-[#007AFF]/30'}`}>
-                      <Send size={22} />
+                    <button type="button" onClick={() => setSendPreferredChannel('sms')} className={`relative flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-black bg-white transition-all ${sendPreferredChannel === 'sms' ? 'border-slate-200 bg-slate-50 text-[#007AFF]' : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'}`}>
+                      <Send size={22} className={sendPreferredChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'} />
                       SMS
+                      {sendPreferredChannel === 'sms' && (
+                        <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#007AFF] text-white shadow-sm">
+                          <Check size={12} strokeWidth={3.5} />
+                        </span>
+                      )}
                     </button>
                   </div>
                   <button type="button" onClick={() => sendWaitingBulk()} disabled={selectedSendRows.length === 0} className="w-full flex items-center justify-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">

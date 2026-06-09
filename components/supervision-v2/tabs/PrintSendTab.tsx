@@ -1877,20 +1877,30 @@ const PrintSendTab: React.FC<Props> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <button type="button" onClick={() => setSendChannel('whatsapp')}
-                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${
-                      sendChannel === 'whatsapp' ? 'border-[#25D366] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'
+                    className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${
+                      sendChannel === 'whatsapp' ? 'border-slate-200 bg-slate-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}>
                     <span className={sendChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-300'}>
-                      <WhatsAppIcon size={28} />
+                      <WhatsAppIcon size={24} />
                     </span>
-                    <span className={`font-black mt-2 text-sm ${sendChannel === 'whatsapp' ? 'text-[#25D366]' : 'text-slate-400'}`}>واتساب</span>
+                    <span className={`font-black text-sm ${sendChannel === 'whatsapp' ? 'text-[#1d9e4b]' : 'text-slate-400'}`}>واتساب</span>
+                    {sendChannel === 'whatsapp' && (
+                      <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white shadow-sm">
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    )}
                   </button>
                   <button type="button" onClick={() => setSendChannel('sms')}
-                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${
-                      sendChannel === 'sms' ? 'border-[#007AFF] bg-white shadow-sm' : 'border-slate-100 hover:border-slate-200'
+                    className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${
+                      sendChannel === 'sms' ? 'border-slate-200 bg-slate-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                     }`}>
-                    <MessageSquare size={28} className={sendChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'} />
-                    <span className={`font-black mt-2 text-sm ${sendChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-400'}`}>النصية SMS</span>
+                    <MessageSquare size={24} className={`shrink-0 ${sendChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'}`} />
+                    <span className={`font-black text-sm ${sendChannel === 'sms' ? 'text-[#007AFF]' : 'text-slate-400'}`}>النصية SMS</span>
+                    {sendChannel === 'sms' && (
+                      <span className="absolute top-2 left-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#007AFF] text-white shadow-sm">
+                        <Check size={12} strokeWidth={3.5} />
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
