@@ -685,16 +685,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
       {/* ══ Right Column: Recipients ══ */}
       <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col z-0">
-        <h3 className="text-lg font-black shrink-0 text-[#1e293b] mb-6 flex items-center justify-between">
+        <h3 className="text-lg font-black shrink-0 text-[#1e293b] mb-6 flex items-center justify-start">
           <div className="flex items-center gap-2">
             <Users className="text-[#655ac1]" size={20} />
             اختر المستلمين
           </div>
-          {groupItems.length > 0 && (
-            <span className="text-sm px-3 py-1 rounded-xl border border-slate-200 bg-transparent font-bold text-slate-600">
-              {displayItems.length}
-            </span>
-          )}
         </h3>
 
         <div className="space-y-4 mb-4 shrink-0">
@@ -707,7 +702,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 recipientMode === 'staff' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <Users size={16} /> الموظفون
+              الموظفون
             </button>
             <button
               type="button"
@@ -716,7 +711,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 recipientMode === 'parents' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <GraduationCap size={16} /> أولياء الأمور
+              أولياء الأمور
             </button>
           </div>
 
@@ -771,7 +766,14 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
 
         {/* Single neutral select-all toggle (grey border, purple on hover) */}
-        <div className="flex items-center justify-end gap-2 mb-4 border-b border-slate-100 pb-4 shrink-0">
+        <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-4 shrink-0">
+          {groupItems.length > 0 ? (
+            <span className="text-sm px-3 py-1 rounded-xl border border-slate-200 bg-transparent font-bold text-slate-600">
+              {displayItems.length}
+            </span>
+          ) : (
+            <span />
+          )}
           <button
             onClick={toggleSelectAll}
             disabled={displayItems.length === 0}

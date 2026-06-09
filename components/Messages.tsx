@@ -40,7 +40,7 @@ const Messages: React.FC<MessagesProps> = ({ subscription, setSubscription, init
   }, []);
 
   const tabs = [
-    { id: 'compose',   label: 'إرسال رسالة',    hint: 'اختر المستلم ثم أرسل', icon: MessageSquare  },
+    { id: 'compose',   label: 'إرسال رسالة',    hint: 'اختر المستلمين ثم أرسل رسالتك', icon: MessageSquare  },
     { id: 'templates', label: 'قوالب الرسائل',  hint: 'قوالب جاهزة ومرنة',    icon: LayoutTemplate },
     { id: 'archive',   label: 'أرشيف الرسائل',  hint: 'مرجع الرسائل المرسلة',  icon: Archive        },
     { id: 'dashboard', label: 'إحصائية الرسائل', hint: 'الرصيد والاستهلاك',     icon: BarChart3      },

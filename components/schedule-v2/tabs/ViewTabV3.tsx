@@ -27,6 +27,7 @@ import {
   FileSpreadsheet,
   Search,
   ChevronDown,
+  ChevronLeft,
   Check,
   SlidersHorizontal,
   Archive,
@@ -37,6 +38,7 @@ import {
   X,
   RefreshCw,
   Wallet,
+  Smartphone,
 } from 'lucide-react';
 import {
   SchoolInfo,
@@ -231,7 +233,7 @@ const ALLOWED_SEND_AUDIENCES: Record<ScheduleType, SendAudience[]> = {
   individual_teacher: ['teachers', 'admins', 'teachers_admins'],
   individual_class: ['teachers', 'admins', 'teachers_admins', 'guardians'],
   general_teachers: ['teachers', 'admins', 'teachers_admins'],
-  general_classes: ['teachers', 'admins', 'teachers_admins', 'guardians'],
+  general_classes: ['teachers', 'admins', 'teachers_admins'],
   general_waiting: ['teachers', 'admins', 'teachers_admins'],
 };
 
@@ -412,6 +414,7 @@ const MultiSelectDropdown: React.FC<{
   minWidthClass?: string;
   dropdownPlacement?: 'auto' | 'top' | 'bottom';
   hideSelectAll?: boolean;
+  closeOnToggle?: boolean;
 }> = ({
   label,
   buttonLabel,
@@ -425,6 +428,7 @@ const MultiSelectDropdown: React.FC<{
   minWidthClass = 'min-w-[260px]',
   dropdownPlacement = 'bottom',
   hideSelectAll = false,
+  closeOnToggle = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -501,7 +505,11 @@ const MultiSelectDropdown: React.FC<{
                   key={option.value}
                   type="button"
                   disabled={option.disabled}
-                  onClick={() => { if (!option.disabled) onToggle(option.value); }}
+                  onClick={() => {
+                    if (option.disabled) return;
+                    onToggle(option.value);
+                    if (closeOnToggle) setOpen(false);
+                  }}
                   className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
                     option.disabled
                       ? 'bg-slate-50/70 text-slate-300 cursor-not-allowed'
@@ -1062,6 +1070,8 @@ const ViewTabV3: React.FC<Props> = ({
   const [selectedSendTeacherIds, setSelectedSendTeacherIds] = useState<string[]>([]);
   const [selectedSendAdminIds, setSelectedSendAdminIds] = useState<string[]>([]);
   const [selectedSendClassIds, setSelectedSendClassIds] = useState<string[]>([]);
+  const [selectedGuardianStudentIds, setSelectedGuardianStudentIds] = useState<string[]>([]);
+  const [expandedGuardianClassIds, setExpandedGuardianClassIds] = useState<string[]>([]);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
   const [showRecipientsModal, setShowRecipientsModal] = useState(false);
   const [recipientsListLink, setRecipientsListLink] = useState<GeneratedLink | null>(null);
@@ -1224,10 +1234,10 @@ const ViewTabV3: React.FC<Props> = ({
     : needsSendClassTargets
       ? selectedSendClassIds.length
       : 0;
-  const selectedGuardianRecipients = useMemo(() => {
-    const classIds = safeSendScheduleType === 'individual_class' ? selectedSendClassIds : sortedClasses.map(item => item.id);
+  const guardianCandidates = useMemo(() => {
+    if (safeSendScheduleType !== 'individual_class') return [];
     return students
-      .filter(student => classIds.includes(student.classId) && student.parentPhone)
+      .filter(student => selectedSendClassIds.includes(student.classId))
       .map(student => {
         const classItem = classes.find(item => item.id === student.classId);
         return {
@@ -1240,7 +1250,11 @@ const ViewTabV3: React.FC<Props> = ({
           studentName: student.name,
         };
       });
-  }, [students, classes, sortedClasses, selectedSendClassIds, safeSendScheduleType]);
+  }, [students, classes, selectedSendClassIds, safeSendScheduleType]);
+  const selectedGuardianRecipients = useMemo(
+    () => guardianCandidates.filter(recipient => selectedGuardianStudentIds.includes(recipient.id) && recipient.phone),
+    [guardianCandidates, selectedGuardianStudentIds]
+  );
   const selectedRecipients = useMemo<ShareRecipientRecord[]>(() => {
     if (safeSendAudience === 'teachers' || safeSendAudience === 'teachers_admins') {
       const ids = safeSendScheduleType === 'individual_teacher' ? selectedSendTeacherIds : selectedSendTeacherIds;
@@ -1261,6 +1275,37 @@ const ViewTabV3: React.FC<Props> = ({
     }
     return selectedGuardianRecipients;
   }, [safeSendAudience, safeSendScheduleType, selectedSendTeacherIds, selectedSendAdminIds, teachers, admins, selectedGuardianRecipients]);
+  const guardiansByClass = useMemo(() => {
+    const grouped: Record<string, typeof guardianCandidates> = {};
+    guardianCandidates.forEach(recipient => {
+      const key = recipient.classId || 'unknown';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(recipient);
+    });
+    return grouped;
+  }, [guardianCandidates]);
+  const toggleGuardianStudent = (studentId: string) => {
+    const candidate = guardianCandidates.find(recipient => recipient.id === studentId);
+    if (!candidate?.phone) return;
+    setSelectedGuardianStudentIds(current =>
+      current.includes(studentId) ? current.filter(id => id !== studentId) : [...current, studentId]
+    );
+  };
+  const toggleGuardianClass = (classId: string) => {
+    const classRecipientIds = (guardiansByClass[classId] || [])
+      .filter(recipient => recipient.phone)
+      .map(recipient => recipient.id);
+    const allSelected = classRecipientIds.length > 0 && classRecipientIds.every(id => selectedGuardianStudentIds.includes(id));
+    setSelectedGuardianStudentIds(current => {
+      if (allSelected) return current.filter(id => !classRecipientIds.includes(id));
+      return Array.from(new Set([...current, ...classRecipientIds]));
+    });
+  };
+  const toggleGuardianClassExpand = (classId: string) => {
+    setExpandedGuardianClassIds(current =>
+      current.includes(classId) ? current.filter(id => id !== classId) : [...current, classId]
+    );
+  };
   const estimatedLinkCount = useMemo(() => {
     if (safeSendScheduleType === 'individual_teacher') {
       const perTeacher = safeSendAudience === 'teachers_admins' ? 2 : 1;
@@ -2663,6 +2708,7 @@ const ViewTabV3: React.FC<Props> = ({
                   onToggle={toggleSendAudience}
                   onClear={() => setSendAudience('teachers')}
                   hideSelectAll
+                  closeOnToggle
                 />
                 {(safeSendScheduleType === 'individual_teacher' || safeSendAudience === 'teachers' || safeSendAudience === 'teachers_admins') && (
                   <MultiSelectDropdown
@@ -2718,14 +2764,147 @@ const ViewTabV3: React.FC<Props> = ({
                     options={classOptions}
                     selectedValues={selectedSendClassIds}
                     onToggle={value => {
+                      const removed = selectedSendClassIds.includes(value);
                       setSelectedSendClassIds(current =>
                         current.includes(value) ? current.filter(item => item !== value) : [...current, value]
                       );
+                      if (removed) {
+                        const removedStudentIds = students
+                          .filter(student => student.classId === value)
+                          .map(student => student.id);
+                        setSelectedGuardianStudentIds(current => current.filter(id => !removedStudentIds.includes(id)));
+                        setExpandedGuardianClassIds(current => current.filter(id => id !== value));
+                      }
                     }}
-                    onClear={() => setSelectedSendClassIds([])}
+                    onClear={() => {
+                      setSelectedSendClassIds([]);
+                      setSelectedGuardianStudentIds([]);
+                      setExpandedGuardianClassIds([]);
+                    }}
                     onSelectAll={() => setSelectedSendClassIds(sortedClasses.map(item => item.id))}
                     searchable
                   />
+                )}
+                {safeSendAudience === 'guardians' && safeSendScheduleType === 'individual_class' && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black text-slate-700">أولياء الأمور المستلمون</p>
+                        <p className="mt-1 text-[11px] font-bold text-slate-400">
+                          اختر فصلًا كاملًا أو طالبًا محددًا من الفصول المستهدفة.
+                        </p>
+                      </div>
+                      {selectedGuardianStudentIds.length > 0 && (
+                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-[#655ac1]">
+                          {selectedGuardianRecipients.length} مستلم
+                        </span>
+                      )}
+                    </div>
+
+                    {selectedSendClassIds.length === 0 ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-bold text-slate-400">
+                        اختر فصلًا واحدًا أو أكثر أولًا.
+                      </div>
+                    ) : guardianCandidates.length === 0 ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs font-bold text-slate-400">
+                        لا توجد بيانات طلاب ضمن الفصول المحددة.
+                      </div>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                        {selectedSendClassIds.map(classId => {
+                          const recipients = guardiansByClass[classId] || [];
+                          if (recipients.length === 0) return null;
+                          const classItem = classes.find(item => item.id === classId);
+                          const classLabel = classItem ? getClassLabel(classItem) : recipients[0]?.classLabel || 'فصل غير محدد';
+                          const selectableIds = recipients.filter(recipient => recipient.phone).map(recipient => recipient.id);
+                          const selectedCount = selectableIds.filter(id => selectedGuardianStudentIds.includes(id)).length;
+                          const allSelected = selectableIds.length > 0 && selectedCount === selectableIds.length;
+                          const someSelected = selectedCount > 0;
+                          const isExpanded = expandedGuardianClassIds.includes(classId);
+
+                          return (
+                            <div key={classId} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                              <div
+                                className="flex cursor-pointer items-center justify-between gap-3 p-3 transition-colors hover:bg-[#f0edff]"
+                                onClick={() => toggleGuardianClassExpand(classId)}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={event => { event.stopPropagation(); toggleGuardianClass(classId); }}
+                                    disabled={selectableIds.length === 0}
+                                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                                      selectableIds.length === 0
+                                        ? 'border-slate-200 bg-slate-50 text-transparent cursor-not-allowed'
+                                        : allSelected || someSelected
+                                          ? 'bg-[#655ac1] border-[#655ac1] text-white'
+                                          : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]'
+                                    }`}
+                                  >
+                                    <Check size={12} strokeWidth={3.5} className={someSelected && !allSelected ? 'opacity-50' : ''} />
+                                  </button>
+                                  <span className={`text-sm font-black ${someSelected ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                                    فصل {classLabel}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-400">
+                                    {selectedCount} / {selectableIds.length}
+                                  </span>
+                                  {isExpanded
+                                    ? <ChevronDown size={18} className="text-slate-400" />
+                                    : <ChevronLeft size={18} className="text-slate-400" />}
+                                </div>
+                              </div>
+
+                              {isExpanded && (
+                                <div className="space-y-1 border-t border-slate-100 bg-white p-2">
+                                  {recipients.map(recipient => {
+                                    const isSelected = selectedGuardianStudentIds.includes(recipient.id);
+                                    const hasPhone = !!recipient.phone;
+                                    return (
+                                      <button
+                                        key={recipient.id}
+                                        type="button"
+                                        disabled={!hasPhone}
+                                        onClick={() => toggleGuardianStudent(recipient.id)}
+                                        className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-right transition-colors ${
+                                          !hasPhone
+                                            ? 'cursor-not-allowed bg-slate-50/70 text-slate-300'
+                                            : 'hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <span className="min-w-0">
+                                          <span className={`block text-sm font-bold ${isSelected ? 'text-[#655ac1]' : hasPhone ? 'text-slate-800' : 'text-slate-300'}`}>
+                                            {recipient.studentName}
+                                          </span>
+                                          <span className={`mt-1 flex items-center gap-1 text-[11px] font-bold ${hasPhone ? 'text-slate-400' : 'text-rose-500'}`}>
+                                            <Smartphone size={13} className="shrink-0 text-[#655ac1]" />
+                                            <span dir={hasPhone ? 'ltr' : 'rtl'}>
+                                              {hasPhone ? recipient.phone : 'بدون رقم جوال'}
+                                            </span>
+                                          </span>
+                                        </span>
+                                        <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                                          !hasPhone
+                                            ? 'bg-white border-slate-200 text-transparent'
+                                            : isSelected
+                                              ? 'bg-[#655ac1] border-[#655ac1] text-white'
+                                              : 'bg-white border-slate-300 text-transparent'
+                                        }`}>
+                                          <Check size={12} strokeWidth={3.5} />
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {!needsSendTeacherTargets && !needsSendClassTargets && safeSendAudience === 'guardians' && (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
