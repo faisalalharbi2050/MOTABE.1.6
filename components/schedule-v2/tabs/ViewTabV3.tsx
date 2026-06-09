@@ -3248,7 +3248,7 @@ const ViewTabV3: React.FC<Props> = ({
         recipients={selectedRecipients.map(r => ({
           id: r.id,
           name: r.name,
-          subtitle: recipientRoleLabels[r.role],
+          subtitle: r.role === 'guardian' ? 'طالب' : recipientRoleLabels[r.role],
           role: r.role,
           phone: r.phone || undefined,
           classLabel: r.classLabel,
