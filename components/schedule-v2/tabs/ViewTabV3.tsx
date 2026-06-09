@@ -66,6 +66,7 @@ import {
 } from '../../../utils/scheduleShare';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
+import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 import { getClassLabel } from '../../../utils/classLabels';
 
 interface Props {
@@ -227,11 +228,11 @@ const AUDIENCE_LABELS: Record<SendAudience, string> = {
 };
 
 const ALLOWED_SEND_AUDIENCES: Record<ScheduleType, SendAudience[]> = {
-  individual_teacher: ['teachers_admins'],
-  individual_class: ['teachers_admins', 'guardians'],
-  general_teachers: ['teachers_admins'],
-  general_classes: ['teachers_admins', 'guardians'],
-  general_waiting: ['teachers_admins'],
+  individual_teacher: ['teachers', 'admins', 'teachers_admins'],
+  individual_class: ['teachers', 'admins', 'teachers_admins', 'guardians'],
+  general_teachers: ['teachers', 'admins', 'teachers_admins'],
+  general_classes: ['teachers', 'admins', 'teachers_admins', 'guardians'],
+  general_waiting: ['teachers', 'admins', 'teachers_admins'],
 };
 
 const DAY_LABELS: Record<string, string> = {
@@ -499,19 +500,24 @@ const MultiSelectDropdown: React.FC<{
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => onToggle(option.value)}
+                  disabled={option.disabled}
+                  onClick={() => { if (!option.disabled) onToggle(option.value); }}
                   className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
-                    isSelected
+                    option.disabled
+                      ? 'bg-slate-50/70 text-slate-300 cursor-not-allowed'
+                      : isSelected
                       ? 'bg-white text-[#655ac1]'
                       : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    {option.icon ? <option.icon size={15} className="text-[#655ac1]" /> : null}
+                    {option.icon ? <option.icon size={15} className={option.disabled ? 'text-slate-300' : 'text-[#655ac1]'} /> : null}
                     {option.label}
                   </span>
                   <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                    isSelected
+                    option.disabled
+                      ? 'bg-white border-slate-200 text-transparent'
+                      : isSelected
                       ? 'bg-[#655ac1] border-[#655ac1] text-white'
                       : 'bg-white border-slate-300 text-transparent'
                   }`}>
@@ -1165,13 +1171,51 @@ const ViewTabV3: React.FC<Props> = ({
     : ALLOWED_SEND_AUDIENCES[safeSendScheduleType][0];
 
   const allowedAudienceOptions = useMemo(
-    () => (['teachers_admins', 'guardians'] as SendAudience[]).map(audience => ({
+    () => (['teachers', 'admins', 'teachers_admins', 'guardians'] as SendAudience[]).map(audience => ({
       value: audience,
       label: AUDIENCE_LABELS[audience],
       disabled: !ALLOWED_SEND_AUDIENCES[safeSendScheduleType].includes(audience),
     })),
     [safeSendScheduleType]
   );
+  const recipientAudienceOptions = useMemo(
+    () => (['teachers', 'admins', 'guardians'] as SendAudience[])
+      .map(audience => ({
+        value: audience,
+        label: AUDIENCE_LABELS[audience],
+        disabled: !ALLOWED_SEND_AUDIENCES[safeSendScheduleType].includes(audience),
+      })),
+    [safeSendScheduleType]
+  );
+  const selectedAudienceValues = useMemo<SendAudience[]>(() => {
+    if (safeSendAudience === 'teachers_admins') return ['teachers', 'admins'];
+    if (safeSendAudience === 'teachers' || safeSendAudience === 'admins' || safeSendAudience === 'guardians') return [safeSendAudience];
+    return [];
+  }, [safeSendAudience]);
+  const selectedAudienceSummary = selectedAudienceValues.length > 0
+    ? selectedAudienceValues.map(audience => AUDIENCE_LABELS[audience]).join('، ')
+    : undefined;
+  const toggleSendAudience = (value: string) => {
+    const audience = value as SendAudience;
+    if (audience === 'guardians') {
+      setSendAudience('guardians');
+      return;
+    }
+
+    const currentStaff: SendAudience[] = safeSendAudience === 'teachers_admins'
+      ? ['teachers', 'admins']
+      : safeSendAudience === 'teachers' || safeSendAudience === 'admins'
+        ? [safeSendAudience]
+        : [];
+    const nextStaff = currentStaff.includes(audience)
+      ? currentStaff.filter(item => item !== audience)
+      : [...currentStaff, audience];
+
+    if (nextStaff.includes('teachers') && nextStaff.includes('admins')) setSendAudience('teachers_admins');
+    else if (nextStaff.includes('teachers')) setSendAudience('teachers');
+    else if (nextStaff.includes('admins')) setSendAudience('admins');
+    else setSendAudience(audience === 'teachers' ? 'admins' : 'teachers');
+  };
   const selectedScheduleLabel = SCHEDULE_TYPES.find(item => item.id === safeSendScheduleType)?.label || '';
   const needsSendTeacherTargets = safeSendScheduleType === 'individual_teacher';
   const needsSendClassTargets = safeSendScheduleType === 'individual_class';
@@ -2610,12 +2654,15 @@ const ViewTabV3: React.FC<Props> = ({
                   placeholder="اختر الجدول"
                   options={SCHEDULE_TYPES.map(item => ({ value: item.id, label: item.label }))}
                 />
-                <SingleSelectDropdown
+                <MultiSelectDropdown
                   label="المستلمون"
-                  value={safeSendAudience}
-                  onChange={value => setSendAudience(value as SendAudience)}
-                  placeholder="اختر الجهة"
-                  options={allowedAudienceOptions}
+                  buttonLabel="اختر الجهة"
+                  selectedSummary={selectedAudienceSummary}
+                  options={recipientAudienceOptions}
+                  selectedValues={selectedAudienceValues}
+                  onToggle={toggleSendAudience}
+                  onClear={() => setSendAudience('teachers')}
+                  hideSelectAll
                 />
                 {(safeSendScheduleType === 'individual_teacher' || safeSendAudience === 'teachers' || safeSendAudience === 'teachers_admins') && (
                   <MultiSelectDropdown
@@ -3016,162 +3063,18 @@ const ViewTabV3: React.FC<Props> = ({
       )}
 
 
-      {showRecipientsModal && (() => {
-        const now = new Date();
-        const dayLabel = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
-        const dateLabel = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' }).format(now);
-        return (
-          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm" dir="rtl">
-            <div className="w-full max-w-6xl h-[85vh] overflow-hidden rounded-[2rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
-              <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 shrink-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Users size={22} className="text-[#655ac1] shrink-0" />
-                  <h3 className="font-black text-slate-800">معاينة المستلمين</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRecipientsModal(false);
-                    setRecipientsListLink(null);
-                  }}
-                  className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {generatedLinks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400 opacity-70">
-                    <Users size={58} strokeWidth={1.4} style={{ color: '#655ac1' }} />
-                    <p className="text-sm font-bold text-slate-500">لم يتم اختيار مستلمين بعد.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-right min-w-[980px]" dir="rtl">
-                      <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-100">
-                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">اليوم</th>
-                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">التاريخ</th>
-                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">المستلم</th>
-                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">نوع الجدول</th>
-                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-right">الرابط</th>
-                          <th className="px-6 py-4 font-black text-[#655ac1] text-[13px] text-center">إجراءات</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {generatedLinks.map(link => {
-                          const hasManyRecipients = link.recipients.length > 3;
-                          return (
-                            <tr key={link.url} className="hover:bg-accent/5 transition-all">
-                              <td className="px-6 py-3.5 text-center">
-                                <span className="text-[12px] font-bold text-slate-700">{dayLabel}</span>
-                              </td>
-                              <td className="px-6 py-3.5 text-center">
-                                <div className="inline-flex items-center justify-center px-3 py-1 bg-slate-50 rounded-lg">
-                                  <span className="text-[12px] font-bold text-slate-700">{dateLabel}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-3.5">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="font-bold text-[13px] text-slate-800 truncate max-w-[240px]" title={link.recipients.map(item => item.name).join('، ')}>
-                                    {getRecipientsPreview(link.recipients)}
-                                  </span>
-                                  {hasManyRecipients && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setRecipientsListLink(link)}
-                                      title="عرض جميع المستلمين"
-                                      className="w-8 h-8 rounded-lg border border-slate-200 bg-white text-[#655ac1] hover:bg-[#f1efff] flex items-center justify-center transition-all shrink-0"
-                                    >
-                                      <Eye size={14} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-3.5">
-                                <span className="font-bold text-[13px] text-slate-700">{link.label}</span>
-                              </td>
-                              <td className="px-6 py-3.5">
-                                <div dir="ltr" className="max-w-[240px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-mono text-slate-500 truncate">
-                                  {link.url}
-                                </div>
-                              </td>
-                              <td className="px-6 py-3.5">
-                                <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => window.open(link.url, '_blank')}
-                                    title="عرض الجدول الذي سيتم إرساله"
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all"
-                                  >
-                                    <Eye size={12} />
-                                    عرض
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => copyToClipboard(link.url)}
-                                    title="نسخ رابط الجدول الذي سيتم إرساله"
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] hover:bg-[#f1efff] transition-all"
-                                  >
-                                    <Copy size={12} />
-                                    نسخ
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRecipientsModal(false);
-                    setRecipientsListLink(null);
-                  }}
-                  className="px-6 py-2.5 text-sm text-slate-600 font-bold bg-white border border-slate-300 hover:bg-slate-50 rounded-xl transition-colors"
-                >
-                  إغلاق
-                </button>
-              </div>
-            </div>
-
-            {recipientsListLink && (
-              <div className="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-slate-900/30" dir="rtl">
-                <div className="w-full max-w-md max-h-[70vh] overflow-hidden rounded-[1.75rem] bg-white border border-slate-200 shadow-2xl flex flex-col">
-                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ClipboardList size={18} className="text-[#655ac1] shrink-0" />
-                      <h4 className="font-black text-slate-800 truncate">جميع المستلمين</h4>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRecipientsListLink(null)}
-                      className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                  <div className="overflow-y-auto p-3 space-y-2">
-                    {recipientsListLink.recipients.map(recipient => (
-                      <div key={recipient.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                        <span className="text-sm font-black text-slate-800 truncate">{recipient.name}</span>
-                        <span className="text-[11px] font-black text-[#655ac1] bg-white border border-[#e5e1fe] rounded-lg px-2 py-1 shrink-0">
-                          {recipientRoleLabels[recipient.role]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      <RecipientsPreviewModal
+        open={showRecipientsModal}
+        onClose={() => { setShowRecipientsModal(false); setRecipientsListLink(null); }}
+        recipients={selectedRecipients.map(r => ({
+          id: r.id,
+          name: r.name,
+          subtitle: recipientRoleLabels[r.role],
+          role: r.role,
+          phone: r.phone || undefined,
+          classLabel: r.classLabel,
+        }))}
+      />
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-xl font-bold shadow-2xl bg-emerald-500 text-white animate-in slide-in-from-bottom-5">
