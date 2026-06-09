@@ -742,7 +742,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                   key={chip.id}
                   type="button"
                   onClick={() => setStaffRole(chip.id)}
-                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                  className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                     staffRole === chip.id
                       ? 'border-[#655ac1] text-white bg-[#655ac1]'
                       : 'border-slate-200 text-slate-500 bg-white hover:border-[#655ac1] hover:text-[#655ac1]'
@@ -822,8 +822,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               onClick={() => setChannel('whatsapp')}
               className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${
                 channel === 'whatsapp'
-                  ? 'border-slate-200 shadow-lg shadow-slate-200/90 ring-2 ring-[#655ac1]/10'
-                  : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                  ? 'border-slate-200 bg-slate-50 ring-2 ring-[#655ac1]/15'
+                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill={channel === 'whatsapp' ? "#25D366" : "#cbd5e1"} xmlns="http://www.w3.org/2000/svg" className="shrink-0">
@@ -841,8 +841,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               onClick={() => setChannel('sms')}
               className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${
                 channel === 'sms'
-                  ? 'border-slate-200 shadow-lg shadow-slate-200/90 ring-2 ring-[#655ac1]/10'
-                  : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                  ? 'border-slate-200 bg-slate-50 ring-2 ring-[#655ac1]/15'
+                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
               <MessageSquare size={24} className={`shrink-0 ${channel === 'sms' ? 'text-[#007AFF]' : 'text-slate-300'}`} />
