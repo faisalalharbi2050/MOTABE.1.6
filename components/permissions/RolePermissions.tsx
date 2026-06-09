@@ -19,7 +19,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { Admin, Delegate, MessageComposerDraft, ModulePermission, Teacher } from '../../types';
+import { Admin, Delegate, MessageComposerDraft, ModulePermission, SchoolInfo, Teacher } from '../../types';
 import ManageDelegates from './ManageDelegates';
 import ActionLogs from './ActionLogs';
 import {
@@ -33,6 +33,7 @@ import { logAction } from './auditLog';
 interface RolePermissionsProps {
   teachers: Teacher[];
   admins: Admin[];
+  schoolInfo?: SchoolInfo;
   onNavigate?: (tab: 'settings_teachers' | 'settings_admins') => void;
   onPrepareMessageDraft?: (draft: MessageComposerDraft) => void;
 }
@@ -81,7 +82,7 @@ const StatCard = ({
   );
 };
 
-const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, onNavigate, onPrepareMessageDraft }) => {
+const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, schoolInfo, onNavigate, onPrepareMessageDraft }) => {
   const [stage, setStage] = useState<StageId>(() => {
     try {
       const saved = localStorage.getItem(STAGE_STORAGE_KEY);
@@ -219,7 +220,6 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, onN
       actionType: 'create',
       action: 'إسناد صلاحيات لمفوّض',
       targetDelegateName: selectedStaff.name,
-      details: isFullAccess ? 'صلاحية كاملة' : `صلاحية مخصصة - ${enabledMainModules} قسم`,
     });
 
     refreshDelegates();
@@ -719,7 +719,7 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, onN
         {/* ─── Stage 4: Action logs ─── */}
         {stage === 'logs' && (
           <div className="space-y-5">
-            <ActionLogs />
+            <ActionLogs schoolInfo={schoolInfo} />
           </div>
         )}
       </div>

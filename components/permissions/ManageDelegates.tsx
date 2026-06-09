@@ -145,18 +145,12 @@ export default function ManageDelegates({ onDelegatesChange, admins = [] }: Mana
   const handleEditSave = (updated: Partial<Delegate>) => {
     if (!editDelegate) return;
 
-    const nextPermissions = updated.customPermissions ?? editDelegate.customPermissions ?? [];
-    const nextIsFull = isFullPermissions(nextPermissions);
-
     save(delegates.map((delegate) => (delegate.id === editDelegate.id ? { ...delegate, ...updated } : delegate)));
 
     logAction({
       actionType: 'edit_permissions',
       action: 'تعديل صلاحيات المفوض',
       targetDelegateName: editDelegate.name,
-      details: nextIsFull
-        ? 'صلاحية كاملة'
-        : `صلاحية مخصصة — ${nextPermissions.filter((permission) => !permission.moduleId.includes('_')).length} قسم`,
     });
 
     setEditDelegate(null);

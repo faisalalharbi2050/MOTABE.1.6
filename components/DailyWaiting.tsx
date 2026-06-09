@@ -870,6 +870,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // ── Absent Teacher Delete Confirm ──
   const [removeAbsentConfirm, setRemoveAbsentConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [showClearAllAbsentsConfirm, setShowClearAllAbsentsConfirm] = useState(false);
 
   // ── Submit Absence Confirm ──
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
@@ -2263,7 +2264,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
     releaseAssignmentQuota(removed);
     updateSession(selectedDate, s => ({ ...s, assignments: [] }));
     setShowClearAllConfirm(false);
-    showToast('تم مسح جميع المنتظرين المسندين', 'info');
+    showToast('تم حذف كل المنتظرين المسندين', 'info');
+  };
+
+  const confirmClearAllAbsents = () => {
+    const removed = currentSession?.assignments || [];
+    releaseAssignmentQuota(removed);
+    updateSession(selectedDate, s => ({
+      ...s,
+      absentTeachers: [],
+      assignments: [],
+    }));
+    setDisabledWaitingSlots(new Set());
+    setManualNameSlots(new Set());
+    setManualNameValues({});
+    setLastDistResult(null);
+    setManualDistMode(false);
+    setDistributionMode(null);
+    setShowClearAllAbsentsConfirm(false);
+    showToast('تم حذف كل الغائبين لهذا اليوم', 'info');
   };
 
   const toggleWaitingSlotDisabled = (absentTeacherId: string, periodNumber: number) => {
@@ -4272,14 +4291,26 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
               {/* ══ LEFT: Absentees detail ══ */}
               <div className="lg:col-span-4 bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                <div className="p-4 border-b border-slate-100 flex items-center gap-3">
-                  <UserX size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">الغائبون اليوم</h4>
-                  <span className={`inline-flex items-center justify-center px-2.5 h-6 rounded-full border border-slate-200 bg-white text-xs font-black ${
-                    totalAbsent > 0 ? 'text-[#655ac1]' : 'text-slate-400'
-                  }`}>
-                    {totalAbsent}
-                  </span>
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <UserX size={20} className="text-[#655ac1] shrink-0" />
+                    <h4 className="font-black text-slate-800 truncate">الغائبون اليوم</h4>
+                    <span className={`inline-flex items-center justify-center px-2.5 h-6 rounded-full border border-slate-200 bg-white text-xs font-black shrink-0 ${
+                      totalAbsent > 0 ? 'text-[#655ac1]' : 'text-slate-400'
+                    }`}>
+                      {totalAbsent}
+                    </span>
+                  </div>
+                  {totalAbsent > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowClearAllAbsentsConfirm(true)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-rose-600 text-xs font-black hover:bg-rose-50 hover:border-rose-200 transition-all active:scale-95 shrink-0"
+                    >
+                      <Trash2 size={14} />
+                      <span>حذف الكل</span>
+                    </button>
+                  )}
                 </div>
 
                 {absentRecords.length === 0 ? (
@@ -4447,7 +4478,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-black active:scale-95 transition-all hover:bg-slate-50"
                       >
                         <Trash2 size={16} className="text-rose-600" />
-                        <span>مسح الكل</span>
+                        <span>حذف كل المنتظرين</span>
                       </button>
                     )}
                   </div>
@@ -5298,13 +5329,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 >
                   <Trash2 size={14} className="text-rose-600" />
                   حذف المنتظرين
-                </button>
-                <button
-                  onClick={e => { e.stopPropagation(); setRemoveAbsentConfirm({ id: absentTeacher.id, name: absentTeacher.teacherName }); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-black shadow-sm transition-all hover:bg-slate-50"
-                >
-                  <Trash2 size={14} className="text-rose-600" />
-                  حذف الغياب
                 </button>
               </div>
             </div>
@@ -6507,7 +6531,6 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
               <Trash2 size={24} className="text-rose-500 shrink-0" />
               <div>
                 <h3 className="font-black text-slate-800 text-base">تأكيد حذف المنتظرين</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم حذف جميع الإسنادات لهذا المعلم</p>
               </div>
             </div>
             <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
@@ -6532,6 +6555,38 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
         document.body
       )}
 
+      {/* Clear-all absents confirmation */}
+      {showClearAllAbsentsConfirm && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" dir="rtl">
+            <div className="flex items-center gap-3 px-6 pt-6 pb-4">
+              <Trash2 size={24} className="text-rose-500 shrink-0" />
+              <div>
+                <h3 className="font-black text-slate-800 text-base">حذف الكل</h3>
+              </div>
+            </div>
+            <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
+              سيتم حذف كل الغائبين المسجلين لهذا اليوم. وإذا كان الانتظار موزعًا، فسيتم حذف المنتظرين المسندين لهم أيضًا.
+            </p>
+            <div className="flex gap-2 px-6 pb-6">
+              <button
+                onClick={() => setShowClearAllAbsentsConfirm(false)}
+                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmClearAllAbsents}
+                className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={15} /> حذف الكل
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Clear-all assignments confirmation */}
       {showClearAllConfirm && ReactDOM.createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
@@ -6539,12 +6594,11 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
             <div className="flex items-center gap-3 px-6 pt-6 pb-4">
               <Trash2 size={24} className="text-rose-500 shrink-0" />
               <div>
-                <h3 className="font-black text-slate-800 text-base">مسح جميع المنتظرين</h3>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">سيتم حذف كل الإسنادات لجميع الغائبين</p>
+                <h3 className="font-black text-slate-800 text-base">حذف كل المنتظرين</h3>
               </div>
             </div>
             <p className="px-6 pb-5 text-sm text-slate-600 font-medium">
-              هل تريد مسح جميع المنتظرين المسندين لهذا اليوم؟ يمكنك إعادة التوزيع بعدها.
+              هل تريد حذف كل المنتظرين المسندين لهذا اليوم؟ يمكنك إعادة التوزيع بعدها.
             </p>
             <div className="flex gap-2 px-6 pb-6">
               <button
@@ -6557,7 +6611,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 onClick={confirmClearAllAssignments}
                 className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-1.5"
               >
-                <Trash2 size={15} /> مسح الكل
+                <Trash2 size={15} /> حذف كل المنتظرين
               </button>
             </div>
           </div>

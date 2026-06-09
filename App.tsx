@@ -671,6 +671,7 @@ const App: React.FC = () => {
         <RolePermissions
           teachers={teachers}
           admins={admins}
+          schoolInfo={schoolInfo}
           onNavigate={(tab) => setActiveTab(tab)}
           onPrepareMessageDraft={(draft) => { setMessageComposerDraft(draft); setMessagesInitialTab('compose'); setActiveTab('messages'); }}
         />
