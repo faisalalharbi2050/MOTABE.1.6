@@ -822,7 +822,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               onClick={() => setChannel('whatsapp')}
               className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${
                 channel === 'whatsapp'
-                  ? 'border-slate-200 bg-slate-50 ring-2 ring-[#655ac1]/15'
+                  ? 'border-slate-200 bg-slate-50'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
@@ -841,7 +841,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               onClick={() => setChannel('sms')}
               className={`relative flex items-center gap-3 px-4 py-3 border-2 rounded-xl bg-white transition-all ${
                 channel === 'sms'
-                  ? 'border-slate-200 bg-slate-50 ring-2 ring-[#655ac1]/15'
+                  ? 'border-slate-200 bg-slate-50'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
