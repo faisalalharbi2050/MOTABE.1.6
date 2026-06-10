@@ -18,6 +18,7 @@ interface MessageArchiveContextType {
   sendMessage: (msg: Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>, fallbackToSms?: boolean) => Promise<CentralMessage>;
   scheduleMessage: (batch: { scheduledFor: string; fallbackToSms: boolean; messages: Array<Omit<CentralMessage, 'id' | 'timestamp' | 'status' | 'retryCount'>> }) => void;
   resendMessage: (id: string) => Promise<void>;
+  deleteMessages: (ids: string[]) => void;
   addTemplate: (template: Omit<MessageTemplate, 'id'>) => void;
   updateTemplate: (template: MessageTemplate) => void;
   deleteTemplate: (id: string) => void;
@@ -292,8 +293,14 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
     });
   };
 
+  const deleteMessages = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    setMessages(prev => prev.filter(m => !idSet.has(m.id)));
+  };
+
   const clearArchive = () => {
-    if (confirm('هل أنت متأكد من مسح جميع السجلاʿ')) setMessages([]);
+    if (confirm('هل أنت متأكد من مسح جميع السجلات؟')) setMessages([]);
   };
 
   const rechargeBalance = (amount: number, type: 'whatsapp' | 'sms') => {
@@ -330,7 +337,7 @@ export const MessageArchiveProvider: React.FC<{ children: ReactNode }> = ({ chil
   return (
     <MessageArchiveContext.Provider value={{
       messages, templates, stats, scheduledBatches,
-      sendMessage, scheduleMessage, resendMessage,
+      sendMessage, scheduleMessage, resendMessage, deleteMessages,
       addTemplate, updateTemplate, deleteTemplate, restoreSystemTemplate,
       clearArchive, rechargeBalance, buyPackage,
     }}>

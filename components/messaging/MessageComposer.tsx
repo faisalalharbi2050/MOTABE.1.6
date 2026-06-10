@@ -960,12 +960,24 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             نص الرسالة
           </h3>
 
-          {/* Actions row — variable chips (right) + template dropdown (left) */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch">
-            <div className="flex-1 rounded-2xl border border-slate-200 p-3">
+          {/* Actions rows: template first, then variable chips */}
+          <div className="space-y-3 mb-4">
+            <div className="rounded-2xl border border-slate-200 p-3">
+              <label className="text-xs font-bold text-slate-500 mb-2.5 block">استخدام قالب جاهز:</label>
+              <RecipientSelectDropdown
+                value={selectedTemplate}
+                onChange={handleTemplateSelect}
+                placeholder="اختر القالب"
+                options={[
+                  { value: '', label: 'بدون قالب' },
+                  ...composerTemplates.map(t => ({ value: t.id, label: t.label })),
+                ]}
+              />
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-3">
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <label className="text-xs font-bold text-slate-500">إضافة متغيرات تلقائية:</label>
-                <span className="text-[10px] font-bold text-slate-400">انقر لإدراجها مكان المؤشر</span>
+                <span className="text-[10px] font-black text-amber-600">انقر للإدراج في نص الرسالة</span>
               </div>
               <div className="space-y-2">
                 {quickVariableRows.map((row, rowIndex) => (
@@ -983,18 +995,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="w-full sm:w-52 shrink-0 rounded-2xl border border-slate-200 p-3 flex flex-col">
-              <label className="text-xs font-bold text-slate-500 mb-2.5">استخدام قالب جاهز:</label>
-              <RecipientSelectDropdown
-                value={selectedTemplate}
-                onChange={handleTemplateSelect}
-                placeholder="اختر القالب"
-                options={[
-                  { value: '', label: 'بدون قالب' },
-                  ...composerTemplates.map(t => ({ value: t.id, label: t.label })),
-                ]}
-              />
             </div>
           </div>
 
@@ -1050,18 +1050,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             </div>
           )}
 
-          {/* Live preview */}
+          {/* Live preview — grey-framed toggle button; preview stays closed until clicked, then shows in a green frame (no colored background) */}
           {messageContent.trim() && (
             <div className="mt-4">
               <button
+                type="button"
                 onClick={() => setShowPreview(v => !v)}
-                className="flex items-center gap-2 text-xs font-bold text-[#655ac1] hover:text-[#4e42a8] transition-colors mb-2"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-[#655ac1] hover:border-slate-300 transition-colors"
               >
                 <Eye size={14} />
                 {showPreview ? 'إخفاء المعاينة' : 'معاينة الرسالة'}
               </button>
               {showPreview && (
-                <div className="p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl">
+                <div className="mt-3 p-4 bg-white border border-emerald-400 rounded-2xl">
                   <p className="text-[10px] font-bold text-emerald-600 mb-2">
                     معاينة — {recipientsToSend[0]?.name ?? 'مستلم تجريبي'}
                   </p>

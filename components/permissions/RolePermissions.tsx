@@ -63,17 +63,9 @@ const StatCard = ({
   icon: React.ComponentType<{ size?: number; className?: string }>;
   tone?: 'primary' | 'green' | 'amber' | 'rose' | 'slate';
 }) => {
-  const tones = {
-    primary: 'text-[#655ac1]',
-    green: 'text-emerald-600',
-    amber: 'text-amber-600',
-    rose: 'text-rose-600',
-    slate: 'text-slate-500',
-  };
-
   return (
     <div className="flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <Icon size={22} className={`mt-0.5 shrink-0 ${tones[tone]}`} />
+      <Icon size={22} className="mt-0.5 shrink-0 text-[#655ac1]" />
       <div className="min-w-0">
         <p className="text-xs font-bold text-slate-500">{label}</p>
         <p className="mt-1 text-2xl font-black text-slate-800">{value}</p>
