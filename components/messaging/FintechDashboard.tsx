@@ -22,12 +22,13 @@ const arabicDayFromISO = (iso: string): string => {
   return ARABIC_DAY_LABELS[eng] || eng;
 };
 
+// الاستهلاك أسبوعي، لذا نعرض الشهر رقماً (يوم/شهر) لا نصاً
 const formatDatePart = (iso: string, calendarType: CalendarType): string => {
   const d = new Date(`${iso}T00:00:00`);
   try {
     return calendarType === 'hijri'
-      ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'short' }).format(d)
-      : new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'short' }).format(d);
+      ? new Intl.DateTimeFormat('ar-SA-u-ca-islamic', { day: 'numeric', month: 'numeric' }).format(d)
+      : new Intl.DateTimeFormat('ar-SA', { day: 'numeric', month: 'numeric' }).format(d);
   } catch { return iso; }
 };
 
@@ -76,10 +77,6 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
   const freeSmsTotal = 10;
   const waRemaining = subscription?.freeWaRemaining ?? stats.balanceWhatsApp;
   const smsRemaining = subscription?.freeSmsRemaining ?? stats.balanceSMS;
-  const waUsed = Math.max(0, freeWaTotal - waRemaining);
-  const smsUsed = Math.max(0, freeSmsTotal - smsRemaining);
-  const waPercentage = (waUsed / freeWaTotal) * 100;
-  const smsPercentage = (smsUsed / freeSmsTotal) * 100;
 
   // ── Academic weeks for the current semester ──────────────────────────────
   const academicWeeks = useMemo(() => {
@@ -121,20 +118,20 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
       {/* ── Channels card + Chart ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Unified Channels Card */}
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col self-start">
+        {/* Unified Channels Card — stretches to match the chart card height */}
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
             <Send size={20} className="text-[#655ac1] shrink-0" />
             <h3 className="text-sm font-black text-[#1e293b]">قنوات الرسائل</h3>
           </div>
 
-          <div className="flex flex-col gap-5">
+          <div className="flex-1 flex flex-col justify-between gap-6">
             {/* WhatsApp */}
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
                 {WA_ICON} واتساب
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
                   <div className="text-[10px] font-bold text-[#655ac1] mb-0.5">المُرسلة</div>
                   <div className="text-sm font-extrabold text-[#655ac1] tabular-nums">{channelTotals.waSent.toLocaleString()}</div>
@@ -150,12 +147,6 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
                   </div>
                 </div>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${waPercentage > 80 ? 'bg-red-500' : 'bg-[#25D366]'}`}
-                  style={{ width: `${waPercentage}%` }}
-                />
-              </div>
             </div>
 
             {/* SMS */}
@@ -163,7 +154,7 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
                 <MessageSquare size={14} className="text-[#007AFF]" /> نصية SMS
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-xl bg-white border border-slate-200 px-2.5 py-2">
                   <div className="text-[10px] font-bold text-[#655ac1] mb-0.5">المُرسلة</div>
                   <div className="text-sm font-extrabold text-[#655ac1] tabular-nums">{channelTotals.smsSent.toLocaleString()}</div>
@@ -178,12 +169,6 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
                     {smsRemaining}<span className="text-slate-400 font-bold">/{freeSmsTotal}</span>
                   </div>
                 </div>
-              </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${smsPercentage > 80 ? 'bg-red-500' : 'bg-[#007AFF]'}`}
-                  style={{ width: `${smsPercentage}%` }}
-                />
               </div>
             </div>
           </div>

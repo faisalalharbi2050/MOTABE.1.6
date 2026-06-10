@@ -161,7 +161,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
   // Form State
   const [selectedGroup, setSelectedGroup] = useState<GroupType>('staff');
-  const [staffRole, setStaffRole] = useState<'all' | 'teacher' | 'admin'>('all');
+  const [staffRole, setStaffRole] = useState<'none' | 'all' | 'teacher' | 'admin'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecId, setSelectedSpecId] = useState<string>('all');
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
@@ -265,6 +265,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     const specById = new Map(teachers.map(t => [t.id, t.specializationId]));
     return groupItems.filter(item => {
       if (q && !item.name.toLowerCase().includes(q)) return false;
+      if ((item.role === 'teacher' || item.role === 'admin') && staffRole === 'none') return false;
       if (item.role === 'teacher') {
         if (staffRole === 'admin') return false;
         if (selectedSpecId !== 'all' && specById.get(item.id) !== selectedSpecId) return false;
@@ -325,18 +326,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   // Unified select-all toggle — operates on the currently visible (filtered) list
   const allDisplayedSelected = displayItems.length > 0 && displayItems.every(item => selectedIds.has(item.id));
   const toggleSelectAll = () => { if (allDisplayedSelected) deselectAll(); else selectAll(); };
-  const recipientCountLabel = useMemo(() => {
-    if (recipientMode === 'staff') {
-      if (staffRole === 'teacher') return 'المعلمون';
-      if (staffRole === 'admin') return 'الإداريون';
-      return 'الكل';
-    }
-    if (selectedClassId !== 'all') {
-      const selectedClass = activeClasses.find(item => item.id === selectedClassId);
-      return selectedClass ? (selectedClass.name || `${selectedClass.grade}/${selectedClass.section}`) : 'أولياء الأمور';
-    }
-    return 'أولياء الأمور';
-  }, [activeClasses, recipientMode, selectedClassId, staffRole]);
+  const staffCounts = useMemo(() => ({
+    all: teachers.length + admins.length,
+    teacher: teachers.length,
+    admin: admins.length,
+  }), [teachers.length, admins.length]);
 
   // ── Balance ──────────────────────────────────────────────────────────────
   const freeBalance = channel === 'whatsapp' ? subscription.freeWaRemaining : subscription.freeSmsRemaining;
@@ -778,21 +772,24 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           {recipientMode === 'staff' && (
             <div className="flex gap-2">
               {([
-                { id: 'all', label: 'الكل' },
-                { id: 'teacher', label: 'المعلمون' },
-                { id: 'admin', label: 'الإداريون' },
+                { id: 'all', label: 'الكل', count: staffCounts.all },
+                { id: 'teacher', label: 'المعلمون', count: staffCounts.teacher },
+                { id: 'admin', label: 'الإداريون', count: staffCounts.admin },
               ] as const).map(chip => (
                 <button
                   key={chip.id}
                   type="button"
-                  onClick={() => setStaffRole(chip.id)}
-                  className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                  onClick={() => setStaffRole(current => current === chip.id ? 'none' : chip.id)}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                     staffRole === chip.id
                       ? 'border-[#655ac1] text-white bg-[#655ac1]'
                       : 'border-slate-200 text-slate-500 bg-white hover:border-[#655ac1] hover:text-[#655ac1]'
                   }`}
                 >
-                  {chip.label}
+                  <span>{chip.label}</span>
+                  <span className={`font-black ${staffRole === chip.id ? 'text-white' : 'text-[#655ac1]'}`}>
+                    {chip.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -814,13 +811,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
         {/* Single neutral select-all toggle (grey border, purple on hover) */}
         <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-4 shrink-0">
-          {groupItems.length > 0 ? (
-            <span className="text-sm px-3 py-1 rounded-xl border border-slate-200 bg-transparent font-bold text-slate-600">
-              {recipientCountLabel}: {displayItems.length}
-            </span>
-          ) : (
-            <span />
-          )}
+          <span />
           <button
             onClick={toggleSelectAll}
             disabled={displayItems.length === 0}
