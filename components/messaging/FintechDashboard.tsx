@@ -120,7 +120,7 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
 
         {/* Unified Channels Card — stretches to match the chart card height */}
         <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3 mb-6">
             <Send size={20} className="text-[#655ac1] shrink-0" />
             <h3 className="text-sm font-black text-[#1e293b]">قنوات الرسائل</h3>
           </div>
@@ -148,6 +148,9 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
                 </div>
               </div>
             </div>
+
+            {/* Divider between channels */}
+            <div className="border-t border-slate-100" />
 
             {/* SMS */}
             <div>
