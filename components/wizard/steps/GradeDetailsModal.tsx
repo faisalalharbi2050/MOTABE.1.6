@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Phase, Subject } from '../../../types';
-import { X, Plus, Edit2, Check, Trash2, BookOpen, RotateCcw, AlertTriangle } from 'lucide-react';
+import { X, Plus, Edit2, Check, CheckCircle2, Trash2, BookOpen, RotateCcw, AlertTriangle } from 'lucide-react';
 
 interface GradeDetailsModalProps {
   gradeKey: string;
@@ -267,7 +267,7 @@ export const GradeDetailsModal: React.FC<GradeDetailsModalProps> = ({
                 />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all">إضافة</button>
+                <button type="submit" className="flex-1 px-4 py-3 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2"><CheckCircle2 size={16} /> إضافة</button>
                 <button type="button" onClick={() => { setShowAddForm(false); setNewSubject({ name: '', periods: '2' }); }} className="flex-1 px-4 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl font-bold transition-all">إلغاء</button>
               </div>
             </form>

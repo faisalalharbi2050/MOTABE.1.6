@@ -908,9 +908,9 @@ const Step1General: React.FC<Step1Props> = ({ schoolInfo, setSchoolInfo, isEditM
               </button>
               <button
                 onClick={() => { addSharedSchool(); setAddConfirmOpen(false); }}
-                className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#52499d] transition-all active:scale-95"
+                className="flex-1 px-4 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#52499d] transition-all active:scale-95 inline-flex items-center justify-center gap-2"
               >
-                تأكيد الإضافة
+                <CheckCircle2 size={16} /> تأكيد الإضافة
               </button>
             </div>
           </div>

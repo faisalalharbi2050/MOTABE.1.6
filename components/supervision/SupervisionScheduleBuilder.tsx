@@ -1102,6 +1102,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   ))}
                 </div>
                 <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
+                  <CheckCircle2 size={16} />
                   تعيين
                 </span>
               </button>
@@ -1130,6 +1131,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                   ))}
                 </div>
                 <span className="mt-auto mx-auto w-full max-w-[230px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-[#655ac1] text-sm font-bold bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20">
+                  <CheckCircle2 size={16} />
                   تعيين
                 </span>
               </button>

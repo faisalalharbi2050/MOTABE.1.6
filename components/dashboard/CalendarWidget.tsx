@@ -620,7 +620,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
                 disabled={!hasValidTaskTitle}
                 className="flex-1 py-2.5 bg-[#655ac1] text-white rounded-2xl font-bold text-sm shadow-md shadow-[#655ac1]/20 hover:bg-[#5448b0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
-                {editingTask ? <><CheckCircle2 size={15} /> حفظ التعديلات</> : 'إضافة'}
+                {editingTask ? <><CheckCircle2 size={15} /> حفظ التعديلات</> : <><CheckCircle2 size={15} /> إضافة</>}
               </button>
             </div>
           </div>

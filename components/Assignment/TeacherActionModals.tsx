@@ -1,12 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
-import { X, ClipboardList, ArrowLeftRight, BookOpen, Check, AlertTriangle, Users, ChevronDown, Search } from 'lucide-react';
-
-const SaveCheckIcon = ({ className = 'bg-[#655ac1]' }: { className?: string }) => (
-  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
-    <Check size={13} strokeWidth={3.2} className="text-white" />
-  </span>
-);
+import { X, ClipboardList, ArrowLeftRight, BookOpen, Check, CheckCircle2, AlertTriangle, Users, ChevronDown, Search } from 'lucide-react';
 
 const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
 
@@ -562,7 +556,7 @@ export const TransferTeacherModal: React.FC<TransferProps> = ({
             disabled={!targetId || filteredSourceAssns.length === 0}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-bold text-sm transition-all active:scale-95 shadow-md shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#655ac1]"
           >
-            <SaveCheckIcon />
+            <CheckCircle2 size={16} />
             تأكيد النقل
           </button>
         </div>
