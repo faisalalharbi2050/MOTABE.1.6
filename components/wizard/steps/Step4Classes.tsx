@@ -24,12 +24,6 @@ import SchoolTabs from '../SchoolTabs';
 
 // ─── Wizard Constants ──────────────────────────────────────────────────────────
 
-const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
-  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
-    <Check size={13} strokeWidth={3.2} className="text-white" />
-  </span>
-);
-
 const ARABIC_LETTERS_W = ['أ','ب','ج','د','هـ','و','ز','ح','ط','ي','ك','ل','م','ن','س','ع','ف','ص','ق','ر'];
 const GRADE_TEMPLATES_W: Record<string, string[]> = {
   elementary: ['الأول','الثاني','الثالث','الرابع','الخامس','السادس'],
@@ -1338,9 +1332,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                           }}
                                         />
                                         <button onClick={handleSaveEdit} className="px-2 py-2 bg-[#8779fb] text-white rounded-lg text-[10px] font-bold shrink-0 inline-flex items-center justify-center gap-1.5">
-                                          <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-[#8779fb]">
-                                            <Check size={10} strokeWidth={3.2} className="text-white" />
-                                          </span>
+                                          <CheckCircle2 size={14} />
                                           حفظ
                                         </button>
                                       </div>
@@ -1602,9 +1594,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                      onClick={() => handleBulkRename(grade)}
                                      className="px-8 py-2.5 bg-[#655ac1] text-white rounded-xl text-xs font-black hover:bg-[#5046a0] transition-all shadow-lg shadow-indigo-200 active:scale-95 inline-flex items-center justify-center gap-2"
                                    >
-                                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                                       <Check size={13} strokeWidth={3.2} className="text-white" />
-                                     </span>
+                                     <CheckCircle2 size={16} />
                                      حفظ التعديلات
                                    </button>
                                  </div>
@@ -1691,9 +1681,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                       }}
                                     />
                                     <button onClick={handleSaveEdit} className="p-2 bg-[#655ac1] text-white rounded-lg hover:bg-indigo-700 font-bold text-[10px] inline-flex items-center justify-center gap-1.5">
-                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                                        <Check size={10} strokeWidth={3.2} className="text-white" />
-                                      </span>
+                                      <CheckCircle2 size={14} />
                                       حفظ
                                     </button>
                                  </div>
@@ -2365,7 +2353,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   onClick={() => setGradeActionsModal(null)}
                   className="px-6 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] text-white hover:bg-[#5046a0] transition-all inline-flex items-center justify-center gap-2"
                 >
-                  <SaveCheckIcon />
+                  <CheckCircle2 size={16} />
                   حفظ
                 </button>
               </div>
@@ -2489,7 +2477,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     }}
                     className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2"
                   >
-                    <SaveCheckIcon />
+                    <CheckCircle2 size={16} />
                     حفظ
                   </button>
                 </div>
@@ -2565,7 +2553,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                     onClick={handleApplyGlobalPeriods}
                     className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2"
                   >
-                    <SaveCheckIcon />
+                    <CheckCircle2 size={16} />
                     حفظ
                   </button>
                 </div>
@@ -2741,9 +2729,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             </div>
             <div className="p-4 border-t border-slate-100 flex gap-3">
               <button onClick={() => setCustomPeriodClassId(null)} className="flex-1 py-3 rounded-xl font-black text-white text-sm bg-[#8779fb] inline-flex items-center justify-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#8779fb]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 حفظ
               </button>
               <button onClick={() => { handleResetCustomPeriods(customPeriodClassId); }} className="px-4 py-3 rounded-xl font-black text-slate-500 text-sm bg-slate-100 text-xs">إعادة تعيين</button>

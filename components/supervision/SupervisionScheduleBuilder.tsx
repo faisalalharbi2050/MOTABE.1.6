@@ -3,7 +3,7 @@ import {
   MapPin, Plus, X, Copy, Trash2, RotateCcw,
   ChevronDown, Check, AlertTriangle, Search, Shield,
   BarChart3, Users, ClipboardList, SlidersHorizontal, Edit3,
-  MapPinned, UserRoundCheck, Table2,
+  MapPinned, UserRoundCheck, Table2, CheckCircle2,
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -1427,9 +1427,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                     onClick={saveLocationsModal}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all"
                   >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                      <Check size={13} strokeWidth={3.2} className="text-white" />
-                    </span>
+                    <CheckCircle2 size={16} />
                     حفظ
                   </button>
                 )}
@@ -1735,10 +1733,8 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 onClick={saveSelectedStaff}
                 className="inline-flex items-center gap-2 bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all"
               >
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
-                حفظ{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
+                <CheckCircle2 size={16} />
+                {addPanel.mode === 'edit' ? 'حفظ' : 'إضافة'}{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
               </button>
             </div>
           </div>
@@ -1863,9 +1859,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
                 disabled={!selectedFollowUpId}
                 className="inline-flex items-center gap-2 bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 حفظ
               </button>
             </div>
@@ -2064,9 +2058,7 @@ const SupervisionScheduleBuilder: React.FC<Props> = ({
             <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
               <button onClick={discardFollowUpModal} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">إغلاق</button>
               <button onClick={saveFollowUpModal} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-[#655ac1] hover:bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20 transition-all">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 حفظ
               </button>
             </div>

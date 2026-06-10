@@ -1327,9 +1327,7 @@ export default function TeacherConstraintsModal({
             onClick={onClose}
             className="px-6 py-2.5 bg-[#655ac1] text-white rounded-xl font-bold text-sm hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all flex items-center gap-2"
           >
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-              <Check size={13} strokeWidth={3.2} className="text-white" />
-            </span>
+            <CheckCircle2 size={16} />
             حفظ
           </button>
         </div>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  AlertTriangle, Check, Clock, Edit3, MapPin, Plus, Trash2, X
+  AlertTriangle, Check, CheckCircle2, Clock, Edit3, MapPin, Plus, Trash2, X
 } from 'lucide-react';
 import {
   SchoolInfo, SupervisionLocation, SupervisionPeriodConfig
@@ -40,7 +40,7 @@ const SaveIconButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all"
     title="حفظ"
   >
-    <Check size={16} strokeWidth={3} />
+    <CheckCircle2 size={16} />
   </button>
 );
 
@@ -426,9 +426,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <button onClick={() => setShowLocationModal(false)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50">إغلاق</button>
               <button onClick={addLocation} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5046a0] flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 إضافة
               </button>
             </div>
@@ -482,9 +480,7 @@ const SupervisionLocationsPanel: React.FC<Props> = ({
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <button onClick={() => setShowPeriodModal(false)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50">إغلاق</button>
               <button onClick={addPeriod} className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5046a0] flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 إضافة
               </button>
             </div>

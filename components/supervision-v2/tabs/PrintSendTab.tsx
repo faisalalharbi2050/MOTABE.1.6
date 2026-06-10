@@ -18,6 +18,7 @@ import {
   getSupervisionTableConfig, MAIN_SUPERVISION_TABLE_ID,
 } from '../../../utils/supervisionUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
+import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 
@@ -854,16 +855,27 @@ const PrintSendTab: React.FC<Props> = ({
       .replace(/\(\s*(?:التاريخ بالهجري|يظهر التاريخ بالهجري)\s*\)/g, todayHijri)
       .replace(/\(\s*(?:الفصل الدراسي|يظهر الفصل الدراسي)\s*\)/g, currentSemesterName);
 
+    const catalogValues = {
+      'اسم_المستلم': recipientName,
+      'اسم_المدرسة': schoolName,
+      'يوم_التكليف': assignmentDayName,
+      'تاريخ_التكليف': assignmentHijri,
+      'اليوم': todayDayName,
+      'التاريخ': todayHijri,
+      'الفصل_الدراسي': currentSemesterName,
+      'رابط_التوقيع': link,
+    };
     if (sendMode === 'electronic') {
-      return `المكرم/ ${recipientName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}\nرابط التكليف والتوقيع:\n${link}`;
+      return fillMessageTemplate(getMessageTemplate('supervision/electronic'), catalogValues);
     }
     if (sendMode === 'text') {
-      return `المكرم/ ${recipientName}\nنشعركم بإسناد مهمة الإشراف اليومي لكم في يوم ${assignmentDayName}، شاكرين تعاونكم.\n${schoolName} - ${assignmentDayName} - ${assignmentHijri} - ${currentSemesterName}.`;
+      return fillMessageTemplate(getMessageTemplate('supervision/text'), catalogValues);
     }
+    // قالب التذكير القديم في إعدادات الإشراف يبقى مقدَّماً للتوافق مع من خصّصه هناك
     if (reminderTemplate) {
       return fillReminderTemplate(reminderTemplate);
     }
-    return `المكرم/ ${recipientName}\nنذكركم بموعد الإشراف اليومي لهذا اليوم ${todayDayName}، شاكرين تعاونكم.\n${schoolName} - ${todayDayName} - ${todayHijri} - ${currentSemesterName}.`;
+    return fillMessageTemplate(getMessageTemplate('supervision/reminder'), catalogValues);
   };
 
   const buildRecipientTaskSummary = (recipient: SendRecipient) =>
@@ -879,6 +891,7 @@ const PrintSendTab: React.FC<Props> = ({
     const customBase = selectedSupervisionTypeId !== 'all' && messageText.trim()
       ? messageText.replace(/\{اسم_المستلم\}/g, recipient.staffName)
       : '';
+    // مقدمة المهام المجمّعة ثابتة عمداً — ليست قالباً قابلاً للتخصيص في السجل المركزي
     const heading = customBase || `المكرم/ ${recipient.staffName}\nنشعركم بمهام الإشراف اليومي المسندة لكم، شاكرين تعاونكم.`;
     const links = sendMode === 'electronic'
       ? Array.from(new Map(recipient.tasks.map(task => [buildSignatureLink(task), task])).entries())

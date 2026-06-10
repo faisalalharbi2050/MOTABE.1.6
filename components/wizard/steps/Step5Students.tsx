@@ -33,12 +33,6 @@ const MultiAddIcon: React.FC<{ className?: string }> = ({ className = 'text-slat
   </span>
 );
 
-const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
-  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
-    <Check size={13} strokeWidth={3.2} className="text-white" />
-  </span>
-);
-
 const gradeLabel = (grade: number) => {
   const labels: Record<number, string> = {
     1: 'الأول',
@@ -288,9 +282,7 @@ const StudentRow = React.memo<StudentRowProps>(function StudentRow({
         {isEditing ? (
           <div className="flex items-center justify-center gap-1.5">
             <button onClick={onSaveEdit} className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all" title="حفظ">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-emerald-500">
-                <Check size={11} strokeWidth={3.2} className="text-white" />
-              </span>
+              <CheckCircle2 size={16} />
             </button>
             <button onClick={onCancelEdit} className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all" title="إلغاء">
               <X size={14} />
@@ -2216,7 +2208,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   onClick={() => { setShowMissingDataModal(false); showToast('تم حفظ التعديلات'); }}
                   className="px-8 py-2.5 bg-[#655ac1] text-white text-sm font-bold rounded-xl hover:bg-[#5448a8] shadow-md shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"
                 >
-                  <SaveCheckIcon />
+                  <CheckCircle2 size={16} />
                   حفظ
                 </button>
               </div>
@@ -2497,7 +2489,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                   disabled={dataEditSelectedIds.size === 0}
                   className="min-w-32 px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
-                  <SaveCheckIcon />
+                  <CheckCircle2 size={16} />
                   حفظ
                 </button>
               </div>
@@ -2514,7 +2506,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     </div>
                     <div className="pt-6 flex gap-3">
                       <button onClick={() => setShowDataEditConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
-                    <button onClick={applyDataEditSave} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><SaveCheckIcon /> حفظ</button>
+                    <button onClick={applyDataEditSave} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><CheckCircle2 size={16} /> حفظ</button>
                     </div>
                   </div>
                 </div>
@@ -2760,7 +2752,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                       disabled={!canApply}
                       className="flex-1 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                     >
-                      <SaveCheckIcon />
+                      <CheckCircle2 size={16} />
                       نقل
                     </button>
                   </div>
@@ -2781,7 +2773,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
                     </div>
                     <div className="pt-6 flex gap-3">
                       <button onClick={() => setShowTransferConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
-                      <button onClick={handleBulkEditApply} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><SaveCheckIcon /> نقل</button>
+                      <button onClick={handleBulkEditApply} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><CheckCircle2 size={16} /> نقل</button>
                     </div>
                   </div>
                 </div>

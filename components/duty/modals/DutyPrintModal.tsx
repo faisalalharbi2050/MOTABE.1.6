@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Edit, Calendar, FileText, PenLine, CheckCircle, Shield } from 'lucide-react';
+import { X, Printer, Edit, Calendar, FileText, PenLine, CheckCircle, CheckCircle2, Shield } from 'lucide-react';
 import { SchoolInfo, DutyScheduleData } from '../../../types';
 import { getDutyPrintData } from '../../../utils/dutyUtils';
 import { printDutyReport } from '../DutyReportViewModal';
@@ -431,13 +431,13 @@ const DutyPrintModal: React.FC<Props> = ({ isOpen, onClose, dutyData, schoolInfo
                   </div>
                   <button
                     onClick={() => setEditingFooter(!editingFooter)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border inline-flex items-center gap-1 ${
                       editingFooter
                         ? 'bg-[#655ac1] text-white border-[#655ac1]'
                         : 'bg-white text-[#655ac1] border-[#655ac1]/30 hover:border-[#655ac1]'
                     }`}
                   >
-                    {editingFooter ? 'حفظ' : 'تعديل'}
+                    {editingFooter ? <><CheckCircle2 size={13} /> حفظ</> : 'تعديل'}
                   </button>
                 </div>
                 {editingFooter ? (

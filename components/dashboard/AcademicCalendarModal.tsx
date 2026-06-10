@@ -327,7 +327,7 @@ const AcademicCalendarModal: React.FC<AcademicCalendarModalProps> = ({
                       : 'bg-[#655ac1] text-white hover:bg-[#5548b0]'
                   }`}
                 >
-                  {saved ? <><CheckCircle2 size={15} />تم الحفظ</> : 'حفظ'}
+                  {saved ? <><CheckCircle2 size={15} />تم الحفظ</> : <><CheckCircle2 size={15} />حفظ</>}
                 </button>
               )}
             </div>

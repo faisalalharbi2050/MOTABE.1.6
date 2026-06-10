@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { SchoolInfo, TimingConfig, BreakInfo, PrayerInfo } from '../../types';
-import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, ChevronDown, Lightbulb, Edit3 } from 'lucide-react';
+import { Clock, Plus, Trash2, Save, Printer, Sun, Cloud, Moon, Settings, Calculator, Calendar, Copy, Link, Split, Check, Sunset, MinusCircle, Utensils, Snowflake, CheckCircle, CheckCircle2, ChevronDown, Lightbulb, Edit3 } from 'lucide-react';
 import SchoolTabs from '../wizard/SchoolTabs';
 import LoadingLogo, { useMinLoadingTime } from '../ui/LoadingLogo';
 
@@ -1138,9 +1138,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                              </div>
                              <div className="pt-8">
                                 <button onClick={handleSave} className="w-full flex items-center justify-center gap-2 px-8 py-3 bg-[#655ac1] hover:bg-[#52499d] text-white rounded-xl text-md font-bold shadow-md shadow-indigo-200 transition-all">
-                                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                                      <Check size={13} strokeWidth={3.2} className="text-white" />
-                                    </span>
+                                    <CheckCircle2 size={16} />
                                     حفظ التوقيت
                                 </button>
                              </div>
@@ -1362,9 +1360,7 @@ const TimingSettings: React.FC<TimingSettingsProps> = ({ schoolInfo, setSchoolIn
                         onClick={handleSaveScheduleEdits}
                         className="h-10 inline-flex items-center gap-2 px-4 rounded-xl bg-[#655ac1] hover:bg-[#52499d] text-white text-sm font-bold shadow-sm transition-all"
                       >
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                          <Check size={13} strokeWidth={3.2} className="text-white" />
-                        </span>
+                        <CheckCircle2 size={16} />
                         حفظ التعديل
                       </button>
                     ) : (

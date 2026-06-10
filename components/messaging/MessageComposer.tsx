@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
+import { MESSAGE_CATALOG, getMessageTemplate } from '../../utils/messageCatalog';
 import MessageToast from './MessageToast';
 import RecipientsPreviewModal from './RecipientsPreviewModal';
 import DatePicker, { DateObject } from "react-multi-date-picker";
@@ -146,7 +147,7 @@ const RecipientSelectDropdown: React.FC<{
 const MessageComposer: React.FC<MessageComposerProps> = ({
   schoolInfo, teachers, admins, students, classes, specializations, subscription, setSubscription, initialDraft
 }) => {
-  const { sendMessage, scheduleMessage, templates, stats } = useMessageArchive();
+  const { sendMessage, scheduleMessage, stats } = useMessageArchive();
   const applyingDraftRef = useRef(false);
   const appliedDraftIdRef = useRef<string | null>(null);
 
@@ -371,11 +372,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   }, [messageContent, recipientsToSend, today, dateFormatted, timeFormatted, schoolInfo, previewScheduleLinks]);
 
   // ── Template handler ─────────────────────────────────────────────────────
+  // القوالب الجاهزة تأتي من السجل المركزي (شؤون الطلاب + التعاميم) فتعكس تخصيصات المستخدم
+  const composerTemplates = MESSAGE_CATALOG.filter(entry => entry.page === 'students' || entry.page === 'circulars');
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
     if (!templateId) return;
-    const template = templates.find(temp => temp.id === templateId);
-    if (template) setMessageContent(template.content);
+    const content = getMessageTemplate(templateId);
+    if (content) setMessageContent(content);
   };
 
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
@@ -989,7 +992,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 placeholder="اختر القالب"
                 options={[
                   { value: '', label: 'بدون قالب' },
-                  ...templates.map(t => ({ value: t.id, label: t.title })),
+                  ...composerTemplates.map(t => ({ value: t.id, label: t.label })),
                 ]}
               />
             </div>

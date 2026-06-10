@@ -2620,9 +2620,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                     <button onClick={() => { setPendingSortChoice(null); setShowFsSortModal(false); }} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
                     <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setPendingSortChoice(null); setShowFsSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                            <Check size={13} strokeWidth={3.2} className="text-white" />
-                        </span>
+                        <CheckCircle2 size={16} />
                         حفظ
                     </button>
                 </div>
@@ -2689,9 +2687,7 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                     <button onClick={() => { setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
                     <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                            <Check size={13} strokeWidth={3.2} className="text-white" />
-                        </span>
+                        <CheckCircle2 size={16} />
                         حفظ
                     </button>
                 </div>

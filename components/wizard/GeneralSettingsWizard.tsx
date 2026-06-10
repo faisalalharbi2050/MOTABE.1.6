@@ -12,7 +12,8 @@ import {
   Calendar,
   LayoutGrid,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  CheckCircle2
 } from 'lucide-react';
 import { SchoolInfo, Subject, ClassInfo, Teacher, Admin, Student, Specialization, ScheduleSettingsData } from '../../types';
 
@@ -252,7 +253,7 @@ const GeneralSettingsWizard: React.FC<WizardProps> = ({
           >
              {currentStep === totalSteps ? (
                 <>
-                    حفظ وإنهاء <Save size={18} className="group-hover:scale-110 transition-transform"/>
+                    حفظ وإنهاء <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform"/>
                 </>
              ) : (
                 <>

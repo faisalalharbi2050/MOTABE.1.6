@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Subject, ScheduleSettingsData } from '../../types';
-import { Bot, Save, X, Sparkles } from 'lucide-react';
+import { Bot, CheckCircle2, X, Sparkles } from 'lucide-react';
 
 interface SubjectAbbreviationsModalProps {
     isOpen: boolean;
@@ -163,7 +163,7 @@ const SubjectAbbreviationsModal: React.FC<SubjectAbbreviationsModalProps> = ({
                         onClick={handleSave}
                         className="px-8 py-2.5 bg-[#655ac1] hover:bg-[#5a4eb3] text-white font-bold rounded-xl transition-all shadow-md shadow-[#655ac1]/20 flex items-center gap-2"
                     >
-                        <Save size={18} />
+                        <CheckCircle2 size={18} />
                         حفظ
                     </button>
                 </div>

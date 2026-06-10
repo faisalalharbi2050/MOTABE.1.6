@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Printer, Edit, PenLine, FileText, Eye, EyeOff } from 'lucide-react';
+import { X, Printer, Edit, PenLine, FileText, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { SchoolInfo, SupervisionScheduleData } from '../../../types';
 import { getSupervisionPrintData, DAY_NAMES } from '../../../utils/supervisionUtils';
 
@@ -286,13 +286,13 @@ const SupervisionPrintModal: React.FC<Props> = ({
                 </div>
                 <button
                   onClick={() => editingFooter ? handleSaveFooter() : setEditingFooter(true)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border inline-flex items-center gap-1 ${
                     editingFooter
                       ? 'bg-[#655ac1] text-white border-[#655ac1]'
                       : 'bg-white text-[#655ac1] border-[#655ac1]/30 hover:border-[#655ac1]'
                   }`}
                 >
-                  {editingFooter ? 'حفظ' : 'تعديل'}
+                  {editingFooter ? <><CheckCircle2 size={13} /> حفظ</> : 'تعديل'}
                 </button>
               </div>
               {editingFooter ? (

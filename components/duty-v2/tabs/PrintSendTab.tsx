@@ -13,6 +13,7 @@ import {
 import { Admin, DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
+import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
 import DutyReportPreview from '../../duty/DutyReportPreview';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 
@@ -834,22 +835,21 @@ const PrintSendTab: React.FC<Props> = ({
     const dateText = formatHijriDate(firstAssignment.date);
     const assignmentLines = assignments.map(item => `- ${DAY_NAMES[item.day] || item.day} الموافق ${formatHijriDate(item.date)}`).join('\n');
     const assignmentText = assignments.length > 1 ? `الأيام التالية:\n${assignmentLines}` : `يوم ${dayName} الموافق ${dateText}`;
+    const catalogValues = {
+      'اسم_المستلم': displayName,
+      'أيام_التكليف': assignmentText,
+      'اليوم': dayName,
+      'التاريخ': dateText,
+      'سطر_المدرسة_والتاريخ': todayHijriLine,
+      'رابط_التوقيع': buildSignatureLink(target),
+    };
     if (sendMode === 'electronic') {
-      return `المكرم/ ${displayName}
-نشعركم بإسناد مهمة المناوبة اليومية لكم في ${assignmentText} ، يرجى الدخول على الرابط المرفق والتوقيع بالعلم، شاكرين تعاونكم.
-${todayHijriLine}
-
-رابط التكليف والتوقيع:
-${buildSignatureLink(target)}`;
+      return fillMessageTemplate(getMessageTemplate('duty/electronic'), catalogValues);
     }
     if (sendMode === 'text') {
-      return `المكرم/ ${displayName}
-نشعركم بإسناد مهمة المناوبة اليومية لكم في ${assignmentText}، شاكرين تعاونكم.
-${todayHijriLine}`;
+      return fillMessageTemplate(getMessageTemplate('duty/text'), catalogValues);
     }
-    return `المكرم/ ${displayName}
-نذكركم بمهمة المناوبة اليومية لهذا ${dayName} الموافق ${dateText}، شاكرين تعاونكم.
-${todayHijriLine}${includeReportLinkInReminder ? `
+    return `${fillMessageTemplate(getMessageTemplate('duty/reminder'), catalogValues)}${includeReportLinkInReminder ? `
 
 رابط تقرير المناوبة اليومي:
 ${buildReportLink(target)}` : ''}`;

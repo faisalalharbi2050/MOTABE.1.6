@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Edit3, ListTree, Plus, Trash2, X } from 'lucide-react';
+import { Check, CheckCircle2, Edit3, ListTree, Plus, Trash2, X } from 'lucide-react';
 import { SupervisionType } from '../../types';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
@@ -337,7 +337,7 @@ const SupervisionTypesPanel: React.FC<Props> = ({
                                 className="p-2 rounded-lg text-[#655ac1] hover:bg-[#655ac1]/10 transition-colors"
                                 title="حفظ"
                               >
-                                <Check size={15} />
+                                <CheckCircle2 size={15} />
                               </button>
                               <button
                                 type="button"

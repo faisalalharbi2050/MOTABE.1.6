@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarX2, MousePointerClick, Laptop, Ban, Check, X, AlertTriangle, CalendarDays, ChevronDown } from 'lucide-react';
+import { CalendarX2, MousePointerClick, Laptop, Ban, Check, CheckCircle2, X, AlertTriangle, CalendarDays, ChevronDown } from 'lucide-react';
 import { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -437,9 +437,7 @@ const DutyWeeksCard: React.FC<Props> = ({ settings, setSettings, schoolInfo, cur
                 onClick={() => setShowHybridModal(false)}
                 className="inline-flex items-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-[#655ac1]/20"
               >
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 حفظ
               </button>
             </div>

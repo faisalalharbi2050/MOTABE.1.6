@@ -3,7 +3,7 @@ import {
   Plus, X, Trash2,
   Search, Shield, ShieldCheck, Check, BarChart2,
   ClipboardCheck, ClipboardX,
-  Eye, PenLine, Hourglass
+  Eye, PenLine, Hourglass, CheckCircle2
 } from 'lucide-react';
 import {
   SchoolInfo, Teacher, Admin, ScheduleSettingsData,
@@ -1057,10 +1057,8 @@ const DutyScheduleBuilder: React.FC<Props> = ({
                                               إغلاق
                                             </button>
                                             <button onClick={() => saveManualStaffAssignments(dayId)} className="inline-flex items-center gap-2 bg-[#655ac1] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all">
-                                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                                                <Check size={13} strokeWidth={3.2} className="text-white" />
-                                              </span>
-                                              حفظ{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
+                                              <CheckCircle2 size={16} />
+                                              {addPanelMode === 'edit' ? 'حفظ' : 'إضافة'}{selectedStaffIds.length > 0 ? ` (${selectedStaffIds.length})` : ''}
                                             </button>
                                           </div>
                                         </div>

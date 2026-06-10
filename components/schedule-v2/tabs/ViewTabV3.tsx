@@ -70,6 +70,7 @@ import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 import { getClassLabel } from '../../../utils/classLabels';
+import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -1820,13 +1821,14 @@ const ViewTabV3: React.FC<Props> = ({
       sendAudience === 'admins' ? 'admins' :
       'parents';
     const schedTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
-    const recipientName = 'المكرم/ {اسم_المستلم}';
-    const content = [
-      `${recipientName}`,
-      `نرفق لكم جدول للعلم والاطلاع.`,
-      ``,
-      `المدرسة: ${schoolInfo.schoolName || 'المدرسة'} - اليوم (${dayLabel}) - التاريخ (${dateLabel}) - الفصل الدراسي (${currentSemester?.name || '-'}) - نوع الجدول (${schedTypeLabel}) - رابط الجدول ({روابط_الجداول})`,
-    ].join('\n');
+    // {اسم_المستلم} و{روابط_الجداول} يبقيان رمزين هنا ويُعبَّآن لكل مستلم عند الإرسال
+    const content = fillMessageTemplate(getMessageTemplate('schedule/send'), {
+      'اسم_المدرسة': schoolInfo.schoolName || 'المدرسة',
+      'اليوم': dayLabel,
+      'التاريخ': dateLabel,
+      'الفصل_الدراسي': currentSemester?.name || '-',
+      'نوع_الجدول': schedTypeLabel,
+    });
 
     return {
       id: `schedule-draft-${Date.now()}`,

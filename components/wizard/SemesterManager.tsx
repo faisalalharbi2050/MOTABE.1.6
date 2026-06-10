@@ -720,9 +720,7 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
                         className="flex items-center gap-2 px-5 py-2 text-sm bg-[#655ac1] text-white rounded-xl font-black hover:bg-[#5548b0] transition-all shadow-sm shadow-indigo-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                       >
                         {editingId ? (
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                            <Check size={13} strokeWidth={3.2} className="text-white" />
-                          </span>
+                          <CheckCircle2 size={16} />
                         ) : (
                           <Plus size={16} strokeWidth={3} />
                         )}

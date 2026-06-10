@@ -3088,9 +3088,7 @@ const SubjectConstraintsModal: React.FC<SubjectConstraintsModalProps> = ({
                       saved ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-[#655ac1] hover:bg-[#5a4eb3] shadow-[#655ac1]/20'
                     }`}
                 >
-                    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${saved ? 'bg-emerald-600' : 'bg-[#655ac1]'}`}>
-                      <Check size={13} strokeWidth={3.2} className="text-white" />
-                    </span>
+                    <CheckCircle2 size={16} />
                     {saved ? 'تم الحفظ' : 'حفظ'}
                 </button>
             </div>

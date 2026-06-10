@@ -34,11 +34,6 @@ const AGENT_TYPES = [
   'وكيل الشؤون المدرسية',
 ];
 
-const SaveCheckIcon = ({ className = "bg-[#655ac1]" }: { className?: string }) => (
-  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-white ${className}`}>
-    <Check size={13} strokeWidth={3.2} className="text-white" />
-  </span>
-);
 
 const MultiAddIcon = ({ className = "text-slate-400" }: { className?: string }) => (
   <span className={`relative inline-flex h-5 w-5 items-center justify-center ${className}`}>
@@ -1308,7 +1303,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                               {editingAdminId === admin.id ? (
                                 <div className="flex items-center justify-center gap-1.5">
                                   <button onClick={saveRowEdit} className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all" title="حفظ">
-                                    <SaveCheckIcon className="bg-emerald-500 h-4 w-4" />
+                                    <CheckCircle2 size={16} />
                                   </button>
                                   <button onClick={cancelRowEdit} className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 transition-all" title="إلغاء">
                                     <X size={14} />
@@ -1460,7 +1455,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-all"
                               title="حفظ"
                             >
-                              <Check size={14} strokeWidth={2.5} />
+                              <CheckCircle2 size={16} />
                             </button>
                             <button
                               onClick={cancelRowEdit}
@@ -2015,7 +2010,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                   disabled={dataEditSelectedIds.size === 0}
                   className="min-w-32 px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
-                  <SaveCheckIcon />
+                  <CheckCircle2 size={16} />
                   حفظ
                 </button>
               </div>
@@ -2032,7 +2027,7 @@ const Step7Admins: React.FC<Step7Props> = ({ admins, setAdmins, schoolInfo }) =>
                     </div>
                     <div className="pt-6 flex gap-3">
                       <button onClick={() => setShowDataEditConfirm(false)} className="flex-1 px-4 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-bold rounded-xl transition-colors">إلغاء</button>
-                      <button onClick={applyDataEditSave} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><SaveCheckIcon /> حفظ</button>
+                      <button onClick={applyDataEditSave} className="flex-1 py-4 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 transition-all inline-flex items-center justify-center gap-2"><CheckCircle2 size={16} /> حفظ</button>
                     </div>
                   </div>
                 </div>

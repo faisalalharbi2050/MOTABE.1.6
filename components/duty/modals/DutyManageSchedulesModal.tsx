@@ -414,7 +414,7 @@ const DutyManageSchedulesModal: React.FC<Props> = ({
                                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white rounded-lg transition-colors"
                                   style={{ background: '#655ac1' }}
                                 >
-                                  <Check size={12} /> حفظ
+                                  <CheckCircle2 size={12} /> حفظ
                                 </button>
                                 <button
                                   onClick={() => {

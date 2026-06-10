@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Pen, Trash2, Bell, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, X, Pen, Trash2, Bell, ClipboardList, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { CalendarEvent, SchoolInfo } from '../../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -618,9 +618,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ schoolInfo }) => {
               <button
                 onClick={saveTask}
                 disabled={!hasValidTaskTitle}
-                className="flex-1 py-2.5 bg-[#655ac1] text-white rounded-2xl font-bold text-sm shadow-md shadow-[#655ac1]/20 hover:bg-[#5448b0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 bg-[#655ac1] text-white rounded-2xl font-bold text-sm shadow-md shadow-[#655ac1]/20 hover:bg-[#5448b0] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
-                {editingTask ? 'حفظ التعديلات' : 'إضافة'}
+                {editingTask ? <><CheckCircle2 size={15} /> حفظ التعديلات</> : 'إضافة'}
               </button>
             </div>
           </div>

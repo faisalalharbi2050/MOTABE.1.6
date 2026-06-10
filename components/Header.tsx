@@ -29,6 +29,7 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  CheckCircle2,
 } from 'lucide-react';
 import { SchoolInfo } from '../types';
 
@@ -215,9 +216,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({ authMethod, onConfirm, on
           </button>
           <button onClick={submit}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-              <Check size={13} strokeWidth={3.2} className="text-white" />
-            </span>
+            <CheckCircle2 size={16} />
             {isOAuth ? 'تعيين' : 'حفظ'}
           </button>
         </div>
@@ -810,9 +809,7 @@ const Header: React.FC<HeaderProps> = ({
                             onClick={handleSave}
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-[#655ac1] hover:bg-[#5448b0] rounded-xl transition-colors shadow-sm"
                           >
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                              <Check size={13} strokeWidth={3.2} className="text-white" />
-                            </span>
+                            <CheckCircle2 size={16} />
                             حفظ
                           </button>
                         </div>

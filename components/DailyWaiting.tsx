@@ -24,6 +24,7 @@ import { useMessageArchive } from './messaging/MessageArchiveContext';
 import RecipientsPreviewModal from './messaging/RecipientsPreviewModal';
 import LoadingLogo from './ui/LoadingLogo';
 import { getClassLabel } from '../utils/classLabels';
+import { getMessageTemplate, fillMessageTemplate } from '../utils/messageCatalog';
 
 // ===== Local Type Definitions =====
 
@@ -1242,9 +1243,21 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   };
 
   // ── Phase 4: Message helpers ──
+  // قيم رموز السجل المركزي المشتركة بين رسالتي التبليغ والتكليف
+  const buildWaitingCatalogValues = (asgn: WaitingAssignment, recipientName: string): Record<string, string> => ({
+    'اسم_المستلم': recipientName,
+    'اليوم': dayName,
+    'رقم_الحصة': String(asgn.periodNumber),
+    'الفصل': asgn.className,
+    'المعلم_الغائب': asgn.absentTeacherName,
+    'اسم_المدرسة': schoolInfo.schoolName || 'المدرسة',
+    'التاريخ': formatHijri(selectedDate),
+    'الفصل_الدراسي': getCurrentAcademicSemester(schoolInfo)?.name || '',
+  });
+
   // message without link (notification only)
   const buildNotificationMessage = (asgn: WaitingAssignment, recipientName = asgn.substituteTeacherName): string =>
-    `المكرم المنتظر / ${recipientName}، لديك حصة انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}.`;
+    fillMessageTemplate(getMessageTemplate('waiting/notification'), buildWaitingCatalogValues(asgn, recipientName));
 
   // generate a deterministic signing token/link for electronic send
   const buildSignLink = (asgn: WaitingAssignment): string => {
@@ -1255,7 +1268,10 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
 
   // message with signature link (electronic)
   const buildElectronicMessage = (asgn: WaitingAssignment, recipientName = asgn.substituteTeacherName): string =>
-    `المكرم المنتظر / ${recipientName}، لديك تكليف انتظار يوم ${dayName}، الحصة ${asgn.periodNumber}، في فصل ${asgn.className} بدلاً من المعلم ${asgn.absentTeacherName}. الرجاء التوقيع إلكترونياً عبر الرابط: ${buildSignLink(asgn)}`;
+    fillMessageTemplate(getMessageTemplate('waiting/electronic'), {
+      ...buildWaitingCatalogValues(asgn, recipientName),
+      'رابط_التوقيع': buildSignLink(asgn),
+    });
 
   // default message builder (backward compat) — uses notification format
   const buildAssignmentMessage = (asgn: WaitingAssignment, recipientName = asgn.substituteTeacherName): string =>
@@ -6340,9 +6356,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                 className="inline-flex items-center justify-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 disabled={!selectedAssignPerson}
               >
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#655ac1]">
-                  <Check size={13} strokeWidth={3.2} className="text-white" />
-                </span>
+                <CheckCircle2 size={16} />
                 حفظ
               </button>
             </div>

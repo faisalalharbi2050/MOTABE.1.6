@@ -368,9 +368,7 @@ const ManageTab: React.FC<Props> = ({ supervisionData, setSupervisionData, showT
                               className="w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-500 text-white transition-all"
                               title="حفظ"
                             >
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-emerald-500">
-                                <Check size={13} strokeWidth={3.2} className="text-white" />
-                              </span>
+                              <CheckCircle2 size={16} />
                             </button>
                             <button
                               onClick={() => { setEditingId(null); setEditingName(''); }}
