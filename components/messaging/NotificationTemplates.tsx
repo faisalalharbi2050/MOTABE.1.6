@@ -111,7 +111,7 @@ const NotificationTemplates: React.FC<Props> = ({ showToast }) => {
                     </span>
                   )}
                   <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-200">
-                    {entries.length} أنواع
+                    {entries.length}
                   </span>
                   <ChevronDown size={17} className={`text-slate-400 group-hover:text-[#655ac1] transition-all ${isExpanded ? 'rotate-180' : ''}`} />
                 </span>
