@@ -814,6 +814,7 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
   const [sendSelectedIds, setSendSelectedIds] = useState<Set<string>>(new Set());
   const [sendModalMode, setSendModalMode] = useState<'notification' | 'electronic'>('electronic');
   const [sendPreferredChannel, setSendPreferredChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [sendFallbackToSms, setSendFallbackToSms] = useState(false);
   const [sendScheduleEnabled, setSendScheduleEnabled] = useState(false);
   const [sendScheduledAt, setSendScheduledAt] = useState('');
   const sendScheduleCalendarType = (schoolInfo.calendarType || 'hijri') as 'hijri' | 'gregorian';
@@ -4947,6 +4948,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                         )}
                       </button>
                     </div>
+                    {sendPreferredChannel === 'whatsapp' && (
+                      <label className="relative mt-4 flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={sendFallbackToSms}
+                          onChange={e => {
+                            setSendFallbackToSms(e.target.checked);
+                            if (e.target.checked) showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
+                          }}
+                        />
+                        <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${sendFallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                          <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${sendFallbackToSms ? 'right-1' : 'left-1'}`} />
+                        </div>
+                        <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
+                          في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
+                        </span>
+                      </label>
+                    )}
                   </div>
 
                   {/* المعاينة والروابط */}
@@ -6873,6 +6893,25 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       )}
                     </button>
                   </div>
+                  {sendPreferredChannel === 'whatsapp' && (
+                    <label className="relative flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={sendFallbackToSms}
+                        onChange={e => {
+                          setSendFallbackToSms(e.target.checked);
+                          if (e.target.checked) showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
+                        }}
+                      />
+                      <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${sendFallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                        <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${sendFallbackToSms ? 'right-1' : 'left-1'}`} />
+                      </div>
+                      <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
+                        في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
+                      </span>
+                    </label>
+                  )}
                   <button type="button" onClick={() => sendWaitingBulk()} disabled={selectedSendRows.length === 0} className="w-full flex items-center justify-center gap-2 bg-[#655ac1] hover:bg-[#5046a0] text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
                     <Send size={15} />
                     إرسال المحددين

@@ -1073,6 +1073,7 @@ const ViewTabV3: React.FC<Props> = ({
   const [selectedGuardianStudentIds, setSelectedGuardianStudentIds] = useState<string[]>([]);
   const [expandedGuardianClassIds, setExpandedGuardianClassIds] = useState<string[]>([]);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
+  const [fallbackToSms, setFallbackToSms] = useState(false);
   const [showRecipientsModal, setShowRecipientsModal] = useState(false);
   const [recipientsListLink, setRecipientsListLink] = useState<GeneratedLink | null>(null);
 
@@ -1939,7 +1940,7 @@ const ViewTabV3: React.FC<Props> = ({
       if (scheduledFor.getTime() <= Date.now()) { showToast('وقت الجدولة يجب أن يكون في المستقبل.'); return; }
       scheduleMessage({
         scheduledFor: scheduledFor.toISOString(),
-        fallbackToSms: sendChannel === 'whatsapp',
+        fallbackToSms: sendChannel === 'whatsapp' && fallbackToSms,
         messages: payloads.map(payload => payload.message),
       });
       setSigReceiptRequests(readScheduleSignatureRequests());
@@ -1954,7 +1955,7 @@ const ViewTabV3: React.FC<Props> = ({
     setIsSendingNow(true);
     const results: typeof sendModalResults = [];
     for (const payload of payloads) {
-      const response = await sendMessage(payload.message, sendChannel === 'whatsapp');
+      const response = await sendMessage(payload.message, sendChannel === 'whatsapp' && fallbackToSms);
       results.push({
         id: payload.recipientInfo.id,
         name: payload.recipientInfo.name,
@@ -2957,6 +2958,25 @@ const ViewTabV3: React.FC<Props> = ({
                     )}
                   </button>
                 </div>
+                {sendChannel === 'whatsapp' && (
+                  <label className="relative mt-4 flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={fallbackToSms}
+                      onChange={e => {
+                        setFallbackToSms(e.target.checked);
+                        if (e.target.checked) showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
+                      }}
+                    />
+                    <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                      <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+                    </div>
+                    <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
+                      في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
+                    </span>
+                  </label>
+                )}
               </div>
 
               {/* بطاقة: المعاينة والروابط */}

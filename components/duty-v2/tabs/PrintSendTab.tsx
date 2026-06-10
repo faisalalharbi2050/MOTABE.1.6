@@ -486,6 +486,7 @@ const PrintSendTab: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
+  const [fallbackToSms, setFallbackToSms] = useState(false);
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleTime, setSendScheduleTime] = useState(dutyData.settings.reminderSendTime || '07:00');
   const [messageText, setMessageText] = useState('');
@@ -2514,6 +2515,25 @@ ${buildReportLink(target)}` : ''}`;
                     )}
                   </button>
                 </div>
+                {sendChannel === 'whatsapp' && (
+                  <label className="relative mt-4 flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={fallbackToSms}
+                      onChange={e => {
+                        setFallbackToSms(e.target.checked);
+                        if (e.target.checked) showToast?.('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
+                      }}
+                    />
+                    <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                      <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+                    </div>
+                    <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
+                      في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
+                    </span>
+                  </label>
+                )}
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
