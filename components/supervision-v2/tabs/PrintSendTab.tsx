@@ -1989,14 +1989,12 @@ const PrintSendTab: React.FC<Props> = ({
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
-                {sendMode !== 'electronic' && (
-                  <MessagePreviewInline
-                    previewText={selectedRecipients.length > 0 ? buildRecipientMessage(selectedRecipients[0]) : ''}
-                    recipientName={selectedRecipients[0]?.staffName}
-                    disabled={selectedRecipients.length === 0 || !messageText.trim()}
-                    className="mt-0 mb-4"
-                  />
-                )}
+                <MessagePreviewInline
+                  previewText={selectedRecipients.length > 0 ? buildRecipientMessage(selectedRecipients[0]) : ''}
+                  recipientName={selectedRecipients[0]?.staffName}
+                  disabled={selectedRecipients.length === 0}
+                  className="mt-0 mb-4"
+                />
                 {sendChannel === 'sms' && (
                   <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">
