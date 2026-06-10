@@ -728,11 +728,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
       {/* ══ Right Column: Recipients ══ */}
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col z-0">
-        <h3 className="text-lg font-black shrink-0 text-[#1e293b] mb-6 flex items-center justify-start">
+      <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200 flex flex-col z-0">
+        <h3 className="text-base font-black shrink-0 text-[#1e293b] mb-4 flex items-center justify-start">
           <div className="flex items-center gap-2">
             <Users className="text-[#655ac1]" size={20} />
             اختر المستلمين
@@ -840,11 +840,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       </div>
 
       {/* ══ Left Column: Settings + Composer ══ */}
-      <div className="space-y-6">
+      <div className="space-y-5">
 
         {/* ── Channel Settings Card ── */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-          <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2 mb-4">
+        <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200">
+          <h3 className="text-base font-black text-[#1e293b] flex items-center gap-2 mb-4">
             <Send className="text-[#655ac1]" size={20} />
             اختر طريقة الإرسال المفضلة
           </h3>
@@ -938,10 +938,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
 
         {/* ── Recipients Preview Card (permanent) ── */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
+        <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200">
           <div className="flex items-center gap-3 mb-4">
             <Eye size={20} className="text-[#655ac1]" />
-            <h3 className="text-lg font-black text-[#1e293b]">معاينة</h3>
+            <h3 className="text-base font-black text-[#1e293b]">معاينة</h3>
           </div>
           <button
             type="button"
@@ -954,8 +954,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
 
         {/* ── Message Composer Card ── */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-          <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2 mb-4">
+        <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200">
+          <h3 className="text-base font-black text-[#1e293b] flex items-center gap-2 mb-4">
             <MessageSquare className="text-[#655ac1]" size={20} />
             نص الرسالة
           </h3>
