@@ -1122,11 +1122,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 (isScheduled && (!scheduleDate || !scheduleTime))
               }
               onClick={handleSend}
-              className="w-full bg-gradient-to-r from-[#8779fb] to-[#655ac1] text-white py-4 rounded-xl font-black text-lg hover:shadow-lg hover:shadow-[#655ac1]/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#655ac1] text-white font-black shadow-md shadow-[#655ac1]/20 hover:bg-[#5046a0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSending
-                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : isScheduled ? <Clock size={20} /> : <Send size={20} />}
+                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : isScheduled ? <Clock size={16} /> : <Send size={16} />}
               {isSending ? 'جاري الإرسال...' : isScheduled ? 'جدولة الإرسال' : 'إرسال'}
             </button>
           </div>
