@@ -1127,7 +1127,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               {isSending
                 ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : isScheduled ? <Clock size={16} /> : <Send size={16} />}
-              {isSending ? 'جاري الإرسال...' : isScheduled ? 'جدولة الإرسال' : 'إرسال'}
+              {isSending
+                ? 'جاري الإرسال...'
+                : isScheduled
+                  ? `جدولة الإرسال عبر ${channel === 'whatsapp' ? 'الواتساب' : 'الرسائل النصية'}`
+                  : `إرسال عبر ${channel === 'whatsapp' ? 'الواتساب' : 'الرسائل النصية'}`}
             </button>
           </div>
         </div>
