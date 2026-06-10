@@ -2,8 +2,8 @@
 import ReactDOM from 'react-dom';
 import {
   Send, Users, AlertCircle, Paperclip, Check,
-  MessageSquare, Plus, Search, ChevronDown, ChevronLeft,
-  Clock, Eye, CalendarClock, Smartphone, GraduationCap
+  MessageSquare, Search, ChevronDown,
+  Clock, Eye, CalendarClock, Smartphone
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
@@ -378,9 +378,40 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
     if (template) setMessageContent(template.content);
   };
 
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // يُدرج المتغير عند موضع المؤشر داخل النص (وليس في نهايته) ويعيد التركيز للحقل
   const insertVariable = (variable: string) => {
-    setMessageContent(prev => prev + `{${variable}}`);
+    const token = `{${variable}}`;
+    const input = messageInputRef.current;
+    if (!input) {
+      setMessageContent(prev => prev + token);
+      return;
+    }
+    const start = input.selectionStart ?? messageContent.length;
+    const end = input.selectionEnd ?? start;
+    setMessageContent(prev => prev.slice(0, start) + token + prev.slice(end));
+    requestAnimationFrame(() => {
+      input.focus();
+      const caret = start + token.length;
+      input.setSelectionRange(caret, caret);
+    });
   };
+
+  // صفّان ثابتان: أسماء المستلمين أولاً ثم باقي المتغيرات
+  const quickVariableRows: { key: string; label: string }[][] = [
+    [
+      { key: 'اسم_المعلم', label: 'اسم المعلم' },
+      { key: 'اسم_الإداري', label: 'اسم الإداري' },
+      { key: 'اسم_الطالب', label: 'اسم الطالب' },
+    ],
+    [
+      { key: 'اليوم', label: 'اليوم' },
+      { key: 'التاريخ', label: 'التاريخ' },
+      { key: 'الوقت', label: 'الوقت' },
+      { key: 'اسم_المدرسة', label: 'اسم المدرسة' },
+    ],
+  ];
 
   // ── Build scheduled ISO timestamp ────────────────────────────────────────
   const buildScheduledTimestamp = (): string | null => {
@@ -582,7 +613,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       return Object.entries(parentsByClass).map(([classId, items]) => {
         const classObj = activeClasses.find(c => c.id === classId);
         const className = classObj ? (classObj.name || `${classObj.grade}/${classObj.section}`) : 'غير محدد';
-        const isExpanded = expandedClasses.has(classId);
+        // أثناء البحث تُفتح الفصول تلقائياً حتى يظهر الطالب مباشرة دون نقر على كل فصل
+        const isExpanded = expandedClasses.has(classId) || searchQuery.trim().length > 0;
         const allSelected = items.every(s => selectedIds.has(s.id));
         const someSelected = items.some(s => selectedIds.has(s.id));
 
@@ -604,7 +636,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-200">
                   {items.filter(i => selectedIds.has(i.id)).length} / {items.length}
                 </span>
-                {isExpanded ? <ChevronDown size={18} className="text-slate-400 group-hover:text-[#655ac1] transition-colors" /> : <ChevronLeft size={18} className="text-slate-400 group-hover:text-[#655ac1] transition-colors" />}
+                <ChevronDown size={18} className={`text-slate-400 group-hover:text-[#655ac1] transition-all ${isExpanded ? 'rotate-180' : ''}`} />
               </div>
             </div>
             {isExpanded && (
@@ -853,6 +885,29 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             </button>
           </div>
 
+          {/* Fallback toggle — only for WhatsApp */}
+          {channel === 'whatsapp' && (
+            <label className="relative flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors mb-4">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={fallbackToSms}
+                onChange={(e) => {
+                  setFallbackToSms(e.target.checked);
+                  if (e.target.checked)
+                    showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
+                }}
+              />
+              {/* RTL toggle: dot goes RIGHT when ON */}
+              <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+              </div>
+              <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
+                في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
+              </span>
+            </label>
+          )}
+
           {/* Insufficient balance warning */}
           {recipientsToSend.length > 0 && !hasEnoughBalance && (
             <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl mb-4 text-rose-700 text-xs font-bold">
@@ -876,28 +931,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
               </div>
             )}
 
-            {/* Fallback toggle — only for WhatsApp */}
-            {channel === 'whatsapp' && (
-              <label className="relative flex items-center gap-2.5 p-2.5 border border-rose-300 bg-rose-50/40 rounded-xl cursor-pointer hover:bg-rose-50 transition-colors">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={fallbackToSms}
-                  onChange={(e) => {
-                    setFallbackToSms(e.target.checked);
-                    if (e.target.checked)
-                      showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
-                  }}
-                />
-                {/* RTL toggle: dot goes RIGHT when ON */}
-                <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                  <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
-                </div>
-                <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
-                  في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
-                </span>
-              </label>
-            )}
           </div>
         </div>
 
@@ -919,49 +952,52 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
         {/* ── Message Composer Card ── */}
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2">
-              <MessageSquare className="text-[#655ac1]" size={20} />
-              نص الرسالة
-            </h3>
-            <div className="w-full sm:w-64">
-            <RecipientSelectDropdown
-              value={selectedTemplate}
-              onChange={handleTemplateSelect}
-              placeholder="استخدام قالب جاهز"
-              options={[
-                { value: '', label: 'استخدام قالب جاهز' },
-                ...templates.map(t => ({ value: t.id, label: t.title })),
-              ]}
-            />
-            </div>
-          </div>
+          <h3 className="text-lg font-black text-[#1e293b] flex items-center gap-2 mb-4">
+            <MessageSquare className="text-[#655ac1]" size={20} />
+            نص الرسالة
+          </h3>
 
-          {/* Variable chips */}
-          <div className="mb-4">
-            <label className="block text-xs font-bold text-slate-500 mb-2">إضافة متغيرات تلقائية:</label>
-            <div className="space-y-2">
-              {[
-                ['اسم_المعلم', 'اسم_الإداري', 'اسم_الطالب'],
-                ['اليوم', 'التاريخ', 'الوقت', 'اسم_المدرسة'],
-              ].map((row, rowIndex) => (
-                <div key={rowIndex} className="flex gap-2 flex-wrap">
-                  {row.map(variable => (
-                    <button
-                      key={variable}
-                      onClick={() => insertVariable(variable)}
-                      className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] transition-colors flex items-center gap-1"
-                    >
-                      <Plus size={12} className="text-[#655ac1]" /> {variable.replace(/_/g, ' ')}
-                    </button>
-                  ))}
-                </div>
-              ))}
+          {/* Actions row — variable chips (right) + template dropdown (left) */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4 items-stretch">
+            <div className="flex-1 rounded-2xl border border-slate-200 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <label className="text-xs font-bold text-slate-500">إضافة متغيرات تلقائية:</label>
+                <span className="text-[10px] font-bold text-slate-400">انقر لإدراجها مكان المؤشر</span>
+              </div>
+              <div className="space-y-2">
+                {quickVariableRows.map((row, rowIndex) => (
+                  <div key={rowIndex} className="flex gap-2">
+                    {row.map(variable => (
+                      <button
+                        key={variable.key}
+                        type="button"
+                        onClick={() => insertVariable(variable.key)}
+                        className="flex-1 px-2 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] active:scale-95 transition-all whitespace-nowrap"
+                      >
+                        {variable.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="w-full sm:w-52 shrink-0 rounded-2xl border border-slate-200 p-3 flex flex-col">
+              <label className="text-xs font-bold text-slate-500 mb-2.5">استخدام قالب جاهز:</label>
+              <RecipientSelectDropdown
+                value={selectedTemplate}
+                onChange={handleTemplateSelect}
+                placeholder="اختر القالب"
+                options={[
+                  { value: '', label: 'بدون قالب' },
+                  ...templates.map(t => ({ value: t.id, label: t.title })),
+                ]}
+              />
             </div>
           </div>
 
           {/* Textarea */}
           <textarea
+            ref={messageInputRef}
             value={messageContent}
             onChange={(e) => setMessageContent(e.target.value)}
             className="w-full h-40 border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-[#655ac1] resize-none text-sm leading-relaxed"
