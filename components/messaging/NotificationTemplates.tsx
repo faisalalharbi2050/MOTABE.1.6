@@ -7,7 +7,7 @@ import {
   subscribeToCatalogChanges,
 } from '../../utils/messageCatalog';
 
-const PAGE_ORDER: CatalogPageId[] = ['schedule', 'supervision', 'duty', 'waiting', 'students', 'circulars'];
+const PAGE_ORDER: CatalogPageId[] = ['general', 'schedule', 'supervision', 'duty', 'waiting', 'students', 'circulars'];
 
 type Props = {
   showToast: (type: 'error' | 'success', message: string) => void;

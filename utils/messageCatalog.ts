@@ -8,7 +8,7 @@
 // الروابط) تُحقن عبر الرموز {…} من منطق كل صفحة، فلا يفقد النظام دقته التلقائية.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type CatalogPageId = 'schedule' | 'supervision' | 'duty' | 'waiting' | 'students' | 'circulars';
+export type CatalogPageId = 'general' | 'schedule' | 'supervision' | 'duty' | 'waiting' | 'students' | 'circulars';
 
 export type MessageCatalogEntry = {
   id: string;
@@ -21,6 +21,7 @@ export type MessageCatalogEntry = {
 };
 
 export const CATALOG_PAGE_LABELS: Record<CatalogPageId, string> = {
+  general: 'رسائل عامة',
   schedule: 'إدارة الحصص والانتظار',
   supervision: 'الإشراف اليومي',
   duty: 'المناوبة اليومية',
@@ -30,6 +31,16 @@ export const CATALOG_PAGE_LABELS: Record<CatalogPageId, string> = {
 };
 
 export const MESSAGE_CATALOG: MessageCatalogEntry[] = [
+  // ── رسائل عامة ────────────────────────────────────────────────────────
+  {
+    id: 'general/message',
+    page: 'general',
+    label: 'رسالة عامة',
+    description: 'قالب مرن لإرسال تنبيه أو إفادة عامة للمعلمين أو الإداريين أو أولياء الأمور.',
+    tokens: ['اسم_المستلم', 'اسم_المعلم', 'اسم_الإداري', 'اسم_الطالب', 'اسم_المدرسة', 'اليوم', 'التاريخ', 'الوقت'],
+    defaultText: 'المكرم/ {اسم_المستلم}\nنود إشعاركم بما يلي:\n\n\n\n{اسم_المدرسة} - {اليوم} - {التاريخ}',
+  },
+
   // ── إدارة الحصص والانتظار ──────────────────────────────────────────────
   {
     id: 'schedule/send',
@@ -39,15 +50,6 @@ export const MESSAGE_CATALOG: MessageCatalogEntry[] = [
     tokens: ['اسم_المستلم', 'اسم_المدرسة', 'اليوم', 'التاريخ', 'الفصل_الدراسي', 'نوع_الجدول', 'روابط_الجداول'],
     defaultText: 'المكرم/ {اسم_المستلم}\nنرفق لكم جدول للعلم والاطلاع.\n\nالمدرسة: {اسم_المدرسة} - اليوم ({اليوم}) - التاريخ ({التاريخ}) - الفصل الدراسي ({الفصل_الدراسي}) - نوع الجدول ({نوع_الجدول}) - رابط الجدول ({روابط_الجداول})',
   },
-  {
-    id: 'schedule/general',
-    page: 'schedule',
-    label: 'رسالة عامة',
-    description: 'رسالة عامة يرسلها المدير أو الوكيل للمعلمين أو الإداريين أو أولياء الأمور.',
-    tokens: ['اسم_المستلم', 'اسم_المعلم', 'اسم_الإداري', 'اسم_الطالب', 'اسم_المدرسة', 'اليوم', 'التاريخ', 'الوقت'],
-    defaultText: 'المكرم/ {اسم_المستلم}\nنود إشعاركم بما يلي:\n\n\n\n{اسم_المدرسة} - {اليوم} - {التاريخ}',
-  },
-
   // ── الإشراف اليومي ────────────────────────────────────────────────────
   {
     id: 'supervision/electronic',

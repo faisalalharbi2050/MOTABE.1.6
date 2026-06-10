@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
-import { MESSAGE_CATALOG, CATALOG_PAGE_LABELS, getMessageTemplate } from '../../utils/messageCatalog';
+import { MESSAGE_CATALOG, getMessageTemplate } from '../../utils/messageCatalog';
 import MessageToast from './MessageToast';
 import RecipientsPreviewModal from './RecipientsPreviewModal';
 import DatePicker, { DateObject } from "react-multi-date-picker";
@@ -992,7 +992,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 placeholder="اختر القالب"
                 options={[
                   { value: '', label: 'بدون قالب' },
-                  ...composerTemplates.map(t => ({ value: t.id, label: `${t.label} - ${CATALOG_PAGE_LABELS[t.page]}` })),
+                  ...composerTemplates.map(t => ({ value: t.id, label: t.label })),
                 ]}
               />
             </div>
