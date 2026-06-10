@@ -16,6 +16,7 @@ import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
 import DutyReportPreview from '../../duty/DutyReportPreview';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
+import MessagePreviewInline from '../../messaging/MessagePreviewInline';
 
 const WhatsAppIcon: React.FC<{ size?: number }> = ({ size = 28 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -2612,6 +2613,12 @@ ${buildReportLink(target)}` : ''}`;
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                <MessagePreviewInline
+                  previewText={firstSelectedRow ? messageText.split(RECIPIENT_NAME_TOKEN).join(firstSelectedRow.staffName) : ''}
+                  recipientName={firstSelectedRow?.staffName}
+                  disabled={selectedRows.length === 0 || !messageText.trim()}
+                  className="mt-0 mb-4"
+                />
                 {sendChannel === 'sms' && (
                   <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">

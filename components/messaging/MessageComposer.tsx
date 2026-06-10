@@ -10,6 +10,7 @@ import { useMessageArchive } from './MessageArchiveContext';
 import { MESSAGE_CATALOG, getMessageTemplate } from '../../utils/messageCatalog';
 import MessageToast from './MessageToast';
 import RecipientsPreviewModal from './RecipientsPreviewModal';
+import MessagePreviewInline from './MessagePreviewInline';
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import arabic from "react-date-object/calendars/arabic";
 import arabic_ar from "react-date-object/locales/arabic_ar";
@@ -183,7 +184,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const [scheduleTime, setScheduleTime] = useState('08:00');
   const scheduleCalendarType = ((schoolInfo?.calendarType || 'hijri') as CalendarType);
   const [isSending, setIsSending] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [showSelectedModal, setShowSelectedModal] = useState(false);
   const [draftMeta, setDraftMeta] = useState<{ source?: MessageSource; senderRole?: string; title?: string; linksByRecipientId?: Record<string, string>; previewUrlByRecipientId?: Record<string, string> } | null>(null);
 
@@ -1050,26 +1050,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             </div>
           )}
 
-          {/* Live preview — grey-framed toggle button; preview stays closed until clicked, then shows in a green frame (no colored background) */}
+          {/* Unified inline message preview (under the message field) */}
           {messageContent.trim() && (
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => setShowPreview(v => !v)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-[#655ac1] hover:border-slate-300 transition-colors"
-              >
-                <Eye size={14} />
-                {showPreview ? 'إخفاء المعاينة' : 'معاينة الرسالة'}
-              </button>
-              {showPreview && (
-                <div className="mt-3 p-4 bg-white border border-emerald-400 rounded-2xl">
-                  <p className="text-[10px] font-bold text-emerald-600 mb-2">
-                    معاينة — {recipientsToSend[0]?.name ?? 'مستلم تجريبي'}
-                  </p>
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{previewContent}</p>
-                </div>
-              )}
-            </div>
+            <MessagePreviewInline previewText={previewContent} recipientName={recipientsToSend[0]?.name} />
           )}
 
           <div className="mt-6 pt-6 border-t border-slate-100">

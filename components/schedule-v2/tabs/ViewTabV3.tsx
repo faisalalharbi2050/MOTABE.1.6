@@ -69,6 +69,7 @@ import {
 import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
+import MessagePreviewInline from '../../messaging/MessagePreviewInline';
 import { getClassLabel } from '../../../utils/classLabels';
 import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
 
@@ -3043,6 +3044,14 @@ const ViewTabV3: React.FC<Props> = ({
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                <MessagePreviewInline
+                  previewText={selectedRecipients.length > 0 && modalMessageContent.trim()
+                    ? (buildSendPayloads(generatedLinks, modalMessageContent)[0]?.message.content || '')
+                    : ''}
+                  recipientName={selectedRecipients[0]?.name}
+                  disabled={selectedRecipients.length === 0 || !modalMessageContent.trim()}
+                  className="mt-0 mb-4"
+                />
                 {sendChannel === 'sms' && (
                   <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">

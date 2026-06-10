@@ -21,6 +21,7 @@ import { calculateSmsSegments } from '../../../utils/smsUtils';
 import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
+import MessagePreviewInline from '../../messaging/MessagePreviewInline';
 
 interface Props {
   supervisionData: SupervisionScheduleData;
@@ -1945,10 +1946,12 @@ const PrintSendTab: React.FC<Props> = ({
                   <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={openPreviewMessage} disabled={selectedRecipients.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Eye size={15} /> {sendMode === 'electronic' ? 'معاينة التكليف' : 'معاينة الرسالة'}
-                  </button>
+                  {sendMode === 'electronic' && (
+                    <button type="button" onClick={openPreviewMessage} disabled={selectedRecipients.length === 0}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Eye size={15} /> معاينة التكليف
+                    </button>
+                  )}
                   <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRecipients.length === 0}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     <Users size={15} /> معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
@@ -1986,6 +1989,14 @@ const PrintSendTab: React.FC<Props> = ({
                   dir="rtl"
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                {sendMode !== 'electronic' && (
+                  <MessagePreviewInline
+                    previewText={selectedRecipients.length > 0 ? buildRecipientMessage(selectedRecipients[0]) : ''}
+                    recipientName={selectedRecipients[0]?.staffName}
+                    disabled={selectedRecipients.length === 0 || !messageText.trim()}
+                    className="mt-0 mb-4"
+                  />
+                )}
                 {sendChannel === 'sms' && (
                   <div className="rounded-2xl border border-slate-200 px-4 py-3 mb-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-[#655ac1]">

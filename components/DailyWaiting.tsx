@@ -22,6 +22,7 @@ import {
 import DailyWaitingPrintModal from './DailyWaitingPrintModal';
 import { useMessageArchive } from './messaging/MessageArchiveContext';
 import RecipientsPreviewModal from './messaging/RecipientsPreviewModal';
+import MessagePreviewInline from './messaging/MessagePreviewInline';
 import LoadingLogo from './ui/LoadingLogo';
 import { getClassLabel } from '../utils/classLabels';
 import { getMessageTemplate, fillMessageTemplate } from '../utils/messageCatalog';
@@ -5051,6 +5052,12 @@ const DailyWaiting: React.FC<DailyWaitingProps> = ({
                       dir="rtl"
                     />
                     <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
+                    <MessagePreviewInline
+                      previewText={(sendMasterTemplate || sampleRow?.message || '').split(RECIPIENT_NAME_TOKEN).join(sampleRow?.asgn?.substituteTeacherName || 'مستلم تجريبي')}
+                      recipientName={sampleRow?.asgn?.substituteTeacherName}
+                      disabled={filteredSelected.length === 0 || !(sendMasterTemplate || sampleRow?.message || '').trim()}
+                      className="mt-0 mb-4"
+                    />
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
                       <div className="flex items-center justify-between">
