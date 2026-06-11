@@ -70,7 +70,7 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
     .logo-box img{width:100%;height:100%;object-fit:contain;}
     .brand{font-size:20px;font-weight:900;color:#0f172a;}
     .brand-sub{font-size:11px;color:#94a3b8;margin-top:3px;}
-    .inv-meta{text-align:right;}
+    .inv-meta{text-align:left;}
     .inv-title{font-size:30px;font-weight:900;color:#0f172a;letter-spacing:1px;}
     .inv-line{font-size:12px;color:#64748b;margin-top:8px;}
     .inv-line b{color:#0f172a;font-family:monospace;font-weight:700;}
@@ -101,17 +101,19 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
 <body>
 <div class="wrap"><div class="pad">
   <div class="head">
-    <div class="inv-meta">
+    <div>
       <div class="inv-title">فاتورة</div>
-      <div class="inv-line">رقم الفاتورة: <b>${transaction.id}</b></div>
-      <div class="inv-line">تاريخ الإصدار: <b>${hijriDate}</b></div>
-      <div class="inv-line" style="margin-top:3px">الموافق: <b>${gregDate}</b></div>
-    </div>
-    <div class="logo-row">
-      <div class="logo-box"><img src="${logoUrl}" alt="متابع" /></div>
-      <div>
-        <div class="brand">مؤسسة متابع التقنية</div>
+      <div class="logo-row" style="margin-top:16px">
+        <div class="logo-box"><img src="${logoUrl}" alt="متابع" /></div>
+        <div>
+          <div class="brand">مؤسسة متابع التقنية</div>
+        </div>
       </div>
+    </div>
+    <div class="inv-meta">
+      <div class="inv-line">رقم الفاتورة: <b>${transaction.id}</b></div>
+      <div class="inv-line" style="margin-top:3px">تاريخ الإصدار: <b>${hijriDate}</b></div>
+      <div class="inv-line" style="margin-top:3px">الموافق: <b>${gregDate}</b></div>
     </div>
   </div>
 
@@ -197,17 +199,17 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
             <div className="flex items-start justify-between border-b-2 border-slate-900 pb-6">
               <div className="text-right">
                 <div className="text-3xl font-black tracking-wide text-slate-900">فاتورة</div>
-                <div className="mt-2 text-[12px] text-slate-500">رقم الفاتورة: <span className="font-mono font-bold text-slate-800">{transaction.id}</span></div>
-                <div className="mt-1 text-[12px] text-slate-500">تاريخ الإصدار: <span className="font-bold text-slate-800">{hijriDate}</span></div>
-                <div className="mt-0.5 text-[12px] text-slate-500">الموافق: <span className="font-bold text-slate-800">{gregDate}</span></div>
-              </div>
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 p-2">
-                  <img src="/logo.png" alt="متابع" className="h-full w-full object-contain" />
-                </div>
-                <div>
+                <div className="mt-4 flex items-center gap-3.5">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 p-2">
+                    <img src="/logo.png" alt="متابع" className="h-full w-full object-contain" />
+                  </div>
                   <div className="text-lg font-black leading-tight text-slate-900">مؤسسة متابع التقنية</div>
                 </div>
+              </div>
+              <div className="text-left">
+                <div className="text-[12px] text-slate-500">رقم الفاتورة: <span className="font-mono font-bold text-slate-800">{transaction.id}</span></div>
+                <div className="mt-1 text-[12px] text-slate-500">تاريخ الإصدار: <span className="font-bold text-slate-800">{hijriDate}</span></div>
+                <div className="mt-0.5 text-[12px] text-slate-500">الموافق: <span className="font-bold text-slate-800">{gregDate}</span></div>
               </div>
             </div>
 
@@ -294,9 +296,9 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-6 py-3.5">
           <button
             onClick={onClose}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-600 transition-colors hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-600 transition-colors hover:bg-slate-50"
           >
-            <X size={15} /> إغلاق
+            إغلاق
           </button>
           <div className="flex items-center gap-2">
             <button
