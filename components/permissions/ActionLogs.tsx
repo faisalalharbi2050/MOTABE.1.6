@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Check, ChevronDown, ClipboardList, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, ClipboardList, ListFilter, RefreshCw, Search, Trash2 } from 'lucide-react';
 import DatePicker, { DateObject } from 'react-multi-date-picker';
 import arabic from 'react-date-object/calendars/arabic';
 import arabic_ar from 'react-date-object/locales/arabic_ar';
@@ -309,10 +309,9 @@ export default function ActionLogs({ schoolInfo }: Props) {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-1.5 rounded-full bg-[#655ac1]" />
             <h4 className="flex items-center gap-2 text-lg font-black text-slate-800">
-              <ClipboardList size={19} className="text-[#655ac1]" />
-              سجل الإجراءات
+              <ListFilter size={19} className="text-[#655ac1]" />
+              تصفية السجلات
             </h4>
             {logs.length > 0 && (
               <span className="mr-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-black text-[#655ac1]">
@@ -480,7 +479,7 @@ export default function ActionLogs({ schoolInfo }: Props) {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-1.5 rounded-full bg-[#655ac1]" />
+            <ClipboardList size={18} className="text-[#655ac1]" />
             <h4 className="text-base font-black text-slate-800">سجل العمليات الإجرائية</h4>
             <span className="mr-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-black text-[#655ac1]">
               {filtered.length}
