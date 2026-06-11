@@ -17,6 +17,7 @@ import {
   Download,
   Send,
   ArrowLeft,
+  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronUp,
@@ -31,17 +32,21 @@ import {
   FileCheck,
   FileSignature,
   Quote,
-  Star,
   Crown,
   AlertCircle,
   Eye,
   Lock,
   Cloud,
+  SaudiRiyal,
 } from 'lucide-react';
 import MarketingHeader from './MarketingHeader';
 import MarketingFooter from './MarketingFooter';
 import { MarketingRoute } from './MarketingApp';
-import { PACKAGE_FEATURES, PACKAGE_PRICING, PACKAGE_NAMES } from '../subscription/packages';
+import {
+  PACKAGE_PRICING, PACKAGE_NAMES, PACKAGE_DESCRIPTIONS,
+  FEATURE_GROUPS, BASIC_CARD_HIGHLIGHTS,
+} from '../subscription/packages';
+import PlanFeaturesPage from '../subscription/PlanFeaturesPage';
 import { PackageTier, PaymentPeriod } from '../../types';
 
 interface Props {
@@ -793,23 +798,28 @@ const TestimonialCard: React.FC<{ t: typeof TESTIMONIALS[0] }> = ({ t }) => (
 
 const Pricing: React.FC<Props> = ({ onNavigate }) => {
   const [period, setPeriod] = useState<PaymentPeriod>('semester');
+  const [featuresPlan, setFeaturesPlan] = useState<PackageTier | null>(null);
 
   const TIERS: PackageTier[] = ['basic', 'advanced'];
 
-  const packageStyles = {
-    basic: {
-      bgLight: 'bg-[#f8f7ff]',
-      textMain: 'text-[#8779fb]',
-      btnDefault: 'bg-white border-2 border-slate-300 text-slate-800',
-      btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white group-hover:border-[#655ac1] group-hover:bg-[#655ac1] group-hover:text-white',
-    },
-    advanced: {
-      bgLight: 'bg-[#f3f0ff]',
-      textMain: 'text-[#6e5ee0]',
-      btnDefault: 'bg-white border-2 border-slate-300 text-slate-800',
-      btnHover: 'hover:border-[#655ac1] hover:bg-[#655ac1] hover:text-white group-hover:border-[#655ac1] group-hover:bg-[#655ac1] group-hover:text-white',
-    },
-  } as const;
+  // Full-features view: a dedicated full-screen overlay above the marketing nav
+  // (fixed inset-0 / z-[60]) so it reads as its own page, not embedded mid-landing.
+  if (featuresPlan) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-white overflow-y-auto" dir="rtl">
+        <div className="max-w-3xl mx-auto px-5 lg:px-8 py-8">
+          <PlanFeaturesPage
+            tier={featuresPlan}
+            groups={FEATURE_GROUPS.filter(g =>
+              featuresPlan === 'advanced' ? g.tier === 'advanced' : g.tier === 'basic'
+            )}
+            onBack={() => setFeaturesPlan(null)}
+            onSubscribe={() => onNavigate('register')}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section id="pricing" className="py-24 md:py-32 bg-white">
@@ -866,73 +876,75 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
             {TIERS.map((tier) => {
               const price = PACKAGE_PRICING[tier][period];
               const isAdvanced = tier === 'advanced';
-              const styles = packageStyles[tier as keyof typeof packageStyles];
 
               return (
                 <div
                   key={tier}
-                  className="bg-white border-2 border-slate-100 hover:border-slate-300 rounded-2xl p-6 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden"
+                  className="bg-white border border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg rounded-2xl p-6 text-center transition-all group flex flex-col relative overflow-hidden"
                 >
-                  <div className={`absolute top-0 right-0 w-24 h-24 ${styles.bgLight} rounded-bl-full -z-0 transition-transform group-hover:scale-110`} />
-
                   <div className="relative z-10 flex-1 flex flex-col">
 
-                    {/* Badge slot */}
+                    {/* ── Badge slot: fixed height keeps cards aligned ── */}
                     <div className="h-7 flex items-center justify-center mb-4">
                       {isAdvanced && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#655ac1] text-white text-xs font-black rounded-full shadow-sm shadow-indigo-200">
-                          <Star size={11} className="fill-white text-white" /> الأكثر طلباً
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-l from-[#655ac1] to-[#8779fb] text-white text-xs font-black rounded-full shadow-sm shadow-indigo-200">
+                          <Sparkles size={12} className="fill-white" /> قريبًا
                         </span>
                       )}
                     </div>
 
                     <h4 className="text-2xl font-black text-slate-800 mb-2">{PACKAGE_NAMES[tier]}</h4>
 
-                    <div className="flex justify-center items-end gap-1 mb-6">
-                      <span className={`text-4xl font-black ${styles.textMain}`}>{price}</span>
-                      <span className="text-sm font-bold text-slate-400 mb-1.5">ريال</span>
+                    <div className="flex justify-center items-center gap-1.5 mb-4">
+                      <span className="text-4xl font-black text-[#655ac1]">{price}</span>
+                      <SaudiRiyal className="w-6 h-6 text-[#655ac1]" strokeWidth={2.5} />
                     </div>
 
-                    <div className="space-y-3 text-right flex-1 p-2 transition-colors mb-6 flex flex-col">
+                    {/* Short package description */}
+                    <p className="text-[13px] font-bold text-slate-500 leading-relaxed mb-5 px-2">
+                      {PACKAGE_DESCRIPTIONS[tier]}
+                    </p>
+
+                    {/* Divider between header and features */}
+                    <div className="h-px bg-slate-200 mb-5" />
+
+                    <div className="text-right flex-1 transition-colors mb-5 flex flex-col">
                       {isAdvanced && (
-                        <div className="mb-3 pb-3 border-b border-indigo-100">
-                          <p className="text-sm font-black text-[#655ac1] flex items-center gap-2">
-                            <Crown size={18}/>
-                            جميع مزايا الباقة الأساسية بالاضافة للمزايا التالية :
+                        <div className="mb-4 flex items-center gap-2 px-1">
+                          <Crown size={16} className="text-slate-900 shrink-0" strokeWidth={2.2} />
+                          <p className="text-sm font-black text-slate-900 leading-snug">
+                            كل مزايا الباقة الأساسية +
                           </p>
                         </div>
                       )}
+
                       {(() => {
-                        const tierFeatures = PACKAGE_FEATURES.filter(feat => {
-                          if (feat.name === 'باقات الرسائل حسب احتياجك') return false;
-                          const included = feat.includedIn.includes(tier);
-                          if (!included && !isAdvanced) return false;
-                          if (isAdvanced && feat.includedIn.includes('basic')) return false;
-                          return included;
-                        });
+                        const lines = isAdvanced
+                          ? FEATURE_GROUPS.filter(g => g.tier === 'advanced').map(g => g.cardLine)
+                          : BASIC_CARD_HIGHLIGHTS;
 
                         return (
-                          <div className="flex flex-col flex-1">
-                            <div className="space-y-3">
-                              {tierFeatures.map((feat, idx) => (
-                                <div key={idx} className="flex items-start gap-3 text-slate-900">
-                                  <div className="mt-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30 shrink-0">
-                                    <Check size={12} strokeWidth={3.5} className="text-white" />
-                                  </div>
-                                  <span className="font-bold text-sm leading-relaxed">{feat.name}</span>
+                          <div className="flex flex-col gap-3 flex-1">
+                            {lines.map((line, i) => (
+                              <div key={i} className="flex items-start gap-2.5">
+                                <div className="mt-0.5 w-[18px] h-[18px] rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-sm shadow-emerald-500/30 shrink-0">
+                                  <Check size={11} strokeWidth={3.5} className="text-white" />
                                 </div>
-                              ))}
-                              <div className="mt-4 pt-3 border-t border-slate-200">
-                                <div className="flex items-center justify-center gap-1.5 w-full px-2 py-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 font-black whitespace-nowrap" style={{ fontSize: 'clamp(9px, 2.4vw, 12px)' }}>
-                                  <AlertCircle size={13} strokeWidth={2.5} className="shrink-0" />
-                                  <span>قيمة اشتراك الرسائل منفصلة عن قيمة الباقة</span>
-                                </div>
+                                <span className="text-[13px] font-bold text-slate-700 leading-snug">{line}</span>
                               </div>
-                            </div>
+                            ))}
                           </div>
                         );
                       })()}
                     </div>
+
+                    {/* View all features — no per-card subscribe button on the landing page */}
+                    <button
+                      onClick={() => setFeaturesPlan(tier)}
+                      className="w-full flex items-center justify-center gap-1.5 text-sm font-black text-[#655ac1] hover:opacity-80 transition-opacity"
+                    >
+                      عرض كل المزايا <ArrowUpRight size={16} strokeWidth={2.5} />
+                    </button>
 
                   </div>
                 </div>

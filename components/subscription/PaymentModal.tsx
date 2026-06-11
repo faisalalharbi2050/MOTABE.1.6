@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PackageTier, PaymentPeriod, SubscriptionInfo, Transaction } from '../../types';
 import { PACKAGE_NAMES, getPeriodDays } from './packages';
-import { X, Lock, CheckCircle2, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowRight, Lock, CheckCircle2, ShieldCheck, SaudiRiyal } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
+
+/* Amount + the new Saudi Riyal symbol (lucide SaudiRiyal). */
+const Money: React.FC<{ value: number; className?: string; iconSize?: number }> = ({
+  value, className = '', iconSize = 14,
+}) => (
+  <span className={`inline-flex items-center gap-1 ${className}`}>
+    {value}
+    <SaudiRiyal size={iconSize} className="shrink-0" />
+  </span>
+);
 
 interface PaymentModalProps {
   planData: {
@@ -20,86 +31,17 @@ interface PaymentModalProps {
 
 type PayMethod = 'mada' | 'visa' | 'applepay' | 'samsungpay';
 
-/* ── Card Preview ── */
-const CardPreview: React.FC<{ cardNum: string; cardName: string; expiry: string; method: PayMethod }> = ({
-  cardNum, cardName, expiry, method,
-}) => {
-  const raw    = cardNum.replace(/\D/g, '').padEnd(16, '·');
-  const chunks = raw.match(/.{1,4}/g) ?? ['····', '····', '····', '····'];
-  const formatted = chunks.join('  ');
-  return (
-    <div className="relative h-[148px] rounded-2xl bg-gradient-to-br from-[#4e43b0] to-[#8779fb] p-5 text-white shadow-lg overflow-hidden">
-      <div className="absolute -top-8 -right-8 w-36 h-36 bg-white/10 rounded-full" />
-      <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-white/10 rounded-full" />
-      <div className="relative z-10 h-full flex flex-col justify-between">
-        <div className="flex justify-between items-center">
-          <span className="text-white/60 text-xs font-bold">متابع Pay</span>
-          {method === 'mada' ? (
-            <span className="bg-white text-green-600 text-xs font-black px-2 py-0.5 rounded-md">mada</span>
-          ) : (
-            <span className="text-white font-black italic text-base tracking-wider">VISA</span>
-          )}
-        </div>
-        <div className="font-mono text-[15px] font-bold tracking-[0.2em]">{formatted}</div>
-        <div className="flex justify-between items-end">
-          <div>
-            <div className="text-white/50 text-[9px] uppercase tracking-wide mb-0.5">حامل البطاقة</div>
-            <div className="text-xs font-bold truncate max-w-[150px]">{cardName || '—'}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-white/50 text-[9px] uppercase tracking-wide mb-0.5">صالحة حتى</div>
-            <div className="text-xs font-bold">{expiry || 'MM/YY'}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ── Step Indicator ── */
-const Steps: React.FC = () => (
-  <div className="flex items-center gap-2">
-    {/* Step 1 – done */}
-    <div className="flex items-center gap-1.5 text-[#8779fb]/70">
-      <div className="w-5 h-5 rounded-full bg-[#e5e1fe] flex items-center justify-center">
-        <CheckCircle2 size={11} className="text-[#655ac1]" />
-      </div>
-      <span className="text-xs font-bold">اختيار الباقة</span>
-    </div>
-    <div className="w-6 h-px bg-[#e5e1fe]" />
-    {/* Step 2 – active */}
-    <div className="flex items-center gap-1.5 text-[#655ac1]">
-      <div className="w-5 h-5 rounded-full bg-[#655ac1] flex items-center justify-center">
-        <span className="text-white text-[10px] font-black">2</span>
-      </div>
-      <span className="text-xs font-black">الدفع</span>
-    </div>
-    <div className="w-6 h-px bg-[#e5e1fe]" />
-    {/* Step 3 – pending */}
-    <div className="flex items-center gap-1.5 text-slate-300">
-      <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
-        <span className="text-[10px] font-black text-slate-300">3</span>
-      </div>
-      <span className="text-xs font-bold">تأكيد</span>
-    </div>
-  </div>
-);
-
-/* ── Main Component ── */
+/* ── Checkout page ── */
 const PaymentModal: React.FC<PaymentModalProps> = ({
   planData, period, subscription, setSubscription, onClose, onSuccess,
 }) => {
   const { showToast } = useToast();
-  const [method, setMethod]       = useState<PayMethod>('mada');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [showCvv, setShowCvv]     = useState(false);
   const [cardNum, setCardNum]     = useState('');
   const [cardName, setCardName]   = useState('');
   const [expiry, setExpiry]       = useState('');
   const [cvv, setCvv]             = useState('');
-
-  const isCard = method === 'mada' || method === 'visa';
 
   const periodLabel =
     period === 'monthly' ? 'شهري' :
@@ -116,16 +58,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     return digits;
   };
 
-  const handlePayment = () => {
-    if (isCard) {
+  const handlePayment = (pm: PayMethod) => {
+    const isCardPay = pm === 'mada' || pm === 'visa';
+    if (isCardPay) {
       if (cardNum.replace(/\s/g, '').length < 16) { showToast('يرجى إدخال رقم بطاقة صحيح', 'error'); return; }
       if (!cardName.trim())  { showToast('يرجى إدخال اسم حامل البطاقة', 'error'); return; }
       if (expiry.length < 5) { showToast('يرجى إدخال تاريخ انتهاء صحيح', 'error'); return; }
       if (cvv.length < 3)    { showToast('يرجى إدخال رمز CVV', 'error'); return; }
     }
     setIsProcessing(true);
-    const msg = method === 'applepay' ? 'جاري التحقق عبر Apple Pay...'
-      : method === 'samsungpay' ? 'جاري التحقق عبر Samsung Pay...'
+    const msg = pm === 'applepay' ? 'جاري التحقق عبر Apple Pay...'
+      : pm === 'samsungpay' ? 'جاري التحقق عبر Samsung Pay...'
       : 'جاري معالجة الدفع بأمان...';
     showToast(msg, 'info');
 
@@ -142,7 +85,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         amount: planData.finalPrice,
         packageTier: planData.tier,
         period,
-        paymentMethod: method,
+        paymentMethod: pm,
         status: 'success',
       };
       setSubscription(prev => ({
@@ -160,8 +103,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   /* ── Success screen ── */
   if (isSuccess) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+    return createPortal(
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
         <div className="bg-white rounded-[2rem] p-10 max-w-md w-full text-center shadow-2xl space-y-5">
           <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto border-4 border-green-100">
             <CheckCircle2 size={52} className="text-green-500" />
@@ -178,268 +121,216 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <ShieldCheck size={16} /> عملية آمنة ومشفّرة
           </div>
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 
-  const payMethods: {
-    id: PayMethod;
-    logo: React.ReactNode;
-    sub: string;
-    activeBorder: string;
-    activeBg: string;
-  }[] = [
-    {
-      id: 'mada',
-      logo: <span className="font-black text-green-600 text-base tracking-wide">mada</span>,
-      sub: 'بطاقات البنوك السعودية',
-      activeBorder: 'border-green-400',
-      activeBg: 'bg-green-50',
-    },
-    {
-      id: 'visa',
-      logo: <span className="font-black italic text-blue-700 text-base tracking-wider">VISA</span>,
-      sub: 'Visa · Mastercard',
-      activeBorder: 'border-blue-400',
-      activeBg: 'bg-blue-50',
-    },
-    {
-      id: 'applepay',
-      logo: <span className="font-black text-slate-800 text-sm"> Pay</span>,
-      sub: 'Face ID أو بصمة الإصبع',
-      activeBorder: 'border-slate-400',
-      activeBg: 'bg-slate-100',
-    },
-    {
-      id: 'samsungpay',
-      logo: <span className="font-black text-[#1428A0] text-xs">Samsung Pay</span>,
-      sub: 'بصمة أو NFC',
-      activeBorder: 'border-[#1428A0]',
-      activeBg: 'bg-blue-50',
-    },
-  ];
+  const cardBrand: PayMethod = cardNum.replace(/\s/g, '').startsWith('4') ? 'visa' : 'mada';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in dir-rtl">
-      <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+  const inputBase =
+    'w-full bg-transparent px-3.5 py-3 text-sm text-slate-800 placeholder-slate-300 focus:outline-none';
 
-        {/* ── Header ── */}
-        <div className="bg-white px-6 pt-5 pb-6 relative overflow-hidden shrink-0 border-b border-slate-100">
-          <div className="absolute top-0 left-0 w-40 h-40 bg-[#e5e1fe]/20 rounded-full -translate-y-1/2 -translate-x-1/2" />
-          <div className="absolute bottom-0 right-0 w-32 h-32 bg-[#e5e1fe]/20 rounded-full translate-y-1/2 translate-x-1/2" />
-          <button
-            onClick={onClose}
-            className="absolute top-4 left-4 p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors z-20"
-          >
-            <X size={17} />
-          </button>
-          <div className="relative z-10">
-            <Steps />
-            <div className="flex items-end justify-between mt-4">
-              <div>
-                <h2 className="text-[#655ac1] font-black text-xl leading-tight">{PACKAGE_NAMES[planData.tier]}</h2>
-                <p className="text-[#8779fb] text-sm mt-0.5 font-medium">{periodLabel}</p>
-              </div>
-              <div className="text-left">
-                <div className="text-slate-400 text-xs mb-0.5">الإجمالي المستحق</div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-[#655ac1]">{planData.finalPrice}</span>
-                  <span className="text-[#8779fb] text-sm font-bold">ر.س</span>
-                </div>
-              </div>
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-white flex flex-col" dir="rtl">
+
+      {/* Back — top, standalone, outside the card */}
+      <div className="px-5 lg:px-12 pt-6 shrink-0">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="رجوع"
+          title="رجوع"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-[#655ac1] hover:bg-[#52499d] text-white shadow-lg shadow-[#655ac1]/25 transition-all"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 lg:p-6 min-h-0">
+        <div className="w-full max-w-5xl bg-white rounded-[1.75rem] border border-slate-300 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+
+        {/* ── Order summary (right in RTL) — tinted ── */}
+        <div className="lg:border-l border-slate-200 p-6 lg:p-8 flex flex-col">
+          <div className="mb-6">
+            <img src="/logo.png" alt="متابع" className="h-8 w-auto select-none" draggable={false} />
+          </div>
+
+          <p className="text-sm font-bold text-slate-500">الاشتراك في</p>
+          <h2 className="text-2xl font-black text-slate-900 mt-1">{PACKAGE_NAMES[planData.tier]}</h2>
+
+          <div className="flex items-center gap-1.5 mt-4">
+            <span className="text-[2.25rem] leading-none font-black text-slate-900">{planData.finalPrice}</span>
+            <SaudiRiyal className="w-6 h-6 text-slate-700" strokeWidth={2} />
+            <span className="text-slate-400 text-sm font-bold">/ {periodLabel}</span>
+          </div>
+
+          <div className="mt-6 space-y-2.5">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-500">الباقة</span>
+              <span className="font-bold text-slate-700">{PACKAGE_NAMES[planData.tier]}</span>
             </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-500">مدة الاشتراك</span>
+              <span className="font-bold text-slate-700">{periodLabel}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-slate-500">سعر الباقة</span>
+              <Money value={planData.newPrice} className="font-bold text-slate-700" iconSize={13} />
+            </div>
+            {planData.remainingValue > 0 && (
+              <div className="flex justify-between items-center text-sm text-emerald-600">
+                <span>خصم الرصيد المتبقي</span>
+                <span className="inline-flex items-center gap-1 font-bold">
+                  − <Money value={planData.remainingValue} iconSize={13} />
+                </span>
+              </div>
+            )}
+            <div className="pt-3 mt-1 border-t border-slate-200 flex justify-between items-center">
+              <span className="text-sm font-black text-slate-700">الإجمالي المستحق</span>
+              <Money value={planData.finalPrice} className="text-xl font-black text-slate-900" iconSize={16} />
+            </div>
+          </div>
+
+          <div className="mt-auto pt-6 space-y-2">
+            {planData.remainingValue > 0 && (
+              <p className="text-xs text-slate-400 leading-relaxed">
+                تم احتساب الرصيد المتبقي من اشتراكك الحالي وخصمه تلقائياً
+              </p>
+            )}
+            {subscription.isTrial && (
+              <p className="text-xs text-slate-400 leading-relaxed">
+                الترقية ستنهي فترتك التجريبية وتبدأ دورتك المدفوعة فوراً.
+              </p>
+            )}
           </div>
         </div>
 
-        {/* ── Body ── */}
-        <div className="p-5 overflow-y-auto custom-scrollbar flex-1 grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* ── Payment form (left in RTL) — white ── */}
+        <div className="p-6 lg:p-8">
 
-          {/* ── Order Summary ── */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">ملخص الطلب</h3>
-
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">الباقة</span>
-                <span className="font-black text-slate-800">{PACKAGE_NAMES[planData.tier]}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">المدة</span>
-                <span className="font-bold text-slate-700">{periodLabel}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">سعر الباقة</span>
-                <span className="font-bold text-slate-700">{planData.newPrice} ر.س</span>
-              </div>
-              {planData.remainingValue > 0 && (
-                <div className="flex justify-between items-center text-sm text-green-600">
-                  <span>خصم الرصيد المتبقي</span>
-                  <span className="font-bold">− {planData.remainingValue} ر.س</span>
-                </div>
-              )}
-              <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-600">الإجمالي</span>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-black text-[#655ac1]">{planData.finalPrice}</span>
-                  <span className="text-slate-400 text-sm">ر.س</span>
-                </div>
-              </div>
-            </div>
-
-            {planData.remainingValue > 0 && (
-              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex gap-2 text-xs text-blue-700">
-                <AlertCircle size={14} className="shrink-0 text-blue-500 mt-0.5" />
-                <span>تم احتساب الرصيد المتبقي من اشتراكك الحالي وخصمه تلقائياً (Pro-rata).</span>
-              </div>
-            )}
-            {subscription.isTrial && (
-              <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex gap-2 text-xs text-orange-700">
-                <AlertCircle size={14} className="shrink-0 text-orange-500 mt-0.5" />
-                <span>الترقية ستنهي فترتك التجريبية وتبدأ دورتك المدفوعة فوراً.</span>
-              </div>
-            )}
-
-            {/* Security badges */}
-            <div className="flex items-center justify-center gap-4 pt-1">
-              <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-                <ShieldCheck size={13} className="text-green-500" />
-                SSL 256-bit
-              </div>
-              <div className="w-px h-3 bg-slate-200" />
-              <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-                <Lock size={11} />
-                دفع آمن ومشفّر
-              </div>
-            </div>
+          {/* Express checkout */}
+          <div className="flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => handlePayment('applepay')}
+              disabled={isProcessing}
+              dir="ltr"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl font-bold text-sm text-slate-800 transition-all disabled:opacity-60"
+            >
+              <svg className="w-5 h-5 text-black" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+              </svg>
+              Apple&nbsp;Pay
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePayment('samsungpay')}
+              disabled={isProcessing}
+              dir="ltr"
+              className="flex items-center justify-center px-4 py-3 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl font-black text-sm transition-all disabled:opacity-60"
+            >
+              <span className="text-[#1428A0] italic">Samsung</span>
+              <span className="text-black">&nbsp;Pay</span>
+            </button>
           </div>
 
-          {/* ── Payment Side ── */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">طريقة الدفع</h3>
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs font-bold text-slate-400">أو ادفع بالبطاقة</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
 
-            {/* Method selector */}
-            <div className="grid grid-cols-2 gap-2">
-              {payMethods.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={`flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 transition-all min-h-[62px] ${
-                    method === m.id
-                      ? `${m.activeBorder} ${m.activeBg} shadow-sm`
-                      : 'border-slate-100 hover:border-slate-200 bg-white'
-                  }`}
-                >
-                  {m.logo}
-                  <span className="text-[10px] text-slate-400 text-center leading-tight">{m.sub}</span>
-                  {method === m.id && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#655ac1]" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Card Preview */}
-            {isCard && (
-              <CardPreview cardNum={cardNum} cardName={cardName} expiry={expiry} method={method} />
-            )}
-
-            {/* Card Form */}
-            {isCard && (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">رقم البطاقة</label>
+          {/* Card details (Stripe-style grouped field) */}
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">معلومات البطاقة</label>
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-[#655ac1] focus-within:ring-2 focus-within:ring-[#e5e1fe] transition-all">
+                <div className="relative border-b border-slate-200">
                   <input
                     type="text"
                     inputMode="numeric"
-                    placeholder="0000  0000  0000  0000"
+                    dir="ltr"
+                    placeholder="0000 0000 0000 0000"
                     value={cardNum}
                     onChange={e => setCardNum(formatCardNum(e.target.value))}
-                    className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono focus:outline-none focus:border-[#8779fb] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300 tracking-wider"
+                    className={`${inputBase} font-mono tracking-wider text-left pl-24`}
                   />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+                    <span className="text-[11px] font-black text-slate-400">mada</span>
+                    <span className="text-[11px] font-black italic text-slate-400">VISA</span>
+                    <svg className="w-6 h-4" viewBox="0 0 32 20" aria-hidden="true">
+                      <circle cx="13" cy="10" r="6.5" fill="#EB001B" />
+                      <circle cx="19" cy="10" r="6.5" fill="#F79E1B" fillOpacity="0.9" />
+                    </svg>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">اسم حامل البطاقة</label>
+                <div className="grid grid-cols-2 divide-x divide-slate-200">
                   <input
                     type="text"
-                    placeholder="AHMED AL HARBI"
-                    value={cardName}
-                    onChange={e => setCardName(e.target.value.toUpperCase())}
-                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#8779fb] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300 uppercase tracking-wider"
+                    inputMode="numeric"
+                    dir="ltr"
+                    placeholder="MM / YY"
+                    value={expiry}
+                    onChange={e => setExpiry(formatExpiry(e.target.value))}
+                    className={`${inputBase} font-mono text-left`}
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    maxLength={4}
+                    placeholder="CVC"
+                    value={cvv}
+                    onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className={`${inputBase} font-mono text-left`}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">تاريخ الانتهاء</label>
-                    <input
-                      type="text"
-                      placeholder="MM/YY"
-                      inputMode="numeric"
-                      value={expiry}
-                      onChange={e => setExpiry(formatExpiry(e.target.value))}
-                      className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono focus:outline-none focus:border-[#8779fb] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">CVV</label>
-                    <div className="relative">
-                      <input
-                        type={showCvv ? 'text' : 'password'}
-                        placeholder="•••"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={cvv}
-                        onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono focus:outline-none focus:border-[#8779fb] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300 pr-10"
-                      />
-                      <button
-                        onClick={() => setShowCvv(!showCvv)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        {showCvv ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
-            )}
+            </div>
 
-            {/* Wallet payment */}
-            {(method === 'applepay' || method === 'samsungpay') && (
-              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-center space-y-2">
-                <div className={`text-3xl font-black ${method === 'applepay' ? 'text-slate-800' : 'text-[#1428A0]'}`}>
-                  {method === 'applepay' ? ' Pay' : 'Samsung Pay'}
-                </div>
-                <p className="text-sm text-slate-600 font-medium">
-                  {method === 'applepay'
-                    ? 'سيتم طلب بصمتك أو Face ID لإتمام الدفع'
-                    : 'سيتم التحقق من هويتك عبر Samsung Pay'}
-                </p>
-                <p className="text-xs text-slate-400">جاهزة عند الضغط على زر الدفع</p>
-              </div>
-            )}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الاسم على البطاقة</label>
+              <input
+                type="text"
+                placeholder="AHMED AL HARBI"
+                value={cardName}
+                onChange={e => setCardName(e.target.value.toUpperCase())}
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm uppercase tracking-wider focus:outline-none focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300 transition-all"
+              />
+            </div>
+          </div>
 
-            {/* Pay button */}
-            <button
-              onClick={handlePayment}
-              disabled={isProcessing}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-l from-[#4e43b0] to-[#8779fb] text-white rounded-xl font-black hover:opacity-90 shadow-lg shadow-indigo-200 transition-all disabled:opacity-70 disabled:cursor-wait text-base"
-            >
-              {isProcessing ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  جاري المعالجة...
-                </>
-              ) : (
-                <><Lock size={16} /> ادفع الآن — {planData.finalPrice} ر.س</>
-              )}
-            </button>
+          {/* Pay button */}
+          <button
+            onClick={() => handlePayment(cardBrand)}
+            disabled={isProcessing}
+            className="mt-5 w-full flex items-center justify-center gap-2 py-3.5 bg-[#655ac1] text-white rounded-xl font-black text-base hover:opacity-90 shadow-lg shadow-indigo-200 transition-all disabled:opacity-70 disabled:cursor-wait active:scale-[0.99]"
+          >
+            {isProcessing ? (
+              <>
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                جاري المعالجة...
+              </>
+            ) : (
+              <><Lock size={15} /> ادفع {planData.finalPrice} <SaudiRiyal size={16} /></>
+            )}
+          </button>
+
+          {/* Trust line */}
+          <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+            <ShieldCheck size={13} className="text-slate-400" />
+            دفع آمن ومشفّر بتقنية SSL 256-bit
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
