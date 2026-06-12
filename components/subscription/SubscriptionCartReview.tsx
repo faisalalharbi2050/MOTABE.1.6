@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MessageSquare, PackageCheck, SaudiRiyal, ShoppingCart, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, MessageSquare, PackageCheck, Receipt, SaudiRiyal, ShoppingCart, Trash2 } from 'lucide-react';
 import { SubscriptionInfo } from '../../types';
 import { PACKAGE_NAMES } from './packages';
 import { SubscriptionCart } from './cartTypes';
@@ -91,7 +91,7 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
             </span>
             <div>
               <h3 className="text-xl font-black text-slate-800">مراجعة الطلب</h3>
-              <p className="mt-1 text-sm font-bold text-slate-500">
+              <p className="mt-0.5 text-xs font-bold text-slate-500">
                 {itemCount > 0 ? `${itemCount} عنصر في السلة` : 'السلة فارغة حالياً'}
               </p>
             </div>
@@ -102,11 +102,13 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
           <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
             <p className="text-sm font-bold text-slate-500 mb-4">اختر باقة متابع أو باقة رسائل لإضافتها إلى السلة.</p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
-              <button type="button" onClick={onOpenPricing} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+              <button type="button" onClick={onOpenPricing} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-black text-[#655ac1] transition-opacity hover:opacity-80">
                 تصفح باقات متابع
+                <ArrowUpRight size={16} strokeWidth={2.5} />
               </button>
-              <button type="button" onClick={onOpenMessagePackages} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+              <button type="button" onClick={onOpenMessagePackages} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-black text-[#655ac1] transition-opacity hover:opacity-80">
                 تصفح باقات الرسائل
+                <ArrowUpRight size={16} strokeWidth={2.5} />
               </button>
             </div>
           </div>
@@ -123,11 +125,12 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
                       <div className="min-w-0">
                         <p className="text-base font-black text-slate-800">{PACKAGE_NAMES[cart.plan.tier]}</p>
                         <p className="mt-1 text-xs font-bold text-slate-400">
-                          اشتراك منصة متابع · {periodLabel(cart.plan.period)} · {periodDays(cart.plan.period)} يومًا
+                          اشتراك متابع · {periodLabel(cart.plan.period)} · {periodDays(cart.plan.period)} يومًا
                         </p>
                         {cart.plan.remainingValue > 0 && (
-                          <p className="mt-1 text-xs font-bold text-emerald-600">
-                            يشمل خصم الرصيد المتبقي بقيمة {cart.plan.remainingValue.toLocaleString()} ريال
+                          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-600">
+                            يشمل خصم الرصيد المتبقي بقيمة
+                            <Money value={cart.plan.remainingValue} iconSize={12} />
                           </p>
                         )}
                       </div>
@@ -154,7 +157,7 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-400">
                           <span className="inline-flex items-center gap-1.5"><WhatsAppIcon size={14} /> {cart.messagePackage.wa.toLocaleString()} واتساب</span>
                           <span className="inline-flex items-center gap-1.5"><MessageSquare size={14} className="text-[#007AFF]" strokeWidth={2.4} /> {cart.messagePackage.sms.toLocaleString()} SMS</span>
-                          <span>صلاحية 12 شهراً</span>
+                          <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-1 text-amber-600">صلاحية 12 شهراً</span>
                         </div>
                       </div>
                     </div>
@@ -170,18 +173,21 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
             </div>
 
             <aside className="rounded-2xl border border-slate-200 p-5 h-fit">
-              <h4 className="text-sm font-black text-slate-800 mb-4">ملخص الطلب</h4>
+              <h4 className="mb-4 flex items-center gap-2 text-sm font-black text-slate-800">
+                <Receipt size={17} className="text-[#655ac1]" strokeWidth={2.4} />
+                ملخص الطلب
+              </h4>
               <div className="space-y-3">
                 {cart.plan && (
                   <div className="flex justify-between gap-3 text-sm">
-                    <span className="font-bold text-slate-500">اشتراك متابع</span>
-                    <Money value={cart.plan.finalPrice} className="font-black text-slate-800" iconSize={13} />
+                    <span className="font-bold text-slate-500">باقة متابع</span>
+                    <Money value={cart.plan.finalPrice} className="font-black text-[#655ac1]" iconSize={13} />
                   </div>
                 )}
                 {cart.messagePackage && (
                   <div className="flex justify-between gap-3 text-sm">
                     <span className="font-bold text-slate-500">باقة الرسائل</span>
-                    <Money value={cart.messagePackage.price} className="font-black text-slate-800" iconSize={13} />
+                    <Money value={cart.messagePackage.price} className="font-black text-[#655ac1]" iconSize={13} />
                   </div>
                 )}
                 <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
