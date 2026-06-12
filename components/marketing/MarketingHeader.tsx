@@ -41,7 +41,8 @@ const MarketingHeader: React.FC<Props> = ({ onNavigate, onScrollTo }) => {
   const items: NavItem[] = [
     { label: 'الرئيسية', scrollId: 'top' },
     { label: 'المزايا', scrollId: 'features' },
-    { label: 'الأسعار', scrollId: 'pricing' },
+    { label: 'أسعار متابع', scrollId: 'pricing' },
+    { label: 'أسعار الرسائل', scrollId: 'message-pricing' },
     {
       label: 'الدعم والمساعدة',
       children: [

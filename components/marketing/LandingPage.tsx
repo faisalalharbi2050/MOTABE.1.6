@@ -979,7 +979,7 @@ const waIcon = (
 );
 
 const MessagingPricing: React.FC<Props> = ({ onNavigate }) => (
-  <section className="pb-24 md:pb-32 bg-white" dir="rtl">
+  <section id="message-pricing" className="pb-24 md:pb-32 bg-white" dir="rtl">
     <div className="max-w-[1280px] mx-auto px-5 lg:px-8 animate-fade-in">
       <SectionTitle title="باقات الرسائل" subtitle="اختر الباقة التي تناسبك" />
 
