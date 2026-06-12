@@ -117,7 +117,7 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
             <div className="space-y-3">
               {cart.plan && (
                 <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                       <span className="text-[#655ac1] flex items-center justify-center shrink-0 pt-0.5">
                         <PackageCheck size={21} strokeWidth={2.4} />
@@ -147,7 +147,7 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
 
               {cart.messagePackage && (
                 <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
                       <span className="text-[#655ac1] flex items-center justify-center shrink-0 pt-0.5">
                         <MessageSquare size={19} strokeWidth={2.4} />
