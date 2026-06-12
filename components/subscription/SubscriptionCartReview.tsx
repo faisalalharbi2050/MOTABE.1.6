@@ -122,13 +122,13 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
                       <span className="text-[#655ac1] flex items-center justify-center shrink-0 pt-0.5">
                         <PackageCheck size={21} strokeWidth={2.4} />
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 space-y-1.5">
                         <p className="text-base font-black text-slate-800">{PACKAGE_NAMES[cart.plan.tier]}</p>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
+                        <p className="text-xs font-bold text-slate-400">
                           اشتراك متابع · {periodLabel(cart.plan.period)} · {periodDays(cart.plan.period)} يومًا
                         </p>
                         {cart.plan.remainingValue > 0 && (
-                          <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                          <p className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
                             يشمل خصم الرصيد المتبقي بقيمة
                             <Money value={cart.plan.remainingValue} iconSize={12} />
                           </p>
@@ -152,12 +152,12 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
                       <span className="text-[#655ac1] flex items-center justify-center shrink-0 pt-0.5">
                         <MessageSquare size={19} strokeWidth={2.4} />
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 space-y-2">
                         <p className="text-base font-black text-slate-800">باقة الرسائل {cart.messagePackage.name}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-400">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-bold text-slate-400">
                           <span className="inline-flex items-center gap-1.5"><WhatsAppIcon size={14} /> {cart.messagePackage.wa.toLocaleString()} واتساب</span>
                           <span className="inline-flex items-center gap-1.5"><MessageSquare size={14} className="text-[#007AFF]" strokeWidth={2.4} /> {cart.messagePackage.sms.toLocaleString()} SMS</span>
-                          <span className="inline-flex items-center text-amber-600">صلاحية 12 شهراً</span>
+                          <span className="basis-full inline-flex items-center text-amber-600">صلاحية 12 شهراً</span>
                         </div>
                       </div>
                     </div>
