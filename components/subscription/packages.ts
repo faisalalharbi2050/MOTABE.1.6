@@ -322,7 +322,7 @@ export const PLAN_WHY = {
 export const getPeriodDays = (period: PaymentPeriod): number => {
   switch(period) {
     case 'monthly': return 30;
-    case 'semester': return 120; // 4 months assumption
+    case 'semester': return 90;
     case 'yearly': return 365;
   }
 };

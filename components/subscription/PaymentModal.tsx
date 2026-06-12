@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PackageTier, PaymentPeriod, SubscriptionInfo, Transaction } from '../../types';
 import { PACKAGE_NAMES, getPeriodDays } from './packages';
-import { ArrowRight, Lock, CheckCircle2, ShieldCheck, SaudiRiyal } from 'lucide-react';
+import { ArrowRight, Lock, CheckCircle2, ShieldCheck, SaudiRiyal, MessageSquare } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
+import { useMessageArchive } from '../messaging/MessageArchiveContext';
+import { MessagePackage } from '../messaging/messagePackages';
 
 /* Amount + the new Saudi Riyal symbol (lucide SaudiRiyal). */
 const Money: React.FC<{ value: number; className?: string; iconSize?: number }> = ({
@@ -13,6 +15,12 @@ const Money: React.FC<{ value: number; className?: string; iconSize?: number }> 
     {value}
     <SaudiRiyal size={iconSize} className="shrink-0" />
   </span>
+);
+
+const WhatsAppIcon: React.FC<{ size?: number }> = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" className="shrink-0">
+    <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.066-.3-.15-1.265-.467-2.409-1.487-.883-.788-1.48-1.761-1.653-2.059-.173-.3-.018-.465.13-.615.136-.135.301-.345.45-.523.146-.181.194-.301.292-.502.097-.206.05-.386-.025-.534-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.572-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.09 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.36zm-5.496 7.618A9.973 9.973 0 017.1 20.676L3 22l1.353-3.95A9.977 9.977 0 012.002 12 10 10 0 1112.002 22z" fillRule="evenodd" clipRule="evenodd" />
+  </svg>
 );
 
 interface PaymentModalProps {
@@ -25,6 +33,7 @@ interface PaymentModalProps {
   period: PaymentPeriod;
   subscription: SubscriptionInfo;
   setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
+  messagePackage?: MessagePackage;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -33,9 +42,10 @@ type PayMethod = 'mada' | 'visa' | 'applepay' | 'samsungpay';
 
 /* ── Checkout page ── */
 const PaymentModal: React.FC<PaymentModalProps> = ({
-  planData, period, subscription, setSubscription, onClose, onSuccess,
+  planData, period, subscription, setSubscription, messagePackage, onClose, onSuccess,
 }) => {
   const { showToast } = useToast();
+  const { buyPackage } = useMessageArchive();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [cardNum, setCardNum]     = useState('');
@@ -43,9 +53,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [expiry, setExpiry]       = useState('');
   const [cvv, setCvv]             = useState('');
 
+  const totalDue = planData.finalPrice + (messagePackage?.price ?? 0);
+
   const periodLabel =
     period === 'monthly' ? 'شهري' :
     period === 'semester' ? 'فصل دراسي' : 'سنة دراسية';
+  const periodDays = getPeriodDays(period);
 
   const formatCardNum = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 16);
@@ -82,11 +95,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const newTransaction: Transaction = {
         id: `TXN-${Date.now()}`,
         date: today.toISOString(),
-        amount: planData.finalPrice,
+        amount: totalDue,
         packageTier: planData.tier,
         period,
         paymentMethod: pm,
         status: 'success',
+        messagePackage: messagePackage
+          ? {
+              name: messagePackage.name,
+              sms: messagePackage.sms,
+              wa: messagePackage.wa,
+              price: messagePackage.price,
+            }
+          : undefined,
       };
       setSubscription(prev => ({
         ...prev,
@@ -97,6 +118,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         planName: PACKAGE_NAMES[planData.tier],
         transactions: [newTransaction, ...prev.transactions],
       }));
+      if (messagePackage) {
+        buyPackage({ name: messagePackage.name, wa: messagePackage.wa, sms: messagePackage.sms });
+      }
       setTimeout(() => { onSuccess(); }, 2200);
     }, 1800);
   };
@@ -114,7 +138,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <p className="text-slate-500 font-medium leading-relaxed text-sm">
               تم ترقية باقتك إلى{' '}
               <span className="font-black text-[#655ac1]">{PACKAGE_NAMES[planData.tier]}</span>{' '}
-              وتفعيل كافة المزايا فوراً.
+              {messagePackage ? (
+                <>
+                  وتفعيل باقة الرسائل <span className="font-black text-[#655ac1]">{messagePackage.name}</span> فوراً.
+                </>
+              ) : 'وتفعيل كافة المزايا فوراً.'}
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 text-sm text-green-600 font-bold bg-green-50 py-2.5 rounded-xl">
@@ -156,53 +184,83 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <img src="/logo.png" alt="متابع" className="h-8 w-auto select-none" draggable={false} />
           </div>
 
-          <p className="text-sm font-bold text-slate-500">الاشتراك في</p>
-          <h2 className="text-2xl font-black text-slate-900 mt-1">{PACKAGE_NAMES[planData.tier]}</h2>
+          <p className="text-sm font-bold text-slate-500">تفاصيل الطلب</p>
 
-          <div className="flex items-center gap-1.5 mt-4">
-            <span className="text-[2.25rem] leading-none font-black text-slate-900">{planData.finalPrice}</span>
-            <SaudiRiyal className="w-6 h-6 text-slate-700" strokeWidth={2} />
-            <span className="text-slate-400 text-sm font-bold">/ {periodLabel}</span>
-          </div>
+          {!messagePackage && (
+            <div className="flex items-center gap-1.5 mt-4">
+              <span className="text-[2.25rem] leading-none font-black text-slate-900">{totalDue}</span>
+              <SaudiRiyal className="w-6 h-6 text-slate-700" strokeWidth={2} />
+              <span className="text-slate-400 text-sm font-bold">/ {periodLabel}</span>
+            </div>
+          )}
 
           <div className="mt-6 space-y-2.5">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-500">الباقة</span>
+            <div className="flex items-center gap-10 text-sm">
+              <span className="w-28 shrink-0 text-slate-600 font-bold">باقة متابع</span>
               <span className="font-bold text-slate-700">{PACKAGE_NAMES[planData.tier]}</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-500">مدة الاشتراك</span>
-              <span className="font-bold text-slate-700">{periodLabel}</span>
+            <div className="flex items-center gap-10 text-sm">
+              <span className="w-28 shrink-0 text-slate-600 font-bold">مدة الاشتراك</span>
+              <span className="font-bold text-slate-700">{periodLabel} · {periodDays} يومًا</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-500">سعر الباقة</span>
+            <div className="flex items-center gap-10 text-sm">
+              <span className="w-28 shrink-0 text-slate-600 font-bold">سعر الباقة</span>
               <Money value={planData.newPrice} className="font-bold text-slate-700" iconSize={13} />
             </div>
             {planData.remainingValue > 0 && (
-              <div className="flex justify-between items-center text-sm text-emerald-600">
-                <span>خصم الرصيد المتبقي</span>
+              <div className="-mr-3 flex items-center gap-6 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
+                <span className="w-36 shrink-0 whitespace-nowrap font-black">خصم الرصيد المتبقي</span>
                 <span className="inline-flex items-center gap-1 font-bold">
                   − <Money value={planData.remainingValue} iconSize={13} />
                 </span>
               </div>
             )}
+            {messagePackage && (
+              <div className="mt-3 border-t border-slate-200 pt-3 space-y-2">
+                <div className="flex items-center gap-10 text-sm">
+                  <span className="w-28 shrink-0 text-slate-600 font-bold">باقة الرسائل</span>
+                  <span className="font-bold text-slate-700">{messagePackage.name}</span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-10">
+                    <span className="w-28 shrink-0 inline-flex items-center gap-1.5 text-slate-600 font-bold"><WhatsAppIcon size={14} /> رسائل واتساب</span>
+                    <span className="font-bold text-slate-600"><span className="text-[#25D366]">{messagePackage.wa.toLocaleString()}</span> رسالة</span>
+                  </div>
+                  <div className="flex items-center gap-10">
+                    <span className="w-28 shrink-0 inline-flex items-center gap-1.5 text-slate-600 font-bold"><MessageSquare size={14} className="text-[#007AFF]" strokeWidth={2.4} /> رسائل SMS</span>
+                    <span className="font-bold text-slate-600"><span className="text-[#007AFF]">{messagePackage.sms.toLocaleString()}</span> رسالة</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-10 text-sm">
+                  <span className="w-28 shrink-0 text-slate-600 font-bold">سعر باقة الرسائل</span>
+                  <Money value={messagePackage.price} className="font-bold text-slate-700" iconSize={13} />
+                </div>
+              </div>
+            )}
             <div className="pt-3 mt-1 border-t border-slate-200 flex justify-between items-center">
               <span className="text-sm font-black text-slate-700">الإجمالي المستحق</span>
-              <Money value={planData.finalPrice} className="text-xl font-black text-slate-900" iconSize={16} />
+              <Money value={totalDue} className="text-xl font-black text-[#655ac1]" iconSize={16} />
             </div>
           </div>
 
-          <div className="mt-auto pt-6 space-y-2">
-            {planData.remainingValue > 0 && (
-              <p className="text-xs text-slate-400 leading-relaxed">
-                تم احتساب الرصيد المتبقي من اشتراكك الحالي وخصمه تلقائياً
-              </p>
-            )}
-            {subscription.isTrial && (
-              <p className="text-xs text-slate-400 leading-relaxed">
-                الترقية ستنهي فترتك التجريبية وتبدأ دورتك المدفوعة فوراً.
-              </p>
-            )}
+          <div className="mt-auto pt-6">
+            <div className="border-t border-slate-200 pt-4 space-y-2">
+              {planData.remainingValue > 0 && (
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                  تم احتساب الرصيد المتبقي من اشتراكك الحالي وخصمه تلقائياً
+                </p>
+              )}
+              {subscription.isTrial && (
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                  الترقية ستنهي فترتك التجريبية وتبدأ دورتك المدفوعة فوراً.
+                </p>
+              )}
+              {messagePackage && (
+                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                  باقة الرسائل صلاحيتها 12 شهراً من تاريخ الدفع.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -210,7 +268,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="p-6 lg:p-8">
 
           {/* Express checkout */}
-          <p className="text-xs font-bold text-slate-400 mb-2">الدفع السريع</p>
+          <p className="text-xs font-bold text-slate-500 mb-1.5 block">الدفع السريع</p>
           <div className="flex flex-col gap-2.5">
             <button
               type="button"
@@ -267,7 +325,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     </svg>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 divide-x divide-slate-200">
+                <div className="grid grid-cols-2">
                   <input
                     type="text"
                     inputMode="numeric"
@@ -285,7 +343,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     placeholder="CVC"
                     value={cvv}
                     onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className={`${inputBase} font-mono text-left`}
+                    className={`${inputBase} font-mono text-left border-r border-slate-200`}
                   />
                 </div>
               </div>
@@ -318,7 +376,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 جاري المعالجة...
               </>
             ) : (
-              <><Lock size={15} /> ادفع {planData.finalPrice} <SaudiRiyal size={16} /></>
+              <><Lock size={15} /> ادفع {totalDue.toLocaleString()} <SaudiRiyal size={16} /></>
             )}
           </button>
 

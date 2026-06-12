@@ -7,6 +7,7 @@ import { useMessageArchive } from './MessageArchiveContext';
 interface MessagePaymentModalProps {
   pkg: { name: string; sms: number; wa: number; price: number };
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
 type PayMethod = 'mada' | 'visa' | 'applepay' | 'samsungpay';
@@ -29,7 +30,7 @@ const waIcon = (
 );
 
 /* ── Checkout page ── */
-const MessagePaymentModal: React.FC<MessagePaymentModalProps> = ({ pkg, onClose }) => {
+const MessagePaymentModal: React.FC<MessagePaymentModalProps> = ({ pkg, onClose, onSuccess }) => {
   const { showToast } = useToast();
   const { buyPackage } = useMessageArchive();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -69,7 +70,10 @@ const MessagePaymentModal: React.FC<MessagePaymentModalProps> = ({ pkg, onClose 
       setIsSuccess(true);
       showToast('تمّت عملية الدفع بنجاح ✓', 'success');
       buyPackage({ name: pkg.name, wa: pkg.wa, sms: pkg.sms });
-      setTimeout(() => { onClose(); }, 2200);
+      setTimeout(() => {
+        onSuccess?.();
+        onClose();
+      }, 2200);
     }, 1800);
   };
 

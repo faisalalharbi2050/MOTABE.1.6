@@ -445,6 +445,12 @@ export interface Transaction {
   paymentMethod: string;
   status: 'success' | 'failed' | 'pending';
   invoiceUrl?: string; // Mock PDF url or data
+  messagePackage?: {
+    name: string;
+    sms: number;
+    wa: number;
+    price: number;
+  };
 }
 
 export interface SubscriptionInfo {

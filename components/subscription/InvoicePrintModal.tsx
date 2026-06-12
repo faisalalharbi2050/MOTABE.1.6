@@ -34,6 +34,10 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
   const printRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
+  const messagePackage = transaction.messagePackage;
+  const mainGross = Math.max(0, transaction.amount - (messagePackage?.price ?? 0));
+  const mainNet = mainGross / 1.15;
+  const messageNet = messagePackage ? messagePackage.price / 1.15 : 0;
   const net = transaction.amount / 1.15;
   const vat = transaction.amount - net;
   const logoUrl = `${window.location.origin}/logo.png`;
@@ -140,6 +144,7 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
       <div class="p-row"><span class="k">طريقة الدفع</span><span class="v" style="text-transform:uppercase">${transaction.paymentMethod}</span></div>
       <div class="p-row"><span class="k">مدة الاشتراك</span><span class="v">${periodLabel(transaction.period)}</span></div>
       <div class="p-row"><span class="k">الباقة</span><span class="v">${PACKAGE_NAMES[transaction.packageTier]}</span></div>
+      ${messagePackage ? `<div class="p-row"><span class="k">باقة الرسائل</span><span class="v">${messagePackage.name}</span></div>` : ''}
       <div class="p-row"><span class="k">الحالة</span><span class="badge">مدفوعة</span></div>
     </div>
   </div>
@@ -154,9 +159,16 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
       <tr>
         <td><div class="desc-main">${PACKAGE_NAMES[transaction.packageTier]}</div><div class="desc-sub">اشتراك منصة متابع · ${periodLabel(transaction.period)}</div></td>
         <td>1</td>
-        <td>${money(net.toFixed(2))}</td>
-        <td style="font-weight:900">${money(net.toFixed(2))}</td>
+        <td>${money(mainNet.toFixed(2))}</td>
+        <td style="font-weight:900">${money(mainNet.toFixed(2))}</td>
       </tr>
+      ${messagePackage ? `
+      <tr>
+        <td><div class="desc-main">باقة الرسائل ${messagePackage.name}</div><div class="desc-sub">${messagePackage.wa.toLocaleString()} واتساب · ${messagePackage.sms.toLocaleString()} SMS · صلاحية 12 شهراً</div></td>
+        <td>1</td>
+        <td>${money(messageNet.toFixed(2))}</td>
+        <td style="font-weight:900">${money(messageNet.toFixed(2))}</td>
+      </tr>` : ''}
     </tbody>
   </table>
 
@@ -242,6 +254,9 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
                   <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">طريقة الدفع</span><span className="font-bold uppercase text-[#655ac1]">{transaction.paymentMethod}</span></div>
                   <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">مدة الاشتراك</span><span className="font-bold text-[#655ac1]">{periodLabel(transaction.period)}</span></div>
                   <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">الباقة</span><span className="font-bold text-[#655ac1]">{PACKAGE_NAMES[transaction.packageTier]}</span></div>
+                  {messagePackage && (
+                    <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">باقة الرسائل</span><span className="font-bold text-[#655ac1]">{messagePackage.name}</span></div>
+                  )}
                   <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">الحالة</span><span className={`rounded-md px-2.5 py-0.5 text-[11px] font-bold ${status.cls}`}>{status.text}</span></div>
                 </div>
               </div>
@@ -265,9 +280,20 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
                       <div className="mt-0.5 text-[11px] text-slate-400">اشتراك منصة متابع · {periodLabel(transaction.period)}</div>
                     </td>
                     <td className="border-l border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700">1</td>
-                    <td className="border-l border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700"><Money value={net.toFixed(2)} /></td>
-                    <td className="px-4 py-4 text-left align-top text-[13px] font-black text-slate-900"><Money value={net.toFixed(2)} /></td>
+                    <td className="border-l border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700"><Money value={mainNet.toFixed(2)} /></td>
+                    <td className="px-4 py-4 text-left align-top text-[13px] font-black text-slate-900"><Money value={mainNet.toFixed(2)} /></td>
                   </tr>
+                  {messagePackage && (
+                    <tr>
+                      <td className="border-l border-t border-slate-200 px-4 py-4 text-right align-top">
+                        <div className="text-[13px] font-black text-slate-900">باقة الرسائل {messagePackage.name}</div>
+                        <div className="mt-0.5 text-[11px] text-slate-400">{messagePackage.wa.toLocaleString()} واتساب · {messagePackage.sms.toLocaleString()} SMS · صلاحية 12 شهراً</div>
+                      </td>
+                      <td className="border-l border-t border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700">1</td>
+                      <td className="border-l border-t border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700"><Money value={messageNet.toFixed(2)} /></td>
+                      <td className="border-t border-slate-200 px-4 py-4 text-left align-top text-[13px] font-black text-slate-900"><Money value={messageNet.toFixed(2)} /></td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

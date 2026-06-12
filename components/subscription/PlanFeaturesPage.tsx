@@ -86,7 +86,7 @@ const PlanFeaturesPage: React.FC<PlanFeaturesPageProps> = ({
             onClick={onSubscribe}
             className="flex items-center justify-center gap-2 py-3.5 px-8 bg-[#655ac1] text-white rounded-xl font-black text-base shadow-lg shadow-indigo-200 hover:opacity-90 hover:shadow-xl active:scale-[0.99] transition-all w-full sm:w-auto"
           >
-            اشترك الآن <ArrowLeft size={18} strokeWidth={2.5} />
+            إضافة للسلة <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
         </div>
       </div>

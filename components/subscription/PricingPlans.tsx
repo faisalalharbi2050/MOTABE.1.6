@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { PackageTier, PaymentPeriod, SubscriptionInfo } from '../../types';
 import { FEATURE_GROUPS, BASIC_CARD_HIGHLIGHTS, PACKAGE_PRICING, PACKAGE_NAMES, PACKAGE_DESCRIPTIONS, calculateProRata } from './packages';
-import PaymentModal from './PaymentModal';
 import PlanFeaturesPage from './PlanFeaturesPage';
 import { Sparkles, Crown, CheckCircle2, Check, ArrowLeft, ArrowUpRight, SaudiRiyal, AlertCircle, CalendarDays } from 'lucide-react';
+import { SubscriptionCartPlan } from './cartTypes';
 
 interface PricingPlansProps {
   subscription: SubscriptionInfo;
-  setSubscription: React.Dispatch<React.SetStateAction<SubscriptionInfo>>;
-  onComplete: () => void;
+  cartPlan?: SubscriptionCartPlan;
+  onAddToCart: (plan: SubscriptionCartPlan) => void;
 }
 
-const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscription, onComplete }) => {
+const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, cartPlan, onAddToCart }) => {
   const [period, setPeriod] = useState<PaymentPeriod>('semester');
-  const [selectedPlan, setSelectedPlan] = useState<{tier: PackageTier, newPrice: number, finalPrice: number, remainingValue: number} | null>(null);
   const [featuresPlan, setFeaturesPlan] = useState<PackageTier | null>(null);
 
   const getDaysRemaining = (endDate: string) => {
@@ -34,8 +33,9 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
       period
     );
 
-    setSelectedPlan({
+    onAddToCart({
       tier,
+      period,
       newPrice: proRata.newPrice,
       finalPrice: proRata.finalPrice,
       remainingValue: proRata.remainingValue
@@ -47,20 +47,6 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
   // ⚠️ مؤقت للتجربة: يفتح أزرار الاشتراك/الدفع حتى لو كانت الباقة مفعّلة،
   // لاختبار تصميم بوابة الدفع. أعِده إلى false عند الاعتماد النهائي.
   const PREVIEW_UNLOCK = true;
-
-  // Checkout is a standalone page (not a modal) — it replaces the current view.
-  if (selectedPlan) {
-    return (
-      <PaymentModal
-        planData={selectedPlan}
-        period={period}
-        subscription={subscription}
-        setSubscription={setSubscription}
-        onClose={() => setSelectedPlan(null)}
-        onSuccess={onComplete}
-      />
-    );
-  }
 
   // Full-features view replaces the cards grid (standalone page with a back button).
   if (featuresPlan) {
@@ -143,6 +129,7 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
              const isAdvanced = tier === 'advanced';
              const isDowngradeUnavailable = !subscription.isTrial && subscription.packageTier === 'advanced' && tier === 'basic';
              const isUpgrade = !subscription.isTrial && subscription.packageTier === 'basic' && tier === 'advanced';
+             const isInCart = cartPlan?.tier === tier && cartPlan.period === period;
              return (
                <div
                  key={tier}
@@ -244,8 +231,10 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
                               <><CheckCircle2 size={18} /> باقتك الحالية</>
                             ) : showLockedDown ? (
                               'غير متاح'
+                            ) : isInCart ? (
+                              <><CheckCircle2 size={18} /> مضافة للسلة</>
                             ) : (
-                              <>{isUpgrade ? 'ترقية الآن' : 'اشترك الآن'} <ArrowLeft size={18} strokeWidth={2.5} /></>
+                              <>{isUpgrade ? 'ترقية وإضافة للسلة' : 'إضافة للسلة'} <ArrowLeft size={18} strokeWidth={2.5} /></>
                             )}
                           </button>
                         );

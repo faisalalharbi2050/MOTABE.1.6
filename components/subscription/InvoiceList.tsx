@@ -108,7 +108,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ transactions }) => {
                   <div>
                     <p className="text-[13px] font-black text-slate-800">{PACKAGE_NAMES[txn.packageTier]}</p>
                     <p className="mt-0.5 text-[11px] font-bold text-slate-400">
-                      {periodLabel(txn.period)} · {txn.paymentMethod.toUpperCase()}
+                      {periodLabel(txn.period)}
+                      {txn.messagePackage ? ` · رسائل ${txn.messagePackage.name}` : ''}
+                      {' · '}
+                      {txn.paymentMethod.toUpperCase()}
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[15px] font-black text-slate-800">{txn.amount}<SaudiRiyal size={14} strokeWidth={2.25} /></span>
@@ -161,7 +164,10 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ transactions }) => {
                       <td className="px-3 py-3.5 align-middle">
                         <p className="text-[14px] font-black text-slate-800">{PACKAGE_NAMES[txn.packageTier]}</p>
                         <p className="mt-0.5 text-[12px] font-bold text-slate-400">
-                          {periodLabel(txn.period)} · {txn.paymentMethod.toUpperCase()}
+                          {periodLabel(txn.period)}
+                          {txn.messagePackage ? ` · رسائل ${txn.messagePackage.name}` : ''}
+                          {' · '}
+                          {txn.paymentMethod.toUpperCase()}
                         </p>
                       </td>
                       <td className="px-3 py-3.5 text-center align-middle">

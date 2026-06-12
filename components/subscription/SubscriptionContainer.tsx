@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { CreditCard, FileText, LayoutDashboard, MessageSquare } from 'lucide-react';
+import { ArrowLeft, CreditCard, FileText, LayoutDashboard, MessageSquare, SaudiRiyal, ShoppingCart } from 'lucide-react';
 import SubscriptionDashboard from './SubscriptionDashboard';
 import PricingPlans from './PricingPlans';
 import InvoiceList from './InvoiceList';
 import MessageSubscriptions from '../messaging/MessageSubscriptions';
 import { SubscriptionInfo } from '../../types';
+import { SubscriptionCart } from './cartTypes';
+import SubscriptionCartReview from './SubscriptionCartReview';
 
 interface SubscriptionContainerProps {
   subscription: SubscriptionInfo;
@@ -13,12 +15,17 @@ interface SubscriptionContainerProps {
 }
 
 const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscription, setSubscription, initialTab }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'pricing' | 'message_packages' | 'invoices'>(initialTab || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'pricing' | 'message_packages' | 'cart' | 'invoices'>(initialTab || 'dashboard');
+  const [cart, setCart] = useState<SubscriptionCart>({});
+
+  const cartItemCount = (cart.plan ? 1 : 0) + (cart.messagePackage ? 1 : 0);
+  const cartTotal = (cart.plan?.finalPrice ?? 0) + (cart.messagePackage?.price ?? 0);
 
   const tabs = [
     { id: 'dashboard',         label: 'الاشتراك الحالي',  hint: 'حالة باقتك وتجديدها',    icon: LayoutDashboard },
     { id: 'pricing',           label: 'باقات متابع',      hint: 'الباقات والأسعار',        icon: CreditCard      },
     { id: 'message_packages',  label: 'باقات الرسائل',    hint: 'رصيد وباقات الرسائل',     icon: MessageSquare   },
+    { id: 'cart',              label: 'السلة',             hint: 'مراجعة الطلب والدفع',     icon: ShoppingCart    },
     { id: 'invoices',          label: 'الفواتير',          hint: 'سجل الفواتير والمدفوعات', icon: FileText        },
   ] as const;
 
@@ -67,6 +74,13 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
                         isActive ? 'text-white' : 'text-slate-800'
                       }`}>
                         {tab.label}
+                        {tab.id === 'cart' && cartItemCount > 0 && (
+                          <span className={`mr-2 inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[11px] ${
+                            isActive ? 'bg-white text-[#655ac1]' : 'bg-[#655ac1] text-white'
+                          }`}>
+                            {cartItemCount}
+                          </span>
+                        )}
                       </span>
                       <span className={`block text-[11px] font-bold mt-0.5 truncate ${
                         isActive ? 'text-white/80' : 'text-slate-400'
@@ -87,6 +101,30 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
         </div>
       </div>
 
+      {cartItemCount > 0 && activeTab !== 'cart' && (
+        <div className="bg-white rounded-2xl border border-[#e5e1fe] shadow-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-[#655ac1] flex items-center justify-center">
+              <ShoppingCart size={19} strokeWidth={2.4} />
+            </span>
+            <div>
+              <p className="text-sm font-black text-slate-800">{cartItemCount} عنصر في السلة</p>
+              <p className="text-xs font-bold text-slate-400">
+                الإجمالي {cartTotal.toLocaleString()} <SaudiRiyal size={12} className="inline-block align-[-2px]" />
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('cart')}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#655ac1] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-indigo-200 transition-all hover:opacity-90"
+          >
+            مراجعة الطلب
+            <ArrowLeft size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'dashboard' && (
@@ -99,12 +137,30 @@ const SubscriptionContainer: React.FC<SubscriptionContainerProps> = ({ subscript
         {activeTab === 'pricing' && (
           <PricingPlans
             subscription={subscription}
-            setSubscription={setSubscription}
-            onComplete={() => setActiveTab('dashboard')}
+            cartPlan={cart.plan}
+            onAddToCart={(plan) => setCart(prev => ({ ...prev, plan }))}
           />
         )}
         {activeTab === 'message_packages' && (
-          <MessageSubscriptions />
+          <MessageSubscriptions
+            cartMessagePackage={cart.messagePackage}
+            onAddToCart={(messagePackage) => setCart(prev => ({ ...prev, messagePackage }))}
+          />
+        )}
+        {activeTab === 'cart' && (
+          <SubscriptionCartReview
+            cart={cart}
+            subscription={subscription}
+            setSubscription={setSubscription}
+            onRemovePlan={() => setCart(prev => ({ ...prev, plan: undefined }))}
+            onRemoveMessagePackage={() => setCart(prev => ({ ...prev, messagePackage: undefined }))}
+            onOpenPricing={() => setActiveTab('pricing')}
+            onOpenMessagePackages={() => setActiveTab('message_packages')}
+            onComplete={() => {
+              setCart({});
+              setActiveTab('dashboard');
+            }}
+          />
         )}
         {activeTab === 'invoices' && (
           <InvoiceList transactions={subscription.transactions} />

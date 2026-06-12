@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { MessageSquare, CheckCircle2, ArrowLeft, Sparkles, SaudiRiyal, CalendarDays } from 'lucide-react';
 import { useMessageArchive } from './MessageArchiveContext';
-import MessagePaymentModal from './MessagePaymentModal';
+import { MESSAGE_PACKAGES, MessagePackage } from './messagePackages';
 
-type Pkg = { name: string; sms: number; wa: number; price: number; desc: string; recommended?: boolean };
-
-const packages: Pkg[] = [
-  { name: 'أساسية',  sms: 1000,  wa: 10000, price: 289, desc: 'رصيد يكفي المدارس بأعداد صغيرة' },
-  { name: 'متقدمة',  sms: 5000,  wa: 20000, price: 749, desc: 'رصيد يكفي المدارس بأعداد متوسطة', recommended: true },
-  { name: 'احترافية', sms: 10000, wa: 30000, price: 994, desc: 'رصيد يكفي المدارس بأعداد كبيرة' },
-];
+interface MessageSubscriptionsProps {
+  cartMessagePackage?: MessagePackage;
+  onAddToCart?: (pkg: MessagePackage) => void;
+}
 
 // واتساب — الأيقونة الرسمية بلونها الأخضر، مطابقة لتبويب الاشتراك الحالي.
 const waIcon = (
@@ -18,9 +15,8 @@ const waIcon = (
   </svg>
 );
 
-const MessageSubscriptions: React.FC = () => {
+const MessageSubscriptions: React.FC<MessageSubscriptionsProps> = ({ cartMessagePackage, onAddToCart }) => {
   const { stats } = useMessageArchive();
-  const [selectedPkg, setSelectedPkg] = useState<Pkg | null>(null);
 
   // ⚠️ مؤقت للتجربة: يبقي أزرار الاشتراك/الدفع مفتوحة حتى لو كانت الباقة مفعّلة،
   // لاختبار تصميم بوابة الدفع. أعِده إلى false عند الاعتماد النهائي.
@@ -52,8 +48,9 @@ const MessageSubscriptions: React.FC = () => {
 
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
-          {packages.map((pkg) => {
+          {MESSAGE_PACKAGES.map((pkg) => {
             const isCurrent = stats.activePackageName === pkg.name;
+            const isInCart = cartMessagePackage?.name === pkg.name;
             const features = [
               { icon: waIcon, text: `${pkg.wa.toLocaleString()} رسالة واتساب` },
               { icon: <MessageSquare size={17} className="text-[#007AFF]" strokeWidth={2.4} />, text: `${pkg.sms.toLocaleString()} رسالة SMS` },
@@ -112,7 +109,7 @@ const MessageSubscriptions: React.FC = () => {
 
                   {/* Action: subscribe */}
                   <button
-                    onClick={() => setSelectedPkg(pkg)}
+                    onClick={() => onAddToCart?.(pkg)}
                     disabled={isCurrent && !PREVIEW_UNLOCK}
                     className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-base transition-all ${
                       isCurrent && !PREVIEW_UNLOCK
@@ -122,8 +119,10 @@ const MessageSubscriptions: React.FC = () => {
                   >
                     {isCurrent && !PREVIEW_UNLOCK ? (
                       <><CheckCircle2 size={18} /> باقتك الحالية</>
+                    ) : isInCart ? (
+                      <><CheckCircle2 size={18} /> مضافة للسلة</>
                     ) : (
-                      <>{isCurrent ? 'تجديد الباقة' : 'اشترك الآن'} <ArrowLeft size={18} strokeWidth={2.5} /></>
+                      <>{isCurrent ? 'تجديد وإضافة للسلة' : 'إضافة للسلة'} <ArrowLeft size={18} strokeWidth={2.5} /></>
                     )}
                   </button>
                 </div>
@@ -133,12 +132,6 @@ const MessageSubscriptions: React.FC = () => {
         </div>
       </div>
 
-      {selectedPkg && (
-        <MessagePaymentModal
-          pkg={selectedPkg}
-          onClose={() => setSelectedPkg(null)}
-        />
-      )}
     </div>
   );
 };
