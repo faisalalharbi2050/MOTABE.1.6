@@ -382,7 +382,7 @@ const KnowledgeBase: React.FC = () => {
         </div>
       ) : activeSection ? (
         /* ════════════════ CATEGORY DETAIL ════════════════ */
-        <div className="space-y-5">
+        <div className="max-w-2xl space-y-5">
           {/* Back row */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-3.5 flex items-center gap-3">
             <button
@@ -399,8 +399,8 @@ const KnowledgeBase: React.FC = () => {
             </span>
           </div>
 
-          {/* عرض مقيّد — لا يمتد بعرض الصفحة */}
-          <div className="max-w-2xl space-y-5">
+          {/* الأسئلة الشائعة والفيديو */}
+          <div className="space-y-5">
             {(activeSection.faqs.length === 0 && activeSection.videos.length === 0) && (
               <EmptyBox icon={HelpCircle} title="لا يوجد محتوى في هذا القسم بعد" hint="نعمل على إضافته قريباً" />
             )}
