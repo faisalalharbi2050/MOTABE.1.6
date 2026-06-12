@@ -33,7 +33,6 @@ import {
   FileSignature,
   Quote,
   Crown,
-  AlertCircle,
   Eye,
   Lock,
   Cloud,
@@ -46,6 +45,7 @@ import {
   PACKAGE_PRICING, PACKAGE_NAMES, PACKAGE_DESCRIPTIONS,
   FEATURE_GROUPS, BASIC_CARD_HIGHLIGHTS,
 } from '../subscription/packages';
+import { MESSAGE_PACKAGES } from '../messaging/messagePackages';
 import PlanFeaturesPage from '../subscription/PlanFeaturesPage';
 import { PackageTier, PaymentPeriod } from '../../types';
 
@@ -970,108 +970,92 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
 };
 
 /* ═══════════════════════════════════════════════════════
-   MESSAGING PRICING — مطابق حرفياً لـ MessageSubscriptions
-   (components/messaging/MessageSubscriptions.tsx)
+   MESSAGING PRICING — same cards as MessageSubscriptions, without cart buttons
    ═══════════════════════════════════════════════════════ */
-type MsgPkg = {
-  name: string; sms: number; wa: number; price: number;
-  bgLight: string; textMain: string; bgIcon: string;
-  btnDefault: string; btnHover: string;
-};
-
-const MESSAGING_PACKAGES: MsgPkg[] = [
-  {
-    name: 'أساسية', sms: 1000, wa: 10000, price: 289,
-    bgLight: 'bg-[#f8f7ff]', textMain: 'text-[#8779fb]',
-    bgIcon: 'bg-white text-[#8779fb] shadow-sm border border-[#e5e1fe]',
-    btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-    btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white',
-  },
-  {
-    name: 'متقدمة', sms: 5000, wa: 20000, price: 749,
-    bgLight: 'bg-[#f3f0ff]', textMain: 'text-[#6e5ee0]',
-    bgIcon: 'bg-white text-[#8779fb] shadow-sm border border-[#e5e1fe]',
-    btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-    btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white',
-  },
-  {
-    name: 'احترافية', sms: 10000, wa: 30000, price: 994,
-    bgLight: 'bg-[#e5e1fe]', textMain: 'text-[#5b4cb8]',
-    bgIcon: 'bg-white text-[#5b4cb8] shadow-sm border border-[#e5e1fe]',
-    btnDefault: 'bg-white border-2 border-[#e5e1fe] text-[#8779fb]',
-    btnHover: 'hover:border-[#8779fb] hover:bg-[#8779fb] hover:text-white',
-  },
-];
+const waIcon = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.066-.3-.15-1.265-.467-2.409-1.487-.883-.788-1.48-1.761-1.653-2.059-.173-.3-.018-.465.13-.615.136-.135.301-.345.45-.523.146-.181.194-.301.292-.502.097-.206.05-.386-.025-.534-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.572-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.09 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.36zm-5.496 7.618A9.973 9.973 0 017.1 20.676L3 22l1.353-3.95A9.977 9.977 0 012.002 12 10 10 0 1112.002 22z" fillRule="evenodd" clipRule="evenodd" />
+  </svg>
+);
 
 const MessagingPricing: React.FC<Props> = ({ onNavigate }) => (
-  <div className="mt-10 max-w-5xl mx-auto">
-    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-      <div className="text-center mb-8">
-        <h3 className="text-xl font-black text-slate-800">باقات الرسائل</h3>
-        <p className="text-sm font-bold text-slate-500 mt-2">اختر الباقة التي تناسبك</p>
+  <section className="pb-24 md:pb-32 bg-white" dir="rtl">
+    <div className="max-w-[1280px] mx-auto px-5 lg:px-8 animate-fade-in">
+      <SectionTitle title="باقات الرسائل" subtitle="اختر الباقة التي تناسبك" />
+
+      <div className="flex justify-center mb-8">
+        <div className="inline-flex items-center gap-3 bg-white border border-slate-300 rounded-2xl px-6 py-3 text-sm font-bold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-[#8779fb]" />
+          <span className="text-slate-400">صلاحية كل باقة</span>
+          <span className="font-black text-[#655ac1]">12 شهراً</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-xs text-slate-400">تبدأ من تاريخ الاشتراك</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {MESSAGING_PACKAGES.map(pkg => (
-          <div
-            key={pkg.name}
-            className="bg-white border-2 border-slate-100 hover:border-slate-300 rounded-3xl p-8 text-center shadow-sm hover:shadow-xl transition-all group flex flex-col relative overflow-hidden"
-          >
-            <div className={`absolute top-0 right-0 w-32 h-32 ${pkg.bgLight} rounded-bl-full -z-0 transition-transform group-hover:scale-110`} />
-            <div className="relative z-10 flex-1 flex flex-col">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mx-auto">
+        {MESSAGE_PACKAGES.map((pkg) => {
+          const features = [
+            { icon: waIcon, text: `${pkg.wa.toLocaleString()} رسالة واتساب` },
+            { icon: <MessageSquare size={17} className="text-[#007AFF]" strokeWidth={2.4} />, text: `${pkg.sms.toLocaleString()} رسالة SMS` },
+          ];
 
-              <div className="h-7 flex items-center justify-center mb-3" />
-
-              <h4 className="text-3xl font-black text-slate-800 mb-2">{pkg.name}</h4>
-              <div className="flex justify-center items-end gap-1 mb-8">
-                <span className={`text-5xl font-black ${pkg.textMain}`}>{pkg.price}</span>
-                <span className="text-base font-bold text-slate-400 mb-1.5">ريال</span>
-              </div>
-
-              <div className="space-y-4 mb-10 text-right flex-1 bg-slate-50 rounded-2xl p-6 border border-slate-100 group-hover:bg-white transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl ${pkg.bgIcon} flex items-center justify-center shrink-0`}>
-                    <MessageSquare size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-500 mb-1">نصية SMS</p>
-                    <p className="text-lg font-black text-slate-800">
-                      {pkg.sms.toLocaleString()} <span className="text-xs font-bold text-slate-400">رسالة</span>
-                    </p>
-                  </div>
+          return (
+            <div
+              key={pkg.name}
+              className="bg-white border border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg rounded-[2rem] p-6 text-center transition-all group flex flex-col relative overflow-hidden"
+            >
+              <div className="relative z-10 flex-1 flex flex-col">
+                <div className="h-7 flex items-center justify-center mb-4">
+                  {pkg.recommended && (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-gradient-to-l from-[#655ac1] to-[#8779fb] text-white text-xs font-black rounded-full shadow-sm shadow-indigo-200">
+                      <Sparkles size={12} className="fill-white" /> الأكثر طلبًا
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl ${pkg.bgIcon} flex items-center justify-center shrink-0`}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#25D366" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.066-.3-.15-1.265-.467-2.409-1.487-.883-.788-1.48-1.761-1.653-2.059-.173-.3-.018-.465.13-.615.136-.135.301-.345.45-.523.146-.181.194-.301.292-.502.097-.206.05-.386-.025-.534-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.572-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.09 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.36zm-5.496 7.618A9.973 9.973 0 017.1 20.676L3 22l1.353-3.95A9.977 9.977 0 012.002 12 10 10 0 1112.002 22z" fillRule="evenodd" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-500 mb-1">الواتساب</p>
-                    <p className="text-lg font-black text-slate-800">
-                      {pkg.wa.toLocaleString()} <span className="text-xs font-bold text-slate-400">رسالة</span>
-                    </p>
+                <h4 className="text-2xl font-black text-slate-800 mb-2">{pkg.name}</h4>
+
+                <div className="flex justify-center items-center gap-1.5 mb-4">
+                  <span className="text-4xl font-black text-[#655ac1]">{pkg.price}</span>
+                  <SaudiRiyal className="w-6 h-6 text-[#655ac1]" strokeWidth={2.5} />
+                </div>
+
+                <p className="text-[13px] font-bold text-slate-500 leading-relaxed mb-5 px-2">
+                  {pkg.desc}
+                </p>
+
+                <div className="h-px bg-slate-200 mb-5" />
+
+                <div className="text-right flex-1 transition-colors mb-1 flex flex-col">
+                  <div className="flex flex-col gap-3.5 flex-1">
+                    {features.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2.5">
+                        <span className="w-[20px] h-[20px] flex items-center justify-center shrink-0">
+                          {f.icon}
+                        </span>
+                        <span className="text-sm font-black text-slate-800 leading-snug">{f.text}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={() => onNavigate('register')}
-                className={`w-full py-3 ${pkg.btnDefault} ${pkg.btnHover} rounded-xl text-lg font-black transition-all shadow-sm`}
-              >
-                اشتراك
-              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <p className="text-center text-sm font-bold text-red-500 mt-10 flex items-center justify-center gap-2">
-        <AlertCircle size={20} className="text-red-500" /> جميع الباقات صالحة لمدة 12 شهر تبدأ من تاريخ الاشتراك.
-      </p>
+      <div className="flex justify-center mt-10">
+        <button
+          onClick={() => onNavigate('register')}
+          className="inline-flex items-center gap-2 px-10 py-4 rounded-xl bg-[#655ac1] hover:bg-[#52499d] text-white font-black text-lg shadow-xl shadow-[#655ac1]/30 hover:-translate-y-0.5 transition-all"
+        >
+          ابدأ الآن
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+      </div>
     </div>
-  </div>
+  </section>
 );
 
 /* ═══════════════════════════════════════════════════════
@@ -1129,6 +1113,7 @@ const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         <Stats />
         <Testimonials />
         <Pricing onNavigate={onNavigate} />
+        <MessagingPricing onNavigate={onNavigate} />
       </main>
       <MarketingFooter onNavigate={onNavigate} />
     </div>
