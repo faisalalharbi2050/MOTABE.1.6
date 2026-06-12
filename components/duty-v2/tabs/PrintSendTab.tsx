@@ -13,7 +13,7 @@ import {
 import { Admin, DutyDayAssignment, DutyReportRecord, DutyScheduleData, DutyWeekAssignment, SchoolInfo } from '../../../types';
 import { DAY_NAMES } from '../../../utils/dutyUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
-import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
+import { getMessageTemplate, fillMessageTemplate, shortenRecipientName, stripUnfilledTokens } from '../../../utils/messageCatalog';
 import DutyReportPreview from '../../duty/DutyReportPreview';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 import MessagePreviewInline from '../../messaging/MessagePreviewInline';
@@ -488,7 +488,7 @@ const PrintSendTab: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
-  const [fallbackToSms, setFallbackToSms] = useState(false);
+  const [fallbackToSms, setFallbackToSms] = useState(true);
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleTime, setSendScheduleTime] = useState(dutyData.settings.reminderSendTime || '07:00');
   const [messageText, setMessageText] = useState('');
@@ -829,7 +829,8 @@ const PrintSendTab: React.FC<Props> = ({
   const buildDetailedMessage = (row?: typeof sendRows[number], recipientName?: string) => {
     const target = row || selectedRows[0];
     if (!target) return '';
-    const displayName = recipientName || target.staffName;
+    // الاسم في نص الرسالة يُختصر (أول+أخير) لتقليل التكلفة؛ يبقى كاملاً في الجداول والأرشيف
+    const displayName = shortenRecipientName(recipientName || target.staffName);
     const assignments = 'assignments' in target ? target.assignments : [target];
     const firstAssignment = assignments[0];
     const dayName = DAY_NAMES[firstAssignment.day] || firstAssignment.day;
@@ -2517,55 +2518,73 @@ ${buildReportLink(target)}` : ''}`;
                   </button>
                 </div>
                 {sendChannel === 'whatsapp' && (
-                  <label className="relative mt-4 flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                  <label className={`relative mt-4 flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-colors border ${
+                    fallbackToSms ? 'border-emerald-300' : 'border-slate-200 hover:border-slate-300'
+                  }`}>
                     <input
                       type="checkbox"
                       className="sr-only"
                       checked={fallbackToSms}
-                      onChange={e => {
-                        setFallbackToSms(e.target.checked);
-                        if (e.target.checked) showToast?.('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
-                      }}
+                      onChange={e => setFallbackToSms(e.target.checked)}
                     />
-                    <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                      <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+                    <div className={`relative flex items-center w-11 h-6 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-[#25D366]' : 'bg-slate-300'}`}>
+                      <div className={`absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
                     </div>
-                    <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
-                      في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
-                    </span>
+                    <div className="select-none leading-relaxed">
+                      <p className={`text-[13px] font-black ${fallbackToSms ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                        تحويل تلقائي للرسائل النصية عند تعذّر الواتساب
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                        لو لم تصل رسالة الواتساب للمستلم تُرسل له رسالة نصية لضمان وصول الرسالة
+                      </p>
+                    </div>
                   </label>
                 )}
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-start gap-3 mb-4">
-                  <Eye size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {sendMode !== 'text' && (
+                <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare size={20} className="text-[#655ac1]" />
+                    <h4 className="font-black text-slate-800">نص الرسالة</h4>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {sendMode !== 'text' && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewRowKey(firstSelectedRow?.key || null)}
+                        disabled={!firstSelectedRow}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Eye size={14} />
+                        {sendMode === 'reminder' ? 'تقرير المناوبة اليومية' : 'معاينة التكليف'}
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setPreviewRowKey(firstSelectedRow?.key || null)}
-                      disabled={!firstSelectedRow}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setRecipientsPreviewOpen(true)}
+                      disabled={selectedRows.length === 0}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50"
                     >
-                      <Eye size={15} />
-                      {sendMode === 'reminder' ? 'تقرير المناوبة اليومية' : 'معاينة التكليف'}
+                      <Users size={14} />
+                      معاينة المستلمين ({selectedRows.length})
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setRecipientsPreviewOpen(true)}
-                    disabled={selectedRows.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50"
-                  >
-                    <Users size={15} />
-                    معاينة المستلمين ({selectedRows.length})
-                  </button>
+                    <button
+                      type="button"
+                      title="استعادة النص الافتراضي"
+                      onClick={() => {
+                        if (selectedRows.length === 0) return;
+                        setMessageText(buildDetailedMessage(undefined, RECIPIENT_NAME_TOKEN));
+                      }}
+                      disabled={selectedRows.length === 0}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw size={14} className="text-[#655ac1]" />
+                    </button>
+                  </div>
                 </div>
                 {sendMode === 'reminder' && (
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-black text-slate-700">إضافة رابط التقرير اليومي للمناوبة</p>
@@ -2583,27 +2602,6 @@ ${buildReportLink(target)}` : ''}`;
                     </div>
                   </div>
                 )}
-              </div>
-
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3">
-                    <MessageSquare size={20} className="text-[#655ac1]" />
-                    <h4 className="font-black text-slate-800">نص الرسالة</h4>
-                  </div>
-                  <button
-                    type="button"
-                    title="استعادة النص الافتراضي"
-                    onClick={() => {
-                      if (selectedRows.length === 0) return;
-                      setMessageText(buildDetailedMessage(undefined, RECIPIENT_NAME_TOKEN));
-                    }}
-                    disabled={selectedRows.length === 0}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <RefreshCw size={14} className="text-[#655ac1]" />
-                  </button>
-                </div>
                 <textarea
                   value={messageText}
                   onChange={e => setMessageText(e.target.value)}
@@ -2614,7 +2612,7 @@ ${buildReportLink(target)}` : ''}`;
                 />
                 <p className="text-[10px] text-slate-400 font-bold mb-4">يتم تخصيص الرسالة لكل مستلم تلقائياً عند الإرسال</p>
                 <MessagePreviewInline
-                  previewText={firstSelectedRow ? messageText.split(RECIPIENT_NAME_TOKEN).join(firstSelectedRow.staffName) : ''}
+                  previewText={firstSelectedRow ? stripUnfilledTokens(messageText.split(RECIPIENT_NAME_TOKEN).join(shortenRecipientName(firstSelectedRow.staffName))) : ''}
                   recipientName={firstSelectedRow?.staffName}
                   disabled={selectedRows.length === 0 || !messageText.trim()}
                   className="mt-0 mb-4"

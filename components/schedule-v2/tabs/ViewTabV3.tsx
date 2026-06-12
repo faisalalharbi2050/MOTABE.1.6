@@ -71,7 +71,7 @@ import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 import MessagePreviewInline from '../../messaging/MessagePreviewInline';
 import { getClassLabel } from '../../../utils/classLabels';
-import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
+import { getMessageTemplate, fillMessageTemplate, shortenRecipientName, stripUnfilledTokens } from '../../../utils/messageCatalog';
 
 interface Props {
   schoolInfo: SchoolInfo;
@@ -1075,7 +1075,7 @@ const ViewTabV3: React.FC<Props> = ({
   const [selectedGuardianStudentIds, setSelectedGuardianStudentIds] = useState<string[]>([]);
   const [expandedGuardianClassIds, setExpandedGuardianClassIds] = useState<string[]>([]);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
-  const [fallbackToSms, setFallbackToSms] = useState(false);
+  const [fallbackToSms, setFallbackToSms] = useState(true);
   const [showRecipientsModal, setShowRecipientsModal] = useState(false);
   const [recipientsListLink, setRecipientsListLink] = useState<GeneratedLink | null>(null);
 
@@ -1889,16 +1889,20 @@ const ViewTabV3: React.FC<Props> = ({
     const scheduleTypeLabel = SCHEDULE_TYPES.find(item => item.id === sendScheduleType)?.label || 'الجدول';
     return draft.recipients.map(recipient => {
       const recipientLinkText = draft.linksByRecipientId?.[recipient.id] || '';
+      // الاسم في نص الرسالة يُختصر (أول+أخير) لتقليل التكلفة؛ يبقى كاملاً في الجداول والأرشيف
+      const shortName = shortenRecipientName(recipient.name);
       const personalContent = templateContent
-        .replace(/\{اسم_المعلم\}/g, recipient.name)
-        .replace(/\{اسم_الإداري\}/g, recipient.name)
-        .replace(/\{اسم_الطالب\}/g, recipient.classLabel || recipient.name)
-        .replace(/\{اسم_المستلم\}/g, recipient.name)
+        .replace(/\{اسم_المعلم\}/g, shortName)
+        .replace(/\{اسم_الإداري\}/g, shortName)
+        .replace(/\{اسم_الطالب\}/g, recipient.classLabel || shortName)
+        .replace(/\{اسم_المستلم\}/g, shortName)
         .replace(/\{روابط_الجداول\}/g, recipientLinkText)
         .replace(/\{اسم_المدرسة\}/g, schoolInfo.schoolName || 'المدرسة')
         .replace(/\{اليوم\}/g, dayLabel)
         .replace(/\{التاريخ\}/g, dateLabel)
         .replace(/\{نوع_الجدول\}/g, scheduleTypeLabel);
+      // شبكة أمان: تُزال أي رموز {…} لم تُعبَّأ حتى لا تخرج رسالة بأقواس مكسورة
+      const safeContent = stripUnfilledTokens(personalContent);
       const recipientLinks = links.filter(link => link.recipients.some(r => r.id === recipient.id));
       return {
         recipientInfo: recipient,
@@ -1910,7 +1914,7 @@ const ViewTabV3: React.FC<Props> = ({
           recipientName: recipient.name,
           recipientPhone: recipient.phone,
           recipientRole: recipient.role as CentralMessage['recipientRole'],
-          content: personalContent,
+          content: safeContent,
           channel: sendChannel,
           attachments: recipientLinks.map(link => ({
             name: link.label,
@@ -2962,78 +2966,74 @@ const ViewTabV3: React.FC<Props> = ({
                   </button>
                 </div>
                 {sendChannel === 'whatsapp' && (
-                  <label className="relative mt-4 flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                  <label className={`relative mt-4 flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-colors border ${
+                    fallbackToSms ? 'border-emerald-300' : 'border-slate-200 hover:border-slate-300'
+                  }`}>
                     <input
                       type="checkbox"
                       className="sr-only"
                       checked={fallbackToSms}
-                      onChange={e => {
-                        setFallbackToSms(e.target.checked);
-                        if (e.target.checked) showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
-                      }}
+                      onChange={e => setFallbackToSms(e.target.checked)}
                     />
-                    <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                      <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+                    <div className={`relative flex items-center w-11 h-6 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-[#25D366]' : 'bg-slate-300'}`}>
+                      <div className={`absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
                     </div>
-                    <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
-                      في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
-                    </span>
+                    <div className="select-none leading-relaxed">
+                      <p className={`text-[13px] font-black ${fallbackToSms ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                        تحويل تلقائي للرسائل النصية عند تعذّر الواتساب
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                        لو لم تصل رسالة الواتساب للمستلم تُرسل له رسالة نصية لضمان وصول الرسالة
+                      </p>
+                    </div>
                   </label>
                 )}
               </div>
 
-              {/* بطاقة: المعاينة والروابط */}
+              {/* بطاقة: نص الرسالة + المعاينة + جدولة الإرسال + زر إرسال */}
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-start gap-3 mb-4">
-                  <Eye size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">معاينة</h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={openFirstGeneratedModel}
-                    title={previewModelButtonLabel}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
-                  >
-                    <Eye size={15} />
-                    {previewModelButtonLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!validateSendSelection()) return;
-                      const links = createGeneratedLinks();
-                      setGeneratedLinks(links);
-                      setShowRecipientsModal(true);
-                    }}
-                    disabled={selectedRecipients.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50"
-                  >
-                    <Users size={15} />
-                    معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
-                  </button>
-                </div>
-              </div>
-
-              {/* بطاقة: نص الرسالة + جدولة الإرسال + زر إرسال */}
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <MessageSquare size={20} className="text-[#655ac1]" />
                     <h4 className="font-black text-slate-800">نص الرسالة</h4>
                   </div>
-                  <button
-                    type="button"
-                    title="استعادة النص الافتراضي"
-                    aria-label="استعادة النص الافتراضي"
-                    onClick={() => {
-                      setModalMessageContent(buildMessageComposerDraft(generatedLinks).content);
-                      showToast('تمت استعادة النص الافتراضي.');
-                    }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all"
-                  >
-                    <RefreshCw size={14} className="text-[#655ac1]" />
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={openFirstGeneratedModel}
+                      title={previewModelButtonLabel}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all"
+                    >
+                      <Eye size={14} />
+                      {previewModelButtonLabel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!validateSendSelection()) return;
+                        const links = createGeneratedLinks();
+                        setGeneratedLinks(links);
+                        setShowRecipientsModal(true);
+                      }}
+                      disabled={selectedRecipients.length === 0}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50"
+                    >
+                      <Users size={14} />
+                      معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
+                    </button>
+                    <button
+                      type="button"
+                      title="استعادة النص الافتراضي"
+                      aria-label="استعادة النص الافتراضي"
+                      onClick={() => {
+                        setModalMessageContent(buildMessageComposerDraft(generatedLinks).content);
+                        showToast('تمت استعادة النص الافتراضي.');
+                      }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all"
+                    >
+                      <RefreshCw size={14} className="text-[#655ac1]" />
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   value={modalMessageContent}

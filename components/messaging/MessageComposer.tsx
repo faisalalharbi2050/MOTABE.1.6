@@ -2,12 +2,12 @@
 import ReactDOM from 'react-dom';
 import {
   Send, Users, AlertCircle, Paperclip, Check,
-  MessageSquare, Search, ChevronDown,
+  MessageSquare, Search, ChevronDown, Plus,
   Clock, Eye, CalendarClock, Smartphone
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
-import { MESSAGE_CATALOG, getMessageTemplate, CatalogPageId } from '../../utils/messageCatalog';
+import { MESSAGE_CATALOG, getMessageTemplate, CatalogPageId, shortenRecipientName, findUnfilledTokens, stripUnfilledTokens } from '../../utils/messageCatalog';
 import MessageToast from './MessageToast';
 import RecipientsPreviewModal from './RecipientsPreviewModal';
 import MessagePreviewInline from './MessagePreviewInline';
@@ -155,6 +155,53 @@ const RecipientSelectDropdown: React.FC<{
   );
 };
 
+// قائمة منسدلة مدمجة لإدراج المتغيرات التلقائية عند موضع المؤشر (إجراء لا قيمة محفوظة)
+const VariableInsertDropdown: React.FC<{
+  variables: { key: string; label: string }[];
+  onInsert: (key: string) => void;
+}> = ({ variables, onInsert }) => {
+  const [open, setOpen] = useState(false);
+  const { triggerRef, panelRef, position } = useDropdownPosition(open, () => setOpen(false));
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(current => !current)}
+        className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:border-[#655ac1]/30 transition-all text-[13px]"
+      >
+        <Plus size={15} className="text-[#655ac1]" />
+        متغيّر
+        <ChevronDown size={15} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && ReactDOM.createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{ top: position.top, left: position.left, width: position.width }}
+        >
+          <p className="px-2 pt-1 pb-2 text-[10px] font-black text-amber-600">انقر للإدراج في نص الرسالة</p>
+          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {variables.map(variable => (
+              <button
+                key={variable.key}
+                type="button"
+                onClick={() => { onInsert(variable.key); setOpen(false); }}
+                className="w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1] flex items-center gap-2"
+              >
+                <Plus size={13} className="text-[#655ac1]" />
+                {variable.label}
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
 const MessageComposer: React.FC<MessageComposerProps> = ({
   schoolInfo, teachers, admins, students, classes, specializations, subscription, setSubscription, initialDraft
 }) => {
@@ -187,7 +234,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [messageContent, setMessageContent] = useState('');
   const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
-  const [fallbackToSms, setFallbackToSms] = useState(false);
+  const [fallbackToSms, setFallbackToSms] = useState(true);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<DateObject | null>(null);
@@ -361,7 +408,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   const previewScheduleUrl = draftMeta?.previewUrlByRecipientId?.[previewRecipientId] || previewScheduleLinks;
 
   const previewContent = useMemo(() => {
-    const sample = recipientsToSend[0]?.name || 'اسم المستلم';
+    // الاسم في المعاينة مطابق للمُرسل فعلاً (مختصر: أول+أخير)
+    const sample = recipientsToSend[0]?.name ? shortenRecipientName(recipientsToSend[0].name) : 'اسم المستلم';
     return messageContent
       .replace(/{اسم_الطالب}/g, sample)
       .replace(/{اسم_المعلم}/g, sample)
@@ -379,24 +427,25 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   // القوالب الجاهزة تأتي من السجل المركزي فتعكس الرسائل الجديدة وتخصيصات المستخدم
   const composerTemplates = MESSAGE_CATALOG;
 
-  // خيارات القائمة مقسّمة لمجموعتين (موظفون / أولياء أمور) مع توضيح صفحة كل قالب
-  // لأن قوالب الإشراف والمناوبة والانتظار تتشارك نفس العناوين (تكليف إلكتروني/تبليغ نصي)
+  // قوالب صفحات الإرسال المتخصّصة (إشراف/مناوبة/انتظار/جدول) تعتمد رموزاً تُولَّد
+  // فقط من منطق صفحاتها (رابط_التوقيع، أيام_التكليف…) ولا تُملأ هنا، فتظهر مكسورة.
+  // لذلك نعرض في قسم الرسائل العام فقط القوالب التي تستطيع هذه الصفحة ملء كل رموزها.
+  const COMPOSER_FILLABLE_TOKENS = new Set([
+    'اسم_المستلم', 'اسم_المعلم', 'اسم_الإداري', 'اسم_الطالب',
+    'اليوم', 'التاريخ', 'الوقت', 'اسم_المدرسة',
+  ]);
   const PARENT_PAGES = new Set<CatalogPageId>(['students']);
-  const PAGE_CONTEXT: Partial<Record<CatalogPageId, string>> = {
-    supervision: 'إشراف',
-    duty: 'مناوبة',
-    waiting: 'انتظار',
-  };
-  const templateLabel = (t: typeof composerTemplates[number]) =>
-    PAGE_CONTEXT[t.page] ? `${t.label} (${PAGE_CONTEXT[t.page]})` : t.label;
-  const staffTemplates = composerTemplates.filter(t => !PARENT_PAGES.has(t.page));
-  const parentTemplates = composerTemplates.filter(t => PARENT_PAGES.has(t.page));
+  const usableTemplates = composerTemplates.filter(t =>
+    t.tokens.every(token => COMPOSER_FILLABLE_TOKENS.has(token))
+  );
+  const staffTemplates = usableTemplates.filter(t => !PARENT_PAGES.has(t.page));
+  const parentTemplates = usableTemplates.filter(t => PARENT_PAGES.has(t.page));
   const templateOptions: DropdownOption[] = [
     { value: '', label: 'بدون قالب' },
     ...(staffTemplates.length ? [{ value: '__staff__', label: 'رسائل المعلمين والإداريين', isHeader: true }] : []),
-    ...staffTemplates.map(t => ({ value: t.id, label: templateLabel(t) })),
+    ...staffTemplates.map(t => ({ value: t.id, label: t.label })),
     ...(parentTemplates.length ? [{ value: '__parents__', label: 'رسائل أولياء الأمور', isHeader: true }] : []),
-    ...parentTemplates.map(t => ({ value: t.id, label: templateLabel(t) })),
+    ...parentTemplates.map(t => ({ value: t.id, label: t.label })),
   ];
 
   const handleTemplateSelect = (templateId: string) => {
@@ -427,18 +476,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   };
 
   // صفّان ثابتان: أسماء المستلمين أولاً ثم باقي المتغيرات
-  const quickVariableRows: { key: string; label: string }[][] = [
-    [
-      { key: 'اسم_المعلم', label: 'اسم المعلم' },
-      { key: 'اسم_الإداري', label: 'اسم الإداري' },
-      { key: 'اسم_الطالب', label: 'اسم الطالب' },
-    ],
-    [
-      { key: 'اليوم', label: 'اليوم' },
-      { key: 'التاريخ', label: 'التاريخ' },
-      { key: 'الوقت', label: 'الوقت' },
-      { key: 'اسم_المدرسة', label: 'اسم المدرسة' },
-    ],
+  // المستلم محدّد مسبقاً، فيكفي رمز واحد لإدراج اسمه (يُملأ بالاسم المختصر عند الإرسال).
+  const quickVariables: { key: string; label: string }[] = [
+    { key: 'اسم_المستلم', label: 'اسم المستلم' },
+    { key: 'اسم_المدرسة', label: 'اسم المدرسة' },
+    { key: 'اليوم', label: 'اليوم' },
+    { key: 'التاريخ', label: 'التاريخ' },
+    { key: 'الوقت', label: 'الوقت' },
   ];
 
   // ── Build scheduled ISO timestamp ────────────────────────────────────────
@@ -464,6 +508,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
       if (!scheduledTimestamp) return showToast('يرجى تحديد تاريخ ووقت الإرسال', 'warning');
       if (new Date(scheduledTimestamp) <= new Date()) return showToast('يجب أن يكون وقت الجدولة في المستقبل', 'warning');
     }
+
+    // حارس المتغيرات: يمنع الإرسال لو كتب المستخدم رمزاً {…} غير معروف لا يمكن تعبئته
+    const KNOWN_COMPOSER_TOKENS = new Set(
+      ['اسم_الطالب', 'اسم_المعلم', 'اسم_الإداري', 'اسم_المستلم', 'اليوم', 'التاريخ', 'الوقت', 'اسم_المدرسة', 'رابط_الجدول', 'روابط_الجداول']
+        .map(token => `{${token}}`)
+    );
+    const unknownTokens = findUnfilledTokens(messageContent).filter(token => !KNOWN_COMPOSER_TOKENS.has(token));
+    if (unknownTokens.length > 0)
+      return showToast(`الرسالة تحتوي متغيرات غير معروفة: ${unknownTokens.join(' ')} — احذفها أو استخدم زر «متغيّر».`, 'warning');
 
     const count = recipientsToSend.length;
     if (!isScheduled) {
@@ -502,17 +555,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         ...scheduleAttachments,
         ...(channel === 'whatsapp' ? attachments : []),
       ];
+      // الاسم في نص الرسالة يُختصر (أول+أخير) لتقليل التكلفة، ويبقى كاملاً في الأرشيف
+      const shortName = shortenRecipientName(rec.name);
       let personalizedContent = messageContent
-        .replace(/{اسم_الطالب}/g, rec.name)
-        .replace(/{اسم_المعلم}/g, rec.name)
-        .replace(/{اسم_الإداري}/g, rec.name)
-        .replace(/{اسم_المستلم}/g, rec.name)
+        .replace(/{اسم_الطالب}/g, shortName)
+        .replace(/{اسم_المعلم}/g, shortName)
+        .replace(/{اسم_الإداري}/g, shortName)
+        .replace(/{اسم_المستلم}/g, shortName)
         .replace(/{اليوم}/g, today)
         .replace(/{التاريخ}/g, dateFormatted)
         .replace(/{الوقت}/g, timeFormatted)
         .replace(/{اسم_المدرسة}/g, schoolInfo?.schoolName || '')
         .replace(/{رابط_الجدول}/g, draftMeta?.linksByRecipientId?.[rec.id] || '')
         .replace(/{روابط_الجداول}/g, draftMeta?.linksByRecipientId?.[rec.id] || '');
+
+      // شبكة أمان: إزالة أي رمز لم يُعبَّأ حتى لا تخرج رسالة بأقواس مكسورة
+      personalizedContent = stripUnfilledTokens(personalizedContent);
 
       if (channel === 'sms' && attachment)
         personalizedContent += `\nالمرفق: http://t.ly/mock_link`;
@@ -757,11 +815,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
       {/* ══ Right Column: Recipients ══ */}
       <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200 flex flex-col z-0">
-        <h3 className="text-base font-black shrink-0 text-[#1e293b] mb-4 flex items-center justify-start">
-          <div className="flex items-center gap-2">
-            <Users className="text-[#655ac1]" size={20} />
-            اختر المستلمين
-          </div>
+        <h3 className="text-base font-black shrink-0 text-[#1e293b] mb-4 flex items-center gap-2">
+          <Users className="text-[#655ac1]" size={20} />
+          اختر المستلمين
         </h3>
 
         <div className="space-y-4 mb-4 shrink-0">
@@ -910,26 +966,28 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
             </button>
           </div>
 
-          {/* Fallback toggle — only for WhatsApp */}
+          {/* Fallback toggle — only for WhatsApp (مفعّل تلقائياً لضمان الوصول) */}
           {channel === 'whatsapp' && (
-            <label className="relative flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors mb-4">
+            <label className={`relative flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-colors mb-4 border ${
+              fallbackToSms ? 'border-emerald-300' : 'border-slate-200 hover:border-slate-300'
+            }`}>
               <input
                 type="checkbox"
                 className="sr-only"
                 checked={fallbackToSms}
-                onChange={(e) => {
-                  setFallbackToSms(e.target.checked);
-                  if (e.target.checked)
-                    showToast('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
-                }}
+                onChange={(e) => setFallbackToSms(e.target.checked)}
               />
-              {/* RTL toggle: dot goes RIGHT when ON */}
-              <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+              <div className={`relative flex items-center w-11 h-6 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-[#25D366]' : 'bg-slate-300'}`}>
+                <div className={`absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
               </div>
-              <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
-                في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
-              </span>
+              <div className="select-none leading-relaxed">
+                <p className={`text-[13px] font-black ${fallbackToSms ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                  تحويل تلقائي للرسائل النصية عند تعذّر الواتساب
+                </p>
+                <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                  لو لم تصل رسالة الواتساب للمستلم تُرسل له رسالة نصية لضمان وصول الرسالة
+                </p>
+              </div>
             </label>
           )}
 
@@ -959,62 +1017,34 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           </div>
         </div>
 
-        {/* ── Recipients Preview Card (permanent) ── */}
-        <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-4">
-            <Eye size={20} className="text-[#655ac1]" />
-            <h3 className="text-base font-black text-[#1e293b]">معاينة</h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowSelectedModal(true)}
-            disabled={selectedRecipients.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Users size={15} /> معاينة المستلمين
-          </button>
-        </div>
-
         {/* ── Message Composer Card ── */}
         <div className="bg-white p-5 rounded-[1.75rem] shadow-sm border border-slate-200">
-          <h3 className="text-base font-black text-[#1e293b] flex items-center gap-2 mb-4">
-            <MessageSquare className="text-[#655ac1]" size={20} />
-            نص الرسالة
-          </h3>
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <h3 className="text-base font-black text-[#1e293b] flex items-center gap-2">
+              <MessageSquare className="text-[#655ac1]" size={20} />
+              نص الرسالة
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowSelectedModal(true)}
+              disabled={selectedRecipients.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Eye size={14} /> معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
+            </button>
+          </div>
 
-          {/* Actions rows: template first, then variable chips */}
-          <div className="space-y-3 mb-4">
-            <div className="rounded-2xl border border-slate-200 p-3">
-              <label className="text-xs font-bold text-slate-500 mb-2.5 block">استخدام قالب جاهز:</label>
+          {/* Compact toolbar: ready template + insert-variable */}
+          <div className="flex items-stretch gap-2 mb-3">
+            <div className="flex-1 min-w-0">
               <RecipientSelectDropdown
                 value={selectedTemplate}
                 onChange={handleTemplateSelect}
-                placeholder="اختر القالب"
+                placeholder="استخدام قالب جاهز"
                 options={templateOptions}
               />
             </div>
-            <div className="rounded-2xl border border-slate-200 p-3">
-              <div className="flex items-center justify-between gap-2 mb-2.5">
-                <label className="text-xs font-bold text-slate-500">إضافة متغيرات تلقائية:</label>
-                <span className="text-[10px] font-black text-amber-600">انقر للإدراج في نص الرسالة</span>
-              </div>
-              <div className="space-y-2">
-                {quickVariableRows.map((row, rowIndex) => (
-                  <div key={rowIndex} className="flex gap-2">
-                    {row.map(variable => (
-                      <button
-                        key={variable.key}
-                        type="button"
-                        onClick={() => insertVariable(variable.key)}
-                        className="flex-1 px-2 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:border-[#655ac1] hover:text-[#655ac1] active:scale-95 transition-all whitespace-nowrap"
-                      >
-                        {variable.label}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <VariableInsertDropdown variables={quickVariables} onInsert={insertVariable} />
           </div>
 
           {/* Textarea */}
@@ -1071,7 +1101,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
 
           {/* Unified inline message preview (under the message field) */}
           {messageContent.trim() && (
-            <MessagePreviewInline previewText={previewContent} recipientName={recipientsToSend[0]?.name} />
+            <MessagePreviewInline previewText={previewContent} recipientName={recipientsToSend[0]?.name ? shortenRecipientName(recipientsToSend[0].name) : undefined} />
           )}
 
           <div className="mt-6 pt-6 border-t border-slate-100">

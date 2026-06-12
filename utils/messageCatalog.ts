@@ -37,8 +37,16 @@ export const MESSAGE_CATALOG: MessageCatalogEntry[] = [
     page: 'general',
     label: 'رسالة عامة',
     description: 'قالب مرن لإرسال تنبيه أو إفادة عامة للمعلمين أو الإداريين أو أولياء الأمور.',
-    tokens: ['اسم_المستلم', 'اسم_المعلم', 'اسم_الإداري', 'اسم_الطالب', 'اسم_المدرسة', 'اليوم', 'التاريخ', 'الوقت'],
+    tokens: ['اسم_المستلم', 'اسم_المدرسة', 'اليوم', 'التاريخ', 'الوقت'],
     defaultText: 'المكرم/ {اسم_المستلم}\nنود إشعاركم بما يلي:\n\n\n\n{اسم_المدرسة} - {اليوم} - {التاريخ}',
+  },
+  {
+    id: 'general/reminder',
+    page: 'general',
+    label: 'تذكير عام',
+    description: 'تذكير مرن للمعلمين أو الإداريين أو أولياء الأمور بموعد أو مهمة.',
+    tokens: ['اسم_المستلم', 'اسم_المدرسة', 'اليوم', 'التاريخ', 'الوقت'],
+    defaultText: 'المكرم/ {اسم_المستلم}\nنذكركم بما يلي:\n\n\n\n{اسم_المدرسة} - {اليوم} - {التاريخ}',
   },
 
   // ── إدارة الحصص والانتظار ──────────────────────────────────────────────
@@ -218,6 +226,38 @@ export const subscribeToCatalogChanges = (listener: () => void): (() => void) =>
     window.removeEventListener('storage', listener);
   };
 };
+
+/**
+ * اختصار اسم المستلم إلى الاسم الأول + الأخير فقط لتقليل طول الرسالة وتكلفتها.
+ * الاسم المفرد أو الثنائي يبقى كما هو. يُستخدم في نص الرسالة المُرسلة فقط،
+ * بينما يبقى الاسم الكامل في سجل الأرشيف للتوثيق.
+ */
+export const shortenRecipientName = (fullName: string): string => {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return parts.join(' ');
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+};
+
+/** الرموز {…} المتبقية في نص (لم تُعبَّأ) — تُستخدم للتحقق قبل الإرسال */
+export const findUnfilledTokens = (text: string): string[] =>
+  Array.from(new Set(text.match(/\{[^{}\n]+\}/g) || []));
+
+/**
+ * شبكة أمان أخيرة: تحذف أي رمز {…} لم يُعبَّأ وتنظّف المسافات الزائدة،
+ * حتى لا تخرج رسالة فيها أقواس مكسورة لو أفلت رمز من التحقق.
+ */
+export const stripUnfilledTokens = (text: string): string =>
+  text
+    .replace(/\{[^{}\n]+\}/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/ +\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+/** قائمة الرموز المسموح بها عبر كامل السجل — لتمييز ما يكتبه المستخدم خطأً */
+export const ALL_CATALOG_TOKENS: Set<string> = new Set(
+  MESSAGE_CATALOG.flatMap(entry => entry.tokens)
+);
 
 /** تعبئة رموز {…} بقيمها — الرموز غير الممررة تُترك كما هي */
 export const fillMessageTemplate = (template: string, values: Record<string, string>): string =>

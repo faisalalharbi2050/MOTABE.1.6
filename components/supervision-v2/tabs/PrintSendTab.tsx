@@ -18,7 +18,7 @@ import {
   getSupervisionTableConfig, MAIN_SUPERVISION_TABLE_ID,
 } from '../../../utils/supervisionUtils';
 import { calculateSmsSegments } from '../../../utils/smsUtils';
-import { getMessageTemplate, fillMessageTemplate } from '../../../utils/messageCatalog';
+import { getMessageTemplate, fillMessageTemplate, shortenRecipientName, stripUnfilledTokens } from '../../../utils/messageCatalog';
 import { useMessageArchive } from '../../messaging/MessageArchiveContext';
 import RecipientsPreviewModal from '../../messaging/RecipientsPreviewModal';
 import MessagePreviewInline from '../../messaging/MessagePreviewInline';
@@ -337,7 +337,7 @@ const PrintSendTab: React.FC<Props> = ({
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedStaffKeys, setSelectedStaffKeys] = useState<string[]>([]);
   const [sendChannel, setSendChannel] = useState<SendChannel>('whatsapp');
-  const [fallbackToSms, setFallbackToSms] = useState(false);
+  const [fallbackToSms, setFallbackToSms] = useState(true);
   const [messageText, setMessageText] = useState('');
   const [isSendScheduled, setIsSendScheduled] = useState(false);
   const [sendScheduleDate, setSendScheduleDate] = useState('');
@@ -847,17 +847,19 @@ const PrintSendTab: React.FC<Props> = ({
     const todayDayName = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date().getDay()];
     const todayHijri = formatHijriDate();
     const schoolName = schoolInfo.schoolName || 'اسم المدرسة';
+    // الاسم في نص الرسالة يُختصر (أول+أخير) لتقليل التكلفة؛ يبقى كاملاً في الجداول والأرشيف
+    const shortName = shortenRecipientName(recipientName);
     const link = buildSignatureLink(row);
     const reminderTemplate = supervisionData.settings.reminderMessageTemplate?.trim();
     const fillReminderTemplate = (template: string) => template
-      .replace(/\(\s*(?:اسم المستلم|اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, recipientName)
+      .replace(/\(\s*(?:اسم المستلم|اسم المعلم|يظهر هنا اسم المعلم)\s*\)/g, shortName)
       .replace(/\(\s*(?:اليوم|يظهر هنا اليوم)\s*\)/g, todayDayName)
       .replace(/\(\s*(?:اسم المدرسة|يظهر اسم المدرسة)\s*\)/g, schoolName)
       .replace(/\(\s*(?:التاريخ بالهجري|يظهر التاريخ بالهجري)\s*\)/g, todayHijri)
       .replace(/\(\s*(?:الفصل الدراسي|يظهر الفصل الدراسي)\s*\)/g, currentSemesterName);
 
     const catalogValues = {
-      'اسم_المستلم': recipientName,
+      'اسم_المستلم': shortName,
       'اسم_المدرسة': schoolName,
       'يوم_التكليف': assignmentDayName,
       'تاريخ_التكليف': assignmentHijri,
@@ -889,20 +891,22 @@ const PrintSendTab: React.FC<Props> = ({
   const buildRecipientMessage = (recipient: SendRecipient) => {
     const firstTask = recipient.tasks[0];
     const taskSummary = buildRecipientTaskSummary(recipient);
+    const shortName = shortenRecipientName(recipient.staffName);
     const customBase = selectedSupervisionTypeId !== 'all' && messageText.trim()
-      ? messageText.replace(/\{اسم_المستلم\}/g, recipient.staffName)
+      ? messageText.replace(/\{اسم_المستلم\}/g, shortName)
       : '';
     // مقدمة المهام المجمّعة ثابتة عمداً — ليست قالباً قابلاً للتخصيص في السجل المركزي
-    const heading = customBase || `المكرم/ ${recipient.staffName}\nنشعركم بمهام الإشراف اليومي المسندة لكم، شاكرين تعاونكم.`;
+    const heading = customBase || `المكرم/ ${shortName}\nنشعركم بمهام الإشراف اليومي المسندة لكم، شاكرين تعاونكم.`;
     const links = sendMode === 'electronic'
       ? Array.from(new Map(recipient.tasks.map(task => [buildSignatureLink(task), task])).entries())
           .map(([link, task]) => `${DAY_NAMES[task.day] || task.day} - ${task.typeName}:\n${link}`)
           .join('\n')
       : '';
     if (sendMode === 'reminder' && selectedSupervisionTypeId !== 'all') {
-      return buildDetailedMessage(firstTask, recipient.staffName);
+      return stripUnfilledTokens(buildDetailedMessage(firstTask, recipient.staffName));
     }
-    return `${heading}\n\nالمهام المسندة:\n${taskSummary}${links ? `\n\nروابط التكليف والتوقيع:\n${links}` : ''}`;
+    // شبكة أمان: تُزال أي رموز {…} لم تُعبَّأ حتى لا تخرج رسالة بأقواس مكسورة
+    return stripUnfilledTokens(`${heading}\n\nالمهام المسندة:\n${taskSummary}${links ? `\n\nروابط التكليف والتوقيع:\n${links}` : ''}`);
   };
 
   const escapeHtml = (value: unknown) => String(value ?? '')
@@ -1920,65 +1924,62 @@ const PrintSendTab: React.FC<Props> = ({
                   </button>
                 </div>
                 {sendChannel === 'whatsapp' && (
-                  <label className="relative mt-4 flex items-center gap-2.5 p-2.5 border border-slate-300 bg-transparent rounded-xl cursor-pointer hover:border-slate-400 transition-colors">
+                  <label className={`relative mt-4 flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-colors border ${
+                    fallbackToSms ? 'border-emerald-300' : 'border-slate-200 hover:border-slate-300'
+                  }`}>
                     <input
                       type="checkbox"
                       className="sr-only"
                       checked={fallbackToSms}
-                      onChange={e => {
-                        setFallbackToSms(e.target.checked);
-                        if (e.target.checked) showToast?.('تم تفعيل الإرسال الاحتياطي عبر الرسائل النصية', 'success');
-                      }}
+                      onChange={e => setFallbackToSms(e.target.checked)}
                     />
-                    <div className={`relative flex items-center w-10 h-5 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                      <div className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
+                    <div className={`relative flex items-center w-11 h-6 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-[#25D366]' : 'bg-slate-300'}`}>
+                      <div className={`absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
                     </div>
-                    <span className="text-xs font-bold text-rose-700 select-none leading-relaxed">
-                      في حال فشل الواتساب يتم الإرسال عبر الرسائل النصية تلقائيًا
-                    </span>
+                    <div className="select-none leading-relaxed">
+                      <p className={`text-[13px] font-black ${fallbackToSms ? 'text-[#655ac1]' : 'text-slate-700'}`}>
+                        تحويل تلقائي للرسائل النصية عند تعذّر الواتساب
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                        لو لم تصل رسالة الواتساب للمستلم تُرسل له رسالة نصية لضمان وصول الرسالة
+                      </p>
+                    </div>
                   </label>
                 )}
               </div>
 
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-start gap-3 mb-4">
-                  <Eye size={20} className="text-[#655ac1]" />
-                  <h4 className="font-black text-slate-800">المعاينة والروابط</h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {sendMode === 'electronic' && (
-                    <button type="button" onClick={openPreviewMessage} disabled={selectedRecipients.length === 0}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                      <Eye size={15} /> معاينة التكليف
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRecipients.length === 0}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Users size={15} /> معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <MessageSquare size={20} className="text-[#655ac1]" />
                     <h4 className="font-black text-slate-800">نص الرسالة</h4>
                   </div>
-                  <button
-                    type="button"
-                    title="استعادة النص الافتراضي"
-                    aria-label="استعادة النص الافتراضي"
-                    onClick={() => {
-                      if (selectedRows.length === 0) return;
-                      setMessageText(buildDetailedMessage(selectedRows[0], RECIPIENT_NAME_TOKEN));
-                      showToast?.('تمت استعادة النص الافتراضي.', 'success');
-                    }}
-                    disabled={selectedRows.length === 0}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <RefreshCw size={14} className="text-[#655ac1]" />
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {sendMode === 'electronic' && (
+                      <button type="button" onClick={openPreviewMessage} disabled={selectedRecipients.length === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <Eye size={14} /> معاينة التكليف
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setRecipientsPreviewOpen(true)} disabled={selectedRecipients.length === 0}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-black hover:bg-[#655ac1] hover:text-white hover:border-[#655ac1] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Users size={14} /> معاينة المستلمين{selectedRecipients.length > 0 ? ` (${selectedRecipients.length})` : ''}
+                    </button>
+                    <button
+                      type="button"
+                      title="استعادة النص الافتراضي"
+                      aria-label="استعادة النص الافتراضي"
+                      onClick={() => {
+                        if (selectedRows.length === 0) return;
+                        setMessageText(buildDetailedMessage(selectedRows[0], RECIPIENT_NAME_TOKEN));
+                        showToast?.('تمت استعادة النص الافتراضي.', 'success');
+                      }}
+                      disabled={selectedRows.length === 0}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw size={14} className="text-[#655ac1]" />
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   value={messageText}

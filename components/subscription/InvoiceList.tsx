@@ -29,8 +29,32 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ transactions }) => {
 
   const displayedTransactions = transactions && transactions.length > 0 ? transactions : mockTransactions;
 
+  // نوع التقويم موحّد من مرتكز الرئيسية (schoolInfo.calendarType) — لا مبدّل مستقل.
+  const calendarType: 'hijri' | 'gregorian' = (() => {
+    try {
+      const saved = localStorage.getItem('school_assignment_v4');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data?.schoolInfo?.calendarType === 'gregorian') return 'gregorian';
+      }
+    } catch {}
+    return 'hijri';
+  })();
+
   const fmtDay = (d: string) => new Date(d).toLocaleDateString('ar-SA', { weekday: 'long' });
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString('ar-SA');
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    try {
+      if (calendarType === 'gregorian') {
+        const g = new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+        return `${g} م`;
+      }
+      return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+    } catch {
+      return iso;
+    }
+  };
 
   const renderActions = (txn: Transaction) =>
     txn.status === 'success' ? (
@@ -40,13 +64,13 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ transactions }) => {
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#655ac1]/40 hover:text-[#655ac1]"
           title="طباعة الفاتورة"
         >
-          <Printer size={17} />
+          <Printer size={15} />
         </button>
         <button
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-[#655ac1]/40 hover:text-[#655ac1]"
           title="تصدير PDF"
         >
-          <Download size={17} />
+          <Download size={15} />
         </button>
       </div>
     ) : (

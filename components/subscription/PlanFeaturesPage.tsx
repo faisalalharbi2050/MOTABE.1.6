@@ -29,7 +29,7 @@ const PlanFeaturesPage: React.FC<PlanFeaturesPageProps> = ({
             <ArrowRight size={18} />
           </button>
           <div className="min-w-0">
-            <h2 className="font-black text-slate-800 text-lg">{PACKAGE_NAMES[tier]}</h2>
+            <h2 className="font-black text-[#655ac1] text-lg">{PACKAGE_NAMES[tier]}</h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">{PACKAGE_DESCRIPTIONS[tier]}</p>
           </div>
         </div>
@@ -43,7 +43,7 @@ const PlanFeaturesPage: React.FC<PlanFeaturesPageProps> = ({
             <div key={group.id} className={gIdx > 0 ? 'mt-8 pt-8 border-t border-slate-100' : ''}>
               <div className="flex items-center gap-3 mb-4">
                 <GroupIcon size={22} className="text-[#655ac1] shrink-0" strokeWidth={2} />
-                <h3 className="text-base font-black text-slate-800 leading-tight">{group.title}</h3>
+                <h3 className="text-base font-black text-[#655ac1] leading-tight">{group.title}</h3>
               </div>
               <div className="flex flex-col gap-3 pr-9">
                 {group.features.map((feat, idx) => (

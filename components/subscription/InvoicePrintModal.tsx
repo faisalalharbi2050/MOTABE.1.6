@@ -43,6 +43,12 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
   const hijriDate = txnDate.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const gregDate = txnDate.toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
+  // رمز QR للفاتورة (بيانات مختصرة متوافقة مع عرض الفواتير) — يُولَّد من خدمة الصور
+  const qrData = encodeURIComponent(
+    `مؤسسة متابع التقنية | الرقم الضريبي 310123456700003 | فاتورة ${transaction.id} | ${gregDate} | الإجمالي ${transaction.amount} ر.س`
+  );
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${qrData}`;
+
   // Inline Saudi Riyal symbol for the print document (lucide path data).
   const riyal = (size = 13) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="m20 19.5-5.5 1.2"/><path d="M14.5 4v11.22a1 1 0 0 0 1.242.97L20 15.2"/><path d="m2.978 19.351 5.549-1.363A2 2 0 0 0 10 16V2"/><path d="M20 10 4 13.5"/></svg>`;
@@ -74,20 +80,26 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
     .inv-title{font-size:30px;font-weight:900;color:#0f172a;letter-spacing:1px;}
     .inv-line{font-size:12px;color:#64748b;margin-top:8px;}
     .inv-line b{color:#0f172a;font-family:monospace;font-weight:700;}
-    .parties{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:28px 0;}
+    .parties{display:grid;grid-template-columns:1fr 1fr;gap:52px;margin:28px 0;}
     .p-title{font-size:11px;font-weight:900;color:#0f172a;letter-spacing:1px;margin-bottom:12px;}
-    .p-row{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:12.5px;}
-    .p-row .k{color:#0f172a;font-weight:700;}
+    .p-row{display:flex;justify-content:flex-start;gap:10px;margin-bottom:8px;font-size:12.5px;white-space:nowrap;}
+    .p-row .k{color:#0f172a;font-weight:700;flex:0 0 100px;}
     .p-row .v{color:#655ac1;font-weight:700;}
     .badge{display:inline-block;padding:2px 10px;border-radius:6px;font-size:11px;font-weight:700;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;}
     table{width:100%;border-collapse:collapse;margin-bottom:24px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;}
-    thead th{background:#f8fafc;padding:13px 16px;text-align:right;font-size:11.5px;font-weight:900;color:#475569;border-bottom:1px solid #e2e8f0;}
-    thead th:last-child,tbody td:last-child{text-align:left;}
-    tbody td{padding:16px;font-size:13px;vertical-align:top;}
+    thead th{background:#f8fafc;padding:13px 16px;text-align:center;font-size:11.5px;font-weight:900;color:#475569;border-bottom:1px solid #e2e8f0;border-left:1px solid #e2e8f0;}
+    thead th:first-child{text-align:right;}
+    thead th:last-child{text-align:left;border-left:none;}
+    tbody td{padding:16px;font-size:13px;vertical-align:top;text-align:center;border-left:1px solid #e2e8f0;}
+    tbody td:first-child{text-align:right;}
+    tbody td:last-child{text-align:left;border-left:none;}
     .desc-main{font-weight:900;color:#0f172a;}
     .desc-sub{font-size:11px;color:#94a3b8;margin-top:3px;}
-    .totals{display:flex;justify-content:flex-end;}
-    .totals-box{width:320px;}
+    .totals{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;}
+    .totals-box{width:300px;}
+    .qr-box{display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:4px;}
+    .qr-box img{width:104px;height:104px;border:1px solid #e2e8f0;border-radius:10px;padding:5px;}
+    .qr-box span{font-size:9.5px;font-weight:700;color:#94a3b8;}
     .t-row{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;color:#475569;border-bottom:1px solid #f1f5f9;}
     .t-row .v{font-weight:700;color:#0f172a;}
     .t-final{display:flex;justify-content:space-between;align-items:center;border:1.5px solid #cbd5e1;color:#0f172a;padding:15px 18px;border-radius:12px;margin-top:14px;}
@@ -95,25 +107,23 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
     .t-final .v{font-size:20px;font-weight:900;}
     .foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:34px;padding-top:22px;border-top:1px solid #f1f5f9;}
     .foot p{font-size:11px;color:#94a3b8;margin-bottom:5px;}
-    .stamp{border:1.5px solid #cbd5e1;border-radius:50%;width:76px;height:76px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9px;font-weight:900;color:#64748b;line-height:1.5;}
+    .stamp{border:1.5px solid #655ac1;border-radius:50%;width:76px;height:76px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9px;font-weight:900;color:#655ac1;line-height:1.5;}
   </style>
 </head>
 <body>
 <div class="wrap"><div class="pad">
   <div class="head">
-    <div>
-      <div class="inv-title">فاتورة</div>
-      <div class="logo-row" style="margin-top:16px">
-        <div class="logo-box"><img src="${logoUrl}" alt="متابع" /></div>
-        <div>
-          <div class="brand">مؤسسة متابع التقنية</div>
-        </div>
+    <div class="logo-row">
+      <div class="logo-box"><img src="${logoUrl}" alt="متابع" /></div>
+      <div>
+        <div class="brand">مؤسسة متابع التقنية</div>
       </div>
     </div>
     <div class="inv-meta">
+      <div class="inv-title">فاتورة</div>
       <div class="inv-line">رقم الفاتورة: <b>${transaction.id}</b></div>
-      <div class="inv-line" style="margin-top:3px">تاريخ الإصدار: <b>${hijriDate}</b></div>
-      <div class="inv-line" style="margin-top:3px">الموافق: <b>${gregDate}</b></div>
+      <div class="inv-line">تاريخ الإصدار: <b>${hijriDate}</b></div>
+      <div class="inv-line" style="margin-top:3px"><b>${gregDate}</b></div>
     </div>
   </div>
 
@@ -156,6 +166,10 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
       <div class="t-row"><span>ضريبة القيمة المضافة (15%)</span><span class="v">${money(vat.toFixed(2))}</span></div>
       <div class="t-final"><span class="l">الإجمالي المستحق</span><span class="v">${money(String(transaction.amount), 18)}</span></div>
     </div>
+    <div class="qr-box">
+      <img src="${qrUrl}" alt="رمز الفاتورة QR" />
+      <span>رمز الفاتورة (QR)</span>
+    </div>
   </div>
 
   <div class="foot">
@@ -197,40 +211,38 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
 
             {/* Header */}
             <div className="flex items-start justify-between border-b-2 border-slate-900 pb-6">
-              <div className="text-right">
-                <div className="text-3xl font-black tracking-wide text-slate-900">فاتورة</div>
-                <div className="mt-4 flex items-center gap-3.5">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 p-2">
-                    <img src="/logo.png" alt="متابع" className="h-full w-full object-contain" />
-                  </div>
-                  <div className="text-lg font-black leading-tight text-slate-900">مؤسسة متابع التقنية</div>
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 p-2">
+                  <img src="/logo.png" alt="متابع" className="h-full w-full object-contain" />
                 </div>
+                <div className="text-lg font-black leading-tight text-slate-900">مؤسسة متابع التقنية</div>
               </div>
               <div className="text-left">
-                <div className="text-[12px] text-slate-500">رقم الفاتورة: <span className="font-mono font-bold text-slate-800">{transaction.id}</span></div>
+                <div className="text-3xl font-black tracking-wide text-slate-900">فاتورة</div>
+                <div className="mt-2 text-[12px] text-slate-500">رقم الفاتورة: <span className="font-mono font-bold text-slate-800">{transaction.id}</span></div>
                 <div className="mt-1 text-[12px] text-slate-500">تاريخ الإصدار: <span className="font-bold text-slate-800">{hijriDate}</span></div>
-                <div className="mt-0.5 text-[12px] text-slate-500">الموافق: <span className="font-bold text-slate-800">{gregDate}</span></div>
+                <div className="mt-0.5 text-[12px] font-bold text-slate-800">{gregDate}</div>
               </div>
             </div>
 
             {/* Parties */}
-            <div className="my-7 grid grid-cols-2 gap-8">
+            <div className="my-7 grid grid-cols-2 gap-12">
               <div>
                 <div className="mb-3 text-[11px] font-black tracking-wider text-slate-900">بيانات مزود الخدمة</div>
                 <div className="space-y-2">
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">اسم المؤسسة</span><span className="font-bold text-[#655ac1]">مؤسسة متابع التقنية</span></div>
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">الرقم الضريبي</span><span className="font-mono font-bold text-[#655ac1]">310123456700003</span></div>
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">البريد الإلكتروني</span><span className="font-bold text-[#655ac1]">support@motaabe.com</span></div>
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">الموقع</span><span className="font-bold text-[#655ac1]">www.motaabe.com</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">اسم المؤسسة</span><span className="font-bold text-[#655ac1]">مؤسسة متابع التقنية</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">الرقم الضريبي</span><span className="font-mono font-bold text-[#655ac1]">310123456700003</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">البريد الإلكتروني</span><span className="font-bold text-[#655ac1]">support@motaabe.com</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">الموقع</span><span className="font-bold text-[#655ac1]">www.motaabe.com</span></div>
                 </div>
               </div>
               <div>
                 <div className="mb-3 text-[11px] font-black tracking-wider text-slate-900">تفاصيل الدفع</div>
                 <div className="space-y-2">
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">طريقة الدفع</span><span className="font-bold uppercase text-[#655ac1]">{transaction.paymentMethod}</span></div>
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">مدة الاشتراك</span><span className="font-bold text-[#655ac1]">{periodLabel(transaction.period)}</span></div>
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">الباقة</span><span className="font-bold text-[#655ac1]">{PACKAGE_NAMES[transaction.packageTier]}</span></div>
-                  <div className="flex justify-between gap-3 text-[12.5px]"><span className="font-bold text-slate-900">الحالة</span><span className={`rounded-md px-2.5 py-0.5 text-[11px] font-bold ${status.cls}`}>{status.text}</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">طريقة الدفع</span><span className="font-bold uppercase text-[#655ac1]">{transaction.paymentMethod}</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">مدة الاشتراك</span><span className="font-bold text-[#655ac1]">{periodLabel(transaction.period)}</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">الباقة</span><span className="font-bold text-[#655ac1]">{PACKAGE_NAMES[transaction.packageTier]}</span></div>
+                  <div className="flex gap-2.5 text-[12.5px] whitespace-nowrap"><span className="w-24 shrink-0 font-bold text-slate-900">الحالة</span><span className={`rounded-md px-2.5 py-0.5 text-[11px] font-bold ${status.cls}`}>{status.text}</span></div>
                 </div>
               </div>
             </div>
@@ -240,29 +252,29 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
               <table className="w-full border-collapse text-right">
                 <thead>
                   <tr className="bg-slate-50">
-                    <th className="border-b border-slate-200 px-4 py-3 text-[11.5px] font-black text-slate-500">الوصف</th>
-                    <th className="border-b border-slate-200 px-4 py-3 text-[11.5px] font-black text-slate-500">الكمية</th>
-                    <th className="border-b border-slate-200 px-4 py-3 text-[11.5px] font-black text-slate-500">السعر</th>
+                    <th className="border-b border-l border-slate-200 px-4 py-3 text-right text-[11.5px] font-black text-slate-500">الوصف</th>
+                    <th className="border-b border-l border-slate-200 px-4 py-3 text-center text-[11.5px] font-black text-slate-500">الكمية</th>
+                    <th className="border-b border-l border-slate-200 px-4 py-3 text-center text-[11.5px] font-black text-slate-500">السعر</th>
                     <th className="border-b border-slate-200 px-4 py-3 text-left text-[11.5px] font-black text-slate-500">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="px-4 py-4 align-top">
+                    <td className="border-l border-slate-200 px-4 py-4 text-right align-top">
                       <div className="text-[13px] font-black text-slate-900">{PACKAGE_NAMES[transaction.packageTier]}</div>
                       <div className="mt-0.5 text-[11px] text-slate-400">اشتراك منصة متابع · {periodLabel(transaction.period)}</div>
                     </td>
-                    <td className="px-4 py-4 align-top text-[13px] font-bold text-slate-700">1</td>
-                    <td className="px-4 py-4 align-top text-[13px] font-bold text-slate-700"><Money value={net.toFixed(2)} /></td>
+                    <td className="border-l border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700">1</td>
+                    <td className="border-l border-slate-200 px-4 py-4 text-center align-top text-[13px] font-bold text-slate-700"><Money value={net.toFixed(2)} /></td>
                     <td className="px-4 py-4 text-left align-top text-[13px] font-black text-slate-900"><Money value={net.toFixed(2)} /></td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* Totals */}
-            <div className="mt-6 flex justify-end">
-              <div className="w-80">
+            {/* Totals (right) + QR code (left, per invoice requirements) */}
+            <div className="mt-6 flex items-start justify-between gap-6">
+              <div className="w-72">
                 <div className="flex justify-between border-b border-slate-100 py-2.5 text-[13px] text-slate-500">
                   <span>المجموع الفرعي</span>
                   <Money value={net.toFixed(2)} className="font-bold text-slate-800" />
@@ -276,6 +288,10 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
                   <Money value={transaction.amount} size={18} className="text-xl font-black" />
                 </div>
               </div>
+              <div className="flex flex-col items-center gap-1.5 pt-1">
+                <img src={qrUrl} alt="رمز الفاتورة QR" className="h-[104px] w-[104px] rounded-lg border border-slate-200 p-1" />
+                <span className="text-[9.5px] font-bold text-slate-400">رمز الفاتورة (QR)</span>
+              </div>
             </div>
 
             {/* Footer */}
@@ -285,8 +301,8 @@ const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({ transaction, onCl
                 <p className="text-[11px] text-slate-400">المملكة العربية السعودية · الرقم الضريبي 310123456700003</p>
                 <p className="text-[11px] text-slate-400">السجل التجاري رقم 1010234567</p>
               </div>
-              <div className="flex h-[76px] w-[76px] items-center justify-center rounded-full border-[1.5px] border-slate-300 text-center">
-                <div className="text-[9px] font-black leading-snug text-slate-500">مؤسسة<br/>متابع<br/>✓ معتمدة</div>
+              <div className="flex h-[76px] w-[76px] items-center justify-center rounded-full border-[1.5px] border-[#655ac1] text-center">
+                <div className="text-[9px] font-black leading-snug text-[#655ac1]">مؤسسة<br/>متابع<br/>✓ معتمدة</div>
               </div>
             </div>
           </div>

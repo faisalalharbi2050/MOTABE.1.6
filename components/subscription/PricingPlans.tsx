@@ -185,8 +185,8 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
                     <div className="text-right flex-1 transition-colors mb-5 flex flex-col">
                       {isAdvanced && (
                         <div className="mb-4 flex items-center gap-2 px-1">
-                          <Crown size={16} className="text-slate-900 shrink-0" strokeWidth={2.2} />
-                          <p className="text-sm font-black text-slate-900 leading-snug">
+                          <Crown size={16} className="text-[#655ac1] shrink-0" strokeWidth={2.2} />
+                          <p className="text-sm font-black text-[#655ac1] leading-snug">
                             كل مزايا الباقة الأساسية +
                           </p>
                         </div>
@@ -259,8 +259,8 @@ const PricingPlans: React.FC<PricingPlansProps> = ({ subscription, setSubscripti
 
         {/* Messaging-credit notice — shown once under the cards */}
         <div className="mt-5 flex justify-start">
-          <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 px-3.5 py-2 text-right">
-            <AlertCircle size={16} strokeWidth={2.4} className="shrink-0 text-amber-500" />
+          <div className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-right">
+            <AlertCircle size={16} strokeWidth={2.4} className="shrink-0 text-amber-600" />
             <p className="text-xs font-black leading-relaxed text-amber-700">
               قيمة اشتراك الرسائل منفصلة عن قيمة الباقة
             </p>

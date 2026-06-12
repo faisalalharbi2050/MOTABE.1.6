@@ -97,11 +97,13 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({
     );
     return Math.max(1, diff);
   })();
-  const elapsedDays = totalDays > 0 ? Math.min(totalDays, Math.max(0, totalDays - safeDaysRemaining)) : 0;
-  const elapsedPct = totalDays > 0 ? Math.round((elapsedDays / totalDays) * 100) : 0;
+  // الحلقة تمثّل المدة المتبقية (تتناقص مع الأيام)، ولونها تنبيهي حسب القرب من الانتهاء
+  const remainingPct = totalDays > 0 ? Math.min(100, Math.max(0, Math.round((safeDaysRemaining / totalDays) * 100))) : 0;
   const RING_R = 40;
   const RING_C = 2 * Math.PI * RING_R;
-  const ringOffset = RING_C * (1 - elapsedPct / 100);
+  const ringOffset = RING_C * (1 - remainingPct / 100);
+  // أخضر عند التفعيل، برتقالي تنبيهي عند ٧ أيام أو أقل، أحمر عند ٣ أيام أو أقل
+  const ringColor = isExpired || safeDaysRemaining <= 3 ? '#ef4444' : safeDaysRemaining <= 7 ? '#f59e0b' : '#16a34a';
 
   // Preview: force messages subscription to display as free trial.
   const forcePreviewMessageTrial = true;
@@ -210,9 +212,10 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({
               <svg width="92" height="92" viewBox="0 0 92 92" className="shrink-0">
                 <circle cx="46" cy="46" r={RING_R} fill="none" stroke="#e2e8f0" strokeWidth="9" />
                 <circle
-                  cx="46" cy="46" r={RING_R} fill="none" stroke="#655ac1" strokeWidth="9"
+                  cx="46" cy="46" r={RING_R} fill="none" stroke={ringColor} strokeWidth="9"
                   strokeLinecap="round" strokeDasharray={RING_C} strokeDashoffset={ringOffset}
                   transform="rotate(-90 46 46)"
+                  style={{ transition: 'stroke-dashoffset 0.4s ease, stroke 0.3s ease' }}
                 />
                 <text x="46" y="42" textAnchor="middle" fontSize="26" fontWeight="800" fill="#1e293b">
                   {formatCount(safeDaysRemaining)}

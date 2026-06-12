@@ -4,7 +4,7 @@ import { LayoutTemplate, ChevronDown, Edit3, RotateCcw, X, CheckCircle2, Sparkle
 import {
   MESSAGE_CATALOG, CATALOG_PAGE_LABELS, CatalogPageId, MessageCatalogEntry,
   getMessageTemplate, isTemplateCustomized, saveMessageTemplate, resetMessageTemplate,
-  subscribeToCatalogChanges,
+  subscribeToCatalogChanges, findUnfilledTokens,
 } from '../../utils/messageCatalog';
 
 const PAGE_ORDER: CatalogPageId[] = ['general', 'schedule', 'supervision', 'duty', 'waiting', 'students', 'circulars'];
@@ -50,6 +50,13 @@ const NotificationTemplates: React.FC<Props> = ({ showToast }) => {
     if (!editingEntry) return;
     if (!editText.trim()) {
       showToast('error', 'نص القالب فارغ');
+      return;
+    }
+    // حارس: يمنع حفظ متغير {…} خارج المتغيرات المتاحة لهذا القالب حتى لا يخرج مكسوراً عند الإرسال
+    const allowed = new Set(editingEntry.tokens.map(token => `{${token}}`));
+    const unknownTokens = findUnfilledTokens(editText).filter(token => !allowed.has(token));
+    if (unknownTokens.length > 0) {
+      showToast('error', `متغيرات غير معروفة: ${unknownTokens.join(' ')} — استخدم المتغيرات المتاحة فقط بالنقر عليها.`);
       return;
     }
     saveMessageTemplate(editingEntry.id, editText);
@@ -103,7 +110,7 @@ const NotificationTemplates: React.FC<Props> = ({ showToast }) => {
                 onClick={() => togglePage(page)}
                 className="w-full p-3.5 flex items-center justify-between gap-3 bg-white transition-colors group"
               >
-                <span className="font-bold text-slate-700 group-hover:text-[#655ac1] text-sm">{CATALOG_PAGE_LABELS[page]}</span>
+                <span className="font-bold text-slate-800 text-sm">{CATALOG_PAGE_LABELS[page]}</span>
                 <span className="flex items-center gap-2.5">
                   {customizedCount > 0 && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-black text-[#655ac1] bg-[#f0edff] px-2 py-1 rounded-lg">
@@ -126,13 +133,13 @@ const NotificationTemplates: React.FC<Props> = ({ showToast }) => {
                       <div key={entry.id} className="p-3.5 flex items-start justify-between gap-3 hover:bg-slate-50/60 transition-colors">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-[#655ac1]">{entry.label}</span>
+                            <span className="text-sm font-bold text-slate-800">{entry.label}</span>
                             {customized && (
                               <span className="text-[10px] font-black text-[#655ac1] bg-[#f0edff] px-1.5 py-0.5 rounded-md">مخصص</span>
                             )}
                           </div>
                           <p className="text-[11px] font-bold text-slate-400 mt-0.5">{entry.description}</p>
-                          <p className="text-[13px] font-semibold text-slate-600 mt-1.5 truncate leading-relaxed" dir="rtl">{currentText.split('\n').slice(0, 2).join(' — ')}</p>
+                          <p className="text-[13px] font-semibold text-[#655ac1] mt-1.5 truncate leading-relaxed" dir="rtl">{currentText.split('\n').slice(0, 2).join(' — ')}</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {customized && (
@@ -189,7 +196,7 @@ const NotificationTemplates: React.FC<Props> = ({ showToast }) => {
             <div className="mb-3 rounded-2xl border border-slate-200 p-3">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <label className="text-xs font-bold text-slate-500">المتغيرات المتاحة:</label>
-                <span className="text-[10px] font-bold text-slate-400">انقر لإدراجها مكان المؤشر</span>
+                <span className="text-[10px] font-black text-amber-600">انقر للإدراج في نص الرسالة</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {editingEntry.tokens.map(token => (
