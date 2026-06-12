@@ -128,7 +128,7 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
                           اشتراك متابع · {periodLabel(cart.plan.period)} · {periodDays(cart.plan.period)} يومًا
                         </p>
                         {cart.plan.remainingValue > 0 && (
-                          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-600">
+                          <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
                             يشمل خصم الرصيد المتبقي بقيمة
                             <Money value={cart.plan.remainingValue} iconSize={12} />
                           </p>
@@ -157,7 +157,7 @@ const SubscriptionCartReview: React.FC<SubscriptionCartReviewProps> = ({
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-slate-400">
                           <span className="inline-flex items-center gap-1.5"><WhatsAppIcon size={14} /> {cart.messagePackage.wa.toLocaleString()} واتساب</span>
                           <span className="inline-flex items-center gap-1.5"><MessageSquare size={14} className="text-[#007AFF]" strokeWidth={2.4} /> {cart.messagePackage.sms.toLocaleString()} SMS</span>
-                          <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-1 text-amber-600">صلاحية 12 شهراً</span>
+                          <span className="inline-flex items-center text-amber-600">صلاحية 12 شهراً</span>
                         </div>
                       </div>
                     </div>
