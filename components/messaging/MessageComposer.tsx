@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { SchoolInfo, Teacher, Admin, Student, ClassInfo, Specialization, SubscriptionInfo, MessageComposerDraft, MessageSource } from '../../types';
 import { useMessageArchive } from './MessageArchiveContext';
-import { MESSAGE_CATALOG, getMessageTemplate } from '../../utils/messageCatalog';
+import { MESSAGE_CATALOG, getMessageTemplate, CatalogPageId } from '../../utils/messageCatalog';
 import MessageToast from './MessageToast';
 import RecipientsPreviewModal from './RecipientsPreviewModal';
 import MessagePreviewInline from './MessagePreviewInline';
@@ -39,6 +39,8 @@ type DropdownOption = {
   value: string;
   label: string;
   disabled?: boolean;
+  /** عنوان مجموعة غير قابل للاختيار يفصل خيارات القائمة */
+  isHeader?: boolean;
 };
 
 const getCurrentSenderName = () => {
@@ -118,7 +120,15 @@ const RecipientSelectDropdown: React.FC<{
           style={{ top: position.top, left: position.left, width: position.width }}
         >
           <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-            {options.map(option => (
+            {options.map((option, optionIndex) => option.isHeader ? (
+              <div
+                key={`header-${optionIndex}`}
+                className="px-3 pt-3 pb-1.5 text-[11px] font-black text-[#655ac1] flex items-center gap-2 first:pt-1"
+              >
+                <span>{option.label}</span>
+                <span className="flex-1 h-px bg-[#e5e1fe]" />
+              </div>
+            ) : (
               <button
                 key={option.value}
                 type="button"
@@ -368,6 +378,27 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
   // ── Template handler ─────────────────────────────────────────────────────
   // القوالب الجاهزة تأتي من السجل المركزي فتعكس الرسائل الجديدة وتخصيصات المستخدم
   const composerTemplates = MESSAGE_CATALOG;
+
+  // خيارات القائمة مقسّمة لمجموعتين (موظفون / أولياء أمور) مع توضيح صفحة كل قالب
+  // لأن قوالب الإشراف والمناوبة والانتظار تتشارك نفس العناوين (تكليف إلكتروني/تبليغ نصي)
+  const PARENT_PAGES = new Set<CatalogPageId>(['students']);
+  const PAGE_CONTEXT: Partial<Record<CatalogPageId, string>> = {
+    supervision: 'إشراف',
+    duty: 'مناوبة',
+    waiting: 'انتظار',
+  };
+  const templateLabel = (t: typeof composerTemplates[number]) =>
+    PAGE_CONTEXT[t.page] ? `${t.label} (${PAGE_CONTEXT[t.page]})` : t.label;
+  const staffTemplates = composerTemplates.filter(t => !PARENT_PAGES.has(t.page));
+  const parentTemplates = composerTemplates.filter(t => PARENT_PAGES.has(t.page));
+  const templateOptions: DropdownOption[] = [
+    { value: '', label: 'بدون قالب' },
+    ...(staffTemplates.length ? [{ value: '__staff__', label: 'رسائل المعلمين والإداريين', isHeader: true }] : []),
+    ...staffTemplates.map(t => ({ value: t.id, label: templateLabel(t) })),
+    ...(parentTemplates.length ? [{ value: '__parents__', label: 'رسائل أولياء الأمور', isHeader: true }] : []),
+    ...parentTemplates.map(t => ({ value: t.id, label: templateLabel(t) })),
+  ];
+
   const handleTemplateSelect = (templateId: string) => {
     setSelectedTemplate(templateId);
     if (!templateId) return;
@@ -959,10 +990,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 value={selectedTemplate}
                 onChange={handleTemplateSelect}
                 placeholder="اختر القالب"
-                options={[
-                  { value: '', label: 'بدون قالب' },
-                  ...composerTemplates.map(t => ({ value: t.id, label: t.label })),
-                ]}
+                options={templateOptions}
               />
             </div>
             <div className="rounded-2xl border border-slate-200 p-3">
