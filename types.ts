@@ -302,6 +302,7 @@ export interface ClassInfo {
   section: number;
   name?: string; // Custom name override (default: "1-1" format)
   subjectIds?: string[];
+  subjectPlanId?: string;
   
   // Customization & Configuration
   schoolId?: string; // 'main' or 'second' for shared schools
@@ -478,6 +479,20 @@ export interface SubjectConstraint {
   enableDoublePeriods: boolean;     // تتابع الحصص (حصتين متتاليتين)
 }
 
+export interface ClassSubjectPlan {
+  id: string;
+  name: string;
+  schoolId: string;
+  phase: Phase;
+  departmentId?: string;
+  departmentName?: string;
+  gradeSubjectMap: Record<number, string[]>;
+  subjectIds: string[];
+  includedGrades: number[];
+  constraints?: SubjectConstraint[];
+  createdAt: string;
+}
+
 export interface TeacherConstraint {
   teacherId: string;
   maxConsecutive: number;           // الحد الأقصى للتتابع (default: 4)
@@ -537,6 +552,7 @@ export interface ScheduleSettingsData {
   generationModeLocked?: boolean; // قُفل الاختيار بعد التأكيد (يخفي بطاقة الاختيار)
   scheduleGenerationCount?: number; // عداد مرات إنشاء جدول الحصص
   waitingGenerationCount?: number;  // عداد مرات إنشاء جدول الانتظار
+  classSubjectPlans?: ClassSubjectPlan[];
 }
 
 // ===== Audit Log Types =====

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Phase, ClassInfo, Subject, SchoolInfo, EntityType } from '../../../types';
+import { Phase, ClassInfo, Subject, SchoolInfo, EntityType, Assignment, ScheduleSettingsData } from '../../../types';
 import { PHASE_CONFIG } from '../../../constants';
 import {
   GraduationCap, Trash2, CheckCircle2, BookPlus, X, School, PlusCircle,
@@ -325,13 +325,17 @@ interface Props {
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>;
   gradeSubjectMap: Record<string, string[]>;
   setGradeSubjectMap: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  phaseDepartmentMap: Record<string, string>;
   schoolInfo: SchoolInfo;
   setSchoolInfo: React.Dispatch<React.SetStateAction<SchoolInfo>>;
+  assignments: Assignment[];
+  setAssignments: React.Dispatch<React.SetStateAction<Assignment[]>>;
+  scheduleSettings: ScheduleSettingsData;
 }
 
 type CreationMode = 'auto' | 'manual';
 
-const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubjects, gradeSubjectMap, setGradeSubjectMap, schoolInfo, setSchoolInfo }) => {
+const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubjects, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, schoolInfo, setSchoolInfo, assignments, setAssignments, scheduleSettings }) => {
   // ─── Core State ───
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [activePhase, setActivePhase] = useState<Phase>(schoolInfo.phases?.[0] || Phase.ELEMENTARY);
@@ -387,6 +391,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [globalPeriodCounts, setGlobalPeriodCounts] = useState<Record<string, number>>({});
   const [deleteSelectionMode, setDeleteSelectionMode] = useState(false);
   const [gradeActionsModal, setGradeActionsModal] = useState<number | null>(null);
+  const [showClassPlansModal, setShowClassPlansModal] = useState(false);
+  const [classPlanSelectedIds, setClassPlanSelectedIds] = useState<Set<string>>(new Set());
+  const [classPlanId, setClassPlanId] = useState<string>('');
 
   // ─── View Mode State (Refactored) ───
   type ViewMode = 'classes' | 'facilities';
@@ -545,6 +552,76 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     if (activeSchoolId === 'main') return gradeSubjectMap[`${activePhase}-${grade}`] || [];
     return [];
   }, [activeSchoolId, activePhase, gradeSubjectMap]);
+
+  const basePlanSummary = useMemo(() => {
+    const subjectIds = new Set<string>();
+    currentSchoolClasses.forEach(cls => getGradeSubjectIds(cls.grade).forEach(id => subjectIds.add(id)));
+    const departmentName = phaseDepartmentMap[activePhase] || 'الخطة المعتمدة';
+    return {
+      label: `الخطة الأساسية - ${departmentName}`,
+      subjectCount: subjectIds.size
+    };
+  }, [currentSchoolClasses, getGradeSubjectIds, phaseDepartmentMap, activePhase]);
+
+  const classPlanOptions = useMemo(() => (
+    (scheduleSettings.classSubjectPlans || [])
+      .filter(plan => plan.schoolId === activeSchoolId && plan.phase === activePhase)
+      .map(plan => ({
+        value: plan.id,
+        label: plan.name.replace(/^خطة فرعية -\s*/, 'الخطة الفرعية - '),
+        subjectIds: plan.subjectIds,
+        gradeSubjectMap: plan.gradeSubjectMap
+      }))
+  ), [scheduleSettings.classSubjectPlans, activeSchoolId, activePhase]);
+
+  useEffect(() => {
+    if (!showClassPlansModal) return;
+    if (!classPlanId || !classPlanOptions.some(plan => plan.value === classPlanId)) {
+      setClassPlanId(classPlanOptions[0]?.value || '');
+    }
+  }, [showClassPlansModal, classPlanId, classPlanOptions]);
+
+  const applyClassPlanToSelection = useCallback(() => {
+    const selectedIds = Array.from(classPlanSelectedIds);
+    if (selectedIds.length === 0) {
+      showToast('اختر فصلًا واحدًا على الأقل');
+      return;
+    }
+
+    const selectedPlan = classPlanOptions.find(plan => plan.value === classPlanId);
+    if (!selectedPlan) {
+      showToast('لا توجد خطة فرعية متاحة للتطبيق');
+      return;
+    }
+    const selectedClassesWithAssignments = assignments.filter(assignment => selectedIds.includes(assignment.classId));
+    if (selectedClassesWithAssignments.length > 0) {
+      const ok = confirm('سيتم تحديث مواد هذا الفصل حسب الخطة الجديدة، وقد تتأثر الإسنادات الحالية.');
+      if (!ok) return;
+    }
+
+    const allowedByClass = new Map<string, Set<string>>();
+    selectedIds.forEach(classId => {
+      const cls = currentSchoolClasses.find(item => item.id === classId);
+      const ids = cls ? (selectedPlan.gradeSubjectMap[cls.grade] || []) : [];
+      allowedByClass.set(classId, new Set(ids));
+    });
+    setClasses(prev => prev.map(cls => {
+      if (!selectedIds.includes(cls.id)) return cls;
+      const nextSubjectIds = Array.from(allowedByClass.get(cls.id) || new Set<string>());
+      return {
+        ...cls,
+        subjectIds: [...nextSubjectIds],
+        subjectPlanId: classPlanId
+      };
+    }));
+    setAssignments(prev => prev.filter(assignment =>
+      !selectedIds.includes(assignment.classId) || !!allowedByClass.get(assignment.classId)?.has(assignment.subjectId)
+    ));
+    setShowClassPlansModal(false);
+    setClassPlanSelectedIds(new Set());
+    setClassPlanId(classPlanOptions[0]?.value || '');
+    showToast('تم تطبيق الخطة على الفصول المحددة');
+  }, [classPlanSelectedIds, classPlanOptions, classPlanId, assignments, setClasses, setAssignments, currentSchoolClasses]);
 
   const approvedFacilitySubjects = useMemo(() => {
     const approvedIds = new Set<string>();
@@ -1196,6 +1273,18 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
+            </button>
+            <button
+              dir="rtl"
+              onClick={() => {
+                setShowClassPlansModal(true);
+                setClassPlanSelectedIds(new Set());
+                setClassPlanId(classPlanOptions[0]?.value || '');
+              }}
+              disabled={currentSchoolClasses.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <BookOpen size={16} className="text-slate-400" /> تخصيص خطط الفصول
             </button>
             <button
               dir="rtl"
@@ -2487,6 +2576,120 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       ), document.body)}
 
       {/* ══════ Global Periods Modal ══════ */}
+      {showClassPlansModal && createPortal((
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => setShowClassPlansModal(false)}>
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-5 border-b border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]"><BookOpen size={22} /></div>
+                <div>
+                  <h3 className="text-base font-black text-slate-800">تخصيص خطط الفصول</h3>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">فعّلها عند وجود خطة أساسية وخطة فرعية، ثم اختر الفصول التي تريد ربطها بالخطة الفرعية.</p>
+                </div>
+              </div>
+              <button onClick={() => setShowClassPlansModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-5">
+              {classPlanOptions.length === 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                  <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-sm font-bold text-amber-700 leading-relaxed">
+                    لا يمكن تخصيص خطط الفصول قبل اعتماد خطة دراسية أخرى من صفحة المواد.
+                  </p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 opacity-80">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-700">{basePlanSummary.label}</h4>
+                      <p className="text-[11px] font-bold text-slate-400 mt-1">مطبقة تلقائيًا على كل الفصول</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {classPlanOptions.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-400">لا توجد خطة فرعية معتمدة لهذه المرحلة</div>
+                  ) : classPlanOptions.map(plan => {
+                    const active = classPlanId === plan.value;
+                    return (
+                      <button
+                        key={plan.value}
+                        type="button"
+                        onClick={() => setClassPlanId(plan.value)}
+                        className={`w-full rounded-2xl border p-4 text-right transition-all ${active ? 'border-[#655ac1] bg-[#f8f7ff]' : 'border-slate-200 bg-white hover:border-[#655ac1]/40'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800">{plan.label}</h4>
+                            <p className="text-[11px] font-bold text-slate-400 mt-1">{plan.subjectIds.length} مواد - اخترها للفصول المطلوبة</p>
+                          </div>
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                  <h4 className="text-sm font-black text-slate-800">اختر الفصول</h4>
+                  <p className="text-[11px] font-bold text-slate-400 mt-0.5">انقر على الفصل لتحديده أو إلغاء تحديده.</p>
+                </div>
+                <div className="p-4 space-y-4">
+                  {currentSchoolClasses.length === 0 ? (
+                    <div className="py-10 text-center text-sm font-bold text-slate-400">لا توجد فصول لهذه المرحلة</div>
+                  ) : Object.keys(grouped).map(Number).sort((a, b) => a - b).map(grade => (
+                    <div key={grade} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-[#655ac1] text-sm font-black">{grade}</span>
+                        <span className="text-sm font-black text-slate-800">{getGradeLabelEx(grade)}</span>
+                        <span className="text-[11px] font-black text-slate-400">{grouped[grade].length} فصول</span>
+                      </div>
+                      <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+                        {grouped[grade].map(cls => {
+                          const selected = classPlanSelectedIds.has(cls.id);
+                          const planLabel = cls.subjectPlanId
+                            ? (scheduleSettings.classSubjectPlans || []).find(plan => plan.id === cls.subjectPlanId)?.name?.replace(/^خطة فرعية -\s*/, 'الخطة الفرعية - ') || 'الخطة الفرعية'
+                            : basePlanSummary.label;
+                          return (
+                            <button
+                              key={cls.id}
+                              type="button"
+                              disabled={classPlanOptions.length === 0 || !classPlanId}
+                              onClick={() => setClassPlanSelectedIds(prev => {
+                                if (classPlanOptions.length === 0 || !classPlanId) return prev;
+                                const next = new Set(prev);
+                                if (next.has(cls.id)) next.delete(cls.id);
+                                else next.add(cls.id);
+                                return next;
+                              })}
+                              className={`text-right rounded-xl border px-3 py-2.5 transition-all bg-white disabled:opacity-50 disabled:cursor-not-allowed ${selected ? 'border-slate-200 shadow-lg shadow-[#655ac1]/10 ring-2 ring-[#655ac1]/15' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-black text-slate-800">{getClassLabel(cls)}</span>
+                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
+                              </div>
+                              <p className="mt-2 text-[11px] font-bold text-slate-400">{planLabel}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3 justify-end items-center">
+              <button onClick={() => setShowClassPlansModal(false)} className="px-5 py-2.5 bg-white border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors">إلغاء</button>
+              <button onClick={applyClassPlanToSelection} disabled={classPlanSelectedIds.size === 0 || classPlanOptions.length === 0 || !classPlanId} className="px-6 py-2.5 bg-[#655ac1] hover:bg-[#5046a0] text-white rounded-xl font-bold transition-all inline-flex items-center justify-center gap-2 disabled:bg-slate-300">
+                <CheckCircle2 size={16} /> تطبيق
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
+
       {showGlobalPeriodsModal && createPortal((
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => { setShowGlobalPeriodsModal(false); setGlobalPeriodCounts({}); }}>
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>

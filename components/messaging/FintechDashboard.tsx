@@ -73,8 +73,8 @@ const FintechDashboard: React.FC<FintechDashboardProps> = ({ onNavigate, subscri
   }, [messages]);
   const calendarType = ((schoolInfo?.calendarType === 'gregorian' ? 'gregorian' : 'hijri') as CalendarType);
 
-  const freeWaTotal = 50;
-  const freeSmsTotal = 10;
+  const freeWaTotal = 10;
+  const freeSmsTotal = 5;
   const waRemaining = subscription?.freeWaRemaining ?? stats.balanceWhatsApp;
   const smsRemaining = subscription?.freeSmsRemaining ?? stats.balanceSMS;
 

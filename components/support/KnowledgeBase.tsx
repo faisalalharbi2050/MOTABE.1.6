@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Search, X, ChevronDown, ChevronUp, ChevronLeft, ArrowRight, HelpCircle, Tag,
+  Search, X, ChevronDown, ChevronUp, ArrowRight, HelpCircle, Tag,
   Play, PlayCircle, Clock, Maximize2, Minimize2,
   BookOpen, LayoutDashboard, School, CalendarCheck, Layers, LayoutGrid, Users, GraduationCap, UserCog,
   ClipboardList, CalendarDays, Eye, ShieldCheck, Lock, MessageSquare, CreditCard, UserX,
@@ -453,27 +453,43 @@ const KnowledgeBase: React.FC = () => {
                 <span className="w-1 h-4 rounded-full bg-[#655ac1]/30" />
                 <span className="text-sm font-black text-slate-600">{group.label}</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {group.ids.map(id => {
                   const cat = SECTION_BY_ID[id];
                   if (!cat) return null;
                   const Icon = SECTION_ICONS[id];
+                  const faqCount = cat.faqs.length;
+                  const vidCount = cat.videos.length;
                   return (
                     <button
                       key={id}
                       onClick={() => openCategory(id)}
-                      className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 flex items-center gap-3 text-right hover:border-[#655ac1]/30 hover:shadow-md transition-all duration-300 group"
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-3 text-right hover:border-[#655ac1]/30 hover:shadow-md transition-all duration-300 group"
                     >
-                      {Icon ? <Icon size={22} className="text-[#655ac1] shrink-0" /> : null}
-                      <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {Icon ? <Icon size={20} className="text-[#655ac1] shrink-0" /> : null}
                         <h4 className="font-black text-slate-800 text-sm leading-tight truncate group-hover:text-[#655ac1] transition-colors">
                           {cat.label}
                         </h4>
-                        <p className="text-xs text-slate-400 font-medium mt-0.5 truncate">
-                          {countLabel(cat.faqs.length, cat.videos.length)}
-                        </p>
                       </div>
-                      <ChevronLeft size={16} className="text-slate-300 group-hover:text-[#655ac1] transition-colors shrink-0" />
+                      {(faqCount > 0 || vidCount > 0) ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {faqCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-500">
+                              <HelpCircle size={11} className="text-[#655ac1]" />
+                              {arCount(faqCount, FAQ_FORMS)}
+                            </span>
+                          )}
+                          {vidCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-500">
+                              <PlayCircle size={11} className="text-[#655ac1]" />
+                              {videoCount(vidCount)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] font-bold text-slate-400">قريباً</span>
+                      )}
                     </button>
                   );
                 })}

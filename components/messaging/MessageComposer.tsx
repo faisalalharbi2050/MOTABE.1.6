@@ -637,8 +637,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
         let newWaFree = prev.freeWaRemaining;
         let newTotalPaid = prev.remainingMessages;
 
-        const oldSmsPercent = ((10 - prev.freeSmsRemaining) / 10) * 100;
-        const oldWaPercent = ((50 - prev.freeWaRemaining) / 50) * 100;
+        const oldSmsPercent = ((5 - prev.freeSmsRemaining) / 5) * 100;
+        const oldWaPercent = ((10 - prev.freeWaRemaining) / 10) * 100;
 
         if (channel === 'sms') {
           if (newSmsFree >= successCount) { newSmsFree -= successCount; }
@@ -648,8 +648,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           else { newTotalPaid -= (successCount - newWaFree); newWaFree = 0; }
         }
 
-        const newSmsPercent = ((10 - newSmsFree) / 10) * 100;
-        const newWaPercent = ((50 - newWaFree) / 50) * 100;
+        const newSmsPercent = ((5 - newSmsFree) / 5) * 100;
+        const newWaPercent = ((10 - newWaFree) / 10) * 100;
 
         let alert = '';
         if (channel === 'sms') {

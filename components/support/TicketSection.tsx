@@ -4,7 +4,7 @@ import {
   TicketIcon, Clock, CheckCircle2, XCircle,
   ChevronDown, Upload, X, FileText, Image as ImageIcon,
   Send, PlusCircle, Paperclip, Check, Eye,
-  User, Headphones, Headset, Calendar, Sun,
+  User, Headset, Calendar, Sun,
 } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 
@@ -55,74 +55,6 @@ const ACCEPTED_DOCS   = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
-const MOCK_TICKETS: Ticket[] = [
-  {
-    id: 'TKT-001',
-    title: 'مشكلة في تسجيل الدخول',
-    phoneNumber: '0501234567',
-    description: 'لا أستطيع تسجيل الدخول إلى حسابي منذ الأمس. تظهر رسالة خطأ "بيانات غير صحيحة" رغم أن كلمة المرور صحيحة. جربت إعادة تعيين كلمة المرور لكن الرابط لا يصل إلى البريد.',
-    category: 'technical',
-    categoryLabel: 'مشكلة تقنية',
-    status: 'replied',
-    date: '2026-03-09',
-    time: '08:15 ص',
-    attachments: [{ name: 'screenshot.png', type: 'image', size: '512 KB' }],
-    replies: [
-      {
-        from: 'support',
-        text: 'مرحباً، شكراً لتواصلك معنا. تم مراجعة حسابك ووجدنا أن البريد الإلكتروني المسجل لديك يحتوي على حرف مختلف. هل يمكنك التحقق من البريد الذي استخدمته عند التسجيل؟',
-        date: '2026-03-09',
-        time: '10:30 ص',
-      },
-      {
-        from: 'user',
-        text: 'نعم وجدت المشكلɡ كنت أستخدم بريداً مختلفاً. شكراً جزيلاً!',
-        date: '2026-03-09',
-        time: '11:05 ص',
-      },
-      {
-        from: 'support',
-        text: 'ممتاز! يسعدنا أن المشكلة حُلّت. إذا احتجت أي مساعدة أخرى نحن في الخدمة دائماً.',
-        date: '2026-03-09',
-        time: '11:20 ص',
-      },
-    ],
-  },
-  {
-    id: 'TKT-002',
-    title: 'استفسار عن الفاتورة الأخيرة',
-    phoneNumber: '0559876543',
-    description: 'لاحظت أن مبلغ الفاتورة الأخيرة يختلف عن الباقة المشترك بها. الباقة الأساسية 149 ريال لكن الفاتورة تظهر 189 ريال. أرجو المراجعة والتوضيح.',
-    category: 'billing',
-    categoryLabel: 'مشكلة في الفوترة',
-    status: 'processing',
-    date: '2026-03-08',
-    time: '11:30 ص',
-    attachments: [],
-    replies: [],
-  },
-  {
-    id: 'TKT-003',
-    title: 'مقترح: إضافة تقرير أسبوعي للمناوبة',
-    phoneNumber: '0531122334',
-    description: 'أقترح إضافة ميزة تقرير أسبوعي موحّد يجمع جدول المناوبة والإشراف في ملف PDF واحد جاهز للطباعة. هذا سيوفر وقتاً كبيراً كل أسبوع.',
-    category: 'suggestion',
-    categoryLabel: 'اقتراح',
-    status: 'closed',
-    date: '2026-03-05',
-    time: '09:45 ص',
-    attachments: [],
-    replies: [
-      {
-        from: 'support',
-        text: 'شكراً على اقتراحك القيّم! تم تسجيل الاقتراح وإحالته لفريق التطوير. سنضعه في اعتبارنا في التحديثات القادمة.',
-        date: '2026-03-06',
-        time: '09:00 ص',
-      },
-    ],
-  },
-];
-
 const STATUS_CONFIG: Record<TicketStatus, { label: string; color: string; icon: React.ElementType; bar: number }> = {
   processing: { label: 'قيد المعالجة', color: 'text-yellow-700 bg-yellow-100 border-yellow-200', icon: Clock,        bar: 40  },
   replied:    { label: 'تم الرد',      color: 'text-green-700 bg-green-100 border-green-200',   icon: CheckCircle2, bar: 80  },
@@ -165,8 +97,15 @@ const getRiyadhTime = () => {
   return new Date(str);
 };
 
-// ─── WorkingHoursCard ─────────────────────────────────────────────────────────
+// ─── WorkingHoursCard — المصدر الموحّد لأوقات العمل + المؤشر الحيّ ──────────────
 const WorkingHoursCard: React.FC = () => {
+  // إعادة الحساب كل دقيقة حتى يتحدّث مؤشر «متاح الآن/خارج الدوام» تلقائياً
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const now         = getRiyadhTime();
   const day         = now.getDay();           // 0=Sun … 4=Thu
   const totalMin    = now.getHours() * 60 + now.getMinutes();
@@ -175,26 +114,51 @@ const WorkingHoursCard: React.FC = () => {
   const isAvailable = isWorkday && isWorkTime;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
-      <div className="w-14 h-14 flex items-center justify-center shrink-0">
-        <Clock size={32} className="text-[#655ac1]" />
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* رأس البطاقة + المؤشر الحيّ */}
+      <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
+        <h3 className="font-black text-slate-800 text-base flex items-center gap-3 min-w-0">
+          <Clock size={22} className="text-[#655ac1] shrink-0" />
+          أوقات العمل لفريق الدعم
+        </h3>
+        <span
+          className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-xs whitespace-nowrap
+            ${isAvailable
+              ? 'bg-white border-slate-200 text-slate-600'
+              : 'bg-slate-50 border-slate-200 text-slate-500'
+            }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-[#655ac1] animate-pulse' : 'bg-slate-300'}`} />
+          {isAvailable ? 'متاح الآن' : 'خارج الدوام'}
+        </span>
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-black text-slate-800 text-base mb-1">أوقات العمل الرسمية</h4>
-        <p className="text-sm font-bold text-slate-700">
-          الأحد – الخميس &nbsp;|&nbsp; 8:00 ص — 2:30 م
-        </p>
-        <p className="text-xs text-[#8779fb] font-medium mt-1.5 leading-relaxed">
-          يهمنا مساعدتߡ يُرجى رفع تذكرتك وسنرد عليك في أقرب وقت.
-        </p>
-      </div>
-      <div className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border font-bold text-xs whitespace-nowrap
-        ${isAvailable
-          ? 'bg-white border-slate-200 text-slate-600'
-          : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-        }`}>
-        <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-[#655ac1] animate-pulse' : 'bg-yellow-500'}`} />
-        {isAvailable ? 'متاح الآن' : 'خارج الدوام'}
+
+      {/* تفاصيل الدوام */}
+      <div className="p-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
+            <Calendar size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-[#8779fb] mb-1">أيام العمل</p>
+              <p className="font-black text-slate-800 text-sm">الأحد — الخميس</p>
+            </div>
+          </div>
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
+            <Clock size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-[#8779fb] mb-1">ساعات العمل</p>
+              <p className="font-black text-slate-800 text-sm">8:00 ص — 2:30 م</p>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">بتوقيت مكة المكرمة</p>
+            </div>
+          </div>
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
+            <Sun size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-[#8779fb] mb-1">أيام الإجازة</p>
+              <p className="font-black text-slate-800 text-sm">الجمعة — السبت</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -236,13 +200,13 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
   const StatusIcon     = sc.icon;
   const supportReplies = ticket.replies.filter(r => r.from === 'support');
 
-  return (
+  return createPortal((
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-fade-in"
         style={{ maxHeight: '90vh' }}
         onClick={e => e.stopPropagation()}
       >
@@ -369,7 +333,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 // ─── Main: TicketSection ──────────────────────────────────────────────────────
@@ -403,8 +367,8 @@ const TicketSection: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Ticket list
-  const [tickets,        setTickets]        = useState<Ticket[]>(MOCK_TICKETS);
+  // Ticket list — تبدأ فارغة عند الإطلاق (تُملأ بتذاكر المستخدم الفعلية)
+  const [tickets,        setTickets]        = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
 
@@ -472,39 +436,8 @@ const TicketSection: React.FC = () => {
   return (
     <div className="space-y-6">
 
-      {/* Work Hours Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
-          <Clock size={22} className="text-[#655ac1] shrink-0" />
-          <h3 className="font-black text-slate-800 text-base">أوقات العمل لفريق الدعم</h3>
-        </div>
-        <div className="p-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-              <Calendar size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-[#8779fb] mb-1">أيام العمل</p>
-                <p className="font-black text-slate-800 text-sm">الأحد — الخميس</p>
-              </div>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-              <Clock size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-[#8779fb] mb-1">ساعات العمل</p>
-                <p className="font-black text-slate-800 text-sm">8:00 ص — 2:30 م</p>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">بتوقيت مكة المكرمة</p>
-              </div>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-              <Sun size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-[#8779fb] mb-1">أيام الإجازة</p>
-                <p className="font-black text-slate-800 text-sm">الجمعة — السبت</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Work Hours Card — مصدر موحّد + مؤشر حيّ */}
+      <WorkingHoursCard />
 
       {/* New Ticket Button */}
       <div className="flex justify-start">
@@ -635,7 +568,7 @@ const TicketSection: React.FC = () => {
                   value={formDesc}
                   onChange={e => setFormDesc(e.target.value)}
                   rows={3}
-                  placeholder="اشرح مشكلتك بالتفصيل: متى بدأʿ ما الخطوات التي أدت إليهǿ ما الرسالة التي ظهرʿ"
+                  placeholder="اشرح مشكلتك بالتفصيل: متى بدأت؟ ما الخطوات التي أدّت إليها؟ وما الرسالة التي ظهرت لك؟"
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 resize-none transition-all"
                 />
               </div>
@@ -734,9 +667,21 @@ const TicketSection: React.FC = () => {
         </div>
 
         {tickets.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            <TicketIcon size={40} className="mx-auto mb-3 text-slate-300" />
-            <p className="font-bold">لا توجد تذاكر بعد</p>
+          <div className="px-6 py-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-5">
+              <TicketIcon size={30} strokeWidth={1.8} className="text-[#655ac1]" />
+            </div>
+            <p className="font-black text-slate-800 text-base mb-1.5">لا توجد تذاكر بعد</p>
+            <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-sm mx-auto mb-6">
+              عند رفع تذكرة دعم ستظهر هنا مع حالتها وردّ الفريق عليها، لتتابعها في أي وقت.
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#655ac1] text-white rounded-xl font-black text-sm hover:bg-[#5548b0] hover:-translate-y-0.5 transition-all shadow-md shadow-indigo-200"
+            >
+              <PlusCircle size={16} />
+              رفع تذكرة جديدة
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">

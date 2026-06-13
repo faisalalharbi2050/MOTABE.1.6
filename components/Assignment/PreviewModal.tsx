@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
 import { X, Eye, Search, Check, ChevronDown } from 'lucide-react';
 import { sortSpecIdsByAssignmentOrder, sortTeachersByAssignmentOrder } from './teacherSort';
+import { getClassSubjectIds } from '../../utils/classSubjectPlans';
 
 interface Props {
   teachers: Teacher[];
@@ -53,14 +54,7 @@ const PreviewModal: React.FC<Props> = ({
     return t.schoolId === activeSchoolTab;
   };
 
-  const getGradeSubjectIds = (cls: { phase: string; grade: number; schoolId?: string }): string[] => {
-    const schoolId = cls.schoolId || 'main';
-    return (
-      gradeSubjectMap[`${schoolId}-${cls.phase}-${cls.grade}`] ||
-      gradeSubjectMap[`${cls.phase}-${cls.grade}`] ||
-      []
-    );
-  };
+  const getGradeSubjectIds = (cls: ClassInfo): string[] => getClassSubjectIds(cls, gradeSubjectMap);
 
   const schoolAssignments = useMemo(() => assignments.filter(a => {
     const cls = classes.find(c => c.id === a.classId);

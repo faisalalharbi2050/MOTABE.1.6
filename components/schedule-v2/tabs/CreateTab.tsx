@@ -14,6 +14,7 @@ import {
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../../types';
 import { validateAllConstraints, ValidationWarning } from '../../../utils/scheduleConstraints';
 import { generateSchedule } from '../../../utils/scheduleGenerator';
+import { getClassSubjectIds } from '../../../utils/classSubjectPlans';
 import ConflictModal from '../../schedule/ConflictModal';
 import LoadingLogo from '../../ui/LoadingLogo';
 import PresenceDaysWarningModal from '../PresenceDaysWarningModal';
@@ -102,13 +103,9 @@ const CreateTab: React.FC<Props> = ({
     let assigned = 0;
 
     assignableClasses.forEach(cls => {
-      const schoolId = cls.schoolId || 'main';
-      const gradeSubjectIds =
-        gradeSubjectMap[`${schoolId}-${cls.phase}-${cls.grade}`] ||
-        gradeSubjectMap[`${cls.phase}-${cls.grade}`] ||
-        [];
+      const gradeSubjectIds = getClassSubjectIds(cls, gradeSubjectMap);
       const requiredSubjects = activeSubjects.filter(subject =>
-        gradeSubjectIds.includes(subject.id) || cls.subjectIds?.includes(subject.id)
+        gradeSubjectIds.includes(subject.id)
       );
       const uniqueSubjects = Array.from(new Map(requiredSubjects.map(subject => [subject.id, subject])).values());
 

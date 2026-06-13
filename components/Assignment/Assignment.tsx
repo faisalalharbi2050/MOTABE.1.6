@@ -11,6 +11,7 @@ import PreviewModal from './PreviewModal';
 import PrintModal from './PrintModal';
 import { DeleteBySubjectModal, DeleteByTeacherModal } from './DeleteModals';
 import { TeacherDetailsModal, TransferTeacherModal } from './TeacherActionModals';
+import { getClassSubjectIds } from '../../utils/classSubjectPlans';
 
 // ── أسماء الصفوف بالعربية (المرتبة) ──
 const ARABIC_ORDINALS: Record<number, string> = {
@@ -145,14 +146,7 @@ const AssignmentPage: React.FC<Props> = ({
     return t.schoolId === activeSchoolTab;
   };
 
-  const getGradeSubjectIds = (cls: { phase: string; grade: number; schoolId?: string }): string[] => {
-    const schoolId = cls.schoolId || 'main';
-    return (
-      gradeSubjectMap[`${schoolId}-${cls.phase}-${cls.grade}`] ||
-      gradeSubjectMap[`${cls.phase}-${cls.grade}`] ||
-      []
-    );
-  };
+  const getGradeSubjectIds = (cls: ClassInfo): string[] => getClassSubjectIds(cls, gradeSubjectMap);
 
   const getTeacherLoad = (tId: string, source: Assignment[] = assignments) => {
     return source.filter(a => {

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Phase, Subject, SchoolInfo, ScheduleSettingsData } from '../../../types';
+import { Phase, Subject, SchoolInfo, ScheduleSettingsData, SubjectConstraint } from '../../../types';
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import {
@@ -8,7 +8,6 @@ import {
 import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
 import StudyPlansModal from '../StudyPlansModal';
-import { SubjectConstraint } from '../../../types';
 import { getMaxDailyPeriodsForSubject, describeDistribution, ValidationWarning, validateAllConstraints } from '../../../utils/scheduleConstraints';
 import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon, Save } from 'lucide-react';
 import SubjectAbbreviationsModal from '../../schedule/SubjectAbbreviationsModal';
@@ -18,7 +17,8 @@ const InlineSelect: React.FC<{
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
   placeholder?: string;
-}> = ({ value, onChange, options, placeholder = 'اختر' }) => {
+  disabled?: boolean;
+}> = ({ value, onChange, options, placeholder = 'اختر', disabled = false }) => {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const selected = options.find(option => option.value === value);
@@ -36,8 +36,9 @@ const InlineSelect: React.FC<{
     <div className="relative w-full" ref={wrapRef}>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => setOpen(current => !current)}
-        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
       >
         <span className="truncate text-[13px] leading-tight">{selected?.label || placeholder}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -375,7 +376,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       </head>
       <body>
         <h2 style="color:#3b355a;margin-bottom:6px;font-size:1.1rem;font-weight:900;">${planName}</h2>
-        <div style="background:#655ac1;color:white;padding:7px 13px;border-radius:6px;margin-bottom:10px;font-weight:900;font-size:.85rem;-webkit-print-color-adjust:exact;print-color-adjust:exact;">خطة مخصصة</div>
+        <div style="background:#655ac1;color:white;padding:7px 13px;border-radius:6px;margin-bottom:10px;font-weight:900;font-size:.85rem;-webkit-print-color-adjust:exact;print-color-adjust:exact;">خطة يدوية</div>
         <table>
           <thead><tr>
             <th style="${TH}width:32px;">#</th>
@@ -548,6 +549,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [expandedConstraintSubjectId, setExpandedConstraintSubjectId] = useState<string | null>(null);
   const [planPeriodOverrides, setPlanPeriodOverrides] = useState<Record<string, number>>({});
   const [planMode, setPlanMode] = useState<'ready' | 'custom'>('ready');
+  const [subjectPlanTargetMode, setSubjectPlanTargetMode] = useState<'base' | 'classes'>('base');
   const [confirmAddCustomSubject, setConfirmAddCustomSubject] = useState(false);
   const [addSubjectTargetPlanName, setAddSubjectTargetPlanName] = useState<string | null>(null);
   const [constraintSubjectId, setConstraintSubjectId] = useState<string | null>(null);
@@ -599,9 +601,21 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     }))
   ), []);
 
+  const baseApprovedDepartmentId = selectedPhase ? phaseDepartmentMap[selectedPhase] : '';
+
   const departmentOptions = useMemo(() => (
-    availableDepartments.map(dept => ({ value: dept.id, label: dept.name }))
-  ), [availableDepartments]);
+    availableDepartments
+      .filter(dept => subjectPlanTargetMode !== 'classes' || dept.id !== baseApprovedDepartmentId)
+      .map(dept => ({ value: dept.id, label: dept.name }))
+  ), [availableDepartments, subjectPlanTargetMode, baseApprovedDepartmentId]);
+
+  useEffect(() => {
+    if (subjectPlanTargetMode !== 'classes') return;
+    const nextDepartmentId = departmentOptions[0]?.value || '';
+    if (!selectedDepartmentId || selectedDepartmentId === baseApprovedDepartmentId || !departmentOptions.some(dept => dept.value === selectedDepartmentId)) {
+      setSelectedDepartmentId(nextDepartmentId);
+    }
+  }, [subjectPlanTargetMode, selectedDepartmentId, baseApprovedDepartmentId, departmentOptions]);
 
   const customGradeOptions = useMemo(() => (
     getGradesForPhase(selectedPhase).map(grade => ({
@@ -848,7 +862,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     }));
 
     if (planMode === 'custom') {
-      return mapCurrentSubjects(activeCustomPlanName || 'خطة مخصصة');
+      return mapCurrentSubjects(activeCustomPlanName || 'خطة يدوية');
     }
 
     if (selectedPhase === Phase.HIGH && selectedDepartment?.id === 'الثانوية_العامة') {
@@ -1094,7 +1108,108 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const handleApproveSelectedPlan = () => {
     if (!selectedCategory || !selectedDepartment) return;
     if (selectedDepartmentPlanKeys.length === 0) return;
+    if (subjectPlanTargetMode === 'classes') {
+      handleApproveClassSubjectPlan();
+      return;
+    }
     handleApprovePlan(selectedCategory.phase as Phase, selectedDepartment.id, selectedDepartmentPlanKeys, planPeriodOverrides);
+  };
+
+  const beginClassSubjectPlan = () => {
+    setSubjectPlanTargetMode('classes');
+    setPlanMode('ready');
+    setPlanPeriodOverrides({});
+    setExcludedReadySubjects({});
+    const nextDepartment = availableDepartments.find(dept => dept.id !== baseApprovedDepartmentId);
+    setSelectedDepartmentId(nextDepartment?.id || '');
+  };
+
+  const cancelClassSubjectPlan = () => {
+    setSubjectPlanTargetMode('base');
+    setPlanPeriodOverrides({});
+    setExcludedReadySubjects({});
+    if (baseApprovedDepartmentId) setSelectedDepartmentId(baseApprovedDepartmentId);
+  };
+
+  const handleApproveClassSubjectPlan = () => {
+    if (!selectedCategory || !selectedDepartment || !setScheduleSettings) return;
+    if (selectedDepartmentPlanKeys.length === 0) return;
+    if (selectedDepartment.id === baseApprovedDepartmentId) {
+      alert('اختر قسمًا / مسارًا مختلفًا عن الخطة الأساسية لإضافة خطة فرعية.');
+      return;
+    }
+
+    const planId = `class-plan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const gradeMap: Record<number, string[]> = {};
+    const clonedSubjects: Subject[] = [];
+    const clonedConstraints: SubjectConstraint[] = [];
+
+    selectedDepartmentPlanKeys.forEach(planKey => {
+      const planMeta = selectablePlans.find(plan => plan.key === planKey);
+      const grade = inferGradeFromPlanKey(planKey, planMeta?.label);
+      const gradeKey = makeGradeKey(activeSchoolId, selectedPhase as Phase, grade);
+      const excludedIds = new Set(excludedReadySubjects[gradeKey] || []);
+      const templates = (DETAILED_TEMPLATES[planKey] || []).filter(subject => !excludedIds.has(subject.id));
+
+      templates.forEach(template => {
+        const clonedId = `${planId}-${template.id}`;
+        const source = subjects.find(subject => subject.id === template.id) || template;
+        const cloned: Subject = {
+          ...source,
+          id: clonedId,
+          periodsPerClass: planPeriodOverrides[template.id] ?? source.periodsPerClass,
+          phases: [selectedPhase as Phase],
+          department: selectedDepartment.name,
+          targetGrades: [grade],
+          customPlanName: undefined,
+          isArchived: false
+        };
+        clonedSubjects.push(cloned);
+        gradeMap[grade] = [...(gradeMap[grade] || []), clonedId];
+
+        const constraint = scheduleSettings?.subjectConstraints?.find(item => item.subjectId === template.id || item.subjectId === source.id);
+        if (constraint) {
+          clonedConstraints.push({
+            ...constraint,
+            subjectId: clonedId,
+            excludedPeriods: [...(constraint.excludedPeriods || [])],
+            preferredPeriods: [...(constraint.preferredPeriods || [])]
+          });
+        }
+      });
+    });
+
+    const includedGrades = Object.keys(gradeMap).map(Number).sort((a, b) => a - b);
+    if (includedGrades.length === 0) return;
+
+    const phaseName = getPhaseLabel(selectedPhase as Phase);
+    const planName = `خطة فرعية - ${phaseName} - ${selectedDepartment.name}`;
+    setSubjects(prev => [...prev, ...clonedSubjects]);
+    setScheduleSettings(prev => ({
+      ...prev,
+      subjectConstraints: [
+        ...(prev.subjectConstraints || []),
+        ...clonedConstraints
+      ],
+      classSubjectPlans: [
+        {
+          id: planId,
+          name: planName,
+          schoolId: activeSchoolId,
+          phase: selectedPhase as Phase,
+          departmentId: selectedDepartment.id,
+          departmentName: selectedDepartment.name,
+          gradeSubjectMap: gradeMap,
+          subjectIds: clonedSubjects.map(subject => subject.id),
+          includedGrades,
+          constraints: clonedConstraints,
+          createdAt: new Date().toISOString()
+        },
+        ...(prev.classSubjectPlans || [])
+      ]
+    }));
+    alert('تم حفظ الخطة الفرعية كخيار متاح لفصول معينة دون تغيير الخطة الأساسية.');
+    cancelClassSubjectPlan();
   };
 
   const handleApproveCustomPlan = () => {
@@ -1133,7 +1248,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       targetGrades: [selectedGrade],
       isArchived: false,
       specializationIds: [],
-      customPlanName: planMode === 'custom' ? (addSubjectTargetPlanName || activeCustomPlanName || customPlanName || 'خطة مخصصة') : undefined,
+      customPlanName: planMode === 'custom' ? (addSubjectTargetPlanName || activeCustomPlanName || customPlanName || 'خطة يدوية') : undefined,
       ...(planMode === 'custom' ? { customPlanSchoolId: activeSchoolId, customPlanApproved: false } : {})
     } as Subject;
     setSubjects(prev => [...prev, newSub]);
@@ -1351,7 +1466,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       <style>${printableTableStyles}</style>
       </head><body>
       <h2>${getPhaseLabel(selectedPhase)} - ${selectedDepartment?.name || ''}</h2>
-      ${buildPrintablePlanTable(planMode === 'custom' ? (activeCustomPlanName || 'خطة مخصصة') : `${getGradeDisplayName(selectedPhase, selectedGrade)} ${selectedPlanLabel ? `- ${selectedPlanLabel}` : ''}`, selectedPlanSubjects)}
+      ${buildPrintablePlanTable(planMode === 'custom' ? (activeCustomPlanName || 'خطة يدوية') : `${getGradeDisplayName(selectedPhase, selectedGrade)} ${selectedPlanLabel ? `- ${selectedPlanLabel}` : ''}`, selectedPlanSubjects)}
       </body></html>
     `);
     printWindow.document.close();
@@ -1445,7 +1560,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
               <ClipboardCheck size={26} className="text-[#655ac1] mt-0.5" />
               <div>
               <h4 className="text-lg font-black text-slate-800">اختر الخطة الدراسية</h4>
-              <p className="text-xs text-slate-400 font-bold mt-1">ابدأ بخطة جاهزة أو أنشئ خطة مخصصة حسب احتياجك</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">ابدأ بخطة جاهزة أو أضف المواد والحصص يدويًا حسب احتياجك</p>
             </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1467,7 +1582,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
                 }`}
               >
-                <span className="font-black text-sm">إضافة خطة مخصصة</span>
+                <span className="font-black text-sm">إضافة خطة مواد يدويًا</span>
               </button>
             </div>
           </div>
@@ -1482,10 +1597,27 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 <p className="text-xs text-slate-400 font-bold mt-1">اختر المرحلة ثم القسم / المسار.</p>
               </div>
             </div>
+            {subjectPlanTargetMode === 'classes' && (
+              <div className="mx-5 mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start gap-2 text-amber-700">
+                  <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+                  <div>
+                    <span className="block text-sm font-black">أضف خطة دراسية أخرى لفصول معينة</span>
+                    <span className="block text-[11px] font-bold text-amber-700/75 mt-0.5">اختر قسمًا آخر من نفس المرحلة، ثم احفظه لاستخدامه لاحقًا مع الفصول التي تريدها.</span>
+                  </div>
+                </div>
+                <button
+                  onClick={cancelClassSubjectPlan}
+                  className="w-fit px-4 py-2 rounded-xl bg-white border border-amber-200 text-xs font-black text-amber-700 hover:bg-amber-100/60 transition-all"
+                >
+                  إلغاء
+                </button>
+              </div>
+            )}
             <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-black text-slate-400 block mb-2">المرحلة</label>
-                <InlineSelect value={selectedPhase} onChange={value => setSelectedPhase(value as Phase)} options={phaseOptions} placeholder="اختر المرحلة" />
+                <InlineSelect value={selectedPhase} onChange={value => setSelectedPhase(value as Phase)} options={phaseOptions} placeholder="اختر المرحلة" disabled={subjectPlanTargetMode === 'classes'} />
               </div>
               <div>
                 <label className="text-[11px] font-black text-slate-400 block mb-2">القسم / المسار</label>
@@ -1499,8 +1631,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
             <div className="flex flex-col gap-4">
               <div>
-                <h4 className="font-black text-slate-800">إعداد الخطة المخصصة</h4>
-                <p className="text-xs text-slate-400 font-bold mt-1">إنشاء خطة مخصصة وتحديد عدد موادها ونصاب حصصها يدويًا.</p>
+                <h4 className="font-black text-slate-800">إضافة خطة مواد يدويًا</h4>
+                <p className="text-xs text-slate-400 font-bold mt-1">أنشئ المواد وعدد حصصها يدويًا عند عدم رغبتك استخدام الخطة الجاهزة .</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                 <div className="md:col-span-2">
@@ -1585,7 +1717,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   )
                 )}
                 {planMode !== 'custom' && (
-                  isSelectedStageApproved ? (
+                  isSelectedStageApproved && subjectPlanTargetMode === 'base' ? (
                     <>
                       <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
                         <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
@@ -1601,11 +1733,11 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-[#655ac1] text-white hover:bg-[#5046a0] shadow-lg shadow-[#655ac1]/20 disabled:bg-slate-300 disabled:shadow-none"
                     >
                       <Check size={16} />
-                      <span>اعتماد الخطة</span>
+                      <span>{subjectPlanTargetMode === 'classes' ? 'اعتمد الخطة الفرعية' : 'اعتماد الخطة'}</span>
                     </button>
                   )
                 )}
-                {planMode !== 'custom' && isSelectedStageApproved && (
+                {planMode !== 'custom' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
                   <button
                     onClick={() => setUnapproveTarget({ kind: 'stage' })}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
@@ -1638,56 +1770,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
             {planMode === 'ready' && gradePlanGroups.length > 0 && (
               <div className="px-5 py-3 border-b border-slate-100 space-y-3">
-                {planHasSemesterChoices && (
-                  <div className="flex gap-2 flex-wrap">
-                    {(['1', '2'] as const).map(semester => (
-                      <button
-                        key={semester}
-                        onClick={() => setSelectedSemesterFilter(semester)}
-                        className={`px-5 py-2.5 rounded-xl border text-xs font-black transition-all ${
-                          selectedSemesterFilter === semester
-                            ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
-                        }`}
-                      >
-                        {semester === '1' ? 'الفصل الأول' : 'الفصل الثاني'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex gap-2 flex-wrap">
-                    {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {
-                      const isActive = selectedDepartment?.subDepartments?.length
-                        ? selectedSubDepartmentId === group.id
-                        : group.plans.some(plan => plan.key === selectedPlanKey);
-                      return (
-                        <button
-                          key={group.id}
-                          onClick={() => {
-                            if (selectedDepartment?.subDepartments?.length) {
-                              setSelectedSubDepartmentId(group.id);
-                              const nextPlan = (planHasSemesterChoices
-                                ? group.plans.find(plan => getPlanSemester(plan) === selectedSemesterFilter)
-                                : group.plans[0]);
-                              setSelectedPlanKey(nextPlan?.key || '');
-                            } else {
-                              setSelectedPlanKey(group.plans[0]?.key || '');
-                            }
-                          }}
-                          className={`px-4 py-2.5 rounded-xl border text-xs font-black transition-all ${
-                            isActive
-                              ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
-                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
-                          }`}
-                        >
-                          {group.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-2 flex-wrap lg:justify-end">
+                  <div className="flex gap-2 flex-wrap justify-start">
                     <button
                       onClick={() => {
                         setSelectedPrintKeys(selectedPlanKey ? [selectedPlanKey] : []);
@@ -1717,10 +1801,72 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       <span>قيود المواد</span>
                     </button>
                   </div>
+                  {isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
+                    <div className="flex justify-start lg:justify-end">
+                      <button
+                        onClick={beginClassSubjectPlan}
+                        disabled={!availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId)}
+                        title={!availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) ? 'لا يوجد قسم / مسار آخر في نفس المرحلة' : undefined}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Layers size={16} />
+                        <span>أضف خطة دراسية أخرى لفصول معينة</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
+                <div className="flex gap-2 flex-wrap justify-start border-t border-slate-100 pt-3">
+                  {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {
+                    const isActive = selectedDepartment?.subDepartments?.length
+                      ? selectedSubDepartmentId === group.id
+                      : group.plans.some(plan => plan.key === selectedPlanKey);
+                    return (
+                      <button
+                        key={group.id}
+                        onClick={() => {
+                          if (selectedDepartment?.subDepartments?.length) {
+                            setSelectedSubDepartmentId(group.id);
+                            const nextPlan = (planHasSemesterChoices
+                              ? group.plans.find(plan => getPlanSemester(plan) === selectedSemesterFilter)
+                              : group.plans[0]);
+                            setSelectedPlanKey(nextPlan?.key || '');
+                          } else {
+                            setSelectedPlanKey(group.plans[0]?.key || '');
+                          }
+                        }}
+                        className={`px-4 py-2.5 rounded-xl border text-xs font-black transition-all ${
+                          isActive
+                            ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                        }`}
+                      >
+                        {group.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {planHasSemesterChoices && (
+                  <div className="flex gap-2 flex-wrap justify-start">
+                    {(['1', '2'] as const).map(semester => (
+                      <button
+                        key={semester}
+                        onClick={() => setSelectedSemesterFilter(semester)}
+                        className={`px-5 py-2.5 rounded-xl border text-xs font-black transition-all ${
+                          selectedSemesterFilter === semester
+                            ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                        }`}
+                      >
+                        {semester === '1' ? 'الفصل الأول' : 'الفصل الثاني'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {selectedDepartment?.subDepartments?.length && visiblePlanNavigation.length > 1 && (
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap justify-start">
                     {visiblePlanNavigation.map(item => {
                       const isActive = item.key === selectedPlanKey;
                       return (
@@ -1745,7 +1891,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <div className="px-5 pt-4">
               <div className="mb-3 text-lg font-black text-[#655ac1]">
                 {planMode === 'custom'
-                  ? (activeCustomPlanName || 'خطة مخصصة')
+                  ? (activeCustomPlanName || 'خطة يدوية')
                   : (
                     <>
                       {getGradeDisplayName(selectedPhase, selectedGrade)}
@@ -1772,7 +1918,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       <td colSpan={5} className="px-5 py-16 text-center">
                         <Layers size={42} className="mx-auto text-[#655ac1]/30 mb-3" />
                         <div className="font-black text-slate-600">لا توجد مواد لهذا الاختيار</div>
-                        <div className="text-xs text-slate-400 font-bold mt-1">اختر مرحلة وقسمًا وصفًا آخر أو أضف مادة مخصصة</div>
+                        <div className="text-xs text-slate-400 font-bold mt-1">اختر مرحلة وقسمًا وصفًا آخر أو أضف مادة يدوية</div>
                       </td>
                     </tr>
                   ) : selectedPlanSubjects.map((subject, index) => {
@@ -2056,7 +2202,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 <div>
                   <h2 className="text-xl font-black text-slate-800 mb-2">هل تريد إضافة مادة ؟</h2>
                   <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                    سيتم إضافة مادة جديدة إلى خطة {planMode === 'custom' ? (addSubjectTargetPlanName || activeCustomPlanName || 'مخصصة') : getGradeDisplayName(selectedPhase, selectedGrade)} ويمكنك التعديل مباشرة بعد الإضافة.
+                    سيتم إضافة مادة جديدة إلى خطة {planMode === 'custom' ? (addSubjectTargetPlanName || activeCustomPlanName || 'يدوية') : getGradeDisplayName(selectedPhase, selectedGrade)} ويمكنك التعديل مباشرة بعد الإضافة.
                   </p>
                 </div>
               </div>
@@ -2616,8 +2762,8 @@ const CustomPlanModal: React.FC<{
                 {/* Header — matches GradeDetailsModal style */}
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
                     <div>
-                        <h3 className="text-xl font-black text-slate-800">إضافة خطة مخصصة</h3>
-                        <p className="text-xs text-slate-400 font-bold mt-0.5">إنشاء خطة مخصصة وتحديد عدد موادها ونصاب حصصها</p>
+                        <h3 className="text-xl font-black text-slate-800">إضافة خطة مواد يدويًا</h3>
+                        <p className="text-xs text-slate-400 font-bold mt-0.5">أنشئ المواد وعدد حصصها يدويًا عند عدم رغبتك استخدام الخطة الجاهزة .</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600">
                         <X size={22} />

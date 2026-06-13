@@ -226,8 +226,8 @@ const createDefaultSubscription = (): SubscriptionInfo => {
     endDate: semesterEnd.toISOString().split('T')[0],
     planName: 'ط§ظ„ط¨ط§ظ‚ط© ط§ظ„ظ…طھظ‚ط¯ظ…ط©',
     transactions: [],
-    freeSmsRemaining: 10,
-    freeWaRemaining: 50
+    freeSmsRemaining: 5,
+    freeWaRemaining: 10
   };
 };
 
@@ -477,8 +477,8 @@ const App: React.FC = () => {
       endDate: semesterEnd.toISOString().split('T')[0],
       planName: 'الباقة المتقدمة',
       transactions: [],
-      freeSmsRemaining: 10,
-      freeWaRemaining: 50
+      freeSmsRemaining: 5,
+      freeWaRemaining: 10
     };
   });
 
@@ -647,7 +647,7 @@ const App: React.FC = () => {
       );
       case 'settings_timing': return <TimingSettings schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
       case 'settings_calendar': return <CalendarSettings schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
-      case 'settings_classes': return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} />;
+      case 'settings_classes': return <Step4Classes classes={classes} setClasses={setClasses} subjects={subjects} setSubjects={setSubjects} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} phaseDepartmentMap={phaseDepartmentMap} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} assignments={assignments} setAssignments={setAssignments} scheduleSettings={scheduleSettings} />;
       case 'settings_subjects': return <Step3Subjects subjects={subjects} setSubjects={setSubjects} schoolInfo={schoolInfo} gradeSubjectMap={gradeSubjectMap} setGradeSubjectMap={setGradeSubjectMap} phaseDepartmentMap={phaseDepartmentMap} setPhaseDepartmentMap={setPhaseDepartmentMap} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;
       case 'settings_students': return <Step5Students classes={classes} students={students} setStudents={setStudents} schoolInfo={schoolInfo} />;
       case 'settings_teachers': return <Step6Teachers teachers={teachers} setTeachers={setTeachers} specializations={specializations} schoolInfo={schoolInfo} setSchoolInfo={setSchoolInfo} classes={classes} scheduleSettings={scheduleSettings} setScheduleSettings={setScheduleSettings} />;

@@ -118,9 +118,9 @@ const SubscriptionDashboard: React.FC<SubscriptionDashboardProps> = ({
     ? (messageStartDate ? addYearsIso(messageStartDate, 1) : undefined)
     : stats.messagePackageEndDate;
 
-  // ── الإجمالي والمستهلك لكل قناة (التجربة المجانية: واتساب ٥٠ / SMS ١٠) ──
-  const waTotal = isMessageTrial ? 50 : (stats.activePackageWA ?? stats.balanceWhatsApp);
-  const smsTotal = isMessageTrial ? 10 : (stats.activePackageSMS ?? stats.balanceSMS);
+  // ── الإجمالي والمستهلك لكل قناة (التجربة المجانية: واتساب ١٠ / SMS ٥) ──
+  const waTotal = isMessageTrial ? 10 : (stats.activePackageWA ?? stats.balanceWhatsApp);
+  const smsTotal = isMessageTrial ? 5 : (stats.activePackageSMS ?? stats.balanceSMS);
   const waUsed = Math.max(0, waTotal - stats.balanceWhatsApp);
   const smsUsed = Math.max(0, smsTotal - stats.balanceSMS);
   const usagePct = (used: number, total: number) =>
