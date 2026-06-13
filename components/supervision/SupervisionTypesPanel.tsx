@@ -226,18 +226,18 @@ const SupervisionTypesPanel: React.FC<Props> = ({
         </div>
       )}
 
-      {/* دليل مختصر على شكل خطوات هادئة */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-5">
+      {/* دليل مختصر على شكل خطوات هادئة — مكدّسة عموديًا بعرض الصفحة */}
+      <div className="flex flex-col gap-2.5 mb-5">
         {[
           'اختر نوع الإشراف لكل جدول.',
           'نوع الإشراف المحدد يظهر في جدول واحد فقط.',
           'يمكنك إضافة جداول فرعية لأنواع أخرى (كالأدوار والاصطفاف).',
         ].map((text, i) => (
-          <div key={i} className="flex items-start gap-2.5 flex-1 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5">
-            <span className="w-5 h-5 rounded-full bg-[#655ac1] text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">
+          <div key={i} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
+            <span className="w-6 h-6 rounded-full bg-[#655ac1] text-white text-xs font-black flex items-center justify-center shrink-0">
               {i + 1}
             </span>
-            <span className="text-[11px] font-bold text-slate-600 leading-relaxed">{text}</span>
+            <span className="text-[13px] font-bold text-slate-600 leading-relaxed">{text}</span>
           </div>
         ))}
       </div>
@@ -352,7 +352,7 @@ const SupervisionTypesPanel: React.FC<Props> = ({
                             <button
                               type="button"
                               onClick={() => startEditType(type)}
-                              className="p-2 rounded-lg text-slate-500 hover:text-[#655ac1] hover:bg-[#655ac1]/10 transition-colors"
+                              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-[#655ac1] hover:border-[#655ac1] transition-colors"
                               title="تعديل"
                             >
                               <Edit3 size={15} />
@@ -362,7 +362,7 @@ const SupervisionTypesPanel: React.FC<Props> = ({
                             type="button"
                             disabled={type.isBuiltIn}
                             onClick={() => deleteCustom(type.id)}
-                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                            className="p-2 rounded-lg border border-slate-200 bg-white text-red-500 hover:border-red-300 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:hover:bg-white disabled:hover:border-slate-200 disabled:cursor-not-allowed"
                             title={type.isBuiltIn ? 'لا يمكن حذف نوع إشراف أساسي' : 'حذف'}
                           >
                             <Trash2 size={15} />
