@@ -2615,7 +2615,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                           {(copyMode === 'manual' || sourceTeacher) && (
                           <div className="flex flex-col gap-3">
                                <label className="text-xs font-black text-slate-600">حدد الهدف</label>
-                               <div className="flex flex-wrap gap-2">
+                               <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
                                  {[
                                    { id: 'teachers', label: 'معلمون' },
                                    { id: 'specs', label: 'تخصصات' },
@@ -2624,7 +2624,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                                    <button
                                      key={item.id}
                                      onClick={() => setCopyTargetMode(item.id as 'teachers' | 'specs' | 'all')}
-                                     className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${copyTargetMode === item.id ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20' : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'}`}
+                                     className={`py-2.5 rounded-xl text-sm font-black transition-all ${copyTargetMode === item.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                    >
                                      {item.label}
                                    </button>
