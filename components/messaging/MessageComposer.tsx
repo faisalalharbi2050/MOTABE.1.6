@@ -969,7 +969,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
           {/* Fallback toggle — only for WhatsApp (مفعّل تلقائياً لضمان الوصول) */}
           {channel === 'whatsapp' && (
             <label className={`relative flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-colors mb-4 border ${
-              fallbackToSms ? 'border-emerald-300' : 'border-slate-200 hover:border-slate-300'
+              fallbackToSms ? 'border-[#655ac1]/40' : 'border-slate-200 hover:border-slate-300'
             }`}>
               <input
                 type="checkbox"
@@ -977,7 +977,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({
                 checked={fallbackToSms}
                 onChange={(e) => setFallbackToSms(e.target.checked)}
               />
-              <div className={`relative flex items-center w-11 h-6 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-[#25D366]' : 'bg-slate-300'}`}>
+              <div className={`relative flex items-center w-11 h-6 shrink-0 rounded-full transition-colors ${fallbackToSms ? 'bg-[#655ac1]' : 'bg-slate-300'}`}>
                 <div className={`absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${fallbackToSms ? 'right-1' : 'left-1'}`} />
               </div>
               <div className="select-none leading-relaxed">
