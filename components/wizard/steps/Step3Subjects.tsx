@@ -1627,11 +1627,21 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
         )}
 
         {planMode === 'ready' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
-          <div className="flex items-start gap-2 px-2">
-            <Layers size={16} className="mt-0.5 shrink-0 text-[#655ac1]" />
-            <p className="text-[11px] font-bold leading-relaxed text-slate-500">
-              هل بعض فصول هذه المرحلة تتبع قسمًا مختلفًا (موهوبين، تحفيظ، تربية خاصة)؟ اعتمد خطة المرحلة العامة كأساسية، ثم أضف لها <span className="text-[#655ac1] font-black">خطة فرعية</span> للقسم الملحق من زر «إضافة خطة فرعية» بالأسفل، واربطها بتلك الفصول من صفحة الفصول.
-            </p>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <Layers size={17} className="mt-0.5 shrink-0 text-[#655ac1]" />
+              <div className="text-[11px] font-bold leading-relaxed text-slate-500">
+                <span className="block">هل بعض فصول هذه المرحلة تتبع قسمًا مختلفًا؟ (موهوبين، تحفيظ، تربية خاصة)</span>
+                <span className="block">أضِف لها <span className="text-[#655ac1] font-black">خطة فرعية</span>، ثم اربطها بتلك الفصول من صفحة الفصول.</span>
+              </div>
+            </div>
+            <button
+              onClick={beginClassSubjectPlan}
+              className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
+            >
+              <Layers size={16} />
+              <span>إضافة خطة فرعية</span>
+            </button>
           </div>
         )}
 
@@ -1809,17 +1819,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       <span>قيود المواد</span>
                     </button>
                   </div>
-                  {isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
-                    <div className="flex justify-start lg:justify-end">
-                      <button
-                        onClick={beginClassSubjectPlan}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
-                      >
-                        <Layers size={16} />
-                        <span>إضافة خطة فرعية</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex gap-2 flex-wrap justify-start border-t border-slate-100 pt-3">
