@@ -1581,7 +1581,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
                 }`}
               >
-                <span className="font-black text-sm">إضافة خطة دراسية يدويًا</span>
+                <span className="font-black text-sm">خطة دراسية يدوية</span>
               </button>
             </div>
           </div>
