@@ -371,7 +371,7 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, sch
               <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr]">
                 {/* ─── RIGHT: staff picker ─── */}
                 <div className="space-y-4 overflow-y-auto bg-slate-50/40 p-5 custom-scrollbar lg:h-[640px] lg:border-l lg:border-slate-100">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
                     {([
                       { id: 'teacher', label: 'معلم', icon: Users },
                       { id: 'admin', label: 'إداري', icon: UserCog },
@@ -382,10 +382,10 @@ const RolePermissions: React.FC<RolePermissionsProps> = ({ teachers, admins, sch
                         key={option.id}
                         type="button"
                         onClick={() => selectStaffType(option.id)}
-                        className={`flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-black transition-all ${
+                        className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black transition-all ${
                           active
-                            ? 'border-[#655ac1] bg-[#655ac1] text-white shadow-md shadow-[#655ac1]/20'
-                            : 'border-slate-200 bg-white/70 text-slate-500 hover:border-[#655ac1]/30'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         <option.icon size={16} />
