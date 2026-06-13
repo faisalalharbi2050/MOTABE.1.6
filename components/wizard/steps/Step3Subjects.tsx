@@ -1182,8 +1182,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     const includedGrades = Object.keys(gradeMap).map(Number).sort((a, b) => a - b);
     if (includedGrades.length === 0) return;
 
-    const phaseName = getPhaseLabel(selectedPhase as Phase);
-    const planName = `خطة فرعية - ${phaseName} - ${selectedDepartment.name}`;
+    const planName = `خطة فرعية - ${selectedDepartment.name}`;
     setSubjects(prev => [...prev, ...clonedSubjects]);
     setScheduleSettings(prev => ({
       ...prev,

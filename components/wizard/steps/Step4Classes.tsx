@@ -565,16 +565,22 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     };
   }, [currentSchoolClasses, getGradeSubjectIds, phaseDepartmentMap, activePhase]);
 
+  const formatSubPlanLabel = useCallback((name: string, phase?: string) => {
+    let dept = name.replace(/^خطة فرعية -\s*/, '');
+    if (phase) dept = dept.replace(new RegExp(`^${phase}\\s*-\\s*`), '');
+    return `الخطة الفرعية - ${dept}`;
+  }, []);
+
   const classPlanOptions = useMemo(() => (
     (scheduleSettings.classSubjectPlans || [])
       .filter(plan => plan.schoolId === activeSchoolId && plan.phase === activePhase)
       .map(plan => ({
         value: plan.id,
-        label: plan.name.replace(/^خطة فرعية -\s*/, 'الخطة الفرعية - '),
+        label: formatSubPlanLabel(plan.name, plan.phase),
         subjectIds: plan.subjectIds,
         gradeSubjectMap: plan.gradeSubjectMap
       }))
-  ), [scheduleSettings.classSubjectPlans, activeSchoolId, activePhase]);
+  ), [scheduleSettings.classSubjectPlans, activeSchoolId, activePhase, formatSubPlanLabel]);
 
   useEffect(() => {
     if (!showClassPlansModal) return;
@@ -2586,7 +2592,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]"><BookOpen size={22} /></div>
                 <div>
                   <h3 className="text-base font-black text-slate-800">تخصيص خطط الفصول</h3>
-                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">فعّلها عند وجود خطة أساسية وخطة فرعية، ثم اختر الفصول التي تريد ربطها بالخطة الفرعية.</p>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">اختر الفصول التي تريد ربطها بالخطة الفرعية</p>
                 </div>
               </div>
               <button onClick={() => setShowClassPlansModal(false)} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
@@ -2619,13 +2625,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         key={plan.value}
                         type="button"
                         onClick={() => setClassPlanId(plan.value)}
-                        className={`w-full rounded-2xl border p-4 text-right transition-all ${active ? 'bg-[#655ac1] border-[#655ac1] shadow-sm shadow-[#655ac1]/20' : 'bg-white border-slate-200 hover:border-[#655ac1]/40'}`}
+                        className={`w-full rounded-2xl border bg-white p-4 text-right transition-all ${active ? 'border-slate-300 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <h4 className={`text-sm font-black ${active ? 'text-white' : 'text-slate-800'}`}>{plan.label}</h4>
-                            <p className={`text-[11px] font-bold mt-1 ${active ? 'text-white/75' : 'text-slate-400'}`}>اختر الفصول المطلوبة</p>
+                            <h4 className="text-sm font-black text-[#655ac1]">{plan.label}</h4>
+                            <p className="text-[11px] font-bold mt-1 text-[#655ac1]/70">اختر الفصول المطلوبة</p>
                           </div>
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
                         </div>
                       </button>
                     );
@@ -2650,8 +2657,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
                         {grouped[grade].map(cls => {
                           const selected = classPlanSelectedIds.has(cls.id);
+                          const clsPlan = cls.subjectPlanId
+                            ? (scheduleSettings.classSubjectPlans || []).find(plan => plan.id === cls.subjectPlanId)
+                            : undefined;
                           const planLabel = cls.subjectPlanId
-                            ? (scheduleSettings.classSubjectPlans || []).find(plan => plan.id === cls.subjectPlanId)?.name?.replace(/^خطة فرعية -\s*/, 'الخطة الفرعية - ') || 'الخطة الفرعية'
+                            ? (clsPlan ? formatSubPlanLabel(clsPlan.name, clsPlan.phase) : 'الخطة الفرعية')
                             : basePlanSummary.label;
                           return (
                             <button
