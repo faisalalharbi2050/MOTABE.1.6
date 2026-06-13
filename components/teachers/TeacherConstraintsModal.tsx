@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
-import { Users, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, GripVertical, ChevronUp, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Lightbulb } from 'lucide-react';
+import { Users, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Copy } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -134,6 +134,7 @@ export default function TeacherConstraintsModal({
   const [selId, setSelId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'spec' | 'alpha'>('spec');
+  const [specFilter, setSpecFilter] = useState('');
 
   useEffect(() => {
     if (isOpen && initialTeacherId) setSelId(initialTeacherId);
@@ -179,12 +180,14 @@ export default function TeacherConstraintsModal({
   // Sections Expansions
   const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c5: false, c6: false, c7: false });
 
-  // Generic sidebar apply-mode (multi-select against the right sidebar)
-  const [applyMode, setApplyMode] = useState<null | 'consec' | 'excluded' | 'early'>(null);
-  const [applySelection, setApplySelection] = useState<string[]>([]);
-  const [consecApplyDone, setConsecApplyDone] = useState<{ count: number; value: number } | null>(null);
-  const [excludedApplyDone, setExcludedApplyDone] = useState<{ count: number } | null>(null);
-  const [earlyApplyDone, setEarlyApplyDone] = useState<{ applied: number; adjusted: number; skipped: number } | null>(null);
+  // Copy-constraints panel (overlay inside this modal — copies the selected teacher's constraints to others)
+  const [showCopyPanel, setShowCopyPanel] = useState(false);
+  const [copyTargets, setCopyTargets] = useState<string[]>([]);
+  const [copyTypes, setCopyTypes] = useState({ consec: true, excluded: true, early: true });
+  const [copySearch, setCopySearch] = useState('');
+  const [copySpecFilter, setCopySpecFilter] = useState('');
+  const [copyEarlyMode, setCopyEarlyMode] = useState<'manual' | 'auto'>('auto');
+  const [copyDone, setCopyDone] = useState<{ applied: number; adjusted: number; skipped: number } | null>(null);
   const [earlyDraftDay, setEarlyDraftDay] = useState<Record<string, string>>({});
 
   // Sync open sections when initialOpenSection prop changes (e.g. when modal is reopened with a different target)
@@ -207,46 +210,6 @@ export default function TeacherConstraintsModal({
       ? constraints.map(c => c.teacherId === tid ? { ...c, ...upd } : c)
       : [...constraints, { teacherId: tid, maxConsecutive: 2, excludedSlots: {}, ...upd }];
     onChangeConstraints(newConstraints);
-  };
-
-  // --- Apply max-consecutive value to a selected group of teachers ---
-  const applyConsecutiveToSelection = (value: number, ids: string[]) => {
-    if (ids.length === 0) return;
-    const next = [...constraints];
-    ids.forEach(tid => {
-      const idx = next.findIndex(c => c.teacherId === tid);
-      if (idx >= 0) {
-        next[idx] = { ...next[idx], maxConsecutive: value };
-      } else {
-        next.push({ teacherId: tid, maxConsecutive: value, excludedSlots: {} });
-      }
-    });
-    onChangeConstraints(next);
-    setApplyMode(null);
-    setApplySelection([]);
-    setConsecApplyDone({ count: ids.length, value });
-    setTimeout(() => setConsecApplyDone(null), 2400);
-  };
-
-  const applyExcludedSlotsToSelection = (excludedSlots: Record<string, number[]>, ids: string[]) => {
-    if (ids.length === 0) return;
-    const next = [...constraints];
-    ids.forEach(tid => {
-      const idx = next.findIndex(c => c.teacherId === tid);
-      const clonedSlots = Object.fromEntries(
-        Object.entries(excludedSlots || {}).map(([day, slots]) => [day, [...(slots || [])]])
-      ) as Record<string, number[]>;
-      if (idx >= 0) {
-        next[idx] = { ...next[idx], excludedSlots: clonedSlots };
-      } else {
-        next.push({ teacherId: tid, maxConsecutive: 2, excludedSlots: clonedSlots });
-      }
-    });
-    onChangeConstraints(next);
-    setApplyMode(null);
-    setApplySelection([]);
-    setExcludedApplyDone({ count: ids.length });
-    setTimeout(() => setExcludedApplyDone(null), 2400);
   };
 
   const getTeacherAvailableSlots = (
@@ -296,53 +259,59 @@ export default function TeacherConstraintsModal({
     return { status: 'impossible' };
   };
 
-  const applyEarlyExitToSelection = (
-    mode: 'manual' | 'auto',
-    day: string,
-    period: number,
-    ids: string[]
-  ) => {
-    if (ids.length === 0 || !period || (mode === 'manual' && !day)) return;
+  // --- Copy the selected teacher's constraints to a group of teachers ---
+  const openCopyPanel = () => {
+    if (!selId) return;
+    const c = getC(selId);
+    const excludedCount = days.reduce((sum, d) =>
+      sum + (c.excludedSlots?.[d] || []).filter(p => p >= 1 && p <= (dayLastPeriods[d] ?? safePeriodsCount)).length, 0);
+    const hasEarly = !!c.earlyExitMode && !!c.earlyExit && Object.keys(c.earlyExit).length > 0;
+    setCopyTypes({ consec: true, excluded: excludedCount > 0, early: hasEarly });
+    setCopyEarlyMode((c.earlyExitMode as 'manual' | 'auto') || 'auto');
+    setCopyTargets([]);
+    setCopySearch('');
+    setCopySpecFilter('');
+    setCopyDone(null);
+    setShowCopyPanel(true);
+  };
+
+  const runCopyConstraints = () => {
+    if (!selId || copyTargets.length === 0) return;
+    const src = getC(selId);
+    const srcDay = src.earlyExit ? Object.keys(src.earlyExit)[0] || '' : '';
+    const srcPeriod = src.earlyExit ? Object.values(src.earlyExit)[0] || 0 : 0;
     const next = [...constraints];
-    let applied = 0;
     let adjusted = 0;
     let skipped = 0;
 
-    ids.forEach(tid => {
-      const teacher = teachers.find(t => t.id === tid);
-      if (!teacher) return;
-      const result = evaluateEarlyExit(teacher, mode, day, period);
-      if (result.status === 'impossible' || result.status === 'empty' || !result.suggestedPeriod) {
-        skipped++;
-        return;
-      }
-      const targetDay = mode === 'auto' ? (result.suggestedDay || days[0]) : day;
+    copyTargets.forEach(tid => {
       const idx = next.findIndex(c => c.teacherId === tid);
-      const updated = {
-        ...(idx >= 0 ? next[idx] : { teacherId: tid, maxConsecutive: 2, excludedSlots: {} }),
-        earlyExitMode: mode,
-        earlyExit: { [targetDay]: result.suggestedPeriod },
-      } as TeacherConstraint;
-      if (idx >= 0) next[idx] = updated;
-      else next.push(updated);
-      applied++;
-      if (result.status === 'adjust') adjusted++;
+      const base = (idx >= 0 ? { ...next[idx] } : { teacherId: tid, maxConsecutive: 2, excludedSlots: {} }) as TeacherConstraint;
+      if (copyTypes.consec) base.maxConsecutive = src.maxConsecutive ?? 2;
+      if (copyTypes.excluded) {
+        base.excludedSlots = Object.fromEntries(
+          Object.entries(src.excludedSlots || {}).map(([day, slots]) => [day, [...(slots || [])]])
+        ) as Record<string, number[]>;
+      }
+      if (copyTypes.early && srcPeriod) {
+        const teacher = teachers.find(t => t.id === tid);
+        const result = teacher ? evaluateEarlyExit(teacher, copyEarlyMode, srcDay, srcPeriod) : { status: 'impossible' as const };
+        if (result.status === 'impossible' || result.status === 'empty' || !result.suggestedPeriod) {
+          skipped++;
+        } else {
+          const targetDay = copyEarlyMode === 'auto' ? (result.suggestedDay || days[0]) : srcDay;
+          base.earlyExitMode = copyEarlyMode;
+          base.earlyExit = { [targetDay]: result.suggestedPeriod };
+          if (result.status === 'adjust') adjusted++;
+        }
+      }
+      if (idx >= 0) next[idx] = base;
+      else next.push(base);
     });
 
     onChangeConstraints(next);
-    setApplyMode(null);
-    setApplySelection([]);
-    setEarlyApplyDone({ applied, adjusted, skipped });
-    setTimeout(() => setEarlyApplyDone(null), 3200);
-  };
-
-  const toggleApplyTarget = (id: string) => {
-    setApplySelection(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const exitApplyMode = () => {
-    setApplyMode(null);
-    setApplySelection([]);
+    setCopyDone({ applied: copyTargets.length, adjusted, skipped });
+    setTimeout(() => { setShowCopyPanel(false); setCopyDone(null); }, 1900);
   };
 
   // --- Stats ---
@@ -366,6 +335,7 @@ export default function TeacherConstraintsModal({
     const term = search.toLowerCase();
     const matchesSearch = t.name.toLowerCase().includes(term) || sName.toLowerCase().includes(term);
     if (!matchesSearch) return false;
+    if (specFilter && t.specializationId !== specFilter) return false;
     const hasC = constraints.some(c => c.teacherId === t.id && (
       (c.maxConsecutive !== undefined && c.maxConsecutive !== 2) ||
       (c.excludedSlots && Object.values(c.excludedSlots).some(arr => arr && arr.length > 0)) ||
@@ -376,14 +346,6 @@ export default function TeacherConstraintsModal({
     if (quickFilter === 'none') return !hasC && !isExcluded;
     if (quickFilter === 'excluded') return isExcluded;
     return true;
-  }).sort((a, b) => {
-    if (sortBy === 'alpha') return a.name.localeCompare(b.name, 'ar');
-    const iA = specOrder.indexOf(a.specializationId ?? '');
-    const iB = specOrder.indexOf(b.specializationId ?? '');
-    const valA = iA === -1 ? 999 : iA;
-    const valB = iB === -1 ? 999 : iB;
-    if (valA !== valB) return valA - valB;
-    return a.name.localeCompare(b.name, 'ar');
   });
 
   const selTeacher = teachers.find(t => t.id === selId);
@@ -410,7 +372,7 @@ export default function TeacherConstraintsModal({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3" style={{ direction: 'rtl' }}>
-      <div className={`bg-slate-50 w-full ${singleTeacherMode ? 'max-w-3xl' : 'max-w-6xl'} h-[92vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-200`}>
+      <div className={`relative bg-slate-50 w-full ${singleTeacherMode ? 'max-w-3xl' : 'max-w-6xl'} h-[92vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-200`}>
 
         {/* --- Header --- */}
         <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -428,192 +390,50 @@ export default function TeacherConstraintsModal({
           {/* --- Sidebar --- */}
           {!singleTeacherMode && (
           <div className="w-72 bg-white border-l border-slate-100 flex flex-col shrink-0">
-            {/* Apply-mode banner — gray frame, gray text, purple buttons */}
-            {applyMode && (() => {
-              const ids = filteredTeachers.map(t => t.id);
-              const allOn = ids.length > 0 && ids.every(id => applySelection.includes(id));
-              const toggleSelectAll = () => {
-                if (allOn) {
-                  setApplySelection(prev => prev.filter(id => !ids.includes(id)));
-                } else {
-                  setApplySelection(prev => Array.from(new Set([...prev, ...ids])));
-                }
-              };
-              const runApply = () => {
-                if (applyMode === 'consec') applyConsecutiveToSelection(sc?.maxConsecutive ?? 2, applySelection);
-                if (applyMode === 'excluded') applyExcludedSlotsToSelection(sc?.excludedSlots || {}, applySelection);
-                if (applyMode === 'early') {
-                  const mode = (sc?.earlyExitMode || 'manual') as 'manual' | 'auto';
-                  const day = sc?.earlyExit ? Object.keys(sc.earlyExit)[0] || '' : '';
-                  const period = sc?.earlyExit ? Object.values(sc.earlyExit)[0] || 0 : 0;
-                  applyEarlyExitToSelection(mode, day, period, applySelection);
-                }
-              };
-              return (
-                <div className="bg-slate-50 border-b border-slate-200 px-3 py-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-black text-slate-600 truncate">وضع التحديد للتطبيق</span>
-                    <button onClick={exitApplyMode} className="w-6 h-6 rounded-full border border-slate-300 bg-white flex items-center justify-center hover:bg-slate-100 hover:border-slate-400 text-slate-500 shrink-0 transition-all" title="إلغاء التطبيق">
-                      <X size={12} />
-                    </button>
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500">
-                    محدد: <span className="font-black text-[#655ac1]">{applySelection.length}</span> من {filteredTeachers.length}
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={toggleSelectAll}
-                      className="flex-1 px-2 py-1.5 rounded-md bg-white border border-[#655ac1]/40 text-[#655ac1] text-[10px] font-black hover:bg-[#655ac1]/5 transition-all"
-                    >
-                      {allOn ? 'إلغاء الكل' : 'تحديد الكل'}
-                    </button>
-                    <button
-                      onClick={runApply}
-                      disabled={applySelection.length === 0}
-                      className="flex-1 px-2 py-1.5 rounded-md bg-[#655ac1] text-white text-[10px] font-black hover:bg-[#574bb1] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    >
-                      تطبيق على ({applySelection.length})
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Search & Sort */}
+            {/* Search & Specialization filter — unified with apply-quota modal */}
             <div className="p-3 border-b border-slate-100 space-y-2.5">
               <div className="relative">
-                <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="بحث..." className="w-full pr-9 pl-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold outline-none focus:border-[#655ac1]/40 transition-all" />
+                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="ابحث باسم المعلم"
+                  className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 transition-all"
+                />
               </div>
-              <div className="flex gap-1.5">
-                <button onClick={() => setSortBy('spec')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='spec'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>التخصص</button>
-                {sortBy === 'spec' && (
-                  <button onClick={() => setShowSpecPanel(!showSpecPanel)}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${showSpecPanel ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>
-                    <GripVertical size={13} />
-                    ترتيب
-                  </button>
-                )}
-                <button onClick={() => setSortBy('alpha')} className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${sortBy==='alpha'?'bg-[#655ac1] border-[#655ac1] text-white':'bg-white border-slate-300 text-slate-500 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}>أبجدي</button>
-              </div>
-              {/* Spec Sorting Dropdown - entity-dropdown style */}
-              {showSpecPanel && sortBy === 'spec' && (
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-2.5 max-h-72 overflow-y-auto custom-scrollbar space-y-1 animate-in slide-in-from-top-2">
-                  {specOrder.map((sid, idx) => {
-                    const sp = specializations.find(s => s.id === sid) || INITIAL_SPECIALIZATIONS.find(s => s.id === sid);
-                    if (!sp) return null;
-                    const specCount = teachers.filter(t => t.specializationId === sid).length;
-                    return (
-                      <div key={sid} className="group w-full text-right px-3 py-2 text-[12px] font-bold rounded-xl flex items-center justify-between text-slate-700 hover:bg-[#655ac1] hover:text-white transition-colors">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-transparent border border-slate-300 text-[#655ac1] text-xs font-black shrink-0 group-hover:bg-white group-hover:border-white">
-                            {specCount}
-                          </span>
-                          <span className="truncate">{sp.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => {
-                            const newOrder = [...specOrder];
-                            if (idx > 0) {
-                              [newOrder[idx], newOrder[idx - 1]] = [newOrder[idx - 1], newOrder[idx]];
-                              setSpecOrder(newOrder);
-                            }
-                          }} disabled={idx === 0} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 group-hover:border-white group-hover:text-white hover:!bg-white hover:!text-[#655ac1] hover:!border-white disabled:opacity-30 transition-all"><ChevronUp size={13} /></button>
-                          <button onClick={() => {
-                            const newOrder = [...specOrder];
-                            if (idx < specOrder.length - 1) {
-                              [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
-                              setSpecOrder(newOrder);
-                            }
-                          }} disabled={idx === specOrder.length - 1} className="w-6 h-6 inline-flex items-center justify-center rounded-md border border-slate-200 text-slate-400 group-hover:border-white group-hover:text-white hover:!bg-white hover:!text-[#655ac1] hover:!border-white disabled:opacity-30 transition-all"><ChevronDown size={13} /></button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <ConstraintSelectDropdown
+                value={specFilter}
+                onChange={setSpecFilter}
+                options={[{ id: '', name: 'كل التخصصات' }, ...usedSpecIds.map(id => ({ id, name: specializations.find(s => s.id === id)?.name || INITIAL_SPECIALIZATIONS.find(s => s.id === id)?.name || 'بدون تخصص' }))]}
+                placeholder="كل التخصصات"
+              />
             </div>
             {/* List */}
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {(() => {
-                if (filteredTeachers.length === 0) {
-                  return <div className="text-center py-8 text-xs font-bold text-slate-400">لا يوجد معلمين</div>;
-                }
-                const renderTeacher = (t: Teacher) => {
-                  const spName = specializations.find(s => s.id === t.specializationId)?.name
-                    || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name
-                    || '';
-                  if (applyMode) {
-                    const checked = applySelection.includes(t.id);
-                    return (
-                      <button key={t.id} type="button" onClick={() => toggleApplyTarget(t.id)}
-                        className="w-full text-right p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 flex items-center gap-3 transition-all">
-                        <div className="flex-1 min-w-0">
-                          <div className={`text-[13px] font-black truncate transition-colors ${checked ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                          {sortBy === 'alpha' && <div className="text-[11px] font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
-                        </div>
-                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? 'bg-[#655ac1] border-[#655ac1]' : 'border-slate-300 bg-white'}`}>
-                          {checked && <Check size={12} className="text-white" strokeWidth={3.5} />}
-                        </span>
-                      </button>
-                    );
-                  }
-                  const isSel = selId === t.id;
-                  const hasC = constraints.some(c => c.teacherId === t.id);
-                  return (
-                    <button key={t.id} onClick={() => setSelId(isSel ? null : t.id)}
-                      className={`w-full text-right p-3 rounded-xl border flex items-center gap-3 transition-all ${isSel ? 'bg-white border-slate-300 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-[13px] font-black truncate ${isSel ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</div>
-                        {sortBy === 'alpha' && <div className="text-[11px] font-bold truncate text-slate-500 mt-0.5">{spName}</div>}
-                      </div>
-                      {isSel && (
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#655ac1] text-white shrink-0">
-                          <Check size={12} strokeWidth={3.5} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                };
-
-                if (sortBy !== 'spec') {
-                  return filteredTeachers.map(renderTeacher);
-                }
-
-                // Group by specialization
-                const groups: { sid: string; name: string; teachers: Teacher[] }[] = [];
-                filteredTeachers.forEach(t => {
-                  const sid = t.specializationId || '__none__';
-                  const name = specializations.find(s => s.id === sid)?.name
-                    || INITIAL_SPECIALIZATIONS.find(s => s.id === sid)?.name
-                    || 'بدون تخصص';
-                  let g = groups.find(x => x.sid === sid);
-                  if (!g) { g = { sid, name, teachers: [] }; groups.push(g); }
-                  g.teachers.push(t);
-                });
-
-                return groups.map(g => {
-                  const collapsed = (search.trim() || applyMode) ? false : collapsedSpecs.has(g.sid);
-                  return (
-                    <div key={g.sid} className="space-y-1">
-                      <button
-                        onClick={() => {
-                          const next = new Set(collapsedSpecs);
-                          if (collapsed) next.delete(g.sid); else next.add(g.sid);
-                          setCollapsedSpecs(next);
-                        }}
-                        className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 transition-all"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-slate-700">{g.name}</span>
-                          <ChevronDown size={15} className={`text-slate-500 transition-transform ${collapsed ? 'rotate-90' : ''}`} />
-                        </div>
-                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-white text-xs font-black text-[#655ac1] border border-slate-200">{g.teachers.length}</span>
-                      </button>
-                      {!collapsed && <div className="space-y-1 pr-1">{g.teachers.map(renderTeacher)}</div>}
-                    </div>
-                  );
-                });
-              })()}
+              {filteredTeachers.length === 0 ? (
+                <div className="text-center py-8 text-xs font-bold text-slate-400">لا يوجد معلمين</div>
+              ) : filteredTeachers.map(t => {
+                const spName = specializations.find(s => s.id === t.specializationId)?.name
+                  || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name
+                  || 'بدون تخصص';
+                const selected = selId === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelId(selected ? null : t.id)}
+                    className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${selected ? 'border-slate-300 bg-white shadow-sm' : 'border-transparent hover:bg-slate-50'}`}
+                  >
+                    <span className="min-w-0">
+                      <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</span>
+                      <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{spName}</span>
+                    </span>
+                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                      <Check size={12} strokeWidth={3.5} />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
           )}
@@ -629,7 +449,18 @@ export default function TeacherConstraintsModal({
               <div className="space-y-4 pb-10">
                 {/* Info Card */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-300 shadow-sm">
-                  <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-lg font-black text-slate-800">{selTeacher.name}</h3>
+                    {!singleTeacherMode && teachers.length > 1 && (
+                      <button
+                        onClick={openCopyPanel}
+                        className="shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-600 text-xs font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all"
+                      >
+                        <Copy size={14} />
+                        نسخ القيود إلى معلمين
+                      </button>
+                    )}
+                  </div>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">التخصص: {specializations.find(s=>s.id===selTeacher.specializationId)?.name || 'عام'}</span>
                     <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-transparent border border-slate-300 text-slate-600">نصاب الحصص: {selTeacher.quotaLimit}</span>
@@ -659,7 +490,6 @@ export default function TeacherConstraintsModal({
                     5: { border: 'border-rose-400',    text: 'text-rose-600',    dot: 'bg-rose-500',    ring: 'shadow-rose-100' },
                   };
                   const cur = palette[n] || palette[2];
-                  const isConsecApplyMode = applyMode === 'consec';
 
                   return (
                     <div className={`bg-white rounded-2xl border transition-all ${open.c1 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
@@ -735,40 +565,6 @@ export default function TeacherConstraintsModal({
                               </span>
                             </div>
                           </div>
-
-                          {/* Apply — actions live in the right sidebar */}
-                          <div className="pt-3 border-t border-slate-100">
-                            {consecApplyDone ? (
-                              <div className="flex justify-start">
-                                <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
-                                  <CheckCircle2 size={14} />
-                                  تم تطبيق ({consecApplyDone.value}) على {consecApplyDone.count} معلم
-                                </span>
-                              </div>
-                            ) : isConsecApplyMode ? (
-                              <div className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border bg-amber-50 text-amber-800 border-amber-200">
-                                <Lightbulb size={15} className="text-amber-600 shrink-0" />
-                                <span className="leading-relaxed">
-                                  اختر المعلمين من القائمة اليمنى ثم اضغط <span className="font-black">تطبيق على</span>
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2 text-right">
-                                <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
-                                  يمكنك تطبيق هذا الإعداد على مجموعة من المعلمين
-                                </p>
-                                <div className="flex justify-start">
-                                  <button
-                                    onClick={() => { setApplyMode('consec'); setApplySelection([]); }}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#574bb1] text-white text-xs font-black shadow transition-all"
-                                  >
-                                    <Users size={14} />
-                                    تطبيق على
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -786,7 +582,6 @@ export default function TeacherConstraintsModal({
                   const availableSlots = Math.max(0, totalOfficialSlots - excludedCount);
                   const quota = selTeacher.quotaLimit || 0;
                   const hasPressure = excludedCount > 0 && (availableSlots < quota || excludedCount / Math.max(1, totalOfficialSlots) >= 0.35);
-                  const isExcludedApplyMode = applyMode === 'excluded';
 
                   const resetExcludedSlots = () => updC(selTeacher.id, { excludedSlots: {} });
 
@@ -945,38 +740,6 @@ export default function TeacherConstraintsModal({
                             </div>
                           </div>
 
-                          <div className="pt-3 border-t border-slate-100">
-                            {excludedApplyDone ? (
-                              <div className="flex justify-start">
-                                <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
-                                  <CheckCircle2 size={14} />
-                                  تم تطبيق الحصص المستثناة على {excludedApplyDone.count} معلم
-                                </span>
-                              </div>
-                            ) : isExcludedApplyMode ? (
-                              <div className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border bg-amber-50 text-amber-800 border-amber-200">
-                                <Lightbulb size={15} className="text-amber-600 shrink-0" />
-                                <span className="leading-relaxed">
-                                  اختر المعلمين من القائمة اليمنى ثم اضغط <span className="font-black">تطبيق على</span>
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2 text-right">
-                                <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
-                                  يمكنك تطبيق الحصص المستثناة نفسها على مجموعة من المعلمين
-                                </p>
-                                <div className="flex justify-start">
-                                  <button
-                                    onClick={() => { setApplyMode('excluded'); setApplySelection([]); }}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#574bb1] text-white text-xs font-black shadow transition-all"
-                                  >
-                                    <Users size={14} />
-                                    تطبيق على
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -990,10 +753,7 @@ export default function TeacherConstraintsModal({
                   const selectedPeriod = sc?.earlyExit ? Object.values(sc.earlyExit)[0] || 0 : 0;
                   const evalMode = mode || 'manual';
                   const earlyResult = evaluateEarlyExit(selTeacher, evalMode, selectedDay, selectedPeriod);
-                  const summaryTeachers = applyMode === 'early' && applySelection.length > 0
-                    ? teachers.filter(t => applySelection.includes(t.id))
-                    : [selTeacher];
-                  const earlySummary = summaryTeachers.reduce((acc, teacher) => {
+                  const earlySummary = [selTeacher].reduce((acc, teacher) => {
                     const result = evaluateEarlyExit(teacher, evalMode, selectedDay, selectedPeriod);
                     if (result.status === 'ok') acc.ok++;
                     else if (result.status === 'adjust') acc.adjust++;
@@ -1001,7 +761,6 @@ export default function TeacherConstraintsModal({
                     return acc;
                   }, { ok: 0, adjust: 0, impossible: 0 });
                   const hasSelection = !!mode && selectedPeriod > 0 && (mode === 'auto' || !!selectedDay);
-                  const isEarlyApplyMode = applyMode === 'early';
 
                   return (
                     <div className={`bg-white rounded-2xl border transition-all ${open.c5 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
@@ -1126,36 +885,6 @@ export default function TeacherConstraintsModal({
                               )}
                             </div>
                           )}
-
-                          <div className="pt-3 border-t border-slate-100">
-                            {earlyApplyDone ? (
-                              <div className="flex justify-start">
-                                <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black">
-                                  <CheckCircle2 size={14} />
-                                  تم التطبيق على {earlyApplyDone.applied} معلم، وتعديل {earlyApplyDone.adjusted}، واستثناء {earlyApplyDone.skipped}
-                                </span>
-                              </div>
-                            ) : isEarlyApplyMode ? (
-                              <div className="flex items-center gap-2 text-xs font-bold py-2 px-3 rounded-xl border bg-amber-50 text-amber-800 border-amber-200">
-                                <Lightbulb size={15} className="text-amber-600 shrink-0" />
-                                <span className="leading-relaxed">اختر المعلمين من القائمة اليمنى ثم اضغط <span className="font-black">تطبيق على</span></span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2 text-right">
-                                <p className="text-[11px] font-bold text-slate-500 leading-relaxed">يمكنك تطبيق إعداد الخروج المبكر على مجموعة من المعلمين</p>
-                                <div className="flex justify-start">
-                                  <button
-                                    onClick={() => { setApplyMode('early'); setApplySelection([]); }}
-                                    disabled={!hasSelection}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#655ac1] hover:bg-[#574bb1] text-white text-xs font-black shadow transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                  >
-                                    <Users size={14} />
-                                    تطبيق على
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -1331,6 +1060,217 @@ export default function TeacherConstraintsModal({
             حفظ
           </button>
         </div>
+
+        {/* --- Copy constraints overlay (slides over this modal, no second backdrop) --- */}
+        {showCopyPanel && selTeacher && (() => {
+          const src = sc || getC(selId!);
+          const consecVal = src.maxConsecutive ?? 2;
+          const consecText = consecVal === 1 ? 'حصة واحدة ثم راحة' : consecVal === 2 ? 'حصتان متتاليتان ثم راحة' : `${consecVal} حصص متتالية ثم راحة`;
+          const exChips = days.flatMap(d => (src.excludedSlots?.[d] || [])
+            .filter(p => p >= 1 && p <= (dayLastPeriods[d] ?? safePeriodsCount))
+            .map(p => `${getDayLabel(d)} · ح${p}`));
+          const hasExcluded = exChips.length > 0;
+          const earlyDay = src.earlyExit ? Object.keys(src.earlyExit)[0] || '' : '';
+          const earlyPeriod = src.earlyExit ? Object.values(src.earlyExit)[0] || 0 : 0;
+          const hasEarly = !!src.earlyExitMode && earlyPeriod > 0;
+          const earlyText = hasEarly ? `${getDayLabel(earlyDay)} · ح${earlyPeriod}` : 'غير محدد لهذا المعلم';
+
+          const term = copySearch.toLowerCase().trim();
+          const copyList = teachers.filter(t => t.id !== selId).filter(t => {
+            const sName = specializations.find(s => s.id === t.specializationId)?.name
+              || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name || '';
+            const okSearch = !term || t.name.toLowerCase().includes(term) || sName.toLowerCase().includes(term);
+            const okSpec = !copySpecFilter || t.specializationId === copySpecFilter;
+            return okSearch && okSpec;
+          });
+          const allCopyVisible = copyList.length > 0 && copyList.every(t => copyTargets.includes(t.id));
+          const anyTypeOn = copyTypes.consec || (copyTypes.excluded && hasExcluded) || (copyTypes.early && hasEarly);
+
+          const rows: { key: 'consec' | 'excluded' | 'early'; label: string; value: string; enabled: boolean }[] = [
+            { key: 'consec', label: 'الحصص المتتالية', value: consecText, enabled: true },
+            { key: 'excluded', label: 'الحصص المستثناة', value: hasExcluded ? exChips.join('، ') : 'لا توجد حصص مستثناة', enabled: hasExcluded },
+            { key: 'early', label: 'الخروج المبكر', value: earlyText, enabled: hasEarly },
+          ];
+
+          const previewParts: string[] = [];
+          if (copyTypes.consec) previewParts.push(consecText);
+          if (copyTypes.excluded && hasExcluded) previewParts.push(`مستثناة (${exChips.join('، ')})`);
+          if (copyTypes.early && hasEarly) previewParts.push(`خروج مبكر (${earlyText})`);
+
+          return (
+            <div className="absolute inset-0 z-[60] bg-white flex flex-col rounded-[2rem] overflow-hidden">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setShowCopyPanel(false)} className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-[#655ac1] hover:bg-slate-50 transition-colors" title="رجوع للقيود">
+                    <ChevronDown size={18} className="-rotate-90" />
+                  </button>
+                  <div>
+                    <div className="text-base font-black text-slate-800">نسخ القيود إلى معلمين</div>
+                    <div className="text-[11px] font-bold text-slate-400 mt-0.5">من <span className="text-[#655ac1]">{selTeacher.name}</span> — فعّل القيود واختر المعلمين.</div>
+                  </div>
+                </div>
+                <button onClick={() => setShowCopyPanel(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="إغلاق">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {copyDone ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-10 gap-3">
+                  <div className="w-16 h-16 rounded-full border border-slate-200 flex items-center justify-center text-[#655ac1]"><CheckCircle2 size={34} /></div>
+                  <p className="text-lg font-black text-slate-800">تم نسخ القيود إلى {copyDone.applied} معلم</p>
+                  {(copyTypes.early && hasEarly && (copyDone.adjusted > 0 || copyDone.skipped > 0)) && (
+                    <p className="text-xs font-bold text-slate-500">الخروج المبكر: عُدّل {copyDone.adjusted}، واستُثني {copyDone.skipped}.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] min-h-0 flex-1">
+                  {/* Targets sidebar */}
+                  <div className="border-l border-slate-100 p-4 space-y-3 bg-slate-50/40 overflow-y-auto custom-scrollbar flex flex-col">
+                    <div className="relative shrink-0">
+                      <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={copySearch}
+                        onChange={e => setCopySearch(e.target.value)}
+                        placeholder="ابحث باسم المعلم"
+                        className="w-full pr-10 pl-4 py-2.5 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20 transition-all"
+                      />
+                    </div>
+                    <ConstraintSelectDropdown
+                      value={copySpecFilter}
+                      onChange={setCopySpecFilter}
+                      options={[{ id: '', name: 'كل التخصصات' }, ...usedSpecIds.map(id => ({ id, name: specializations.find(s => s.id === id)?.name || INITIAL_SPECIALIZATIONS.find(s => s.id === id)?.name || 'بدون تخصص' }))]}
+                      placeholder="كل التخصصات"
+                    />
+                    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col min-h-0 flex-1">
+                      <div className="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
+                        <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{copyTargets.length} محدد</span>
+                        <button
+                          type="button"
+                          onClick={() => setCopyTargets(allCopyVisible ? copyTargets.filter(id => !copyList.some(t => t.id === id)) : Array.from(new Set([...copyTargets, ...copyList.map(t => t.id)])))}
+                          disabled={copyList.length === 0}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${copyList.length === 0 ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'}`}
+                        >
+                          {allCopyVisible ? 'إلغاء الكل' : 'اختيار الكل'}
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto custom-scrollbar p-2 space-y-1 flex-1">
+                        {copyList.length === 0 ? (
+                          <div className="py-8 text-center text-xs font-bold text-slate-400">لا يوجد معلمين</div>
+                        ) : copyList.map(t => {
+                          const spName = specializations.find(s => s.id === t.specializationId)?.name
+                            || INITIAL_SPECIALIZATIONS.find(s => s.id === t.specializationId)?.name || 'بدون تخصص';
+                          const selected = copyTargets.includes(t.id);
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setCopyTargets(prev => selected ? prev.filter(x => x !== t.id) : [...prev, t.id])}
+                              className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${selected ? 'border-slate-300 bg-white shadow-sm' : 'border-transparent hover:bg-slate-50'}`}
+                            >
+                              <span className="min-w-0">
+                                <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{t.name}</span>
+                                <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{spName}</span>
+                              </span>
+                              <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                                <Check size={12} strokeWidth={3.5} />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Constraints + preview */}
+                  <div className="min-w-0 flex flex-col overflow-y-auto custom-scrollbar">
+                    <div className="p-6 w-full max-w-xl mx-auto space-y-4">
+                      <div>
+                        <label className="block text-xs font-black text-slate-600 mb-0.5">القيود المنسوخة</label>
+                        <p className="text-[11px] font-medium text-slate-400 mb-3">فعّل القيد لنسخ قيمته الفعلية إلى المعلمين المحددين.</p>
+                        <div className="space-y-2.5">
+                          {rows.map(row => {
+                            const active = copyTypes[row.key] && row.enabled;
+                            return (
+                              <div
+                                key={row.key}
+                                className={`rounded-xl border transition-all ${active ? 'border-slate-300 shadow-sm' : 'border-slate-200'} ${row.enabled ? '' : 'opacity-60'}`}
+                              >
+                                <button
+                                  type="button"
+                                  disabled={!row.enabled}
+                                  onClick={() => setCopyTypes(prev => ({ ...prev, [row.key]: !prev[row.key] }))}
+                                  className={`w-full text-right flex items-start gap-3 px-3 py-2.5 ${row.enabled ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                                >
+                                  <span className={`mt-0.5 w-5 h-5 shrink-0 rounded-full border-2 inline-flex items-center justify-center transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                    <Check size={12} strokeWidth={3.5} />
+                                  </span>
+                                  <span className="flex-1 min-w-0">
+                                    <span className={`block text-sm font-black ${active ? 'text-slate-700' : 'text-slate-400'}`}>{row.label}</span>
+                                    <span className={`block text-xs font-bold mt-0.5 leading-relaxed ${active ? 'text-[#655ac1]' : 'text-slate-400'}`}>{row.value}</span>
+                                  </span>
+                                </button>
+                                {row.key === 'early' && active && (
+                                  <div className="px-3 pb-3 pt-0">
+                                    <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
+                                      {[
+                                        { m: 'auto' as const, t: 'توزيع آلي' },
+                                        { m: 'manual' as const, t: 'تحديد يدوي' },
+                                      ].map(it => (
+                                        <button
+                                          key={it.m}
+                                          type="button"
+                                          onClick={() => setCopyEarlyMode(it.m)}
+                                          className={`py-2 rounded-xl text-xs font-black transition-all ${copyEarlyMode === it.m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                          {it.t}
+                                        </button>
+                                      ))}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-1.5 leading-relaxed">
+                                      {copyEarlyMode === 'auto' ? 'يختار النظام أنسب يوم لكل معلم تلقائيًا.' : 'يُطبَّق نفس اليوم والحصة، مع أقرب بديل ممكن لمن لا يناسبه.'}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 px-4 py-3">
+                        {anyTypeOn ? (
+                          <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                            سيُنسَخ: {previewParts.join('، ')} إلى {copyTargets.length} معلم.
+                          </p>
+                        ) : (
+                          <p className="text-sm font-bold text-slate-500">فعّل قيدًا واحدًا على الأقل لنسخه.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!copyDone && (
+                <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-white">
+                  <button onClick={() => setShowCopyPanel(false)} className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors inline-flex items-center gap-2">
+                    <ChevronDown size={16} className="-rotate-90" />
+                    رجوع
+                  </button>
+                  <button
+                    onClick={runCopyConstraints}
+                    disabled={copyTargets.length === 0 || !anyTypeOn}
+                    className="px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
+                  >
+                    <Copy size={16} />
+                    نسخ القيود
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       </div>
 
