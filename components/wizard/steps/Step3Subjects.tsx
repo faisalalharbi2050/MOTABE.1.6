@@ -1781,7 +1781,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
             {planMode === 'ready' && gradePlanGroups.length > 0 && (
               <div className="px-5 py-3 border-b border-slate-100 space-y-3">
-                <div className="flex gap-2 flex-wrap justify-start">
+                <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
                   {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {
                     const isActive = selectedDepartment?.subDepartments?.length
                       ? selectedSubDepartmentId === group.id
@@ -1800,10 +1800,10 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                             setSelectedPlanKey(group.plans[0]?.key || '');
                           }
                         }}
-                        className={`px-4 py-2.5 rounded-xl border text-xs font-black transition-all ${
+                        className={`flex-1 basis-[72px] py-2.5 rounded-xl text-sm font-black transition-all ${
                           isActive
-                            ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         {group.label}
@@ -1813,15 +1813,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 </div>
 
                 {planHasSemesterChoices && (
-                  <div className="flex gap-2 flex-wrap justify-start">
+                  <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
                     {(['1', '2'] as const).map(semester => (
                       <button
                         key={semester}
                         onClick={() => setSelectedSemesterFilter(semester)}
-                        className={`px-5 py-2.5 rounded-xl border text-xs font-black transition-all ${
+                        className={`py-2.5 rounded-xl text-sm font-black transition-all ${
                           selectedSemesterFilter === semester
-                            ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         {semester === '1' ? 'الفصل الأول' : 'الفصل الثاني'}
@@ -1831,17 +1831,17 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 )}
 
                 {selectedDepartment?.subDepartments?.length && visiblePlanNavigation.length > 1 && (
-                  <div className="flex gap-2 flex-wrap justify-start">
+                  <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
                     {visiblePlanNavigation.map(item => {
                       const isActive = item.key === selectedPlanKey;
                       return (
                         <button
                           key={item.key}
                           onClick={() => setSelectedPlanKey(item.key)}
-                        className={`px-4 py-2 rounded-xl border text-[11px] font-black transition-all ${
+                        className={`flex-1 basis-[72px] py-2 rounded-xl text-[11px] font-black transition-all ${
                           isActive
-                              ? 'bg-[#655ac1] text-white border-[#655ac1] shadow-lg shadow-[#655ac1]/15'
-                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-700'
                           }`}
                         >
                           {item.label}
