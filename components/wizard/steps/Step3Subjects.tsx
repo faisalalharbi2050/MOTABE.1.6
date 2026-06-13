@@ -1626,6 +1626,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           </div>
         )}
 
+        {planMode === 'ready' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
+          <div className="flex items-start gap-2 px-2">
+            <Layers size={16} className="mt-0.5 shrink-0 text-[#655ac1]" />
+            <p className="text-[11px] font-bold leading-relaxed text-slate-500">
+              هل بعض فصول هذه المرحلة تتبع قسمًا مختلفًا (موهوبين، تحفيظ، تربية خاصة)؟ اعتمد خطة المرحلة العامة كأساسية، ثم أضف لها <span className="text-[#655ac1] font-black">خطة فرعية</span> للقسم الملحق من زر «إضافة خطة فرعية» بالأسفل، واربطها بتلك الفصول من صفحة الفصول.
+            </p>
+          </div>
+        )}
+
         {planMode === 'custom' && (
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
             <div className="flex flex-col gap-4">
@@ -1812,16 +1821,6 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     </div>
                   )}
                 </div>
-
-                {isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
-                  <div className="rounded-2xl border border-[#655ac1]/20 bg-[#655ac1]/5 px-4 py-3 flex items-start gap-2 text-[#655ac1]">
-                    <Layers size={17} className="mt-0.5 shrink-0" />
-                    <div>
-                      <span className="block text-sm font-black">إضافة خطة فرعية لفصول ملحقة</span>
-                      <span className="block text-[11px] font-bold text-[#655ac1]/75 mt-0.5">بعض فصول هذه المرحلة قد تتبع قسمًا مختلفًا (موهوبين، تحفيظ، تربية خاصة). اعتمد خطة المرحلة العامة كأساسية، ثم أضف خطة القسم الملحق عبر زر «إضافة خطة فرعية»، واربطها بتلك الفصول من صفحة الفصول.</span>
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex gap-2 flex-wrap justify-start border-t border-slate-100 pt-3">
                   {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {
