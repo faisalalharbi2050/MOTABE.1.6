@@ -559,7 +559,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     const departmentName = (phaseDepartmentMap[activePhase] || '').replace(/_/g, ' ');
     return {
       label: departmentName
-        ? `الخطة الأساسية - ${activePhase} - ${departmentName}`
+        ? `الخطة الأساسية - ${departmentName} - ${activePhase}`
         : `الخطة الأساسية - ${activePhase}`,
       subjectCount: subjectIds.size
     };
