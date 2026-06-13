@@ -133,16 +133,21 @@ const renderTeacherRow = (
 ) => {
   const q = getSchoolQuota(t);
   return (
-    <div className="flex-1 flex items-center gap-2 text-sm min-w-0 flex-wrap px-1">
-      <span className="text-slate-900 font-bold truncate">{t.name}</span>
-      <span className="text-[11px] font-bold text-slate-500 px-2 py-0.5 rounded-md bg-slate-100">{getSpecializationName(t.specializationId)}</span>
-      <span className="inline-block w-3" aria-hidden="true" />
-      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md border border-slate-200 text-[#655ac1]">
-        الحصص {q.lessons}
-      </span>
-      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md border border-slate-200 text-[#655ac1]">
-        الانتظار {q.waiting}
-      </span>
+    <div className="flex-1 flex items-center justify-between gap-3 min-w-0 px-1">
+      <div className="min-w-0 text-right">
+        <div className="text-sm font-black text-slate-800 truncate">{t.name}</div>
+        <div className="text-[11px] font-bold text-slate-400 truncate">{getSpecializationName(t.specializationId)}</div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex flex-col items-center leading-tight px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+          <span className="text-[9px] font-bold text-slate-400">حصص</span>
+          <span className="text-sm font-black text-[#655ac1]">{q.lessons}</span>
+        </div>
+        <div className="flex flex-col items-center leading-tight px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+          <span className="text-[9px] font-bold text-slate-400">انتظار</span>
+          <span className="text-sm font-black text-[#655ac1]">{q.waiting}</span>
+        </div>
+      </div>
     </div>
   );
 };
@@ -983,10 +988,10 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
 
   const openCopyModal = (teacher: Teacher) => {
       const quota = getSchoolQuota(teacher);
-      setCopyMode('teacher');
-      setSourceTeacher(teacher);
+      setCopyMode('manual');
+      setSourceTeacher(null);
       setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
-      setSelectedTargets([]);
+      setSelectedTargets([teacher.id]);
       setCopyTargetMode('teachers');
       setCopyTargetSpecIds([]);
       setCopyOptions({ basic: true, waiting: true });
@@ -997,8 +1002,8 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
   const openCopyModalForSpec = (specId: string) => {
       const teacher = currentSchoolTeachers.find(t => t.specializationId === specId) || null;
       const quota = teacher ? getSchoolQuota(teacher) : { lessons: 0, waiting: 0 };
-      setCopyMode('teacher');
-      setSourceTeacher(teacher);
+      setCopyMode('manual');
+      setSourceTeacher(null);
       setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
       setSelectedTargets([]);
       setCopyTargetMode('specs');
@@ -1624,9 +1629,9 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
             <button
               dir="rtl"
               onClick={() => {
-                setCopyMode('teacher');
+                setCopyMode('manual');
                 setSourceTeacher(null);
-                setCopyTargetMode('specs');
+                setCopyTargetMode('teachers');
                 setCopyTargetSpecIds([]);
                 setSelectedTargets([]);
                 setCopyOptions({ basic: true, waiting: true });
@@ -2487,225 +2492,231 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
       })()}
 
       {/* Copy Quota Modal (Hidden in Print) */}
-      {showCopyModal && (
+      {showCopyModal && (() => {
+        const appliedTotal = (copyOptions.basic ? manualQuotaValues.basic : 0) + (copyOptions.waiting ? manualQuotaValues.waiting : 0);
+        const allVisibleSelected = availableTargets.length > 0 && availableTargets.every(t => selectedTargets.includes(t.id));
+        const copyUsedSpecIds = getUsedSpecializationIds();
+        const allSpecsSelected = copyUsedSpecIds.length > 0 && copyUsedSpecIds.every(id => copyTargetSpecIds.includes(id));
+        return (
            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4">
-                <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[88vh]">
+                <div className="bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col relative">
                      {/* Header */}
-                     <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                         <div>
-                             <h3 className="font-black text-base text-slate-800 flex items-center gap-2">
+                             <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                                 <Copy size={20} className="text-[#655ac1]" />
                                 تطبيق النصاب
                              </h3>
-                              <p className="text-xs text-slate-500 mt-1">انسخ نصاب الحصص أو الانتظار من معلم وطبقه على معلم أو مجموعة معلمين أو حدّد النصاب مباشرةً.</p>
+                              <p className="text-xs text-slate-400 font-bold mt-1">حدّد المعلمين المستهدفين على اليمين، واضبط النصاب المطبَّق على اليسار.</p>
                         </div>
-                        <button onClick={() => setShowCopyModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 transition-all">
+                        <button onClick={() => setShowCopyModal(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="إغلاق">
                             <X size={18} />
                         </button>
                      </div>
 
-                     {/* Content */}
-                     <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-4">
-                          <div className="flex flex-wrap gap-2">
-                            {[
-                              { id: 'teacher' as const, label: 'نسخ من معلم' },
-                              { id: 'manual' as const, label: 'تحديد النصاب' },
-                            ].map(item => (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => {
-                                  setCopyMode(item.id);
-                                  if (item.id === 'manual') setSourceTeacher(null);
-                                  setSelectedTargets([]);
-                                  setCopyTargetSpecIds([]);
-                                }}
-                                className={`px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
-                                  copyMode === item.id
-                                    ? 'bg-[#655ac1] border-[#655ac1] text-white shadow-sm shadow-[#655ac1]/20'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:border-[#655ac1]/40 hover:text-[#655ac1]'
-                                }`}
-                              >
-                                {item.label}
-                              </button>
-                            ))}
-                          </div>
+                     {/* Two panes — mirrors data-edit: selection list in narrow right sidebar, work in wide left pane */}
+                     <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] min-h-0 flex-1">
 
-                          {copyMode === 'teacher' ? (
-                          <div>
-                            <label className="block text-xs font-black text-slate-600 mb-2">اختر المعلم</label>
-                            <SourceTeacherDropdown
-                              teachers={currentSchoolTeachers}
-                              value={sourceTeacher?.id || ''}
-                              getSpecializationName={getSpecializationName}
-                              getSchoolQuota={getSchoolQuota}
-                              onChange={(id) => {
-                                const teacher = currentSchoolTeachers.find(t => t.id === id) || null;
-                                const quota = teacher ? getSchoolQuota(teacher) : { lessons: 0, waiting: 0 };
-                                setSourceTeacher(teacher);
-                                setManualQuotaValues({ basic: quota.lessons, waiting: quota.waiting });
-                              }}
-                            />
-                          </div>
-                          ) : (
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-xs font-black text-slate-600 mb-2">نصاب الحصص</label>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={24}
-                                  value={manualQuotaValues.basic}
-                                  onChange={e => setManualQuotaValues(prev => ({ ...prev, basic: Math.max(0, Number(e.target.value)) }))}
-                                  className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-black text-slate-600 mb-2">نصاب الانتظار</label>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={24}
-                                  value={manualQuotaValues.waiting}
-                                  onChange={e => setManualQuotaValues(prev => ({ ...prev, waiting: Math.max(0, Number(e.target.value)) }))}
-                                  className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-[#655ac1] outline-none focus:border-[#655ac1] text-center"
-                                />
-                              </div>
+                          {/* ── RIGHT sidebar: على من (الأهداف) ── */}
+                          <div className="border-l border-slate-100 p-5 space-y-4 bg-slate-50/40 overflow-y-auto custom-scrollbar flex flex-col">
+                            <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl shrink-0">
+                              {[
+                                { id: 'teachers', label: 'معلمون' },
+                                { id: 'specs', label: 'تخصصات' },
+                              ].map(item => (
+                                <button
+                                  key={item.id}
+                                  onClick={() => setCopyTargetMode(item.id as 'teachers' | 'specs')}
+                                  className={`py-2.5 rounded-xl text-sm font-black transition-all ${copyTargetMode === item.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                  {item.label}
+                                </button>
+                              ))}
                             </div>
-                            {(manualQuotaValues.basic + manualQuotaValues.waiting) > 24 && (
-                              <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                                <div className="w-7 h-7 shrink-0 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center">
-                                  <AlertTriangle size={13} className="text-amber-600" />
+
+                            {copyTargetMode === 'teachers' && (
+                              <>
+                                <div className="relative shrink-0">
+                                  <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                  <input
+                                    value={copySearchTerm}
+                                    onChange={e => setCopySearchTerm(e.target.value)}
+                                    placeholder="ابحث باسم المعلم أو التخصص"
+                                    className="w-full pr-10 pl-4 py-3 bg-white border-2 border-slate-200 rounded-xl outline-none text-sm font-bold text-slate-700 focus:border-[#655ac1]/40 focus:ring-2 focus:ring-[#8779fb]/20"
+                                  />
                                 </div>
-                                <p className="text-xs font-bold text-amber-800 leading-snug">
-                                  مجموع نصاب الحصص ونصاب الانتظار <span className="font-black text-amber-900">({manualQuotaValues.basic + manualQuotaValues.waiting})</span> يتجاوز 24 حصة في الأسبوع.
-                                </p>
+                                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col min-h-0 flex-1">
+                                  <div className="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
+                                    <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{selectedTargets.length} محدد</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedTargets(allVisibleSelected ? selectedTargets.filter(id => !availableTargets.some(t => t.id === id)) : Array.from(new Set([...selectedTargets, ...availableTargets.map(t => t.id)])))}
+                                      disabled={availableTargets.length === 0}
+                                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                        availableTargets.length === 0
+                                          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                          : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                                      }`}
+                                    >
+                                      {allVisibleSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+                                    </button>
+                                  </div>
+                                  <div className="overflow-y-auto custom-scrollbar p-2 space-y-1 flex-1">
+                                    {availableTargets.length === 0 ? (
+                                      <div className="py-8 text-center text-xs font-bold text-slate-400">لا توجد نتائج مطابقة</div>
+                                    ) : availableTargets.map(teacher => {
+                                      const selected = selectedTargets.includes(teacher.id);
+                                      const q = getSchoolQuota(teacher);
+                                      return (
+                                        <button
+                                          key={teacher.id}
+                                          type="button"
+                                          onClick={() => setSelectedTargets(prev => selected ? prev.filter(x => x !== teacher.id) : [...prev, teacher.id])}
+                                          className={`w-full text-right px-3 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${selected ? 'border-slate-300 bg-white' : 'border-transparent hover:bg-slate-50'}`}
+                                        >
+                                          <span className="min-w-0">
+                                            <span className={`block text-sm font-black truncate ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{teacher.name}</span>
+                                            <span className={`block text-[11px] font-bold truncate ${selected ? 'text-slate-400' : 'text-[#655ac1]'}`}>{getSpecializationName(teacher.specializationId)} · حصص {q.lessons} / انتظار {q.waiting}</span>
+                                          </span>
+                                          <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}>
+                                            <Check size={12} strokeWidth={3.5} />
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {copyTargetMode === 'specs' && (
+                              <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col min-h-0 flex-1">
+                                <div className="px-3 py-2.5 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
+                                  <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">{copyTargetCount} معلم</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCopyTargetSpecIds(allSpecsSelected ? [] : [...copyUsedSpecIds])}
+                                    disabled={copyUsedSpecIds.length === 0}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                      copyUsedSpecIds.length === 0
+                                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                                        : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+                                    }`}
+                                  >
+                                    {allSpecsSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+                                  </button>
+                                </div>
+                                <div className="overflow-y-auto custom-scrollbar p-2 space-y-1 flex-1">
+                                  {copyUsedSpecIds.map(id => {
+                                    const selected = copyTargetSpecIds.includes(id);
+                                    return (
+                                      <button
+                                        key={id}
+                                        onClick={() => setCopyTargetSpecIds(prev => selected ? prev.filter(x => x !== id) : [...prev, id])}
+                                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-bold transition-all bg-white border-slate-200 hover:border-slate-300 ${selected ? 'text-[#655ac1]' : 'text-slate-600'}`}
+                                      >
+                                        <span className="truncate">{getSpecializationName(id)}</span>
+                                        <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors shrink-0 ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                          <Check size={12} strokeWidth={3.5} />
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             )}
-                          </div>
-                          )}
 
-                          {(copyMode === 'manual' || sourceTeacher) && (
-                          <div className="bg-white p-3 rounded-xl border border-slate-200">
-                            <label className="block text-xs font-black text-slate-600 mb-2">اختر النصاب</label>
-                            <div className="flex flex-wrap gap-2">
-                              {[
-                                { key: 'basic', label: 'نصاب الحصص', value: copyMode === 'manual' ? manualQuotaValues.basic : getSchoolQuota(sourceTeacher!).lessons },
-                                { key: 'waiting', label: 'نصاب الانتظار', value: copyMode === 'manual' ? manualQuotaValues.waiting : getSchoolQuota(sourceTeacher!).waiting },
-                              ].map(item => {
-                                const active = copyOptions[item.key as 'basic' | 'waiting'];
-                                return (
-                                  <button
-                                    key={item.key}
-                                    onClick={() => setCopyOptions(prev => ({ ...prev, [item.key]: !active }))}
-                                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-white border-slate-200 hover:border-slate-300 ${active ? 'text-[#655ac1]' : 'text-slate-500'}`}
-                                  >
-                                    <span>{item.label} <span className={active ? 'text-[#655ac1]' : 'text-slate-400'}>({item.value})</span></span>
-                                    <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-                                      <Check size={12} strokeWidth={3.5} />
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                          </div>
+
+                          {/* ── LEFT main: ماذا نطبّق (المصدر + المعاينة) ── */}
+                          <div className="min-w-0 flex flex-col overflow-y-auto custom-scrollbar">
+                            <div className="p-6 w-full max-w-md mx-auto space-y-4">
+                              <div>
+                                <label className="block text-xs font-black text-slate-600 mb-0.5">النصاب المطبَّق</label>
+                                <p className="text-[11px] font-medium text-slate-400 mb-2.5">فعّل النصاب الذي تريد تطبيقه ثم اكتب قيمته.</p>
+                                <div className="space-y-2.5">
+                                  {[
+                                    { key: 'basic' as const, label: 'نصاب الحصص', value: manualQuotaValues.basic, set: (v: number) => setManualQuotaValues(prev => ({ ...prev, basic: v })) },
+                                    { key: 'waiting' as const, label: 'نصاب الانتظار', value: manualQuotaValues.waiting, set: (v: number) => setManualQuotaValues(prev => ({ ...prev, waiting: v })) },
+                                  ].map(item => {
+                                    const active = copyOptions[item.key];
+                                    return (
+                                      <div
+                                        key={item.key}
+                                        onClick={() => setCopyOptions(prev => ({ ...prev, [item.key]: !active }))}
+                                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer transition-all ${active ? 'border-slate-300 bg-white shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                      >
+                                        <span
+                                          className={`w-5 h-5 shrink-0 rounded-full border-2 inline-flex items-center justify-center transition-colors ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}
+                                        >
+                                          <Check size={12} strokeWidth={3.5} />
+                                        </span>
+                                        <span className={`flex-1 text-sm font-bold ${active ? 'text-slate-700' : 'text-slate-400'}`}>
+                                          {item.label}
+                                        </span>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={24}
+                                          disabled={!active}
+                                          value={item.value}
+                                          onClick={e => e.stopPropagation()}
+                                          onChange={e => item.set(Math.max(0, Number(e.target.value)))}
+                                          className={`w-14 rounded-lg px-2 py-1.5 text-base font-black text-center outline-none border transition-all ${active ? 'bg-white border-slate-200 text-[#655ac1] focus:border-[#655ac1]' : 'bg-slate-50 border-slate-200 text-slate-300'}`}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* شريط المعاينة */}
+                              <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 space-y-2">
+                                {(copyOptions.basic || copyOptions.waiting) ? (
+                                  <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
+                                    سيُطبَّق
+                                    {copyOptions.basic && <> حصص = <span className="font-black text-[#655ac1]">{manualQuotaValues.basic}</span></>}
+                                    {copyOptions.basic && copyOptions.waiting && '،'}
+                                    {copyOptions.waiting && <> انتظار = <span className="font-black text-[#655ac1]">{manualQuotaValues.waiting}</span></>}
+                                    {' '}على <span className="font-black text-[#655ac1]">{copyTargetCount}</span> معلم.
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] font-bold text-amber-600">فعّل نصاب الحصص أو الانتظار على الأقل.</p>
+                                )}
+                                {appliedTotal > 24 && (
+                                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                    <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                                    <p className="text-[11px] font-bold text-amber-800 leading-snug">
+                                      الإجمالي <span className="font-black text-amber-900">({appliedTotal})</span> يتجاوز 24 حصة أسبوعيًا.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          )}
-
-                          {(copyMode === 'manual' || sourceTeacher) && (
-                          <div className="flex flex-col gap-3">
-                               <label className="text-xs font-black text-slate-600">حدد الهدف</label>
-                               <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100 rounded-2xl">
-                                 {[
-                                   { id: 'teachers', label: 'معلمون' },
-                                   { id: 'specs', label: 'تخصصات' },
-                                   { id: 'all', label: 'الكل' },
-                                 ].map(item => (
-                                   <button
-                                     key={item.id}
-                                     onClick={() => setCopyTargetMode(item.id as 'teachers' | 'specs' | 'all')}
-                                     className={`py-2.5 rounded-xl text-sm font-black transition-all ${copyTargetMode === item.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                   >
-                                     {item.label}
-                                   </button>
-                                 ))}
-                               </div>
-                               
-                               {copyTargetMode === 'teachers' && (
-                                 <TargetTeachersDropdown
-                                   teachers={availableTargets}
-                                   selected={selectedTargets}
-                                   onChange={setSelectedTargets}
-                                   getSpecializationName={getSpecializationName}
-                                   getSchoolQuota={getSchoolQuota}
-                                   search={copySearchTerm}
-                                   setSearch={setCopySearchTerm}
-                                 />
-                               )}
-
-                               {copyTargetMode === 'specs' && (
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto custom-scrollbar border border-slate-200 rounded-xl p-2">
-                                   {getUsedSpecializationIds().map(id => {
-                                     const selected = copyTargetSpecIds.includes(id);
-                                     return (
-                                       <button
-                                         key={id}
-                                         onClick={() => setCopyTargetSpecIds(prev => selected ? prev.filter(x => x !== id) : [...prev, id])}
-                                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm font-bold transition-all bg-white border-slate-200 hover:border-slate-300 ${selected ? 'text-[#655ac1]' : 'text-slate-600'}`}
-                                       >
-                                         <span>{getSpecializationName(id)}</span>
-                                         <span className={`w-5 h-5 rounded-full border-2 inline-flex items-center justify-center transition-colors ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'}`}>
-                                           <Check size={12} strokeWidth={3.5} />
-                                         </span>
-                                       </button>
-                                     );
-                                   })}
-                                 </div>
-                               )}
-
-                               {copyTargetMode === 'all' && (
-                                 <div className="space-y-2">
-                                   <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                                     <div className="w-7 h-7 shrink-0 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center">
-                                       <AlertTriangle size={13} className="text-amber-600" />
-                                     </div>
-                                     <p className="text-xs font-bold text-amber-800 leading-snug">
-                                       سيتم تطبيق نصاب المعلم المحدد على جميع المعلمين
-                                     </p>
-                                   </div>
-                                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-600">
-                                     تم تحديد (<span className="text-[#655ac1]">{copyTargetCount}</span>) معلم
-                                   </div>
-                                 </div>
-                               )}
-                          </div>
-                          )}
                      </div>
 
                      {/* Footer */}
-                     <div className="p-6 bg-white flex gap-3 border-t border-slate-100 justify-end">
-                         {copyTargetCount > 0 && copyOptions.basic && copyOptions.waiting && (copyMode === 'manual' ? manualQuotaValues.basic + manualQuotaValues.waiting : sourceTeacher ? getSchoolQuota(sourceTeacher).total : 0) > 24 && (
-                           <div className="flex-1 flex items-center text-xs font-bold text-amber-700">
-                             الإجمالي يتجاوز 24
-                           </div>
-                         )}
+                     <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-white">
                          <button
                              onClick={() => setShowCopyModal(false)}
-                             className="px-6 py-3 bg-white border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                             className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
                          >
                              إغلاق
                          </button>
-                         <button 
+                         <button
                              onClick={executeCopyQuota}
                              disabled={copyActionDisabled}
-                             className="px-6 py-3 bg-[#655ac1] text-white font-bold rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                             className="min-w-32 px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                          >
+                             <CheckCircle2 size={16} />
                              تطبيق النصاب
                          </button>
                      </div>
                 </div>
            </div>
-       )}
+        );
+      })()}
      {/* ══════ Data Edit Modal ══════ */}
      {showDataEditModal && (() => {
        const usedSpecIds = getUsedSpecializationIds();
