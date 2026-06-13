@@ -1,6 +1,6 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
-import { Users, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Copy } from 'lucide-react';
+import { Users, User, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Copy } from 'lucide-react';
 import { ValidationWarning } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
@@ -1107,7 +1107,7 @@ export default function TeacherConstraintsModal({
                   </button>
                   <div>
                     <div className="text-base font-black text-slate-800">نسخ القيود إلى معلمين</div>
-                    <div className="text-[11px] font-bold text-slate-400 mt-0.5">من <span className="text-[#655ac1]">{selTeacher.name}</span> — فعّل القيود واختر المعلمين.</div>
+                    <div className="text-[11px] font-bold text-slate-400 mt-0.5">فعّل القيود واختر المعلمين المستهدفين.</div>
                   </div>
                 </div>
                 <button onClick={() => setShowCopyPanel(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="إغلاق">
@@ -1186,6 +1186,11 @@ export default function TeacherConstraintsModal({
                   <div className="min-w-0 flex flex-col overflow-y-auto custom-scrollbar">
                     <div className="p-6 w-full max-w-xl mx-auto space-y-4">
                       <div>
+                        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-white border border-slate-200">
+                          <User size={14} className="text-[#655ac1] shrink-0" />
+                          <span className="text-[11px] font-bold text-slate-500">القيود المنسوخة من</span>
+                          <span className="text-sm font-black text-[#655ac1] truncate">{selTeacher.name}</span>
+                        </div>
                         <label className="block text-xs font-black text-slate-600 mb-0.5">القيود المنسوخة</label>
                         <p className="text-[11px] font-medium text-slate-400 mb-3">فعّل القيد لنسخ قيمته الفعلية إلى المعلمين المحددين.</p>
                         <div className="space-y-2.5">
@@ -1240,9 +1245,20 @@ export default function TeacherConstraintsModal({
 
                       <div className="rounded-xl border border-slate-200 px-4 py-3">
                         {anyTypeOn ? (
-                          <p className="text-sm font-bold text-slate-800 leading-relaxed">
-                            سيُنسَخ: {previewParts.join('، ')} إلى {copyTargets.length} معلم.
-                          </p>
+                          <div className="text-sm font-bold text-slate-800 leading-relaxed">
+                            <p className="mb-2">سيُنسَخ:</p>
+                            <ul className="flex flex-col gap-1.5 mb-3">
+                              {previewParts.map((part, i) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#655ac1] inline-block shrink-0 mt-1.5" />
+                                  <span>{part}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <p className="pt-2 border-t border-slate-100 text-slate-600">
+                              إلى <span className="font-black text-[#655ac1]">{copyTargets.length}</span> معلم.
+                            </p>
+                          </div>
                         ) : (
                           <p className="text-sm font-bold text-slate-500">فعّل قيدًا واحدًا على الأقل لنسخه.</p>
                         )}

@@ -589,13 +589,13 @@ const SemesterManager: React.FC<SemesterManagerProps> = ({
 
                 <div className="pt-3 border-t border-slate-100 flex flex-col gap-1.5 items-start">
                   <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shrink-0" />بداية الفصل: <span className="font-black text-emerald-600">{formatDateForDisplay(semester.startDate, calendarType)}</span>
+                    <span className="w-2 h-2 rounded-full bg-slate-600 inline-block shrink-0" />بداية الفصل: <span className="font-black text-emerald-600">{formatDateForDisplay(semester.startDate, calendarType)}</span>
                   </span>
                   <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
-                    <span className="w-2 h-2 rounded-full bg-rose-400 inline-block shrink-0" />نهاية الفصل: <span className="font-black text-rose-600">{formatDateForDisplay(semester.endDate, calendarType)}</span>
+                    <span className="w-2 h-2 rounded-full bg-slate-600 inline-block shrink-0" />نهاية الفصل: <span className="font-black text-rose-600">{formatDateForDisplay(semester.endDate, calendarType)}</span>
                   </span>
                   <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#655ac1] inline-block shrink-0" />مدة الفصل الدراسي: <span className="font-black text-[#655ac1]">{semester.weeksCount} أسبوع</span>
+                    <span className="w-2 h-2 rounded-full bg-slate-600 inline-block shrink-0" />مدة الفصل الدراسي: <span className="font-black text-[#655ac1]">{semester.weeksCount} أسبوع</span>
                   </span>
                 </div>
 

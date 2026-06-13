@@ -151,7 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const pkgTotalDays = Math.max(1, Math.ceil((pkgEndD.getTime() - pkgStartD.getTime()) / (1000 * 60 * 60 * 24)));
   const pkgRemainingPct = Math.max(0, Math.min(1, daysRemaining / pkgTotalDays));
   const ARC_LEN = 157; // π × 50 (semicircle r=50)
-  const pkgArcColor = isExpired ? '#94a3b8' : '#8779fb';
+  const pkgArcColor = isExpired ? '#94a3b8' : '#655ac1';
   const pkgTrackColor = isExpired ? '#f1f5f9' : '#e5e1fe';
 
   // Hijri date formatter
@@ -250,8 +250,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                <div className="flex flex-col items-center gap-2">
                  <div className="relative w-[84px] h-[84px]">
                    <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
-                     <circle cx="44" cy="44" r="36" stroke="#dcfce7" strokeWidth="6" fill="transparent" />
-                     <circle cx="44" cy="44" r="36" stroke="#25D366" strokeWidth="6" fill="transparent"
+                     <circle cx="44" cy="44" r="36" stroke="#dcfce7" strokeWidth="8" fill="transparent" />
+                     <circle cx="44" cy="44" r="36" stroke="#25D366" strokeWidth="8" fill="transparent"
                        strokeDasharray={RING_C}
                        strokeDashoffset={RING_C * (1 - waPct)}
                        strokeLinecap="round"
@@ -277,8 +277,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                <div className="flex flex-col items-center gap-2">
                  <div className="relative w-[84px] h-[84px]">
                    <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
-                     <circle cx="44" cy="44" r="36" stroke="#dbeafe" strokeWidth="6" fill="transparent" />
-                     <circle cx="44" cy="44" r="36" stroke="#007AFF" strokeWidth="6" fill="transparent"
+                     <circle cx="44" cy="44" r="36" stroke="#dbeafe" strokeWidth="8" fill="transparent" />
+                     <circle cx="44" cy="44" r="36" stroke="#007AFF" strokeWidth="8" fill="transparent"
                        strokeDasharray={RING_C}
                        strokeDashoffset={RING_C * (1 - smsPct)}
                        strokeLinecap="round"
@@ -321,24 +321,20 @@ const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex items-center justify-center gap-6 mt-2">
 
-              {/* Semicircle gauge */}
-              <div className="relative flex justify-center" style={{ width: 150, height: 74 }}>
-                <svg width="150" height="74" viewBox="0 0 120 70">
-                  {/* Track */}
-                  <path d="M 10,60 A 50,50 0 0 1 110,60"
-                    stroke={pkgTrackColor} strokeWidth="7" fill="none" strokeLinecap="round" />
-                  {/* Progress */}
-                  <path d="M 10,60 A 50,50 0 0 1 110,60"
-                    stroke={pkgArcColor} strokeWidth="7" fill="none" strokeLinecap="round"
-                    strokeDasharray={ARC_LEN}
-                    strokeDashoffset={ARC_LEN * (1 - pkgRemainingPct)}
+              {/* Full donut ring */}
+              <div className="relative w-[104px] h-[104px] shrink-0">
+                <svg viewBox="0 0 88 88" className="w-full h-full -rotate-90">
+                  <circle cx="44" cy="44" r="36" stroke={pkgTrackColor} strokeWidth="8" fill="transparent" />
+                  <circle cx="44" cy="44" r="36" stroke={pkgArcColor} strokeWidth="8" fill="transparent"
+                    strokeDasharray={RING_C}
+                    strokeDashoffset={RING_C * (1 - pkgRemainingPct)}
+                    strokeLinecap="round"
                     style={{ transition: 'stroke-dashoffset 1s ease' }}
                   />
                 </svg>
-                {/* Center label */}
-                <div className="absolute inset-0 flex flex-col items-center justify-end pb-0">
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-2xl font-black leading-none" style={{ color: pkgArcColor }}>
                     {isExpired ? '∞' : daysRemaining}
                   </span>
@@ -348,20 +344,21 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-              {/* Package name + trial badge */}
-              <div className="flex items-center justify-center gap-2 mt-1 mb-1">
-                <span className="text-sm font-black text-slate-800">
-                  {PACKAGE_NAMES[subscription.packageTier] || subscription.planName}
-                </span>
-                {subscription.isTrial && (
-                  <span className="text-[10px] font-bold text-[#655ac1] bg-[#f3f0ff] px-2 py-0.5 rounded-full border border-[#e5e1fe] whitespace-nowrap">
-                    تجريبية
+              {/* Text block */}
+              <div className="flex flex-col items-center gap-2 min-w-0">
+                {/* Package name + trial badge */}
+                <div className="flex items-center gap-2">
+                  {subscription.isTrial && (
+                    <span className="text-[10px] font-bold text-[#655ac1] bg-[#f3f0ff] px-2 py-0.5 rounded-full border border-[#e5e1fe] whitespace-nowrap">
+                      تجريبية
+                    </span>
+                  )}
+                  <span className="text-base font-black text-slate-800">
+                    {PACKAGE_NAMES[subscription.packageTier] || subscription.planName}
                   </span>
-                )}
-              </div>
+                </div>
 
-              {/* Date range in Hijri */}
-              <div className="flex flex-col items-center gap-0.5 mt-0">
+                {/* Date range in Hijri */}
                 <div className="flex items-center gap-2 text-xs font-bold">
                   <span className="text-slate-400">{toHijri(subscription.startDate)}</span>
                   <span className="text-slate-300">—</span>

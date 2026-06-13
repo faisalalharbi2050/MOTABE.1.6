@@ -1138,7 +1138,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               ? currentSchoolTeachers.filter(t => (copyMode === 'manual' || t.id !== sourceTeacher?.id) && copyTargetSpecIds.includes(t.specializationId)).map(t => t.id)
               : selectedTargets;
       if (targetIds.length === 0) {
-          showToast('اختر هدفاً واحداً على الأقل لتطبيق النصاب', 'warning');
+          showToast('اختر هدفاً واحداً على الأقل لتعيين النصاب', 'warning');
           return;
       }
       
@@ -1166,7 +1166,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
           return t;
       }));
       
-      showToast(`تم تطبيق النصاب على ${targetIds.length} معلم`, 'success');
+      showToast(`تم تعيين النصاب على ${targetIds.length} معلم`, 'success');
       setShowCopyModal(false);
   };
 
@@ -1648,7 +1648,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
               className="group flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Copy size={16} className="text-slate-400 group-hover:text-white transition-colors" />
-              تطبيق النصاب
+              تعيين النصاب
             </button>
           </div>
 
@@ -2509,7 +2509,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                         <div>
                              <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
                                 <Copy size={20} className="text-[#655ac1]" />
-                                تطبيق النصاب
+                                تعيين النصاب
                              </h3>
                               <p className="text-xs text-slate-400 font-bold mt-1">حدّد المعلمين المستهدفين على اليمين، واضبط النصاب المطبَّق على اليسار.</p>
                         </div>
@@ -2630,13 +2630,17 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                               {/* شريط المعاينة */}
                               <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 space-y-2">
                                 {(copyOptions.basic || copyOptions.waiting) ? (
-                                  <p className="text-[11px] font-bold text-slate-500 leading-relaxed">
-                                    سيُطبَّق
-                                    {copyOptions.basic && <> حصص = <span className="font-black text-[#655ac1]">{manualQuotaValues.basic}</span></>}
-                                    {copyOptions.basic && copyOptions.waiting && '،'}
-                                    {copyOptions.waiting && <> انتظار = <span className="font-black text-[#655ac1]">{manualQuotaValues.waiting}</span></>}
-                                    {' '}على <span className="font-black text-[#655ac1]">{copyTargetCount}</span> معلم.
-                                  </p>
+                                  <div className="space-y-2">
+                                    <p className="text-[13px] font-bold text-slate-600 leading-relaxed">
+                                      سيُطبَّق
+                                      {copyOptions.basic && <> حصص = <span className="font-black text-[#655ac1]">{manualQuotaValues.basic}</span></>}
+                                      {copyOptions.basic && copyOptions.waiting && '،'}
+                                      {copyOptions.waiting && <> انتظار = <span className="font-black text-[#655ac1]">{manualQuotaValues.waiting}</span></>}
+                                    </p>
+                                    <p className="text-[13px] font-bold text-slate-600 pt-2 border-t border-slate-200">
+                                      على <span className="font-black text-[#655ac1]">{copyTargetCount}</span> معلم.
+                                    </p>
+                                  </div>
                                 ) : (
                                   <p className="text-[11px] font-bold text-amber-600">فعّل نصاب الحصص أو الانتظار على الأقل.</p>
                                 )}
@@ -2667,7 +2671,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                              className="min-w-32 px-8 py-3 bg-[#655ac1] text-white font-black text-sm rounded-xl hover:bg-[#5448a8] shadow-lg shadow-[#655ac1]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                          >
                              <CheckCircle2 size={16} />
-                             تطبيق النصاب
+                             تعيين النصاب
                          </button>
                      </div>
                 </div>
@@ -3578,7 +3582,7 @@ const Step6Teachers: React.FC<Step6Props> = ({ teachers = [], setTeachers, speci
                     className={itemBase}
                 >
                     <span className={iconWrap}><Copy size={14} /></span>
-                    <span className={labelCls}>تطبيق النصاب</span>                </button>
+                    <span className={labelCls}>تعيين النصاب</span>                </button>
 
                 <button
                     onClick={() => { openTeacherConstraints(actionDropdown.teacherId); setActionDropdown(null); }}

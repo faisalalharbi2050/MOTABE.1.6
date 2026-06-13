@@ -2521,7 +2521,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
         const availableGrades = [...new Set(schoolClasses.map(c => c.grade))].sort((a, b) => a - b);
         const gradeOptions: DropdownOption[] = availableGrades.map(g => ({ value: String(g), label: `الصف ${g}` }));
         const sourceClassOptions: DropdownOption[] = schoolClasses
-          .filter(c => bulkEditScopeGrade === '' || c.grade === bulkEditScopeGrade)
+          .filter(c => (!c.type || c.type === 'class') && (bulkEditScopeGrade === '' || c.grade === bulkEditScopeGrade)) // استبعاد المرافق (مختبر…) — فصول فعلية فقط
           .map(c => ({
           value: c.id,
           label: c.name || `${c.grade}/${c.section}`,
@@ -2547,7 +2547,7 @@ const Step5Students: React.FC<Step5Props> = ({ classes, students, setStudents, s
           return matchesSearch && matchesGrade && matchesClass && matchesSelectedGrade;
         }).sort((a, b) => a.grade !== b.grade ? a.grade - b.grade : a.name.localeCompare(b.name, 'ar'));
         const targetClassOptions: DropdownOption[] = schoolClasses
-          .filter(c => selectedTransferGrade !== null && c.grade === selectedTransferGrade && !selectedCurrentClassIds.has(c.id))
+          .filter(c => (!c.type || c.type === 'class') && selectedTransferGrade !== null && c.grade === selectedTransferGrade && !selectedCurrentClassIds.has(c.id)) // استبعاد المرافق (مختبر…) — فصول فعلية فقط
           .map(c => ({
           value: c.id,
           label: c.name || `${c.grade}/${c.section}`,

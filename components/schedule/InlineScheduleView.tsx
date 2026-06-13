@@ -242,6 +242,8 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
     type InternalSortMode = 'alpha' | 'specialization' | 'custom';
     const [fsTeacherSort, setFsTeacherSort] = useState<InternalSortMode>('alpha');
     const [pendingSortChoice, setPendingSortChoice] = useState<InternalSortMode | null>(null);
+    const [fsDragIdx, setFsDragIdx] = useState<number | null>(null);
+    const [fsSpecDragIdx, setFsSpecDragIdx] = useState<number | null>(null);
     const [fsCustomOrder, setFsCustomOrder] = useState<string[]>([]);
     const [fsSpecOrder, setFsSpecOrder] = useState<string[]>([]);
     const [showFsSortModal, setShowFsSortModal] = useState(false);
@@ -2577,49 +2579,38 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     </div>
                     <button onClick={() => setShowFsSortModal(false)} className="w-9 h-9 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 transition-all"><X size={18} /></button>
                 </div>
-                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-                    <div className="overflow-hidden rounded-2xl border border-slate-100">
-                        <table className="w-full text-right text-sm" dir="rtl">
-                            <thead className="bg-slate-50 border-b border-slate-100">
-                                <tr>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-14 text-center">م</th>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1]">اسم المعلم</th>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1]">التخصص</th>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-16 text-center">ترتيب</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {fsPendingOrder.map((tid, idx) => {
-                                    const t = teachers.find(t => t.id === tid); if (!t) return null;
-                                    return (
-                                        <tr key={tid} draggable
-                                            onDragStart={e => e.dataTransfer.setData('text/plain', idx.toString())}
-                                            onDragOver={e => e.preventDefault()}
-                                            onDrop={e => {
-                                                e.preventDefault();
-                                                const src = parseInt(e.dataTransfer.getData('text/plain'));
-                                                if (isNaN(src) || src === idx) return;
-                                                const arr = [...fsPendingOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
-                                                setFsPendingOrder(arr);
-                                            }}
-                                            className="hover:bg-slate-50/60 transition-all cursor-move group"
-                                        >
-                                            <td className="px-5 py-3 text-center">
-                                                <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
-                                            </td>
-                                            <td className="px-5 py-3 font-bold text-slate-800">{t.name}</td>
-                                            <td className="px-5 py-3 text-xs font-bold text-slate-500">{specializationNames[t.specializationId] || 'بدون تخصص'}</td>
-                                            <td className="px-5 py-3 text-center"><GripVertical size={18} className="mx-auto text-slate-300 group-hover:text-[#655ac1]" /></td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar space-y-2" dir="rtl">
+                    {fsPendingOrder.map((tid, idx) => {
+                        const t = teachers.find(t => t.id === tid); if (!t) return null;
+                        const dragging = fsDragIdx === idx;
+                        return (
+                            <div key={tid} draggable
+                                onDragStart={e => { e.dataTransfer.setData('text/plain', idx.toString()); setFsDragIdx(idx); }}
+                                onDragEnd={() => setFsDragIdx(null)}
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={e => {
+                                    e.preventDefault();
+                                    const src = parseInt(e.dataTransfer.getData('text/plain'));
+                                    setFsDragIdx(null);
+                                    if (isNaN(src) || src === idx) return;
+                                    const arr = [...fsPendingOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
+                                    setFsPendingOrder(arr);
+                                }}
+                                className={`flex items-center gap-4 rounded-2xl border px-5 py-3 cursor-move transition-all group ${dragging ? 'bg-[#655ac1] border-[#655ac1] shadow-lg shadow-[#655ac1]/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                            >
+                                <span className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${dragging ? 'bg-white/20 text-white' : 'bg-slate-50 text-slate-400'}`}>{idx + 1}</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-bold truncate ${dragging ? 'text-white' : 'text-slate-800'}`}>{t.name}</p>
+                                    <p className={`text-[11px] font-bold truncate ${dragging ? 'text-white/80' : 'text-slate-500'}`}>{specializationNames[t.specializationId] || 'بدون تخصص'}</p>
+                                </div>
+                                <GripVertical size={18} className={`shrink-0 ${dragging ? 'text-white' : 'text-slate-300 group-hover:text-[#655ac1]'}`} />
+                            </div>
+                        );
+                    })}
                 </div>
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                     <button onClick={() => { setPendingSortChoice(null); setShowFsSortModal(false); }} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
-                    <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setPendingSortChoice(null); setShowFsSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
+                    <button onClick={() => { setFsCustomOrder(fsPendingOrder); setFsTeacherSort('custom'); setPendingSortChoice(null); setShowFsSortModal(false); }} className="inline-flex items-center gap-2 px-10 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-base shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
                         <CheckCircle2 size={16} />
                         حفظ
                     </button>
@@ -2641,52 +2632,37 @@ const InlineScheduleView: React.FC<InlineScheduleViewProps> = ({
                     </div>
                     <button onClick={() => setShowFsSpecSortModal(false)} className="w-9 h-9 rounded-full border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-slate-50 transition-all"><X size={18} /></button>
                 </div>
-                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-                    <div className="overflow-hidden rounded-2xl border border-slate-100">
-                        <table className="w-full text-right text-sm" dir="rtl">
-                            <thead className="bg-slate-50 border-b border-slate-100">
-                                <tr>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-14 text-center">م</th>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1]">التخصص</th>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-28 text-center">عدد المعلمين</th>
-                                    <th className="px-5 py-3 text-xs font-black text-[#655ac1] w-16 text-center">ترتيب</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {fsPendingSpecOrder.map((specId, idx) => {
-                                    const sp = specializationNames[specId]; if (!sp) return null;
-                                    const specCount = teachers.filter(t => t.specializationId === specId).length;
-                                    return (
-                                        <tr key={specId} draggable
-                                            onDragStart={e => e.dataTransfer.setData('text/plain', idx.toString())}
-                                            onDragOver={e => e.preventDefault()}
-                                            onDrop={e => {
-                                                e.preventDefault();
-                                                const src = parseInt(e.dataTransfer.getData('text/plain'));
-                                                if (isNaN(src) || src === idx) return;
-                                                const arr = [...fsPendingSpecOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
-                                                setFsPendingSpecOrder(arr);
-                                            }}
-                                            className="hover:bg-slate-50/60 transition-all cursor-move group"
-                                        >
-                                            <td className="px-5 py-3 text-center">
-                                                <span className="text-xs font-bold text-slate-400 bg-slate-50 w-6 h-6 flex items-center justify-center rounded-full mx-auto">{idx + 1}</span>
-                                            </td>
-                                            <td className="px-5 py-3 font-bold text-slate-800">{sp}</td>
-                                            <td className="px-5 py-3 text-center">
-                                                <span className="inline-block px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-700">{specCount}</span>
-                                            </td>
-                                            <td className="px-5 py-3 text-center"><GripVertical size={18} className="mx-auto text-slate-300 group-hover:text-[#655ac1]" /></td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                <div className="overflow-y-auto flex-1 p-6 custom-scrollbar space-y-2" dir="rtl">
+                    {fsPendingSpecOrder.map((specId, idx) => {
+                        const sp = specializationNames[specId]; if (!sp) return null;
+                        const specCount = teachers.filter(t => t.specializationId === specId).length;
+                        const dragging = fsSpecDragIdx === idx;
+                        return (
+                            <div key={specId} draggable
+                                onDragStart={e => { e.dataTransfer.setData('text/plain', idx.toString()); setFsSpecDragIdx(idx); }}
+                                onDragEnd={() => setFsSpecDragIdx(null)}
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={e => {
+                                    e.preventDefault();
+                                    const src = parseInt(e.dataTransfer.getData('text/plain'));
+                                    setFsSpecDragIdx(null);
+                                    if (isNaN(src) || src === idx) return;
+                                    const arr = [...fsPendingSpecOrder]; const [m] = arr.splice(src, 1); arr.splice(idx, 0, m);
+                                    setFsPendingSpecOrder(arr);
+                                }}
+                                className={`flex items-center gap-4 rounded-2xl border px-5 py-3 cursor-move transition-all group ${dragging ? 'bg-[#655ac1] border-[#655ac1] shadow-lg shadow-[#655ac1]/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                            >
+                                <span className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${dragging ? 'bg-white/20 text-white' : 'bg-slate-50 text-slate-400'}`}>{idx + 1}</span>
+                                <p className={`flex-1 min-w-0 text-sm font-bold truncate ${dragging ? 'text-white' : 'text-slate-800'}`}>{sp}</p>
+                                <span className={`shrink-0 w-9 h-9 flex items-center justify-center rounded-full border-2 text-xs font-black ${dragging ? 'border-white/40 text-white' : 'border-slate-200 text-slate-700'}`}>{specCount}</span>
+                                <GripVertical size={18} className={`shrink-0 ${dragging ? 'text-white' : 'text-slate-300 group-hover:text-[#655ac1]'}`} />
+                            </div>
+                        );
+                    })}
                 </div>
                 <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                     <button onClick={() => { setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">إلغاء</button>
-                    <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-sm shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
+                    <button onClick={() => { setFsSpecOrder(fsPendingSpecOrder); setFsTeacherSort('specialization'); setPendingSortChoice(null); setShowFsSpecSortModal(false); }} className="inline-flex items-center gap-2 px-10 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#5046a0] text-white font-black text-base shadow-lg shadow-[#655ac1]/10 transition-all active:scale-95">
                         <CheckCircle2 size={16} />
                         حفظ
                     </button>
