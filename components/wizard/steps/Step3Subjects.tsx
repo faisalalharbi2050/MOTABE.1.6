@@ -1708,84 +1708,35 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <div className="px-5 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex flex-col items-start gap-2">
-                  <span className="text-sm font-black text-[#655ac1]">{activeSchoolName || 'المدرسة'}</span>
-                  {planMode === 'ready' && (
-                    <span className="text-[11px] font-bold bg-white border border-slate-300 text-slate-500 rounded-lg px-2.5 py-1">
-                      {getPhaseLabel(selectedPhase as Phase)} - {selectedDepartment?.name || 'عام'}
-                    </span>
-                  )}
+                  <div className="flex items-center flex-wrap gap-2.5">
+                    <span className="text-sm font-black text-[#655ac1]">{activeSchoolName || 'المدرسة'}</span>
+                    {isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
+                      <span className="inline-flex items-center gap-1.5 text-[12px] font-black text-[#655ac1]">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
+                          <Check size={10} strokeWidth={3.5} />
+                        </span>
+                        <span>خطة معتمدة</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-bold bg-white border border-slate-300 text-slate-500 rounded-lg px-2.5 py-1">
+                    {getPhaseLabel(selectedPhase as Phase)} - {selectedDepartment?.name || 'عام'}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {planMode === 'custom' && selectedPlanSubjects.length > 0 && (
-                  isSelectedCustomPlanApproved ? (
-                    <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
-                        <Check size={12} strokeWidth={3.5} />
-                      </span>
-                      <span>خطة معتمدة</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleApproveCustomPlan}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-[#655ac1] text-white hover:bg-[#5046a0] shadow-lg shadow-[#655ac1]/20"
-                    >
-                      <Check size={16} />
-                      <span>اعتماد الخطة</span>
-                    </button>
-                  )
-                )}
-                {planMode !== 'custom' && (
-                  isSelectedStageApproved && subjectPlanTargetMode === 'base' ? (
-                    <>
-                      <div className="flex items-center gap-2 px-3 py-2 text-sm font-black text-[#655ac1]">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
-                          <Check size={12} strokeWidth={3.5} />
-                        </span>
-                        <span>خطة معتمدة</span>
-                      </div>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleApproveSelectedPlan}
-                      disabled={!selectedPlanKey || selectedTemplateSubjects.length === 0}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-[#655ac1] text-white hover:bg-[#5046a0] shadow-lg shadow-[#655ac1]/20 disabled:bg-slate-300 disabled:shadow-none"
-                    >
-                      <Check size={16} />
-                      <span>{subjectPlanTargetMode === 'classes' ? 'اعتمد الخطة الفرعية' : 'اعتماد الخطة'}</span>
-                    </button>
-                  )
-                )}
-                {planMode !== 'custom' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
+              {!(isSelectedStageApproved && subjectPlanTargetMode === 'base') && (
+                <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setUnapproveTarget({ kind: 'stage' })}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
+                    onClick={handleApproveSelectedPlan}
+                    disabled={!selectedPlanKey || selectedTemplateSubjects.length === 0}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-[#655ac1] text-white hover:bg-[#5046a0] shadow-lg shadow-[#655ac1]/20 disabled:bg-slate-300 disabled:shadow-none"
                   >
-                    <X size={16} />
-                    <span>إلغاء الاعتماد</span>
+                    <Check size={16} />
+                    <span>{subjectPlanTargetMode === 'classes' ? 'اعتمد الخطة الفرعية' : 'اعتماد الخطة'}</span>
                   </button>
-                )}
-                {planMode === 'custom' && isSelectedCustomPlanApproved && (
-                  <button
-                    onClick={() => setUnapproveTarget({ kind: 'customActive' })}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-300 hover:bg-slate-50 hover:border-rose-200"
-                  >
-                    <X size={16} />
-                    <span>إلغاء الاعتماد</span>
-                  </button>
-                )}
-                {planMode === 'custom' ? (
-                  <button
-                    onClick={handleDeleteCurrentCustomPlan}
-                    disabled={selectedPlanSubjects.length === 0}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all bg-rose-50 text-rose-500 border border-rose-100 hover:bg-rose-100 disabled:opacity-40"
-                  >
-                    <Trash2 size={16} />
-                    <span>حذف الخطة</span>
-                  </button>
-                ) : null}
-              </div>
+                </div>
+              )}
             </div>
 
             {planMode === 'ready' && gradePlanGroups.length > 0 && (
@@ -1820,6 +1771,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       <Settings2 size={16} />
                       <span>قيود المواد</span>
                     </button>
+                    {isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
+                      <button
+                        onClick={() => setUnapproveTarget({ kind: 'stage' })}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-200 hover:bg-rose-50 hover:border-rose-200"
+                      >
+                        <X size={16} />
+                        <span>إلغاء الاعتماد</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
