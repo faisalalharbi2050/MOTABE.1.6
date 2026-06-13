@@ -1597,17 +1597,17 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
               </div>
             </div>
             {subjectPlanTargetMode === 'classes' && (
-              <div className="mx-5 mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-start gap-2 text-amber-700">
-                  <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+              <div className="mx-5 mt-4 rounded-2xl border border-[#655ac1]/20 bg-[#655ac1]/5 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start gap-2 text-[#655ac1]">
+                  <Layers size={17} className="mt-0.5 shrink-0" />
                   <div>
-                    <span className="block text-sm font-black">أضف خطة دراسية أخرى لفصول معينة</span>
-                    <span className="block text-[11px] font-bold text-amber-700/75 mt-0.5">اختر قسمًا آخر من نفس المرحلة، ثم اعتمده كخطة فرعية لاستخدامه لاحقًا في صفحة الفصول لتخصيص خطط الفصول.</span>
+                    <span className="block text-sm font-black">إضافة خطة فرعية لفصول ملحقة</span>
+                    <span className="block text-[11px] font-bold text-[#655ac1]/75 mt-0.5">اختر القسم الملحق من نفس المرحلة واعتمده كخطة فرعية، ثم اربطه بالفصول الملحقة من صفحة الفصول.</span>
                   </div>
                 </div>
                 <button
                   onClick={cancelClassSubjectPlan}
-                  className="w-fit px-4 py-2 rounded-xl bg-white border border-amber-200 text-xs font-black text-amber-700 hover:bg-amber-100/60 transition-all"
+                  className="w-fit px-4 py-2 rounded-xl bg-white border border-[#655ac1]/30 text-xs font-black text-[#655ac1] hover:bg-[#655ac1]/10 transition-all"
                 >
                   إلغاء
                 </button>
@@ -1800,20 +1800,28 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       <span>قيود المواد</span>
                     </button>
                   </div>
-                  {isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
+                  {isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
                     <div className="flex justify-start lg:justify-end">
                       <button
                         onClick={beginClassSubjectPlan}
-                        disabled={!availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId)}
-                        title={!availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) ? 'لا يوجد قسم / مسار آخر في نفس المرحلة' : undefined}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
                       >
                         <Layers size={16} />
-                        <span>أضف خطة دراسية أخرى لفصول معينة</span>
+                        <span>إضافة خطة فرعية</span>
                       </button>
                     </div>
                   )}
                 </div>
+
+                {isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
+                  <div className="rounded-2xl border border-[#655ac1]/20 bg-[#655ac1]/5 px-4 py-3 flex items-start gap-2 text-[#655ac1]">
+                    <Layers size={17} className="mt-0.5 shrink-0" />
+                    <div>
+                      <span className="block text-sm font-black">إضافة خطة فرعية لفصول ملحقة</span>
+                      <span className="block text-[11px] font-bold text-[#655ac1]/75 mt-0.5">بعض فصول هذه المرحلة قد تتبع قسمًا مختلفًا (موهوبين، تحفيظ، تربية خاصة). اعتمد خطة المرحلة العامة كأساسية، ثم أضف خطة القسم الملحق عبر زر «إضافة خطة فرعية»، واربطها بتلك الفصول من صفحة الفصول.</span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-2 flex-wrap justify-start border-t border-slate-100 pt-3">
                   {(planHasSemesterChoices ? visibleGradeGroups : gradePlanGroups).map(group => {

@@ -2657,10 +2657,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                       <div className="p-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
                         {grouped[grade].map(cls => {
                           const selected = classPlanSelectedIds.has(cls.id);
-                          const clsPlan = cls.subjectPlanId
+                          const isSubPlan = !!cls.subjectPlanId;
+                          const clsPlan = isSubPlan
                             ? (scheduleSettings.classSubjectPlans || []).find(plan => plan.id === cls.subjectPlanId)
                             : undefined;
-                          const planLabel = cls.subjectPlanId
+                          const planLabel = isSubPlan
                             ? (clsPlan ? formatSubPlanLabel(clsPlan.name, clsPlan.phase) : 'الخطة الفرعية')
                             : basePlanSummary.label;
                           return (
@@ -2681,7 +2682,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                 <span className="min-w-0 truncate whitespace-nowrap text-sm font-black text-slate-800">{getClassLabel(cls)}</span>
                                 <span className={`w-4 h-4 rounded-full border-2 flex shrink-0 items-center justify-center ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={10} strokeWidth={3.5} /></span>
                               </div>
-                              <p className="mt-2 truncate whitespace-nowrap text-[11px] font-bold text-slate-400">{planLabel}</p>
+                              <div className="mt-2 flex items-center gap-1.5 min-w-0">
+                                <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black ${isSubPlan ? 'bg-[#655ac1] text-white' : 'bg-slate-100 text-slate-500'}`}>{isSubPlan ? 'فرعية' : 'أساسية'}</span>
+                                <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-bold text-slate-400">{planLabel}</span>
+                              </div>
                             </button>
                           );
                         })}
