@@ -556,9 +556,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const basePlanSummary = useMemo(() => {
     const subjectIds = new Set<string>();
     currentSchoolClasses.forEach(cls => getGradeSubjectIds(cls.grade).forEach(id => subjectIds.add(id)));
-    const departmentName = phaseDepartmentMap[activePhase] || 'الخطة المعتمدة';
+    const departmentName = (phaseDepartmentMap[activePhase] || '').replace(/_/g, ' ');
     return {
-      label: `الخطة الأساسية - ${departmentName}`,
+      label: departmentName
+        ? `الخطة الأساسية - ${activePhase} - ${departmentName}`
+        : `الخطة الأساسية - ${activePhase}`,
       subjectCount: subjectIds.size
     };
   }, [currentSchoolClasses, getGradeSubjectIds, phaseDepartmentMap, activePhase]);
@@ -2617,14 +2619,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         key={plan.value}
                         type="button"
                         onClick={() => setClassPlanId(plan.value)}
-                        className={`w-full rounded-2xl border bg-white p-4 text-right transition-all ${active ? 'border-[#655ac1] shadow-sm shadow-[#655ac1]/10' : 'border-slate-200 hover:border-[#655ac1]/40'}`}
+                        className={`w-full rounded-2xl border p-4 text-right transition-all ${active ? 'bg-[#655ac1] border-[#655ac1] shadow-sm shadow-[#655ac1]/20' : 'bg-white border-slate-200 hover:border-[#655ac1]/40'}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <h4 className="text-sm font-black text-slate-800">{plan.label}</h4>
-                            <p className="text-[11px] font-bold text-slate-400 mt-1">اختر الفصول المطلوبة</p>
+                            <h4 className={`text-sm font-black ${active ? 'text-white' : 'text-slate-800'}`}>{plan.label}</h4>
+                            <p className={`text-[11px] font-bold mt-1 ${active ? 'text-white/75' : 'text-slate-400'}`}>اختر الفصول المطلوبة</p>
                           </div>
-                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
                         </div>
                       </button>
                     );
@@ -2666,9 +2667,9 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               })}
                               className={`min-w-0 text-right rounded-xl border px-3 py-2.5 transition-all bg-white disabled:opacity-50 disabled:cursor-not-allowed ${selected ? 'border-slate-200 shadow-lg shadow-[#655ac1]/10 ring-2 ring-[#655ac1]/15' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
                             >
-                              <div className="flex min-w-0 items-center justify-between gap-3">
+                              <div className="flex min-w-0 items-center justify-between gap-2">
                                 <span className="min-w-0 truncate whitespace-nowrap text-sm font-black text-slate-800">{getClassLabel(cls)}</span>
-                                <span className={`w-5 h-5 rounded-full border-2 flex shrink-0 items-center justify-center ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
+                                <span className={`w-4 h-4 rounded-full border-2 flex shrink-0 items-center justify-center ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={10} strokeWidth={3.5} /></span>
                               </div>
                               <p className="mt-2 truncate whitespace-nowrap text-[11px] font-bold text-slate-400">{planLabel}</p>
                             </button>

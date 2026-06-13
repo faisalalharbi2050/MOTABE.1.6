@@ -1582,7 +1582,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     : 'border-slate-200 bg-white text-slate-600 hover:border-[#655ac1]/40'
                 }`}
               >
-                <span className="font-black text-sm">إضافة خطة مواد يدويًا</span>
+                <span className="font-black text-sm">إضافة خطة دراسية يدويًا</span>
               </button>
             </div>
           </div>
@@ -1603,7 +1603,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                   <AlertTriangle size={17} className="mt-0.5 shrink-0" />
                   <div>
                     <span className="block text-sm font-black">أضف خطة دراسية أخرى لفصول معينة</span>
-                    <span className="block text-[11px] font-bold text-amber-700/75 mt-0.5">اختر قسمًا آخر من نفس المرحلة، ثم احفظه لاستخدامه لاحقًا مع الفصول التي تريدها.</span>
+                    <span className="block text-[11px] font-bold text-amber-700/75 mt-0.5">اختر قسمًا آخر من نفس المرحلة، ثم اعتمده كخطة فرعية لاستخدامه لاحقًا في صفحة الفصول لتخصيص خطط الفصول.</span>
                   </div>
                 </div>
                 <button
@@ -1631,7 +1631,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5">
             <div className="flex flex-col gap-4">
               <div>
-                <h4 className="font-black text-slate-800">إضافة خطة مواد يدويًا</h4>
+                <h4 className="font-black text-slate-800">إضافة خطة دراسية يدويًا</h4>
                 <p className="text-xs text-slate-400 font-bold mt-1">أنشئ المواد وعدد حصصها يدويًا عند عدم رغبتك استخدام الخطة الجاهزة .</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
@@ -2762,7 +2762,7 @@ const CustomPlanModal: React.FC<{
                 {/* Header — matches GradeDetailsModal style */}
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
                     <div>
-                        <h3 className="text-xl font-black text-slate-800">إضافة خطة مواد يدويًا</h3>
+                        <h3 className="text-xl font-black text-slate-800">إضافة خطة دراسية يدويًا</h3>
                         <p className="text-xs text-slate-400 font-bold mt-0.5">أنشئ المواد وعدد حصصها يدويًا عند عدم رغبتك استخدام الخطة الجاهزة .</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600">
