@@ -9,7 +9,7 @@ import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
 import StudyPlansModal from '../StudyPlansModal';
 import { getMaxDailyPeriodsForSubject, describeDistribution, ValidationWarning, validateAllConstraints } from '../../../utils/scheduleConstraints';
-import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon, Save } from 'lucide-react';
+import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon, Save, HelpCircle } from 'lucide-react';
 import SubjectAbbreviationsModal from '../../schedule/SubjectAbbreviationsModal';
 
 const InlineSelect: React.FC<{
@@ -1628,11 +1628,11 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
         {planMode === 'ready' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <Layers size={17} className="mt-0.5 shrink-0 text-[#655ac1]" />
-              <div className="text-[11px] font-bold leading-relaxed text-slate-500">
-                <span className="block">هل بعض فصول هذه المرحلة تتبع قسمًا مختلفًا؟ (موهوبين، تحفيظ، تربية خاصة)</span>
-                <span className="block">أضِف لها <span className="text-[#655ac1] font-black">خطة فرعية</span>، ثم اربطها بتلك الفصول من صفحة الفصول.</span>
+            <div className="flex items-start gap-2.5">
+              <HelpCircle size={20} className="mt-0.5 shrink-0 text-[#655ac1]" />
+              <div className="text-[13px] font-bold leading-relaxed text-slate-600">
+                <span className="block">هل بعض فصول هذه المرحلة تتبع قسمًا مختلفًا (موهوبين، تحفيظ، تربية خاصة) ؟</span>
+                <span className="block">اعتمد الخطة الأساسية أولًا ثم أضِف لهذه الفصول <span className="text-[#655ac1] font-black">خطة فرعية</span>، ثم اربطها بتلك الفصول من صفحة الفصول</span>
               </div>
             </div>
             <button
@@ -1788,8 +1788,8 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
             {planMode === 'ready' && gradePlanGroups.length > 0 && (
               <div className="px-5 py-3 border-b border-slate-100 space-y-3">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex gap-2 flex-wrap justify-start">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
+                  <div className="flex gap-2 flex-wrap justify-end">
                     <button
                       onClick={() => {
                         setSelectedPrintKeys(selectedPlanKey ? [selectedPlanKey] : []);
