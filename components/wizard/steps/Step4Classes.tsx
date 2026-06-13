@@ -2617,12 +2617,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         key={plan.value}
                         type="button"
                         onClick={() => setClassPlanId(plan.value)}
-                        className={`w-full rounded-2xl border p-4 text-right transition-all ${active ? 'border-[#655ac1] bg-[#f8f7ff]' : 'border-slate-200 bg-white hover:border-[#655ac1]/40'}`}
+                        className={`w-full rounded-2xl border bg-white p-4 text-right transition-all ${active ? 'border-[#655ac1] shadow-sm shadow-[#655ac1]/10' : 'border-slate-200 hover:border-[#655ac1]/40'}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <h4 className="text-sm font-black text-slate-800">{plan.label}</h4>
-                            <p className="text-[11px] font-bold text-slate-400 mt-1">{plan.subjectIds.length} مواد - اخترها للفصول المطلوبة</p>
+                            <p className="text-[11px] font-bold text-slate-400 mt-1">اختر الفصول المطلوبة</p>
                           </div>
                           <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${active ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
                         </div>
@@ -2632,7 +2632,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                <div className="px-4 py-3 border-b border-slate-100">
                   <h4 className="text-sm font-black text-slate-800">اختر الفصول</h4>
                   <p className="text-[11px] font-bold text-slate-400 mt-0.5">انقر على الفصل لتحديده أو إلغاء تحديده.</p>
                 </div>
@@ -2664,13 +2664,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                 else next.add(cls.id);
                                 return next;
                               })}
-                              className={`text-right rounded-xl border px-3 py-2.5 transition-all bg-white disabled:opacity-50 disabled:cursor-not-allowed ${selected ? 'border-slate-200 shadow-lg shadow-[#655ac1]/10 ring-2 ring-[#655ac1]/15' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
+                              className={`min-w-0 text-right rounded-xl border px-3 py-2.5 transition-all bg-white disabled:opacity-50 disabled:cursor-not-allowed ${selected ? 'border-slate-200 shadow-lg shadow-[#655ac1]/10 ring-2 ring-[#655ac1]/15' : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm font-black text-slate-800">{getClassLabel(cls)}</span>
-                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
+                              <div className="flex min-w-0 items-center justify-between gap-3">
+                                <span className="min-w-0 truncate whitespace-nowrap text-sm font-black text-slate-800">{getClassLabel(cls)}</span>
+                                <span className={`w-5 h-5 rounded-full border-2 flex shrink-0 items-center justify-center ${selected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'border-slate-300 text-transparent'}`}><Check size={12} strokeWidth={3.5} /></span>
                               </div>
-                              <p className="mt-2 text-[11px] font-bold text-slate-400">{planLabel}</p>
+                              <p className="mt-2 truncate whitespace-nowrap text-[11px] font-bold text-slate-400">{planLabel}</p>
                             </button>
                           );
                         })}
