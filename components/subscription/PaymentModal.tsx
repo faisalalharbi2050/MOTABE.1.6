@@ -157,7 +157,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const cardBrand: PayMethod = cardNum.replace(/\s/g, '').startsWith('4') ? 'visa' : 'mada';
 
   const inputBase =
-    'w-full bg-transparent px-3.5 py-3 text-sm text-slate-800 placeholder-slate-300 focus:outline-none';
+    'w-full bg-transparent px-3.5 py-3 text-[15px] text-slate-800 placeholder-slate-300 focus:outline-none';
 
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-white flex flex-col" dir="rtl">
@@ -186,71 +186,71 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* ── Order summary (right in RTL) — tinted ── */}
         <div className="lg:border-l border-slate-200 p-6 lg:p-8 flex flex-col">
-          <p className="text-sm font-bold text-slate-500">تفاصيل الطلب</p>
+          <p className="text-[15px] font-bold text-slate-500">تفاصيل الطلب</p>
 
           <div className="mt-6 space-y-2.5">
-            <div className="flex items-center gap-10 text-sm">
+            <div className="flex items-center gap-6 text-[15px] whitespace-nowrap">
               <span className="w-28 shrink-0 text-slate-600 font-bold">باقة متابع</span>
               <span className="font-bold text-slate-700">{PACKAGE_NAMES[planData.tier]}</span>
             </div>
-            <div className="flex items-center gap-10 text-sm">
+            <div className="flex items-center gap-6 text-[15px] whitespace-nowrap">
               <span className="w-28 shrink-0 text-slate-600 font-bold">مدة الاشتراك</span>
               <span className="font-bold text-slate-700">{periodLabel} · {periodDays} يومًا</span>
             </div>
-            <div className="flex items-center gap-10 text-sm">
+            <div className="flex items-center gap-6 text-[15px] whitespace-nowrap">
               <span className="w-28 shrink-0 text-slate-600 font-bold">سعر الباقة</span>
-              <Money value={planData.newPrice} className="font-bold text-slate-700" iconSize={13} />
+              <Money value={planData.newPrice} className="text-lg font-black text-[#655ac1]" iconSize={20} />
             </div>
             {planData.remainingValue > 0 && (
-              <div className="-mr-3 flex items-center gap-6 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
-                <span className="w-36 shrink-0 whitespace-nowrap font-black">خصم الرصيد المتبقي</span>
+              <div className="flex items-center gap-6 text-[13px] text-slate-500 whitespace-nowrap">
+                <span className="w-28 shrink-0 whitespace-nowrap font-bold">خصم الرصيد المتبقي</span>
                 <span className="inline-flex items-center gap-1 font-bold">
-                  − <Money value={planData.remainingValue} iconSize={13} />
+                  − <Money value={planData.remainingValue} iconSize={12} />
                 </span>
               </div>
             )}
             {messagePackage && (
               <div className="mt-3 border-t border-slate-200 pt-3 space-y-2">
-                <div className="flex items-center gap-10 text-sm">
+                <div className="flex items-center gap-6 text-[15px] whitespace-nowrap">
                   <span className="w-28 shrink-0 text-slate-600 font-bold">باقة الرسائل</span>
                   <span className="font-bold text-slate-700">{messagePackage.name}</span>
                 </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center gap-10">
+                <div className="space-y-1.5 text-[13px]">
+                  <div className="flex items-center gap-6 whitespace-nowrap">
                     <span className="w-28 shrink-0 inline-flex items-center gap-1.5 text-slate-600 font-bold"><WhatsAppIcon size={14} /> رسائل واتساب</span>
-                    <span className="font-bold text-slate-600"><span className="text-[#25D366]">{messagePackage.wa.toLocaleString()}</span> رسالة</span>
+                    <span className="font-bold text-slate-700">{messagePackage.wa.toLocaleString()} رسالة</span>
                   </div>
-                  <div className="flex items-center gap-10">
+                  <div className="flex items-center gap-6 whitespace-nowrap">
                     <span className="w-28 shrink-0 inline-flex items-center gap-1.5 text-slate-600 font-bold"><MessageSquare size={14} className="text-[#007AFF]" strokeWidth={2.4} /> رسائل SMS</span>
-                    <span className="font-bold text-slate-600"><span className="text-[#007AFF]">{messagePackage.sms.toLocaleString()}</span> رسالة</span>
+                    <span className="font-bold text-slate-700">{messagePackage.sms.toLocaleString()} رسالة</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-10 text-sm">
-                  <span className="w-28 shrink-0 text-slate-600 font-bold">سعر باقة الرسائل</span>
-                  <Money value={messagePackage.price} className="font-bold text-slate-700" iconSize={13} />
+                <div className="flex items-center gap-6 text-[15px] whitespace-nowrap">
+                  <span className="w-28 shrink-0 text-slate-600 font-bold">سعر الباقة</span>
+                  <Money value={messagePackage.price} className="text-lg font-black text-[#655ac1]" iconSize={20} />
                 </div>
               </div>
             )}
-            <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center gap-4">
-              <span className="text-sm font-black text-slate-700">الإجمالي المستحق</span>
-              <Money value={totalDue} className="text-[2.25rem] leading-none font-black text-[#655ac1]" iconSize={24} />
+            <div className="pt-4 mt-2 border-t border-slate-200 relative flex items-center">
+              <span className="absolute right-0 text-[15px] font-black text-slate-700">الإجمالي المستحق</span>
+              <Money value={totalDue} className="mx-auto text-[1.875rem] leading-none font-black text-[#655ac1]" iconSize={20} />
             </div>
           </div>
 
           <div className="mt-auto pt-6">
             <div className="border-t border-slate-200 pt-4 space-y-2">
               {planData.remainingValue > 0 && (
-                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                <p className="text-[13px] text-slate-500 font-bold leading-relaxed">
                   تم احتساب الرصيد المتبقي من اشتراكك الحالي وخصمه تلقائياً
                 </p>
               )}
               {subscription.isTrial && (
-                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                <p className="text-[13px] text-slate-500 font-bold leading-relaxed">
                   الترقية ستنهي فترتك التجريبية وتبدأ دورتك المدفوعة فوراً.
                 </p>
               )}
               {messagePackage && (
-                <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                <p className="text-[13px] text-slate-500 font-bold leading-relaxed">
                   باقة الرسائل صلاحيتها 12 شهراً من تاريخ الدفع.
                 </p>
               )}
@@ -262,14 +262,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="p-6 lg:p-8">
 
           {/* Express checkout */}
-          <p className="text-xs font-bold text-slate-500 mb-1.5 block">الدفع السريع</p>
+          <p className="text-[13px] font-bold text-slate-500 mb-1.5 block">الدفع السريع</p>
           <div className="flex flex-col gap-2.5">
             <button
               type="button"
               onClick={() => handlePayment('applepay')}
               disabled={isProcessing}
               dir="ltr"
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-bold text-sm text-slate-900 transition-all disabled:opacity-60 active:scale-[0.99] shadow-sm"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-bold text-[15px] text-slate-900 transition-all disabled:opacity-60 active:scale-[0.99] shadow-sm"
             >
               <svg className="w-5 h-5 text-black" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -281,7 +281,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               onClick={() => handlePayment('samsungpay')}
               disabled={isProcessing}
               dir="ltr"
-              className="flex items-center justify-center px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-black text-sm transition-all disabled:opacity-60 active:scale-[0.99] shadow-sm"
+              className="flex items-center justify-center px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-black text-[15px] transition-all disabled:opacity-60 active:scale-[0.99] shadow-sm"
             >
               <span className="text-[#1428A0] italic">Samsung</span>
               <span className="text-slate-900">&nbsp;Pay</span>
@@ -291,14 +291,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           {/* Divider */}
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs font-bold text-slate-400">أو ادفع بالبطاقة</span>
+            <span className="text-[13px] font-bold text-slate-400">أو ادفع بالبطاقة</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
           {/* Card details (Stripe-style grouped field) */}
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">معلومات البطاقة</label>
+              <label className="text-[13px] font-bold text-slate-500 mb-1.5 block">معلومات البطاقة</label>
               <div className="rounded-xl border border-slate-200 bg-white overflow-hidden focus-within:border-[#655ac1] focus-within:ring-2 focus-within:ring-[#e5e1fe] transition-all">
                 <div className="relative border-b border-slate-200">
                   <input
@@ -344,13 +344,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الاسم على البطاقة</label>
+              <label className="text-[13px] font-bold text-slate-500 mb-1.5 block">الاسم على البطاقة</label>
               <input
                 type="text"
                 placeholder="AHMED AL HARBI"
                 value={cardName}
                 onChange={e => setCardName(e.target.value.toUpperCase())}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm uppercase tracking-wider focus:outline-none focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300 transition-all"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-[15px] uppercase tracking-wider focus:outline-none focus:border-[#655ac1] focus:ring-2 focus:ring-[#e5e1fe] bg-white text-slate-800 placeholder-slate-300 transition-all"
               />
             </div>
           </div>
@@ -375,7 +375,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </button>
 
           {/* Trust line */}
-          <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <div className="mt-4 flex items-center justify-center gap-1.5 text-[13px] text-slate-400">
             <ShieldCheck size={13} className="text-slate-400" />
             دفع آمن ومشفّر بتقنية SSL 256-bit
           </div>
