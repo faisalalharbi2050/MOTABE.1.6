@@ -295,7 +295,7 @@ const Features: React.FC = () => {
           title="مزايا متابع"
         />
 
-        <div className="space-y-10">
+        <div className="space-y-10 lg:space-y-16">
           <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-8 lg:gap-10 items-center">
             <div className="relative">
               <h3 className="text-xl md:text-2xl font-black text-[#655ac1] flex items-center gap-2.5">

@@ -370,7 +370,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 جاري المعالجة...
               </>
             ) : (
-              <><Lock size={15} /> ادفع {totalDue.toLocaleString()} <SaudiRiyal size={16} /></>
+              <><Lock size={16} /> ادفع <span className="text-xl font-black">{totalDue.toLocaleString()}</span> <SaudiRiyal size={21} /></>
             )}
           </button>
 
