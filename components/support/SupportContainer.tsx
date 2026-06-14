@@ -1,71 +1,22 @@
 import React, { useState } from 'react';
 import {
-  CircleHelp, ArrowRight, Lightbulb, BookOpen, ArrowLeft,
-  Headset, ChevronLeft,
+  CircleHelp, ArrowRight, Headset, ChevronLeft,
 } from 'lucide-react';
 import TicketSection from './TicketSection';
 import KnowledgeBase from './KnowledgeBase';
-import { TOTAL_FAQ_COUNT, TOTAL_VIDEO_COUNT } from './supportData';
 
 type SupportView = 'home' | 'tickets';
 
-// ─── Deflection Step ──────────────────────────────────────────────────────────
-const DeflectionStep: React.FC<{
-  onContinue: () => void;
-  onGoKnowledge: () => void;
-}> = ({ onContinue, onGoKnowledge }) => (
-  <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-    <div className="py-10 px-8 text-center">
-      {/* Icon */}
-      <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-5">
-        <Lightbulb size={28} strokeWidth={1.8} className="text-[#655ac1]" />
-      </div>
-
-      {/* Title */}
-      <h3 className="font-black text-slate-800 text-xl mb-3">قبل رفع التذكرة</h3>
-
-      {/* Description */}
-      <p className="text-slate-500 font-medium text-sm mb-8 leading-relaxed max-w-md mx-auto">
-        يضم مركز المساعدة{' '}
-        <span className="font-black text-[#655ac1]">{TOTAL_FAQ_COUNT} سؤالاً وجواباً</span>
-        {' '}و<span className="font-black text-[#655ac1]">{TOTAL_VIDEO_COUNT} شرحاً مرئياً</span>
-        {' '}— قد تجد إجابتك فوراً دون انتظار.
-      </p>
-
-      {/* Buttons */}
-      <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
-        <button
-          onClick={onGoKnowledge}
-          className="w-full py-3.5 bg-[#655ac1] text-white rounded-2xl font-black text-sm hover:bg-[#5548b0] transition-all duration-300 shadow-md shadow-indigo-200 flex items-center justify-center gap-2"
-        >
-          <BookOpen size={16} />
-          استعرض مركز المساعدة
-        </button>
-        <button
-          onClick={onContinue}
-          className="w-full py-2.5 text-slate-400 font-semibold text-sm hover:text-[#655ac1] transition-colors flex items-center justify-center gap-1.5"
-        >
-          متابعة لرفع التذكرة
-          <ArrowLeft size={14} />
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
 // ─── Main Container ───────────────────────────────────────────────────────────
 const SupportContainer: React.FC = () => {
-  const [view,        setView]        = useState<SupportView>('home');
-  const [showDeflect, setShowDeflect] = useState(false);
+  const [view, setView] = useState<SupportView>('home');
 
   const handleBack = () => {
     setView('home');
-    setShowDeflect(false);
   };
 
   const goTickets = () => {
     setView('tickets');
-    setShowDeflect(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -142,15 +93,7 @@ const SupportContainer: React.FC = () => {
             </div>
           </div>
 
-          {/* Deflection step */}
-          {showDeflect ? (
-            <DeflectionStep
-              onContinue={() => setShowDeflect(false)}
-              onGoKnowledge={handleBack}
-            />
-          ) : (
-            <TicketSection />
-          )}
+          <TicketSection />
         </>
       )}
     </div>

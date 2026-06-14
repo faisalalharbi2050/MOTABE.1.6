@@ -321,7 +321,7 @@ const KnowledgeBase: React.FC = () => {
           type="text"
           value={searchQuery}
           onChange={e => handleSearchChange(e.target.value)}
-          placeholder="ابحث في الأسئلة والشروحات… مثل: إنشاء الجدول، الانتظار، التذاكر"
+          placeholder="ابحث في الأسئلة والشروحات… مثل: إنشاء الجدول، الانتظار"
           className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm py-3.5 pr-12 pl-12 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#655ac1] focus:ring-2 focus:ring-[#655ac1]/15 transition-all"
         />
         {isSearching && (
@@ -441,17 +441,19 @@ const KnowledgeBase: React.FC = () => {
       ) : (
         /* ════════════════ CATEGORY GRID — مجمّعة حسب بنية المنصة ════════════════ */
         <div className="space-y-6">
-          <div className="flex items-center gap-2.5 pr-1">
-            <BookOpen size={17} className="text-[#655ac1]" />
-            <h3 className="font-black text-slate-800 text-base">تصفّح حسب القسم</h3>
-            <span className="text-xs font-medium text-slate-400">اختر القسم لعرض أسئلته وشروحاته</span>
+          <div className="pr-1">
+            <div className="flex items-center gap-2.5">
+              <BookOpen size={17} className="text-[#655ac1]" />
+              <h3 className="font-black text-slate-800 text-base">تصفّح حسب القسم</h3>
+            </div>
+            <p className="text-xs font-medium text-slate-400 mt-1">اختر القسم لعرض أسئلته وشروحاته</p>
           </div>
 
           {SECTION_GROUPS.map(group => (
             <div key={group.label}>
               <div className="flex items-center gap-2 mb-2.5 pr-1">
-                <span className="w-1 h-4 rounded-full bg-[#655ac1]/30" />
-                <span className="text-sm font-black text-slate-600">{group.label}</span>
+                <span className="w-1 h-4 rounded-full bg-[#655ac1]" />
+                <span className="text-sm font-black text-[#655ac1]">{group.label}</span>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {group.ids.map(id => {
@@ -467,7 +469,7 @@ const KnowledgeBase: React.FC = () => {
                       className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-3 text-right hover:border-[#655ac1]/30 hover:shadow-md transition-all duration-300 group"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {Icon ? <Icon size={20} className="text-[#655ac1] shrink-0" /> : null}
+                        {Icon ? <Icon size={20} className="text-slate-400 shrink-0 group-hover:text-[#655ac1] transition-colors" /> : null}
                         <h4 className="font-black text-slate-800 text-sm leading-tight truncate group-hover:text-[#655ac1] transition-colors">
                           {cat.label}
                         </h4>

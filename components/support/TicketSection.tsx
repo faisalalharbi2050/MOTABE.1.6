@@ -9,7 +9,7 @@ import {
 import { useToast } from '../ui/ToastProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type TicketCategory = 'technical' | 'payment' | 'billing' | 'suggestion' | 'other';
+type TicketCategory = 'inquiry' | 'technical' | 'account' | 'billing' | 'suggestion' | 'other';
 type TicketStatus   = 'processing' | 'replied' | 'closed';
 
 interface Attachment {
@@ -41,11 +41,12 @@ interface Ticket {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES: { value: TicketCategory; label: string }[] = [
-  { value: 'technical',      label: 'مشكلة تقنية'      },
-  { value: 'payment',        label: 'مشكلة في الدفع'   },
-  { value: 'billing',        label: 'مشكلة في الفوترة' },
-  { value: 'suggestion',     label: 'اقتراح'            },
-  { value: 'other',          label: 'أخرى'              },
+  { value: 'inquiry',    label: 'استفسار / سؤال'             },
+  { value: 'technical',  label: 'مشكلة تقنية'                },
+  { value: 'account',    label: 'مشكلة في الحساب أو الدخول'  },
+  { value: 'billing',    label: 'الدفع والفوترة'             },
+  { value: 'suggestion', label: 'اقتراح أو طلب ميزة'         },
+  { value: 'other',      label: 'أخرى'                       },
 ];
 
 const ACCEPTED_IMAGES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -428,10 +429,10 @@ const TicketSection: React.FC = () => {
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim())   { showToast('يرجى إدخال عنوان المشكلة', 'error');    return; }
+    if (!formTitle.trim())   { showToast('يرجى إدخال عنوان الطلب', 'error');    return; }
     if (!formPhoneNumber.trim()) { showToast('يرجى إدخال رقم الجوال', 'error'); return; }
     if (!isValidSaudiMobile(formPhoneNumber)) { showToast('يرجى إدخال رقم جوال سعودي صحيح', 'error'); return; }
-    if (!formCategory)       { showToast('يرجى تحديد تصنيف المشكلة', 'error');   return; }
+    if (!formCategory)       { showToast('يرجى تحديد نوع الطلب', 'error');   return; }
     if (!formDesc.trim())    { showToast('يرجى كتابة وصف تفصيلي', 'error');      return; }
 
     const now = getRiyadhTime();
@@ -502,13 +503,13 @@ const TicketSection: React.FC = () => {
             {/* Title */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                عنوان المشكلة <span className="text-red-500">*</span>
+                عنوان الطلب <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formTitle}
                 onChange={e => setFormTitle(e.target.value)}
-                placeholder="أدخل عنواناً موجزاً يصف مشكلتك..."
+                placeholder="أدخل عنواناً موجزاً يصف طلبك..."
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 transition-all"
               />
             </div>
@@ -531,7 +532,7 @@ const TicketSection: React.FC = () => {
             {/* Category */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                تصنيف المشكلة <span className="text-red-500">*</span>
+                نوع الطلب <span className="text-red-500">*</span>
               </label>
               <div className="relative" ref={categoryDropdownRef}>
                 <button
@@ -542,7 +543,7 @@ const TicketSection: React.FC = () => {
                   }`}
                 >
                   <span className={formCategory ? 'text-slate-700' : 'text-slate-400'}>
-                    {formCategory ? CATEGORIES.find(c => c.value === formCategory)?.label : '-- اختر التصنيف --'}
+                    {formCategory ? CATEGORIES.find(c => c.value === formCategory)?.label : '-- اختر نوع الطلب --'}
                   </span>
                   <ChevronDown size={16} className={`text-slate-400 transition-transform shrink-0 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -580,7 +581,7 @@ const TicketSection: React.FC = () => {
                 value={formDesc}
                 onChange={e => setFormDesc(e.target.value)}
                 rows={4}
-                placeholder="اشرح مشكلتك بالتفصيل: متى بدأت؟ ما الخطوات التي أدّت إليها؟ وما الرسالة التي ظهرت لك؟"
+                placeholder="اشرح طلبك بالتفصيل: إن كانت مشكلة فمتى بدأت وما الخطوات التي أدّت إليها وما الرسالة التي ظهرت لك؟"
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-[#8779fb] focus:ring-1 focus:ring-[#8779fb]/30 resize-none transition-all"
               />
             </div>
