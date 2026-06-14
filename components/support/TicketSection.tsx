@@ -97,6 +97,35 @@ const getRiyadhTime = () => {
   return new Date(str);
 };
 
+// صيغة التقويم موحّدة من مرتكز الرئيسية (schoolInfo.calendarType) — لا مبدّل مستقل
+const getCalendarType = (): 'hijri' | 'gregorian' => {
+  try {
+    const saved = localStorage.getItem('school_assignment_v4');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (data?.schoolInfo?.calendarType === 'gregorian') return 'gregorian';
+    }
+  } catch {}
+  return 'hijri';
+};
+
+const formatTicketDay = (iso: string) =>
+  new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString('ar-SA', { weekday: 'long' });
+
+const formatTicketDate = (iso: string, calendarType: 'hijri' | 'gregorian'): string => {
+  const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  try {
+    if (calendarType === 'gregorian') {
+      const g = new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+      return `${g} م`;
+    }
+    return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+  } catch {
+    return iso;
+  }
+};
+
 // ─── WorkingHoursCard — المصدر الموحّد لأوقات العمل + المؤشر الحيّ ──────────────
 const WorkingHoursCard: React.FC = () => {
   // إعادة الحساب كل دقيقة حتى يتحدّث مؤشر «متاح الآن/خارج الدوام» تلقائياً
@@ -198,6 +227,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
   const sc             = STATUS_CONFIG[ticket.status];
   const StatusIcon     = sc.icon;
   const supportReplies = ticket.replies.filter(r => r.from === 'support');
+  const calendarType   = getCalendarType();
 
   return createPortal((
     <div
@@ -238,53 +268,49 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
           <span className="w-px h-3.5 bg-slate-200 mx-1.5" />
           <span className="px-3">{ticket.categoryLabel}</span>
           <span className="w-px h-3.5 bg-slate-200 mx-1.5" />
-          <span className="px-3">{new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+          <span className="px-3">{formatTicketDay(ticket.date)}</span>
           <span className="w-px h-3.5 bg-slate-200 mx-1.5" />
-          <span className="px-3 text-slate-400">{new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+          <span className="px-3">{formatTicketDate(ticket.date, calendarType)}</span>
           <span className="w-px h-3.5 bg-slate-200 mx-1.5" />
           <span className="px-3">{ticket.time}</span>
         </div>
 
         {/* ── Body ── */}
-        <div className="flex-1 overflow-y-auto bg-slate-50 px-6 py-5 space-y-4 custom-scrollbar" dir="rtl">
+        <div className="flex-1 overflow-y-auto bg-white px-6 py-5 space-y-4 custom-scrollbar" dir="rtl">
 
           {/* شريط التقدم */}
-          <div className="bg-white rounded-2xl px-6 py-4 border border-slate-200">
+          <div className="rounded-2xl px-6 py-4 border border-slate-200">
             <StatusBar status={ticket.status} />
           </div>
 
           {/* ── تفاصيل الطلب ── */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
+          <div className="rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-3.5 border-b border-slate-100 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <User size={15} className="text-[#655ac1]" />
                 <span className="text-sm font-black text-slate-700">تفاصيل الطلب</span>
               </div>
               <span className="text-xs font-medium text-slate-400">
-                {ticket.time} — {new Date(ticket.date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' })}
+                {ticket.time} — {formatTicketDate(ticket.date, calendarType)}
               </span>
             </div>
             <div className="px-6 py-5">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2 text-[13px] font-bold text-slate-600">
-                <span>رقم الجوال:</span>
-                <span dir="ltr" className="font-mono text-slate-700">{formatSaudiMobileForDisplay(ticket.phoneNumber)}</span>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-white border border-slate-200 px-3.5 py-2 text-[13px] font-bold">
+                <span className="text-slate-800">رقم الجوال:</span>
+                <span dir="ltr" className="font-mono text-[#655ac1]">{formatSaudiMobileForDisplay(ticket.phoneNumber)}</span>
               </div>
               <p className="text-[15px] text-slate-700 leading-loose">{ticket.description}</p>
             </div>
             {ticket.attachments.length > 0 && (
               <div className="px-6 py-4 border-t border-slate-100">
-                <p className="text-xs font-black text-slate-400 mb-2.5">المرفقات</p>
+                <p className="text-xs font-black text-slate-800 mb-2.5">المرفقات</p>
                 <div className="space-y-2">
                   {ticket.attachments.map((att, i) => (
-                    <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                        att.type === 'image' ? 'bg-blue-100 text-blue-600'
-                        : att.type === 'pdf'  ? 'bg-red-100 text-red-600'
-                        : 'bg-indigo-100 text-indigo-600'
-                      }`}>
+                    <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-white border border-slate-200 text-slate-500">
                         {att.type === 'image' ? <ImageIcon size={16} /> : <FileText size={16} />}
                       </div>
-                      <span className="text-sm font-bold text-slate-700 flex-1 truncate">{att.name}</span>
+                      <span className="text-sm font-bold text-[#655ac1] flex-1 truncate">{att.name}</span>
                       <span className="text-xs font-medium text-slate-400 shrink-0">{att.size}</span>
                     </div>
                   ))}
@@ -294,22 +320,22 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
           </div>
 
           {/* ── رد فريق الدعم ── */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
+          <div className="rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-3.5 border-b border-slate-100 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Headset size={15} className="text-[#655ac1]" />
                 <span className="text-sm font-black text-slate-700">رد فريق الدعم</span>
               </div>
               {supportReplies.length > 0 && (
                 <span className="text-xs font-medium text-slate-400">
-                  {supportReplies[supportReplies.length - 1].time} — {new Date(supportReplies[supportReplies.length - 1].date).toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {supportReplies[supportReplies.length - 1].time} — {formatTicketDate(supportReplies[supportReplies.length - 1].date, calendarType)}
                 </span>
               )}
             </div>
 
             {supportReplies.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <Headset size={40} className="text-[#655ac1] mx-auto mb-3.5" />
+                <Headset size={40} className="text-[#655ac1]/80 mx-auto mb-3.5" />
                 <p className="text-base font-bold text-slate-600">في انتظار رد فريق الدعم</p>
                 <p className="text-sm font-medium text-slate-400 mt-1.5">سيتم الرد عليك في أقرب وقت ممكن</p>
               </div>
@@ -319,7 +345,7 @@ const TicketDetailModal: React.FC<TicketDetailModalProps> = ({ ticket, onClose }
                   <div key={idx} className="px-6 py-5">
                     {supportReplies.length > 1 && (
                       <p className="text-xs font-bold text-slate-400 mb-2">
-                        {reply.time} — {new Date(reply.date).toLocaleDateString('ar-SA-u-ca-gregory', { month: 'short', day: 'numeric' })}
+                        {reply.time} — {formatTicketDate(reply.date, calendarType)}
                       </p>
                     )}
                     <p className="text-[15px] text-slate-700 leading-loose">{reply.text}</p>
@@ -370,6 +396,7 @@ const TicketSection: React.FC = () => {
   // Ticket list — تبدأ فارغة عند الإطلاق (تُملأ بتذاكر المستخدم الفعلية)
   const [tickets,        setTickets]        = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const calendarType = getCalendarType();
 
 
   // ── File handling ──────────────────────────────────────────────────────────
@@ -460,13 +487,6 @@ const TicketSection: React.FC = () => {
         >
           <TicketIcon size={16} />
           سجل التذاكر
-          {tickets.length > 0 && (
-            <span className={`min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full text-[11px] font-black ${
-              activeView === 'list' ? 'bg-[#655ac1] text-white' : 'bg-slate-200 text-slate-500'
-            }`}>
-              {tickets.length}
-            </span>
-          )}
         </button>
       </div>
 
@@ -679,9 +699,8 @@ const TicketSection: React.FC = () => {
             <div className="space-y-3 p-3 md:hidden">
               {tickets.map((ticket, index) => {
                 const sc         = STATUS_CONFIG[ticket.status];
-                const dateObj    = new Date(ticket.date);
-                const dayName    = dateObj.toLocaleDateString('ar-SA', { weekday: 'long' });
-                const dateFmt    = dateObj.toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' });
+                const dayName    = formatTicketDay(ticket.date);
+                const dateFmt    = formatTicketDate(ticket.date, calendarType);
                 return (
                   <div key={ticket.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-2">
@@ -713,18 +732,19 @@ const TicketSection: React.FC = () => {
             {/* Desktop table */}
             <div className="hidden p-4 md:block">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] table-fixed border-separate border-spacing-0 overflow-hidden rounded-2xl border border-slate-100 text-right">
+                <table className="w-full min-w-[1050px] table-fixed border-separate border-spacing-0 overflow-hidden rounded-2xl border border-slate-100 text-right">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/80">
                       <th className="w-12 px-3 py-4 text-center text-xs font-black text-[#655ac1]">م</th>
-                      <th className="w-[13%] px-3 py-4 text-xs font-black text-[#655ac1]">رقم التذكرة</th>
-                      <th className="w-[22%] px-3 py-4 text-xs font-black text-[#655ac1]">الموضوع</th>
-                      <th className="w-[12%] px-3 py-4 text-xs font-black text-[#655ac1]">التصنيف</th>
-                      <th className="w-[13%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">الحالة</th>
-                      <th className="w-[10%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">التاريخ</th>
-                      <th className="w-[9%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">الوقت</th>
+                      <th className="w-[12%] px-3 py-4 text-xs font-black text-[#655ac1]">رقم التذكرة</th>
+                      <th className="w-[20%] px-3 py-4 text-xs font-black text-[#655ac1]">الموضوع</th>
+                      <th className="w-[11%] px-3 py-4 text-xs font-black text-[#655ac1]">التصنيف</th>
+                      <th className="w-[12%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">الحالة</th>
+                      <th className="w-[9%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">اليوم</th>
+                      <th className="w-[11%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">التاريخ</th>
+                      <th className="w-[8%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">الوقت</th>
                       <th className="w-[8%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">المرفقات</th>
-                      <th className="w-[8%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">عرض</th>
+                      <th className="w-[7%] px-3 py-4 text-center text-xs font-black text-[#655ac1]">عرض</th>
                     </tr>
                   </thead>
 
@@ -732,9 +752,8 @@ const TicketSection: React.FC = () => {
                     {tickets.map((ticket, index) => {
                       const sc         = STATUS_CONFIG[ticket.status];
                       const StatusIcon = sc.icon;
-                      const dateObj    = new Date(ticket.date);
-                      const dayName    = dateObj.toLocaleDateString('ar-SA', { weekday: 'long' });
-                      const dateFmt    = dateObj.toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' });
+                      const dayName    = formatTicketDay(ticket.date);
+                      const dateFmt    = formatTicketDate(ticket.date, calendarType);
                       const hasReplies = ticket.replies.some(r => r.from === 'support');
 
                       return (
@@ -765,8 +784,10 @@ const TicketSection: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-3 py-3.5 text-center align-middle">
-                            <p className="text-[12px] font-bold text-slate-600">{dayName}</p>
-                            <p className="mt-0.5 text-[12px] font-medium text-slate-400">{dateFmt}</p>
+                            <span className="text-[13px] font-bold text-slate-600">{dayName}</span>
+                          </td>
+                          <td className="px-3 py-3.5 text-center align-middle">
+                            <span className="text-[13px] font-bold text-slate-600">{dateFmt}</span>
                           </td>
                           <td className="px-3 py-3.5 text-center align-middle">
                             <span className="text-[13px] font-bold text-slate-600">{ticket.time}</span>
