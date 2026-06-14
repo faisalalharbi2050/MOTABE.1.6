@@ -17,9 +17,8 @@ const PaymentBadge: React.FC<{ label: string; icon: React.ReactNode }> = ({ labe
 );
 
 const MadaIcon = () => (
-  <svg viewBox="0 0 78 30" className="h-7 w-auto" role="img" aria-label="مدى" xmlns="http://www.w3.org/2000/svg">
-    <text x="39" y="15" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontWeight="800" fontSize="16" fill="#84BD00" letterSpacing="0.3">mada</text>
-    <text x="39" y="28" textAnchor="middle" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize="12" fill="#58595B">مدى</text>
+  <svg viewBox="0 0 78 24" className="h-4 w-auto" role="img" aria-label="مدى" xmlns="http://www.w3.org/2000/svg">
+    <text x="39" y="19" textAnchor="middle" direction="ltr" fontFamily="Arial, Helvetica, sans-serif" fontWeight="800" fontSize="22" fill="#84BD00" letterSpacing="0.3">mada</text>
   </svg>
 );
 const VisaIcon = () => (
