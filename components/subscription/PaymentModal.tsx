@@ -188,14 +188,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         <div className="lg:border-l border-slate-200 p-6 lg:p-8 flex flex-col">
           <p className="text-sm font-bold text-slate-500">تفاصيل الطلب</p>
 
-          <div className="flex items-center gap-1.5 mt-4">
-            <span className="text-[2.25rem] leading-none font-black text-slate-900">{totalDue}</span>
-            <SaudiRiyal className="w-6 h-6 text-slate-700" strokeWidth={2} />
-            <span className="text-slate-400 text-sm font-bold">
-              {messagePackage ? 'الإجمالي' : `/ ${periodLabel}`}
-            </span>
-          </div>
-
           <div className="mt-6 space-y-2.5">
             <div className="flex items-center gap-10 text-sm">
               <span className="w-28 shrink-0 text-slate-600 font-bold">باقة متابع</span>
@@ -239,9 +231,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
             )}
-            <div className="pt-3 mt-1 border-t border-slate-200 flex justify-between items-center">
+            <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center gap-4">
               <span className="text-sm font-black text-slate-700">الإجمالي المستحق</span>
-              <Money value={totalDue} className="text-xl font-black text-[#655ac1]" iconSize={16} />
+              <Money value={totalDue} className="text-[2.25rem] leading-none font-black text-[#655ac1]" iconSize={24} />
             </div>
           </div>
 
