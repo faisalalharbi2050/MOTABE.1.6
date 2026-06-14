@@ -1,5 +1,5 @@
 import React from 'react';
-import { Twitter, Mail, Phone } from 'lucide-react';
+import { Twitter, Mail, Phone, MapPin } from 'lucide-react';
 import { MarketingRoute } from './MarketingApp';
 
 interface Props {
@@ -119,6 +119,12 @@ const MarketingFooter: React.FC<Props> = ({ onNavigate }) => {
           <div>
             <h4 className="font-black text-white mb-4 text-base md:text-lg">تواصل معنا</h4>
             <ul className="space-y-3 text-sm">
+              <li>
+                <span className="flex items-center gap-2 text-white/85 whitespace-nowrap">
+                  <MapPin className="w-4 h-4 shrink-0" />
+                  المملكة العربية السعودية
+                </span>
+              </li>
               <li>
                 <a
                   href="mailto:info@motabe.sa"
