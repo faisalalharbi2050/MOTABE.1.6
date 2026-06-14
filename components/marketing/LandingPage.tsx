@@ -96,7 +96,7 @@ const Hero: React.FC<Props> = ({ onNavigate }) => (
           نظام ذكي يُبسّط المهام ومتوافق مع الواقع المدرسي.
         </p>
         <p className="text-sm md:text-base text-white/80 leading-relaxed mb-8 max-w-md mx-auto lg:mx-0 lg:mr-0">
-          إنشاء جداول الحصص والانتظار، إدارة الانتظار اليومي، إنشاء وإدارة الإشراف والمناوبة، إرسال الرسائل والإشعارات اليومية في مكان واحد.
+          الحصص والانتظار، الإشراف والمناوبة، الانتظار اليومي، والرسائل والإشعارات — كل مهامك المدرسية في مكان واحد.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
@@ -641,12 +641,11 @@ const Stats: React.FC = () => {
               نمو مستمر
             </div>
           </div>
-          <p className="text-white/70 text-base mt-6">أرقام تعكس ثقة المدارس واستخدامها اليومي.</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 md:gap-6">
           <StatItem icon={School} value={300} label="مدرسة تثق بنا" start={start} />
-          <StatItem icon={User} value={1500} label="زائر أسبوعياً" start={start} />
+          <StatItem icon={User} value={1500} label="مستخدم مسجّل" start={start} />
           <StatItem icon={CalendarCheck} value={2750} label="جداول تم إنشاءها" start={start} />
           <StatItem icon={MessageSquare} value={15000} label="رسائل تم إرسالها" start={start} />
         </div>
