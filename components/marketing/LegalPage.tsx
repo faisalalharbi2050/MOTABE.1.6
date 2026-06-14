@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
   Check,
@@ -55,9 +55,9 @@ const LegalPage: React.FC<Props> = ({ page, onNavigate }) => {
     <div className="min-h-screen bg-white" dir="rtl">
       <MarketingHeader onNavigate={onNavigate} />
       <section className="bg-gradient-to-b from-[#fcfbff] to-white pt-6 md:pt-8 pb-16 md:pb-20 border-b border-slate-100">
-        {/* Back button — aligned with header CTAs (max-w-[1280px]) */}
-        <div className="max-w-[1280px] mx-auto px-5 lg:px-8 mb-12 md:mb-14">
-          <div className="flex justify-end">
+        <div className="max-w-4xl mx-auto px-4 md:px-6">
+          {/* Back button — aligned with the title block */}
+          <div className="flex justify-end mb-6">
             <button
               onClick={() => onNavigate('landing')}
               className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#655ac1] hover:bg-[#52499d] text-white text-sm font-bold shadow-lg shadow-[#655ac1]/25 hover:shadow-[#655ac1]/40 hover:-translate-y-0.5 transition-all"
@@ -66,10 +66,8 @@ const LegalPage: React.FC<Props> = ({ page, onNavigate }) => {
               رجوع
             </button>
           </div>
-        </div>
-        <div className="max-w-4xl mx-auto px-4 md:px-6">
           <div className="text-center">
-            <h1 className="text-3xl md:text-5xl font-black text-[#655ac1] mb-4">
+            <h1 className="text-3xl md:text-4xl font-black text-[#655ac1] mb-4">
               {meta.title}
             </h1>
             <p className="text-slate-800 text-lg leading-relaxed">{meta.subtitle}</p>
@@ -129,7 +127,51 @@ const FAQContent: React.FC<{ onNavigate: (r: MarketingRoute) => void }> = ({ onN
     },
     {
       q: 'هل يدعم متابع أكثر من مرحلة ( للمدارس المشتركة ) ؟',
-      a: 'نعم، يدعم متابع إضافة مدرسة ثانية ضمن نفس الحساب، مع إمكانية فصل البيانات أو دمجها.',
+      a: 'نعم، يدعم متابع إضافة مدرسة ثانية ضمن نفس الحساب، مع إمكانية توحيد التوقيت والجداول أو فصلها، وربط المعلم المشترك بين المدرستين.',
+    },
+    {
+      q: 'على أي الأجهزة يعمل متابع ؟',
+      a: 'يعمل متابع عبر المتصفح على الكمبيوتر واللابتوب والأجهزة اللوحية والجوال. ولأن إعداد الجداول يعتمد على عرض تفصيلي والسحب والإفلات، ننصح باستخدام شاشة بحجم مناسب لتجربة أكثر راحة.',
+    },
+    {
+      q: 'هل أحتاج إلى خبرة تقنية لاستخدام متابع ؟',
+      a: 'لا، صُمّم متابع ليكون سهلاً ومباشراً ويرشدك خطوة بخطوة في إعداد المدرسة وبناء الجداول والتوزيعات، فلا تحتاج إلى أي خبرة تقنية.',
+    },
+    {
+      q: 'هل يبني متابع جداول الحصص تلقائيًا ؟',
+      a: 'نعم، يبني متابع جداول الحصص آليًا مع مراعاة أنصبة المعلمين وقيود المواد والتوازن بين الأيام، ويمكنك بعدها ضبط أي حصة يدويًا.',
+    },
+    {
+      q: 'هل أستطيع تعديل الجدول يدويًا بعد توليده ؟',
+      a: 'نعم، بعد التوليد الآلي يمكنك تعديل أي حصة بالسحب والإفلات بكل سهولة لتعديل الجدول بما يناسب مدرستك.',
+    },
+    {
+      q: 'كيف يتعامل متابع مع غياب المعلمين وتوزيع الانتظار ؟',
+      a: 'عند غياب معلم، يوزّع متابع حصصه على المعلمين المتاحين آليًا وبعدالة وفق نصاب الانتظار، أو يدويًا حسب رغبتك، مع متابعة المُسند والمتبقي لكل معلم.',
+    },
+    {
+      q: 'هل يدعم متابع جداول الإشراف والمناوبة ؟',
+      a: 'نعم، يتيح متابع تصميم جداول الإشراف اليومي والمناوبة وتوزيع المشرفين والمناوبين آليًا أو يدويًا، ثم طباعتها أو إرسالها للمعنيين.',
+    },
+    {
+      q: 'كيف يرسل متابع التكليفات والتنبيهات للمعلمين ؟',
+      a: 'يرسل متابع الجداول والتكليفات والتنبيهات مباشرة عبر واتساب والرسائل النصية (SMS) من داخل لوحة التحكم، مع قوالب جاهزة وتذكيرات تلقائية وروابط توقيع للمعلمين.',
+    },
+    {
+      q: 'هل يمكن توثيق استلام المعلمين لتكليفاتهم ؟',
+      a: 'نعم، يوفّر متابع روابط توقيع إلكترونية وسجل استلام يوثّق استلام كل معلم لتكليفه (جدوله أو انتظاره أو إشرافه)، مع إمكانية الطباعة كنموذج توقيع ورقي عند الحاجة.',
+    },
+    {
+      q: 'هل يمكنني تفويض الوكيل أو أحد المعلمين لإدارة النظام ؟',
+      a: 'نعم، يمكنك تفويض الوكيل أو الإداري أو أحد المعلمين بصلاحية كاملة أو مخصّصة للمساعدة في إدارة المنصة، مع تحديد ما يستطيع كل مفوَّض الوصول إليه.',
+    },
+    {
+      q: 'هل يدعم متابع التقويم الهجري والميلادي ؟',
+      a: 'نعم، تختار صيغة التقويم (هجري أو ميلادي) مرة واحدة عند إعداد المدرسة، ويعتمدها متابع في كامل النظام والطباعة لضمان التوحيد.',
+    },
+    {
+      q: 'هل يمكن طباعة الجداول وتصديرها ؟',
+      a: 'نعم، يمكنك طباعة جميع الجداول (الحصص، الانتظار، الإشراف، المناوبة) وتصديرها، مع خيارات طباعة مستقلة لكل جدول أو مدمجة في صفحة واحدة.',
     },
     {
       q: 'ماذا يحدث بعد انتهاء التجربة المجانية ؟',
@@ -216,10 +258,8 @@ const LegalContent: React.FC<{
           <ul className="space-y-3 mt-3">
             {s.list.map((li, k) => (
               <li key={k} className="flex items-start gap-3 text-slate-900">
-                <div className="mt-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-[#7c6ee0] to-[#655ac1] flex items-center justify-center shadow-sm shadow-[#655ac1]/30 shrink-0">
-                  <Check size={12} strokeWidth={3.5} className="text-white" />
-                </div>
-                <span className="font-bold text-sm leading-relaxed">{li}</span>
+                <span className="mt-2.5 w-2 h-2 rounded-full bg-slate-700 shrink-0" />
+                <span className="leading-loose text-sm md:text-base">{li}</span>
               </li>
             ))}
           </ul>
@@ -244,7 +284,15 @@ const PRIVACY_SECTIONS: Section[] = [
   {
     heading: 'مقدمة',
     body: [
-      'نحن في متابع نلتزم بحماية خصوصية مستخدمي منصتنا، وتوضح هذه السياسة كيفية جمع البيانات واستخدامها وحمايتها وباستخدامك لنظام متابع فإنك توافق على ممارساتنا الموضّحة في هذه السياسة.',
+      'نحن في متابع نلتزم بحماية خصوصية مستخدمي منصتنا، وتوضح هذه السياسة كيفية جمع البيانات واستخدامها وحمايتها، وباستخدامك لنظام متابع فإنك توافق على ممارساتنا الموضّحة في هذه السياسة.',
+      'تلتزم منصة متابع بأحكام نظام حماية البيانات الشخصية ولوائحه التنفيذية المعمول بها في المملكة العربية السعودية، وبما يكفل معالجة بياناتك بشكل نظامي وعادل وشفّاف.',
+    ],
+  },
+  {
+    heading: 'ملكية البيانات',
+    body: [
+      'تُدخِل المدرسة (صاحبة الحساب) بيانات منسوبيها من معلمين وطلاب وإداريين بهدف إدارة أعمالها عبر المنصة، وتبقى هذه البيانات مملوكة للمدرسة.',
+      'يعمل متابع بصفته معالجًا لهذه البيانات نيابة عن المدرسة ولأغراض تشغيل الخدمة فقط، ولا يستخدمها لأي غرض آخر، وتتحمّل المدرسة مسؤولية صحة البيانات التي تُدخلها ومشروعية جمعها.',
     ],
   },
   {
@@ -268,6 +316,22 @@ const PRIVACY_SECTIONS: Section[] = [
     ],
   },
   {
+    heading: 'مشاركة البيانات مع أطراف ثالثة',
+    body: ['نحن لا نبيع بياناتك الشخصية ولا نتاجر بها. وقد نشارك حدًّا أدنى من البيانات اللازمة لتشغيل الخدمة مع جهات موثوقة وفق الحالات التالية فقط:'],
+    list: [
+      'مزوّدو خدمات الدفع لإتمام عمليات الاشتراك بشكل آمن.',
+      'مزوّدو خدمات الرسائل (الرسائل النصية والتطبيقات) لإيصال الإشعارات والتكليفات التي تطلب إرسالها.',
+      'مزوّدو الاستضافة والبنية السحابية الذين تُخزَّن لديهم البيانات وفق ضوابط أمنية.',
+      'الجهات الحكومية أو القضائية المختصة عند وجود التزام نظامي يقتضي ذلك.',
+    ],
+  },
+  {
+    heading: 'ملفات تعريف الارتباط والتخزين المحلي',
+    body: [
+      'يستخدم متابع ملفات تعريف الارتباط (Cookies) وتقنيات التخزين المحلي في متصفحك لتشغيل المنصة وحفظ تفضيلاتك والحفاظ على جلسة دخولك وتحسين تجربتك. ويمكنك التحكم في هذه الملفات من إعدادات متصفحك، علمًا بأن تعطيلها قد يؤثر على بعض وظائف المنصة.',
+    ],
+  },
+  {
     heading: 'حماية البيانات',
     list: [
       'نطبّق إجراءات أمنية تقنية وتنظيمية لحماية بياناتك من الوصول غير المصرّح به أو الفقدان أو التغيير.',
@@ -275,13 +339,27 @@ const PRIVACY_SECTIONS: Section[] = [
     ],
   },
   {
-    heading: 'حقوقك',
-    body: ['لك الحق في:'],
+    heading: 'مدة الاحتفاظ بالبيانات',
     list: [
-      'الوصول إلى بياناتك الشخصية المخزّنة لدينا.',
-      'تصحيح أي بيانات غير صحيحة.',
+      'نحتفظ ببياناتك طوال فترة اشتراكك النشِط لتقديم الخدمة لك.',
+      'بعد انتهاء الاشتراك دون تجديد، تُحفظ بياناتك لمدة 30 يومًا يمكنك خلالها التجديد واستئناف العمل، ثم تُحذف نهائيًا بعد انقضائها.',
+      'قد نحتفظ ببعض البيانات لمدة أطول إذا اقتضى ذلك التزام نظامي أو محاسبي.',
+    ],
+  },
+  {
+    heading: 'حقوقك',
+    body: ['وفقًا لنظام حماية البيانات الشخصية، لك الحق في:'],
+    list: [
+      'الوصول إلى بياناتك الشخصية المخزّنة لدينا والحصول على نسخة منها.',
+      'تصحيح أي بيانات غير صحيحة أو تحديثها.',
       'حذف حسابك وجميع البيانات المرتبطة به.',
-      'الاعتراض على معالجة بياناتك في حالات معينة.',
+      'سحب موافقتك على معالجة بياناتك أو الاعتراض عليها في حالات معينة.',
+    ],
+  },
+  {
+    heading: 'تحديث سياسة الخصوصية',
+    body: [
+      'قد نقوم بتحديث هذه السياسة من وقت لآخر لمواكبة التغييرات النظامية أو التطويرات على الخدمة، وسنُشعرك بأي تعديل جوهري. ويُعتبر استمرارك في استخدام المنصة بعد التحديث موافقةً على السياسة المعدّلة.',
     ],
   },
   {
@@ -341,6 +419,25 @@ const TERMS_SECTIONS: Section[] = [
     ],
   },
   {
+    heading: 'حقوق الملكية الفكرية',
+    body: [
+      'جميع حقوق الملكية الفكرية في منصة متابع، بما في ذلك التصاميم والشيفرة البرمجية والعلامات التجارية والمحتوى، مملوكة لنا ومحمية بموجب الأنظمة المعمول بها. ولا يجوز نسخ أي جزء من المنصة أو تعديله أو إعادة توزيعه أو الاستفادة منه تجاريًا دون إذن كتابي مسبق منّا.',
+    ],
+  },
+  {
+    heading: 'الاسترجاع والإلغاء',
+    trailing: {
+      text: 'تخضع عمليات استرداد المبالغ المدفوعة وإلغاء الاشتراك لما هو موضّح في',
+      link: { label: 'سياسة الاسترجاع', route: 'refund' },
+    },
+  },
+  {
+    heading: 'القانون الواجب التطبيق وتسوية النزاعات',
+    body: [
+      'تخضع هذه الشروط وتُفسَّر وفقًا للأنظمة المعمول بها في المملكة العربية السعودية. وفي حال نشوء أي نزاع يتعذّر حلّه وديًا، تختص الجهات القضائية المختصة في المملكة بالفصل فيه.',
+    ],
+  },
+  {
     heading: 'تعديل الشروط',
     list: [
       'نحتفظ بحق تعديل هذه الشروط في أي وقت مع إشعارك بالتعديل.',
@@ -353,14 +450,15 @@ const REFUND_SECTIONS: Section[] = [
   {
     heading: 'مبدأنا في الاسترجاع',
     body: [
-      'نسعى في متابع إلى رضا عملائنا، وهو الهدف الأسمى ويمكن طلب استرجاع المبلغ المدفوع في الحالات التالية فقط:',
+      'نسعى في متابع إلى رضا عملائنا، ونوفّر لك تجربة مجانية لمدة 10 أيام لتقييم النظام بالكامل قبل الدفع. ولذلك نقتصر استرداد المبالغ المدفوعة على حالات محددة موضّحة أدناه، حرصًا على العدالة للطرفين.',
+      'وفي جميع الأحوال، لا تخلّ هذه السياسة بحقوقك المقرّرة نظامًا في المملكة العربية السعودية.',
     ],
   },
   {
     heading: 'الحالات المؤهّلة للاسترداد',
     body: ['يحق لك طلب استرداد المبلغ في الحالات التالية:'],
     list: [
-      'خلال أول 7 أيام من بدء اشتراكك المدفوع، إذا لم يتم استخدام المنصة بشكل فعّال (لم تتم إضافة أي بيانات أو إنشاء جداول).',
+      'خلال أول 7 أيام من بدء اشتراكك المدفوع، إذا لم تستأنف استخدام المنصة فعليًا بعد الاشتراك (لم تُضِف بيانات جديدة أو تُنشئ جداول أو ترسل رسائل خلال هذه الفترة).',
       'في حال وجود عطل تقني جوهري لم يتمكن فريق الدعم من حله خلال 14 يوم عمل من تاريخ رفع الطلب.',
       'إذا تم خصم المبلغ عن طريق الخطأ من حسابك مرّتين لنفس الاشتراك مع تقديم إيصال الشراء.',
     ],
@@ -378,8 +476,7 @@ const REFUND_SECTIONS: Section[] = [
     heading: 'كيفية تقديم طلب الاسترداد',
     body: ['لتقديم طلب استرداد:'],
     list: [
-      'تواصل معنا عن طريق قسم الاشتراك والفوترة.',
-      'ارفع تذكرة دعم فني ووضّح سبب الطلب، وأرفق الفاتورة.',
+      'ارفع طلبك من قسم الاشتراك والفوترة موضّحًا سبب الاسترداد، مع إرفاق الفاتورة.',
       'يقوم فريقنا بمراجعة الطلب والرد خلال 3 إلى 7 أيام عمل.',
     ],
   },
@@ -393,13 +490,53 @@ const REFUND_SECTIONS: Section[] = [
 
 /* ───────────────────────── CONTACT ───────────────────────── */
 const INQUIRY_TYPES: { value: string; label: string }[] = [
-  { value: 'inquiry', label: 'استفسار' },
+  { value: 'inquiry', label: 'استفسار عام' },
+  { value: 'pricing', label: 'الباقات والأسعار' },
+  { value: 'trial', label: 'طلب تجربة النظام' },
   { value: 'suggestion', label: 'اقتراح' },
-  { value: 'tech', label: 'مشكلة تقنية' },
-  { value: 'payment', label: 'مشكلة في الدفع' },
-  { value: 'complaint', label: 'شكوى' },
+  { value: 'partnership', label: 'شراكة وتعاون' },
   { value: 'other', label: 'أخرى' },
 ];
+
+// ─── WorkingHoursCard — تصميم بطاقة الدعم (بدون مؤشر الدوام الحيّ) ───
+const WorkingHoursCard: React.FC = () => {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* رأس البطاقة */}
+      <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
+        <Clock size={20} className="text-[#655ac1] shrink-0" />
+        <h3 className="font-black text-slate-800 text-base">أوقات العمل</h3>
+      </div>
+
+      {/* تفاصيل الدوام */}
+      <div className="p-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-slate-50/60 rounded-xl p-4 border border-slate-100 flex items-center gap-3">
+            <Calendar size={18} className="text-[#655ac1] shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold text-slate-400 mb-0.5">أيام العمل</p>
+              <p className="font-black text-slate-800 text-sm">الأحد — الخميس</p>
+            </div>
+          </div>
+          <div className="bg-slate-50/60 rounded-xl p-4 border border-slate-100 flex items-center gap-3">
+            <Clock size={18} className="text-[#655ac1] shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold text-slate-400 mb-0.5">ساعات العمل</p>
+              <p className="font-black text-slate-800 text-sm">8:00 ص — 2:30 م</p>
+            </div>
+          </div>
+          <div className="bg-slate-50/60 rounded-xl p-4 border border-slate-100 flex items-center gap-3">
+            <Sun size={18} className="text-[#655ac1] shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold text-slate-400 mb-0.5">أيام الإجازة</p>
+              <p className="font-black text-slate-800 text-sm">الجمعة — السبت</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ContactForm: React.FC = () => {
   const [form, setForm] = useState({
@@ -413,6 +550,19 @@ const ContactForm: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
+  const typeRef = useRef<HTMLDivElement>(null);
+
+  // إغلاق قائمة التصنيف عند النقر خارجها
+  useEffect(() => {
+    if (!typeOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (typeRef.current && !typeRef.current.contains(e.target as Node)) {
+        setTypeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [typeOpen]);
 
   const update = (k: string, v: string) => {
     setForm((p) => ({ ...p, [k]: v }));
@@ -424,7 +574,7 @@ const ContactForm: React.FC = () => {
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = 'الاسم مطلوب';
     if (!form.phone.trim()) errs.phone = 'رقم الجوال مطلوب';
-    if (!form.type) errs.type = 'يرجى اختيار التصنيف';
+    if (!form.type) errs.type = 'يرجى اختيار سبب التواصل';
     if (!form.message.trim()) errs.message = 'الرسالة مطلوبة';
     else if (form.message.trim().length < 10) errs.message = 'الرسالة قصيرة جداً';
     if (form.email.trim() && !/^\S+@\S+\.\S+$/.test(form.email))
@@ -461,39 +611,8 @@ const ContactForm: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Work Hours Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
-          <Clock size={22} className="text-[#655ac1] shrink-0" />
-          <h3 className="font-black text-slate-800 text-base">أوقات العمل لفريق الدعم</h3>
-        </div>
-        <div className="p-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-              <Calendar size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-[#8779fb] mb-1">أيام العمل</p>
-                <p className="font-black text-slate-800 text-sm">الأحد — الخميس</p>
-              </div>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-              <Clock size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-[#8779fb] mb-1">ساعات العمل</p>
-                <p className="font-black text-slate-800 text-sm">8:00 ص — 2:30 م</p>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">بتوقيت مكة المكرمة</p>
-              </div>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-start gap-3">
-              <Sun size={16} className="text-[#655ac1] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-[#8779fb] mb-1">أيام الإجازة</p>
-                <p className="font-black text-slate-800 text-sm">الجمعة — السبت</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Work Hours Card — نفس بطاقة صفحة الدعم */}
+      <WorkingHoursCard />
 
       {/* Form */}
       <form
@@ -548,9 +667,9 @@ const ContactForm: React.FC = () => {
         {/* Custom Dropdown — radio circle style matching DailySupervision/DailyDuty */}
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">
-            التصنيف <span className="text-red-500">*</span>
+            سبب التواصل <span className="text-red-500">*</span>
           </label>
-          <div className="relative">
+          <div className="relative" ref={typeRef}>
             <button
               type="button"
               onClick={() => setTypeOpen((o) => !o)}
@@ -559,7 +678,7 @@ const ContactForm: React.FC = () => {
               } text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2`}
             >
               <span className={`truncate text-sm ${selectedType ? 'text-slate-800' : 'text-slate-400'}`}>
-                {selectedType?.label || 'اختر التصنيف'}
+                {selectedType?.label || 'اختر سبب التواصل'}
               </span>
               <ChevronDown
                 size={16}
@@ -585,15 +704,9 @@ const ContactForm: React.FC = () => {
                       }`}
                     >
                       <span>{option.label}</span>
-                      <span
-                        className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                          form.type === option.value
-                            ? 'bg-[#655ac1] border-[#655ac1] text-white'
-                            : 'bg-white border-slate-300 text-transparent'
-                        }`}
-                      >
-                        <Check size={12} strokeWidth={3.5} />
-                      </span>
+                      {form.type === option.value && (
+                        <Check size={16} strokeWidth={3} className="text-[#655ac1] shrink-0" />
+                      )}
                     </button>
                   ))}
                 </div>
