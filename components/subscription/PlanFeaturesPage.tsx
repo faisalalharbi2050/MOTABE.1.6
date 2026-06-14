@@ -9,10 +9,12 @@ interface PlanFeaturesPageProps {
   groups: FeatureGroup[];
   onBack: () => void;
   onSubscribe: () => void;
+  /** نص زر الإجراء — يتغيّر بحسب السياق: «سجّل واشترك» قبل الاشتراك، «إضافة للسلة» داخل الموقع. */
+  ctaLabel?: string;
 }
 
 const PlanFeaturesPage: React.FC<PlanFeaturesPageProps> = ({
-  tier, groups, onBack, onSubscribe,
+  tier, groups, onBack, onSubscribe, ctaLabel = 'إضافة للسلة',
 }) => {
   return (
     <div className="animate-fade-in space-y-5 pb-24">
@@ -86,7 +88,7 @@ const PlanFeaturesPage: React.FC<PlanFeaturesPageProps> = ({
             onClick={onSubscribe}
             className="flex items-center justify-center gap-2 py-3.5 px-8 bg-[#655ac1] text-white rounded-xl font-black text-base shadow-lg shadow-indigo-200 hover:opacity-90 hover:shadow-xl active:scale-[0.99] transition-all w-full sm:w-auto"
           >
-            إضافة للسلة <ArrowLeft size={18} strokeWidth={2.5} />
+            {ctaLabel} <ArrowLeft size={18} strokeWidth={2.5} />
           </button>
         </div>
       </div>

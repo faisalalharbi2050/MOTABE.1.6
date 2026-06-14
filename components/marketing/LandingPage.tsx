@@ -29,6 +29,7 @@ import {
   TrendingUp,
   Shield,
   Zap,
+  Shuffle,
   FileCheck,
   FileSignature,
   Quote,
@@ -290,12 +291,25 @@ const Features: React.FC = () => {
       </div>
 
       <div className="relative max-w-[1280px] mx-auto px-5 lg:px-8">
-        <SectionTitle title="مزايا متابع" />
+        <SectionTitle
+          title="مزايا متابع"
+        />
 
-        <div className="grid lg:grid-cols-[1.4fr_1fr] gap-10 lg:gap-12 items-center">
+        <div className="space-y-10">
+          <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-8 lg:gap-10 items-center">
+            <div className="relative">
+              <h3 className="text-xl md:text-2xl font-black text-[#655ac1] flex items-center gap-2.5">
+                <span className="w-1.5 h-7 bg-[#655ac1] rounded-full" />
+                <span>
+                  مزايا صُممت لتجعل الإدارة المدرسية
+                  <span className="block mt-1">أسهل وأكثر مرونة.</span>
+                </span>
+              </h3>
+            </div>
+
           {/* Carousel — realistic computer screen */}
           <div
-            className="relative order-1"
+            className="relative max-w-3xl w-full mx-auto lg:mx-0"
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
           >
@@ -387,47 +401,39 @@ const Features: React.FC = () => {
               }
             `}</style>
           </div>
+          </div>
 
-          {/* Right column: heading + separate feature cards (2 per row) */}
-          <div className="relative order-2">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-1.5 text-[#655ac1] text-xs font-black mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              منظومة متكاملة
-            </div>
-
-            <h3 className="text-xl md:text-2xl font-black text-[#655ac1] mb-5 flex items-center gap-2.5">
-              <span className="w-1.5 h-7 bg-[#655ac1] rounded-full" />
-              كل ما تحتاجه في منصة واحدة
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Feature cards below the product screen */}
+          <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-6xl mx-auto">
               {[
-                { icon: Download,       title: 'استيراد البيانات',       desc: 'استيراد ذكي لبيانات المعلمين والطلاب' },
-                { icon: ClipboardList,  title: 'إسناد المواد',           desc: 'توزيع المواد على المعلمين بسهولة ومرونة' },
-                { icon: CalendarCheck,  title: 'الحصص والانتظار',        desc: 'إنشاء جداول الحصص والانتظار آليًا أو يدويًا' },
-                { icon: Eye,            title: 'الإشراف اليومي',         desc: 'إنشاء جداول الإشراف بشكل آلي أو يدوي' },
-                { icon: ShieldCheck,    title: 'المناوبة اليومية',       desc: 'إنشاء جداول المناوبة بشكل آلي أو يدوي' },
-                { icon: UserX,          title: 'الانتظار اليومي',         desc: 'توزيع الانتظار آليًا أو يدويًا وإشعار المنتظرين' },
-                { icon: MessageSquare,  title: 'الرسائل والإشعارات',     desc: 'إرسال الرسائل بقوالب جاهزة عبر الواتساب والرسائل النصية' },
-                { icon: Lock,           title: 'منح الصلاحيات',           desc: 'توزيع المهام ومنح الصلاحيات لإدارة المنصة' },
-                { icon: Cloud,          title: 'نظام سحابي',             desc: 'يعمل على الجوال والكمبيوتر من أي مكان' },
-                { icon: FileSignature,  title: 'الإشعارات والتواقيع',    desc: 'نظام إشعارات إلكتروني وتواقيع رقمية' },
+                { icon: School, title: 'المدارس المشتركة', desc: 'توقيت موحد أو مستقل، جداول موحدة أو منفصلة، وربط المعلم المشترك بين المدارس بسهولة.' },
+                { icon: CalendarCheck, title: 'جداول الحصص', desc: 'بناء الجداول مع مراعاة قيود المعلمين والمواد، الأنصبة، والتوازن، ثم التعديل بالسحب والإفلات.' },
+                { icon: Shuffle, title: 'توزيع الانتظار', desc: 'توزيع الانتظار آليًا حسب نصاب المعلمين، أو بعدد محدد لكل حصة، مع التعديل بالسحب والإفلات.' },
+                { icon: UserX, title: 'الانتظار اليومي', desc: 'عند الغياب، وزّع الانتظار آليًا بعدالة أو يدويًا، مع متابعة نصاب الانتظار والمسند والمتبقي لكل معلم.' },
+                { icon: Eye, title: 'الإشراف اليومي', desc: 'تصميم جداول الإشراف حسب أنواع الإشراف، ثم توزيع المشرفين آليًا أو يدويًا.' },
+                { icon: ShieldCheck, title: 'المناوبة اليومية', desc: 'تحديد الأسابيع الدراسية وعدد المناوبين لكل يوم، ثم توزيع المناوبة آليًا أو يدويًا.' },
+                { icon: MessageSquare, title: 'الرسائل والتوثيق', desc: 'واتساب و SMS، قوالب جاهزة، تذكيرات تلقائية، إرسال الجداول والتكليفات، روابط توقيع، وسجل استلام.' },
+                { icon: Lock, title: 'الصلاحيات والتفويض', desc: 'فوّض الوكيل أو الإداري أو المعلم للمساعدة في إدارة المنصة بصلاحية كاملة أو مخصصة.' },
+                { icon: FileCheck, title: 'المزايا المساندة', desc: 'تقويم دراسي، توقيت زمني، مواد جاهزة للاعتماد، وطباعة وتصدير.' },
               ].map((it) => {
                 const Icon = it.icon;
                 return (
                   <div
                     key={it.title}
-                    className="group flex items-start gap-2.5 p-4 rounded-2xl bg-white border border-slate-100 shadow-[0_8px_30px_-12px_rgba(101,90,193,0.18)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-12px_rgba(101,90,193,0.28)] hover:border-[#655ac1]/30"
+                    className="bg-white border border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-lg rounded-[2rem] px-5 pb-5 pt-6 text-right transition-all group flex flex-col relative overflow-hidden"
                   >
-                    <div className="w-9 h-9 flex items-center justify-center text-[#8779fb] group-hover:scale-110 transition-transform duration-200 shrink-0">
-                      <Icon size={20} strokeWidth={1.8} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-black text-slate-800 group-hover:text-[#655ac1] transition-colors mb-0.5 leading-tight">
-                        {it.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                    <div className="relative z-10 flex-1 flex flex-col">
+                      <div className="flex items-center gap-2.5 mb-4">
+                        <span className="w-6 h-6 flex items-center justify-center text-[#655ac1] shrink-0 group-hover:scale-105 transition-transform duration-200">
+                          <Icon size={20} strokeWidth={2.2} />
+                        </span>
+                        <h4 className="text-[15px] font-black text-slate-800 leading-tight">
+                          {it.title}
+                        </h4>
+                      </div>
+
+                      <p className="text-[13px] text-slate-500 font-bold leading-relaxed">
                         {it.desc}
                       </p>
                     </div>
@@ -801,6 +807,15 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
 
   const TIERS: PackageTier[] = ['basic', 'advanced'];
 
+  // While the full-screen features overlay is open, lock the page behind it so the
+  // browser doesn't show two scrollbars (the overlay's + the landing page's).
+  useEffect(() => {
+    if (!featuresPlan) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [featuresPlan]);
+
   // Full-features view: a dedicated full-screen overlay above the marketing nav
   // (fixed inset-0 / z-[60]) so it reads as its own page, not embedded mid-landing.
   if (featuresPlan) {
@@ -814,6 +829,7 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
             )}
             onBack={() => setFeaturesPlan(null)}
             onSubscribe={() => onNavigate('register')}
+            ctaLabel="ابدأ الآن"
           />
         </div>
       </div>
