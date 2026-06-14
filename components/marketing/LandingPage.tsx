@@ -926,8 +926,8 @@ const Pricing: React.FC<Props> = ({ onNavigate }) => {
                     <div className="text-right flex-1 transition-colors mb-5 flex flex-col">
                       {isAdvanced && (
                         <div className="mb-4 flex items-center gap-2 px-1">
-                          <Crown size={16} className="text-slate-900 shrink-0" strokeWidth={2.2} />
-                          <p className="text-sm font-black text-slate-900 leading-snug">
+                          <Crown size={16} className="text-[#655ac1] shrink-0" strokeWidth={2.2} />
+                          <p className="text-sm font-black text-[#655ac1] leading-snug">
                             كل مزايا الباقة الأساسية +
                           </p>
                         </div>
