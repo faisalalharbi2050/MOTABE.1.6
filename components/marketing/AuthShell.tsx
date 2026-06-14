@@ -15,7 +15,7 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
   return (
     <div className="min-h-screen bg-white flex flex-col" dir="rtl">
       {/* Top bar with back-to-landing button styled like the primary CTA */}
-      <div className="px-5 lg:px-12 pt-6 flex justify-start">
+      <div className="px-5 lg:px-12 pt-6 flex items-center justify-start gap-6">
         <button
           onClick={() => onNavigate('landing')}
           aria-label="العودة للرئيسية"
@@ -24,10 +24,16 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
         >
           <ArrowRight className="w-5 h-5" />
         </button>
+        <img
+          src="/logo.png"
+          alt="متابع"
+          className="h-11 w-auto select-none"
+          draggable={false}
+        />
       </div>
 
       {/* Centered card */}
-      <div className="flex-1 flex items-center justify-center p-5 lg:p-12">
+      <div className="flex-1 flex flex-col items-center justify-center p-5 lg:p-12">
         <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/40 p-6 md:p-8">
           {badge && (
             <div className="absolute -top-6 left-4">
@@ -35,12 +41,6 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
             </div>
           )}
           <div className="mb-10 text-center">
-            <img
-              src="/logo.png"
-              alt="متابع"
-              className="h-14 w-auto mx-auto mb-5 select-none"
-              draggable={false}
-            />
             <h1 className="text-xl md:text-2xl font-extrabold mb-2 text-slate-800">
               {title}
             </h1>

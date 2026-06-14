@@ -163,7 +163,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     <div className="fixed inset-0 z-[100] bg-white flex flex-col" dir="rtl">
 
       {/* Back — top, standalone, outside the card */}
-      <div className="px-5 lg:px-12 pt-6 shrink-0">
+      <div className="px-5 lg:px-12 pt-6 shrink-0 flex items-center justify-start gap-6">
         <button
           type="button"
           onClick={onClose}
@@ -173,6 +173,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         >
           <ArrowRight className="w-5 h-5" />
         </button>
+        <img
+          src="/logo.png"
+          alt="متابع"
+          className="h-11 w-auto select-none"
+          draggable={false}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 lg:p-6 min-h-0">
@@ -180,19 +186,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* ── Order summary (right in RTL) — tinted ── */}
         <div className="lg:border-l border-slate-200 p-6 lg:p-8 flex flex-col">
-          <div className="mb-6">
-            <img src="/logo.png" alt="متابع" className="h-8 w-auto select-none" draggable={false} />
-          </div>
-
           <p className="text-sm font-bold text-slate-500">تفاصيل الطلب</p>
 
-          {!messagePackage && (
-            <div className="flex items-center gap-1.5 mt-4">
-              <span className="text-[2.25rem] leading-none font-black text-slate-900">{totalDue}</span>
-              <SaudiRiyal className="w-6 h-6 text-slate-700" strokeWidth={2} />
-              <span className="text-slate-400 text-sm font-bold">/ {periodLabel}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 mt-4">
+            <span className="text-[2.25rem] leading-none font-black text-slate-900">{totalDue}</span>
+            <SaudiRiyal className="w-6 h-6 text-slate-700" strokeWidth={2} />
+            <span className="text-slate-400 text-sm font-bold">
+              {messagePackage ? 'الإجمالي' : `/ ${periodLabel}`}
+            </span>
+          </div>
 
           <div className="mt-6 space-y-2.5">
             <div className="flex items-center gap-10 text-sm">

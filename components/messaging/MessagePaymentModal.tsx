@@ -111,7 +111,7 @@ const MessagePaymentModal: React.FC<MessagePaymentModalProps> = ({ pkg, onClose,
     <div className="fixed inset-0 z-[100] bg-white flex flex-col" dir="rtl">
 
       {/* Back — top, standalone, outside the card */}
-      <div className="px-5 lg:px-12 pt-6 shrink-0">
+      <div className="px-5 lg:px-12 pt-6 shrink-0 flex items-center justify-start gap-6">
         <button
           type="button"
           onClick={onClose}
@@ -121,6 +121,12 @@ const MessagePaymentModal: React.FC<MessagePaymentModalProps> = ({ pkg, onClose,
         >
           <ArrowRight className="w-5 h-5" />
         </button>
+        <img
+          src="/logo.png"
+          alt="متابع"
+          className="h-11 w-auto select-none"
+          draggable={false}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 lg:p-6 min-h-0">
@@ -128,10 +134,6 @@ const MessagePaymentModal: React.FC<MessagePaymentModalProps> = ({ pkg, onClose,
 
         {/* ── Order summary (right in RTL) ── */}
         <div className="lg:border-l border-slate-200 p-6 lg:p-8 flex flex-col">
-          <div className="mb-6">
-            <img src="/logo.png" alt="متابع" className="h-8 w-auto select-none" draggable={false} />
-          </div>
-
           <p className="text-sm font-bold text-slate-500">الاشتراك في</p>
           <h2 className="text-2xl font-black text-slate-900 mt-1">باقة الرسائل {pkg.name}</h2>
 
