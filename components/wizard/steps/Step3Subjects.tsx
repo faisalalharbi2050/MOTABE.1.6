@@ -550,6 +550,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [planPeriodOverrides, setPlanPeriodOverrides] = useState<Record<string, number>>({});
   const [planMode, setPlanMode] = useState<'ready' | 'custom'>('ready');
   const [subjectPlanTargetMode, setSubjectPlanTargetMode] = useState<'base' | 'classes'>('base');
+  const [subPlanHintOpen, setSubPlanHintOpen] = useState(false);
   const [confirmAddCustomSubject, setConfirmAddCustomSubject] = useState(false);
   const [addSubjectTargetPlanName, setAddSubjectTargetPlanName] = useState<string | null>(null);
   const [constraintSubjectId, setConstraintSubjectId] = useState<string | null>(null);
@@ -1609,41 +1610,67 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
           </div>
         )}
 
-        {planMode === 'ready' && ((isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId)) || subjectPlanTargetMode === 'classes') && (
+        {planMode === 'ready' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-4 py-3">
+            <button
+              type="button"
+              onClick={() => setSubPlanHintOpen(o => !o)}
+              className="w-full flex items-center justify-between gap-2.5 text-right"
+            >
+              <span className="flex items-start gap-2.5">
+                <HelpCircle size={20} className="mt-0.5 shrink-0 text-[#655ac1]" />
+                <span className="text-[13px] font-bold leading-relaxed text-slate-600">
+                  هل لديك فصول في هذه المرحلة تتبع قسمًا مختلفاً (مثل فصول الموهوبين أو تحفيظ ) ؟
+                </span>
+              </span>
+              <span className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200">
+                <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${subPlanHintOpen ? 'rotate-180' : ''}`} />
+              </span>
+            </button>
+            {subPlanHintOpen && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <ol className="flex flex-col gap-2 text-[13px] font-bold leading-relaxed text-slate-600">
+                  <li className="flex items-start gap-2.5">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-black">1</span>
+                    <span>اعتمد الخطة الأساسية للمرحلة</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-black">2</span>
+                    <span>أضِف للفصول التي تتبع قسمًا آخر <span className="text-[#655ac1] font-black">خطة فرعية</span></span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-black">3</span>
+                    <span>اربط هذه الفصول بالخطة الفرعية من صفحة الفصول</span>
+                  </li>
+                </ol>
+                <button
+                  onClick={beginClassSubjectPlan}
+                  className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
+                >
+                  <Layers size={16} />
+                  <span>إضافة خطة فرعية</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {planMode === 'ready' && subjectPlanTargetMode === 'classes' && (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-start gap-2.5">
               <HelpCircle size={20} className="mt-0.5 shrink-0 text-[#655ac1]" />
               <div className="text-[13px] font-bold leading-relaxed text-slate-600">
-                {subjectPlanTargetMode === 'classes' ? (
-                  <>
-                    <span className="block">أنت الآن تضيف <span className="text-[#655ac1] font-black">خطة فرعية</span> لقسم ملحق بهذه المرحلة.</span>
-                    <span className="block">اختر القسم الملحق واعتمد مواده، ثم اربطه بالفصول الملحقة من صفحة الفصول</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="block">هل بعض فصول هذه المرحلة تتبع قسمًا مختلفًا (موهوبين، تحفيظ، تربية خاصة) ؟</span>
-                    <span className="block">اعتمد الخطة الأساسية أولًا ثم أضِف لهذه الفصول <span className="text-[#655ac1] font-black">خطة فرعية</span>، ثم اربطها بتلك الفصول من صفحة الفصول</span>
-                  </>
-                )}
+                <span className="block">أنت الآن تضيف <span className="text-[#655ac1] font-black">خطة فرعية</span> لقسم ملحق بهذه المرحلة.</span>
+                <span className="block">اختر القسم الملحق واعتمد مواده، ثم اربطه بالفصول الملحقة من صفحة الفصول</span>
               </div>
             </div>
-            {subjectPlanTargetMode === 'classes' ? (
-              <button
-                onClick={cancelClassSubjectPlan}
-                className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-rose-300 hover:text-rose-500 font-bold text-sm transition-all"
-              >
-                <X size={16} />
-                <span>إلغاء</span>
-              </button>
-            ) : (
-              <button
-                onClick={beginClassSubjectPlan}
-                className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all"
-              >
-                <Layers size={16} />
-                <span>إضافة خطة فرعية</span>
-              </button>
-            )}
+            <button
+              onClick={cancelClassSubjectPlan}
+              className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-rose-300 hover:text-rose-500 font-bold text-sm transition-all"
+            >
+              <X size={16} />
+              <span>إلغاء</span>
+            </button>
           </div>
         )}
 
