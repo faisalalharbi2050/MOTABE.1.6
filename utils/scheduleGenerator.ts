@@ -2,6 +2,7 @@ import {
     Subject, Teacher, ClassInfo, ScheduleSettingsData, 
     TimetableData, TimetableSlot, Assignment
 } from '../types';
+import { getClassSubjectPeriods } from './classSubjectPlans';
 
 interface GeneratorOptions {
     activeDays: string[];
@@ -115,8 +116,9 @@ export async function generateSchedule(
     if (assignments && assignments.length > 0) {
         assignments.forEach(a => {
             const sub = subjects.find(s => s.id === a.subjectId);
-            if (!sub) return;
-            teacherWeeklyLoadTarget.set(a.teacherId, (teacherWeeklyLoadTarget.get(a.teacherId) || 0) + (sub.periodsPerClass || 0));
+            const cls = classes.find(c => c.id === a.classId);
+            if (!sub || !cls) return;
+            teacherWeeklyLoadTarget.set(a.teacherId, (teacherWeeklyLoadTarget.get(a.teacherId) || 0) + getClassSubjectPeriods(cls, sub));
         });
     }
     teachers.forEach(t => {
@@ -153,11 +155,11 @@ export async function generateSchedule(
     const getRemainingQuota = (cls: ClassInfo, subj: Subject) => {
         const key = `${cls.id}-${subj.id}`;
         const used = classSubjectCounts.get(key) || 0;
-        return subj.periodsPerClass - used;
+        return getClassSubjectPeriods(cls, subj) - used;
     };
 
-    const getSubjectMaxPerDay = (subj: Subject) =>
-        subj.periodsPerClass <= activeDays.length ? 1 : 2;
+    const getSubjectMaxPerDay = (cls: ClassInfo, subj: Subject) =>
+        getClassSubjectPeriods(cls, subj) <= activeDays.length ? 1 : 2;
 
     const getStableDayOffset = (classId: string, subjectId: string) => {
         const value = `${classId}-${subjectId}`;
@@ -175,8 +177,10 @@ export async function generateSchedule(
     const isSubjectFixedSlot = (constraint: any, day: string, period: number) =>
         Boolean(constraint?.fixedSlots?.[day]?.includes(period));
 
-    const getSubjectDayTarget = (classId: string, subj: Subject, day: string) =>
-        subjectDailyTargets.get(`${classId}-${subj.id}-${day}`) ?? getSubjectMaxPerDay(subj);
+    const getSubjectDayTarget = (classId: string, subj: Subject, day: string) => {
+        const cls = classes.find(item => item.id === classId);
+        return subjectDailyTargets.get(`${classId}-${subj.id}-${day}`) ?? (cls ? getSubjectMaxPerDay(cls, subj) : 1);
+    };
 
     const getTeacherDayTarget = (teacher: Teacher, day: string) =>
         teacherDailyTargets.get(`${teacher.id}-${day}`) ?? Math.ceil((teacherWeeklyLoadTarget.get(teacher.id) || teacher.quotaLimit || 0) / activeDays.length);
@@ -211,7 +215,7 @@ export async function generateSchedule(
         // This logic depends on how subjects are linked to classes.
         // Assuming 'Step3Subjects' logic where subjects target grades/phases.
         // Or if 'Step4Classes' saves subjectIds in class.
-        if (cls.subjectIds && cls.subjectIds.length > 0) {
+        if (cls.subjectIdsCustomized || (cls.subjectIds && cls.subjectIds.length > 0)) {
             const valid = subjects.filter(s => cls.subjectIds?.includes(s.id));
             classSubjectsMap.set(cls.id, valid);
         } else {
@@ -241,7 +245,7 @@ export async function generateSchedule(
     schedulableClasses.forEach(cls => {
         const subjectsForClass = classSubjectsMap.get(cls.id) || [];
         subjectsForClass.forEach(subj => {
-            const weekly = Math.max(0, subj.periodsPerClass || 0);
+            const weekly = Math.max(0, getClassSubjectPeriods(cls, subj));
             const daysCount = activeDays.length;
             const offset = getStableDayOffset(cls.id, subj.id);
             const selectedExtraDays = new Set<string>();
@@ -368,7 +372,7 @@ export async function generateSchedule(
             
             // DEBUG: Trace first class subject loop
             if (slotIndex === 0) {
-                 console.log(`Checking Subject: ${subj.name} (ID: ${subj.id}). Quota: ${quota}/${subj.periodsPerClass}`);
+                 console.log(`Checking Subject: ${subj.name} (ID: ${subj.id}). Quota: ${quota}/${getClassSubjectPeriods(currentClassForSlot, subj)}`);
             }
 
             if (quota <= 0) {

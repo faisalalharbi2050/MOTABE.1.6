@@ -303,6 +303,10 @@ export interface ClassInfo {
   name?: string; // Custom name override (default: "1-1" format)
   subjectIds?: string[];
   subjectPlanId?: string;
+  /** تخصيص نصاب مادة لهذا الفصل فقط. غياب القيمة يعني استخدام نصاب الخطة الأساسية. */
+  subjectPeriodOverrides?: Record<string, number>;
+  /** يميز قائمة المواد المخصصة صراحةً عن القائمة الموروثة من خطة الصف، حتى لو كانت فارغة. */
+  subjectIdsCustomized?: boolean;
   
   // Customization & Configuration
   schoolId?: string; // 'main' or 'second' for shared schools

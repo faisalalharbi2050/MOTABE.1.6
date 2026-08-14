@@ -11,7 +11,7 @@ import PreviewModal from './PreviewModal';
 import PrintModal from './PrintModal';
 import { DeleteBySubjectModal, DeleteByTeacherModal } from './DeleteModals';
 import { TeacherDetailsModal, TransferTeacherModal } from './TeacherActionModals';
-import { getClassSubjectIds } from '../../utils/classSubjectPlans';
+import { getClassSubjectIds, getClassSubjectPeriods } from '../../utils/classSubjectPlans';
 
 // ── أسماء الصفوف بالعربية (المرتبة) ──
 const ARABIC_ORDINALS: Record<number, string> = {
@@ -155,7 +155,8 @@ const AssignmentPage: React.FC<Props> = ({
       return isAssignableClass(cls);
     }).reduce((total, a) => {
       const sub = subjects.find(s => s.id === a.subjectId);
-      return total + (sub?.periodsPerClass || 0);
+      const cls = classes.find(c => c.id === a.classId);
+      return total + (sub && cls ? getClassSubjectPeriods(cls, sub) : 0);
     }, 0);
   };
 
@@ -166,7 +167,8 @@ const AssignmentPage: React.FC<Props> = ({
       return isAssignableClass(cls) && (cls?.schoolId || 'main') === schoolId;
     }).reduce((total, a) => {
       const sub = subjects.find(s => s.id === a.subjectId);
-      return total + (sub?.periodsPerClass || 0);
+      const cls = classes.find(c => c.id === a.classId);
+      return total + (sub && cls ? getClassSubjectPeriods(cls, sub) : 0);
     }, 0);
   };
 
@@ -219,11 +221,11 @@ const AssignmentPage: React.FC<Props> = ({
         const uniq = Array.from(new Map(relevant.map(s => [s.id, s])).values());
         let classAssigned = 0;
         uniq.forEach(s => {
-          totalPeriods += s.periodsPerClass;
+          totalPeriods += getClassSubjectPeriods(cls, s);
           totalSubjects += 1;
           const a = assignments.find(x => x.classId === cls.id && x.subjectId === s.id);
           if (a) {
-            assignedPeriods += s.periodsPerClass;
+            assignedPeriods += getClassSubjectPeriods(cls, s);
             assignedSubjects += 1;
             classAssigned += 1;
           }
@@ -435,7 +437,11 @@ const AssignmentPage: React.FC<Props> = ({
       return;
     }
 
-    const sourcePeriods = sourceAssns.reduce((s, a) => s + (subjects.find(x => x.id === a.subjectId)?.periodsPerClass || 0), 0);
+    const sourcePeriods = sourceAssns.reduce((sum, a) => {
+      const subject = subjects.find(x => x.id === a.subjectId);
+      const cls = classes.find(c => c.id === a.classId);
+      return sum + (subject && cls ? getClassSubjectPeriods(cls, subject) : 0);
+    }, 0);
     const targetLoad = getTeacherEffectiveLoad(target);
     const targetQuota = getTeacherEffectiveQuota(target);
     const afterLoad = targetLoad + sourcePeriods;
@@ -520,7 +526,7 @@ const AssignmentPage: React.FC<Props> = ({
 
     const effectiveQuota = getTeacherEffectiveQuota(teacher);
     const hasQuotaLimit = effectiveQuota > 0;
-    const newLoad = getTeacherEffectiveLoad(teacher) + sub.periodsPerClass;
+    const newLoad = getTeacherEffectiveLoad(teacher) + getClassSubjectPeriods(cls, sub);
 
     const doAssign = () => {
       const filtered = assignments.filter(a => !(a.classId === classId && a.subjectId === subjectId));
@@ -919,7 +925,11 @@ const AssignmentPage: React.FC<Props> = ({
                       const cls = classes.find(c => c.id === a.classId);
                       return a.teacherId === t.id && isAssignableClass(cls) && (cls?.schoolId || 'main') === sid;
                     })
-                    .reduce((sum, a) => sum + (subjects.find(x => x.id === a.subjectId)?.periodsPerClass || 0), 0);
+                    .reduce((sum, a) => {
+                      const subject = subjects.find(x => x.id === a.subjectId);
+                      const assignmentClass = classes.find(c => c.id === a.classId);
+                      return sum + (subject && assignmentClass ? getClassSubjectPeriods(assignmentClass, subject) : 0);
+                    }, 0);
                   sharedSchoolsArr.push({ id: sid, name: sname, quota: sQuota, load: sLoad });
                 });
               }
@@ -1228,7 +1238,10 @@ const AssignmentPage: React.FC<Props> = ({
                                     <div className="flex justify-between items-start gap-1 mb-1">
                                       <div className={`min-w-0 flex-1 ${isAssigned && !selectionMode ? 'pr-5' : ''}`}>
                                         <div className={`text-[11px] font-black truncate ${isSelectedForDelete ? 'text-rose-700' : isAssigned ? 'text-slate-800' : 'text-slate-700'}`}>{sub.name}</div>
-                                        <div className="text-[10px] font-bold text-slate-500">{sub.periodsPerClass} حصص</div>
+                                        <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                                          <span>{getClassSubjectPeriods(cls, sub)} حصص</span>
+                                          {cls.subjectPeriodOverrides?.[sub.id] !== undefined && <span className="text-[#655ac1]">· مخصص</span>}
+                                        </div>
                                       </div>
                                       {!selectionMode && isAssigned && (
                                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white shrink-0 mt-0.5">

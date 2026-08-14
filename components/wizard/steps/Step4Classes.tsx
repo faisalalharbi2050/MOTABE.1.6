@@ -8,7 +8,7 @@ import {
   LayoutGrid, Hash, Check, CheckSquare, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
   MoreHorizontal, Edit2, MapPin, CircleHelp, Monitor, Library, BookMarked, FileQuestion,
-  CircleAlert, Goal
+  CircleAlert, Goal, ListPlus
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -21,6 +21,7 @@ import {
 } from '../../../utils/classroomUtils';
 import { getClassLabel } from '../../../utils/classLabels';
 import SchoolTabs from '../SchoolTabs';
+import ClassSubjectOverridesModal from '../../classes/ClassSubjectOverridesModal';
 
 // ─── Wizard Constants ──────────────────────────────────────────────────────────
 
@@ -369,6 +370,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [deleteModalClassId, setDeleteModalClassId] = useState<string>('');
   const [deleteWholeGradeConfirm, setDeleteWholeGradeConfirm] = useState(false);
   const [facilityDeleteConfirmId, setFacilityDeleteConfirmId] = useState<string | null>(null);
+  // حالات نافذة التخصيص القديمة باقية مؤقتًا للتوافق مع بنية العرض الحالية؛ جميع نقاط الدخول تستخدم النافذة الموحدة الجديدة.
   const [editingSubjectsGrade, setEditingSubjectsGrade] = useState<number | null>(null);
   const [editingSubjectsClassId, setEditingSubjectsClassId] = useState<string | null>(null);
   const [editingSubjectPeriodId, setEditingSubjectPeriodId] = useState<string | null>(null);
@@ -394,6 +396,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [showClassPlansModal, setShowClassPlansModal] = useState(false);
   const [classPlanSelectedIds, setClassPlanSelectedIds] = useState<Set<string>>(new Set());
   const [classPlanId, setClassPlanId] = useState<string>('');
+  const [showSubjectOverridesModal, setShowSubjectOverridesModal] = useState(false);
+  const [subjectOverrideInitialIds, setSubjectOverrideInitialIds] = useState<string[]>([]);
 
   // ─── View Mode State (Refactored) ───
   type ViewMode = 'classes' | 'facilities';
@@ -956,20 +960,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setGlobalPeriodCounts({});
   }, [activePhase, activeSchoolId, setClasses]);
 
-  // ─── Subject Toggling ───
   const toggleSubjectForGrade = useCallback((grade: number, subId: string) => {
     const key = getGradeSubjectKey(grade);
     const current = getGradeSubjectIds(grade);
     const updated = current.includes(subId) ? current.filter(id => id !== subId) : [...current, subId];
     setGradeSubjectMap(prev => ({ ...prev, [key]: updated }));
-
-    // Also update existing classes for this grade
-    setClasses(prev => prev.map(c => {
-      if (c.phase === activePhase && c.grade === grade && (c.schoolId || 'main') === activeSchoolId) {
-        return { ...c, subjectIds: updated };
-      }
-      return c;
-    }));
+    setClasses(prev => prev.map(c => c.phase === activePhase && c.grade === grade && (c.schoolId || 'main') === activeSchoolId
+      ? { ...c, subjectIds: updated }
+      : c));
   }, [activePhase, activeSchoolId, getGradeSubjectIds, getGradeSubjectKey, setGradeSubjectMap, setClasses]);
 
   // ─── Bulk Grade Handlers ───
@@ -1281,6 +1279,17 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
+            </button>
+            <button
+              dir="rtl"
+              onClick={() => {
+                setSubjectOverrideInitialIds(Array.from(selectedClasses).filter(id => currentSchoolClasses.some(cls => cls.id === id)));
+                setShowSubjectOverridesModal(true);
+              }}
+              disabled={currentSchoolClasses.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ListPlus size={16} className="text-slate-400" /> تخصيص مواد الفصول
             </button>
             <button
               dir="rtl"
@@ -1623,10 +1632,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                        <Plus size={14} /> إضافة فصل
                                      </button>
                                      <button
-                                       onClick={() => { setEditingSubjectsGrade(editingSubjectsGrade === grade ? null : grade); setGradeMenuOpenId(null); }}
-                                       className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold transition-colors ${editingSubjectsGrade === grade ? 'bg-[#e5e1fe] text-[#655ac1]' : 'text-slate-600 hover:bg-[#f8f7ff] hover:text-[#655ac1]'}`}
+                                       onClick={() => { setSubjectOverrideInitialIds(gradeClasses.map(cls => cls.id)); setShowSubjectOverridesModal(true); setGradeMenuOpenId(null); }}
+                                       className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-slate-600 hover:bg-[#f8f7ff] hover:text-[#655ac1] transition-colors"
                                      >
-                                       <BookOpen size={14} /> تخصيص المواد
+                                       <ListPlus size={14} /> تخصيص المواد
                                      </button>
                                      <button
                                        onClick={() => { setBulkEditingPeriodsGrade(bulkEditingPeriodsGrade === grade ? null : grade); setGradeMenuOpenId(null); }}
@@ -1815,13 +1824,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                      {classMenuOpenId === c.id && (
                                        <div className="absolute top-full left-0 mt-2 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden animate-in zoom-in-95 duration-150">
                                          <button
-                                           onClick={() => { setEditingSubjectsClassId(editingSubjectsClassId === c.id ? null : c.id); setCustomPeriodClassId(null); setClassMenuOpenId(null); }}
+                                            onClick={() => { setSubjectOverrideInitialIds([c.id]); setShowSubjectOverridesModal(true); setCustomPeriodClassId(null); setClassMenuOpenId(null); }}
                                            className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold transition-colors ${(c.subjectIds && c.subjectIds.length > 0) ? 'bg-[#f8f7ff] text-[#655ac1]' : 'text-slate-600 hover:bg-[#f8f7ff] hover:text-[#655ac1]'}`}
                                          >
-                                           <BookOpen size={14} /> تخصيص المواد
+                                           <ListPlus size={14} /> تخصيص المواد
                                          </button>
                                          <button
-                                           onClick={() => { setCustomPeriodClassId(customPeriodClassId === c.id ? null : c.id); setEditingSubjectsClassId(null); setClassMenuOpenId(null); }}
+                                           onClick={() => { setCustomPeriodClassId(customPeriodClassId === c.id ? null : c.id); setClassMenuOpenId(null); }}
                                            className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold transition-colors ${hasCustomPeriods ? 'bg-[#f8f7ff] text-[#655ac1]' : 'text-slate-600 hover:bg-[#f8f7ff] hover:text-[#655ac1]'}`}
                                          >
                                            <Clock size={14} /> تخصيص الحصص
@@ -2838,6 +2847,23 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       );
     })()}
 
+    <ClassSubjectOverridesModal
+      isOpen={showSubjectOverridesModal}
+      onClose={() => setShowSubjectOverridesModal(false)}
+      classes={classes}
+      setClasses={setClasses}
+      subjects={subjects}
+      setSubjects={setSubjects}
+      gradeSubjectMap={gradeSubjectMap}
+      assignments={assignments}
+      setAssignments={setAssignments}
+      schoolInfo={schoolInfo}
+      activePhase={activePhase}
+      activeSchoolId={activeSchoolId}
+      initialClassIds={subjectOverrideInitialIds}
+      onSaved={showToast}
+    />
+
     {/* Bulk delete confirmation is rendered inside the delete-selected modal */}
 
     {/* ════════════════════════════════════════════════════
@@ -2852,11 +2878,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         <button
           onClick={() => {
             const cls = classes.find(c => c.id === portalDropdown.classId);
-            if (cls) { setEditingSubjectsGrade(cls.grade); setPortalDropdown(null); }
+            if (cls) { setSubjectOverrideInitialIds([cls.id]); setShowSubjectOverridesModal(true); setPortalDropdown(null); }
           }}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
         >
-          <BookOpen size={15} className="text-[#8779fb]"/> تخصيص المواد
+          <ListPlus size={15} className="text-[#8779fb]"/> تخصيص المواد
         </button>
         <button
           onClick={() => {

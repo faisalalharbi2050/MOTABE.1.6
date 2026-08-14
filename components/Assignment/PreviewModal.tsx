@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
 import { X, Eye, Search, Check, ChevronDown } from 'lucide-react';
 import { sortSpecIdsByAssignmentOrder, sortTeachersByAssignmentOrder } from './teacherSort';
-import { getClassSubjectIds } from '../../utils/classSubjectPlans';
+import { getClassSubjectIds, getClassSubjectPeriods } from '../../utils/classSubjectPlans';
 
 interface Props {
   teachers: Teacher[];
@@ -129,14 +129,18 @@ const PreviewModal: React.FC<Props> = ({
   const formatAssignmentChip = (a: Assignment): string => {
     const s = subjects.find(x => x.id === a.subjectId);
     const c = classes.find(x => x.id === a.classId);
-    const periods = s?.periodsPerClass || 0;
+    const periods = s && c ? getClassSubjectPeriods(c, s) : 0;
     // section/grade in source so RTL reading shows grade on the right.
     return `${s?.name || '—'} - ${c ? `${c.section}/${c.grade}` : '—'} - ح${periods}`;
   };
 
   const teacherTotalPeriods = (tId: string) => schoolAssignments
     .filter(a => a.teacherId === tId)
-    .reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+    .reduce((sum, a) => {
+      const subject = subjects.find(s => s.id === a.subjectId);
+      const cls = classes.find(c => c.id === a.classId);
+      return sum + (subject && cls ? getClassSubjectPeriods(cls, subject) : 0);
+    }, 0);
 
   const classesFiltered = useMemo(() =>
     sortedSchoolClasses.filter(c => selectedClassIds.has(c.id)),
@@ -532,7 +536,7 @@ const ClassesView: React.FC<{
                     </td>
                     <td className="px-4 py-3 text-xs font-black text-slate-800">{r.subject.name}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-sm font-black text-[#655ac1] tabular-nums">{r.subject.periodsPerClass}</span>
+                      <span className="text-sm font-black text-[#655ac1] tabular-nums">{getClassSubjectPeriods(cls, r.subject)}</span>
                     </td>
                     <td className="px-4 py-3 text-xs font-bold text-slate-700">
                       {r.teacher ? r.teacher.name : <span className="text-[11px] font-black text-rose-600">غير مسندة</span>}

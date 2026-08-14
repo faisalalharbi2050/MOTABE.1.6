@@ -14,7 +14,7 @@ import {
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../../types';
 import { validateAllConstraints, ValidationWarning } from '../../../utils/scheduleConstraints';
 import { generateSchedule } from '../../../utils/scheduleGenerator';
-import { getClassSubjectIds } from '../../../utils/classSubjectPlans';
+import { getClassSubjectIds, getClassSubjectPeriods } from '../../../utils/classSubjectPlans';
 import ConflictModal from '../../schedule/ConflictModal';
 import LoadingLogo from '../../ui/LoadingLogo';
 import PresenceDaysWarningModal from '../PresenceDaysWarningModal';
@@ -110,9 +110,9 @@ const CreateTab: React.FC<Props> = ({
       const uniqueSubjects = Array.from(new Map(requiredSubjects.map(subject => [subject.id, subject])).values());
 
       uniqueSubjects.forEach(subject => {
-        total += subject.periodsPerClass || 0;
+        total += getClassSubjectPeriods(cls, subject);
         if (assignments.some(a => a.classId === cls.id && a.subjectId === subject.id)) {
-          assigned += subject.periodsPerClass || 0;
+          assigned += getClassSubjectPeriods(cls, subject);
         }
       });
     });
@@ -186,7 +186,8 @@ const CreateTab: React.FC<Props> = ({
     const assignedLoad = new Map<string, number>();
     relevantAssignments.forEach(a => {
       const subject = activeSubjects.find(s => s.id === a.subjectId);
-      assignedLoad.set(a.teacherId, (assignedLoad.get(a.teacherId) || 0) + (subject?.periodsPerClass || 0));
+      const cls = assignableClasses.find(c => c.id === a.classId);
+      assignedLoad.set(a.teacherId, (assignedLoad.get(a.teacherId) || 0) + (subject && cls ? getClassSubjectPeriods(cls, subject) : 0));
     });
     const overloadedTeachers = teachers.filter(t => {
       const load = assignedLoad.get(t.id) || 0;

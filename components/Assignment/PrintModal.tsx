@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
 import { X, Printer, Check, ChevronDown } from 'lucide-react';
 import { sortTeachersByAssignmentOrder } from './teacherSort';
-import { getClassSubjectIds } from '../../utils/classSubjectPlans';
+import { getClassSubjectIds, getClassSubjectPeriods } from '../../utils/classSubjectPlans';
 
 interface Props {
   teachers: Teacher[];
@@ -134,10 +134,14 @@ const PrintModal: React.FC<Props> = ({
         const chips = list.map(a => {
           const s = subjects.find(x => x.id === a.subjectId);
           const c = classes.find(x => x.id === a.classId);
-          const p = s?.periodsPerClass || 0;
+          const p = s && c ? getClassSubjectPeriods(c, s) : 0;
           return `<span class="chip">${escapeHtml(s?.name || '—')} - ${c ? `${c.section}/${c.grade}` : '—'} - ح${p}</span>`;
         }).join('');
-        const totalPeriods = list.reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+        const totalPeriods = list.reduce((sum, a) => {
+          const subject = subjects.find(s => s.id === a.subjectId);
+          const cls = classes.find(c => c.id === a.classId);
+          return sum + (subject && cls ? getClassSubjectPeriods(cls, subject) : 0);
+        }, 0);
         const waiting = getTeacherWaitingQuotaForSchool(t);
         const quota = totalPeriods;
         const grand = showWaitEffective ? totalPeriods + waiting : totalPeriods;
@@ -193,7 +197,7 @@ const PrintModal: React.FC<Props> = ({
           <tr>
             <td class="ctr">${idx + 1}</td>
             <td class="b ctr">${escapeHtml(s.name)}</td>
-            <td class="ctr nums">${s.periodsPerClass}</td>
+            <td class="ctr nums">${getClassSubjectPeriods(cls, s)}</td>
             <td class="ctr">${t ? escapeHtml(t.name) : '<span class="warn-text">غير مسندة</span>'}</td>
           </tr>`;
       }).join('');

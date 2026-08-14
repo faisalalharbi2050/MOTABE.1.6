@@ -1,5 +1,6 @@
 
 import { Teacher, Subject, ClassInfo, Assignment, Phase } from '../types';
+import { getClassSubjectPeriods } from './classSubjectPlans';
 
 export const autoDistributeSubjects = (
   teachers: Teacher[],
@@ -19,7 +20,8 @@ export const autoDistributeSubjects = (
       .filter(a => a.teacherId === teacherId)
       .reduce((total, a) => {
         const sub = allSubjects.find(s => s.id === a.subjectId);
-        return total + (sub?.periodsPerClass || 0);
+        const cls = classes.find(c => c.id === a.classId);
+        return total + (sub && cls ? getClassSubjectPeriods(cls, sub) : 0);
       }, 0);
   };
  
@@ -40,7 +42,7 @@ export const autoDistributeSubjects = (
     // Determine subjects for this class
     // Priority: Class-specific subjects -> Grade-level map -> Empty list
     let classSubjectIds: string[] = [];
-    if (cls.subjectIds && cls.subjectIds.length > 0) {
+    if (cls.subjectIdsCustomized || (cls.subjectIds && cls.subjectIds.length > 0)) {
       classSubjectIds = cls.subjectIds;
     } else {
       const gradeKey = `${schoolPhase}-${cls.grade}`;
@@ -69,7 +71,7 @@ export const autoDistributeSubjects = (
        // Criteria 2: Quota Check
        eligibleTeachers = eligibleTeachers.filter(t => {
          const currentLoad = teacherLoads[t.id];
-         return (currentLoad + sub.periodsPerClass) <= t.quotaLimit;
+          return (currentLoad + getClassSubjectPeriods(cls, sub)) <= t.quotaLimit;
        });
 
        if (eligibleTeachers.length === 0) {
@@ -111,7 +113,7 @@ export const autoDistributeSubjects = (
        });
 
        // Update Load Tracking
-       teacherLoads[winner.id] += sub.periodsPerClass;
+       teacherLoads[winner.id] += getClassSubjectPeriods(cls, sub);
        assignedCount++;
     });
   });

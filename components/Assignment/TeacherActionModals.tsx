@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Teacher, Subject, ClassInfo, Assignment, SchoolInfo, Specialization } from '../../types';
 import { X, ClipboardList, ArrowLeftRight, BookOpen, Check, CheckCircle2, AlertTriangle, Users, ChevronDown, Search } from 'lucide-react';
+import { getClassSubjectPeriods } from '../../utils/classSubjectPlans';
 
 const isAssignableClass = (c?: Pick<ClassInfo, 'type'> | null) => !!c && (!c.type || c.type === 'class');
 
@@ -31,7 +32,11 @@ const getTeacherLoadForSchool = (
   if (a.teacherId !== teacherId) return false;
   const cls = classes.find(c => c.id === a.classId);
   return isAssignableClass(cls) && (cls?.schoolId || 'main') === schoolId;
-}).reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+}).reduce((sum, a) => {
+  const subject = subjects.find(s => s.id === a.subjectId);
+  const cls = classes.find(c => c.id === a.classId);
+  return sum + (subject && cls ? getClassSubjectPeriods(cls, subject) : 0);
+}, 0);
 
 const getTeacherTotalLoad = (
   teacherId: string,
@@ -44,7 +49,8 @@ const getTeacherTotalLoad = (
   return isAssignableClass(cls);
 }).reduce((sum, a) => {
   const sub = subjects.find(s => s.id === a.subjectId);
-  return sum + (sub?.periodsPerClass || 0);
+  const cls = classes.find(c => c.id === a.classId);
+  return sum + (sub && cls ? getClassSubjectPeriods(cls, sub) : 0);
 }, 0);
 
 const getTeacherEffectiveLoad = (
@@ -116,9 +122,10 @@ export const TeacherDetailsModal: React.FC<DetailsProps> = ({
     return Array.from(schoolIds).map(sid => {
       const list = map.get(sid) || [];
       const assigned = list.reduce((sum, a) => {
-  const sub = subjects.find(s => s.id === a.subjectId);
-  return sum + (sub?.periodsPerClass || 0);
-}, 0);
+        const sub = subjects.find(s => s.id === a.subjectId);
+        const cls = classes.find(c => c.id === a.classId);
+        return sum + (sub && cls ? getClassSubjectPeriods(cls, sub) : 0);
+      }, 0);
 
       return {
         sid,
@@ -132,7 +139,8 @@ export const TeacherDetailsModal: React.FC<DetailsProps> = ({
 
   const totalPeriods = teacherAssignments.reduce((sum, a) => {
     const sub = subjects.find(s => s.id === a.subjectId);
-    return sum + (sub?.periodsPerClass || 0);
+    const cls = classes.find(c => c.id === a.classId);
+    return sum + (sub && cls ? getClassSubjectPeriods(cls, sub) : 0);
   }, 0);
 
   const totalQuota = teacher.isShared
@@ -208,8 +216,9 @@ export const TeacherDetailsModal: React.FC<DetailsProps> = ({
                     const sub = subjects.find(s => s.id === a.subjectId);
                     if (!cls || !sub) return;
                     const entry = map.get(a.classId) || { cls, subjects: [], totalPeriods: 0 };
-                    entry.subjects.push({ name: sub.name, periods: sub.periodsPerClass });
-                    entry.totalPeriods += sub.periodsPerClass;
+                    const periods = getClassSubjectPeriods(cls, sub);
+                    entry.subjects.push({ name: sub.name, periods });
+                    entry.totalPeriods += periods;
                     map.set(a.classId, entry);
                   });
                   return Array.from(map.values()).sort((a, b) => {
@@ -345,7 +354,11 @@ export const TransferTeacherModal: React.FC<TransferProps> = ({
     (selectedClassIds.size === 0 || selectedClassIds.has(a.classId))
   ), [sourceAssns, selectedSubjectIds, selectedClassIds]);
 
-  const sourcePeriods = filteredSourceAssns.reduce((sum, a) => sum + (subjects.find(s => s.id === a.subjectId)?.periodsPerClass || 0), 0);
+  const sourcePeriods = filteredSourceAssns.reduce((sum, a) => {
+    const subject = subjects.find(s => s.id === a.subjectId);
+    const cls = classes.find(c => c.id === a.classId);
+    return sum + (subject && cls ? getClassSubjectPeriods(cls, subject) : 0);
+  }, 0);
 
   const availableTargets = useMemo(() => {
     return teachers.filter(t => t.id !== sourceTeacher.id && isTeacherInCurrentSchool(t));
