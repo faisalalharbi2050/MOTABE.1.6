@@ -332,11 +332,12 @@ interface Props {
   assignments: Assignment[];
   setAssignments: React.Dispatch<React.SetStateAction<Assignment[]>>;
   scheduleSettings: ScheduleSettingsData;
+  setScheduleSettings: React.Dispatch<React.SetStateAction<ScheduleSettingsData>>;
 }
 
 type CreationMode = 'auto' | 'manual';
 
-const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubjects, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, schoolInfo, setSchoolInfo, assignments, setAssignments, scheduleSettings }) => {
+const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubjects, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, schoolInfo, setSchoolInfo, assignments, setAssignments, scheduleSettings, setScheduleSettings }) => {
   // ─── Core State ───
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [activePhase, setActivePhase] = useState<Phase>(schoolInfo.phases?.[0] || Phase.ELEMENTARY);
@@ -2857,6 +2858,8 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       gradeSubjectMap={gradeSubjectMap}
       assignments={assignments}
       setAssignments={setAssignments}
+      scheduleSettings={scheduleSettings}
+      setScheduleSettings={setScheduleSettings}
       schoolInfo={schoolInfo}
       activePhase={activePhase}
       activeSchoolId={activeSchoolId}
