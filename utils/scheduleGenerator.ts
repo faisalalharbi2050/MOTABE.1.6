@@ -107,6 +107,7 @@ export async function generateSchedule(
     // "classId-subjectId" => count
     const classSubjectCounts = new Map<string, number>();
     const classSubjectDayCounts = new Map<string, number>();
+    const classSubjectDayPeriods = new Map<string, Set<number>>();
     const classSubjectPeriodCounts = new Map<string, number>();
     const subjectDailyTargets = new Map<string, number>(); // "classId-subjectId-day" => target count
 
@@ -144,6 +145,9 @@ export async function generateSchedule(
     // Track concurrent usage per facility per slot: "facilityId-day-period" => count
     const facilityUsage = new Map<string, number>();
     // ─────────────────────────────────────────────────────────────────────
+
+    const subjectConstraintById = new Map(settings.subjectConstraints.map(sc => [sc.subjectId, sc]));
+    const teacherConstraintById = new Map(settings.teacherConstraints.map(tc => [tc.teacherId, tc]));
     
     // Helper to get remaining quota for a subject in a class
     const getRemainingQuota = (cls: ClassInfo, subj: Subject) => {
@@ -165,6 +169,12 @@ export async function generateSchedule(
         return Math.abs(hash) % Math.max(1, activeDays.length);
     };
 
+    const isSubjectExcluded = (constraint: any, day: string, period: number) =>
+        Boolean(constraint?.excludedSlots?.[day]?.includes(period) || constraint?.excludedPeriods?.includes(period));
+    const hasFixedSlots = (constraint: any) => Boolean(constraint?.fixedSlots && Object.values(constraint.fixedSlots).some((slots: any) => Array.isArray(slots) && slots.length > 0));
+    const isSubjectFixedSlot = (constraint: any, day: string, period: number) =>
+        Boolean(constraint?.fixedSlots?.[day]?.includes(period));
+
     const getSubjectDayTarget = (classId: string, subj: Subject, day: string) =>
         subjectDailyTargets.get(`${classId}-${subj.id}-${day}`) ?? getSubjectMaxPerDay(subj);
 
@@ -180,9 +190,6 @@ export async function generateSchedule(
             ? -(target - current) * 120
             : (after - target) * 180;
     };
-
-    const subjectConstraintById = new Map(settings.subjectConstraints.map(sc => [sc.subjectId, sc]));
-    const teacherConstraintById = new Map(settings.teacherConstraints.map(tc => [tc.teacherId, tc]));
 
     const getMaxConsecutive = (teacher: Teacher) => {
         const configured = teacherConstraintById.get(teacher.id)?.maxConsecutive;
@@ -238,6 +245,23 @@ export async function generateSchedule(
             const daysCount = activeDays.length;
             const offset = getStableDayOffset(cls.id, subj.id);
             const selectedExtraDays = new Set<string>();
+            const pairCount = Math.min(Math.floor(weekly / 2), Math.max(0, subjectConstraintById.get(subj.id)?.consecutivePairs || 0), daysCount);
+
+            if (pairCount > 0) {
+                const targets = new Map<string, number>();
+                for (let i = 0; i < pairCount; i++) targets.set(activeDays[(offset + i) % daysCount], 2);
+                let remaining = weekly - (pairCount * 2);
+                for (let i = 0; i < daysCount && remaining > 0; i++) {
+                    const day = activeDays[(offset + pairCount + i) % daysCount];
+                    if (!targets.has(day)) { targets.set(day, 1); remaining--; }
+                }
+                for (let i = 0; i < daysCount && remaining > 0; i++) {
+                    const day = activeDays[(offset + i) % daysCount];
+                    targets.set(day, (targets.get(day) || 0) + 1); remaining--;
+                }
+                activeDays.forEach(day => subjectDailyTargets.set(`${cls.id}-${subj.id}-${day}`, targets.get(day) || 0));
+                return;
+            }
 
             if (weekly <= daysCount) {
                 for (let i = 0; i < weekly; i++) {
@@ -313,7 +337,10 @@ export async function generateSchedule(
             if (remaining <= 0) return Number.POSITIVE_INFINITY;
 
             const subjectConstraint = subjectConstraintById.get(subj.id);
-            if (!isBypassingConflicts && subjectConstraint?.excludedPeriods?.includes(period)) {
+            if (!isBypassingConflicts && isSubjectExcluded(subjectConstraint, day, period)) {
+                return Number.POSITIVE_INFINITY;
+            }
+            if (!isBypassingConflicts && hasFixedSlots(subjectConstraint) && !isSubjectFixedSlot(subjectConstraint, day, period)) {
                 return Number.POSITIVE_INFINITY;
             }
             const dayCount = classSubjectDayCounts.get(`${classId}-${subj.id}-${day}`) || 0;
@@ -327,9 +354,9 @@ export async function generateSchedule(
             const teacher = assignedTeacherId ? teachers.find(t => t.id === assignedTeacherId) : undefined;
             const teacherLoad = teacher ? (teacherDailyLoad.get(`${teacher.id}-${day}`) || 0) : 0;
             const teacherPenalty = teacher ? getTeacherDayBalanceScore(teacher, day) : 0;
-            const preferredPenalty = subjectConstraint?.preferredPeriods?.length && !subjectConstraint.preferredPeriods.includes(period) ? 18 : 0;
+            const fixedBonus = isSubjectFixedSlot(subjectConstraint, day, period) ? -500 : 0;
 
-            return ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + preferredPenalty + teacherLoad - remaining;
+            return ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + fixedBonus + teacherLoad - remaining;
         };
         const shuffledSubjects = [...subjectsForClass].sort((a, b) => {
             const diff = getSubjectSlotScore(a) - getSubjectSlotScore(b);
@@ -355,7 +382,10 @@ export async function generateSchedule(
             const subjectSamePeriodCount = classSubjectPeriodCounts.get(periodSubjectKey) || 0;
             const subjectConstraint = subjectConstraintById.get(subj.id);
             const subjectDayTarget = getSubjectDayTarget(classId, subj, day);
-            if (!isBypassingConflicts && subjectConstraint?.excludedPeriods?.includes(period)) {
+            if (!isBypassingConflicts && isSubjectExcluded(subjectConstraint, day, period)) {
+                continue;
+            }
+            if (!isBypassingConflicts && hasFixedSlots(subjectConstraint) && !isSubjectFixedSlot(subjectConstraint, day, period)) {
                 continue;
             }
             if (!isBypassingConflicts && subjectDayTarget <= 0) {
@@ -365,6 +395,11 @@ export async function generateSchedule(
                 continue;
             }
             if (!isBypassingConflicts && subjectSamePeriodCount >= 2) {
+                continue;
+            }
+            const pairDayKey = `${classId}-${subj.id}-${day}`;
+            const existingSubjectPeriods = classSubjectDayPeriods.get(pairDayKey) || new Set<number>();
+            if (!isBypassingConflicts && (subjectConstraint?.consecutivePairs || 0) > 0 && subjectDayTarget === 2 && existingSubjectPeriods.size > 0 && ![...existingSubjectPeriods].some(existing => Math.abs(existing - period) === 1)) {
                 continue;
             }
 
@@ -537,6 +572,8 @@ export async function generateSchedule(
                 }
                 classSubjectCounts.set(`${classId}-${subj.id}`, (classSubjectCounts.get(`${classId}-${subj.id}`) || 0) + 1);
                 classSubjectDayCounts.set(`${classId}-${subj.id}-${day}`, (classSubjectDayCounts.get(`${classId}-${subj.id}-${day}`) || 0) + 1);
+                if (!classSubjectDayPeriods.has(`${classId}-${subj.id}-${day}`)) classSubjectDayPeriods.set(`${classId}-${subj.id}-${day}`, new Set<number>());
+                classSubjectDayPeriods.get(`${classId}-${subj.id}-${day}`)!.add(period);
                 classSubjectPeriodCounts.set(`${classId}-${subj.id}-${period}`, (classSubjectPeriodCounts.get(`${classId}-${subj.id}-${period}`) || 0) + 1);
                 const teacherDayKey = `${validTeacher.id}-${day}`;
                 if (!teacherDayPeriods.has(teacherDayKey)) teacherDayPeriods.set(teacherDayKey, new Set<number>());
@@ -594,7 +631,8 @@ export async function generateSchedule(
 
                 for (const subj of candidateSubjects) {
                     const subjectConstraint = subjectConstraintById.get(subj.id);
-                    if (!isBypassingConflicts && subjectConstraint?.excludedPeriods?.includes(period)) continue;
+                    if (!isBypassingConflicts && isSubjectExcluded(subjectConstraint, day, period)) continue;
+                    if (!isBypassingConflicts && hasFixedSlots(subjectConstraint) && !isSubjectFixedSlot(subjectConstraint, day, period)) continue;
 
                     const subjectDayKey = `${classId}-${subj.id}-${day}`;
                     const subjectPeriodKey = `${classId}-${subj.id}-${period}`;

@@ -474,9 +474,18 @@ export interface SubscriptionInfo {
 
 export interface SubjectConstraint {
   subjectId: string;
-  excludedPeriods: number[];        // الحصص المستثناة
-  preferredPeriods: number[];       // الحصص المفضلة (أولوية)
-  enableDoublePeriods: boolean;     // تتابع الحصص (حصتين متتاليتين)
+  /** الصفوف/مواضع الخطة التي ينطبق عليها القيد. عدم وجودها يعني القيد القديم العام. */
+  targetScopeKeys?: string[];
+  /** يوم → أرقام الحصص المستثناة. */
+  excludedSlots?: Record<string, number[]>;
+  /** يوم → أرقام الحصص المثبتة. عند تحديد رقم الحصة في الأعلى تمتلئ أيام الأسبوع به. */
+  fixedSlots?: Record<string, number[]>;
+  /** عدد الأيام التي يجب أن تحتوي على حصتين متتاليتين للمادة. */
+  consecutivePairs?: number;
+  /** حقول قديمة للمحافظة على بيانات المدارس السابقة أثناء الترقية. */
+  excludedPeriods?: number[];
+  preferredPeriods?: number[];
+  enableDoublePeriods?: boolean;
 }
 
 export interface ClassSubjectPlan {

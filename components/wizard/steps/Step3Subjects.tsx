@@ -11,6 +11,7 @@ import StudyPlansModal from '../StudyPlansModal';
 import { getMaxDailyPeriodsForSubject, describeDistribution, ValidationWarning, validateAllConstraints } from '../../../utils/scheduleConstraints';
 import { Ban, Star, Repeat, AlertTriangle, ChevronDown, TypeIcon, Save, HelpCircle } from 'lucide-react';
 import SubjectAbbreviationsModal from '../../schedule/SubjectAbbreviationsModal';
+import SubjectConstraintsWorkspaceModal from '../../subjects/SubjectConstraintsModal';
 
 const InlineSelect: React.FC<{
   value: string;
@@ -554,6 +555,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [confirmAddCustomSubject, setConfirmAddCustomSubject] = useState(false);
   const [addSubjectTargetPlanName, setAddSubjectTargetPlanName] = useState<string | null>(null);
   const [constraintSubjectId, setConstraintSubjectId] = useState<string | null>(null);
+  const [constraintModalSubjectId, setConstraintModalSubjectId] = useState<string | null>(null);
   const [constraintCopyGrades, setConstraintCopyGrades] = useState<string[]>([]);
   const [constraintCopyDone, setConstraintCopyDone] = useState(false);
   const [selectedManualGrade, setSelectedManualGrade] = useState<number>(1);
@@ -1775,7 +1777,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       <span>إضافة مادة</span>
                     </button>
                     <button
-                      onClick={() => setShowConstraintsModal(true)}
+                      onClick={() => { setConstraintModalSubjectId(null); setShowConstraintsModal(true); }}
                       disabled={!setScheduleSettings || selectedPlanSubjects.length === 0}
                       className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40"
                       title="إدارة قيود المواد لكل مادة من نافذة واحدة"
@@ -1914,6 +1916,14 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                       </td>
                     </tr>
                   ) : selectedPlanSubjects.map((subject, index) => {
+                    const hasSavedConstraint = (scheduleSettings?.subjectConstraints || []).some(constraint =>
+                      constraint.subjectId === subject.id && (
+                        Object.values(constraint.excludedSlots || {}).some(slots => slots.length > 0) ||
+                        Object.values(constraint.fixedSlots || {}).some(slots => slots.length > 0) ||
+                        (constraint.consecutivePairs || 0) > 0 ||
+                        (constraint.excludedPeriods || []).length > 0
+                      )
+                    );
                     return (
                       <React.Fragment key={subject.id}>
                         <tr className="hover:bg-[#655ac1]/[0.03] transition-colors">
@@ -1952,6 +1962,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                           </td>
                           <td className="px-3 py-3 text-center">
                             <div className="inline-flex items-center justify-center gap-1.5">
+                              {hasSavedConstraint && (
+                                <button
+                                  onClick={() => { setConstraintModalSubjectId(subject.id); setShowConstraintsModal(true); }}
+                                  className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-[#655ac1]/30 text-[#655ac1] hover:bg-[#f0edff] transition-colors"
+                                  title="عرض وتعديل قيود المادة"
+                                >
+                                  <Settings2 size={15} />
+                                </button>
+                              )}
                               <button
                                 onClick={() => setDeleteSubjectCandidate(subject.id)}
                                 className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition-colors"
@@ -2562,17 +2581,14 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       )}
 
       {showConstraintsModal && scheduleSettings && setScheduleSettings && (
-        <SubjectConstraintsModal 
+        <SubjectConstraintsWorkspaceModal
           isOpen={showConstraintsModal}
-          onClose={() => setShowConstraintsModal(false)}
-          subjects={subjects}
-          gradeSubjectMap={gradeSubjectMap}
+          onClose={() => { setShowConstraintsModal(false); setConstraintModalSubjectId(null); }}
           scheduleSettings={scheduleSettings}
           setScheduleSettings={setScheduleSettings}
           schoolInfo={schoolInfo}
-          activeSchoolId={activeSchoolId}
           scopedSubjects={constraintScopeSubjects}
-          hideApplyScope={planMode === 'ready' && selectedPhase === Phase.HIGH && selectedDepartment?.id === 'الثانوية_العامة'}
+          initialSubjectId={constraintModalSubjectId}
         />
       )}
 
