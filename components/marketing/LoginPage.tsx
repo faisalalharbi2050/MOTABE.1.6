@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Clock3, KeyRound, Phone, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ChevronDown, KeyRound, Phone, RefreshCcw, ShieldCheck, Clock3 } from 'lucide-react';
 import AuthShell from './AuthShell';
 import SocialAuthButtons from './SocialAuthButtons';
 import { MarketingRoute } from './MarketingApp';
@@ -18,6 +18,7 @@ const LoginPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
   const [otpError, setOtpError] = useState<string>();
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'apple'>();
   const [resendSeconds, setResendSeconds] = useState(0);
+  const [showDelegateAccess, setShowDelegateAccess] = useState(false);
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -56,7 +57,7 @@ const LoginPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
   };
 
   return (
-    <AuthShell title="مرحبًا بعودتك" subtitle="اختر الطريقة المناسبة للدخول إلى منصة متابع" onNavigate={onNavigate}>
+    <AuthShell title="تسجيل الدخول" subtitle="اختر الطريقة المناسبة للدخول إلى منصة متابع" onNavigate={onNavigate}>
       <div className="space-y-4">
         <SocialAuthButtons onClick={signInWithProvider} disabled={Boolean(loadingProvider)} />
         {loadingProvider && (
@@ -107,15 +108,28 @@ const LoginPage: React.FC<Props> = ({ onNavigate, onAuthenticated }) => {
         )}
 
         {step === 'phone' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-start gap-3">
-              <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-[#655ac1]" />
-              <div>
-                <p className="text-sm font-black text-slate-800">هل تم منحك تفويضًا للدخول؟</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">استخدم رمز التفعيل المرسل إليك لربط حسابك بالمدرسة.</p>
+          <div className="border-t border-slate-100 pt-3">
+            <button
+              type="button"
+              aria-expanded={showDelegateAccess}
+              onClick={() => setShowDelegateAccess((value) => !value)}
+              className="flex w-full items-center justify-center gap-2 py-1 text-sm font-black text-[#655ac1] transition-colors hover:text-[#52499d]"
+            >
+              هل لديك تفويض للدخول إلى المدرسة؟
+              <ChevronDown className={`h-4 w-4 transition-transform ${showDelegateAccess ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showDelegateAccess && (
+              <div className="mt-3 animate-fade-in rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="mb-3 text-center text-xs leading-5 text-slate-500">
+                  استخدم رمز التفعيل الذي أرسله لك مسؤول المدرسة.
+                </p>
+                <button type="button" onClick={() => onNavigate('delegate-activation')} className={secondaryButton}>
+                  <KeyRound className="h-4 w-4" />
+                  الدخول برمز التفعيل
+                </button>
               </div>
-            </div>
-            <button type="button" onClick={() => onNavigate('delegate-activation')} className={secondaryButton}>لدي رمز تفعيل تفويض</button>
+            )}
           </div>
         )}
 
