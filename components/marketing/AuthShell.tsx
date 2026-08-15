@@ -14,9 +14,7 @@ interface Props {
 /** Shared shell for all authentication and delegated-access journeys. */
 const AuthShell: React.FC<Props> = ({ title, subtitle, badge, wide = false, onNavigate, children }) => {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#fcfbff] flex flex-col" dir="rtl">
-      <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#e5e1fe]/70 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -left-32 h-[30rem] w-[30rem] rounded-full bg-[#8779fb]/10 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-white flex flex-col" dir="rtl">
       {/* Top bar with back-to-landing button styled like the primary CTA */}
       <div className="relative z-10 px-5 lg:px-10 pt-5 flex items-center justify-start gap-4">
         <button
@@ -37,7 +35,7 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, wide = false, onNa
 
       {/* Centered card */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 lg:p-8">
-        <div className={`relative w-full ${wide ? 'max-w-xl' : 'max-w-[420px]'} bg-white/95 backdrop-blur border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/30 p-5 md:p-6`}>
+        <div className={`relative w-full ${wide ? 'max-w-xl' : 'max-w-[420px]'} bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/30 p-5 md:p-6`}>
           {badge && (
             <div className="absolute -top-6 left-4">
               {badge}
