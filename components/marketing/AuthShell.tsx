@@ -6,16 +6,19 @@ interface Props {
   title: string;
   subtitle?: string;
   badge?: React.ReactNode;
+  wide?: boolean;
   onNavigate: (r: MarketingRoute) => void;
   children: React.ReactNode;
 }
 
-/** Minimal, centered auth card on a white page (login & register share this shell). */
-const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, children }) => {
+/** Shared shell for all authentication and delegated-access journeys. */
+const AuthShell: React.FC<Props> = ({ title, subtitle, badge, wide = false, onNavigate, children }) => {
   return (
-    <div className="min-h-screen bg-white flex flex-col" dir="rtl">
+    <div className="relative min-h-screen overflow-hidden bg-[#fcfbff] flex flex-col" dir="rtl">
+      <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#e5e1fe]/70 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -left-32 h-[30rem] w-[30rem] rounded-full bg-[#8779fb]/10 blur-3xl" />
       {/* Top bar with back-to-landing button styled like the primary CTA */}
-      <div className="px-5 lg:px-12 pt-6 flex items-center justify-start gap-6">
+      <div className="relative z-10 px-5 lg:px-10 pt-5 flex items-center justify-start gap-4">
         <button
           onClick={() => onNavigate('landing')}
           aria-label="العودة للرئيسية"
@@ -27,25 +30,25 @@ const AuthShell: React.FC<Props> = ({ title, subtitle, badge, onNavigate, childr
         <img
           src="/logo.png"
           alt="متابع"
-          className="h-11 w-auto select-none"
+          className="h-9 w-auto select-none"
           draggable={false}
         />
       </div>
 
       {/* Centered card */}
-      <div className="flex-1 flex flex-col items-center justify-center p-5 lg:p-12">
-        <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/40 p-6 md:p-8">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 lg:p-8">
+        <div className={`relative w-full ${wide ? 'max-w-xl' : 'max-w-[420px]'} bg-white/95 backdrop-blur border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/30 p-5 md:p-6`}>
           {badge && (
             <div className="absolute -top-6 left-4">
               {badge}
             </div>
           )}
-          <div className="mb-10 text-center">
-            <h1 className="text-xl md:text-2xl font-extrabold mb-2 text-slate-800">
+          <div className="mb-6 text-center">
+            <h1 className="text-lg md:text-xl font-extrabold mb-1.5 text-slate-800">
               {title}
             </h1>
             {subtitle && (
-              <p className="text-slate-500 text-sm md:text-base">{subtitle}</p>
+              <p className="text-slate-500 text-xs md:text-sm">{subtitle}</p>
             )}
           </div>
           {children}
