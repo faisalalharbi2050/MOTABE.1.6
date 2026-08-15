@@ -3,11 +3,13 @@ import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 import LegalPage, { LegalPageKey } from './LegalPage';
+import DelegateActivationPage from './DelegateActivationPage';
 
 export type MarketingRoute =
   | 'landing'
   | 'login'
   | 'register'
+  | 'delegate-activation'
   | 'faq'
   | 'privacy'
   | 'terms'
@@ -22,8 +24,16 @@ interface MarketingAppProps {
 const isLegal = (r: MarketingRoute): r is LegalPageKey =>
   r === 'faq' || r === 'privacy' || r === 'terms' || r === 'refund' || r === 'contact';
 
+const resolveInitialRoute = (fallback: MarketingRoute): MarketingRoute => {
+  if (typeof window === 'undefined') return fallback;
+  const params = new URLSearchParams(window.location.search);
+  return params.has('activationCode') || params.get('page') === 'delegate-activation'
+    ? 'delegate-activation'
+    : fallback;
+};
+
 const MarketingApp: React.FC<MarketingAppProps> = ({ initialRoute = 'landing', onAuthenticated }) => {
-  const [route, setRoute] = useState<MarketingRoute>(initialRoute);
+  const [route, setRoute] = useState<MarketingRoute>(() => resolveInitialRoute(initialRoute));
 
   // Smooth scroll to top on every route change
   useEffect(() => {
@@ -37,6 +47,9 @@ const MarketingApp: React.FC<MarketingAppProps> = ({ initialRoute = 'landing', o
   }
   if (route === 'register') {
     return <RegisterPage onNavigate={navigate} onAuthenticated={onAuthenticated} />;
+  }
+  if (route === 'delegate-activation') {
+    return <DelegateActivationPage onNavigate={navigate} onAuthenticated={onAuthenticated} />;
   }
   if (isLegal(route)) {
     return <LegalPage page={route} onNavigate={navigate} />;
