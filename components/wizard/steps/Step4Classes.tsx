@@ -241,10 +241,16 @@ const FacilitySingleSelectDropdown: React.FC<{
       {open && createPortal(
         <div
           ref={panelRef}
-          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
-          style={{ top: position.top, left: position.left, width: position.width }}
+          className="fixed flex flex-col overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{
+            top: position.top,
+            bottom: position.bottom,
+            left: position.left,
+            width: position.width,
+            maxHeight: position.maxHeight,
+          }}
         >
-          <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {options.map(option => (
               <button
                 key={option.value}
@@ -299,10 +305,16 @@ const FacilitySubjectSelectDropdown: React.FC<{
       {open && createPortal(
         <div
           ref={panelRef}
-          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
-          style={{ top: position.top, left: position.left, width: position.width }}
+          className="fixed flex flex-col overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{
+            top: position.top,
+            bottom: position.bottom,
+            left: position.left,
+            width: position.width,
+            maxHeight: position.maxHeight,
+          }}
         >
-          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {options.map(option => {
               const isSelected = selectedValue === option.value;
               return (
