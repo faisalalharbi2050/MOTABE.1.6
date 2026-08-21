@@ -101,7 +101,12 @@ const getUniqueSubjectsByName = (subjectList: Subject[]) => {
 const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +126,7 @@ const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
       const target = event.target as Node;
       const inButton = triggerRef.current?.contains(target);
       const inPanel = panelRef.current?.contains(target);
-      if (!inButton && !inPanel) onClose();
+      if (!inButton && !inPanel) onCloseRef.current();
     };
     updatePosition();
     window.addEventListener('resize', updatePosition);
@@ -130,7 +135,7 @@ const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
       window.removeEventListener('resize', updatePosition);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return { triggerRef, panelRef, position };
 };
@@ -310,6 +315,96 @@ const FacilitySubjectSelectDropdown: React.FC<{
             })}
             {options.length === 0 && (
               <p className="text-center text-xs text-slate-400 font-medium py-3">لا توجد مواد معتمدة متاحة للربط</p>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+const FacilityClassMultiSelectDropdown: React.FC<{
+  options: FacilityDropdownOption[];
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+}> = ({ options, selectedValues, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const { triggerRef, panelRef, position } = useFloatingDropdownPosition(open, () => setOpen(false));
+  const selectedSet = useMemo(() => new Set(selectedValues), [selectedValues]);
+  const allSelected = options.length > 0 && options.every(option => selectedSet.has(option.value));
+  const summary = selectedValues.length === 0
+    ? 'متاح لجميع الفصول'
+    : selectedValues.length === 1
+      ? options.find(option => option.value === selectedValues[0])?.label || 'فصل واحد محدد'
+      : `${selectedValues.length} فصول محددة`;
+
+  const toggleValue = (value: string) => {
+    onChange(selectedSet.has(value)
+      ? selectedValues.filter(item => item !== value)
+      : [...selectedValues, value]);
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-black text-slate-500 mb-2">
+        تخصيص المرفق لفصول محددة <span className="text-xs font-bold text-slate-400">(اختياري)</span>
+      </label>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(current => !current)}
+        className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
+      >
+        <span className="truncate text-sm">{summary}</span>
+        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{ top: position.top, left: position.left, width: position.width }}
+        >
+          <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 px-1 pb-2">
+            <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">
+              {selectedValues.length} محدد
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange(allSelected ? [] : options.map(option => option.value))}
+              disabled={options.length === 0}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                options.length === 0
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white'
+              }`}
+            >
+              {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
+            </button>
+          </div>
+          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+            {options.map(option => {
+              const isSelected = selectedSet.has(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleValue(option.value)}
+                  className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                    isSelected ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
+                  }`}
+                >
+                  <span className="truncate">{option.label}</span>
+                  <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
+                    isSelected ? 'bg-[#655ac1] border-[#655ac1] text-white' : 'bg-white border-slate-300 text-transparent'
+                  }`}>
+                    <Check size={12} strokeWidth={3.5} />
+                  </span>
+                </button>
+              );
+            })}
+            {options.length === 0 && (
+              <p className="py-4 text-center text-xs font-bold text-slate-400">لا توجد فصول مضافة في هذه المرحلة</p>
             )}
           </div>
         </div>,
@@ -659,6 +754,14 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     const selected = subjects.find(subject => facilityLinkedSubject.includes(subject.id));
     return selected?.name || '';
   }, [facilityLinkedSubject, subjects]);
+
+  const facilityClassOptions = useMemo<FacilityDropdownOption[]>(
+    () => currentSchoolClasses.map(cls => ({
+      value: cls.id,
+      label: cls.name || getClassroomDisplayName(cls),
+    })),
+    [currentSchoolClasses]
+  );
 
   const grouped = useMemo(() => groupClassesByGrade(currentSchoolClasses), [currentSchoolClasses]);
 
@@ -2144,6 +2247,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                           {currentSchoolFacilities.map(c => {
                               const linkedIds = c.linkedSubjectIds || (c.linkedSubjectId ? [c.linkedSubjectId] : []);
                               const linkedSubjects = getUniqueSubjectsByName(subjects.filter(s => linkedIds.includes(s.id)));
+                              const linkedClasses = currentSchoolClasses.filter(cls => (c.linkedClassIds || []).includes(cls.id));
                               const typeLabel = c.type === 'other'
                                   ? c.customType || FACILITY_TYPE_LABELS.other
                                   : FACILITY_TYPE_LABELS[c.type as FacilityType] || c.customType || FACILITY_TYPE_LABELS.other;
@@ -2174,8 +2278,23 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                                           {linkedSubject.name}
                                                       </span>
                                                   ))}
+                                                  <span className="max-w-full text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
+                                                      <LayoutGrid size={12} className="shrink-0 text-slate-400" />
+                                                      {linkedClasses.length === 0
+                                                          ? 'متاح لجميع الفصول'
+                                                          : linkedClasses.map(cls => cls.name || getClassroomDisplayName(cls)).join('، ')}
+                                                  </span>
                                               </div>
                                           </div>
+                                      </div>
+                                      <div className="mt-4 border-t border-slate-100 pt-4">
+                                          <FacilityClassMultiSelectDropdown
+                                              options={facilityClassOptions}
+                                              selectedValues={c.linkedClassIds || []}
+                                              onChange={linkedClassIds => setClasses(prev => prev.map(item =>
+                                                  item.id === c.id ? { ...item, linkedClassIds } : item
+                                              ))}
+                                          />
                                       </div>
                                   </div>
                               );

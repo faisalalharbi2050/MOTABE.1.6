@@ -323,6 +323,7 @@ export interface ClassInfo {
   originalSchoolId?: string; // If merged from multiple
   linkedSubjectId?: string; // For linking facility to a subject (e.g., Gym -> PE) - deprecated, use linkedSubjectIds
   linkedSubjectIds?: string[]; // For linking facility to multiple subjects
+  linkedClassIds?: string[]; // Optional: classes allowed to use this facility; empty/undefined means all eligible classes
   capacity?: number; // Facility capacity: 1, 2, or 3 classes
 }
 
@@ -538,6 +539,7 @@ export interface TimetableSlot {
   teacherId: string;
   subjectId?: string;
   classId?: string;
+  facilityId?: string;
   type: 'lesson' | 'waiting';
   isSubstitution?: boolean;
 }
