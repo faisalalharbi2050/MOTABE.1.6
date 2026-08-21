@@ -381,7 +381,7 @@ const FacilityClassMultiSelectDropdown: React.FC<{
   return (
     <div>
       <label className="mb-2 block text-[13px] font-black text-slate-500">
-        تخصيص المرفق لفصول محددة <span className="text-[11px] font-bold text-slate-400">(اختياري)</span>
+        تخصيص المرفق لفصول
       </label>
       <button
         ref={triggerRef}
