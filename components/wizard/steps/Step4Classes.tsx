@@ -102,7 +102,13 @@ const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 320 });
+  const [position, setPosition] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  }>({ top: 0, left: 0, width: 320, maxHeight: 340 });
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -114,12 +120,20 @@ const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
       if (!triggerRef.current) return;
       const rect = triggerRef.current.getBoundingClientRect();
       const margin = 16;
+      const gap = 10;
+      const desiredHeight = 340;
       const width = Math.min(430, Math.max(260, rect.width));
       const safeWidth = Math.min(width, window.innerWidth - margin * 2);
+      const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin);
+      const availableAbove = Math.max(0, rect.top - gap - margin);
+      const openAbove = availableBelow < 260 && availableAbove > availableBelow;
+      const availableHeight = openAbove ? availableAbove : availableBelow;
       setPosition({
-        top: rect.bottom + 10,
+        top: openAbove ? undefined : rect.bottom + gap,
+        bottom: openAbove ? window.innerHeight - rect.top + gap : undefined,
         left: Math.min(Math.max(margin, rect.left), window.innerWidth - safeWidth - margin),
         width: safeWidth,
+        maxHeight: Math.max(160, Math.min(desiredHeight, availableHeight)),
       });
     };
     const handleClickOutside = (event: MouseEvent) => {
@@ -362,8 +376,14 @@ const FacilityClassMultiSelectDropdown: React.FC<{
       {open && createPortal(
         <div
           ref={panelRef}
-          className="fixed bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
-          style={{ top: position.top, left: position.left, width: position.width }}
+          className="fixed flex flex-col overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          style={{
+            top: position.top,
+            bottom: position.bottom,
+            left: position.left,
+            width: position.width,
+            maxHeight: position.maxHeight,
+          }}
         >
           <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 px-1 pb-2">
             <span className="text-[11px] font-black text-[#655ac1] border border-slate-200 bg-white px-2.5 py-1 rounded-full">
@@ -382,7 +402,7 @@ const FacilityClassMultiSelectDropdown: React.FC<{
               {allSelected ? 'إلغاء الكل' : 'اختيار الكل'}
             </button>
           </div>
-          <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
             {options.map(option => {
               const isSelected = selectedSet.has(option.value);
               return (
