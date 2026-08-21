@@ -134,18 +134,47 @@ export async function generateSchedule(
     // Identify facility entries (grade === 0 with linkedSubjectIds)
     const facilities = classes.filter(c => c.grade === 0 && c.linkedSubjectIds && c.linkedSubjectIds.length > 0);
 
-    // Build map: subjectId => { capacity, facilityId }[]
-    const subjectFacilityMap = new Map<string, { capacity: number; facilityId: string }[]>();
+    type FacilityResource = { capacity: number; facilityId: string; linkedClassIds: string[] };
+
+    // Build map: subjectId => facilities that can host the subject.
+    const subjectFacilityMap = new Map<string, FacilityResource[]>();
     facilities.forEach(f => {
         const cap = f.capacity ?? 1;
         (f.linkedSubjectIds || []).forEach(sid => {
             if (!subjectFacilityMap.has(sid)) subjectFacilityMap.set(sid, []);
-            subjectFacilityMap.get(sid)!.push({ capacity: cap, facilityId: f.id });
+            subjectFacilityMap.get(sid)!.push({
+                capacity: cap,
+                facilityId: f.id,
+                linkedClassIds: f.linkedClassIds || []
+            });
         });
     });
 
     // Track concurrent usage per facility per slot: "facilityId-day-period" => count
     const facilityUsage = new Map<string, number>();
+
+    // undefined: subject has no facility constraint.
+    // null: subject has facilities, but none is eligible/available for this class and slot.
+    const chooseAvailableFacility = (
+        subjectId: string,
+        classId: string,
+        day: string,
+        period: number
+    ): FacilityResource | null | undefined => {
+        const linkedFacilities = subjectFacilityMap.get(subjectId);
+        if (!linkedFacilities || linkedFacilities.length === 0) return undefined;
+
+        const eligibleFacilities = linkedFacilities
+            .filter(facility => facility.linkedClassIds.length === 0 || facility.linkedClassIds.includes(classId))
+            .map(facility => {
+                const usageKey = `${facility.facilityId}-${day}-${period}`;
+                return { facility, used: facilityUsage.get(usageKey) || 0 };
+            })
+            .filter(({ facility, used }) => used < facility.capacity)
+            .sort((a, b) => (a.used / a.facility.capacity) - (b.used / b.facility.capacity));
+
+        return eligibleFacilities[0]?.facility || null;
+    };
     // ─────────────────────────────────────────────────────────────────────
 
     const subjectConstraintById = new Map(settings.subjectConstraints.map(sc => [sc.subjectId, sc]));
@@ -410,15 +439,10 @@ export async function generateSchedule(
             // ── Facility Capacity Check ───────────────────────────────────
             // If this subject is linked to a facility, check that the facility
             // hasn't reached its capacity for this (day, period) slot.
-            const linkedFacilities = subjectFacilityMap.get(subj.id);
-            if (linkedFacilities && linkedFacilities.length > 0 && !isBypassingConflicts) {
-                const facilityFull = linkedFacilities.some(({ capacity, facilityId }) => {
-                    const usageKey = `${facilityId}-${day}-${period}`;
-                    const used = facilityUsage.get(usageKey) || 0;
-                    return used >= capacity;
-                });
-                if (facilityFull) continue;
-            }
+            const selectedFacility = isBypassingConflicts
+                ? undefined
+                : chooseAvailableFacility(subj.id, classId, day, period);
+            if (selectedFacility === null) continue;
             // ─────────────────────────────────────────────────────────────
             
             // Find a teacher
@@ -564,6 +588,7 @@ export async function generateSchedule(
                     teacherId: validTeacher.id,
                     subjectId: subj.id,
                     classId: classId,
+                    facilityId: selectedFacility?.facilityId,
                     type: 'lesson'
                 };
                 
@@ -587,12 +612,9 @@ export async function generateSchedule(
                 if (period === periodsPerDay) teacherLastPeriodCount.set(validTeacher.id, (teacherLastPeriodCount.get(validTeacher.id) || 0) + 1);
 
                 // ── Update facility usage counter ─────────────────────────
-                const assignedFacilities = subjectFacilityMap.get(subj.id);
-                if (assignedFacilities) {
-                    assignedFacilities.forEach(({ facilityId }) => {
-                        const usageKey = `${facilityId}-${day}-${period}`;
-                        facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
-                    });
+                if (selectedFacility) {
+                    const usageKey = `${selectedFacility.facilityId}-${day}-${period}`;
+                    facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
                 }
                 // ─────────────────────────────────────────────────────────
                 
@@ -686,21 +708,17 @@ export async function generateSchedule(
                         if (period === periodsPerDay && constraint.maxLastPeriods !== undefined && (teacherLastPeriodCount.get(teacher.id) || 0) >= constraint.maxLastPeriods) continue;
                     }
 
-                    const linkedFacilities = subjectFacilityMap.get(subj.id);
-                    if (linkedFacilities && linkedFacilities.length > 0 && !isBypassingConflicts) {
-                        const facilityFull = linkedFacilities.some(({ capacity, facilityId }) => {
-                            const usageKey = `${facilityId}-${day}-${period}`;
-                            const used = facilityUsage.get(usageKey) || 0;
-                            return used >= capacity;
-                        });
-                        if (facilityFull) continue;
-                    }
+                    const selectedFacility = isBypassingConflicts
+                        ? undefined
+                        : chooseAvailableFacility(subj.id, classId, day, period);
+                    if (selectedFacility === null) continue;
 
                     const key = `${teacher.id}-${day}-${period}`;
                     timetable[key] = {
                         teacherId: teacher.id,
                         subjectId: subj.id,
                         classId,
+                        facilityId: selectedFacility?.facilityId,
                         type: 'lesson'
                     };
 
@@ -716,11 +734,9 @@ export async function generateSchedule(
                     teacherDailyLoad.set(teacherDayKey, currentDailyLoad + 1);
                     if (period === 1) teacherFirstPeriodCount.set(teacher.id, (teacherFirstPeriodCount.get(teacher.id) || 0) + 1);
                     if (period === periodsPerDay) teacherLastPeriodCount.set(teacher.id, (teacherLastPeriodCount.get(teacher.id) || 0) + 1);
-                    if (linkedFacilities) {
-                        linkedFacilities.forEach(({ facilityId }) => {
-                            const usageKey = `${facilityId}-${day}-${period}`;
-                            facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
-                        });
+                    if (selectedFacility) {
+                        const usageKey = `${selectedFacility.facilityId}-${day}-${period}`;
+                        facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
                     }
 
                     madeProgress = true;
