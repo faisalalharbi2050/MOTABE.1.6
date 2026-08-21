@@ -55,6 +55,7 @@ const CreateTab: React.FC<Props> = ({
   classes,
   assignments,
   gradeSubjectMap,
+  specializations,
   onNavigate,
   onNavigateMain,
   isScheduleLocked,

@@ -74,10 +74,12 @@ export function validateAllConstraints(
   const warnings: ValidationWarning[] = [];
 
   // 1. Subject constraints
-  for (const sc of settings.subjectConstraints) {
+  for (const sc of settings.subjectConstraints || []) {
     const subject = subjects.find(s => s.id === sc.subjectId);
     if (!subject) continue;
-    const availableSlots = periodsPerDay - sc.excludedPeriods.length;
+    const excludedPeriods = sc.excludedPeriods || [];
+    const preferredPeriods = sc.preferredPeriods || [];
+    const availableSlots = periodsPerDay - excludedPeriods.length;
     const maxDaily = getMaxDailyPeriodsForSubject(subject.periodsPerClass, weekDays);
     if (availableSlots < maxDaily) {
       warnings.push({
@@ -88,7 +90,7 @@ export function validateAllConstraints(
         type: 'subject'
       });
     }
-    if (sc.preferredPeriods.length > 0 && sc.excludedPeriods.some(p => sc.preferredPeriods.includes(p))) {
+    if (preferredPeriods.length > 0 && excludedPeriods.some(p => preferredPeriods.includes(p))) {
       warnings.push({
         id: `subj-conflict-${sc.subjectId}`, level: 'warning',
         message: `مادة "${subject.name}": تعارض بين المستثناة والمفضلة`,
@@ -110,7 +112,7 @@ export function validateAllConstraints(
   let teachersWithLastConstraint = 0;
   let teachersWithFirstConstraint = 0;
 
-  for (const tc of settings.teacherConstraints) {
+  for (const tc of settings.teacherConstraints || []) {
     const teacher = teachers.find(t => t.id === tc.teacherId);
     if (!teacher) continue;
 
@@ -165,7 +167,7 @@ export function validateAllConstraints(
     let totalWeeklyAvailable = 0;
 
     for (const day of activeDays) {
-      const excludedSlots = tc.excludedSlots[day] || [];
+      const excludedSlots = tc.excludedSlots?.[day] || [];
       const limits = tc.dailyLimits?.[day];
       // Early Exit Logic
       let earlyExitPeriod: number | undefined;

@@ -270,6 +270,33 @@ const loadStoredAppData = () => {
   return primary || backup;
 };
 
+const createDefaultScheduleSettings = (): ScheduleSettingsData => ({
+  subjectConstraints: [],
+  teacherConstraints: [],
+  substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
+});
+
+const normalizeScheduleSettings = (value: unknown): ScheduleSettingsData => {
+  const stored = value && typeof value === 'object'
+    ? value as Partial<ScheduleSettingsData>
+    : {};
+  const defaults = createDefaultScheduleSettings();
+  const substitution = stored.substitution && typeof stored.substitution === 'object'
+    ? stored.substitution
+    : {};
+
+  return {
+    ...defaults,
+    ...stored,
+    subjectConstraints: Array.isArray(stored.subjectConstraints) ? stored.subjectConstraints : [],
+    teacherConstraints: Array.isArray(stored.teacherConstraints) ? stored.teacherConstraints : [],
+    substitution: {
+      ...defaults.substitution,
+      ...substitution,
+    },
+  };
+};
+
 const normalizeSchoolCalendarType = (schoolInfo: SchoolInfo): SchoolInfo => {
   const calendarType = schoolInfo.calendarType === 'gregorian' ? 'gregorian' : 'hijri';
   return {
@@ -432,11 +459,9 @@ const App: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>(() => initialAppData?.assignments ?? []);
   const [gradeSubjectMap, setGradeSubjectMap] = useState<Record<string, string[]>>(() => initialAppData?.gradeSubjectMap ?? {});
   const [phaseDepartmentMap, setPhaseDepartmentMap] = useState<Record<string, string>>(() => initialAppData?.phaseDepartmentMap ?? {});
-  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData>(() => initialAppData?.scheduleSettings ?? {
-    subjectConstraints: [],
-    teacherConstraints: [],
-    substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
-  });
+  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettingsData>(() =>
+    normalizeScheduleSettings(initialAppData?.scheduleSettings)
+  );
   const [activeTab, setActiveTab] = useState<'dashboard' | 'settings_basic' | 'settings_timing' | 'settings_calendar' | 'settings_subjects' | 'settings_classes' | 'settings_teachers' | 'settings_students' | 'settings_admins' | 'manual_v2' | 'schedule_v3' | 'supervision' | 'duty' | 'daily_waiting' | 'messages' | 'permissions' | 'subscription' | 'support' | 'support_help'>(() => {
     // If the URL contains duty-report params, open the duty tab immediately (no re-render lag)
     if (typeof window !== 'undefined') {
@@ -503,11 +528,7 @@ const App: React.FC = () => {
       setAssignments(storedData.assignments ?? []);
       setGradeSubjectMap(storedData.gradeSubjectMap ?? {});
       setPhaseDepartmentMap(storedData.phaseDepartmentMap ?? {});
-      setScheduleSettings(storedData.scheduleSettings ?? {
-        subjectConstraints: [],
-        teacherConstraints: [],
-        substitution: { method: 'auto', maxTotalQuota: 24, maxDailyTotal: 5 }
-      });
+      setScheduleSettings(normalizeScheduleSettings(storedData.scheduleSettings));
       setSubscription(storedData.subscription ?? createDefaultSubscription());
     };
 
