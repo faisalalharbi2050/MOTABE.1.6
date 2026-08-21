@@ -98,6 +98,13 @@ const getUniqueSubjectsByName = (subjectList: Subject[]) => {
   });
 };
 
+const getClassCountLabel = (count: number) => {
+  if (count === 1) return 'فصل واحد';
+  if (count === 2) return 'فصلان';
+  if (count >= 3 && count <= 10) return `${count} فصول`;
+  return `${count} فصلًا`;
+};
+
 const useFloatingDropdownPosition = (open: boolean, onClose: () => void) => {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -373,8 +380,8 @@ const FacilityClassMultiSelectDropdown: React.FC<{
 
   return (
     <div>
-      <label className="block text-sm font-black text-slate-500 mb-2">
-        تخصيص المرفق لفصول محددة <span className="text-xs font-bold text-slate-400">(اختياري)</span>
+      <label className="mb-2 block text-[13px] font-black text-slate-500">
+        تخصيص المرفق لفصول محددة <span className="text-[11px] font-bold text-slate-400">(اختياري)</span>
       </label>
       <button
         ref={triggerRef}
@@ -382,7 +389,7 @@ const FacilityClassMultiSelectDropdown: React.FC<{
         onClick={() => setOpen(current => !current)}
         className="w-full px-5 py-2.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2"
       >
-        <span className="truncate text-sm">{summary}</span>
+        <span className="truncate text-xs">{summary}</span>
         <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && createPortal(
@@ -597,6 +604,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [facilityName, setFacilityName] = useState('');
   const [facilityType, setFacilityType] = useState<FacilityType>('lab');
   const [facilityLinkedSubject, setFacilityLinkedSubject] = useState<string[]>([]); // Array of subject IDs for chips
+  const [expandedFacilityIds, setExpandedFacilityIds] = useState<Set<string>>(new Set());
   const [facilityOtherType, setFacilityOtherType] = useState('');
   const [facilityCapacity, setFacilityCapacity] = useState<number>(1); // 1, 2, or 3
   
@@ -2280,6 +2288,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               const linkedIds = c.linkedSubjectIds || (c.linkedSubjectId ? [c.linkedSubjectId] : []);
                               const linkedSubjects = getUniqueSubjectsByName(subjects.filter(s => linkedIds.includes(s.id)));
                               const linkedClasses = currentSchoolClasses.filter(cls => (c.linkedClassIds || []).includes(cls.id));
+                              const areClassesExpanded = expandedFacilityIds.has(c.id);
                               const typeLabel = c.type === 'other'
                                   ? c.customType || FACILITY_TYPE_LABELS.other
                                   : FACILITY_TYPE_LABELS[c.type as FacilityType] || c.customType || FACILITY_TYPE_LABELS.other;
@@ -2310,14 +2319,62 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                                           {linkedSubject.name}
                                                       </span>
                                                   ))}
-                                                  <span className="max-w-full text-xs font-bold px-2.5 py-1.5 bg-white text-slate-500 rounded-lg border border-slate-200 flex items-center gap-1">
-                                                      <LayoutGrid size={12} className="shrink-0 text-slate-400" />
-                                                      {linkedClasses.length === 0
-                                                          ? 'متاح لجميع الفصول'
-                                                          : linkedClasses.map(cls => cls.name || getClassroomDisplayName(cls)).join('، ')}
-                                                  </span>
                                               </div>
                                           </div>
+                                      </div>
+                                      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/60">
+                                          {linkedClasses.length === 0 ? (
+                                              <div className="px-3 py-2.5">
+                                                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-black text-slate-600">
+                                                      <LayoutGrid size={14} className="shrink-0 text-[#655ac1]" />
+                                                      الفصول المخصصة
+                                                  </span>
+                                              </div>
+                                          ) : (
+                                              <>
+                                                  <button
+                                                      type="button"
+                                                      aria-expanded={areClassesExpanded}
+                                                      onClick={() => setExpandedFacilityIds(prev => {
+                                                          const next = new Set(prev);
+                                                          if (next.has(c.id)) next.delete(c.id);
+                                                          else next.add(c.id);
+                                                          return next;
+                                                      })}
+                                                      className="min-h-12 w-full px-3 py-2.5 text-right transition-colors hover:bg-white/80"
+                                                  >
+                                                      <span className="flex items-center justify-between gap-3">
+                                                          <span className="flex min-w-0 items-center gap-1.5">
+                                                              <LayoutGrid size={15} className="shrink-0 text-[#655ac1]" />
+                                                              <span className="block truncate text-xs font-black text-slate-700">الفصول المخصصة</span>
+                                                          </span>
+                                                          <span className="flex shrink-0 items-center gap-2">
+                                                              <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-[#655ac1]">
+                                                                  {getClassCountLabel(linkedClasses.length)}
+                                                              </span>
+                                                              <ChevronDown size={16} className={`text-slate-400 transition-transform ${areClassesExpanded ? 'rotate-180' : ''}`} />
+                                                          </span>
+                                                      </span>
+                                                      <span className="mt-1 block whitespace-nowrap text-[10px] font-bold text-slate-400">
+                                                          {areClassesExpanded ? 'اضغط لإخفاء الفصول' : 'اضغط لعرض جميع الفصول'}
+                                                      </span>
+                                                  </button>
+                                                  {areClassesExpanded && (
+                                                      <div className="border-t border-slate-200 bg-white/80 px-3 py-3 animate-in slide-in-from-top-1 duration-200">
+                                                          <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto pl-1 custom-scrollbar">
+                                                              {linkedClasses.map(cls => (
+                                                                  <span
+                                                                      key={cls.id}
+                                                                      className="inline-flex max-w-full items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 shadow-sm"
+                                                                  >
+                                                                      <span className="truncate">{cls.name || getClassroomDisplayName(cls)}</span>
+                                                                  </span>
+                                                              ))}
+                                                          </div>
+                                                      </div>
+                                                  )}
+                                              </>
+                                          )}
                                       </div>
                                       <div className="mt-4 border-t border-slate-100 pt-4">
                                           <FacilityClassMultiSelectDropdown
