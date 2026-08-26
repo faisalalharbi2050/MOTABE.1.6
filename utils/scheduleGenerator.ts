@@ -667,7 +667,7 @@ export async function generateSchedule(
                     const subjectDayTarget = getSubjectDayTarget(classId, subj, day);
                     const subjectAllowedPerDay = relaxation === 0
                         ? subjectDayTarget
-                        : getSubjectMaxPerDay(subj);
+                        : getSubjectMaxPerDay(currentClassForSlot, subj);
                     if (!isBypassingConflicts && subjectAllowedPerDay <= 0) continue;
                     if (!isBypassingConflicts && subjectDayCount >= subjectAllowedPerDay) continue;
                     if (!isBypassingConflicts && subjectSamePeriodCount >= 2) continue;
