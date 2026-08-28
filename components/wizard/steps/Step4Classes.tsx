@@ -4,11 +4,11 @@ import { Phase, ClassInfo, Subject, SchoolInfo, EntityType, Assignment, Schedule
 import { PHASE_CONFIG } from '../../../constants';
 import {
   GraduationCap, Trash2, CheckCircle2, BookPlus, X, School, PlusCircle,
-  Zap, ChevronUp, ChevronDown, ChevronRight, Pencil, Settings2, Printer, AlertTriangle,
+  Zap, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, Pencil, Settings2, Printer, AlertTriangle,
   LayoutGrid, Hash, Check, CheckSquare, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
   MoreHorizontal, Edit2, MapPin, CircleHelp, Monitor, Library, BookMarked, FileQuestion,
-  CircleAlert, Goal, ListPlus
+  CircleAlert, Goal, ListPlus, Copy, GripVertical
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -227,7 +227,8 @@ const FacilitySingleSelectDropdown: React.FC<{
   placeholder: string;
   onChange: (value: string) => void;
   error?: string;
-}> = ({ label, value, options, placeholder, onChange, error }) => {
+  compact?: boolean;
+}> = ({ label, value, options, placeholder, onChange, error, compact = false }) => {
   const [open, setOpen] = useState(false);
   const { triggerRef, panelRef, position } = useFloatingDropdownPosition(open, () => setOpen(false));
   const selected = options.find(option => option.value === value);
@@ -239,16 +240,17 @@ const FacilitySingleSelectDropdown: React.FC<{
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(current => !current)}
-        className={`w-full px-5 py-2.5 bg-white border-2 text-slate-600 font-bold rounded-xl hover:bg-slate-50 hover:border-[#655ac1]/30 transition-all flex items-center justify-between gap-2 ${error ? 'border-rose-400' : 'border-slate-200'}`}
+        className={`w-full font-bold rounded-xl transition-all flex items-center justify-between gap-2 ${compact ? 'border-0 bg-transparent px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-[#655ac1]' : `border-2 bg-white px-5 py-2.5 text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/30 ${error ? 'border-rose-400' : 'border-slate-200'}`}`}
+        title={compact ? 'اختيار الخطة الدراسية' : undefined}
       >
-        <span className="truncate text-sm">{selected?.label || placeholder}</span>
-        <ChevronDown size={16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className={`min-w-0 truncate ${compact ? 'text-xs' : 'text-sm'}`}>{selected?.label || placeholder}</span>
+        <ChevronDown size={compact ? 14 : 16} className={`text-[#655ac1] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {error && <p className="text-xs text-rose-500 mt-1">{error}</p>}
       {open && createPortal(
         <div
           ref={panelRef}
-          className="fixed flex flex-col overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[130] animate-in slide-in-from-top-2"
+          className={`fixed flex flex-col overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200 z-[130] animate-in slide-in-from-top-2 ${compact ? 'p-1.5' : 'p-2.5'}`}
           style={{
             top: position.top,
             bottom: position.bottom,
@@ -264,7 +266,7 @@ const FacilitySingleSelectDropdown: React.FC<{
                 type="button"
                 disabled={option.disabled}
                 onClick={() => { if (option.disabled) return; onChange(option.value); setOpen(false); }}
-                className={`w-full text-right px-3 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-between ${
+                className={`w-full text-right px-3 font-bold rounded-xl transition-all flex items-center justify-between ${compact ? 'py-2 text-xs' : 'py-2.5 text-sm'} ${
                   option.disabled ? 'text-slate-300 cursor-not-allowed bg-slate-50/70' :
                   value === option.value ? 'bg-white text-[#655ac1]' : 'text-slate-700 hover:bg-[#f0edff] hover:text-[#655ac1]'
                 }`}
@@ -471,6 +473,15 @@ interface Props {
 
 type CreationMode = 'auto' | 'manual';
 
+type PendingPlanChange = {
+  classId: string;
+  planId: string;
+  removedAssignmentCount: number;
+  hasClassCustomizations: boolean;
+};
+
+type CopyAction = 'plan' | 'subjects' | 'periods';
+
 const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubjects, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, schoolInfo, setSchoolInfo, assignments, setAssignments, scheduleSettings, setScheduleSettings }) => {
   // ─── Core State ───
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
@@ -495,6 +506,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
   const [customPeriodClassId, setCustomPeriodClassId] = useState<string | null>(null);
+  const [previewSubjectsClassId, setPreviewSubjectsClassId] = useState<string | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -531,6 +543,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const [showClassPlansModal, setShowClassPlansModal] = useState(false);
   const [classPlanSelectedIds, setClassPlanSelectedIds] = useState<Set<string>>(new Set());
   const [classPlanId, setClassPlanId] = useState<string>('');
+  const [pendingPlanChange, setPendingPlanChange] = useState<PendingPlanChange | null>(null);
+  const [copySourceClassId, setCopySourceClassId] = useState<string | null>(null);
+  const [copyTargetClassIds, setCopyTargetClassIds] = useState<Set<string>>(new Set());
+  const [copyAction, setCopyAction] = useState<CopyAction | null>(null);
+  const [draggedClassId, setDraggedClassId] = useState<string | null>(null);
+  const [dragOverClassId, setDragOverClassId] = useState<string | null>(null);
   const [showSubjectOverridesModal, setShowSubjectOverridesModal] = useState(false);
   const [subjectOverrideInitialIds, setSubjectOverrideInitialIds] = useState<string[]>([]);
 
@@ -578,13 +596,12 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   // ─── New: Portal Dropdown ───
   const [portalDropdown, setPortalDropdown] = useState<{classId:string; top:number; left:number}|null>(null);
-  const [portalDeleteId,  setPortalDeleteId]  = useState<string|null>(null);
   useEffect(() => {
     if (!portalDropdown) return;
     const close = () => setPortalDropdown(null);
-    document.addEventListener('click', close);
+    document.addEventListener('mousedown', close);
     document.addEventListener('scroll', close, true);
-    return () => { document.removeEventListener('click', close); document.removeEventListener('scroll', close, true); };
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('scroll', close, true); };
   }, [portalDropdown]);
 
   // ─── New: Toast ───
@@ -611,6 +628,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   // Form validation and messages
   const [facilityErrors, setFacilityErrors] = useState<{name?: string; type?: string; capacity?: string; subjects?: string}>({});
   const [facilitySuccess, setFacilitySuccess] = useState<string>('');
+  const [openFacilityHelpId, setOpenFacilityHelpId] = useState<string | null>(null);
 
 
   // ─── Custom/Institute Mode State ───
@@ -708,7 +726,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   const formatSubPlanLabel = useCallback((name: string, phase?: string) => {
     let dept = name.replace(/^خطة فرعية -\s*/, '');
     if (phase) dept = dept.replace(new RegExp(`^${phase}\\s*-\\s*`), '');
-    return `الخطة الفرعية - ${dept}`;
+    return phase ? `الخطة الفرعية - ${dept} - ${phase}` : `الخطة الفرعية - ${dept}`;
   }, []);
 
   const classPlanOptions = useMemo(() => (
@@ -717,10 +735,46 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       .map(plan => ({
         value: plan.id,
         label: formatSubPlanLabel(plan.name, plan.phase),
+        departmentName: plan.departmentName || plan.name,
         subjectIds: plan.subjectIds,
-        gradeSubjectMap: plan.gradeSubjectMap
+        gradeSubjectMap: plan.gradeSubjectMap,
+        includedGrades: plan.includedGrades || Object.keys(plan.gradeSubjectMap).map(Number)
       }))
   ), [scheduleSettings.classSubjectPlans, activeSchoolId, activePhase, formatSubPlanLabel]);
+
+  const getPlanOptionsForGrade = useCallback((grade: number) => {
+    const baseOption = {
+      value: '',
+      label: basePlanSummary.label,
+      departmentName: (phaseDepartmentMap[activePhase] || 'الخطة الأساسية').replace(/_/g, ' '),
+      subjectIds: getGradeSubjectIds(grade),
+      gradeSubjectMap: { [grade]: getGradeSubjectIds(grade) },
+      includedGrades: [grade]
+    };
+    return [
+      baseOption,
+      ...classPlanOptions.filter(plan =>
+        plan.includedGrades.includes(grade) && (plan.gradeSubjectMap[grade] || []).length > 0
+      )
+    ];
+  }, [activePhase, basePlanSummary.label, classPlanOptions, getGradeSubjectIds, phaseDepartmentMap]);
+
+  const getPlanSubjectIdsForClass = useCallback((cls: ClassInfo, planId: string) => {
+    if (!planId) return [...getGradeSubjectIds(cls.grade)];
+    const plan = classPlanOptions.find(item => item.value === planId);
+    return plan ? [...(plan.gradeSubjectMap[cls.grade] || [])] : [];
+  }, [classPlanOptions, getGradeSubjectIds]);
+
+  const getClassEffectiveSubjectIds = useCallback((cls: ClassInfo) => (
+    cls.subjectIdsCustomized || cls.subjectPlanId
+      ? [...(cls.subjectIds || [])]
+      : [...getGradeSubjectIds(cls.grade)]
+  ), [getGradeSubjectIds]);
+
+  const getClassPlanLabel = useCallback((cls: ClassInfo) => {
+    if (!cls.subjectPlanId) return basePlanSummary.label;
+    return classPlanOptions.find(plan => plan.value === cls.subjectPlanId)?.label || 'الخطة غير متاحة';
+  }, [basePlanSummary.label, classPlanOptions]);
 
   useEffect(() => {
     if (!showClassPlansModal) return;
@@ -770,6 +824,153 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
     setClassPlanId(classPlanOptions[0]?.value || '');
     showToast('تم تطبيق الخطة على الفصول المحددة');
   }, [classPlanSelectedIds, classPlanOptions, classPlanId, assignments, setClasses, setAssignments, currentSchoolClasses]);
+
+  const commitClassPlanChange = useCallback((classId: string, planId: string) => {
+    const cls = currentSchoolClasses.find(item => item.id === classId);
+    if (!cls) return;
+    const nextSubjectIds = getPlanSubjectIdsForClass(cls, planId);
+    if (planId && nextSubjectIds.length === 0) {
+      showToast('الخطة المختارة لا تحتوي على مواد لهذا الصف');
+      return;
+    }
+    const allowed = new Set(nextSubjectIds);
+    setClasses(prev => prev.map(item => {
+      if (item.id !== classId) return item;
+      const retainedOverrides = Object.fromEntries(
+        Object.entries(item.subjectPeriodOverrides || {}).filter(([subjectId]) => allowed.has(subjectId))
+      );
+      return {
+        ...item,
+        subjectPlanId: planId || undefined,
+        subjectIds: nextSubjectIds,
+        subjectIdsCustomized: false,
+        subjectPeriodOverrides: Object.keys(retainedOverrides).length > 0 ? retainedOverrides : undefined,
+      };
+    }));
+    setAssignments(prev => prev.filter(assignment => assignment.classId !== classId || allowed.has(assignment.subjectId)));
+    setPendingPlanChange(null);
+    showToast(planId ? 'تم تحديث خطة الفصل' : 'تمت إعادة الفصل إلى الخطة الأساسية');
+  }, [currentSchoolClasses, getPlanSubjectIdsForClass, setAssignments, setClasses, showToast]);
+
+  const requestClassPlanChange = useCallback((classId: string, planId: string) => {
+    const cls = currentSchoolClasses.find(item => item.id === classId);
+    if (!cls || (cls.subjectPlanId || '') === planId) return;
+    const nextSubjectIds = new Set(getPlanSubjectIdsForClass(cls, planId));
+    const removedAssignmentCount = assignments.filter(
+      assignment => assignment.classId === classId && !nextSubjectIds.has(assignment.subjectId)
+    ).length;
+    const hasClassCustomizations = !!(
+      cls.subjectIdsCustomized || Object.keys(cls.subjectPeriodOverrides || {}).length > 0
+    );
+    if (removedAssignmentCount > 0 || hasClassCustomizations) {
+      setPendingPlanChange({ classId, planId, removedAssignmentCount, hasClassCustomizations });
+      return;
+    }
+    commitClassPlanChange(classId, planId);
+  }, [assignments, commitClassPlanChange, currentSchoolClasses, getPlanSubjectIdsForClass]);
+
+  const dropClassWithinGrade = useCallback((targetClassId: string) => {
+    if (!draggedClassId || draggedClassId === targetClassId) {
+      setDraggedClassId(null);
+      setDragOverClassId(null);
+      return;
+    }
+    const source = currentSchoolClasses.find(item => item.id === draggedClassId);
+    const target = currentSchoolClasses.find(item => item.id === targetClassId);
+    if (!source || !target || source.grade !== target.grade) {
+      setDraggedClassId(null);
+      setDragOverClassId(null);
+      return;
+    }
+    const gradeClasses = currentSchoolClasses.filter(item => item.grade === source.grade);
+    const sourceIndex = gradeClasses.findIndex(item => item.id === source.id);
+    const targetIndex = gradeClasses.findIndex(item => item.id === target.id);
+    const reordered = [...gradeClasses];
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    const orderMap = new Map(reordered.map((item, index) => [item.id, index + 1]));
+    setClasses(prev => prev.map(item => orderMap.has(item.id) ? { ...item, sortOrder: orderMap.get(item.id) } : item));
+    setDraggedClassId(null);
+    setDragOverClassId(null);
+    showToast('تم تحديث ترتيب الفصول');
+  }, [currentSchoolClasses, draggedClassId, setClasses, showToast]);
+
+  const getCopyTargetBlockReason = useCallback((source: ClassInfo, target: ClassInfo, action: CopyAction | null = copyAction) => {
+    if (!action) return 'اختر عملية النسخ';
+    if (action === 'plan') {
+      if (source.grade !== target.grade) return 'القسم أو المسار ينسخ بين فصول الصف نفسه فقط';
+      if (source.subjectPlanId) {
+        const sourcePlan = classPlanOptions.find(plan => plan.value === source.subjectPlanId);
+        if (!sourcePlan || !sourcePlan.includedGrades.includes(target.grade) || !(sourcePlan.gradeSubjectMap[target.grade] || []).length) {
+          return 'القسم أو المسار غير متاح لهذا الصف';
+        }
+      }
+    }
+    if (action === 'subjects') {
+      if (source.grade !== target.grade) return 'تخصيص المواد ينسخ بين فصول الصف نفسه فقط';
+      if ((source.subjectPlanId || '') !== (target.subjectPlanId || '')) return 'يلزم تطابق القسم أو المسار أولًا';
+    }
+    return null;
+  }, [classPlanOptions, copyAction]);
+
+  const applyCopiedClassSettings = useCallback(() => {
+    const source = currentSchoolClasses.find(item => item.id === copySourceClassId);
+    if (!source || !copyAction || copyTargetClassIds.size === 0) return;
+    const validTargets = currentSchoolClasses.filter(
+      target => copyTargetClassIds.has(target.id) && !getCopyTargetBlockReason(source, target, copyAction)
+    );
+    if (validTargets.length === 0) {
+      showToast('لا توجد فصول متوافقة لتطبيق الإعدادات');
+      return;
+    }
+    const targetIds = new Set(validTargets.map(item => item.id));
+    const allowedByTarget = new Map<string, Set<string>>();
+    setClasses(prev => prev.map(item => {
+      if (!targetIds.has(item.id)) return item;
+      let next: ClassInfo = { ...item };
+      if (copyAction === 'plan') {
+        const planId = source.subjectPlanId || '';
+        const planSubjectIds = getPlanSubjectIdsForClass(item, planId);
+        next = {
+          ...next,
+          subjectPlanId: planId || undefined,
+          subjectIds: planSubjectIds,
+          subjectIdsCustomized: false,
+          subjectPeriodOverrides: undefined,
+        };
+      }
+      if (copyAction === 'subjects') {
+        const sourceSubjectIds = getClassEffectiveSubjectIds(source);
+        next = {
+          ...next,
+          subjectIds: [...sourceSubjectIds],
+          subjectIdsCustomized: true,
+          subjectPeriodOverrides: source.subjectPeriodOverrides ? { ...source.subjectPeriodOverrides } : undefined,
+        };
+      }
+      if (copyAction === 'periods') {
+        next = {
+          ...next,
+          customPeriodCounts: source.customPeriodCounts ? { ...source.customPeriodCounts } : undefined,
+        };
+      }
+      if (copyAction === 'plan' || copyAction === 'subjects') {
+        allowedByTarget.set(item.id, new Set(next.subjectIds || []));
+      }
+      return next;
+    }));
+    if (allowedByTarget.size > 0) {
+      setAssignments(prev => prev.filter(assignment => {
+        const allowed = allowedByTarget.get(assignment.classId);
+        return !allowed || allowed.has(assignment.subjectId);
+      }));
+    }
+    setCopySourceClassId(null);
+    setCopyAction(null);
+    setCopyTargetClassIds(new Set());
+    const actionLabel = copyAction === 'plan' ? 'القسم أو المسار' : copyAction === 'subjects' ? 'تخصيص المواد' : 'الحصص اليومية';
+    showToast(`تم نسخ ${actionLabel} إلى ${validTargets.length} ${validTargets.length === 1 ? 'فصل' : 'فصول'}`);
+  }, [copyAction, copySourceClassId, copyTargetClassIds, currentSchoolClasses, getClassEffectiveSubjectIds, getCopyTargetBlockReason, getPlanSubjectIdsForClass, setAssignments, setClasses, showToast]);
 
   const approvedFacilitySubjects = useMemo(() => {
     const approvedIds = new Set<string>();
@@ -998,21 +1199,26 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   const handleDeleteOne = useCallback((id: string) => {
     setClasses(prev => prev.filter(c => c.id !== id));
+    setAssignments(prev => prev.filter(assignment => assignment.classId !== id));
     setSelectedClasses(prev => {
       const ns = new Set(prev);
       ns.delete(id);
       return ns;
     });
-  }, [setClasses]);
+  }, [setAssignments, setClasses]);
 
   const handleBulkDelete = useCallback(() => {
     setClasses(prev => prev.filter(c => !selectedClasses.has(c.id)));
+    setAssignments(prev => prev.filter(assignment => !selectedClasses.has(assignment.classId)));
     setSelectedClasses(new Set());
     setShowBulkDeleteConfirm(false);
     setDeleteSelectionMode(false);
-  }, [selectedClasses, setClasses]);
+  }, [selectedClasses, setAssignments, setClasses]);
 
   const handleDeleteAll = useCallback(() => {
+    const deletedIds = new Set(classes.filter(c =>
+      (c.schoolId || 'main') === activeSchoolId && c.grade !== 0 && !isFacilityType(c.type)
+    ).map(c => c.id));
     setClasses(prev => prev.filter(c =>
       !(
         (c.schoolId || 'main') === activeSchoolId &&
@@ -1020,10 +1226,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         !isFacilityType(c.type)
       )
     ));
+    setAssignments(prev => prev.filter(assignment => !deletedIds.has(assignment.classId)));
     setSelectedClasses(new Set());
     setShowDeleteAllConfirm(false);
     setDeleteSelectionMode(false);
-  }, [activeSchoolId, setClasses]);
+  }, [activeSchoolId, classes, setAssignments, setClasses]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedClasses(prev => {
@@ -1069,7 +1276,6 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
       if (c.id !== classId) return c;
       return { ...c, customPeriodCounts: undefined };
     }));
-    setCustomPeriodClassId(null);
   }, [setClasses]);
 
   const handleApplyGlobalPeriods = useCallback(() => {
@@ -1237,7 +1443,6 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
   // ─── Portal Dropdown Open ───
   const openPortalDropdown = useCallback((e: React.MouseEvent, classId: string) => {
     e.stopPropagation();
-    setPortalDeleteId(null);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const menuW = 190;
     // Position so menu appears below button, clamped within viewport
@@ -1414,7 +1619,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               disabled={currentSchoolClasses.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Edit2 size={16} className="text-slate-400" /> تعديل مسمى كل الفصول
+              <Edit2 size={16} className="text-slate-400" /> تعديل أسماء كل الفصول
             </button>
             <button
               dir="rtl"
@@ -1489,117 +1694,191 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {Object.keys(grouped).map(Number).sort((a,b) => a-b).map(grade => {
-                const gradeClasses = grouped[grade];
-                const isExpanded   = expandedGrades.has(grade);
-                const gradeLabel   = getGradeLabelEx(grade);
-                const allSelected  = gradeClasses.length > 0 && gradeClasses.every(c => selectedClasses.has(c.id));
-                const someSelected = gradeClasses.some(c => selectedClasses.has(c.id));
-                return (
-                  <div key={grade} className="rounded-2xl overflow-hidden border border-slate-200 bg-white transition-all flex flex-col">
-                    {/* Grade header */}
-                    <div
-                      className="flex items-center justify-between px-5 py-4 select-none bg-white border-b border-slate-100"
-                    >
-                      <div className="flex items-center gap-3">
-                        {deleteSelectionMode && (
-                          <span
-                            onClick={e => {
-                              e.stopPropagation();
-                              const n = new Set(selectedClasses);
-                              if (allSelected) gradeClasses.forEach(c => n.delete(c.id));
-                              else             gradeClasses.forEach(c => n.add(c.id));
-                              setSelectedClasses(n);
-                            }}
-                            className={`inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer transition-all flex-shrink-0 ${
-                              (allSelected || someSelected)
-                                ? 'bg-rose-500 text-white'
-                                : 'bg-white border-2 border-slate-300 text-transparent'
-                            }`}
+                <div className="space-y-6">
+                  {Object.keys(grouped).map(Number).sort((a,b) => a-b).map(grade => {
+                    const gradeClasses = grouped[grade];
+                    const gradeLabel = getGradeLabelEx(grade);
+                    const allSelected = gradeClasses.length > 0 && gradeClasses.every(c => selectedClasses.has(c.id));
+                    const someSelected = gradeClasses.some(c => selectedClasses.has(c.id));
+                    const planOptions = getPlanOptionsForGrade(grade);
+                    const allowPlanSelection = grade !== 1 || activePhase !== Phase.HIGH;
+                    const hasMultiplePlans = planOptions.length > 1;
+                    return (
+                      <section key={grade} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-l from-slate-50/60 to-white px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            {deleteSelectionMode && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(selectedClasses);
+                                  if (allSelected) gradeClasses.forEach(c => next.delete(c.id));
+                                  else gradeClasses.forEach(c => next.add(c.id));
+                                  setSelectedClasses(next);
+                                }}
+                                className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all ${
+                                  allSelected || someSelected ? 'bg-rose-500 text-white' : 'border-2 border-slate-300 bg-white text-transparent'
+                                }`}
+                                title="تحديد فصول الصف"
+                              >
+                                {(allSelected || someSelected) && <Check size={12} strokeWidth={3.5} />}
+                              </button>
+                            )}
+                            <span className="h-7 w-1.5 rounded-full bg-[#655ac1]" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-base font-black text-slate-800">{gradeLabel}</h4>
+                                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-black text-[#655ac1]">{gradeClasses.length}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleManualAdd(grade)}
+                            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 transition-all hover:border-[#655ac1]/40 hover:text-[#655ac1]"
+                            title="إضافة فصل جديد في نهاية فصول الصف"
                           >
-                            {(allSelected || someSelected) && <Check size={12} strokeWidth={3.5} />}
-                          </span>
-                        )}
-                        <span className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1] bg-white font-black text-sm flex-shrink-0 border border-slate-300">
-                          {grade}
-                        </span>
-                        <div>
-                          <span className="block text-slate-800 font-black text-sm">{gradeLabel}</span>
-                          <span className="block text-slate-400 text-xs font-bold mt-1">{gradeClasses.length} فصل</span>
+                            <Plus size={15} /> إضافة فصل
+                          </button>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={e => { e.stopPropagation(); setGradeActionsModal(grade); }}
-                          className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-[#655ac1] hover:border-[#655ac1]/40 transition-all"
-                          title="إدارة الصف"
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                      </div>
-                    </div>
 
-                    {/* Grade content */}
-                      <div className="bg-white p-4 flex-1">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {gradeClasses.map(cls => {
-                              const isSelected = selectedClasses.has(cls.id);
-                              const displayName = getClassLabel(cls);
-                              return (
-                                <div
-                                  key={cls.id}
-                                  className={`group rounded-lg px-2.5 py-2 min-h-[38px] flex items-center gap-2.5 transition-all ${
-                                    isSelected
-                                      ? 'bg-rose-50 text-rose-600'
-                                      : 'bg-transparent hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {deleteSelectionMode && (
-                                    <span
-                                      onClick={() => toggleSelect(cls.id)}
-                                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer transition-all shrink-0 ${
-                                        isSelected
-                                          ? 'bg-rose-500 text-white'
-                                          : 'bg-white border-2 border-slate-300 text-transparent'
-                                      }`}
-                                    >
-                                      {isSelected && <Check size={12} strokeWidth={3.5}/>}
-                                    </span>
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    {editingClassId === cls.id ? (
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <input
-                                          type="text"
-                                          value={editName}
-                                          onChange={e => setEditName(e.target.value)}
-                                          className="w-full min-w-0 p-2 bg-white border border-[#8779fb] rounded-lg text-xs font-black outline-none"
-                                          autoFocus
-                                          onKeyDown={e => {
-                                            if (e.key === 'Enter') handleSaveEdit();
-                                            if (e.key === 'Escape') { setEditingClassId(null); setEditName(''); }
-                                          }}
-                                        />
-                                        <button onClick={handleSaveEdit} className="px-2 py-2 bg-[#8779fb] text-white rounded-lg text-[10px] font-bold shrink-0 inline-flex items-center justify-center gap-1.5">
-                                          <CheckCircle2 size={14} />
-                                          حفظ
-                                        </button>
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[980px] table-fixed border-separate border-spacing-0 text-right">
+                            <thead>
+                              <tr className="border-b border-slate-100 bg-slate-50/80 text-[#655ac1]">
+                                <th className="w-20 px-3 py-3 text-center text-xs font-black">م</th>
+                                <th className="w-[19%] px-3 py-3 text-xs font-black">اسم الفصل</th>
+                                <th className="w-[29%] px-3 py-3 text-center text-xs font-black">الخطة الدراسية</th>
+                                <th className="w-[18%] px-3 py-3 text-center text-xs font-black">الحصص اليومية</th>
+                                <th className="w-[14%] px-3 py-3 text-center text-xs font-black">المواد</th>
+                                <th className="w-44 px-3 py-3 text-center text-xs font-black">الإجراءات</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {gradeClasses.map((cls, index) => {
+                                const isSelected = selectedClasses.has(cls.id);
+                                const effectiveSubjectIds = getClassEffectiveSubjectIds(cls);
+                                const weeklyPeriods = effectiveSubjectIds.reduce((sum, subjectId) => {
+                                  const subject = subjects.find(item => item.id === subjectId);
+                                  return sum + (cls.subjectPeriodOverrides?.[subjectId] ?? subject?.periodsPerClass ?? 0);
+                                }, 0);
+                                const hasCustomPeriods = Object.keys(cls.customPeriodCounts || {}).some(day =>
+                                  cls.customPeriodCounts?.[day] !== (currentTiming?.periodCounts?.[day] ?? 7)
+                                );
+                                const selectedPlanExists = !cls.subjectPlanId || planOptions.some(option => option.value === cls.subjectPlanId);
+                                return (
+                                  <tr
+                                    key={cls.id}
+                                    onDragOver={event => { event.preventDefault(); if (draggedClassId) setDragOverClassId(cls.id); }}
+                                    onDrop={event => { event.preventDefault(); dropClassWithinGrade(cls.id); }}
+                                    className={`group transition-colors ${
+                                      dragOverClassId === cls.id ? 'bg-[#f0edff]' : isSelected ? 'bg-rose-50/60' : 'hover:bg-[#f8f7ff]/60'
+                                    }`}
+                                  >
+                                    <td className="px-3 py-3 text-center">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        {deleteSelectionMode ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleSelect(cls.id)}
+                                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition-all ${isSelected ? 'bg-rose-500 text-white' : 'border-2 border-slate-300 bg-white text-transparent'}`}
+                                          >
+                                            {isSelected && <Check size={12} strokeWidth={3.5} />}
+                                          </button>
+                                        ) : (
+                                          <span
+                                            draggable
+                                            onDragStart={() => setDraggedClassId(cls.id)}
+                                            onDragEnd={() => { setDraggedClassId(null); setDragOverClassId(null); }}
+                                            className="cursor-grab text-slate-300 opacity-40 transition-all hover:text-[#655ac1] group-hover:opacity-100 active:cursor-grabbing"
+                                            title="اسحب لترتيب الفصل"
+                                          >
+                                            <GripVertical size={16} />
+                                          </span>
+                                        )}
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-xs font-bold text-slate-400">{index + 1}</span>
                                       </div>
-                                    ) : (
-                                      <span className="inline-flex shrink-0 min-w-[44px] justify-center rounded-lg border border-slate-200 bg-transparent px-2 py-1 text-center text-xs font-black text-[#655ac1]">
-                                        {displayName}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                    </td>
+                                    <td className="px-3 py-3 align-middle">
+                                      {editingClassId === cls.id ? (
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            value={editName}
+                                            onChange={event => setEditName(event.target.value)}
+                                            onKeyDown={event => {
+                                              if (event.key === 'Enter') handleSaveEdit();
+                                              if (event.key === 'Escape') { setEditingClassId(null); setEditName(''); }
+                                            }}
+                                            autoFocus
+                                            className="min-w-0 flex-1 rounded-lg border border-[#8779fb] bg-white px-3 py-2 text-sm font-black text-slate-700 outline-none ring-2 ring-[#8779fb]/10"
+                                          />
+                                          <button onClick={handleSaveEdit} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white transition-all hover:bg-emerald-600" title="حفظ">
+                                            <CheckCircle2 size={16} />
+                                          </button>
+                                          <button onClick={() => { setEditingClassId(null); setEditName(''); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-all hover:text-slate-600" title="إلغاء">
+                                            <X size={14} />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <span className="text-sm font-black text-slate-700">{getClassLabel(cls)}</span>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-3 align-middle">
+                                      {allowPlanSelection && (hasMultiplePlans || !selectedPlanExists) ? (
+                                        <FacilitySingleSelectDropdown
+                                          value={cls.subjectPlanId || ''}
+                                          options={planOptions.map(option => ({ value: option.value, label: option.label }))}
+                                          placeholder={selectedPlanExists ? basePlanSummary.label : 'الخطة غير متاحة'}
+                                          onChange={value => requestClassPlanChange(cls.id, value)}
+                                          compact
+                                        />
+                                      ) : (
+                                        <div className={`inline-flex min-h-8 w-full items-center gap-1.5 rounded-xl bg-transparent px-2.5 py-1.5 ${selectedPlanExists ? 'text-slate-600' : 'text-amber-700'}`} title="الخطة الدراسية المعتمدة">
+                                          <span className="block truncate text-xs font-black">{getClassPlanLabel(cls)}</span>
+                                          {!selectedPlanExists && activePhase === Phase.HIGH && grade === 1 && (
+                                            <button type="button" onClick={() => requestClassPlanChange(cls.id, '')} className="mt-2 text-[10px] font-black text-[#655ac1] hover:underline">
+                                              استعادة الخطة المشتركة
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-3 text-center align-middle">
+                                      <button
+                                        type="button"
+                                        onClick={() => setCustomPeriodClassId(cls.id)}
+                                        className={`group/action inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl bg-transparent px-2.5 py-1.5 text-xs font-black transition-all hover:bg-slate-50 hover:text-[#655ac1] ${hasCustomPeriods ? 'text-[#655ac1]' : 'text-slate-500'}`}
+                                        title="فتح تخصيص حصص الفصل"
+                                      >
+                                        {hasCustomPeriods ? 'مخصص' : 'حسب التوقيت العام'}
+                                        <ChevronLeft size={12} className="text-slate-300 transition-colors group-hover/action:text-[#655ac1]" />
+                                      </button>
+                                    </td>
+                                    <td className="px-3 py-3 text-center align-middle">
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewSubjectsClassId(cls.id)}
+                                        className={`group/action inline-flex min-h-8 items-center justify-center gap-1.5 rounded-xl bg-transparent px-2.5 py-1.5 text-xs font-black transition-all hover:bg-slate-50 hover:text-[#655ac1] ${(cls.subjectIdsCustomized || Object.keys(cls.subjectPeriodOverrides || {}).length > 0) ? 'text-[#655ac1]' : 'text-slate-600'}`}
+                                        title={`عرض مواد الفصل — ${weeklyPeriods} حصة أسبوعية`}
+                                      >
+                                        {effectiveSubjectIds.length} {effectiveSubjectIds.length === 1 ? 'مادة' : effectiveSubjectIds.length === 2 ? 'مادتان' : effectiveSubjectIds.length >= 3 && effectiveSubjectIds.length <= 10 ? 'مواد' : 'مادة'}
+                                        <ChevronLeft size={12} className="text-slate-300 transition-colors group-hover/action:text-[#655ac1]" />
+                                      </button>
+                                    </td>
+                                    <td className="px-3 py-3 text-center align-middle">
+                                      <button onClick={event => openPortalDropdown(event, cls.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-transparent text-slate-500 transition-all hover:border-[#655ac1]/30 hover:text-[#655ac1]" title="إجراءات الفصل" aria-label="إجراءات الفصل">
+                                        <MoreHorizontal size={17} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
-                      </div>
-                  </div>
-                );
-              })}
+                      </section>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1650,7 +1929,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                      onClick={() => setShowGlobalRenameModal(true)}
                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black hover:border-[#655ac1] hover:text-[#655ac1] transition-all shadow-sm"
                   >
-                     <Pencil size={15} /> تعديل مسمى كل الفصول
+                     <Pencil size={15} /> تعديل أسماء كل الفصول
                   </button>
                   <button
                      onClick={() => setShowGlobalPeriodsModal(true)}
@@ -1930,16 +2209,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                         if (e.key === 'Escape') { setEditingClassId(null); setEditName(''); }
                                       }}
                                     />
-                                    <button onClick={handleSaveEdit} className="p-2 bg-[#655ac1] text-white rounded-lg hover:bg-indigo-700 font-bold text-[10px] inline-flex items-center justify-center gap-1.5">
-                                      <CheckCircle2 size={14} />
-                                      حفظ
+                                    <button onClick={handleSaveEdit} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white transition-all hover:bg-emerald-600" title="حفظ">
+                                      <CheckCircle2 size={16} />
+                                    </button>
+                                    <button onClick={() => { setEditingClassId(null); setEditName(''); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition-all hover:text-slate-600" title="إلغاء">
+                                      <X size={14} />
                                     </button>
                                  </div>
                                ) : (
-                                 <div className="flex items-center gap-2">
-                                   <span className="font-black text-slate-700 text-sm tracking-wide" dir="ltr">{displayName}</span>
-                                   {c.isManuallyCreated && <span className="text-[8px] px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded font-bold">يدوي</span>}
-                                 </div>
+                                 <span className="font-black text-slate-700 text-sm tracking-wide" dir="ltr">{displayName}</span>
                                )}
                             </td>
                             <td className="px-6 py-4 text-center">
@@ -2100,22 +2378,41 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   أضف المرافق المدرسية المعامل والصالات والملاعب
               </p>
 
-              <div className="space-y-2 mb-5">
-                  <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-black text-[#655ac1]">متى أضيف مرفقاً؟</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">عند وجود معمل أو ملعب له سعة محدودة و لا يمكن استخدامه إلا بعدد محدد من الفصول في نفس الحصة مع ارتباطه بمادة محددة مثل : البدنية</p>
+              <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                      <CircleHelp size={17} className="text-[#655ac1]" />
+                      <div>
+                          <p className="text-sm font-black text-slate-700">دليل سريع للمرافق</p>
+                          <p className="mt-0.5 text-[10px] font-bold text-slate-400">اضغط على السؤال لعرض التوضيح</p>
+                      </div>
                   </div>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-black text-[#655ac1]">ما الهدف؟</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">حتى يتم مراعاة سعة المرافق لتقليل التعارض قدر الإمكان عند إنشاء الجدول.</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-black text-[#655ac1]">ما معنى السعة؟</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">عدد الفصول التي يمكنها استخدام نفس المرفق في نفس الوقت.</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                      <p className="text-sm font-black text-[#655ac1]">لماذا أربط المادة؟</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500 leading-relaxed">حتى يعرف النظام المواد التي تستخدم هذا المرفق ويتجنب إسناده لمادة بالخطأ.</p>
+                  <div className="space-y-2 p-3">
+                      {([
+                          { id: 'when', question: 'متى أضيف مرفقًا؟', answer: 'عند وجود معمل أو ملعب بسعة محدودة، ولا يمكن استخدامه إلا لعدد محدد من الفصول في الحصة نفسها، مع ارتباطه بمادة محددة مثل التربية البدنية.' },
+                          { id: 'goal', question: 'ما الهدف من إضافة المرفق؟', answer: 'حتى يراعي النظام سعة المرافق ويقلل تعارض استخدامها قدر الإمكان عند إنشاء الجدول.' },
+                          { id: 'capacity', question: 'ما معنى السعة؟', answer: 'هي عدد الفصول التي يمكنها استخدام المرفق نفسه في الوقت ذاته.' },
+                          { id: 'subject', question: 'لماذا أربط المرفق بمادة؟', answer: 'حتى يعرف النظام المواد التي تستخدم هذا المرفق، ويتجنب إسناده لمادة غير مرتبطة به.' },
+                      ] as const).map(item => {
+                          const isOpen = openFacilityHelpId === item.id;
+                          return (
+                              <div key={item.id} className={`overflow-hidden rounded-xl border bg-white transition-all ${isOpen ? 'border-slate-300 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}>
+                                  <button
+                                      type="button"
+                                      aria-expanded={isOpen}
+                                      onClick={() => setOpenFacilityHelpId(current => current === item.id ? null : item.id)}
+                                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-right transition-colors hover:bg-slate-50/70"
+                                  >
+                                      <span className={`text-sm font-black ${isOpen ? 'text-[#655ac1]' : 'text-slate-700'}`}>{item.question}</span>
+                                      <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#655ac1]' : ''}`} />
+                                  </button>
+                                  {isOpen && (
+                                      <div className="animate-in fade-in slide-in-from-top-1 border-t border-slate-100 bg-slate-50/50 px-4 py-3 duration-200">
+                                          <p className="text-xs font-medium leading-6 text-slate-500">{item.answer}</p>
+                                      </div>
+                                  )}
+                              </div>
+                          );
+                      })}
                   </div>
               </div>
 
@@ -2688,7 +2985,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                   <Edit2 size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-800">تعديل مسمى كل الفصول</h3>
+                  <h3 className="text-base font-black text-slate-800">تعديل أسماء كل الفصول</h3>
                   <p className="text-[11px] font-medium text-slate-500 mt-0.5">تغيير طريقة تسمية جميع الفصول.</p>
                 </div>
               </div>
@@ -3077,13 +3374,198 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
     {/* Bulk delete confirmation is rendered inside the delete-selected modal */}
 
+    {/* ══════ Confirm changing one class plan ══════ */}
+    {pendingPlanChange && (() => {
+      const cls = currentSchoolClasses.find(item => item.id === pendingPlanChange.classId);
+      const nextLabel = pendingPlanChange.planId
+        ? classPlanOptions.find(plan => plan.value === pendingPlanChange.planId)?.label || 'الخطة المختارة'
+        : basePlanSummary.label;
+      if (!cls) return null;
+      return createPortal(
+        <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm" onClick={() => setPendingPlanChange(null)}>
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={event => event.stopPropagation()}>
+            <div className="p-6">
+              <div className="mb-5 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                  <AlertTriangle size={23} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">تغيير خطة الفصل</h3>
+                  <p className="mt-1 text-xs font-bold leading-relaxed text-slate-400">فصل {getClassLabel(cls)} ← {nextLabel}</p>
+                </div>
+              </div>
+              <div className="space-y-2 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-bold leading-relaxed text-amber-800">
+                {pendingPlanChange.hasClassCustomizations && <p>سيعاد ضبط تخصيص مواد الفصل وفق الخطة الجديدة، مع الاحتفاظ بأنصبة المواد المتوافقة فقط.</p>}
+                {pendingPlanChange.removedAssignmentCount > 0 && <p>ستتم إزالة {pendingPlanChange.removedAssignmentCount} من الإسنادات غير المتوافقة مع الخطة الجديدة.</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button onClick={() => setPendingPlanChange(null)} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-600">إلغاء</button>
+              <button onClick={() => commitClassPlanChange(pendingPlanChange.classId, pendingPlanChange.planId)} className="rounded-xl bg-[#655ac1] px-4 py-3 text-sm font-black text-white transition-colors hover:bg-[#5046a0]">تأكيد التغيير</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      );
+    })()}
+
+    {/* ══════ Copy one class setting ══════ */}
+    {copySourceClassId && copyAction && (() => {
+      const source = currentSchoolClasses.find(item => item.id === copySourceClassId);
+      if (!source) return null;
+      const eligibleTargets = currentSchoolClasses.filter(item =>
+        item.id !== source.id && !getCopyTargetBlockReason(source, item, copyAction)
+      );
+      const validSelectedTargets = eligibleTargets.filter(item => copyTargetClassIds.has(item.id));
+      const sourceSubjectIds = getClassEffectiveSubjectIds(source);
+      const assignmentImpact = (copyAction === 'plan' || copyAction === 'subjects')
+        ? validSelectedTargets.reduce((total, target) => {
+            const allowedIds = copyAction === 'subjects'
+              ? new Set(sourceSubjectIds)
+              : new Set(getPlanSubjectIdsForClass(target, source.subjectPlanId || ''));
+            return total + assignments.filter(assignment => assignment.classId === target.id && !allowedIds.has(assignment.subjectId)).length;
+          }, 0)
+        : 0;
+      const actionMeta = copyAction === 'plan'
+        ? {
+            title: 'نسخ القسم / المسار',
+            summary: getClassPlanLabel(source),
+            icon: BookOpen,
+          }
+        : copyAction === 'subjects'
+          ? {
+              title: 'نسخ تخصيص مواد الفصل',
+              summary: `${sourceSubjectIds.length} ${sourceSubjectIds.length >= 3 && sourceSubjectIds.length <= 10 ? 'مواد' : 'مادة'}`,
+              icon: ListPlus,
+            }
+          : {
+              title: 'نسخ الحصص اليومية',
+              summary: '',
+              icon: Clock,
+            };
+      const ActionIcon = actionMeta.icon;
+      const eligibleGrades = [...new Set(eligibleTargets.map(item => item.grade))].sort((a, b) => a - b);
+      const allSelected = eligibleTargets.length > 0 && eligibleTargets.every(item => copyTargetClassIds.has(item.id));
+      const closeCopyModal = () => { setCopySourceClassId(null); setCopyAction(null); setCopyTargetClassIds(new Set()); };
+      return createPortal(
+        <div className="fixed inset-0 z-[10010] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm" onClick={closeCopyModal}>
+          <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl" onClick={event => event.stopPropagation()} dir="rtl">
+            <header className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <ActionIcon size={25} className="text-[#655ac1]" />
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">{actionMeta.title}</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-400">النسخ من فصل <span className="text-[#655ac1]">{getClassLabel(source)} - {getGradeLabelEx(source.grade)}</span></p>
+                </div>
+              </div>
+              <button onClick={closeCopyModal} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-400 hover:bg-slate-50"><X size={18} /></button>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
+              <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                {copyAction === 'periods' ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {activeDays.map(day => {
+                      const count = source.customPeriodCounts?.[day] ?? currentTiming?.periodCounts?.[day] ?? 7;
+                      return <div key={day} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2"><span className="text-xs font-black text-slate-600">{dayLabels[day.toLowerCase()] || day}</span><span className="text-sm font-black text-[#655ac1]">{count}</span></div>;
+                    })}
+                  </div>
+                ) : (
+                  <p className={`${copyAction === 'subjects' ? 'text-base' : 'text-sm'} font-black text-[#655ac1]`}>{actionMeta.summary}</p>
+                )}
+              </div>
+
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-sm font-black text-slate-800">اختر الفصول</h4>
+                    <span className="rounded-lg bg-[#f8f7ff] px-2.5 py-1 text-[10px] font-black text-[#655ac1]">{validSelectedTargets.length === 0 ? 'لم يتم تحديد فصول' : validSelectedTargets.length === 1 ? 'فصل واحد محدد' : `${validSelectedTargets.length} فصول محددة`}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] font-bold text-slate-400">تظهر فقط الفصول التي يمكن تطبيق هذا النسخ عليها.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCopyTargetClassIds(allSelected ? new Set() : new Set(eligibleTargets.map(item => item.id)))}
+                  disabled={eligibleTargets.length === 0}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 transition-all hover:border-[#655ac1]/30 hover:text-[#655ac1] disabled:opacity-40"
+                >
+                  {allSelected ? 'إلغاء اختيار الكل' : 'اختيار الكل'}
+                </button>
+              </div>
+
+              {eligibleTargets.length === 0 ? (
+                <div className="rounded-2xl border-2 border-dashed border-slate-200 px-6 py-12 text-center">
+                  <p className="text-sm font-black text-slate-600">لا توجد فصول متوافقة مع هذه العملية</p>
+                  <p className="mt-1 text-xs font-bold text-slate-400">جرّب فصلًا آخر من الصف أو القسم المناسب.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {eligibleGrades.map(grade => {
+                    const targets = eligibleTargets.filter(item => item.grade === grade);
+                    return (
+                      <section key={grade} className="overflow-hidden rounded-2xl border border-slate-200">
+                        <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-xs font-black text-slate-700">{getGradeLabelEx(grade)}</div>
+                        <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2">
+                          {targets.map(target => {
+                            const selected = copyTargetClassIds.has(target.id);
+                            const targetStatus = copyAction === 'plan'
+                              ? getClassPlanLabel(target)
+                              : copyAction === 'subjects'
+                                ? (target.subjectIdsCustomized || Object.keys(target.subjectPeriodOverrides || {}).length > 0 ? 'لديه تخصيص سيُستبدل' : 'بدون تخصيص مواد')
+                                : (Object.keys(target.customPeriodCounts || {}).length > 0 ? 'لديه حصص مخصصة ستُستبدل' : 'حسب التوقيت العام');
+                            return (
+                              <button
+                                key={target.id}
+                                type="button"
+                                onClick={() => setCopyTargetClassIds(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(target.id)) next.delete(target.id); else next.add(target.id);
+                                  return next;
+                                })}
+                                className={`flex items-center justify-between gap-3 rounded-xl border bg-white p-3 text-right transition-all ${selected ? 'border-slate-400 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}
+                              >
+                                <span className="min-w-0"><b className={`block truncate text-sm ${selected ? 'text-[#655ac1]' : 'text-slate-700'}`}>{getClassLabel(target)}</b><small className="mt-1 block truncate text-[10px] font-bold text-slate-400">{targetStatus}</small></span>
+                                <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${selected ? 'border-[#655ac1] bg-[#655ac1] text-white' : 'border-slate-300 bg-white text-transparent'}`}><Check size={11} strokeWidth={3.5} /></span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
+
+              {assignmentImpact > 0 && (
+                <div className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-relaxed text-amber-800">
+                  <AlertTriangle size={17} className="mt-0.5 shrink-0" />
+                  ستتم إزالة {assignmentImpact} من الإسنادات غير المتوافقة في الفصول المحددة.
+                </div>
+              )}
+            </div>
+
+            <footer className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <div className="flex gap-3">
+                <button onClick={closeCopyModal} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-600">إلغاء</button>
+                <button onClick={applyCopiedClassSettings} disabled={validSelectedTargets.length === 0} className="inline-flex items-center gap-2 rounded-xl bg-[#655ac1] px-6 py-2.5 text-sm font-black text-white transition-colors hover:bg-[#5046a0] disabled:bg-slate-300">
+                  <Copy size={15} /> نسخ
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>,
+        document.body
+      );
+    })()}
+
     {/* ════════════════════════════════════════════════════
          PORTAL: ⋯ Dropdown Menu
        ════════════════════════════════════════════════════ */}
     {portalDropdown && createPortal(
       <div
-        className="fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5"
+        className="fixed z-[10020] bg-white rounded-2xl shadow-2xl border border-slate-100 py-1.5"
         style={{ top: portalDropdown.top, left: portalDropdown.left, minWidth: 184 }}
+        onMouseDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
       >
         <button
@@ -3093,7 +3575,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           }}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
         >
-          <ListPlus size={15} className="text-[#8779fb]"/> تخصيص المواد
+          <ListPlus size={15} className="text-slate-400"/> تخصيص مواد الفصل
         </button>
         <button
           onClick={() => {
@@ -3102,8 +3584,60 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           }}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
         >
-          <Clock size={15} className="text-[#8779fb]"/> تخصيص الحصص
+          <Clock size={15} className="text-slate-400"/> تخصيص حصص الفصل
         </button>
+        <div className="my-1 border-t border-slate-100" />
+        <button
+          onClick={() => {
+            setCopySourceClassId(portalDropdown.classId);
+            setCopyAction('plan');
+            setCopyTargetClassIds(new Set());
+            setPortalDropdown(null);
+          }}
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
+        >
+          <BookOpen size={15} className="text-slate-400"/> نسخ القسم / المسار
+        </button>
+        {(() => {
+          const source = classes.find(item => item.id === portalDropdown.classId);
+          const hasCustomization = !!source && (!!source.subjectIdsCustomized || Object.keys(source.subjectPeriodOverrides || {}).length > 0);
+          return (
+            <button
+              disabled={!hasCustomization}
+              title={hasCustomization ? 'نسخ المواد المخصصة وعدد حصصها' : 'لا يوجد تخصيص مواد لنسخه'}
+              onClick={() => {
+                if (!hasCustomization) return;
+                setCopySourceClassId(portalDropdown.classId);
+                setCopyAction('subjects');
+                setCopyTargetClassIds(new Set());
+                setPortalDropdown(null);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ListPlus size={15} className="text-slate-400"/> <span className="flex-1 text-right">نسخ تخصيص المواد</span>{!hasCustomization && <small className="text-[9px] text-slate-400">لا يوجد تخصيص</small>}
+            </button>
+          );
+        })()}
+        {(() => {
+          const source = classes.find(item => item.id === portalDropdown.classId);
+          const hasCustomization = !!source && Object.keys(source.customPeriodCounts || {}).length > 0;
+          return (
+            <button
+              disabled={!hasCustomization}
+              title={hasCustomization ? 'نسخ عدد الحصص المحدد لكل يوم' : 'لا يوجد تخصيص حصص لنسخه'}
+              onClick={() => {
+                if (!hasCustomization) return;
+                setCopySourceClassId(portalDropdown.classId);
+                setCopyAction('periods');
+                setCopyTargetClassIds(new Set());
+                setPortalDropdown(null);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Clock size={15} className="text-slate-400"/> <span className="flex-1 text-right">نسخ الحصص اليومية</span>{!hasCustomization && <small className="text-[9px] text-slate-400">لا يوجد تخصيص</small>}
+            </button>
+          );
+        })()}
         <button
           onClick={() => {
             const cls = classes.find(c => c.id === portalDropdown.classId);
@@ -3111,28 +3645,49 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
           }}
           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 font-bold transition-colors"
         >
-          <Pencil size={15} className="text-[#8779fb]"/> تعديل المسمى
+          <Pencil size={15} className="text-slate-400"/> تعديل الاسم
         </button>
         <div className="border-t border-slate-100 my-1"/>
-        {portalDeleteId === portalDropdown.classId ? (
-          <div className="px-4 py-2.5">
-            <p className="text-xs text-rose-600 font-bold mb-2">تأكيد الحذݿ</p>
-            <div className="flex gap-2">
-              <button onClick={() => { handleDeleteOne(portalDropdown.classId); setPortalDropdown(null); setPortalDeleteId(null); }} className="flex-1 py-1.5 bg-rose-500 text-white text-xs rounded-lg font-black">حذف</button>
-              <button onClick={() => setPortalDeleteId(null)} className="flex-1 py-1.5 bg-slate-100 text-slate-600 text-xs rounded-lg font-black">إلغاء</button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setPortalDeleteId(portalDropdown.classId)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-500 hover:bg-rose-50 font-bold transition-colors"
-          >
-            <Trash2 size={15}/> حذف الفصل
-          </button>
-        )}
+        <button
+          onClick={() => { setDeleteConfirmClassId(portalDropdown.classId); setPortalDropdown(null); }}
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-500 hover:bg-rose-50 font-bold transition-colors"
+        >
+          <Trash2 size={15} className="text-rose-500"/> حذف الفصل
+        </button>
       </div>,
       document.body
     )}
+
+    {/* Read-only class subjects preview */}
+    {previewSubjectsClassId && (() => {
+      const cls = classes.find(item => item.id === previewSubjectsClassId);
+      if (!cls) return null;
+      const subjectIds = getClassEffectiveSubjectIds(cls);
+      const classSubjects = subjectIds.map(id => subjects.find(subject => subject.id === id)).filter((subject): subject is Subject => !!subject && !subject.isArchived);
+      const totalPeriods = classSubjects.reduce((sum, subject) => sum + (cls.subjectPeriodOverrides?.[subject.id] ?? subject.periodsPerClass ?? 0), 0);
+      return createPortal(
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm" onClick={() => setPreviewSubjectsClassId(null)}>
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={event => event.stopPropagation()} dir="rtl">
+            <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-3"><BookOpen size={24} className="text-[#655ac1]" /><div><h3 className="text-base font-black text-slate-800">مواد الفصل</h3><p className="mt-0.5 text-sm font-black text-[#655ac1]">{getClassLabel(cls)}</p></div></div>
+              <button onClick={() => setPreviewSubjectsClassId(null)} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 hover:bg-slate-50"><X size={18} /></button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
+              {classSubjects.length === 0 ? <div className="rounded-2xl border-2 border-dashed border-slate-200 py-12 text-center text-sm font-bold text-slate-400">لا توجد مواد معتمدة لهذا الفصل.</div> : (
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <table className="w-full text-right">
+                    <thead className="border-b border-slate-100 bg-slate-50 text-[#655ac1]"><tr><th className="w-16 px-4 py-3 text-center text-xs font-black">م</th><th className="px-4 py-3 text-xs font-black">اسم المادة</th><th className="w-36 px-4 py-3 text-center text-xs font-black">عدد الحصص</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">{classSubjects.map((subject, index) => <tr key={subject.id} className="hover:bg-slate-50/70"><td className="px-4 py-3 text-center text-xs font-bold text-slate-400">{index + 1}</td><td className="px-4 py-3 text-sm font-bold text-slate-700">{subject.name}</td><td className="px-4 py-3 text-center text-sm font-black text-[#655ac1]">{cls.subjectPeriodOverrides?.[subject.id] ?? subject.periodsPerClass ?? 0}</td></tr>)}</tbody>
+                    <tfoot className="border-t border-slate-200"><tr><td className="w-16 px-4 py-3" /><td className="py-3 pl-2 pr-0 text-xs font-black text-slate-700"><div className="flex items-center justify-between gap-4"><span className="whitespace-nowrap">إجمالي المواد: <span className="text-[#655ac1]">{classSubjects.length}</span></span><span className="whitespace-nowrap">إجمالي الحصص</span></div></td><td className="w-36 px-4 py-3 text-center text-base font-black text-[#655ac1]">{totalPeriods}</td></tr></tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+            <footer className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4"><button onClick={() => setPreviewSubjectsClassId(null)} className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50">إغلاق</button></footer>
+          </div>
+        </div>, document.body
+      );
+    })()}
 
     {/* Custom Period Panel rendered as modal when triggered from portal */}
     {customPeriodClassId && (() => {
@@ -3143,44 +3698,48 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/45 backdrop-blur-sm p-4" onClick={() => setCustomPeriodClassId(null)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <div>
-                <h3 className="font-black text-slate-800">تخصيص الحصص</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{displayName}</p>
+              <div className="flex items-center gap-3">
+                <Clock size={24} className="text-[#655ac1]" />
+                <div>
+                  <h3 className="font-black text-slate-800">تخصيص حصص الفصل</h3>
+                  <p className="mt-0.5 text-sm font-black text-slate-500">{displayName}</p>
+                </div>
               </div>
-              <button onClick={() => setCustomPeriodClassId(null)} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400"><X size={18}/></button>
+              <button onClick={() => setCustomPeriodClassId(null)} className="w-9 h-9 flex items-center justify-center rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-slate-500"><X size={18}/></button>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-2">
                 {activeDays.map(day => {
                   const defaultCount = currentTiming?.periodCounts?.[day] ?? 7;
                   const customCount  = cls.customPeriodCounts?.[day];
                   const count = customCount ?? defaultCount;
-                  const isCustomized = customCount !== undefined && customCount !== defaultCount;
                   return (
-                    <div key={day} className="flex flex-col items-center p-4 rounded-2xl border transition-all"
-                      style={{ background: isCustomized ? '#e5e1fe' : '#f8fafc', borderColor: isCustomized ? '#8779fb' : '#e2e8f0' }}>
-                      <span className="text-xs font-black mb-3" style={{ color: isCustomized ? '#8779fb' : '#475569' }}>
-                        {dayLabels[day.toLowerCase()] || day}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleCustomPeriodChange(cls.id, day, Math.max(0, count-1))} disabled={count<=0}
-                          className="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all font-bold disabled:opacity-40">−</button>
-                        <span className="w-8 text-center text-lg font-black text-slate-800">{count}</span>
-                        <button onClick={() => handleCustomPeriodChange(cls.id, day, Math.min(12, count+1))} disabled={count>=12}
-                          className="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-[#8779fb] hover:border-[#e5e1fe] transition-all font-bold disabled:opacity-40">+</button>
+                    <div key={day} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-black text-slate-700">{dayLabels[day.toLowerCase()] || day}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleCustomPeriodChange(cls.id, day, Math.max(1, count - 1))} disabled={count <= 1}
+                            className="h-7 w-7 rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:border-rose-200 hover:text-rose-500 disabled:opacity-40">-</button>
+                          <span className="w-7 text-center text-base font-black text-[#655ac1]">{count}</span>
+                          <button onClick={() => handleCustomPeriodChange(cls.id, day, Math.min(12, count + 1))} disabled={count >= 12}
+                            className="h-7 w-7 rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:border-[#655ac1]/40 hover:text-[#655ac1] disabled:opacity-40">+</button>
+                        </div>
                       </div>
-                      {isCustomized && <span className="text-[10px] font-bold mt-2 text-[#8779fb]">مخصص</span>}
                     </div>
                   );
                 })}
               </div>
+              <div className="mt-4 flex justify-end">
+                <button onClick={() => handleResetCustomPeriods(customPeriodClassId)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500 transition-all hover:border-slate-300 hover:text-slate-700">
+                  <RotateCcw size={14} /> إعادة تعيين للتوقيت العام
+                </button>
+              </div>
             </div>
-            <div className="p-4 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setCustomPeriodClassId(null)} className="flex-1 py-3 rounded-xl font-black text-white text-sm bg-[#8779fb] inline-flex items-center justify-center gap-2">
-                <CheckCircle2 size={16} />
-                حفظ
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3" dir="rtl">
+              <button onClick={() => setCustomPeriodClassId(null)} className="px-6 py-2.5 rounded-xl border border-slate-300 bg-white font-bold text-slate-600 text-sm hover:bg-slate-50">إغلاق</button>
+              <button onClick={() => setCustomPeriodClassId(null)} className="min-w-[180px] flex-1 px-7 py-2.5 rounded-xl font-black text-white text-sm bg-[#655ac1] hover:bg-[#5046a0] inline-flex items-center justify-center gap-2">
+                <CheckCircle2 size={16} /> حفظ
               </button>
-              <button onClick={() => { handleResetCustomPeriods(customPeriodClassId); }} className="px-4 py-3 rounded-xl font-black text-slate-500 text-sm bg-slate-100 text-xs">إعادة تعيين</button>
             </div>
           </div>
         </div>
