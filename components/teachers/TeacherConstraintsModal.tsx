@@ -1217,6 +1217,15 @@ export default function TeacherConstraintsModal({
                 </table>
               </div>
             </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowSummary(false)}
+                className="px-6 py-2.5 bg-white border border-slate-300 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
         )}
 
