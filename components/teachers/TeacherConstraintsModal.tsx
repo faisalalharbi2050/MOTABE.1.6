@@ -1,7 +1,7 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Teacher, Specialization, TeacherConstraint, ClassInfo, Phase } from '../../types';
-import { Users, User, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, Sparkles, Eye, Rows3, Copy } from 'lucide-react';
-import { ValidationWarning } from '../../utils/scheduleConstraints';
+import { Teacher, Specialization, TeacherConstraint, TeacherPeriodDistribution, ClassInfo, Phase } from '../../types';
+import { Users, User, Search, AlertTriangle, X, Sliders, Ban, Clock, Repeat, ChevronDown, Check, CheckCircle2, RotateCcw, MapPin, Coffee, CalendarRange, Eye, Rows3, Copy } from 'lucide-react';
+import { ValidationWarning, evaluateTeacherDistributionRule, formatDistributionRule } from '../../utils/scheduleConstraints';
 import { INITIAL_SPECIALIZATIONS } from '../../constants';
 
 // --- Constants & Helpers ---
@@ -88,7 +88,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialTeacherId?: string | null;
-  initialOpenSection?: 'c1' | 'c2' | 'c5' | 'c6' | 'c7' | null;
+  initialOpenSection?: 'c1' | 'c2' | 'c5' | 'c6' | 'c7' | 'c8' | null;
   teachers?: Teacher[];
   specializations?: Specialization[];
   constraints?: TeacherConstraint[];
@@ -129,6 +129,10 @@ export default function TeacherConstraintsModal({
     });
     return result;
   }, [days, periodCounts, safePeriodsCount]);
+  const effectivePeriodCounts = useMemo(
+    () => Object.fromEntries(days.map(day => [day, dayLastPeriods[day] ?? safePeriodsCount])),
+    [days, dayLastPeriods, safePeriodsCount],
+  );
 
   // --- State ---
   const [selId, setSelId] = useState<string | null>(null);
@@ -178,16 +182,17 @@ export default function TeacherConstraintsModal({
   }, [isOpen, sortBy]);
 
   // Sections Expansions
-  const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c5: false, c6: false, c7: false });
+  const [open, setOpen] = useState<Record<string, boolean>>({ c1: false, c2: false, c5: false, c6: false, c7: false, c8: false });
+  const [showSummary, setShowSummary] = useState(false);
 
   // Copy-constraints panel (overlay inside this modal — copies the selected teacher's constraints to others)
   const [showCopyPanel, setShowCopyPanel] = useState(false);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
-  const [copyTypes, setCopyTypes] = useState({ consec: true, excluded: true, early: true });
+  const [copyTypes, setCopyTypes] = useState({ consec: true, excluded: true, early: true, distribution: true });
   const [copySearch, setCopySearch] = useState('');
   const [copySpecFilter, setCopySpecFilter] = useState('');
   const [copyEarlyMode, setCopyEarlyMode] = useState<'manual' | 'auto'>('auto');
-  const [copyDone, setCopyDone] = useState<{ applied: number; adjusted: number; skipped: number } | null>(null);
+  const [copyDone, setCopyDone] = useState<{ applied: number; adjusted: number; earlySkipped: number; distributionApplied: number; distributionSkipped: number } | null>(null);
   const [earlyDraftDay, setEarlyDraftDay] = useState<Record<string, string>>({});
 
   // Sync open sections when initialOpenSection prop changes (e.g. when modal is reopened with a different target)
@@ -266,7 +271,8 @@ export default function TeacherConstraintsModal({
     const excludedCount = days.reduce((sum, d) =>
       sum + (c.excludedSlots?.[d] || []).filter(p => p >= 1 && p <= (dayLastPeriods[d] ?? safePeriodsCount)).length, 0);
     const hasEarly = !!c.earlyExitMode && !!c.earlyExit && Object.keys(c.earlyExit).length > 0;
-    setCopyTypes({ consec: true, excluded: excludedCount > 0, early: hasEarly });
+    const hasDistribution = (c.distributionRules?.length || 0) > 0;
+    setCopyTypes({ consec: true, excluded: excludedCount > 0, early: hasEarly, distribution: hasDistribution });
     setCopyEarlyMode((c.earlyExitMode as 'manual' | 'auto') || 'auto');
     setCopyTargets([]);
     setCopySearch('');
@@ -282,7 +288,9 @@ export default function TeacherConstraintsModal({
     const srcPeriod = src.earlyExit ? Object.values(src.earlyExit)[0] || 0 : 0;
     const next = [...constraints];
     let adjusted = 0;
-    let skipped = 0;
+    let earlySkipped = 0;
+    let distributionApplied = 0;
+    let distributionSkipped = 0;
 
     copyTargets.forEach(tid => {
       const idx = next.findIndex(c => c.teacherId === tid);
@@ -297,7 +305,7 @@ export default function TeacherConstraintsModal({
         const teacher = teachers.find(t => t.id === tid);
         const result = teacher ? evaluateEarlyExit(teacher, copyEarlyMode, srcDay, srcPeriod) : { status: 'impossible' as const };
         if (result.status === 'impossible' || result.status === 'empty' || !result.suggestedPeriod) {
-          skipped++;
+          earlySkipped++;
         } else {
           const targetDay = copyEarlyMode === 'auto' ? (result.suggestedDay || days[0]) : srcDay;
           base.earlyExitMode = copyEarlyMode;
@@ -305,12 +313,20 @@ export default function TeacherConstraintsModal({
           if (result.status === 'adjust') adjusted++;
         }
       }
+      if (copyTypes.distribution && src.distributionRules?.length) {
+        const teacher = teachers.find(t => t.id === tid);
+        const candidate = src.distributionRules.map(rule => ({ ...rule, selectedDays: [...rule.selectedDays] }));
+        const targetConstraint = { ...base, distributionRules: candidate };
+        const canApplyAll = !!teacher && candidate.every(rule => evaluateTeacherDistributionRule(teacher, targetConstraint, rule, effectivePeriodCounts).possible);
+        if (canApplyAll) { base.distributionRules = candidate; distributionApplied++; }
+        else distributionSkipped++;
+      }
       if (idx >= 0) next[idx] = base;
       else next.push(base);
     });
 
     onChangeConstraints(next);
-    setCopyDone({ applied: copyTargets.length, adjusted, skipped });
+    setCopyDone({ applied: copyTargets.length, adjusted, earlySkipped, distributionApplied, distributionSkipped });
     setTimeout(() => { setShowCopyPanel(false); setCopyDone(null); }, 1900);
   };
 
@@ -340,6 +356,7 @@ export default function TeacherConstraintsModal({
       (c.maxConsecutive !== undefined && c.maxConsecutive !== 2) ||
       (c.excludedSlots && Object.values(c.excludedSlots).some(arr => arr && arr.length > 0)) ||
       (c.earlyExit && Object.keys(c.earlyExit).length > 0)
+      || (c.distributionRules && c.distributionRules.length > 0)
     ));
     const isExcluded = (t.quotaLimit || 0) === 0;
     if (quickFilter === 'has') return hasC && !isExcluded;
@@ -383,7 +400,15 @@ export default function TeacherConstraintsModal({
               <p className="text-[11px] text-slate-400 font-bold">إدارة قيود المعلمون الاستثناءات والتفضيلات</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
+          <div className="flex items-center gap-2">
+            {!singleTeacherMode && (
+              <button onClick={() => setShowSummary(true)} className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-600 text-xs font-black hover:bg-[#655ac1] hover:border-[#655ac1] hover:text-white transition-all">
+                <Eye size={15} />
+                ملخص قيود المعلمين
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-full text-slate-500 transition-colors"><X size={18} /></button>
+          </div>
         </div>
 
         <div className="flex-1 flex overflow-hidden">
@@ -746,6 +771,106 @@ export default function TeacherConstraintsModal({
                   );
                 })()}
 
+                {/* 3. Teacher period distribution */}
+                {(() => {
+                  const rules = sc?.distributionRules || [];
+                  const getRule = (period: number) => rules.find(rule => rule.period === period);
+                  const saveRules = (next: TeacherPeriodDistribution[]) => {
+                    const normalized = next.map(rule => ({
+                      ...rule,
+                      selectedDays: [...rule.selectedDays].sort((a, b) => days.indexOf(a) - days.indexOf(b)),
+                    }));
+                    updC(selTeacher.id, { distributionRules: normalized.length ? normalized : undefined });
+                  };
+                  const replaceRule = (nextRule: TeacherPeriodDistribution) => saveRules([...rules.filter(rule => rule.period !== nextRule.period), nextRule].sort((a, b) => a.period - b.period));
+                  const toggleSlot = (day: string, period: number) => {
+                    const current = getRule(period);
+                    const selected = current?.selectedDays || [];
+                    const nextDays = selected.includes(day) ? selected.filter(item => item !== day) : [...selected, day];
+                    if (!nextDays.length) {
+                      saveRules(rules.filter(rule => rule.period !== period));
+                      return;
+                    }
+                    const max = Math.min(current?.max ?? 1, nextDays.length);
+                    replaceRule({ period, selectedDays: nextDays, min: Math.min(current?.min ?? 0, max), max, enforcement: current?.enforcement || 'preferred' });
+                  };
+                  const toggleColumn = (period: number) => {
+                    const validDays = days.filter(day => period <= (dayLastPeriods[day] ?? safePeriodsCount));
+                    const current = getRule(period);
+                    const allSelected = validDays.length > 0 && validDays.every(day => current?.selectedDays.includes(day));
+                    if (allSelected) saveRules(rules.filter(rule => rule.period !== period));
+                    else replaceRule({ period, selectedDays: validDays, min: Math.min(current?.min ?? 0, current?.max ?? 1), max: Math.min(current?.max ?? 1, validDays.length), enforcement: current?.enforcement || 'preferred' });
+                  };
+                  const invalidEvaluations = rules.map(rule => ({ rule, result: evaluateTeacherDistributionRule(selTeacher, sc || getC(selTeacher.id), rule, effectivePeriodCounts) })).filter(item => !item.result.possible);
+
+                  return (
+                    <div className={`bg-white rounded-2xl border transition-all ${open.c8 ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm'}`}>
+                      <button onClick={() => setOpen(prev => ({ ...prev, c8: !prev.c8 }))} className="w-full flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[#655ac1]"><CalendarRange size={20} /></div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-slate-800">تخصيص توزيع الحصص</div>
+                            <div className="text-[10px] text-slate-500 font-bold">{rules.length ? `${rules.length} تخصيص محفوظ` : 'لا يوجد تخصيص، والتوزيع التلقائي مفعّل'}</div>
+                          </div>
+                        </div>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${open.c8 ? 'rotate-180' : ''}`} />
+                      </button>
+                      {open.c8 && (
+                        <div className="px-5 pb-5 pt-1 space-y-4 border-t border-slate-100">
+                          <div className="pt-3 flex flex-wrap items-center gap-2 text-xs font-black">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-500">
+                              <span className="w-4 h-4 rounded-full bg-emerald-500 border border-emerald-500 text-white inline-flex items-center justify-center"><Check size={10} strokeWidth={3.5} /></span>
+                              مخصصة
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-500">
+                              <span className="w-4 h-4 rounded-full bg-white border-2 border-slate-300 inline-flex items-center justify-center" />
+                              متاحة للتخصيص
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-bold text-slate-500 leading-relaxed">علامة الصح تعني أن الحصة ضمن التخصيص، وسيُسند منها للمعلم عدد بين الحد الأدنى والأقصى.</p>
+                          <div className="overflow-x-auto custom-scrollbar">
+                            <div className="min-w-[640px] border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                              <div className="flex bg-slate-50 border-b border-slate-200">
+                                <div className="w-28 shrink-0 border-l border-slate-200 px-2 py-2 flex items-center justify-center"><span className="text-[9px] font-black text-slate-400">اليوم / الحصة</span></div>
+                                {periods.map((period, index) => {
+                                  const validDays = days.filter(day => period <= (dayLastPeriods[day] ?? safePeriodsCount));
+                                  const allSelected = validDays.length > 0 && validDays.every(day => getRule(period)?.selectedDays.includes(day));
+                                  return <div key={period} className={`flex-1 min-w-[62px] flex justify-center items-center py-2 ${index < periods.length - 1 ? 'border-l border-slate-200' : ''}`}><button onClick={() => toggleColumn(period)} disabled={!validDays.length} className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-black text-xs transition-all ${allSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-[#655ac1] hover:text-[#655ac1]'}`}>{period}</button></div>;
+                                })}
+                              </div>
+                              {days.map((day, dayIndex) => {
+                                const dayCount = dayLastPeriods[day] ?? safePeriodsCount;
+                                return <div key={day} className={`flex ${dayIndex < days.length - 1 ? 'border-b border-slate-200' : ''}`}>
+                                  <div className="w-28 shrink-0 border-l border-slate-200 px-2 py-2 flex items-center justify-center text-center text-xs font-black text-slate-600 bg-slate-50/50">{getDayLabel(day)}</div>
+                                  {periods.map((period, index) => {
+                                    const valid = period <= dayCount;
+                                    const selected = !!getRule(period)?.selectedDays.includes(day);
+                                    return <div key={period} className={`flex-1 min-w-[62px] flex justify-center items-center py-2 ${index < periods.length - 1 ? 'border-l border-slate-200' : ''}`}>{valid ? <button onClick={() => toggleSlot(day, period)} className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${selected ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600' : 'bg-white border-slate-300 text-transparent hover:border-[#655ac1]'}`}><Check size={11} strokeWidth={3.5} /></button> : <span className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50 text-slate-300 inline-flex items-center justify-center text-xs font-black">—</span>}</div>;
+                                  })}
+                                </div>;
+                              })}
+                              {(['min', 'max', 'enforcement'] as const).map((field, rowIndex) => <div key={field} className={`flex bg-slate-50/50 ${rowIndex < 2 ? 'border-b border-slate-200' : ''}`}>
+                                <div className="w-28 shrink-0 border-l border-slate-200 px-2 py-2 flex items-center justify-center text-[10px] font-black text-slate-600">{field === 'min' ? 'الحد الأدنى' : field === 'max' ? 'الحد الأقصى' : 'الالتزام'}</div>
+                                {periods.map((period, index) => {
+                                  const rule = getRule(period);
+                                  return <div key={period} className={`flex-1 min-w-[62px] flex justify-center items-center p-1.5 ${index < periods.length - 1 ? 'border-l border-slate-200' : ''}`}>{!rule ? <span className="text-slate-300 font-black">—</span> : field === 'enforcement' ? <select aria-label={`الالتزام للحصة ${period}`} value={rule.enforcement} onChange={event => replaceRule({ ...rule, enforcement: event.target.value as 'preferred' | 'required' })} className="w-full rounded-lg border border-slate-200 bg-white px-1 py-1.5 text-[10px] font-black text-slate-700 outline-none"><option value="preferred">مفضّل</option><option value="required">إلزامي</option></select> : <select aria-label={`${field === 'min' ? 'الحد الأدنى' : 'الحد الأقصى'} للحصة ${period}`} value={rule[field]} onChange={event => { const value = Number(event.target.value); replaceRule(field === 'min' ? { ...rule, min: Math.min(value, rule.max) } : { ...rule, max: value, min: Math.min(rule.min, value) }); }} className="w-12 rounded-lg border border-slate-200 bg-white px-1 py-1.5 text-xs font-black text-slate-700 outline-none">{Array.from({ length: rule.selectedDays.length + 1 }, (_, value) => <option key={value} value={value}>{value}</option>)}</select>}</div>;
+                                })}
+                              </div>)}
+                            </div>
+                          </div>
+
+                          {invalidEvaluations.map(({ rule, result }) => <div key={rule.period} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 flex flex-wrap items-center gap-2"><AlertTriangle size={15} className="shrink-0" /><span className="flex-1 leading-relaxed">{result.message}</span><button onClick={() => replaceRule({ ...rule, min: Math.min(result.available, rule.max), max: Math.min(rule.max, Math.max(result.available, 0)) })} className="px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 font-black">اعتماد القيمة الممكنة: {result.available === 1 ? 'حصة واحدة' : `${result.available} حصص`}</button></div>)}
+
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                            <div className="text-xs font-black text-slate-700 mb-3">ملخص تخصيص توزيع الحصص</div>
+                            {!rules.length ? <p className="text-xs font-bold text-slate-400">لا يوجد تخصيص، والتوزيع التلقائي مفعّل.</p> : <div className="space-y-3">{rules.map(rule => <div key={rule.period} className="text-xs font-bold text-slate-700 leading-relaxed"><div className="flex items-start gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[#655ac1] mt-1.5 shrink-0" /><span>{formatDistributionRule(rule)}</span></div><div className="pr-3.5 mt-1 text-[11px] text-slate-400">الأيام المحددة: {[...rule.selectedDays].sort((a, b) => days.indexOf(a) - days.indexOf(b)).map(getDayLabel).join('، ')}</div></div>)}</div>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* 5. Early Exit — unified card */}
                 {(() => {
                   const mode = sc?.earlyExitMode as 'manual' | 'auto' | undefined;
@@ -1061,6 +1186,40 @@ export default function TeacherConstraintsModal({
           </button>
         </div>
 
+        {showSummary && (
+          <div className="absolute inset-0 z-[70] bg-white flex flex-col rounded-[2rem] overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 flex items-center justify-center text-[#655ac1]"><Eye size={22} /></div>
+                <div><div className="text-base font-black text-slate-800">ملخص قيود المعلمين</div><div className="text-[11px] font-bold text-slate-400 mt-0.5">عرض موحد للقيود المحفوظة والتنبيهات التي تحتاج مراجعة.</div></div>
+              </div>
+              <button onClick={() => setShowSummary(false)} className="p-2 rounded-full border border-slate-200 bg-white text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-auto custom-scrollbar p-5">
+              <div className="min-w-[980px] rounded-2xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-right border-collapse">
+                  <thead className="bg-slate-50 text-[11px] font-black text-slate-500"><tr>{['م.','المعلم','تتابع الحصص','الحصص المستثناة','الخروج المبكر','تخصيص توزيع الحصص'].map(title => <th key={title} className="px-3 py-3 border-l border-slate-200 last:border-l-0">{title}</th>)}</tr></thead>
+                  <tbody>{teachers.map((teacher, index) => {
+                    const constraint = getC(teacher.id);
+                    const excluded = days.flatMap(day => (constraint.excludedSlots?.[day] || []).map(period => `${getDayLabel(day)} ح${period}`));
+                    const earlyDay = Object.keys(constraint.earlyExit || {})[0];
+                    const earlyPeriod = earlyDay ? constraint.earlyExit?.[earlyDay] : undefined;
+                    const invalid = (constraint.distributionRules || []).some(rule => !evaluateTeacherDistributionRule(teacher, constraint, rule, effectivePeriodCounts).possible);
+                    return <tr key={teacher.id} className="border-t border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50/60">
+                      <td className="px-3 py-3 border-l border-slate-200">{index + 1}</td>
+                      <td className="px-3 py-3 border-l border-slate-200"><button onClick={() => { setSelId(teacher.id); setShowSummary(false); if (invalid) setOpen(prev => ({ ...prev, c8: true })); }} className="inline-flex items-center gap-2 font-black text-slate-800 hover:text-[#655ac1]">{invalid && <AlertTriangle size={14} className="text-amber-500" />}{teacher.name}</button></td>
+                      <td className="px-3 py-3 border-l border-slate-200">{constraint.maxConsecutive === 1 ? 'حصة واحدة ثم راحة' : `${constraint.maxConsecutive || 2} حصص متتالية`}</td>
+                      <td className="px-3 py-3 border-l border-slate-200">{excluded.length ? excluded.join('، ') : 'لا يوجد'}</td>
+                      <td className="px-3 py-3 border-l border-slate-200">{earlyDay && earlyPeriod ? `${getDayLabel(earlyDay)} بعد ح${earlyPeriod}` : 'لا يوجد'}</td>
+                      <td className={`px-3 py-3 ${invalid ? 'text-amber-700 bg-amber-50' : ''}`}>{invalid && <AlertTriangle size={13} className="inline ml-1" />}{constraint.distributionRules?.length ? constraint.distributionRules.map(formatDistributionRule).join('، ') : 'لا يوجد'}</td>
+                    </tr>;
+                  })}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- Copy constraints overlay (slides over this modal, no second backdrop) --- */}
         {showCopyPanel && selTeacher && (() => {
           const src = sc || getC(selId!);
@@ -1074,6 +1233,8 @@ export default function TeacherConstraintsModal({
           const earlyPeriod = src.earlyExit ? Object.values(src.earlyExit)[0] || 0 : 0;
           const hasEarly = !!src.earlyExitMode && earlyPeriod > 0;
           const earlyText = hasEarly ? `${getDayLabel(earlyDay)} · ح${earlyPeriod}` : 'غير محدد لهذا المعلم';
+          const hasDistribution = (src.distributionRules?.length || 0) > 0;
+          const distributionText = hasDistribution ? src.distributionRules!.map(formatDistributionRule).join('، ') : 'لا يوجد تخصيص';
 
           const term = copySearch.toLowerCase().trim();
           const copyList = teachers.filter(t => t.id !== selId).filter(t => {
@@ -1084,18 +1245,20 @@ export default function TeacherConstraintsModal({
             return okSearch && okSpec;
           });
           const allCopyVisible = copyList.length > 0 && copyList.every(t => copyTargets.includes(t.id));
-          const anyTypeOn = copyTypes.consec || (copyTypes.excluded && hasExcluded) || (copyTypes.early && hasEarly);
+          const anyTypeOn = copyTypes.consec || (copyTypes.excluded && hasExcluded) || (copyTypes.early && hasEarly) || (copyTypes.distribution && hasDistribution);
 
-          const rows: { key: 'consec' | 'excluded' | 'early'; label: string; value: string; enabled: boolean }[] = [
+          const rows: { key: 'consec' | 'excluded' | 'early' | 'distribution'; label: string; value: string; enabled: boolean }[] = [
             { key: 'consec', label: 'الحصص المتتالية', value: consecText, enabled: true },
             { key: 'excluded', label: 'الحصص المستثناة', value: hasExcluded ? exChips.join('، ') : 'لا توجد حصص مستثناة', enabled: hasExcluded },
             { key: 'early', label: 'الخروج المبكر', value: earlyText, enabled: hasEarly },
+            { key: 'distribution', label: 'تخصيص توزيع الحصص', value: distributionText, enabled: hasDistribution },
           ];
 
           const previewParts: string[] = [];
           if (copyTypes.consec) previewParts.push(consecText);
           if (copyTypes.excluded && hasExcluded) previewParts.push(`مستثناة (${exChips.join('، ')})`);
           if (copyTypes.early && hasEarly) previewParts.push(`خروج مبكر (${earlyText})`);
+          if (copyTypes.distribution && hasDistribution) previewParts.push(`تخصيص توزيع الحصص (${distributionText})`);
 
           return (
             <div className="absolute inset-0 z-[60] bg-white flex flex-col rounded-[2rem] overflow-hidden">
@@ -1119,8 +1282,11 @@ export default function TeacherConstraintsModal({
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-10 gap-3">
                   <div className="w-16 h-16 rounded-full border border-slate-200 flex items-center justify-center text-[#655ac1]"><CheckCircle2 size={34} /></div>
                   <p className="text-lg font-black text-slate-800">تم نسخ القيود إلى {copyDone.applied} معلم</p>
-                  {(copyTypes.early && hasEarly && (copyDone.adjusted > 0 || copyDone.skipped > 0)) && (
-                    <p className="text-xs font-bold text-slate-500">الخروج المبكر: عُدّل {copyDone.adjusted}، واستُثني {copyDone.skipped}.</p>
+                  {(copyTypes.early && hasEarly && (copyDone.adjusted > 0 || copyDone.earlySkipped > 0)) && (
+                    <p className="text-xs font-bold text-slate-500">الخروج المبكر: عُدّل {copyDone.adjusted}، واستُثني {copyDone.earlySkipped}.</p>
+                  )}
+                  {copyTypes.distribution && hasDistribution && (
+                    <p className="text-xs font-bold text-slate-500">يمكن تطبيق تخصيص التوزيع على {copyDone.distributionApplied} معلم، ولا يمكن تطبيقه على {copyDone.distributionSkipped}.</p>
                   )}
                 </div>
               ) : (
@@ -1293,5 +1459,3 @@ export default function TeacherConstraintsModal({
     </div>
   );
 }
-
-

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { SchoolInfo, ScheduleSettingsData, Teacher, Subject, ClassInfo, Admin, Assignment, Specialization } from '../../../types';
 import { validateAllConstraints, ValidationWarning } from '../../../utils/scheduleConstraints';
-import { generateSchedule } from '../../../utils/scheduleGenerator';
+import { generateSchedule, getPreferredDistributionMisses, getRequiredDistributionFailures } from '../../../utils/scheduleGenerator';
 import { getClassSubjectIds, getClassSubjectPeriods } from '../../../utils/classSubjectPlans';
 import ConflictModal from '../../schedule/ConflictModal';
 import LoadingLogo from '../../ui/LoadingLogo';
@@ -255,7 +255,7 @@ const CreateTab: React.FC<Props> = ({
     const warnings = validateAllConstraints(
       scheduleSettings, subjects, teachers,
       timing.activeDays.length, periodsPerDay, timing.activeDays,
-      classes.length, schoolInfo.sharedSchools
+      classes.length, schoolInfo.sharedSchools, timing.periodCounts || {}
     );
     setValidationWarnings(warnings);
 
@@ -270,12 +270,16 @@ const CreateTab: React.FC<Props> = ({
       return;
     }
 
-    if (warnings.length > 0) {
-      const firstWarning = warnings[0];
+    const blockingWarning = warnings.find(warning => warning.level === 'error');
+    if (blockingWarning) {
       setMissingDataAlert({
         title: 'توجد مشكلة تمنع إنشاء الجدول',
-        message: `${firstWarning.message}${firstWarning.suggestion ? ` ${firstWarning.suggestion}` : ''}`
+        message: `${blockingWarning.message}${blockingWarning.suggestion ? ` ${blockingWarning.suggestion}` : ''}`
       });
+      return;
+    }
+    if (warnings.length > 0) {
+      setShowConflictReport(true);
       return;
     }
     startGeneration();
@@ -333,7 +337,7 @@ const CreateTab: React.FC<Props> = ({
             const schoolClasses = classes.filter(c => c.schoolId === sid || (!c.schoolId && sid === 'main'));
             const tt = await generateSchedule(
               teachersWithSyncedPresence, subjects, schoolClasses, scheduleSettings,
-              { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length },
+              { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length, periodCounts: timing.periodCounts || {}, deferDistributionValidation: true },
               () => {},
               assignments, isBypassingConflicts,
               Object.keys(accumulated).length > 0 ? accumulated : undefined
@@ -344,11 +348,15 @@ const CreateTab: React.FC<Props> = ({
         } else {
           finalTimetable = await generateSchedule(
             teachersWithSyncedPresence, subjects, classes, scheduleSettings,
-            { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length },
+            { activeDays: timing.activeDays, periodsPerDay, weekDays: timing.activeDays.length, periodCounts: timing.periodCounts || {} },
             () => {},
             assignments, isBypassingConflicts, undefined
           );
         }
+
+        const distributionFailures = getRequiredDistributionFailures(finalTimetable, teachersWithSyncedPresence, scheduleSettings);
+        if (distributionFailures.length) throw new Error(`تعذر تحقيق تخصيص إلزامي: ${distributionFailures.join('؛ ')}`);
+        const preferredDistributionMisses = getPreferredDistributionMisses(finalTimetable, teachersWithSyncedPresence, scheduleSettings);
 
         const prevSaved = scheduleSettings.savedSchedules || [];
         const newId = `schedule-${Date.now()}`;
@@ -372,13 +380,23 @@ const CreateTab: React.FC<Props> = ({
         // إبقاء شعار التحميل ظاهرًا فترة كافية ليراه المستخدم
         setTimeout(() => {
           setIsGenerating(false);
-          showToast(wasRegeneration ? 'تم إعادة إنشاء الجدول بنجاح' : 'تم إنشاء الجدول بنجاح', 'success');
+          if (preferredDistributionMisses.length) {
+            setMissingDataAlert({
+              title: 'تم إنشاء الجدول مع ملاحظات على التخصيص المفضّل',
+              message: preferredDistributionMisses.join('؛ '),
+            });
+          } else {
+            showToast(wasRegeneration ? 'تم إعادة إنشاء الجدول بنجاح' : 'تم إنشاء الجدول بنجاح', 'success');
+          }
           onNavigate('edit');
         }, 2500);
       } catch (err) {
         console.error(err);
         setIsGenerating(false);
-        setMissingDataAlert({ title: 'خطأ غير متوقع', message: 'حدث خطأ أثناء بناء الجدول. حاول مرة أخرى.' });
+        setMissingDataAlert({
+          title: 'تعذر إنشاء الجدول وفق القيود الإلزامية',
+          message: err instanceof Error ? err.message : 'راجع تخصيصات توزيع الحصص الإلزامية ثم أعد المحاولة.'
+        });
       }
     }, 50);
   };

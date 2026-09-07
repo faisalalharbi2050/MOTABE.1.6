@@ -1,7 +1,7 @@
 // Schedule Constraints Engine
 // Validation, deadlock detection, and distribution logic
 
-import { Subject, Teacher, SubjectConstraint, TeacherConstraint, ScheduleSettingsData, SharedSchool } from '../types';
+import { Subject, Teacher, SubjectConstraint, TeacherConstraint, TeacherPeriodDistribution, ScheduleSettingsData, SharedSchool } from '../types';
 
 export interface ValidationWarning {
   id: string;
@@ -24,6 +24,76 @@ const getDayArabic = (day: string) => {
     default: return day;
   }
 };
+
+export interface DistributionRuleEvaluation {
+  possible: boolean;
+  available: number;
+  conflicts: string[];
+  message: string;
+}
+
+export function formatDistributionRule(rule: TeacherPeriodDistribution): string {
+  const count = rule.selectedDays.length;
+  const enforcement = rule.enforcement === 'required' ? 'إلزامي' : 'مفضّل';
+  let amount = '';
+  if (rule.min === rule.max) amount = rule.max === 1 ? 'حصة واحدة' : rule.max === 2 ? 'حصتان' : `${rule.max} حصص`;
+  else if (rule.min === 0) amount = rule.max === 1 ? 'حصة واحدة كحد أقصى' : `${rule.max} حصص كحد أقصى`;
+  else if (rule.max === count) amount = rule.min === 1 ? 'حصة واحدة على الأقل' : `${rule.min} حصص على الأقل`;
+  else amount = `من ${rule.min === 1 ? 'حصة' : rule.min === 2 ? 'حصتين' : `${rule.min} حصص`} إلى ${rule.max === 1 ? 'حصة' : rule.max === 2 ? 'حصتين' : `${rule.max} حصص`}`;
+  return `ح${rule.period}: ${amount} — ${enforcement}`;
+}
+
+export function evaluateTeacherDistributionRule(
+  teacher: Teacher,
+  constraint: TeacherConstraint,
+  rule: TeacherPeriodDistribution,
+  periodCounts: Record<string, number>,
+): DistributionRuleEvaluation {
+  const conflicts: string[] = [];
+  let available = 0;
+  for (const day of rule.selectedDays) {
+    const dayCount = Math.max(0, Number(periodCounts[day]) || 0);
+    if (rule.period > dayCount) {
+      conflicts.push(`${getDayArabic(day)} ح${rule.period} لم تعد موجودة`);
+      continue;
+    }
+    if (constraint.excludedSlots?.[day]?.includes(rule.period)) {
+      conflicts.push(`${getDayArabic(day)} ح${rule.period} مستثناة`);
+      continue;
+    }
+    const exit = constraint.earlyExitMode === 'manual' ? constraint.earlyExit?.[day] : undefined;
+    if (exit !== undefined && rule.period > exit) {
+      conflicts.push(`الخروج المبكر يوم ${getDayArabic(day)} بعد ح${exit}`);
+      continue;
+    }
+    if (teacher.isShared && constraint.presenceDays) {
+      const allowedSomewhere = Object.values(constraint.presenceDays).some(days => days.includes(day));
+      if (!allowedSomewhere) {
+        conflicts.push(`يوم ${getDayArabic(day)} خارج أيام التواجد`);
+        continue;
+      }
+    }
+    available++;
+  }
+  const structurallyValid = rule.min >= 0 && rule.max >= rule.min && rule.max <= rule.selectedDays.length;
+  // النصاب غير المضبوط (صفر) لا يجعل اختيار الخانات نفسه غير صالح؛
+  // جاهزية الإسنادات والنصاب تُفحص بصورة مستقلة قبل إنشاء الجدول.
+  const quotaConflict = (teacher.quotaLimit || 0) > 0 && rule.min > teacher.quotaLimit;
+  const possible = structurallyValid && available >= rule.min && !quotaConflict;
+  let message = 'التخصيص قابل للتطبيق.';
+  if (!structurallyValid) {
+    message = rule.min > rule.max
+      ? `الحد الأدنى (${rule.min}) لا يمكن أن يتجاوز الحد الأقصى (${rule.max}).`
+      : `الحد الأقصى (${rule.max}) لا يمكن أن يتجاوز عدد الأيام المحددة (${rule.selectedDays.length}).`;
+  } else if (available < rule.min) {
+    const requestedText = rule.min === 1 ? 'حصة واحدة' : rule.min === 2 ? 'حصتين' : `${rule.min} حصص`;
+    const availableText = available === 0 ? 'لا توجد حصص' : available === 1 ? 'حصة واحدة' : available === 2 ? 'حصتان' : `${available} حصص`;
+    message = `لا يمكن ضمان ${requestedText} في الحصة ${rule.period}. المتاح ${availableText} فقط${conflicts.length ? ` بسبب ${conflicts.join('، ')}` : ''}.`;
+  } else if (quotaConflict) {
+    message = `لا يمكن ضمان الحد الأدنى في الحصة ${rule.period}؛ نصاب المعلم (${teacher.quotaLimit}) أقل من الحد المطلوب (${rule.min}).`;
+  }
+  return { possible, available, conflicts, message };
+}
 
 // ======== Subject Auto-Constraints ========
 
@@ -69,7 +139,7 @@ export function calculateSubstitutionBalance(
 export function validateAllConstraints(
   settings: ScheduleSettingsData, subjects: Subject[], teachers: Teacher[],
   weekDays: number, periodsPerDay: number, activeDays: string[], totalClasses: number = 0,
-  sharedSchools: SharedSchool[] = []
+  sharedSchools: SharedSchool[] = [], periodCounts: Record<string, number> = {}
 ): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];
 
@@ -115,6 +185,25 @@ export function validateAllConstraints(
   for (const tc of settings.teacherConstraints || []) {
     const teacher = teachers.find(t => t.id === tc.teacherId);
     if (!teacher) continue;
+
+    for (const rule of tc.distributionRules || []) {
+      const evaluation = evaluateTeacherDistributionRule(
+        teacher,
+        tc,
+        rule,
+        Object.keys(periodCounts).length ? periodCounts : Object.fromEntries(activeDays.map(day => [day, periodsPerDay])),
+      );
+      if (!evaluation.possible || rule.min > rule.max || rule.max > rule.selectedDays.length) {
+        warnings.push({
+          id: `teacher-distribution-${teacher.id}-${rule.period}`,
+          level: rule.enforcement === 'required' ? 'error' : 'warning',
+          message: evaluation.message,
+          suggestion: evaluation.available < rule.min ? `اعتماد القيمة الممكنة: ${evaluation.available === 1 ? 'حصة واحدة' : `${evaluation.available} حصص`}` : 'راجع الحد الأدنى والأقصى',
+          relatedId: teacher.id,
+          type: 'teacher',
+        });
+      }
+    }
 
     // Track global edge constraints
     if (tc.maxLastPeriods !== undefined) {
@@ -345,6 +434,32 @@ export function validateAllConstraints(
          suggestion: 'زد أيام تواجد المعلمين في الحصص الأخيرة (الخروج المبكر)',
          type: 'general'
        });
+    }
+  }
+
+  const effectivePeriodCounts = Object.keys(periodCounts).length
+    ? periodCounts
+    : Object.fromEntries(activeDays.map(day => [day, periodsPerDay]));
+  const maxConfiguredPeriod = Math.max(0, ...Object.values(effectivePeriodCounts).map(Number));
+  for (let period = 1; period <= maxConfiguredPeriod; period++) {
+    const hasRequiredRule = settings.teacherConstraints.some(constraint => constraint.distributionRules?.some(rule => rule.period === period && rule.enforcement === 'required'));
+    if (!hasRequiredRule) continue;
+    const existingDays = activeDays.filter(day => period <= (Number(effectivePeriodCounts[day]) || 0));
+    const requiredSlots = totalClasses * existingDays.length;
+    const capacity = teachers.filter(teacher => (teacher.quotaLimit || 0) > 0).reduce((sum, teacher) => {
+      const rule = settings.teacherConstraints.find(item => item.teacherId === teacher.id)?.distributionRules?.find(item => item.period === period);
+      if (!rule || rule.enforcement === 'preferred') return sum + existingDays.length;
+      const selectedExistingDays = existingDays.filter(day => rule.selectedDays.includes(day)).length;
+      return sum + Math.min(rule.max, selectedExistingDays) + (existingDays.length - selectedExistingDays);
+    }, 0);
+    if (requiredSlots > 0 && capacity < requiredSlots) {
+      warnings.push({
+        id: `distribution-capacity-${period}`,
+        level: 'error',
+        message: `لا يمكن تطبيق التخصيص؛ الحدود القصوى المحددة للحصة ${period} لا تكفي لتغطية جميع الحصص المطلوبة.`,
+        suggestion: `السعة ${capacity} من أصل ${requiredSlots} حصة مطلوبة`,
+        type: 'general',
+      });
     }
   }
 
