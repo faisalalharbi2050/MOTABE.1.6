@@ -1409,19 +1409,19 @@ export default function TeacherConstraintsModal({
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-slate-200 px-4 py-3">
+                      <div className="rounded-xl border border-slate-200 px-4 py-3.5 bg-white">
                         {anyTypeOn ? (
-                          <div className="text-sm font-bold text-slate-800 leading-relaxed">
-                            <p className="mb-2">سيُنسَخ:</p>
-                            <ul className="flex flex-col gap-1.5 mb-3">
+                          <div className="text-[11px] font-bold text-slate-700 leading-5">
+                            <p className="mb-2 text-xs font-black text-slate-800">سيُنسَخ:</p>
+                            <ul className="flex flex-col gap-2 mb-3">
                               {previewParts.map((part, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#655ac1] inline-block shrink-0 mt-1.5" />
-                                  <span>{part}</span>
+                                <li key={i} className="flex items-start gap-2 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#655ac1] inline-block shrink-0 mt-[7px]" />
+                                  <span className="min-w-0 break-words">{part}</span>
                                 </li>
                               ))}
                             </ul>
-                            <p className="pt-2 border-t border-slate-100 text-slate-600">
+                            <p className="pt-2 border-t border-slate-100 text-[11px] font-bold text-slate-500">
                               إلى <span className="font-black text-[#655ac1]">{copyTargets.length}</span> معلم.
                             </p>
                           </div>
