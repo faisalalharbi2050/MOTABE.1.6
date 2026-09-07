@@ -459,6 +459,14 @@ export interface Transaction {
   };
 }
 
+export interface TeacherPeriodDistribution {
+  period: number;
+  selectedDays: string[];
+  min: number;
+  max: number;
+  enforcement: 'preferred' | 'required';
+}
+
 export interface SubscriptionInfo {
   totalMessages: number;
   remainingMessages: number;
@@ -526,6 +534,8 @@ export interface TeacherConstraint {
   // تأثير الخوارزمية: إذا كان presenceDays غير فارغ، لا تُسند للمعلم أي حصة
   //   في مدرسة معينة في يوم غير مدرج في presenceDays[schoolId].
   presenceDays?: Record<string, string[]>;
+  /** تخصيص عدد حصص المعلم داخل رقم حصة وأيام محددة. */
+  distributionRules?: TeacherPeriodDistribution[];
 }
 
 export interface SubstitutionConfig {

@@ -8,6 +8,52 @@ interface GeneratorOptions {
     activeDays: string[];
     periodsPerDay: number;
     weekDays: number;
+    periodCounts?: Record<string, number>;
+    deferDistributionValidation?: boolean;
+}
+
+export function getRequiredDistributionFailures(
+    timetable: TimetableData,
+    teachers: Teacher[],
+    settings: ScheduleSettingsData,
+): string[] {
+    const failures: string[] = [];
+    for (const constraint of settings.teacherConstraints || []) {
+        const teacher = teachers.find(item => item.id === constraint.teacherId);
+        for (const rule of constraint.distributionRules || []) {
+            if (rule.enforcement !== 'required') continue;
+            const achieved = Object.entries(timetable).filter(([key, slot]) => {
+                if (slot.teacherId !== constraint.teacherId) return false;
+                const parts = key.split('-');
+                const period = Number(parts[parts.length - 1]);
+                const day = parts[parts.length - 2];
+                return period === rule.period && rule.selectedDays.includes(day);
+            }).length;
+            if (achieved < rule.min || achieved > rule.max) failures.push(`${teacher?.name || 'المعلم'}: ح${rule.period} المطلوب من ${rule.min} إلى ${rule.max}، المتحقق ${achieved}`);
+        }
+    }
+    return failures;
+}
+
+export function getPreferredDistributionMisses(
+    timetable: TimetableData,
+    teachers: Teacher[],
+    settings: ScheduleSettingsData,
+): string[] {
+    const misses: string[] = [];
+    for (const constraint of settings.teacherConstraints || []) {
+        const teacher = teachers.find(item => item.id === constraint.teacherId);
+        for (const rule of constraint.distributionRules || []) {
+            if (rule.enforcement !== 'preferred') continue;
+            const achieved = Object.entries(timetable).filter(([key, slot]) => {
+                if (slot.teacherId !== constraint.teacherId) return false;
+                const parts = key.split('-');
+                return Number(parts[parts.length - 1]) === rule.period && rule.selectedDays.includes(parts[parts.length - 2]);
+            }).length;
+            if (achieved < rule.min || achieved > rule.max) misses.push(`${teacher?.name || 'المعلم'}: ح${rule.period} المطلوب من ${rule.min} إلى ${rule.max}، المتحقق ${achieved}`);
+        }
+    }
+    return misses;
 }
 
 export async function generateSchedule(
@@ -35,13 +81,15 @@ export async function generateSchedule(
     // For each slot, we try to assign a Subject/Teacher.
     
     const { activeDays, periodsPerDay } = options;
+    const periodCounts = options.periodCounts || Object.fromEntries(activeDays.map(day => [day, periodsPerDay]));
+    const getDayPeriodCount = (day: string) => Math.max(0, Number(periodCounts[day]) || periodsPerDay);
     
     // Flat list of all slots to fill: [ClassId, Day, Period]
     const slotsToFill: { classId: string; day: string; period: number }[] = [];
     
     const schedulableClasses = classes.filter(cls => !(cls.grade === 0 && cls.linkedSubjectIds && cls.linkedSubjectIds.length > 0));
     activeDays.forEach(day => {
-        for (let p = 1; p <= periodsPerDay; p++) {
+        for (let p = 1; p <= getDayPeriodCount(day); p++) {
             schedulableClasses.forEach(cls => {
                 slotsToFill.push({ classId: cls.id, day, period: p });
             });
@@ -100,7 +148,7 @@ export async function generateSchedule(
             teacherDayPeriods.get(dayKey)!.add(p);
             teacherDailyLoad.set(dayKey, (teacherDailyLoad.get(dayKey) || 0) + 1);
             if (p === 1) teacherFirstPeriodCount.set(tid, (teacherFirstPeriodCount.get(tid) || 0) + 1);
-            if (p === periodsPerDay) teacherLastPeriodCount.set(tid, (teacherLastPeriodCount.get(tid) || 0) + 1);
+            if (p === getDayPeriodCount(day)) teacherLastPeriodCount.set(tid, (teacherLastPeriodCount.get(tid) || 0) + 1);
         });
     }
     
@@ -179,6 +227,42 @@ export async function generateSchedule(
 
     const subjectConstraintById = new Map(settings.subjectConstraints.map(sc => [sc.subjectId, sc]));
     const teacherConstraintById = new Map(settings.teacherConstraints.map(tc => [tc.teacherId, tc]));
+    const autoEarlyExitDayByTeacher = new Map<string, string>();
+    for (const constraint of settings.teacherConstraints || []) {
+        if (constraint.earlyExitMode !== 'auto' || !constraint.earlyExit || !Object.keys(constraint.earlyExit).length) continue;
+        const exit = Number(Object.values(constraint.earlyExit)[0]) || 0;
+        const bestDay = [...activeDays].sort((a, b) => {
+            const aRequiredAfterExit = (constraint.distributionRules || []).some(rule => rule.enforcement === 'required' && rule.period > exit && rule.selectedDays.includes(a));
+            const bRequiredAfterExit = (constraint.distributionRules || []).some(rule => rule.enforcement === 'required' && rule.period > exit && rule.selectedDays.includes(b));
+            if (aRequiredAfterExit !== bRequiredAfterExit) return aRequiredAfterExit ? 1 : -1;
+            return (teacherDailyTargets.get(`${constraint.teacherId}-${a}`) || 0) - (teacherDailyTargets.get(`${constraint.teacherId}-${b}`) || 0);
+        })[0];
+        if (bestDay) autoEarlyExitDayByTeacher.set(constraint.teacherId, bestDay);
+    }
+    const violatesEarlyExit = (teacherId: string, day: string, period: number) => {
+        const constraint = teacherConstraintById.get(teacherId);
+        if (!constraint?.earlyExitMode || !constraint.earlyExit) return false;
+        if (constraint.earlyExitMode === 'manual') {
+            const limit = constraint.earlyExit[day];
+            return limit !== undefined && period > limit;
+        }
+        const autoDay = autoEarlyExitDayByTeacher.get(teacherId);
+        const limit = Number(Object.values(constraint.earlyExit)[0]) || 0;
+        return day === autoDay && limit > 0 && period > limit;
+    };
+    const distributionCounts = new Map<string, number>();
+    const getDistributionRule = (teacherId: string, day: string, period: number) =>
+        teacherConstraintById.get(teacherId)?.distributionRules?.find(rule => rule.period === period && rule.selectedDays.includes(day));
+    const getDistributionCount = (teacherId: string, period: number) =>
+        distributionCounts.get(`${teacherId}-${period}`) || 0;
+    if (existingTimetable) {
+        for (const [key, slot] of Object.entries(existingTimetable)) {
+            const parts = key.split('-');
+            const period = Number(parts[parts.length - 1]);
+            const day = parts[parts.length - 2];
+            if (getDistributionRule(slot.teacherId, day, period)) distributionCounts.set(`${slot.teacherId}-${period}`, getDistributionCount(slot.teacherId, period) + 1);
+        }
+    }
     
     // Helper to get remaining quota for a subject in a class
     const getRemainingQuota = (cls: ClassInfo, subj: Subject) => {
@@ -233,7 +317,7 @@ export async function generateSchedule(
         const occupied = teacherDayPeriods.get(`${teacherId}-${day}`) || new Set<number>();
         let run = 1;
         for (let p = period - 1; p >= 1 && occupied.has(p); p--) run++;
-        for (let p = period + 1; p <= periodsPerDay && occupied.has(p); p++) run++;
+        for (let p = period + 1; p <= getDayPeriodCount(day) && occupied.has(p); p++) run++;
         return run;
     };
 
@@ -337,7 +421,19 @@ export async function generateSchedule(
     }
     
     // Sort slots by constraint difficulty? (e.g. Morning assembly, etc.)
-    // For now, random/sequential.
+    // Required distribution positions are attempted first, then preferred positions.
+    const getSlotDistributionPriority = (slot: { classId: string; day: string; period: number }) => {
+        let priority = 2;
+        for (const subject of classSubjectsMap.get(slot.classId) || []) {
+            const teacherId = teacherForSubject.get(`${slot.classId}-${subject.id}`);
+            if (!teacherId) continue;
+            const rule = getDistributionRule(teacherId, slot.day, slot.period);
+            if (rule?.enforcement === 'required') return 0;
+            if (rule) priority = 1;
+        }
+        return priority;
+    };
+    slotsToFill.sort((a, b) => getSlotDistributionPriority(a) - getSlotDistributionPriority(b));
 
     let filledCount = 0;
     const totalSlots = slotsToFill.length;
@@ -387,9 +483,21 @@ export async function generateSchedule(
             const teacher = assignedTeacherId ? teachers.find(t => t.id === assignedTeacherId) : undefined;
             const teacherLoad = teacher ? (teacherDailyLoad.get(`${teacher.id}-${day}`) || 0) : 0;
             const teacherPenalty = teacher ? getTeacherDayBalanceScore(teacher, day) : 0;
+            const distributionRule = teacher ? getDistributionRule(teacher.id, day, period) : undefined;
+            const distributionUsed = teacher && distributionRule ? getDistributionCount(teacher.id, period) : 0;
+            const distributionBonus = distributionRule
+                ? distributionUsed < distributionRule.min
+                    ? (distributionRule.enforcement === 'required' ? -4000 : -1200)
+                    : distributionUsed < distributionRule.max ? -240 : 700
+                : 0;
+            const edgeBalancePenalty = teacher
+                ? period === 1
+                    ? (teacherFirstPeriodCount.get(teacher.id) || 0) * 160
+                    : period === getDayPeriodCount(day) ? (teacherLastPeriodCount.get(teacher.id) || 0) * 160 : 0
+                : 0;
             const fixedBonus = isSubjectFixedSlot(subjectConstraint, day, period) ? -500 : 0;
 
-            return ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + fixedBonus + teacherLoad - remaining;
+            return ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + fixedBonus + distributionBonus + edgeBalancePenalty + teacherLoad - remaining;
         };
         const shuffledSubjects = [...subjectsForClass].sort((a, b) => {
             const diff = getSubjectSlotScore(a) - getSubjectSlotScore(b);
@@ -513,9 +621,10 @@ export async function generateSchedule(
                 
                 // Daily balance is a scoring priority, not a hard blocker.
                 // Hard-blocking it can leave large assignment gaps when constraints are tight.
-                if (currentDailyLoad >= periodsPerDay) {
+                if (currentDailyLoad >= getDayPeriodCount(day)) {
                      return false;
                 }
+                if (violatesEarlyExit(t.id, day, period)) return false;
                 const dailyTarget = getTeacherDayTarget(t, day);
                 if (!isBypassingConflicts && dailyTarget > 0 && currentDailyLoad >= dailyTarget) {
                     return false;
@@ -523,17 +632,11 @@ export async function generateSchedule(
 
                 // Check Excluded Slots
                 const constraint = teacherConstraintById.get(t.id);
+                const distributionRule = getDistributionRule(t.id, day, period);
+                if (distributionRule?.enforcement === 'required' && getDistributionCount(t.id, period) >= distributionRule.max) return false;
                 if (constraint?.excludedSlots[day]?.includes(period)) {
-                    // If bypassing conflicts, we might IGNORE the soft constraints (excluded slots)
-                    // if it's the ONLY way to schedule. But greedy single-pass doesn't know it's the only way until it fails.
-                    // For now, if bypass is true, we STILL try to respect exclusions, but we COULD drop it.
-                    // Let's drop explicit excluded slots if bypassing for immediate resolution.
-                    if (isBypassingConflicts) {
-                         if (slotIndex === 0) console.log(`   -> BYPASSED: Constraint excludes ${day} period ${period}`);
-                    } else {
-                         if (slotIndex === 0) console.log(`   -> REJECTED: Constraint excludes ${day} period ${period}`);
-                         return false;
-                    }
+                    if (slotIndex === 0) console.log(`   -> REJECTED: Constraint excludes ${day} period ${period}`);
+                    return false;
                 }
 
                 const consecutiveAfterAdding = getConsecutiveRunAfterAdding(t.id, day, period);
@@ -552,7 +655,7 @@ export async function generateSchedule(
                             return false;
                         }
                     }
-                    if (period === periodsPerDay && constraint.maxLastPeriods !== undefined) {
+                    if (period === getDayPeriodCount(day) && constraint.maxLastPeriods !== undefined) {
                         const used = teacherLastPeriodCount.get(t.id) || 0;
                         if (used >= constraint.maxLastPeriods) {
                             if (slotIndex === 0) console.log(`   -> REJECTED: Teacher reached maxLastPeriods (${constraint.maxLastPeriods})`);
@@ -609,7 +712,9 @@ export async function generateSchedule(
                 teacherDayPeriods.get(teacherDayKey)!.add(period);
                 teacherDailyLoad.set(`${validTeacher.id}-${day}`, (teacherDailyLoad.get(`${validTeacher.id}-${day}`) || 0) + 1);
                 if (period === 1) teacherFirstPeriodCount.set(validTeacher.id, (teacherFirstPeriodCount.get(validTeacher.id) || 0) + 1);
-                if (period === periodsPerDay) teacherLastPeriodCount.set(validTeacher.id, (teacherLastPeriodCount.get(validTeacher.id) || 0) + 1);
+                if (period === getDayPeriodCount(day)) teacherLastPeriodCount.set(validTeacher.id, (teacherLastPeriodCount.get(validTeacher.id) || 0) + 1);
+                const appliedRule = getDistributionRule(validTeacher.id, day, period);
+                if (appliedRule) distributionCounts.set(`${validTeacher.id}-${period}`, getDistributionCount(validTeacher.id, period) + 1);
 
                 // ── Update facility usage counter ─────────────────────────
                 if (selectedFacility) {
@@ -680,6 +785,7 @@ export async function generateSchedule(
                     const slotKey = `${day}-${period}`;
                     if (teacherOccupied.has(`${teacher.id}-${day}-${period}`)) continue;
                     if (teacherSlots[teacher.id] && teacherSlots[teacher.id].has(slotKey)) continue;
+                    if (violatesEarlyExit(teacher.id, day, period)) continue;
 
                     if (teacher.isShared && teacher.constraints?.presenceDays) {
                         const currentSchoolId = currentClassForSlot.schoolId || 'main';
@@ -688,24 +794,26 @@ export async function generateSchedule(
                     }
 
                     const currentDailyLoad = teacherDailyLoad.get(`${teacher.id}-${day}`) || 0;
-                    if (currentDailyLoad >= periodsPerDay) continue;
+                    if (currentDailyLoad >= getDayPeriodCount(day)) continue;
                     const dailyTarget = getTeacherDayTarget(teacher, day);
                     const allowedDailyLoad = relaxation === 0
                         ? dailyTarget
                         : relaxation === 1
                             ? dailyTarget + 1
-                            : periodsPerDay;
+                            : getDayPeriodCount(day);
                     if (!isBypassingConflicts && dailyTarget > 0 && currentDailyLoad >= allowedDailyLoad) continue;
 
                     const constraint = teacherConstraintById.get(teacher.id);
-                    if (!isBypassingConflicts && constraint?.excludedSlots[day]?.includes(period)) continue;
+                    const distributionRule = getDistributionRule(teacher.id, day, period);
+                    if (distributionRule?.enforcement === 'required' && getDistributionCount(teacher.id, period) >= distributionRule.max) continue;
+                    if (constraint?.excludedSlots[day]?.includes(period)) continue;
 
                     const consecutiveAfterAdding = getConsecutiveRunAfterAdding(teacher.id, day, period);
                     if (!isBypassingConflicts && consecutiveAfterAdding > getMaxConsecutive(teacher)) continue;
 
                     if (!isBypassingConflicts && relaxation === 0 && constraint) {
                         if (period === 1 && constraint.maxFirstPeriods !== undefined && (teacherFirstPeriodCount.get(teacher.id) || 0) >= constraint.maxFirstPeriods) continue;
-                        if (period === periodsPerDay && constraint.maxLastPeriods !== undefined && (teacherLastPeriodCount.get(teacher.id) || 0) >= constraint.maxLastPeriods) continue;
+                        if (period === getDayPeriodCount(day) && constraint.maxLastPeriods !== undefined && (teacherLastPeriodCount.get(teacher.id) || 0) >= constraint.maxLastPeriods) continue;
                     }
 
                     const selectedFacility = isBypassingConflicts
@@ -733,7 +841,8 @@ export async function generateSchedule(
                     teacherDayPeriods.get(teacherDayKey)!.add(period);
                     teacherDailyLoad.set(teacherDayKey, currentDailyLoad + 1);
                     if (period === 1) teacherFirstPeriodCount.set(teacher.id, (teacherFirstPeriodCount.get(teacher.id) || 0) + 1);
-                    if (period === periodsPerDay) teacherLastPeriodCount.set(teacher.id, (teacherLastPeriodCount.get(teacher.id) || 0) + 1);
+                    if (period === getDayPeriodCount(day)) teacherLastPeriodCount.set(teacher.id, (teacherLastPeriodCount.get(teacher.id) || 0) + 1);
+                    if (distributionRule) distributionCounts.set(`${teacher.id}-${period}`, getDistributionCount(teacher.id, period) + 1);
                     if (selectedFacility) {
                         const usageKey = `${selectedFacility.facilityId}-${day}-${period}`;
                         facilityUsage.set(usageKey, (facilityUsage.get(usageKey) || 0) + 1);
@@ -752,5 +861,7 @@ export async function generateSchedule(
         if (!fillRemainingSlots()) break;
     }
     
+    const requiredFailures = getRequiredDistributionFailures({ ...(existingTimetable || {}), ...timetable }, teachers, settings);
+    if (!options.deferDistributionValidation && requiredFailures.length) throw new Error(`تعذر تحقيق تخصيص إلزامي: ${requiredFailures.join('؛ ')}`);
     return timetable;
 }
