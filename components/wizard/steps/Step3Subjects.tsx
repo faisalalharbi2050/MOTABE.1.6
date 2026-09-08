@@ -87,6 +87,12 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showApprovedPlansModal, setShowApprovedPlansModal] = useState(false);
+  const [showClassPlanConfirm, setShowClassPlanConfirm] = useState(false);
+  const [classPlanNotice, setClassPlanNotice] = useState<{
+    title: string;
+    message: string;
+    tone: 'success' | 'warning';
+  } | null>(null);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showConstraintsModal, setShowConstraintsModal] = useState(false);
   const [deletePlanPhase, setDeletePlanPhase] = useState<Phase | null>(null);
@@ -101,6 +107,12 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     | { kind: 'customByName'; planName: string }
     | null
   >(null);
+
+  useEffect(() => {
+    if (classPlanNotice?.tone !== 'success') return;
+    const timer = window.setTimeout(() => setClassPlanNotice(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [classPlanNotice]);
   
   // Grade Details Modal State
   const [viewingGradeDetails, setViewingGradeDetails] = useState<{
@@ -900,6 +912,13 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     const approvedIds = getSchoolGradeSubjectIds(activeSchoolId, selectedPhase, grade);
     return planSubjects.length > 0 && planSubjects.every(subject => approvedIds.includes(subject.id));
   });
+  const isCurrentReadyPlanLocked = subjectPlanTargetMode === 'base' && Boolean(
+    isSelectedStageApproved || selectedApprovedClassPlan
+  );
+  const hasAvailableClassPlanDepartment = availableDepartments.some(dept =>
+    dept.id !== baseApprovedDepartmentId &&
+    !approvedClassPlans.some(plan => plan.phase === selectedPhase && plan.departmentId === dept.id)
+  );
   const isSelectedPlanApproved = planMode === 'ready' && selectedTemplateSubjects.length > 0 && selectedTemplateSubjects.every(subject => selectedApprovedIds.includes(subject.id));
   const selectedPlanSubjects = planMode === 'custom'
     ? subjects.filter(subject => subject.customPlanName === activeCustomPlanName && ((subject as any).customPlanSchoolId || 'main') === activeSchoolId)
@@ -1172,7 +1191,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     if (!selectedCategory || !selectedDepartment) return;
     if (selectedDepartmentPlanKeys.length === 0) return;
     if (subjectPlanTargetMode === 'classes') {
-      handleApproveClassSubjectPlan();
+      setShowClassPlanConfirm(true);
       return;
     }
     handleApprovePlan(selectedCategory.phase as Phase, selectedDepartment.id, selectedDepartmentPlanKeys, planPeriodOverrides);
@@ -1183,7 +1202,10 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     setPlanMode('ready');
     setPlanPeriodOverrides({});
     setExcludedReadySubjects({});
-    const nextDepartment = availableDepartments.find(dept => dept.id !== baseApprovedDepartmentId);
+    const nextDepartment = availableDepartments.find(dept =>
+      dept.id !== baseApprovedDepartmentId &&
+      !approvedClassPlans.some(plan => plan.phase === selectedPhase && plan.departmentId === dept.id)
+    );
     setSelectedDepartmentId(nextDepartment?.id || '');
   };
 
@@ -1198,11 +1220,19 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
     if (!selectedCategory || !selectedDepartment || !setScheduleSettings) return;
     if (selectedDepartmentPlanKeys.length === 0) return;
     if (selectedDepartment.id === baseApprovedDepartmentId) {
-      alert('اختر قسمًا / مسارًا مختلفًا عن الخطة الأساسية لإضافة خطة فرعية.');
+      setClassPlanNotice({
+        title: 'اختر قسمًا آخر',
+        message: 'اختر قسمًا أو مسارًا مختلفًا عن الخطة الأساسية لإضافة خطة فرعية.',
+        tone: 'warning'
+      });
       return;
     }
     if (approvedClassPlans.some(plan => plan.phase === selectedPhase && plan.departmentId === selectedDepartment.id)) {
-      alert('هذه الخطة معتمدة مسبقاً. يمكنك استعراضها من الخطط المعتمدة.');
+      setClassPlanNotice({
+        title: 'الخطة معتمدة مسبقًا',
+        message: 'يمكنك استعراض هذه الخطة من نافذة الخطط المعتمدة.',
+        tone: 'warning'
+      });
       return;
     }
 
@@ -1274,8 +1304,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
         ...(prev.classSubjectPlans || [])
       ]
     }));
-    alert('تم حفظ الخطة الفرعية كخيار متاح لفصول معينة دون تغيير الخطة الأساسية.');
-    cancelClassSubjectPlan();
+    setClassPlanNotice({
+      title: 'تم اعتماد الخطة الفرعية',
+      message: `أُضيفت خطة ${selectedDepartment.name} إلى الخطط المعتمدة بنجاح.`,
+      tone: 'success'
+    });
+    setSubjectPlanTargetMode('base');
+    setPlanPeriodOverrides({});
+    setExcludedReadySubjects({});
+    setSubPlanHintOpen(false);
   };
 
   const handleApproveCustomPlan = () => {
@@ -1698,17 +1735,29 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-black text-slate-400 block mb-2">المرحلة</label>
-                <InlineSelect value={selectedPhase} onChange={value => setSelectedPhase(value as Phase)} options={phaseOptions} placeholder="اختر المرحلة" disabled={subjectPlanTargetMode === 'classes'} />
+                <InlineSelect
+                  value={selectedPhase}
+                  onChange={value => setSelectedPhase(value as Phase)}
+                  options={phaseOptions}
+                  placeholder="اختر المرحلة"
+                  disabled={subjectPlanTargetMode === 'classes' || isCurrentReadyPlanLocked}
+                />
               </div>
               <div>
                 <label className="text-[11px] font-black text-slate-400 block mb-2">القسم / المسار</label>
-                <InlineSelect value={selectedDepartment?.id || ''} onChange={setSelectedDepartmentId} options={departmentOptions} placeholder="اختر القسم / المسار" />
+                <InlineSelect
+                  value={selectedDepartment?.id || ''}
+                  onChange={setSelectedDepartmentId}
+                  options={departmentOptions}
+                  placeholder="اختر القسم / المسار"
+                  disabled={isCurrentReadyPlanLocked}
+                />
               </div>
             </div>
           </div>
         )}
 
-        {planMode === 'ready' && isSelectedStageApproved && subjectPlanTargetMode === 'base' && availableDepartments.some(dept => dept.id !== baseApprovedDepartmentId) && (
+        {planMode === 'ready' && selectedPhase && approvedPhasesSet.has(selectedPhase) && subjectPlanTargetMode === 'base' && hasAvailableClassPlanDepartment && (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-4 py-3">
             <button
               type="button"
@@ -2688,6 +2737,109 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <footer className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
               <button type="button" onClick={() => setShowApprovedPlansModal(false)} className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50">إغلاق</button>
             </footer>
+          </div>
+        </div>
+      )}
+
+      {showClassPlanConfirm && selectedDepartment && (
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
+          dir="rtl"
+          onClick={() => setShowClassPlanConfirm(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="class-plan-confirm-title"
+            className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="mb-4 flex items-start gap-3">
+                <span className="mt-0.5 flex shrink-0 items-center justify-center text-[#655ac1]">
+                  <ClipboardCheck size={24} />
+                </span>
+                <div className="min-w-0 pt-0.5">
+                  <h2 id="class-plan-confirm-title" className="text-base font-black text-slate-800">اعتماد الخطة الفرعية</h2>
+                  <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">
+                    هل تريد اعتماد خطة {selectedDepartment.name} وإضافتها إلى الخطط المعتمدة؟
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 border-t border-slate-100 bg-slate-50 p-5">
+              <button
+                type="button"
+                onClick={() => setShowClassPlanConfirm(false)}
+                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowClassPlanConfirm(false);
+                  handleApproveClassSubjectPlan();
+                }}
+                className="flex-1 rounded-xl bg-[#655ac1] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#655ac1]/20 transition-colors hover:bg-[#5046a0]"
+              >
+                اعتماد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {classPlanNotice?.tone === 'success' && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed left-1/2 top-6 z-[100000] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-start gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-xl"
+          dir="rtl"
+        >
+          <CheckCircle2 size={23} className="mt-0.5 shrink-0 text-emerald-600" />
+          <div className="min-w-0">
+            <p className="text-sm font-black text-slate-800">{classPlanNotice.title}</p>
+            <p className="mt-1 text-xs font-bold leading-6 text-slate-500">{classPlanNotice.message}</p>
+          </div>
+        </div>
+      )}
+
+      {classPlanNotice?.tone === 'warning' && (
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
+          dir="rtl"
+          onClick={() => setClassPlanNotice(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="class-plan-notice-title"
+            className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="mb-4 flex items-start gap-3">
+                <span className="mt-0.5 flex shrink-0 items-center justify-center text-amber-600">
+                  <AlertTriangle size={24} />
+                </span>
+                <div className="min-w-0 pt-0.5">
+                  <h2 id="class-plan-notice-title" className="text-base font-black text-slate-800">
+                    {classPlanNotice.title}
+                  </h2>
+                  <p className="mt-2 text-sm font-medium leading-7 text-slate-500">
+                    {classPlanNotice.message}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClassPlanNotice(null)}
+                className="w-full rounded-xl bg-[#655ac1] px-5 py-3 text-sm font-black text-white shadow-md shadow-[#655ac1]/20 transition-colors hover:bg-[#5046a0]"
+              >
+                حسنًا
+              </button>
+            </div>
           </div>
         </div>
       )}
