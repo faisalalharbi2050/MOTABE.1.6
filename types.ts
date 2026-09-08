@@ -93,6 +93,7 @@ export interface SharedSchool {
 // I will check where TimetableData is defined.
 
 export interface SchoolInfo {
+  classroomFloors?: Record<string, number[]>; // Available floors per school.
   // Entity Type Configuration
   entityType: EntityType;
   
@@ -296,6 +297,7 @@ export interface Teacher {
 }
 
 export interface ClassInfo {
+  floorNumber?: number; // Physical classroom floor; undefined means unknown.
   id: string;
   phase: Phase;
   grade: number;

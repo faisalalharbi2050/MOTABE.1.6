@@ -8,7 +8,7 @@ import {
   LayoutGrid, Hash, Check, CheckSquare, Layers, Plus, Minus, Clock, BookOpen, Sparkles,
   ArrowUpDown, Trash, RotateCcw, FlaskConical, Dumbbell, Warehouse, Building2, Info,
   MoreHorizontal, Edit2, MapPin, CircleHelp, Monitor, Library, BookMarked, FileQuestion,
-  CircleAlert, Goal, ListPlus, Copy, GripVertical
+  CircleAlert, Goal, ListPlus, Copy, GripVertical, Rows3
 } from 'lucide-react';
 import {
   calculateDistribution,
@@ -21,6 +21,8 @@ import {
 } from '../../../utils/classroomUtils';
 import { getClassLabel } from '../../../utils/classLabels';
 import SchoolTabs from '../SchoolTabs';
+import ClassFloorDistributionModal from '../../classes/ClassFloorDistributionModal';
+import { getFloorLabel } from '../../../utils/classFloorTravel';
 import ClassSubjectOverridesModal from '../../classes/ClassSubjectOverridesModal';
 
 // ─── Wizard Constants ──────────────────────────────────────────────────────────
@@ -483,6 +485,27 @@ type PendingPlanChange = {
 type CopyAction = 'plan' | 'subjects' | 'periods';
 
 const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubjects, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, schoolInfo, setSchoolInfo, assignments, setAssignments, scheduleSettings, setScheduleSettings }) => {
+  const [allClassActionsOpen, setAllClassActionsOpen] = useState(false);
+  const allClassActionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!allClassActionsOpen) return;
+    const closeOutside = (event: MouseEvent) => {
+      if (!allClassActionsRef.current?.contains(event.target as Node)) setAllClassActionsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAllClassActionsOpen(false);
+        allClassActionsRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      }
+    };
+    document.addEventListener('mousedown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [allClassActionsOpen]);
+  const [showFloorDistribution, setShowFloorDistribution] = useState(false);
   // ─── Core State ───
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [activePhase, setActivePhase] = useState<Phase>(schoolInfo.phases?.[0] || Phase.ELEMENTARY);
@@ -1477,6 +1500,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+      {showFloorDistribution && <ClassFloorDistributionModal classes={allCurrentSchoolClasses} floors={schoolInfo.classroomFloors?.[activeSchoolId]} onClose={() => setShowFloorDistribution(false)} onSave={(locations, floors, close = true) => {
+        setClasses(prev => prev.map(c => Object.prototype.hasOwnProperty.call(locations, c.id) ? { ...c, floorNumber: locations[c.id] } : c));
+        setSchoolInfo(prev => ({ ...prev, classroomFloors: { ...prev.classroomFloors, [activeSchoolId]: floors } }));
+        if (close) setShowFloorDistribution(false);
+        showToast(close ? 'تم حفظ توزيع الفصول على الأدوار' : 'تم حفظ أدوار المدرسة');
+      }} />}
+
 
       {/* ══════ Header ══════ */}
       <div className="bg-white rounded-[2rem] p-8 shadow-lg shadow-slate-200/60 border border-slate-200 hover:shadow-xl hover:shadow-slate-200/70 transition-all duration-300 mb-6">
@@ -1595,7 +1625,10 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
         <>
 
           {/* ── Class Actions ── */}
-          <div dir="rtl" className="flex items-center gap-2 flex-wrap justify-start">
+          <div dir="rtl" className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
+            <div className="flex flex-wrap items-center justify-start gap-2">
+
+
             <button
               dir="rtl"
               onClick={openWizard}
@@ -1611,13 +1644,22 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               إنشاء الفصول
             </button>
 
-            <div className="w-px h-8 bg-slate-200 mx-1" />
-
+            <button onClick={() => setShowFloorDistribution(true)} disabled={!allCurrentSchoolClasses.length} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm disabled:opacity-40"><Rows3 size={16} className="text-slate-400" />توزيع الفصول على الأدوار</button>
+            </div>
+            <div className="hidden h-9 w-px justify-self-center bg-slate-200 lg:block" aria-hidden="true" />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div ref={allClassActionsRef} className="relative" onBlur={event => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node)) setAllClassActionsOpen(false);
+            }}>
+              <button type="button" aria-expanded={allClassActionsOpen} aria-controls="all-class-actions" disabled={currentSchoolClasses.length === 0} onClick={() => setAllClassActionsOpen(prev => !prev)} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                <MoreHorizontal size={17} className="text-slate-400" />إجراءات كل الفصول<ChevronDown size={15} className={`transition-transform ${allClassActionsOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {allClassActionsOpen && <div id="all-class-actions" className="absolute right-0 top-full mt-2 z-50 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl py-1" onClick={() => setAllClassActionsOpen(false)}>
             <button
               dir="rtl"
               onClick={() => setShowGlobalRenameModal(true)}
               disabled={currentSchoolClasses.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-3 px-4 py-3 text-right text-slate-600 hover:bg-slate-50 hover:text-[#655ac1] font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Edit2 size={16} className="text-slate-400" /> تعديل أسماء كل الفصول
             </button>
@@ -1625,7 +1667,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
               dir="rtl"
               onClick={() => setShowGlobalPeriodsModal(true)}
               disabled={currentSchoolClasses.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-3 px-4 py-3 text-right text-slate-600 hover:bg-slate-50 hover:text-[#655ac1] font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Settings2 size={16} className="text-slate-400" /> تخصيص حصص كل الفصول
             </button>
@@ -1636,7 +1678,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 setShowSubjectOverridesModal(true);
               }}
               disabled={currentSchoolClasses.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-3 px-4 py-3 text-right text-slate-600 hover:bg-slate-50 hover:text-[#655ac1] font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ListPlus size={16} className="text-slate-400" /> تخصيص مواد الفصول
             </button>
@@ -1648,10 +1690,13 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                 setClassPlanId(classPlanOptions[0]?.value || '');
               }}
               disabled={currentSchoolClasses.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 hover:border-[#655ac1]/50 font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-3 px-4 py-3 text-right text-slate-600 hover:bg-slate-50 hover:text-[#655ac1] font-bold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <BookOpen size={16} className="text-slate-400" /> تخصيص خطط الفصول
             </button>
+              </div>}
+            </div>
+
             <button
               dir="rtl"
               onClick={() => {
@@ -1669,6 +1714,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
             >
               <Trash2 size={16} className="text-rose-500" /> حذف
             </button>
+            </div>
           </div>
 
           {/* ── Classes Card ── */}
@@ -1743,14 +1789,15 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                         </div>
 
                         <div className="overflow-x-auto">
-                          <table className="w-full min-w-[980px] table-fixed border-separate border-spacing-0 text-right">
+                          <table className="w-full min-w-[1080px] table-fixed border-separate border-spacing-0 text-right whitespace-nowrap">
                             <thead>
                               <tr className="border-b border-slate-100 bg-slate-50/80 text-[#655ac1]">
                                 <th className="w-20 px-3 py-3 text-center text-xs font-black">م</th>
-                                <th className="w-[19%] px-3 py-3 text-xs font-black">اسم الفصل</th>
-                                <th className="w-[29%] px-3 py-3 text-center text-xs font-black">الخطة الدراسية</th>
-                                <th className="w-[18%] px-3 py-3 text-center text-xs font-black">الحصص اليومية</th>
-                                <th className="w-[14%] px-3 py-3 text-center text-xs font-black">المواد</th>
+                                <th className="w-[18%] px-3 py-3 text-xs font-black">اسم الفصل</th>
+                                <th className="w-[25%] px-3 py-3 text-xs font-black"><span className="flex w-full translate-x-6 justify-center text-center">الخطة الدراسية</span></th>
+                                <th className="w-[16%] px-3 py-3 text-center text-xs font-black">الحصص اليومية</th>
+                                <th className="w-[12%] px-3 py-3 text-center text-xs font-black">المواد</th>
+                                <th className="w-[15%] px-3 py-3 text-center text-xs font-black">مكان الفصل</th>
                                 <th className="w-44 px-3 py-3 text-center text-xs font-black">الإجراءات</th>
                               </tr>
                             </thead>
@@ -1864,6 +1911,11 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                                         {effectiveSubjectIds.length} {effectiveSubjectIds.length === 1 ? 'مادة' : effectiveSubjectIds.length === 2 ? 'مادتان' : effectiveSubjectIds.length >= 3 && effectiveSubjectIds.length <= 10 ? 'مواد' : 'مادة'}
                                         <ChevronLeft size={12} className="text-slate-300 transition-colors group-hover/action:text-[#655ac1]" />
                                       </button>
+                                    </td>
+                                    <td className="px-3 py-3 text-center align-middle">
+                                      <span className={`text-xs font-black ${cls.floorNumber === undefined ? 'text-slate-400' : 'text-slate-600'}`}>
+                                        {getFloorLabel(cls.floorNumber)}
+                                      </span>
                                     </td>
                                     <td className="px-3 py-3 text-center align-middle">
                                       <button onClick={event => openPortalDropdown(event, cls.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-transparent text-slate-500 transition-all hover:border-[#655ac1]/30 hover:text-[#655ac1]" title="إجراءات الفصل" aria-label="إجراءات الفصل">
@@ -2196,6 +2248,7 @@ const Step4Classes: React.FC<Props> = ({ classes, setClasses, subjects, setSubje
                               </div>
                             </td>
                             <td className="px-6 py-4">
+                               <span className="block text-[10px] text-[#655ac1] mb-1">{getFloorLabel(c.floorNumber)}</span>
                                {isEditing ? (
                                  <div className="flex items-center gap-2">
                                     <input

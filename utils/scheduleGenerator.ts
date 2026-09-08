@@ -1,3 +1,4 @@
+import { classroomTravelCost } from './classFloorTravel';
 import { 
     Subject, Teacher, ClassInfo, ScheduleSettingsData, 
     TimetableData, TimetableSlot, Assignment
@@ -70,6 +71,7 @@ export async function generateSchedule(
     
     // 1. Prepare Data Structures
     const timetable: TimetableData = {};
+    const floorClasses = new Map(classes.map(c => [c.id, c]));
     const domains: Record<string, string[]> = {}; // Variables => Possible Teachers
     
     // We need to schedule: "Lesson for Class X, Subject Y, Occurrence Z"
@@ -497,7 +499,9 @@ export async function generateSchedule(
                 : 0;
             const fixedBonus = isSubjectFixedSlot(subjectConstraint, day, period) ? -500 : 0;
 
-            return ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + fixedBonus + distributionBonus + edgeBalancePenalty + teacherLoad - remaining;
+            const facilityLesson = classes.some(c => c.type && c.type !== 'class' && (c.linkedSubjectIds?.includes(subj.id) || c.linkedSubjectId === subj.id) && (!c.linkedClassIds?.length || c.linkedClassIds.includes(classId)));
+            const travelPenalty = teacher && !facilityLesson ? classroomTravelCost(timetable, floorClasses, teacher.id, day, period, currentClassForSlot) * 30 : 0;
+            return travelPenalty + ((subjectDayTarget - dayCount) * -120) + (dayCount * 80) + (samePeriodCount * 70) + teacherPenalty + fixedBonus + distributionBonus + edgeBalancePenalty + teacherLoad - remaining;
         };
         const shuffledSubjects = [...subjectsForClass].sort((a, b) => {
             const diff = getSubjectSlotScore(a) - getSubjectSlotScore(b);
