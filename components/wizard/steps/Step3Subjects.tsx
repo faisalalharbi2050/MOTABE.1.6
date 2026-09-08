@@ -3,7 +3,7 @@ import { Phase, Subject, SchoolInfo, ScheduleSettingsData, SubjectConstraint } f
 import { DETAILED_TEMPLATES } from '../../../constants';
 import { STUDY_PLANS_CONFIG } from '../../../study_plans_config';
 import {
-  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, ClipboardCheck, Settings2, RotateCcw, Lightbulb
+  Plus, Trash2, Printer, Search, Eye, Download, Info, School, Building, GraduationCap, BookOpen, Layers, CheckCircle2, X, Edit2, Check, Copy, List, Sparkles, ArrowRight, Table, Grid, Route, ClipboardCheck, Settings2, RotateCcw, Lightbulb, ChevronLeft
 } from 'lucide-react';
 import { GradeDetailsModal } from './GradeDetailsModal';
 import SchoolTabs from '../SchoolTabs';
@@ -86,6 +86,7 @@ interface Props {
 const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gradeSubjectMap, setGradeSubjectMap, phaseDepartmentMap, setPhaseDepartmentMap, scheduleSettings, setScheduleSettings }) => {
   const [activeSchoolId, setActiveSchoolId] = useState<string>('main');
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showApprovedPlansModal, setShowApprovedPlansModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showConstraintsModal, setShowConstraintsModal] = useState(false);
   const [deletePlanPhase, setDeletePlanPhase] = useState<Phase | null>(null);
@@ -95,6 +96,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
   // Unapprove confirmation
   const [unapproveTarget, setUnapproveTarget] = useState<
     | { kind: 'stage' }
+    | { kind: 'classPlan'; planId: string }
     | { kind: 'customActive' }
     | { kind: 'customByName'; planName: string }
     | null
@@ -606,11 +608,69 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
   const baseApprovedDepartmentId = selectedPhase ? phaseDepartmentMap[selectedPhase] : '';
 
+  const approvedClassPlans = useMemo(() => (
+    (scheduleSettings?.classSubjectPlans || []).filter(plan => plan.schoolId === activeSchoolId)
+  ), [scheduleSettings?.classSubjectPlans, activeSchoolId]);
+
+  const selectedApprovedClassPlan = useMemo(() => (
+    approvedClassPlans.find(plan => plan.phase === selectedPhase && plan.departmentId === selectedDepartmentId)
+  ), [approvedClassPlans, selectedPhase, selectedDepartmentId]);
+
+  const approvedPlanEntries = useMemo(() => {
+    const phaseOrder = [Phase.KINDERGARTEN, Phase.ELEMENTARY, Phase.MIDDLE, Phase.HIGH];
+    const entries: Array<{ id: string; phase: Phase; departmentId: string; departmentName: string; isBase: boolean }> = [];
+
+    phaseOrder.forEach(phase => {
+      if (!approvedPhasesSet.has(phase)) return;
+      const departmentId = phaseDepartmentMap[phase];
+      if (!departmentId) return;
+      const category = planCategories.find(item => item.phase === phase);
+      const department = category?.departments.find(item => item.id === departmentId);
+      entries.push({
+        id: `base-${phase}-${departmentId}`,
+        phase,
+        departmentId,
+        departmentName: department?.name || departmentId.replace(/_/g, ' '),
+        isBase: true
+      });
+    });
+
+    approvedClassPlans.forEach(plan => {
+      entries.push({
+        id: plan.id,
+        phase: plan.phase,
+        departmentId: plan.departmentId || '',
+        departmentName: plan.departmentName || plan.name.replace(/^خطة فرعية -\s*/, ''),
+        isBase: false
+      });
+    });
+
+    return entries.sort((a, b) => {
+      const phaseDifference = phaseOrder.indexOf(a.phase) - phaseOrder.indexOf(b.phase);
+      if (phaseDifference !== 0) return phaseDifference;
+      if (a.isBase !== b.isBase) return a.isBase ? -1 : 1;
+      return a.departmentName.localeCompare(b.departmentName, 'ar');
+    });
+  }, [approvedPhasesSet, phaseDepartmentMap, planCategories, approvedClassPlans]);
+
+  const openApprovedPlan = (entry: typeof approvedPlanEntries[number]) => {
+    setPlanMode('ready');
+    setSubjectPlanTargetMode('base');
+    setSelectedPhase(entry.phase);
+    setSelectedDepartmentId(entry.departmentId);
+    setPlanPeriodOverrides({});
+    setExcludedReadySubjects({});
+    setShowApprovedPlansModal(false);
+  };
+
   const departmentOptions = useMemo(() => (
     availableDepartments
-      .filter(dept => subjectPlanTargetMode !== 'classes' || dept.id !== baseApprovedDepartmentId)
+      .filter(dept => subjectPlanTargetMode !== 'classes' || (
+        dept.id !== baseApprovedDepartmentId &&
+        !approvedClassPlans.some(plan => plan.phase === selectedPhase && plan.departmentId === dept.id)
+      ))
       .map(dept => ({ value: dept.id, label: dept.name }))
-  ), [availableDepartments, subjectPlanTargetMode, baseApprovedDepartmentId]);
+  ), [availableDepartments, subjectPlanTargetMode, baseApprovedDepartmentId, approvedClassPlans, selectedPhase]);
 
   useEffect(() => {
     if (subjectPlanTargetMode !== 'classes') return;
@@ -1141,6 +1201,10 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       alert('اختر قسمًا / مسارًا مختلفًا عن الخطة الأساسية لإضافة خطة فرعية.');
       return;
     }
+    if (approvedClassPlans.some(plan => plan.phase === selectedPhase && plan.departmentId === selectedDepartment.id)) {
+      alert('هذه الخطة معتمدة مسبقاً. يمكنك استعراضها من الخطط المعتمدة.');
+      return;
+    }
 
     const planId = `class-plan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const gradeMap: Record<number, string[]> = {};
@@ -1325,6 +1389,26 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
       if (!gradeKeysToClear.has(key)) ids.forEach(id => remainingIds.add(id));
     });
     setSubjects(prev => prev.filter(subject => !subjectIdsToRemove.has(subject.id) || remainingIds.has(subject.id)));
+  };
+
+  const handleUnapproveClassSubjectPlan = (planId: string) => {
+    if (!setScheduleSettings) return;
+    const plan = approvedClassPlans.find(item => item.id === planId);
+    if (!plan) return;
+    const subjectIdsToRemove = new Set(plan.subjectIds || []);
+
+    setSubjects(prev => prev.filter(subject => !subjectIdsToRemove.has(subject.id)));
+    setScheduleSettings(prev => ({
+      ...prev,
+      classSubjectPlans: (prev.classSubjectPlans || []).filter(item => item.id !== planId),
+      subjectConstraints: (prev.subjectConstraints || []).filter(constraint => !subjectIdsToRemove.has(constraint.subjectId)),
+      subjectAbbreviations: Object.fromEntries(
+        Object.entries(prev.subjectAbbreviations || {}).filter(([subjectId]) => !subjectIdsToRemove.has(subjectId))
+      )
+    }));
+    setPlanPeriodOverrides({});
+    setExcludedReadySubjects({});
+    if (baseApprovedDepartmentId) setSelectedDepartmentId(baseApprovedDepartmentId);
   };
 
   const handleDeleteSubjectFromSelectedGrade = (subjectId: string) => {
@@ -1561,9 +1645,9 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
             <div className="flex items-start gap-3">
               <ClipboardCheck size={26} className="text-[#655ac1] mt-0.5" />
               <div>
-              <h4 className="text-lg font-black text-slate-800">اختر الخطة الدراسية</h4>
-              <p className="text-xs text-slate-400 font-bold mt-1">ابدأ بخطة جاهزة أو أضف المواد والحصص يدويًا حسب احتياجك</p>
-            </div>
+                <h4 className="text-lg font-black text-slate-800">اختر الخطة الدراسية</h4>
+                <p className="text-xs text-slate-400 font-bold mt-1">ابدأ بخطة جاهزة أو أضف المواد والحصص يدويًا حسب احتياجك</p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -1592,12 +1676,24 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
 
         {planMode === 'ready' && (
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-visible">
-            <div className="px-5 pt-4 flex items-start gap-3">
-              <Route size={24} className="text-[#655ac1] mt-1" />
-              <div>
-                <h4 className="font-black text-slate-800">مسار الخطة</h4>
-                <p className="text-xs text-slate-400 font-bold mt-1">اختر المرحلة ثم القسم / المسار.</p>
+            <div className="flex flex-col gap-3 px-5 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <Route size={24} className="text-[#655ac1] mt-1" />
+                <div>
+                  <h4 className="font-black text-slate-800">مسار الخطة</h4>
+                  <p className="text-xs text-slate-400 font-bold mt-1">اختر المرحلة ثم القسم / المسار.</p>
+                </div>
               </div>
+              {approvedClassPlans.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowApprovedPlansModal(true)}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-600 transition-all hover:border-slate-400 hover:bg-slate-50 sm:self-auto"
+                >
+                  <List size={17} />
+                  الخطط المعتمدة
+                </button>
+              )}
             </div>
             <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
@@ -1739,7 +1835,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                 <div className="flex flex-col items-start gap-2">
                   <div className="flex items-center flex-wrap gap-x-5 gap-y-2">
                     <span className="text-sm font-black text-[#655ac1]">{activeSchoolName || 'المدرسة'}</span>
-                    {isSelectedStageApproved && subjectPlanTargetMode === 'base' && (
+                    {(isSelectedStageApproved || selectedApprovedClassPlan) && subjectPlanTargetMode === 'base' && (
                       <span className="inline-flex items-center gap-1.5 text-[12px] font-black text-[#655ac1]">
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border-2 bg-[#655ac1] border-[#655ac1] text-white">
                           <Check size={10} strokeWidth={3.5} />
@@ -1787,7 +1883,15 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
                     </button>
                   </>
                 )}
-                {isSelectedStageApproved && subjectPlanTargetMode === 'base' ? (
+                {selectedApprovedClassPlan && subjectPlanTargetMode === 'base' ? (
+                  <button
+                    onClick={() => setUnapproveTarget({ kind: 'classPlan', planId: selectedApprovedClassPlan.id })}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-200 hover:bg-rose-50 hover:border-rose-200"
+                  >
+                    <X size={16} />
+                    <span>إلغاء الاعتماد</span>
+                  </button>
+                ) : isSelectedStageApproved && subjectPlanTargetMode === 'base' ? (
                   <button
                     onClick={() => setUnapproveTarget({ kind: 'stage' })}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all bg-white text-rose-500 border border-slate-200 hover:bg-rose-50 hover:border-rose-200"
@@ -2545,6 +2649,49 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
         </div>
       )}
 
+      {showApprovedPlansModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm" dir="rtl" onClick={() => setShowApprovedPlansModal(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="approved-plans-title" className="flex max-h-[82vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl" onClick={event => event.stopPropagation()}>
+            <header className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <ClipboardCheck size={24} className="text-[#655ac1]" />
+                <div>
+                  <h3 id="approved-plans-title" className="text-base font-black text-slate-800">الخطط المعتمدة</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-400">اختر الخطة التي تريد استعراضها</p>
+                </div>
+              </div>
+              <button type="button" aria-label="إغلاق" onClick={() => setShowApprovedPlansModal(false)} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 transition-colors hover:bg-slate-50">
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="overflow-y-auto p-5">
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                {approvedPlanEntries.map((entry, index) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => openApprovedPlan(entry)}
+                    className="group flex w-full items-center gap-4 border-b border-slate-100 bg-white px-4 py-3.5 text-right transition-colors last:border-b-0 hover:bg-slate-50"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-black text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">{index + 1}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-black text-slate-700">{getPhaseLabel(entry.phase)}</span>
+                      <span className="mt-0.5 block text-xs font-bold text-slate-400">{entry.departmentName}</span>
+                    </span>
+                    <ChevronLeft size={17} className="shrink-0 text-slate-300 transition-colors group-hover:text-[#655ac1]" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <footer className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <button type="button" onClick={() => setShowApprovedPlansModal(false)} className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50">إغلاق</button>
+            </footer>
+          </div>
+        </div>
+      )}
+
       <StudyPlansModal 
           isOpen={showPlanModal}
           onClose={() => setShowPlanModal(false)}
@@ -2703,6 +2850,7 @@ const Step3Subjects: React.FC<Props> = ({ subjects, setSubjects, schoolInfo, gra
               <button
                 onClick={() => {
                   if (unapproveTarget.kind === 'stage') handleUnapproveSelectedPlan();
+                  else if (unapproveTarget.kind === 'classPlan') handleUnapproveClassSubjectPlan(unapproveTarget.planId);
                   else if (unapproveTarget.kind === 'customActive') handleUnapproveCustomPlan();
                   else if (unapproveTarget.kind === 'customByName') handleUnapproveCustomPlanByName(unapproveTarget.planName);
                   setUnapproveTarget(null);
